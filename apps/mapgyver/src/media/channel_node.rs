@@ -34,6 +34,8 @@ pub struct ChannelNode {
     sender_options: golden_core::parameter::ParameterEnumOptions,
     #[state(default = RevisionSource::default())]
     revision: RevisionSource,
+    #[state(default = 0)]
+    picture_reload: u64,
     #[state(default = OnceLock::new())]
     matrix_playback: OnceLock<crate::matrix::playback::PlaybackControl>,
 }
@@ -229,6 +231,16 @@ impl ChannelNode {
     }
     pub(super) fn file_parameter(&self) -> NodeId {
         self.file.id()
+    }
+    pub(crate) fn picture_reload_generation(&self) -> u64 {
+        self.picture_reload
+    }
+    pub(super) fn reload_picture(&mut self) {
+        self.picture_reload = self
+            .picture_reload
+            .checked_add(1)
+            .expect("Picture reload generation exhausted");
+        self.revision.advance();
     }
     pub(crate) fn matrix_playback(&self) -> Option<&crate::matrix::playback::PlaybackControl> {
         (self.source_kind.get_ref().as_str() == "Matrix" && self.output_kind.get_ref().as_str() == "Final")

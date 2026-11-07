@@ -129,6 +129,65 @@ fn close_releases_picture_leases_before_waiting_for_retirement_without_dropping_
 }
 
 #[test]
+fn equal_owned_files_share_one_admitted_source_slot_and_distinct_files_still_obey_the_bound() {
+    let root = tempfile::tempdir().unwrap();
+    png(root.path(), "shared.png", 2, 2, [255, 0, 0, 255]);
+    png(root.path(), "other.png", 2, 2, [0, 255, 0, 255]);
+    let mut engine = engine();
+    let references = [
+        create(&mut engine, MediaKind::Picture),
+        create(&mut engine, MediaKind::Picture),
+    ];
+    for reference in references {
+        edit(
+            &mut engine,
+            MediaEdit::ConfigurePictureFile {
+                reference,
+                file: "shared.png".into(),
+            },
+        );
+    }
+    let mut config = config();
+    config.plan_limits.max_external_textures = 1;
+    let mut renderer = ChannelRenderer::new(
+        VideoRuntime::spawn_null(config.clone(), NullConfig::default()).unwrap(),
+        config.plan_limits,
+    );
+    renderer
+        .enable_pictures(root.path(), PreparationLimits::default(), None)
+        .unwrap();
+    publish(&mut renderer, &engine, references);
+    settled(&mut renderer, [ready(2, 2); 2]);
+    assert_eq!(renderer.channels()[0].source, renderer.channels()[1].source);
+    let request = renderer.latest_request();
+    edit(
+        &mut engine,
+        MediaEdit::ConfigurePictureFile {
+            reference: references[1],
+            file: "other.png".into(),
+        },
+    );
+    assert!(
+        renderer
+            .publish(
+                capture_channels(&engine, &references, 16).unwrap(),
+                two_routes(references)
+            )
+            .unwrap_err()
+            .contains("source count")
+    );
+    assert_eq!(
+        renderer.latest_request(),
+        request,
+        "rejected demand never installs a partial plan"
+    );
+    assert!(engine.undo().unwrap());
+    publish(&mut renderer, &engine, references);
+    settled(&mut renderer, [ready(2, 2); 2]);
+    finish(renderer);
+}
+
+#[test]
 fn relocating_the_picture_root_reprepares_relative_sources_without_reauthoring_channels() {
     let first = tempfile::tempdir().unwrap();
     let second = tempfile::tempdir().unwrap();
@@ -317,7 +376,7 @@ fn automatic_picture_extent_is_shared_with_backend_and_rejects_stale_reload_clos
     let mut loaded = golden_core::app::from_sparse_project_json::<crate::app::AppNode>(&saved).unwrap();
     loaded.apply_edits().unwrap();
     assert!(crate::media::resolution::channel_extent(&loaded, reference).is_err());
-    renderer.retry_picture(reference).unwrap();
+    edit(&mut engine, MediaEdit::ReloadPicture { reference });
     assert!(crate::media::resolution::channel_extent(&engine, reference).is_err());
     renderer
         .publish(capture_channels(&engine, &[reference], 16).unwrap(), routes(reference))
@@ -380,6 +439,21 @@ fn independent_picture_channels_resolve_share_resize_undo_relink_and_reload_with
     assert_eq!(renderer.channels()[1].reference, second);
     let shared_source = renderer.channels()[0].source;
     assert_eq!(shared_source, renderer.channels()[1].source);
+    let binding = AssetId::from_uuid(first.channel.0.0);
+    let fingerprint = renderer.pictures.as_ref().unwrap().get(binding).unwrap().fingerprint();
+    png(project.path(), "first.png", 2, 2, [0, 255, 0, 255]);
+    let history = engine.ui_history_state();
+    edit(&mut engine, MediaEdit::ReloadPicture { reference: first });
+    assert_eq!(engine.ui_history_state(), history);
+    publish(&mut renderer, &engine, references);
+    settled(&mut renderer, [ready(2, 2); 2]);
+    assert_ne!(renderer.channels()[0].source, shared_source);
+    assert_eq!(renderer.channels()[0].source, renderer.channels()[1].source);
+    assert_ne!(
+        renderer.pictures.as_ref().unwrap().get(binding).unwrap().fingerprint(),
+        fingerprint
+    );
+    let shared_source = renderer.channels()[0].source;
     // The first owner may leave a shared File while its peer keeps the old
     // decoded image. Neither source identity nor cache lifetime may collide.
     select(&mut engine, first, second_asset);
@@ -451,10 +525,10 @@ fn missing_picture_recovery_replacement_and_project_relocation_keep_the_healthy_
     let stale = capture_channels(&engine, &references, 16).unwrap();
     let document = golden_core::app::to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
-    renderer.retry_picture(second).unwrap();
+    edit(&mut engine, MediaEdit::ReloadPicture { reference: second });
     assert!(
-        stale.is_current(),
-        "runtime retry leaves the authored Picture unchanged"
+        !stale.is_current(),
+        "reload fences captured plans without an authored edit"
     );
     assert_eq!(engine.undo_len(), history);
     assert_eq!(
@@ -464,7 +538,7 @@ fn missing_picture_recovery_replacement_and_project_relocation_keep_the_healthy_
     publish(&mut renderer, &engine, references);
     settled_preserving(&mut renderer, [ready(2, 2), ready(3, 2)], Some(healthy));
     png(project.path(), "missing.png", 4, 3, [0, 255, 0, 255]);
-    renderer.retry_picture(second).unwrap();
+    edit(&mut engine, MediaEdit::ReloadPicture { reference: second });
     publish(&mut renderer, &engine, references);
     settled_preserving(&mut renderer, [ready(2, 2), ready(4, 3)], Some(healthy));
     assert_eq!(crate::media::asset(&engine, second_asset).unwrap().id, second_asset);

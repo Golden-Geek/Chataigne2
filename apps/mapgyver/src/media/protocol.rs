@@ -367,6 +367,10 @@ pub enum MediaEdit {
         reference: ChannelReference,
         file: String,
     },
+    /// Reprepare this Picture's File without changing authored state or history.
+    ReloadPicture {
+        reference: ChannelReference,
+    },
     InspectPictureFile {
         reference: ChannelReference,
     },

@@ -16,10 +16,10 @@ execute changed initialization code.
 
 `local` refers to Media Manager from these scripts. Each method starts with a nonempty request
 id. UUID arguments come from committed results, not numeric session node IDs. Empty optional
-labels use backend defaults; empty asset/sender strings clear that channel's source setting.
+labels use backend defaults; empty File/sender strings clear that channel's source setting.
 `Reference` creation returns `ReferenceCreated { media }`, because an unconfigured Reference
 has no output channel. Its [target/output contract](mapgyver-reference-media.md) is distinct
-from physical source-channel authoring. Command records now use schema v5; older schemas reject clearly.
+from physical source-channel authoring. Command records now use schema v6; older schemas reject clearly.
 
 `inspectChannel` is an immutable read: `Channel.snapshot` is null when the owner or channel
 has been removed, allowing queued Inspector reads to retire safely. Existing invalid node
@@ -37,7 +37,10 @@ types or ownership still reject. Neither reads nor their rejections add history 
 | `configureMediaResolution` | media UUID, enabled boolean, width, height                                      |
 | `configureMediaFitMode`    | Picture, Shared Texture or Reference media UUID; `Fit`, `Fill` or `Stretch`       |
 | `configureSolidColor`      | media UUID, channel UUID, straight linear R, G, B, A                            |
-| `configurePicture`         | media UUID, channel UUID, asset UUID or empty string                            |
+| `configurePicture`         | media UUID, channel UUID, project-relative or absolute File path; empty clears it |
+| `configurePictureFile`     | media UUID, channel UUID, owned File path; empty clears it |
+| `inspectPictureFile`       | media UUID, channel UUID; returns that channel's own typed File Parameter address |
+| `reloadPicture`            | media UUID, channel UUID; runtime retry without authored changes or history |
 | `configureSharedTexture`   | media UUID, channel UUID, exact sender or empty string                          |
 | `inspectChannel`           | media UUID, channel UUID                                                        |
 | `importPicture`            | path, absolute boolean; otherwise a validated project-relative locator          |
@@ -69,13 +72,13 @@ No repository files are read when an installed app creates the template. The gen
 Composition/Matrix intents; see [the Rust contract](../../apps/mapgyver/src/media/protocol.rs).
 
 The Media Manager Inspector's **Commands** section creates app-owned
-`mapgyver.media.command.v4` children through `CreateCommand`. `InspectCommandCatalog` returns
+`mapgyver.media.command.v6` children through `CreateCommand`. `InspectCommandCatalog` returns
 the Rust-owned catalog; the generator exports each command's visible Parameter fields.
 The section mounts at most 32 commands per page. Commands stay out of object creation menus
 and the manager outliner. Their configuration uses the ordinary Golden Inspector and real
 typed Parameters, including references, enums, file paths, resolution and color.
 
-The 40 command kinds cover app control, source/variant and Reference creation, Composition and Matrix Reference/copy drops, settings, assets, folders, ordering,
+The typed command kinds cover app control, source/variant and Reference creation, Composition and Matrix Reference/copy drops, settings, assets, folders, ordering,
 removal, bounded inspection and script creation. `ExecuteCommand { command }`, the Execute
 Trigger, `local.executeCommand(requestId, commandUuid)` and the command node's
 `execute(requestId)` method share existing `MediaEdit` behavior and history. The command node's

@@ -189,7 +189,7 @@ export async function verifyParameterUi({ base, edit, inspectMedia }) {
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'Composition instance, Media/channel and asset generic Parameters, visibility, history/rejection and independent copy/remove',
+					'Composition instance and Media/channel-owned generic Parameters, visibility, history/rejection and independent copy/remove',
 				browser: browser.version(),
 				parameter_nodes: 10,
 				generic_writes: { scalars: scalarWrites.length, components: componentWrites.length },

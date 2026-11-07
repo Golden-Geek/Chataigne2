@@ -71,7 +71,7 @@ export async function verifySourcesUi({ base, inspect }) {
 			'false'
 		)
 			await header(item.channels[index].label).press('Enter');
-		await row.locator('.parameter-inspector, .channel-file input.path-input').first().waitFor();
+		await row.locator('.parameter-inspector').first().waitFor();
 		return row;
 	}
 	async function renameChannel(reference, label) {
@@ -217,38 +217,46 @@ export async function verifySourcesUi({ base, inspect }) {
 		await undo();
 		await catalog((value) => isDeepStrictEqual(value, beforeDelete));
 
-		stage = 'Picture import, typed asset relink, unconfigure and picker reselection';
+		stage = 'Picture-owned File editing, relink, clear and history';
 		const picture = await create('Picture', 'Picture A');
 		let pictureRow = await selectChannel(picture.channels[0].reference);
-		await pictureRow.locator('.channel-file input.path-input').fill('source-ui/a.png');
-		await pictureRow.locator('.channel-file input.path-input').press('Tab');
-		const imported = await catalog((value) => value.assets.length === 1);
-		const asset = imported.assets[0];
-		await state(picture.id, (value) => value.channels[0].definition.source.asset === asset.id);
-		await pictureRow.getByRole('button', { name: 'Inspect Picture asset', exact: true }).click();
-		const path = widgets.parameter('File').locator('input.path-input');
+		const assetsBeforeFile = (await inspect()).assets;
+		const path = pictureRow.locator('.parameter-inspector input.path-input');
+		await path.fill('source-ui/a.png');
+		await path.press('Tab');
+		await state(
+			picture.id,
+			(value) => value.channels[0].definition.source.file?.path === 'source-ui/a.png'
+		);
 		await path.fill('source-ui/b.png');
 		await path.press('Tab');
-		await catalog(
-			(value) =>
-				value.assets[0]?.id === asset.id && value.assets[0].locator.path === 'source-ui/b.png'
+		await state(
+			picture.id,
+			(value) => value.channels[0].definition.source.file?.path === 'source-ui/b.png'
 		);
-		pictureRow = await selectChannel(picture.channels[0].reference);
-		await pictureRow
-			.getByRole('button', { name: 'Choose existing Picture asset', exact: true })
-			.click();
-		await widgets.parameter('Picture asset').locator('button.picker-trigger').click();
-		const picker = page.getByRole('dialog', { name: 'Select reference target', exact: true });
-		await picker.getByRole('button', { name: 'Clear', exact: true }).click();
-		await state(picture.id, (value) => value.channels[0].definition.source.asset === null);
-		await widgets.reference('Picture asset', asset.label, asset.label);
-		await state(picture.id, (value) => value.channels[0].definition.source.asset === asset.id);
-		await pictureRow
-			.getByRole('button', { name: 'Choose existing Picture asset', exact: true })
-			.click();
+		await path.fill('');
+		await path.press('Tab');
+		await state(picture.id, (value) => value.channels[0].definition.source.file === null);
+		await undo();
+		await state(
+			picture.id,
+			(value) => value.channels[0].definition.source.file?.path === 'source-ui/b.png'
+		);
+		assert.deepEqual((await inspect()).assets, assetsBeforeFile);
+		assert.equal(
+			await pictureRow
+				.getByRole('button', { name: 'Choose existing Picture asset', exact: true })
+				.count(),
+			0
+		);
 
 		stage = 'Shared Texture exact typed sender selectors and independent peers';
 		const shared = await create('Shared Texture', 'Receiver A');
+		await selectMedia(shared.id);
+		await widgets
+			.parameter('Sender selection')
+			.locator('select.dropdown-editor')
+			.selectOption('Manual');
 		await sender(shared.channels[0].reference, 'Exact sender A');
 		await state(
 			shared.id,
@@ -294,7 +302,7 @@ export async function verifySourcesUi({ base, inspect }) {
 		await catalog(
 			(value) =>
 				value.media.length === beforeRemoval.media.length + 1 &&
-				value.assets.length === beforeRemoval.assets.length + 1
+				value.assets.length === beforeRemoval.assets.length
 		);
 		await undo();
 		await catalog((value) => isDeepStrictEqual(value, beforeRemoval));
@@ -311,7 +319,7 @@ export async function verifySourcesUi({ base, inspect }) {
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'full revised source CRUD/import/relink/reference selection, real typed Channels and shared media settings, independent variants, atomic last-channel guard, media/asset lifetime, Undo and reload through generic Golden UI',
+					'full source CRUD/import/relink, Picture-owned Files without catalog objects, real typed Channels and shared media settings, independent variants, atomic last-channel guard, Undo and reload through generic Golden UI',
 				expectedGuardRejections: 1,
 				pageErrors: errors.length
 			})

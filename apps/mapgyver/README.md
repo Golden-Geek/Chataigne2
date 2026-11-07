@@ -162,12 +162,14 @@ channels can be renamed, channels reordered, and media/channels removed through 
 same history-aware app operations used by scripts and headless clients. Undo/redo,
 project replacement and reconnection refresh the panel without polling.
 
-Picture imports use one `ImportPicture` app intent: the backend builds the asset and
-detached media/channel tree atomically, or imports/assigns a source to an existing Picture
-channel while preserving its output settings. One Undo reverses the complete import.
-The asset catalog appears separately in manager inspection. Channels can select the same
-asset, and relinking that asset preserves its identity for every consumer. Missing asset
-references stay explicit instead of silently selecting another source.
+Each Picture channel owns its typed File Parameter, edited through the generic Inspector.
+`ImportPicture` creates one detached media/channel tree or edits an existing Picture's File,
+preserving its other settings; no implicit Asset/catalog object or forwarded Parameter is
+created. One Undo reverses the complete import. Copies own independent File values while
+internal decode/upload resources share equal locators. `ReloadPicture`, its typed command
+and `reloadPicture` script method replace an in-place file without authored history.
+Missing files retry without selecting another source. See
+[Picture File ownership](../../docs/architecture/mapgyver-picture-file-ownership.md).
 
 Shared Texture channels accept an exact Spout sender name, independent source maximum dimensions,
 storage/color/alpha requirements and output size/sampling. An empty selection explicitly disconnects

@@ -212,11 +212,6 @@ export async function verifyScreenFit({ base, post, edit, directory, page: nativ
 		if (nativePage) {
 			stage = 'native automatic Picture resolution';
 			const file = await portraitPng(directory);
-			const { asset } = await edit({
-				kind: 'ImportAsset',
-				locator: { kind: 'absolute', path: file },
-				label: null
-			});
 			const { reference: picture } = await edit({
 				kind: 'CreateMedia',
 				media_kind: 'Picture',
@@ -225,7 +220,7 @@ export async function verifyScreenFit({ base, post, edit, directory, page: nativ
 			await edit({
 				kind: 'ConfigureChannel',
 				reference: picture,
-				source: { kind: 'Picture', asset }
+				source: { kind: 'Picture', file: { kind: 'absolute', path: file } }
 			});
 			await screens({
 				kind: 'ConfigureSurface',

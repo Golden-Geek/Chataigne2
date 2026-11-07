@@ -21,8 +21,9 @@ snapshot, cache or second authored model crosses those boundaries.
 
 Default `CompositionEdit::DropSource` inserts a Reference with Placement in one detached tree.
 Its target rendering/decoder remains shared. `copy: true` captures the complete source media
-subtree through Golden's public import API. Internal UUID references remap together; external
-asset/target references remain external. Every authored channel variant, constraint and control
+subtree through Golden's public import API. Internal UUID references remap together;
+Reference targets outside the copied subtree remain external. Copied Picture Files become independent owned Parameters,
+with internal decode sharing by locator. Every authored channel variant, constraint and control
 subtree survives the copy. New copied source media own independent settings and identities.
 Replacing an existing Reference edits its typed Target/Output atomically. Replacing owned
 content retains the exact Placement subtree and returns the new media identity. Undo/Redo
@@ -51,7 +52,7 @@ window capture handler leaves these domain actions to the Composition editor.
 
 The manager's named `dropCompositionMedia` method and typed **Drop Composition Media** command
 use the same intent and committed callback. The command's Position, Copy media and Replace media
-Parameters use schema `mapgyver.media.command.v5`, whose Fit Mode command replaces Sampling. Older command records reject.
+Parameters use schema `mapgyver.media.command.v6`, whose Fit Mode command replaces Sampling. Older command records reject.
 Placement v2 is versioned separately; radian Placement v1 and old reference-only
 `mapgyver.composition.instance` records reject explicitly before recoverable node decoding.
 Legacy `rotation` operation fields also reject rather than silently defaulting an angle to zero.

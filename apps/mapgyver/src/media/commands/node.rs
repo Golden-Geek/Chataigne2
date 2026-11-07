@@ -309,6 +309,7 @@ impl MediaCommandNode {
                 asset,
                 locator: self.locator()?,
             },
+            MediaCommandKind::ReloadPicture => MediaEdit::ReloadPicture { reference },
             MediaCommandKind::ReloadAsset => MediaEdit::ReloadAsset { asset },
             MediaCommandKind::RemoveAsset => MediaEdit::RemoveAsset { asset },
             MediaCommandKind::InspectAsset => MediaEdit::InspectAsset { asset },

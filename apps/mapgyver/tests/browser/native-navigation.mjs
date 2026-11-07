@@ -24,8 +24,7 @@ import { verifyNativeCapacity } from './native-capacity.mjs';
 import { verifyNativeTimeControls } from './native-time-controls.mjs';
 import { verifyNativeMediaFit } from './native-media-fit.mjs';
 import { verifyNativeCompactChannels } from './native-compact-channels.mjs';
-import { verifyNativeAssetFile } from './native-asset-file.mjs';
-import { verifyNativeChannelFile } from './native-channel-file.mjs';
+import { verifyPictureFiles } from './picture-files.mjs';
 import { verifyNativePreviewCadence } from './native-preview-cadence.mjs';
 import { verifyNativeSenderSelection } from './native-sender-selection.mjs';
 import { verifyMatrixViewportUi } from './matrix-viewport.mjs';
@@ -164,13 +163,12 @@ try {
 			[
 				'--inspector-acceptance',
 				async (options) => {
-					await verifyNativeChannelFile(options);
+					await verifyPictureFiles(options);
 					await verifyNativeCompactChannels(options);
 				}
 			],
 			['--preview-cadence', verifyNativePreviewCadence],
-			['--channel-file', verifyNativeChannelFile],
-			['--asset-file', verifyNativeAssetFile],
+			['--channel-file', verifyPictureFiles],
 			['--compact-channels', verifyNativeCompactChannels],
 			['--media-fit', verifyNativeMediaFit],
 			['--time-controls', verifyNativeTimeControls],

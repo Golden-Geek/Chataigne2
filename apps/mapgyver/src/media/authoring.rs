@@ -353,6 +353,10 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             super::picture_file::configure(engine, reference, &file)?;
             MediaEditResult::Changed
         }
+        MediaEdit::ReloadPicture { reference } => {
+            super::picture_file::reload(engine, reference)?;
+            MediaEditResult::Changed
+        }
         MediaEdit::InspectPictureFile { reference } => MediaEditResult::PictureFile {
             binding: super::picture_file::inspect(engine, reference)?,
         },

@@ -43,6 +43,9 @@ fn named_invocation(operation: &MediaEdit) -> String {
             "inspectPictureFile",
             serde_json::json!([reference.media, reference.channel]),
         ),
+        MediaEdit::ReloadPicture { reference } => {
+            ("reloadPicture", serde_json::json!([reference.media, reference.channel]))
+        }
         MediaEdit::Applications { edit } => match edit {
             crate::applications::protocol::ApplicationEdit::SetFile {
                 application,

@@ -1,5 +1,8 @@
 use super::PictureDecoder;
-use crate::media::{capture::CapturedChannels, protocol::ChannelSource};
+use crate::media::{
+    capture::{CapturedAsset, CapturedChannels},
+    protocol::ChannelSource,
+};
 use golden_assets::{
     AssetBinding, AssetId, AssetLocator, AssetPreparer, AssetRequestId, AssetRetirement, AssetScope,
     PreparationAdmissionError, PreparationFailure, PreparationLimits, PreparedAsset,
@@ -25,7 +28,7 @@ pub(crate) struct Pictures {
     project: Option<uuid::Uuid>,
     service: AssetPreparer<PictureDecoder>,
     entries: HashMap<AssetLocator, Entry>,
-    bindings: HashMap<AssetId, AssetLocator>,
+    bindings: HashMap<AssetId, CapturedAsset>,
     retry_wake: Option<DelayedNotifier>,
 }
 
@@ -83,9 +86,15 @@ impl Pictures {
             .assets
             .iter()
             .filter(|asset| demanded.contains(&asset.record.id))
-            .map(|asset| (asset.record.id, asset.record.locator.clone()))
+            .map(|asset| (asset.record.id, asset.clone()))
             .collect();
-        if bindings.values().collect::<HashSet<_>>().len() > limit {
+        if bindings
+            .values()
+            .map(|asset| &asset.record.locator)
+            .collect::<HashSet<_>>()
+            .len()
+            > limit
+        {
             return Err("picture demand exceeds admitted source count".into());
         }
         let mut changed = false;
@@ -95,9 +104,26 @@ impl Pictures {
             self.project = Some(capture.project);
             changed = true;
         }
+        // Reload belongs to an owner, while the prepared file is shared. A changed
+        // generation evicts that file once; unrelated files and peers retain leases.
+        let reloaded = bindings
+            .iter()
+            .filter_map(|(id, asset)| {
+                self.bindings
+                    .get(id)
+                    .filter(|previous| {
+                        previous.record.locator == asset.record.locator && previous.reload != asset.reload
+                    })
+                    .map(|_| &asset.record.locator)
+            })
+            .collect::<HashSet<_>>();
+        let present = bindings
+            .values()
+            .map(|asset| &asset.record.locator)
+            .collect::<HashSet<_>>();
+        self.entries
+            .retain(|locator, _| present.contains(locator) && !reloaded.contains(locator));
         self.bindings = bindings;
-        let present = self.bindings.values().collect::<HashSet<_>>();
-        self.entries.retain(|locator, _| present.contains(locator));
         for asset in &capture.assets {
             if !demanded.contains(&asset.record.id) {
                 continue;
@@ -196,13 +222,13 @@ impl Pictures {
 
     pub fn get(&self, id: AssetId) -> Option<&PreparedAsset<ImageData>> {
         self.entries
-            .get(self.bindings.get(&id)?)
+            .get(&self.bindings.get(&id)?.record.locator)
             .and_then(|entry| entry.value.as_ref())
             .filter(|value| value.is_current())
     }
     pub fn failure(&self, id: AssetId) -> Option<PreparationFailure> {
         self.entries
-            .get(self.bindings.get(&id)?)
+            .get(&self.bindings.get(&id)?.record.locator)
             .and_then(|entry| entry.failure)
     }
 
@@ -223,7 +249,7 @@ impl Pictures {
         if let Some(entry) = self
             .bindings
             .get(&asset)
-            .and_then(|locator| self.entries.get_mut(locator))
+            .and_then(|asset| self.entries.get_mut(&asset.record.locator))
         {
             entry.scope = AssetScope::new(&self.root).map_err(|error| error.to_string())?;
             entry.request = None;

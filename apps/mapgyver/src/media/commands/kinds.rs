@@ -41,6 +41,7 @@ command_kinds! {
     RemoveChannel => "Remove Variant", "Channels", ["media", "channel"];
     SolidColor => "Set Solid Color", "Channels", ["media", "channel", "rgba"];
     Picture => "Set Picture File", "Channels", ["media", "channel", "picture_file"];
+    ReloadPicture => "Reload Picture", "Channels", ["media", "channel"];
     SharedTexture => "Set Shared Texture Sender", "Channels", ["media", "channel", "sender"];
     ImportPicture => "Import Picture", "Assets", ["locator_kind", "project_path", "absolute_path", "media", "channel", "label"];
     ImportAsset => "Import Asset", "Assets", ["locator_kind", "project_path", "absolute_path", "label"];

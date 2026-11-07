@@ -18,6 +18,10 @@ fn picture_file_edits_binding_queries_and_rejections_match_every_public_caller()
             file: "../invalid.png".into(),
         },
         MediaEdit::InspectPictureFile { reference },
+        MediaEdit::ReloadPicture { reference },
+        MediaEdit::ReloadPicture {
+            reference: baseline.references[0][0],
+        },
     ] {
         let mut expected = None;
         for caller in CALLERS {

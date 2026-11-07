@@ -45,3 +45,13 @@ pub(super) fn configure(engine: &mut AppEngine, reference: ChannelReference, fil
     });
     Ok(())
 }
+
+pub(super) fn reload(engine: &mut AppEngine, reference: ChannelReference) -> Result<(), String> {
+    channel(engine, reference)?;
+    let id = super::authoring::channel_id(engine, reference)?;
+    let Some(AppNode::MediaChannel(channel)) = engine.nodes.get_mut(id) else {
+        unreachable!("validated Picture channel")
+    };
+    channel.reload_picture();
+    Ok(())
+}

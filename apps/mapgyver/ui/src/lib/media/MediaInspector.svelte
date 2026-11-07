@@ -150,7 +150,17 @@
 	});
 </script>
 
-{@render defaultHeader?.()}
+{#snippet channelActions()}
+	{#if channel?.definition.source.kind === 'Picture' && channel.definition.source.file}
+		{@const reference = channel.reference}
+		<IconButton
+			icon={reloadIcon}
+			label="Reload Picture"
+			disabled={busy}
+			onclick={() => edit({ kind: 'ReloadPicture', reference })} />
+	{/if}
+{/snippet}
+{@render defaultHeader?.(channelActions)}
 {#snippet content()}
 	{@render defaultChildren?.('', parametersOnly)}
 	{#if node.node_type === 'mapgyver.media.v8'}

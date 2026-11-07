@@ -216,3 +216,71 @@ fn file_binding_query_is_immutable_nullable_after_deletion_and_shares_the_public
         assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
     }
 }
+
+#[test]
+fn reload_fences_only_the_selected_picture_preserves_redo_and_does_not_author_or_persist_runtime_generations() {
+    let mut engine = fixture();
+    let first = create(&mut engine, MediaKind::Picture);
+    let peer = create(&mut engine, MediaKind::Picture);
+    apply(
+        &mut engine,
+        MediaEdit::ConfigurePictureFile {
+            reference: first,
+            file: "source.png".into(),
+        },
+    );
+    assert!(engine.undo().unwrap());
+    let history = engine.ui_history_state();
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let shape = topology(&engine);
+    let stale = crate::media::capture_channels(&engine, &[first], 16).unwrap();
+    let healthy = crate::media::capture_channels(&engine, &[peer], 16).unwrap();
+    let (send, receive) = std::sync::mpsc::sync_channel(1);
+    let notifier = golden_io::WorkerNotifier::new(move || {
+        let _ = send.try_send(());
+    });
+    let subscriptions = stale
+        .revision_guards()
+        .map(|guard| guard.subscribe(notifier.clone()))
+        .collect::<Vec<_>>();
+    apply(&mut engine, MediaEdit::ReloadPicture { reference: first });
+    assert!(!stale.is_current());
+    assert!(healthy.is_current());
+    assert_eq!(
+        receive.try_recv(),
+        Ok(()),
+        "Reload wakes the ordinary preview worker without polling"
+    );
+    drop(subscriptions);
+    assert_eq!(engine.ui_history_state(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+    assert_eq!(topology(&engine), shape);
+    let id = super::super::authoring::channel_id(&engine, first).unwrap();
+    let AppNode::MediaChannel(channel) = engine.nodes.get(id).unwrap() else {
+        panic!()
+    };
+    assert_eq!(channel.picture_reload_generation(), 1);
+    assert!(engine.redo().unwrap());
+    assert_eq!(channel_file(&engine, first), Some("source.png".into()));
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+    let id = super::super::authoring::channel_id(&loaded, first).unwrap();
+    let AppNode::MediaChannel(channel) = loaded.nodes.get(id).unwrap() else {
+        panic!()
+    };
+    assert_eq!(
+        channel.picture_reload_generation(),
+        0,
+        "load must not replay a runtime Reload"
+    );
+    assert_eq!(channel_file(&loaded, first), Some("source.png".into()));
+}
+
+fn channel_file(engine: &AppEngine, reference: ChannelReference) -> Option<String> {
+    match channel(engine, reference).unwrap().definition.source {
+        ChannelSource::Picture { file } => file
+            .as_ref()
+            .map(|locator| super::super::assets::locator_path(locator).to_owned()),
+        _ => panic!(),
+    }
+}

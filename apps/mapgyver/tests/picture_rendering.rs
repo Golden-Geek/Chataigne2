@@ -182,6 +182,17 @@ fn matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources() {
                 .collect(),
         },
     );
+    let layer = snapshot.items.iter().find(|item| item.channel == rows[0].1).unwrap();
+    matrix_edit(
+        &mut engine,
+        MatrixEdit::ConfigureItem {
+            item: layer.id,
+            settings: CompositeSettings {
+                expose_channel: true,
+                ..layer.settings.clone()
+            },
+        },
+    );
     let roots = [matrix, rows[0].1];
     let mut owned = renderer(adapter.id, directory.path());
     let live = owned.0.as_mut().unwrap();
@@ -528,9 +539,12 @@ impl Drop for OwnedRenderer {
             let pictures = renderer.picture_retirement();
             renderer.close();
             drop(renderer);
-            while !video.wait(Duration::from_millis(20)) {}
+            assert!(video.wait(WAIT), "native video retirement exceeded its deadline");
             if let Some(pictures) = pictures {
-                while !pictures.wait(Duration::from_millis(20)) {}
+                assert!(
+                    pictures.wait(WAIT),
+                    "Picture preparation retirement exceeded its deadline"
+                );
             }
         }
     }

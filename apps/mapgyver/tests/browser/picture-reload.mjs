@@ -6,7 +6,7 @@ import { observeRejectedRequests } from './intent-observer.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
-export async function verifyPictureReloadUi({ base, inspect, picture, asset }) {
+export async function verifyPictureReloadUi({ base, inspect, picture }) {
 	const browser = await chromium.launch({ headless: true });
 	const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 	const errors = [];
@@ -17,7 +17,7 @@ export async function verifyPictureReloadUi({ base, inspect, picture, asset }) {
 		page.on('pageerror', (error) => errors.push(String(error)));
 		page.on('websocket', (socket) => {
 			socket.on('framesent', ({ payload }) => {
-				if (typeof payload === 'string' && payload.includes('ReloadAsset'))
+				if (typeof payload === 'string' && payload.includes('ReloadPicture'))
 					reloadRequests.push(JSON.parse(payload));
 			});
 		});
@@ -70,8 +70,8 @@ export async function verifyPictureReloadUi({ base, inspect, picture, asset }) {
 		await wait(() => reload.isEnabled(), Boolean);
 		assert.equal(reloadRequests.length, 1);
 		assert(
-			JSON.stringify(reloadRequests[0]).includes(asset),
-			'UI must send the selected asset identity'
+			JSON.stringify(reloadRequests[0]).includes(selected.reference.channel),
+			'UI must send the selected Picture channel identity'
 		);
 		assert.deepEqual(await inspect(), before);
 		// Dockview keeps its assertive announcer mounted even when it has nothing to announce.
@@ -107,7 +107,7 @@ export async function verifyPictureReloadUi({ base, inspect, picture, asset }) {
 				result: 'pass',
 				scope: 'real Reload Picture UI, unchanged catalog/IDs and preserved redo/undo',
 				browser: browser.version(),
-				asset,
+				reference: selected.reference,
 				page_errors: errors.length
 			})
 		);

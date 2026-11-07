@@ -308,7 +308,7 @@ try {
 	assert.deepEqual(await inspect(), saved);
 	if (process.argv.includes('--ui-reload')) {
 		const { verifyPictureReloadUi } = await import('../browser/picture-reload.mjs');
-		await verifyPictureReloadUi({ base, inspect, picture, asset });
+		await verifyPictureReloadUi({ base, inspect, picture });
 	}
 	if (process.argv.includes('--sender-defaults-ui')) {
 		const { verifySenderDefaultsUi } = await import('../browser/sender-defaults.mjs');

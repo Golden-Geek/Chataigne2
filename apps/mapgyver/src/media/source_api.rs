@@ -20,6 +20,7 @@ pub(super) const METHODS: &[&str] = &[
     "configureSolidColor",
     "configurePicture",
     "configurePictureFile",
+    "reloadPicture",
     "inspectPictureFile",
     "configureSharedTexture",
     "inspectChannel",
@@ -70,7 +71,8 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         | "configureMediaFitMode"
         | "configureMediaSenderSelection"
         | "inspectChannel"
-        | "inspectPictureFile" => 2,
+        | "inspectPictureFile"
+        | "reloadPicture" => 2,
         "configureMediaResolution" => 4,
         "configureSolidColor" => 6,
         "configurePicture" | "configurePictureFile" | "configureSharedTexture" => 3,
@@ -245,6 +247,9 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
             file: text(args, 2)?.to_owned(),
         },
         "inspectPictureFile" => MediaEdit::InspectPictureFile {
+            reference: reference(args)?,
+        },
+        "reloadPicture" => MediaEdit::ReloadPicture {
             reference: reference(args)?,
         },
         "configureSharedTexture" => MediaEdit::ConfigureChannel {

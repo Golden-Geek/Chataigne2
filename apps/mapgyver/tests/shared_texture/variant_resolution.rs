@@ -231,7 +231,7 @@ fn same_media_variants_share_resolution_and_preserve_native_identity_through_his
                 ),
                 MediaKind::Picture => {
                     image(root.path(), 4, 3, [0, 255, 255, 255]);
-                    live.live().retry_picture(second).unwrap();
+                    edit(&mut engine, MediaEdit::ReloadPicture { reference: second });
                 }
                 MediaKind::SharedTexture => {
                     let native = live.live().native_control().unwrap();

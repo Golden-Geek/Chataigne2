@@ -135,6 +135,10 @@ export const COMMAND_PARAMETER_FIELDS = {
   "ReloadAsset": [
     "asset"
   ],
+  "ReloadPicture": [
+    "media",
+    "channel"
+  ],
   "RemoveAsset": [
     "asset"
   ],

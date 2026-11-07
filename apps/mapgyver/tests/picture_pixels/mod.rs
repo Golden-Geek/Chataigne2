@@ -296,8 +296,6 @@ fn authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_
         source_png(&root.path().join("pattern.png"), 2, 2, &pattern, false);
         let mut engine = golden_core::app::create_new_project_engine::<AppNode>().unwrap();
         engine.apply_edits().unwrap();
-        let first_asset = import(&mut engine, "pattern.png");
-        let second_asset = import(&mut engine, "missing.jpg");
         let MediaEditResult::Created { reference: first } = edit(
             &mut engine,
             MediaEdit::CreateMedia {
@@ -316,8 +314,20 @@ fn authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_
         ) else {
             panic!()
         };
-        configure(&mut engine, first, first_asset);
-        configure(&mut engine, second, second_asset);
+        edit(
+            &mut engine,
+            MediaEdit::ConfigurePictureFile {
+                reference: first,
+                file: "pattern.png".into(),
+            },
+        );
+        edit(
+            &mut engine,
+            MediaEdit::ConfigurePictureFile {
+                reference: second,
+                file: "missing.jpg".into(),
+            },
+        );
         // This asset-lifecycle fixture predates Fit Mode and deliberately checks stretched
         // uniform colors. Aspect policy has its own full-image fixture above.
         edit(
@@ -354,7 +364,13 @@ fn authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_
         );
         assert_eq!(fixture.uploaded(), 2);
 
-        configure(&mut engine, first, second_asset);
+        edit(
+            &mut engine,
+            MediaEdit::ConfigurePictureFile {
+                reference: first,
+                file: "missing.jpg".into(),
+            },
+        );
         fixture.publish(&engine, references);
         fixture.settle([ready(5, 3), ready(3, 2)], None);
         let channels = fixture.live().channels();
@@ -376,9 +392,9 @@ fn authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_
         let stale = capture_channels(&engine, &references, 8).unwrap();
         edit(
             &mut engine,
-            MediaEdit::RelinkAsset {
-                asset: second_asset,
-                locator: relative("replacement.png"),
+            MediaEdit::ConfigurePictureFile {
+                reference: second,
+                file: "replacement.png".into(),
             },
         );
         assert!(!stale.is_current());
@@ -388,7 +404,7 @@ fn authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_
         assert_eq!(fixture.uploaded(), uploads + 1);
         let history = engine.undo_len();
         source_png(&replacement, 4, 3, &[255, 0, 0, 64].repeat(12), false);
-        edit(&mut engine, MediaEdit::ReloadAsset { asset: second_asset });
+        edit(&mut engine, MediaEdit::ReloadPicture { reference: second });
         fixture.publish(&engine, references);
         fixture.settle([ready(2, 2), ready(3, 2)], Some(healthy));
         fixture.pixels(adapter.id, [&PATTERN, &[[255, 0, 0, 64]]], "in-place-replacement");
@@ -401,9 +417,9 @@ fn authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_
         source_png(&root.path().join("unsupported.png"), 1, 1, &[0, 255, 0, 255], true);
         edit(
             &mut engine,
-            MediaEdit::RelinkAsset {
-                asset: second_asset,
-                locator: relative("unsupported.png"),
+            MediaEdit::ConfigurePictureFile {
+                reference: second,
+                file: "unsupported.png".into(),
             },
         );
         fixture.publish(&engine, references);
@@ -417,9 +433,9 @@ fn authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_
         fixture.pixels(adapter.id, [&PATTERN, &[[0; 4]]], "unsupported-gamma");
         edit(
             &mut engine,
-            MediaEdit::RelinkAsset {
-                asset: second_asset,
-                locator: relative("missing.jpg"),
+            MediaEdit::ConfigurePictureFile {
+                reference: second,
+                file: "missing.jpg".into(),
             },
         );
         fixture.publish(&engine, references);
@@ -436,9 +452,9 @@ fn authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_
         );
         edit(
             &mut engine,
-            MediaEdit::RelinkAsset {
-                asset: first_asset,
-                locator: relative("large.png"),
+            MediaEdit::ConfigurePictureFile {
+                reference: first,
+                file: "large.png".into(),
             },
         );
         let document = golden_core::app::to_sparse_project_json_pretty(&engine).unwrap();
@@ -465,10 +481,24 @@ fn authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_
             "CPU image upload must not recur per frame"
         );
         assert!(recreated.live().native_control().unwrap().sources().is_empty());
-        assert_eq!(mapgyver::media::asset(&restored, first_asset).unwrap().id, first_asset);
+        let MediaEditResult::Manager { snapshot } = edit(&mut restored, MediaEdit::InspectManager) else {
+            panic!()
+        };
+        assert!(
+            snapshot.assets.is_empty(),
+            "Picture File authoring must never create catalog Assets"
+        );
         assert_eq!(
-            mapgyver::media::asset(&restored, second_asset).unwrap().id,
-            second_asset
+            channel(&restored, first).unwrap().definition.source,
+            ChannelSource::Picture {
+                file: Some(relative("large.png"))
+            }
+        );
+        assert_eq!(
+            channel(&restored, second).unwrap().definition.source,
+            ChannelSource::Picture {
+                file: Some(relative("missing.jpg"))
+            }
         );
         recreated.close();
         eprintln!(

@@ -20,6 +20,15 @@ owner changing File cannot reuse the identity of an image still used by a peer.
 Equal Files share decode/upload resources without sharing authored Parameters.
 Resource admission and image revision guards count unique shared images.
 
+`ReloadPicture` advances only the selected channel's runtime reload generation
+and invalidates its capture guard. The ordinary preview worker wakes through
+that guard's existing subscription; no authored edit, polling or history step is
+needed. Capture carries this generation into frozen playing sources. Preparation
+compares generations for unchanged locator bindings and replaces that shared
+file group once, retaining unrelated images. The Inspector's Reload action,
+typed command and `reloadPicture` script method use this same intent. Project
+load creates fresh runtime generations and never replays Reload.
+
 Preparation remains on Golden Assets workers, with existing source/decode/cache
 limits, scope cancellation and retirement barriers. Playing owned Matrix media
 retain their frozen File definition after authored removal; releasing the last
@@ -27,8 +36,5 @@ runtime consumer retires its preparation group. Runtime retry targets a channel
 reference, not a catalog Asset. Explicit standalone catalog Asset operations
 remain separate and cannot retarget Pictures.
 
-M13/9 acceptance still requires the complete owning report in the
-[status ledger](../progress/mapgyver-status.md). In particular, this ownership
-slice does not yet provide an ordinary Inspector/command/script reload action
-for replacing an already prepared file at the same path. That action and the
-affected bundled/native fixtures must be completed before accepting the gate.
+The [status ledger](../progress/mapgyver-status.md) owns current M13/9 acceptance
+and links its software, bundled authoring and native pixel/retirement evidence.

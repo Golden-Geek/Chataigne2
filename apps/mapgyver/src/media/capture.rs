@@ -23,10 +23,12 @@ pub struct CapturedChannels {
 #[derive(Clone)]
 pub(super) struct CapturedAsset {
     pub record: AssetRecord,
+    pub reload: u64,
 }
 
 #[derive(Clone)]
 pub(super) struct CapturedChannel {
+    pub picture_reload: u64,
     pub public_output: bool,
     pub reference: ChannelReference,
     pub definition: Option<ChannelDefinition>,
@@ -196,6 +198,14 @@ pub(crate) fn capture_channels_with_time(
             .is_none()
             .then(|| retired.get(&reference).filter(|channel| channel.owned))
             .flatten();
+        let picture_reload = engine
+            .node_id_by_uuid(reference.channel.0)
+            .and_then(|id| engine.nodes.get(id))
+            .and_then(|node| match node {
+                AppNode::MediaChannel(channel) => Some(channel.picture_reload_generation()),
+                _ => None,
+            })
+            .unwrap_or_else(|| frozen.map_or(0, |channel| channel.picture_reload));
         let definition = match media {
             Some(AppNode::ReferenceMedia(node))
                 if super::folders::contains_parent(engine, node.node_data().parent, manager_id) =>
@@ -435,6 +445,7 @@ pub(crate) fn capture_channels_with_time(
             // The File is already captured in the channel definition. Its resource address is
             // runtime metadata, including when a playing owned source outlives authored removal.
             assets.push(CapturedAsset {
+                reload: picture_reload,
                 record: AssetRecord {
                     id: AssetId::from_uuid(reference.channel.0.0),
                     locator: file.clone(),
@@ -451,6 +462,7 @@ pub(crate) fn capture_channels_with_time(
             ancestor = node.node_data().parent;
         }
         channels.push(CapturedChannel {
+            picture_reload,
             public_output: publicly_exposed(reference),
             owned,
             reference,
@@ -463,6 +475,7 @@ pub(crate) fn capture_channels_with_time(
     }
     for reference in hidden_roots.difference(&seen) {
         channels.push(CapturedChannel {
+            picture_reload: 0,
             reference: *reference,
             public_output: false,
             definition: None,

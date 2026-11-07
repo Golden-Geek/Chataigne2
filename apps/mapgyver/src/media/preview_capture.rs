@@ -36,6 +36,7 @@ pub(crate) fn capture_editor_channels(
             continue;
         }
         let mut captured = CapturedChannel {
+            picture_reload: 0,
             public_output: true,
             reference,
             definition: None,

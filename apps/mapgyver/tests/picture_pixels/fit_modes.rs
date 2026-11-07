@@ -91,8 +91,13 @@ fn two_aspect_picture_channels_share_fit_mode_and_forced_resolution_with_intrins
                 MediaFitMode::Stretch,
             );
             source_png(&root.path().join(name), width, height, &pixels.concat(), false);
-            let asset = import(&mut engine, name);
-            configure(&mut engine, reference, asset);
+            edit(
+                &mut engine,
+                MediaEdit::ConfigurePictureFile {
+                    reference,
+                    file: name.into(),
+                },
+            );
         }
         let square = Extent2D::new(24, 24).unwrap();
         edit(

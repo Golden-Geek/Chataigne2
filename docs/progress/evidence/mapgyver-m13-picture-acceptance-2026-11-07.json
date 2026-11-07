@@ -1,0 +1,112 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/9",
+	"status": "Accepted",
+	"batch": { "started_utc": "19:51", "cutoff_utc": "20:36", "verification_finished_utc": "20:19" },
+	"progress": {
+		"verified": 76,
+		"total": 92,
+		"overall_percent": 83,
+		"m13_verified": 7,
+		"m13_total": 14,
+		"m13_percent": 50,
+		"completed_phases": 7,
+		"total_phases": 14
+	},
+	"calculation": "One complete fixed Picture gate added to75/92:76/92 rounds to83%; M13 7/14 is50%; phases remain7/14(50%). No denominator, performance budget or retained qualification gate is waived.",
+	"ownership_slice": "2f6e95e46858e118e07a0bf4df2ff2afb88e9f78; docs/progress/evidence/mapgyver-m13-picture-ownership-2026-11-07.json",
+	"architecture": "docs/architecture/mapgyver-picture-file-ownership.md",
+	"implementation": {
+		"file": "Each Picture channel owns a typed File Parameter. Generic Inspector edits, ConfigurePictureFile, configurePicture/configurePictureFile scripts, typed Set Picture File commands and targeted ImportPicture all edit that owner without allocating or forwarding through an Asset. New ImportPicture creates one Picture subtree; copies own independent File Parameters.",
+		"reload": "ReloadPicture, the compact channel header action, typed command and reloadPicture script method advance a channel-owned runtime generation and its existing capture guard. Guard subscriptions immediately wake the preview worker; no authored edit/history step, polling or extra node is needed. Capture preserves the generation in frozen playing owned media. Project load starts fresh runtime generations and never replays Reload.",
+		"resources": "Preparation groups equal locators within one project/root and allocates a logical source identity independent of all owner UUIDs. One owner changing File cannot collide with a group retained by a peer. Same-path Reload replaces the shared affected group once, preserving unrelated healthy images. Unique decoded images count once for preparation/source and revision-guard admission. Worker scopes, memory limits, cancellation and retirement remain bounded.",
+		"schema": "Rust-owned ChannelSource::Picture.file, PictureFileBinding and PictureImported results generate the UI declarations. Persisted channel v2 and command v6 reject older schemas before recoverable decoding; no Asset forwarding compatibility path exists.",
+		"fixtures": "Retired separate native asset/channel forwarding fixtures are replaced by one generic File workflow reusable by native and bundled headless hosts. Source/reload/fit callers use owned File values. Public source API and owning docs are updated, with concurrent documentation edits preserved."
+	},
+	"requirements": [
+		{
+			"requirement": "File edits preserve topology/count and selection without implicit authored objects",
+			"proof": "Core tests compare every runtime UUID/parent edge on select/change/clear/relink and exact history; imports create one Picture subtree, no Asset. The final bundled File flow compares wholeGraph UUID/type/parent sets and actual selected tree IDs after every File mutation, with unchanged catalog Assets. Source CRUD/import also passes without implicit Assets."
+		},
+		{
+			"requirement": "Generic Inspector and independent copies",
+			"proof": "The final bundled File flow uses only real generic File widgets for relative/absolute paths, Enter/Tab, clear and Escape cancellation; secondary Asset actions are absent. Copying the complete two-channel media creates independent Parameter UUIDs and equal initial values, then editing the copy leaves both originals unchanged. The ordinary generic-parameter fixture passes all ten Parameter nodes and scalar/vector editing checks."
+		},
+		{
+			"requirement": "All callers, exact history and project reload",
+			"proof": "The full562-test app suite covers direct UI intents, QuickJS, hosted QuickJS, named script methods, typed command execution/trigger configuration, targeted/new import, malformed/foreign-kind rejection, copy and sparse projects. Reload preserves redo, serialized authored state and topology, invalidates only the selected capture and wakes its subscribed worker. Bundled Reload preserves delete/undo's redo entry; the complete File workflow saves, New/loads and verifies the same File UUIDs and independent channel values."
+		},
+		{
+			"requirement": "Missing/replaced files and native pixels",
+			"proof": "Both Intel and NVIDIA pass missing JPEG automatic recovery, shared JPEG upload, Undo, relink with alpha, explicit same-path Reload after file replacement, rejection of unsupported PNG gamma, recovery, and 4K save/reload/recreation. The selected same-path operation updates its image while the unrelated healthy channel's prepared identity and pixels remain unchanged. Two more channels verify native Fit/Fill/Stretch and intrinsic automatic sizing."
+		},
+		{
+			"requirement": "Sharing, admission and retirement bounds",
+			"proof": "A software test admits two equal owned Files with max_external_textures=1 and rejects a distinct File without publishing a partial plan; Undo restores the shared scene. Separate tests cover shared-file Reload, first-owner divergence without source-ID collision, removed playing owned Picture retention and final release. Native upload counts prove no retained shared-image reupload or per-frame CPU upload. All native Picture scopes retire video and decode owners within explicit five-second fixture waits; no resource/presentation/performance budget is relaxed."
+		}
+	],
+	"software": {
+		"rust": {
+			"command": "cargo test --locked -p MapGyver --lib --features native-preview-smoke,application-process-fixture -- --quiet",
+			"passed": 562,
+			"ignored": 3,
+			"exit": 0,
+			"binary": "target/debug/deps/mapgyver-f77e019373ee6e24.exe",
+			"sha256": "39dfc0708959e1ecdf49a2601bff5df19aef337b660f70ded669e0fa141cddbc",
+			"contracts": "Full suite includes exact fresh TypeScript generation equality."
+		},
+		"strict": "cargo clippy --locked -p MapGyver --lib --tests --features native-qualification,application-process-fixture -- -D warnings exits0. After the Matrix fixture-only exposure correction, the affected --test picture_rendering strict check also exits0. Runtime code is unchanged afterward.",
+		"ui": "Final MapGyver Svelte check:0errors0warnings. Focused manager-tree test passes; touched source/fixture formatting and Node syntax checks pass.",
+		"format": "Root and golden_core cargo fmt/check and owned/staged diff checks pass. Existing unrelated user CSS whitespace is preserved and excluded from this milestone."
+	},
+	"bundled": {
+		"binary": "target/debug/deps/MapGyver-m139-picture-final.exe",
+		"sha256": "35d17a5ed532c328dd1e8b2121adf43a42f16ad0c854aad48f0a8491fcf9c8d4",
+		"build_exit": 0,
+		"file_workflow": {
+			"command": "node apps/mapgyver/tests/headless/picture-files.mjs target/m139-picture-files-final-20261107",
+			"receipt": "target/m139-picture-files-final-20261107/files/picture-files.json",
+			"receipt_sha256": "56a9542676e2be5d284cb35649e977e7255c4de12ab1ae03a01340fa8e7868ee",
+			"requests": 180,
+			"receipts": 180,
+			"rejections": 0,
+			"page_errors": 0,
+			"fixture_and_host_exit": 0
+		},
+		"generic_and_reload": "Final binary: tests/headless/media.mjs --parameter-ui --ui-reload passes10 generic Parameter nodes,5 scalar/8 component writes,2 expected invariant rejections, exact selected-channel Reload with retained redo/undo, source intents and Save/New/Load; host exits0.",
+		"sources": "Final binary: tests/headless/media.mjs --source-ui passes full source CRUD/import/relink, owned Picture Files, independent variants, exact last-channel rejection, history and reload; host exits0.",
+		"limits": "Chromium bundled UI and ordinary headless host only; no desktop input or native cadence claim. Browse is correctly disabled by the headless host's missing native-dialog capability; the shared native-host workflow retains its enabled-capability assertion. Fixture preparation initially exposed stale tree attributes and a headless Browse assumption; corrected complete runs pass."
+	},
+	"native": {
+		"prerequisite": "Terminal successful full software/strict checks, then cargo test --locked --offline --manifest-path target/m136-control-qualification/Cargo.toml --target-dir target --test picture_rendering --no-run exits0. The existing isolated runner compiles repository fixtures without replacing the user's locked app executable.",
+		"binary": "target/debug/deps/picture_rendering-d6b348f12c2aa25c.exe",
+		"sha256": "e38381021846fb5f4b250511c7243777a61f90f7ea370467cc81cf1739a27f8d",
+		"pixels_command": "picture_rendering-d6b348f12c2aa25c.exe picture_pixels:: --ignored --test-threads=1 --nocapture",
+		"repository_reproduction": "cargo test --locked -p MapGyver --test picture_rendering --features native-qualification picture_pixels:: -- --ignored --test-threads=1 --nocapture (when the ordinary app executable is not locked by a running user instance)",
+		"pixel_tests": 2,
+		"pixel_exit": 0,
+		"elapsed_seconds": 13.13,
+		"adapters": [
+			{ "description": "Intel(R) Graphics", "luid_low": 88937, "luid_high": 0 },
+			{
+				"description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+				"luid_low": 2427691359,
+				"luid_high": 0
+			}
+		],
+		"independent_images": 78,
+		"image_count": "9 source/recovery stages ×3 outputs ×2 GPUs=54;4 Fit/automatic stages ×3 outputs ×2 GPUs=24. Every returned image is checked across all pixels within the unchanged2/255 tolerance;4K images contain8294400 pixels each.",
+		"base_command": "picture_rendering-d6b348f12c2aa25c.exe authored_picture_assets_decode_upload_share_relink_reload_and_recreate_native_resources --ignored --exact --test-threads=1 --nocapture",
+		"base_tests": 1,
+		"base_exit": 0,
+		"base_scope": "First hardware adapter: independent owner relink preserves its shared peer, native source identity and upload counts, project reload/recreation and old-observation rejection; video/decode retirement is bounded."
+	},
+	"retained_final_qualification": {
+		"status": "Pending M09; the full historical five-test native target is not green",
+		"case": "matrix_timed_launches_share_native_outputs_and_retire_interrupted_sources",
+		"evidence": "Two full-target attempts exit1. The first stopped at submitted metadata for a hidden Layer output. The fixture now explicitly enables the current opt-in Layer exposure contract; that status check passes, but the later assertion that all three interrupted sources remain captured fails at apps/mapgyver/tests/picture_rendering.rs:306. The watchdog also reports its generic deadline message after panic/disconnection. The cause of the remaining source-set mismatch is unproven; no Matrix runtime acceptance is inferred from these runs.",
+		"return_action": "When M09 final qualification is selected, resume this exact timed-Matrix case after current software prerequisites; reconcile its interruption/source-retention contract with actual captured sources and fix the owning implementation or stale fixture as evidence requires. Preserve original retention requirements and budgets. No further Matrix experiment in this Picture batch.",
+		"scope": "Picture-specific cases are independently executed in clean processes and pass; the timed Solid Color Matrix case is not Picture File acceptance evidence. Existing retained format, native-input, production timing/memory and WOW64 gates remain open."
+	},
+	"gate_change": "M13/9 Accepted. M13/10 alone Active next; all existing return gates and final qualification debt remain visible. No release readiness claim."
+}
