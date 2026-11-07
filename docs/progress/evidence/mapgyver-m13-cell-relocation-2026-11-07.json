@@ -1,0 +1,36 @@
+{
+	"date": "2026-11-07",
+	"deliverable": "Public typed same-Matrix Cell relocation/swapping preserves actual Cell, media and application identities with explicit occupied-destination policy.",
+	"gate": "M13/7 Active; backend relocation slice functionally verified, complete drop gate remains open",
+	"acceptance": { "verified": 73, "total": 92, "m13_verified": 4, "m13_total": 14 },
+	"batch": { "started_utc": "15:38", "cutoff_utc": "16:23", "delivered_utc": "15:58" },
+	"ownership": "MapGyver Matrix owns typed intent, occupied policy and final dependency preflight. Golden's ordinary operation owns atomic application/history; the generated TypeScript comes from Rust. Cell structural events own application-membership invalidation independently of the operation/UI.",
+	"contract": [
+		"RelocateCell moves actual subtrees within one Matrix. Reject requires an unmaterialized destination; a prepared Cell without media remains occupied. Swap exchanges both actual Cells. Same-address is an exact no-op.",
+		"Both addresses and the completed dependency graph, including retained outgoing sources, validate before any edit is staged. At most two Column Parameters and two parent links change; no Cell/media subtree is created or removed. Existing document/dependency preflight still reads the authored graph outside continuous pointer work.",
+		"Running clips keep their source, launch and application identities at their current playback scope until an explicit new launch. The new launch follows the new authored address. Moving authoring does not silently redirect the previous launch to the destination's former content.",
+		"Same-Column cross-Layer moves now invalidate application membership through the Cell's own ChildMoved callback, also covering Undo/Redo. A missing Column Parameter event can no longer leave the next launch using the previous Layer's application membership.",
+		"Foreign Cells/addresses currently reject before mutation. Copy/Reference and supported cross-Matrix drops remain required next work; no UI drag/menu behavior is claimed by this backend slice."
+	],
+	"software": {
+		"rust": "551 pass/3 ignored with native-preview-smoke,application-process-fixture. Four owning suites cover empty/occupied/prepared/same-address, same/cross-Layer, stable media/settings/application identities, resident Cells at transient addresses, missing/foreign addresses, cycle rejection, exact one-step Undo/Redo, reload and running-clip/application continuity.",
+		"reload": "Exact node records and parent UUIDs plus complete Matrix ordering survive reload. Declared Parameters may hydrate at a different position among user children, so the serializer's declared/user interleave is not compared as domain order. Exact byte-for-byte project Undo/Redo remains asserted.",
+		"strict": "Strict MapGyver Clippy passes. MapGyver Svelte0errors0warnings; generated media and Screen contracts pass in the full Rust suite. Scoped fixture syntax and root/Core Rust formatting pass.",
+		"reused": "The preceding unchanged Golden UI303 tests and both-app Svelte checks remain valid for their scope; this slice changes no Golden runtime or Chataigne UI source.",
+		"corrected_validation": "Initial reload string comparison failed solely on declared/user child interleave: all52 exact records and parent links matched. A later targeted same-Column reparent baseline reproduced missing application references ([] instead of the owning ApplicationId); the structural-event fix passes together with Undo/Redo in the final full suite. One accidentally over-specific test filter ran zero tests and supplies no evidence."
+	},
+	"ordinary_host": {
+		"binary": "target/debug/deps/MapGyver-m137-cell-relocation.exe",
+		"sha256": "5eba7aac4cdb61e72312355f767ef4359d89246e2c47053c0a50e6488e659f1f",
+		"build_exit": 0,
+		"artifact": "target/m137-cell-relocation-20261107/result.json",
+		"artifact_sha256": "d52d235d36a42e883dc6972bf09ac9c1c50a1e34440d1bff804d983a79ecf6f4",
+		"pid": 49716,
+		"fixture_exit": 0,
+		"host_exit": 0,
+		"checks": 6,
+		"proof": "Actual ordinary headless host/HTTP API over a3x3 Matrix: move into empty address; cross-Layer swaps; swap with a prepared Cell; exact public Undo/Redo after every move/swap; occupied rejection without partial state/history; same-address no-op. Cell/media/settings identities and sparse Cell count remain stable.",
+		"limits": "No desktop input, GUI drag/menu path, native pixels, GPU timing or actual process launch/retirement is measured."
+	},
+	"remaining": "Copy/Reference semantics and occupied handling, supported cross-Matrix drops, grid dragging/Alt Move-Copy-Reference menu, scrolling, keyboard/context equivalents, cancellation, copy/reference lifetime, full caller/reload/running/native/process qualification. M13/4 stays Blocked on owned-window input resumption and retains every quantitative requirement. No acceptance denominator or gate credit changes."
+}

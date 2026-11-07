@@ -242,6 +242,9 @@ impl CellNode {
     pub(crate) fn column(&self) -> ColumnId {
         ColumnId(self.column.get_ref().uuid)
     }
+    pub(super) fn column_parameter(&self) -> NodeId {
+        self.column.id()
+    }
     pub(crate) fn output_parameter(&self) -> NodeId {
         self.output.id()
     }
@@ -330,6 +333,15 @@ impl Node for CellNode {
     }
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
         self.invalidate();
+    }
+    fn on_child_moved(&mut self, _: &mut ProcessCtx, child: NodeId, old_parent: NodeId, new_parent: NodeId) {
+        if child == self.id()
+            && old_parent != new_parent
+            && let Some(binding) = self.runtime.get()
+        {
+            // A Layer change also changes application membership when Column is unchanged.
+            binding.invalidate_applications();
+        }
     }
     fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
         if !enabled {

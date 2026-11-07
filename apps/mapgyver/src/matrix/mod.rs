@@ -6,6 +6,7 @@ mod authoring;
 mod bindings;
 pub(crate) mod capture;
 mod cell_applications;
+mod cell_drops;
 pub(crate) mod cell_node;
 pub(crate) mod cells;
 mod column_axis;
