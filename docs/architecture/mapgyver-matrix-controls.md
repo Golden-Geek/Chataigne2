@@ -4,16 +4,25 @@ MapGyver owns playback policy under `apps/mapgyver/src/matrix`. Golden owns the 
 Parameter nodes, Inspector widgets, script property writes, transport intents and bounded
 app-operation dispatch. Controls do not poll the engine or store authored playback booleans.
 
+App Control configuration uses the generic Golden Inspector through MapGyver's
+`ApplicationInspector.svelte` for Columns, Cells and Column Groups, including direct
+inspection of their real App Control children. It renders only authored Parameters and
+configured conditional folders. No Runtime section, app-snapshot controller or runtime
+reader belongs to an Inspector instance. One workbench-scoped application runtime reader
+still supplies the Matrix's compact runtime markers; process supervision, demand and
+callbacks remain in the backend and do not depend on mounting an Inspector. See the
+[M13/10 acceptance](../progress/evidence/mapgyver-m13-app-control-inspector-2026-11-07.json).
+
 The current M13/6 slice provides these intrinsic Trigger Parameters:
 
-| Owner | Declaration | Behavior |
-| --- | --- | --- |
-| Column | `parameters/play`, `parameters/cut` | Configured transition or immediate launch of that Column. |
-| Cell | `parameters/play`, `parameters/cut` | Independent launch on its Layer, preserving the Column anchor and other Layers. |
-| Matrix media | `parameters/stop_all` | Immediate Cut to empty across the base Column and every independent Layer request. |
-| Layer / Layer Group | `parameters/stop` | Cut every playing clip on that Layer / its current descendant Layers. |
-| Column / Column Group | `parameters/stop` | Cut matching Column clips across every Layer, including independent launches and outgoing clips. |
-| Cell | `parameters/stop` | Cut only that Layer/Column address, preserving other outgoing contributions on the Layer. |
+| Owner                 | Declaration                         | Behavior                                                                                         |
+| --------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Column                | `parameters/play`, `parameters/cut` | Configured transition or immediate launch of that Column.                                        |
+| Cell                  | `parameters/play`, `parameters/cut` | Independent launch on its Layer, preserving the Column anchor and other Layers.                  |
+| Matrix media          | `parameters/stop_all`               | Immediate Cut to empty across the base Column and every independent Layer request.               |
+| Layer / Layer Group   | `parameters/stop`                   | Cut every playing clip on that Layer / its current descendant Layers.                            |
+| Column / Column Group | `parameters/stop`                   | Cut matching Column clips across every Layer, including independent launches and outgoing clips. |
+| Cell                  | `parameters/stop`                   | Cut only that Layer/Column address, preserving other outgoing contributions on the Layer.        |
 
 The Matrix grid's top-left Stop All uses Golden's ordinary Trigger editor on that same
 Parameter. Compact grid Play and Stop buttons send Parameter intents to their exact real

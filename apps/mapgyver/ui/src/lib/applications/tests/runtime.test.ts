@@ -1,10 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ApplicationRuntimeReader, runtimeState } from '../runtime.ts';
-import { configurationLabel, serviceLabel } from '../runtime-presentation.ts';
 import type { ApplicationRuntimeSnapshot } from '../../media/generated/ApplicationRuntimeSnapshot';
 import type { MediaEditResult } from '../../media/generated/MediaEditResult';
-import type { ApplicationSnapshot } from '../../media/generated/ApplicationSnapshot';
 
 const flush = async () => {
 	for (let i = 0; i < 12; i++) await Promise.resolve();
@@ -77,10 +75,7 @@ test('service admission errors survive stale observations and recovery preserves
 	failed.supervision.demand = { kind: 'Retrying', message: 'Capacity held by retiring owners' };
 	listener(failed);
 	listener(snapshot('project', 1));
-	assert.equal(
-		serviceLabel(state.snapshot!.supervision.demand),
-		'Retrying: Capacity held by retiring owners'
-	);
+	assert.deepEqual(state.snapshot!.supervision.demand, failed.supervision.demand);
 	assert.deepEqual(state.snapshot!.applications, []);
 	const recovered = snapshot('project', 3);
 	recovered.supervision.callbacks = {
@@ -90,11 +85,8 @@ test('service admission errors survive stale observations and recovery preserves
 	listener(recovered);
 	listener(snapshot('foreign', 99));
 	listener(failed);
-	assert.equal(serviceLabel(state.snapshot!.supervision.demand), 'Running');
-	assert.equal(
-		serviceLabel(state.snapshot!.supervision.callbacks),
-		'Halted: Partial delivery cannot be replayed'
-	);
+	assert.deepEqual(state.snapshot!.supervision.demand, { kind: 'Running' });
+	assert.deepEqual(state.snapshot!.supervision.callbacks, recovered.supervision.callbacks);
 	reader.dispose();
 });
 
@@ -237,39 +229,4 @@ test('event registration retries independently of engine inspection and cancels 
 	assert.equal(state.transportError, '');
 	assert.equal(reads, 2);
 	reader.dispose();
-});
-
-test('configuration presentation uses worker policy and hides stale saved-revision comparisons', () => {
-	const status = snapshot('project', 1).applications[0];
-	const saved: ApplicationSnapshot = {
-		id: 'app',
-		label: 'App',
-		enablement: 'Enabled',
-		revision: 4,
-		definition_instance: 'definition-lifetime',
-		definition: {
-			executable: null,
-			arguments: [],
-			directory: null,
-			environment: null,
-			window: 'Hidden',
-			readiness: { kind: 'ProcessStarted' },
-			stop: { graceful_ms: 10, retirement_ms: 20 },
-			restart: { enabled: false, initial_ms: 10, maximum_ms: 20 }
-		}
-	};
-	assert.match(configurationLabel(status, saved), /awaiting/);
-	status.consumers[0].definition_revision = 4;
-	status.consumers[0].definition_instance = 'old-definition-lifetime';
-	assert.match(configurationLabel(status, saved), /awaiting/);
-	status.consumers[0].definition_instance = saved.definition_instance;
-	status.configuration = 'Pending';
-	status.consumers[0].configuration = 'Pending';
-	assert.match(configurationLabel(status, saved), /previous configuration/);
-	status.configuration = 'Retained';
-	status.consumers[0].configuration = 'Retained';
-	status.consumers[0].definition_revision = null;
-	assert.match(configurationLabel(status, saved), /retained/);
-	status.configuration = 'NotRunning';
-	assert.match(configurationLabel(status, saved), /No configuration/);
 });

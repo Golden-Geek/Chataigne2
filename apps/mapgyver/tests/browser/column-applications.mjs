@@ -49,6 +49,14 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 	const rejected = observeRejectedRequests(page, () => 'Column app control');
 	const parameter = (label) =>
 		page.locator('.parameter-inspector').filter({ has: page.getByText(label, { exact: true }) });
+	async function selectCell(title, clickCount = 1, button = 'left') {
+		const target = page
+			.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true })
+			.getByTitle(title, { exact: true });
+		const bounds = await target.boundingBox();
+		assert(bounds);
+		await target.click({ position: { x: 8, y: bounds.height - 8 }, clickCount, button });
+	}
 	let pid = null,
 		runtimeId = null,
 		otherMedia = null;
@@ -67,10 +75,8 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 			.filter({ hasText: /^Matrix(?::|$)/ })
 			.click();
 		const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
-		await grid
-			.getByTitle('Layer 1 / Column 3', { exact: true })
-			.click({ position: { x: 5, y: 5 } });
-		await grid.getByTitle('Select Column 3', { exact: true }).click();
+		await selectCell('Layer 1 / Column 3');
+		await grid.locator(`[role="columnheader"][data-column-id="${columns[2]}"]`).click();
 		await parameter('App file').waitFor();
 		const state = await inspect();
 		assert.equal(state.columns[2].application, columns[2]);
@@ -126,9 +132,7 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 			}
 		});
 		assert.notEqual(prepared.application, columns[2]);
-		await grid
-			.getByTitle('Layer 1 / Column 2', { exact: true })
-			.click({ position: { x: 5, y: 5 } });
+		await selectCell('Layer 1 / Column 2');
 		await grid.getByRole('button', { name: 'Launch Column 2', exact: true }).click();
 		let live = await wait(runtime, (s) =>
 			s.applications.some(
@@ -169,15 +173,18 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 		assert.equal(shared.applications.length, 1);
 		assert.equal(shared.applications[0].process_id, pid);
 		assert.equal(shared.applications[0].launch, first.launch);
-		await grid.getByTitle('Select Column 2', { exact: true }).click();
-		await page.locator('.inspector').getByText('Runtime', { exact: true }).click();
-		const card = page.getByRole('article', { name: `Runtime ${runtimeId}`, exact: true });
-		await card.getByText('3', { exact: true }).waitFor();
-		await card.getByText('Using reconciled saved settings', { exact: true }).waitFor();
+		await grid.locator(`[role="columnheader"][data-column-id="${columns[1]}"]`).click();
+		assert.equal(await page.locator('.inspector').getByText('Runtime', { exact: true }).count(), 0);
+		assert.equal(
+			await page.getByRole('region', { name: 'Application runtime', exact: true }).count(),
+			0
+		);
+		assert.equal(
+			await grid.locator(`[role="columnheader"][data-column-id="${columns[1]}"].requested`).count(),
+			1
+		);
 		assert.equal((await inspect()).columns[2].application, columns[2]);
-		await grid
-			.getByTitle('Layer 1 / Column 3', { exact: true })
-			.click({ position: { x: 5, y: 5 } });
+		await selectCell('Layer 1 / Column 3');
 		await grid.getByRole('button', { name: 'Launch Column 3', exact: true }).click();
 		await wait(
 			async () =>
@@ -204,9 +211,7 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 		await wait(runtime, (s) =>
 			s.applications.some((a) => a.runtime === runtimeId && a.consumers.length === 2)
 		);
-		await grid
-			.getByTitle('Layer 1 / Column 5', { exact: true })
-			.click({ position: { x: 5, y: 5 } });
+		await selectCell('Layer 1 / Column 5');
 		await grid.getByRole('button', { name: 'Launch Column 5', exact: true }).click();
 		await wait(runtime, (s) =>
 			s.applications.some(
@@ -214,9 +219,7 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 			)
 		);
 		pid = null;
-		await grid
-			.getByTitle('Layer 1 / Column 3', { exact: true })
-			.dblclick({ position: { x: 5, y: 5 } });
+		await selectCell('Layer 1 / Column 3', 2);
 		const direct = await wait(runtime, (s) =>
 			s.applications.some(
 				(a) =>
@@ -246,7 +249,7 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 			() => grid.getByTitle('Layer 1 / Column 5', { exact: true }).getAttribute('data-requested'),
 			(value) => value === 'false'
 		);
-		await page.getByRole('button', { name: 'Unload Matrix', exact: true }).click();
+		await grid.locator('[data-matrix-stop-all]').click();
 		await wait(runtime, (s) =>
 			s.applications.some(
 				(a) => a.runtime === runtimeId && a.phase === 'Idle' && a.process_id === null
@@ -266,19 +269,18 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 				post: 0
 			}
 		});
-		await grid
-			.getByTitle('Layer 1 / Column 5', { exact: true })
-			.click({ position: { x: 5, y: 5 } });
-		await grid
-			.getByRole('gridcell', { selected: true })
-			.click({ button: 'right', position: { x: 5, y: 5 } });
+		await selectCell('Layer 1 / Column 5');
+		await selectCell('Layer 1 / Column 5', 1, 'right');
 		await page.getByRole('menuitem', { name: 'Inspect Cell settings', exact: true }).click();
 		await parameter('App file').locator('input.path-input').waitFor();
-		const enabled = parameter('Enabled').locator('input[type=checkbox]');
-		await enabled.setChecked(false);
+		const enabled = page
+			.locator('.inspector')
+			.getByRole('switch', { name: 'Toggle node enabled', exact: true })
+			.first();
+		await enabled.click();
 		await wait(
-			() => enabled.isChecked(),
-			(value) => value === false
+			() => enabled.getAttribute('aria-checked'),
+			(value) => value === 'false'
 		);
 		await grid.getByRole('button', { name: 'Launch Column 3', exact: true }).click();
 		const prior = await wait(runtime, (s) =>
@@ -302,7 +304,7 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 		);
 		assert.equal(retained.applications.find((a) => a.runtime === runtimeId).process_id, pid);
 		assert.equal(retained.applications.find((a) => a.runtime === runtimeId).launch, held.launch);
-		await page.getByRole('button', { name: 'Unload Matrix', exact: true }).click();
+		await grid.locator('[data-matrix-stop-all]').click();
 		await wait(runtime, (s) =>
 			s.applications.some(
 				(a) => a.runtime === runtimeId && a.phase === 'Idle' && a.process_id === null

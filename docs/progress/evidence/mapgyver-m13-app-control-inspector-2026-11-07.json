@@ -1,0 +1,108 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/10",
+	"status": "Accepted",
+	"batch": { "started_utc": "20:24", "cutoff_utc": "21:09", "verification_finished_utc": "20:43" },
+	"progress": {
+		"verified": 77,
+		"total": 92,
+		"overall_percent": 84,
+		"m13_verified": 8,
+		"m13_total": 14,
+		"m13_percent": 57,
+		"completed_phases": 7,
+		"total_phases": 14
+	},
+	"calculation": "One fixed App Control Inspector gate added to76/92:77/92 rounds to84%; M13 8/14 rounds to57%; phases remain7/14(50%). No denominator, timing budget or retained requirement changes.",
+	"capability": "Every App Control Inspector now contains only its real typed authored Parameters and configured conditional folders. Runtime sections, cards and their per-Inspector readers/snapshot controllers are removed for Column, Cell, Column Group and direct App Control child inspection. No replacement runtime prose is introduced.",
+	"architecture": "docs/architecture/mapgyver-matrix-controls.md",
+	"implementation": {
+		"owner": "ApplicationInspector.svelte is the single app-owned presentation hook for mapgyver.app_control.v1 through DomainInspector. Its existing configured-file child filter remains; ordinary Golden Parameter widgets, warnings, selection and conditional exposure remain authoritative.",
+		"removed": "RuntimeStatus.svelte, the unused ApplicationController/authoring module and Inspector-only runtime presentation helpers are deleted with their obsolete controller/label tests. ApplicationRuntimeReader's generic invocation signature now lives with that reader and still consumes Rust-generated DTOs.",
+		"retained": "The route's workbench-scoped runtime provider, transport, runtime-reader algorithm and Matrix grid/status renderers are unchanged. Backend ownership/supervision, demand, scripts, callbacks, recovery, public inspection operations, schemas and generated contracts are unchanged. Runtime observations stay available through existing backend/script interfaces.",
+		"fixture_updates": "Column/Cell UI checks now use whole Column headers, Cell body positions outside the compact Play controls, the current Stop All trigger and real enabled metadata. After Argument creation selects the new object, the Cell check explicitly returns to its real settings before clearing File. Removed Runtime-card assertions are replaced with clean-Inspector and existing grid-marker assertions."
+	},
+	"requirements": [
+		{
+			"requirement": "Every App Control owner, empty/configured and conditional settings",
+			"proof": "Fresh bundled scene exercises Columns, Cells and Column Groups. Each has only App file when empty; configuring it reveals ordinary settings, Spout readiness reveals/hides its authored fields, and clearing/Undo restores conditional fields. All three are also watched directly in the generic Inspector using their actual App Control node and exact same File Parameter address."
+		},
+		{
+			"requirement": "No Runtime section or replacement runtime prose",
+			"proof": "The same checks assert no exact Runtime heading, Application runtime region, Refresh runtime status action or former configuration/supervision prose in the Inspector. The final screenshot was visually inspected. No per-Inspector application snapshot requests are emitted; only one workbench runtime bootstrap is observed across selection changes."
+		},
+		{
+			"requirement": "Generic, mixed, offscreen and disabled selection",
+			"proof": "Direct generic child inspection retains real Parameter addressing. Ctrl selection of a Column and Column Group produces two selected manager rows and a clean generic mixed state. In an80-Column/2128-node scene, horizontal scrolling unmounts the selected first Column header while its Inspector File remains editable and commits the exact value. Parent disablement reports the generated DisabledByParent state, preserves authored fields and returns to Enabled without a Runtime section."
+		},
+		{
+			"requirement": "History/project behavior",
+			"proof": "The owner cases verify File clear/Undo, conditional recovery and Save/New/Load. The final Group Inspector restores the executable after project replacement. Independent existing Cell checks cover sparse materialization, arguments, pre/post values, exact history and no authoring-triggered process launch."
+		},
+		{
+			"requirement": "Unchanged supervision, compact feedback and script/headless lifecycle",
+			"proof": "Fresh bundled Column/Cell checks retain one shared process across three consumers, preserve independent Cell/anchor/requested markers and disabled destination holds, then Stop All retires the actual process. The final Group case reaches Ready and Idle with a real hidden process. Script UI checks cover eight named application methods, four acknowledged Starting/Ready/Stopping/Idle callbacks, same-PID Column/Cell sharing and both typed-command and named unload. The five unchanged runtime-reader behavior tests pass; the workbench provider and Matrix marker renderers are unchanged from their prior accepted native contract."
+		}
+	],
+	"software": {
+		"ui": {
+			"command": "npm run check (working directory: apps/mapgyver/ui)",
+			"errors": 0,
+			"warnings": 0,
+			"exit": 0
+		},
+		"runtime_reader": {
+			"command": "node --test apps/mapgyver/ui/src/lib/applications/tests/runtime.test.ts",
+			"passed": 5,
+			"exit": 0,
+			"scope": "Service errors/recovery, subscribe/bootstrap race, stale project/listener disposal, snapshot-only no-polling and event-registration retry cancellation. Only removed prose-label assertions change; remaining reader behavior is retained."
+		},
+		"backend": {
+			"command": "target/debug/deps/mapgyver-f77e019373ee6e24.exe applications:: --quiet",
+			"passed": 68,
+			"ignored": 1,
+			"exit": 0,
+			"sha256": "39dfc0708959e1ecdf49a2601bff5df19aef337b660f70ded669e0fa141cddbc",
+			"scope": "Existing compiled backend tests reused because all Rust sources/configuration are unchanged. The prior1edb7862 full562-test suite, strict Rust library/test Clippy and generated-contract equality remain passing evidence for that unchanged code. Fresh bundled application/process checks validate the changed UI separately."
+		},
+		"format": "Touched UI/fixture/owning doc Prettier, fixture Node syntax, root and golden_core cargo fmt/check and owning diff checks pass. No protocol generation or backend compilation cycle is added for unchanged Rust DTOs."
+	},
+	"bundled": {
+		"binary": "target/debug/deps/MapGyver-m1310-clean-final.exe",
+		"sha256": "f410525927828be377e097fc9b3f8beea336e3dd5f66da851698e827f450f054",
+		"build_command": "cargo rustc --locked -p MapGyver --bin MapGyver -- -C extra-filename=-m1310-clean-final",
+		"build_exit": 0,
+		"inspector": {
+			"command": "node apps/mapgyver/tests/browser/app-control-inspector.mjs target/m1310-inspector-final-20261107",
+			"receipt": "target/m1310-inspector-final-20261107/result.json",
+			"receipt_sha256": "d2af12a1169b27b4a69f04a8ad3c5a3419ce37eb6505845b674558ab4eedab2f",
+			"check_groups": 8,
+			"per_inspector_queries": 0,
+			"selection_runtime_reads": 1,
+			"group_process_id": 48704,
+			"group_runtime": "4cca85f1-ecfc-4b53-94f1-d7c302a62dcc",
+			"page_errors": 0,
+			"rejected_requests": 0,
+			"fixture_and_host_exit": 0,
+			"screenshot": "target/m1310-inspector-final-20261107/inspector.png"
+		},
+		"column_cell_process": {
+			"command": "node apps/mapgyver/tests/headless/media.mjs --column-applications-ui",
+			"result": "Shared Column/Cell process, three-consumer same-PID sharing, independent Cell/anchor/requested marker, disabled destination hold and actual Stop All retirement pass; no Runtime card remains.",
+			"fixture_and_host_exit": 0
+		},
+		"cell_and_script": {
+			"command": "node apps/mapgyver/tests/headless/media.mjs --cell-application-ui --application-lifecycle-ui",
+			"script_process_id": 15184,
+			"acknowledged_callbacks": 4,
+			"pending_callbacks": 0,
+			"callback_fault": null,
+			"page_errors": 0,
+			"fixture_and_host_exit": 0
+		},
+		"fixture_repairs": "Initial runs stopped on stale pre-M13 header/body/control locators and post-creation selection. The comprehensive case also corrected its grid-as-scroll-container selector and used the actual generated DisabledByParent spelling. Corrected complete final runs pass; no product policy or acceptance scope is relaxed.",
+		"limits": "Actual bundled UI in Chromium with ordinary isolated headless hosts and real owned Windows fixture processes. No desktop input, new native video/cadence, graphics-reset or visible-window claim. Grid/status code is unchanged; prior native marker evidence is reused only within its tested contract."
+	},
+	"retained": "Timed Matrix interruption source-set assertion, unavailable format paths, native-input timing/alignment, original Intel4K/production timing/memory limits, WOW64 retirement and final artifact requirements remain open exactly as recorded in the status ledger. This UI gate closes none of them.",
+	"gate_change": "M13/10 Accepted. M13/11 alone Active next: optional Transition Time metadata, Smooth default and preserved Cell→Column→Layer precedence."
+}

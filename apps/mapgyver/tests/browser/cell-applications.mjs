@@ -121,6 +121,16 @@ export async function verifyCellApplicationsUi({ base, edit }) {
 			runtime.applications.every((value) => value.process_id === null),
 			'Authoring never launches'
 		);
+		const target = grid.getByTitle('Layer 1 / Column 3', { exact: true });
+		const bounds = await target.boundingBox();
+		assert(bounds);
+		await target.click({ button: 'right', position: { x: 8, y: bounds.height - 8 } });
+		await page.getByRole('menuitem', { name: 'Inspect Cell settings', exact: true }).click();
+		assert.equal(await page.locator('.inspector').getByText('Runtime', { exact: true }).count(), 0);
+		assert.equal(
+			await page.getByRole('region', { name: 'Application runtime', exact: true }).count(),
+			0
+		);
 		await parameter('App file').getByRole('button', { name: 'Clear', exact: true }).click();
 		await wait(application, (value) => value.definition.executable === null);
 		await wait(
