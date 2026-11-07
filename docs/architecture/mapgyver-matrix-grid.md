@@ -20,6 +20,19 @@ Measured overlays do not contribute to the extent they measure. Stable scrollbar
 avoid a scrollbar/resize feedback loop. Read windows stay bounded to 64 rows and 32 slots;
 empty addresses remain unauthored and selected Inspector data remains independently queried.
 
+`RowControls` projects each mounted Layer or Group's existing `parameters/opacity` and
+`parameters/blend` nodes through Golden's public Parameter editor registry. It resolves
+UUIDs through the graph index and traverses only declaration children, never the Layer's
+Cell collection. The Inspector and inline widgets therefore share identity, constraints,
+control mode, edit sessions and history. A labelled group contains each widget; an HTML
+label around the slider would activate its numeric input after dragging and could create
+an extra rounded-value edit on blur. Inline gestures cannot initiate a row drag.
+
+Row and Column header backgrounds select their real document objects, including through
+Enter and Space. Embedded rename, launch and Parameter controls retain their own input
+handling. Layer and Group titles sit at the top left, with hierarchy indentation applied
+to the title rather than reducing the controls' available width.
+
 Empty Cells show a subtle outline. Add and X removal actions appear on pointer hover or
 keyboard focus, retaining accessible labels, tooltips and context-menu equivalents.
 Golden's public `registerActionIcon` lets the app choose the same X for built-in node menus

@@ -1,0 +1,56 @@
+{
+  "date": "2026-11-07",
+  "milestone": "M13/3 inline Matrix Parameter controls and whole-header selection",
+  "gate": "Active; partial product delivery, not acceptance",
+  "acceptance": { "verified": 70, "total": 92, "m13_verified": 1, "m13_total": 14 },
+  "ownership": "MapGyver Matrix UI projects existing real Golden Parameters using the public editor registry and declaration-only graph indexes. No duplicate settings, protocol, backend defaults or persistence contract.",
+  "capability": [
+    "Layer and Group headers show top-left titles and compact canonical Opacity/Blend Mode widgets.",
+    "Header backgrounds and Enter/Space select document objects while rename, launch and embedded controls retain their actions.",
+    "Inline control gestures cannot initiate row dragging. Generic edit-session, constraints, control-mode and history behavior is retained."
+  ],
+  "native": {
+    "driver": "apps/mapgyver/tests/browser/native-matrix-inline.mjs",
+    "artifacts": "target/mapgyver-m13-inline-reload-20261107",
+    "binary": "target/debug/deps/MapGyver-m133-inline.exe",
+    "sha256": "c54b07b79cf07175e29b325a9e4a8b6c6c8ba49500088581d50077ed6be7e103",
+    "pid": 9668,
+    "exit": 0,
+    "checks": [
+      "Root Layer, Group and nested Layer use the exact Inspector Parameter IDs.",
+      "Opacity .375, all four blend modes, Inspector-to-inline .625, exact Undo/Redo snapshots and top-aligned labels pass for all three objects.",
+      "Slider gesture changes opacity without moving rows and is restored by one Undo and Redo after its edit session settles.",
+      "Actual blank Column header click and keyboard selection preserve launch; Layer rename passes.",
+      "Sparse 1000 rows by 1000 Columns authors zero Cells and mounts eight row-control groups at the observed scrolled viewport, within the 64-row bound.",
+      "Selected offscreen Layer remains editable in Inspector; returning to it shows .25. Same-ID project reload preserves all item settings and the inline value."
+    ],
+    "page_errors": [],
+    "rejected_requests": [],
+    "observed_requests": 509,
+    "observed_receipts": 509,
+    "visual_review": "inline-controls.png inspected: top-left hierarchy labels and compact editors, no overlap. This is an app-WebView UI check, not render pixels or timing qualification."
+  },
+  "validation": {
+    "svelte_check": "0 errors, 0 warnings",
+    "matrix_node_tests": "33 passed, 0 failed",
+    "native_build": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m133-inline; exit0",
+    "format": "Scoped Prettier, node --check, root and golden_core cargo fmt pass",
+    "backend": "No Rust/protocol change; earlier 510 app tests and strict lint retained for unchanged backend code."
+  },
+  "failed_attempts_retained": [
+    { "artifacts": "target/mapgyver-m13-inline-baseline-20261107", "finding": "Leaf declaration lookup omitted the parameters/ prefix; controls did not mount. Corrected to authoritative full declaration IDs." },
+    { "artifacts": "target/mapgyver-m13-inline-comparison-20261107", "finding": "Header click while the preceding edit projection was settling. Test now waits for panel readiness." },
+    { "artifacts": "target/mapgyver-m13-inline-readiness-20261107", "finding": "Slider Undo comparison failed. Removed HTML label activation around composite widgets; explicit session-settle waiting is also required by the test." },
+    { "artifacts": "target/mapgyver-m13-inline-grouped-20261107; target/mapgyver-m13-inline-settled-20261107", "finding": "Assumed header-relative click position missed the actual background. Test now derives a real blank point through elementFromPoint, without dispatching synthetic selection." },
+    { "artifacts": "target/mapgyver-m13-inline-background-20261107", "finding": "Test incorrectly read playback from authoring Inspect; corrected to public InspectPlayback." },
+    { "artifacts": "target/mapgyver-m13-inline-complete-20261107", "finding": "Undo was attempted before the slider edit session settled; wait for panel readiness before history actions." },
+    { "artifacts": "target/mapgyver-m13-inline-history-settled-20261107", "finding": "Expected ARIA row count omitted the trailing creation row; real count is 1000+2." },
+    { "artifacts": "target/mapgyver-m13-inline-sparse-20261107", "finding": "Controls, offscreen editing and sparse bounds passed; load response has path/recovery rather than ok. Corrected response assertion." }
+  ],
+  "remaining": [
+    "Full M13/3 limiting/exact-fit/both-axis/dock/group scrollbar stability and narrow/large/scale checks.",
+    "Front Layer first/top throughout document hierarchy, all reorder callers and backend compositing, with native overlapping pixels.",
+    "Full sparse preview/resource lifetime acceptance; this zero-Cell control virtualization check does not replace it."
+  ],
+  "gate_changes": "M13/2 Active to Blocked with every named API/hardware/interpretation return trigger preserved in mapgyver-m13-app-catalog-2026-11-07.json; M13/3 alone Active. No gate closed or denominator changed."
+}

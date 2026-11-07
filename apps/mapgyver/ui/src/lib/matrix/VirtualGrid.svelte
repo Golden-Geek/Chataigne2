@@ -18,6 +18,7 @@
 	import type { MatrixRenderStatus } from '../preview/generated/MatrixRenderStatus';
 	import type { ApplicationRuntimeSnapshot } from '../media/generated/ApplicationRuntimeSnapshot';
 	import GridLabel from './GridLabel.svelte';
+	import RowControls from './RowControls.svelte';
 	import ColumnGroupHeaders from './ColumnGroupHeaders.svelte';
 	import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
 	import CellPreviews from './CellPreviews.svelte';
@@ -85,6 +86,7 @@
 	let dragging = $state<GridDrag | null>(null);
 	let highlighted: HTMLElement | null = null;
 	let dragIdentity = '';
+	let dragFromControl = false;
 	function clearDropHint() {
 		highlighted?.removeAttribute('data-matrix-drop-position');
 		highlighted = null;
@@ -92,6 +94,7 @@
 	function endDrag() {
 		clearDropHint();
 		dragging = null;
+		dragFromControl = false;
 	}
 	$effect(() => {
 		const identity = JSON.stringify([snapshot.project, snapshot.media]);
@@ -101,7 +104,13 @@
 		}
 	});
 	function startDrag(event: DragEvent, value: GridDrag) {
-		if (disabled || !event.dataTransfer || event.target instanceof HTMLInputElement) {
+		if (
+			disabled ||
+			dragFromControl ||
+			!event.dataTransfer ||
+			(event.target instanceof Element &&
+				event.target.closest('input, select, textarea, [data-matrix-row-controls]'))
+		) {
 			event.preventDefault();
 			return;
 		}
@@ -109,6 +118,19 @@
 		dragging = value;
 		event.dataTransfer.effectAllowed = 'move';
 		event.dataTransfer.setData('application/x-mapgyver-matrix-drag', JSON.stringify(value));
+	}
+	function selectHeader(event: MouseEvent | KeyboardEvent, select: () => void) {
+		if (disabled) return;
+		if (event instanceof KeyboardEvent) {
+			if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return;
+			event.preventDefault();
+			event.stopPropagation();
+		} else if (
+			event.target instanceof Element &&
+			event.target.closest('button, input, select, textarea, [role="slider"]')
+		)
+			return;
+		select();
 	}
 	function dropAt(
 		event: DragEvent
@@ -261,6 +283,10 @@
 			bind:this={element}
 			onscroll={measure}
 			onkeydown={navigate}
+			onpointerdown={(event) => {
+				dragFromControl =
+					event.target instanceof Element && !!event.target.closest('[data-matrix-row-controls]');
+			}}
 			oncontextmenu={context}
 			ondragover={(event) => {
 				const target = dropAt(event);
@@ -344,6 +370,10 @@
 							role="columnheader"
 							tabindex="0"
 							data-column-id={column.id}
+							aria-selected={selected?.column === column.id}
+							class:selected={selected?.column === column.id}
+							onclick={(event) => selectHeader(event, () => selectColumn(column))}
+							onkeydown={(event) => selectHeader(event, () => selectColumn(column))}
 							aria-colindex={column.axis_index + 2}
 							class:requested={snapshot.playback.desired_column === column.id}
 							class:installed={observation?.installed?.columns.includes(column.id) === true}
@@ -397,18 +427,26 @@
 							ondragstart={(event) => startDrag(event, { kind: 'Item', item: row.item.id })}
 							role="rowheader"
 							tabindex="0"
+							aria-label={row.item.label}
+							aria-selected={selected?.item?.id === row.item.id.id}
+							class:selected={selected?.item?.id === row.item.id.id}
+							onclick={(event) => selectHeader(event, () => selectRow(row))}
+							onkeydown={(event) => selectHeader(event, () => selectRow(row))}
 							style:left={`${projection.left}rem`}
-							style:padding-left={`${0.5 + row.depth * 0.8}rem`}
 							title={row.item.label}>
-							{#if row.item.id.kind === 'Group'}<img src={groupIcon} alt="" /><small>Group</small
-								>{/if}
-							<GridLabel
-								label={row.item.label}
-								selected={selected?.item?.id === row.item.id.id}
-								{disabled}
-								select={() => selectRow(row)}
-								rename={async (label) =>
-									Boolean(await edit({ kind: 'RenameItem', item: row.item.id, label }))} />
+							<div class="row-title" style:padding-inline-start={`${row.depth * 0.8}rem`}>
+								{#if row.item.id.kind === 'Group'}<img src={groupIcon} alt="" />{/if}
+								<div class="row-title-label">
+									<GridLabel
+										label={row.item.label}
+										selected={selected?.item?.id === row.item.id.id}
+										{disabled}
+										select={() => selectRow(row)}
+										rename={async (label) =>
+											Boolean(await edit({ kind: 'RenameItem', item: row.item.id, label }))} />
+								</div>
+							</div>
+							<RowControls uuid={row.item.id.id} label={row.item.label} />
 						</div>
 						{#each snapshot.columns as column, columnIndex (column.id)}
 							{@const cell = cells.get(`${row.item.id.id}:${column.id}`)}
@@ -588,13 +626,28 @@
 		overflow: hidden;
 		display: flex;
 		flex-direction: column;
-		justify-content: center;
+		justify-content: flex-start;
 		gap: 0.3rem;
 		border: 0.05rem solid var(--gc-color-border);
 	}
 	.row-label img {
 		width: 1.2em;
 		height: 1.2em;
+	}
+	.row-title {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.25rem;
+		min-inline-size: 0;
+		box-sizing: border-box;
+	}
+	.row-title-label {
+		flex: 1;
+		min-inline-size: 0;
+	}
+	.row-label.selected,
+	.heading.selected {
+		box-shadow: inset 0 0 0 0.08rem var(--gc-color-focus);
 	}
 	.group .row-label {
 		border-left: 0.2rem solid var(--gc-color-accent);
@@ -698,9 +751,6 @@
 	.remove {
 		right: 0.25rem;
 		top: 0.25rem;
-	}
-	small {
-		font-size: 0.7em;
 	}
 	:global([data-matrix-drop-position='before']) {
 		box-shadow: inset 0 0.2rem var(--gc-color-focus);
