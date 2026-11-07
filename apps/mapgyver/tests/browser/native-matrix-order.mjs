@@ -145,6 +145,26 @@ try {
 	async function order(ids) {
 		await wait(uiOrder, (actual) => JSON.stringify(actual) === JSON.stringify(ids));
 	}
+	async function pickFront(expected) {
+		await page.locator('.gc-dv-tab[data-content-panel-id="composition"]').click();
+		const panel = page.locator(
+			'.workbench-editor[data-panel-id="composition"][data-spatial-kind="Matrix"]'
+		);
+		await wait(
+			() => panel.getAttribute('aria-busy'),
+			(value) => value === 'false'
+		);
+		const rect = panel.locator(`[data-layer-id="${expected}"]`);
+		await rect.waitFor();
+		const bounds = await rect.boundingBox();
+		assert(bounds);
+		await page.mouse.click(bounds.x + bounds.width * 0.43, bounds.y + bounds.height * 0.43);
+		await wait(
+			() => panel.getAttribute('data-spatial-selected'),
+			(value) => value === expected
+		);
+		await tab('Matrix').click();
+	}
 	await matrix({ kind: 'LaunchColumn', column, mode: 'Cut' });
 	output = await createPreviewOutputObserver(post, path.join(directory, 'output'), page);
 	const { screen } = await output.demand(reference);
@@ -157,9 +177,11 @@ try {
 	}
 	await order(rows.map((row) => row.id));
 	await pixels('root-first-red', [255, 0, 0, 255]);
+	await pickFront(rows[0].id);
 	await matrix({ kind: 'MoveItem', item: rows[0], parent: null, after: rows[1] });
 	await order([rows[1].id, rows[0].id, rows[2].id]);
 	await pixels('move-first-blue', [0, 0, 255, 255]);
+	await pickFront(rows[1].id);
 	await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 	await order(rows.map((row) => row.id));
 	await pixels('undo-red', [255, 0, 0, 255]);

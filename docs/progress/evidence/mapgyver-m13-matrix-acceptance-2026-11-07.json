@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-07",
+  "gate": "M13/3 Accepted",
+  "acceptance": { "verified": 71, "total": 92, "m13_verified": 2, "m13_total": 14, "completed_phases": 7, "total_phases": 14 },
+  "scope": "Complete M13/3 Matrix layout, selection, canonical inline controls, front-first order and sparse preview lifetime. Counts advance by one fixed gate; no denominator or original budget changes.",
+  "prior_slices": ["mapgyver-m13-matrix-inline-2026-11-07.json", "mapgyver-m13-matrix-order-2026-11-07.json"],
+  "final_change": "Matrix Layer SVG hit regions paint back to front using backend row ordinals, including independently selected offscreen rows. Overlap selection now agrees with rendered output instead of choosing the last/back Layer. The bounded presentation helper never mutates authored order or invents an offscreen rank.",
+  "requirements": [
+    { "requirement": "Stable limiting, exact-fit, both-axis, dock and grouped-header scrolling", "proof": "Current app passes the existing adaptive/fractional/64x64/group flows plus 36 independent minimum-size boundary cases per GPU: width/height -1/0/+1 CSS pixel at rem12/16/24/32. Each retains 25 identical settled frame samples and its populated preview lease; inline editors fit. A trusted real dock-divider drag reaches an 82px client minimum and re-expands to 830px, with 30 stable frames each. Root/group headers, virtual scrolling and current-object selection/history remain valid." },
+    { "requirement": "Whole Layer/Column selection, preserved embedded actions, top-left labels and real Opacity/Blend Mode", "proof": "Prior inline slice passes exact Inspector Parameter IDs, root/Group/nested Layer controls, all blend choices, opacity edits, grouped slider Undo/Redo, no row move, keyboard/header selection, launch/rename, independently selected offscreen Inspector and reload. No authored settings are stored in UI state." },
+    { "requirement": "First/top Layer frontmost across hierarchy, reorder, rendering and hit selection", "proof": "Backend root/nested/reparent/history/reload tests pass. Final app passes eleven complete 96x64 independent SDK output captures on each GPU, plus actual overlapping Layer-canvas clicks before and after reorder. Root/group moves, reparenting, opacity, disable/enable and reload agree with visible row order. Existing full public-caller parity suite passes." },
+    { "requirement": "Narrow/large/scaled UI, nested Groups, offscreen selection and project/history", "proof": "Both GPU flows pass empty axes, adaptive 715x640/996x801 and minimum 396x346 grids, fractional resize, 64x64 keyboard navigation, exact retained scroll, uncommitted draft preservation, narrow 125% Inspector, root/nested Group creation/rename/drag/reparent/copy/delete/ungroup/history and sparse offscreen Inspector. Threshold cases exercise four root-font sizes without replacing the grid component." },
+    { "requirement": "Sparse1000x1000 preview lifetime and no whole-grid materialization", "proof": "Both GPUs author six Cells only; 100 near and 64 far addresses mount within the 2048 cap. Source groups change 2 near,2 far,1 after loss,0 empty,2 scroll recovery,2 tab recovery. New withdraws the native UI lease and publishes an empty backend observation set. Every sampled runtime is Running/error-null with tracked bytes below the existing negotiated limit, in_flight<=2 and retiring=0. Separate zero-Cell inline test mounts eight control groups and preserves offscreen .25 through reload." }
+  ],
+  "software": {
+    "current_ui": "51 Matrix/spatial Node tests pass; Svelte 0 errors/0 warnings; scoped Prettier and Node syntax pass",
+    "retained_unchanged_backend": "512 app tests pass, 2 existing ignored; strict Clippy including native-preview-smoke/application-process-fixture and generated contracts pass at bf9d86bb. No Rust/protocol change in final slice.",
+    "native_build": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m133-layout; exit0 before final native checks",
+    "format": "Root and golden_core cargo fmt plus scoped diff checks pass"
+  },
+  "native": {
+    "binary": "target/debug/deps/MapGyver-m133-layout.exe",
+    "sha256": "dd967f44c33d7c360c8a3b9f30722bb3b19572963a1bd528daeb5c8b23357f27",
+    "layout_command": "MAPGYVER_TEST_BINARY=<binary> MAPGYVER_GRID_DIRECTORY=<fresh directory> MAPGYVER_GROUP_UI_DIRECTORY=<fresh groups directory> node apps/mapgyver/tests/browser/native-navigation.mjs --matrix-grid --gpu=<exact LUID>",
+    "layout_runs": [
+      { "gpu": "dxgi:00000000:90b3a15f", "pid": 45432, "exit": 0, "artifacts": "target/mapgyver-m13-layout-settled-nvidia-20261107", "groups": "target/mapgyver-m13-layout-settled-nvidia-groups-20261107", "threshold_cases": 36, "adaptive_requests_receipts": [387,387], "sparse_max_tracked_bytes": 328457888, "existing_limit_bytes": 7987527680 },
+      { "gpu": "dxgi:00000000:00015b69", "pid": 5596, "exit": 0, "artifacts": "target/mapgyver-m13-layout-settled-intel-20261107", "groups": "target/mapgyver-m13-layout-settled-intel-groups-20261107", "threshold_cases": 36, "adaptive_requests_receipts": [390,390], "sparse_max_tracked_bytes": 328457888, "existing_limit_bytes": 9216951214 }
+    ],
+    "hit_and_output_command": "MAPGYVER_TEST_BINARY=<binary> node apps/mapgyver/tests/browser/native-matrix-order.mjs <fresh directory> <adapter index>",
+    "hit_and_output_runs": [
+      { "gpu": "dxgi:00000000:90b3a15f", "pid": 44496, "exit": 0, "artifacts": "target/mapgyver-m13-hit-order-nvidia-20261107", "requests_receipts": [277,277], "images": 11 },
+      { "gpu": "dxgi:00000000:00015b69", "pid": 43588, "exit": 0, "artifacts": "target/mapgyver-m13-hit-order-intel-20261107", "requests_receipts": [272,272], "images": 11 }
+    ],
+    "page_errors": [], "rejected_requests": [],
+    "visual_review": "Both final adaptive.png captures inspected for grouped layout, top-left labels, inline controls, selection and scroll extent. WebView captures exclude native GPU surfaces; independent SDK image comparisons establish rendered colors.",
+    "baseline": "target/mapgyver-m13-layout-baseline-20261107 and target/mapgyver-m13-layout-groups-20261107: PID31996/exit0, complete existing native suite before boundary extension. No old failure is silently replaced."
+  },
+  "fixture_corrections_and_failed_runs": [
+    "target/mapgyver-m13-layout-thresholds-nvidia-20261107: new threshold cases/minimum pass, fixture demanded exact dock outer-width restoration; failed.",
+    "target/mapgyver-m13-layout-final-nvidia-20261107: client-width correction still failed the extra exact restoration demand. Final test records real minimum/re-expanded sizes and verifies stability, without claiming neighbor widths return pixel-exactly. Original gate requires stable resize, not a new exact rollback contract; no product budget was changed.",
+    "target/mapgyver-m13-layout-current-nvidia-20261107: extended adaptive checks pass, but redistributed neighbor widths made a later center-of-tab click close Medias. Owned test layout now resets through the product Clear UI action before subsequent default-layout flows.",
+    "target/mapgyver-m13-layout-qualified-nvidia-20261107: adaptive checks pass, cleanup waited for a media button without activating the reset Medias tab. Final cleanup awaits navigation, activates Medias, checks the real authored object and verifies unchanged authoring. Both complete final flows then exit0."
+  ],
+  "limits": "M13/3 functional/native UI acceptance only. Stable settled frames are not high-refresh interaction or pointer-to-visible timing proof. Tracked resource admission and preview demand withdrawal are not zero physical residency or complete generic GPU-owner retirement; M03/9 and other retained qualification remain open with their original budgets. No renderer/source gate or unavailable physical requirement is waived.",
+  "next_gate": "M13/4 smooth immediate interaction at recorded high refresh, plus truthful delayed outstanding-operation feedback. It remains unaccepted."
+}

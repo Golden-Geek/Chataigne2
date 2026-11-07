@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 import { observeNativeRejectedRequests } from './intent-observer.mjs';
+import { writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
 // This verifies actual UI registration/feedback lifetime, not native window pixels.
 export async function verifyMatrixSparsePreviews({ page, edit, post }) {
@@ -137,6 +139,7 @@ export async function verifyMatrixSparsePreviews({ page, edit, post }) {
 			phase,
 			sourceGroups: await surface.getAttribute('data-matrix-preview-source-count'),
 			mountedCells: await grid.getByRole('gridcell').count(),
+			resources: status.resources,
 			state: status.state
 		});
 	}
@@ -238,15 +241,20 @@ export async function verifyMatrixSparsePreviews({ page, edit, post }) {
 	assert.equal((await runtime()).error, null);
 	assert.deepEqual(errors, []);
 	assert.deepEqual(rejected, []);
-	console.log(
-		JSON.stringify({
-			result: 'pass',
-			dimensions: [1000, 1000],
-			authoredCells: 6,
-			observations,
-			withdrawn,
-			scope:
-				'Actual native WebView bounded sparse Cell labels, shared registration, source loss/Undo, scroll and tab lifetime, backend empty observations after New; no native window pixel or complete GPU-owner retirement claim'
-		})
-	);
+	const result = {
+		result: 'pass',
+		dimensions: [1000, 1000],
+		authoredCells: 6,
+		observations,
+		withdrawn,
+		scope:
+			'Actual native WebView bounded sparse Cell labels, shared registration, source loss/Undo, scroll and tab lifetime, backend empty observations after New; no native window pixel or complete GPU-owner retirement claim'
+	};
+	if (process.env.MAPGYVER_GRID_DIRECTORY) {
+		await writeFile(
+			path.join(process.env.MAPGYVER_GRID_DIRECTORY, 'sparse.json'),
+			JSON.stringify(result, null, 2)
+		);
+	}
+	console.log(JSON.stringify(result));
 }

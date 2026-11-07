@@ -8,6 +8,7 @@
 	import SpatialViewport from './SpatialViewport.svelte';
 	import RectLayoutControls from './RectLayoutControls.svelte';
 	import { createLayerEditor } from './layer-editor.svelte';
+	import { matrixLayerPaintRows } from './rect-presentation';
 	import type { RectGeometryMode } from '../media/generated/RectGeometryMode';
 	import type { Point } from '../media/generated/Point';
 	let props: {
@@ -72,13 +73,7 @@
 			snapshot?.selected?.row ??
 			null
 	);
-	const rows = $derived(
-		snapshot
-			? selected && !snapshot.rows.some((row) => row.item.id.id === selected.item.id.id)
-				? [...snapshot.rows, selected]
-				: snapshot.rows
-			: []
-	);
+	const rows = $derived(snapshot ? matrixLayerPaintRows(snapshot, selected) : []);
 	const bounds = $derived(
 		selected?.item.layer && canvas
 			? {

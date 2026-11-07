@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { observeNativeRejectedRequests } from './intent-observer.mjs';
+import { verifyMatrixBoundaries } from './matrix-boundaries.mjs';
 
 // Native M12/5 acceptance supplements the existing browser authoring contract.
 export async function verifyAdaptiveMatrixGrid({ page, edit, nativePid }) {
@@ -235,6 +236,7 @@ export async function verifyAdaptiveMatrixGrid({ page, edit, nativePid }) {
 		}
 		geometry.push(sample.sizes.at(-1));
 	}
+	const boundaries = await verifyMatrixBoundaries({ page, grid, lease, snapshot: beforeResize });
 	assert(
 		await handle.evaluate((element) => element.isConnected),
 		'resizing preserves the actual grid component'
@@ -251,6 +253,7 @@ export async function verifyAdaptiveMatrixGrid({ page, edit, nativePid }) {
 		rowGroup,
 		empty_states: emptyStates,
 		geometry,
+		boundaries,
 		preview_lease: lease,
 		preview_resize_frames: 135,
 		errors,
@@ -260,5 +263,32 @@ export async function verifyAdaptiveMatrixGrid({ page, edit, nativePid }) {
 			'Actual native zero axes, trailing creation, selected hierarchy, keyboard reveal/create/remove, generic X hook, history and settled resize. Full group/Inspector and 1000x1000 cases run separately in the same acceptance flow.'
 	};
 	await writeFile(path.join(directory, 'adaptive.json'), JSON.stringify(result, null, 2));
-	console.log(JSON.stringify(result));
+	console.log(
+		JSON.stringify({
+			result: result.result,
+			nativePid,
+			geometry,
+			threshold_cases: boundaries.thresholds.length,
+			dock: boundaries.dock,
+			preview_resize_frames: result.preview_resize_frames,
+			transport: receipts.observed,
+			errors,
+			rejected: receipts.rejected
+		})
+	);
+	// The minimum drag changes neighboring dock allocations too. Reset this owned profile's
+	// UI through the product action before later fixtures click tabs in the default layout.
+	await Promise.all([
+		page.waitForEvent('domcontentloaded'),
+		page.getByRole('button', { name: 'Clear UI', exact: true }).click()
+	]);
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Medias$/ })
+		.click();
+	await page
+		.getByRole('region', { name: 'Medias', exact: true })
+		.getByRole('button', { name: 'Adaptive grid review', exact: true })
+		.waitFor();
+	assert.deepEqual(await inspect(), beforeResize, 'resetting test UI layout does not author data');
 }

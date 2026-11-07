@@ -38,6 +38,9 @@ boundary reverses each immediate sibling set for Golden's back-to-front composit
 order. Nested Groups apply the same rule locally and remain one composited input in their
 parent. Reordering changes the authored hierarchy; the UI never reverses a separate copy,
 and Layer-internal transition inputs keep their independent additive playback order.
+The Matrix Layer canvas also paints SVG hit regions back to front, using the backend's
+row ordinals for visible and independently selected offscreen Layers. Selection cannot
+silently promote a back Layer above a front Layer in overlap hit testing.
 
 Empty Cells show a subtle outline. Add and X removal actions appear on pointer hover or
 keyboard focus, retaining accessible labels, tooltips and context-menu equivalents.
