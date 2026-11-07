@@ -1,11 +1,13 @@
 // Real owned WebView input. Measures submitted requests and DOM geometry, not physical scanout.
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
 
 const directory = path.resolve(process.argv[2]);
+const sharedTexture = process.argv.includes('--shared-texture');
+const dense = process.argv.includes('--dense');
 await mkdir(directory);
 const native = await openNativeEditor();
 const { page } = native;
@@ -90,13 +92,45 @@ async function drag(name, control, shape, dx, dy, alt = false) {
 	const point = { x: box.x + box.width * 0.5, y: box.y + box.height * 0.5 };
 	const before = await shapeValue(shape),
 		samples = [];
+	if (process.argv.includes('--observe-native')) {
+		await writeFile(
+			path.join(directory, 'observe.json'),
+			JSON.stringify({ phase, pid: native.app.pid, cdp: native.cdp, point })
+		);
+		const until = Date.now() + 180000;
+		while (!(await stat(path.join(directory, `${name}.continue`)).catch(() => null))) {
+			assert(Date.now() < until, `${name}: native observation readiness expired`);
+			await delay(100);
+		}
+	}
 	await page.mouse.move(point.x, point.y);
+	await page.evaluate(() => {
+		window.__surfaceInputWitness = [];
+		window.__surfaceInputListener = (event) => {
+			window.__surfaceInputWitness.push({
+				x: event.clientX,
+				y: event.clientY,
+				dx: event.movementX,
+				dy: event.movementY,
+				buttons: event.buttons,
+				trusted: event.isTrusted
+			});
+		};
+		document.addEventListener('mousemove', window.__surfaceInputListener, true);
+	});
 	if (alt) await page.keyboard.down('Alt');
 	const start = performance.now();
 	await page.mouse.down();
 	try {
-		for (let index = 1; index <= 48; index++) {
-			await page.mouse.move(point.x + (dx * index) / 48, point.y + (dy * index) / 48);
+		const steps = dense ? 120 : 48;
+		for (let index = 1; index <= steps; index++) {
+			// Bounded Inspector rows have only a short valid travel before the crop clamps.
+			// Repeated short sweeps keep every sample meaningful without collapsing the crop.
+			const progress =
+				dense && name.startsWith('inspector-')
+					? (12 - Math.abs(12 - (index % 24))) / 12
+					: index / steps;
+			await page.mouse.move(point.x + dx * progress, point.y + dy * progress);
 			samples.push({ ms: performance.now() - start, shape: await shapeValue(shape) });
 			await delay(16);
 		}
@@ -105,6 +139,10 @@ async function drag(name, control, shape, dx, dy, alt = false) {
 		if (alt) await page.keyboard.up('Alt');
 	}
 	const held_ms = samples.at(-1).ms;
+	const input = await page.evaluate(() => {
+		document.removeEventListener('mousemove', window.__surfaceInputListener, true);
+		return window.__surfaceInputWitness;
+	});
 	await delay(250);
 	const end = performance.now(),
 		after = await shapeValue(shape);
@@ -123,17 +161,33 @@ async function drag(name, control, shape, dx, dy, alt = false) {
 			entry.intent.kind === 'invokeAppOperation' ? entry.intent.payload?.kind : entry.intent.kind;
 		counts[key] = (counts[key] ?? 0) + 1;
 	}
-	phases.push({ name, held_ms, in_progress_dom_changes: changes, before, after, counts, samples });
+	phases.push({
+		name,
+		held_ms,
+		in_progress_dom_changes: changes,
+		before,
+		after,
+		counts,
+		samples,
+		input
+	});
+	assert(input.length <= (dense ? 120 : 48) + 1, `${name}: unexpected external pointer input`);
 }
 try {
 	token = (await post('/api/ui/session', {})).token;
 	const source = (
 		await op('mapgyver.media', {
 			kind: 'CreateMedia',
-			media_kind: 'SolidColor',
+			media_kind: sharedTexture ? 'SharedTexture' : 'SolidColor',
 			label: 'Live geometry source'
 		})
 	).reference;
+	if (sharedTexture)
+		await op('mapgyver.media', {
+			kind: 'ConfigureChannel',
+			reference: source,
+			source: { kind: 'Spout', sender: 'Spout Demo Sender' }
+		});
 	await op('mapgyver.media', {
 		kind: 'ConfigureMediaResolution',
 		media: source.media,
@@ -192,7 +246,7 @@ try {
 		'canvas-corner',
 		page.getByRole('button', { name: 'Warp corner 1', exact: true }),
 		polygon,
-		35,
+		dense ? 120 : 35,
 		12
 	);
 	const row = (label) =>
@@ -201,7 +255,7 @@ try {
 		'inspector-corner',
 		row('Top left').locator('.infinite-slider').first(),
 		polygon,
-		14,
+		dense ? 12 : 14,
 		0,
 		true
 	);
@@ -212,7 +266,7 @@ try {
 	await crop.waitFor();
 	await drag('inspector-crop-origin', row('Crop origin').locator('.slider').first(), crop, 12, 0);
 	await drag('inspector-crop-size', row('Crop size').locator('.slider').first(), crop, -12, 0);
-	await drag('canvas-crop', crop, crop, 20, 8);
+	await drag('canvas-crop', crop, crop, dense ? 120 : 20, dense ? 32 : 8);
 	if (process.argv.includes('--expect-live')) {
 		for (const result of phases)
 			assert(
@@ -233,6 +287,8 @@ try {
 			{
 				result: failure ? 'failed' : 'pass',
 				pid: native.app.pid,
+				shared_texture: sharedTexture,
+				dense_input: dense,
 				phases,
 				requests,
 				receipts,
@@ -246,5 +302,5 @@ try {
 		)
 	);
 }
-console.log(JSON.stringify({ phases: phases.map(({ samples, ...rest }) => rest) }));
+console.log(JSON.stringify({ phases: phases.map(({ samples, input, ...rest }) => rest) }));
 if (failure) throw failure;
