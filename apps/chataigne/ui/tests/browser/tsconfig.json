@@ -6,6 +6,10 @@
 		"module": "ESNext",
 		"moduleResolution": "bundler",
 		"noEmit": true,
+		"paths": {
+			"golden_ui": ["../../../../../packages/golden-ui/index.ts"],
+			"golden_ui/*": ["../../../../../packages/golden-ui/*"]
+		},
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
 		"strict": true,

@@ -486,14 +486,11 @@ export const fromRustEventBatch = (batch: RustUiEventBatch): UiEventBatch => ({
 });
 
 export const fromRustAck = (ack: RustUiAck): UiAck => ({
-	success: ack.success,
-	status: ack.status,
+	...ack,
 	error_code: ack.error_code ?? undefined,
 	error_message: ack.error_message ?? undefined,
 	earliest_event_time: ack.earliest_event_time ?? undefined,
-	latest_event_time: ack.latest_event_time ?? undefined,
-	result: ack.result,
-	history: ack.history
+	latest_event_time: ack.latest_event_time ?? undefined
 });
 
 const toRustInitialParams = (initialParams: UiCreateUserItemInitialParam[] | undefined) =>

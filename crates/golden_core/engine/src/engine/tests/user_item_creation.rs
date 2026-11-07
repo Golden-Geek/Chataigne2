@@ -88,6 +88,7 @@ fn declared_parameter_folders_close_catalog_inheritance_without_closing_ordinary
                 initial_params: vec![],
             });
             assert!(!ack.success, "{ack:?}");
+            assert!(ack.created_node.is_none());
             assert_eq!(engine.nodes.len(), before);
         }
         let project = engine.to_project_file_with(Node::project_encode_data).unwrap();
@@ -128,6 +129,11 @@ fn live_user_item_creation_reads_bounded_current_nodes_and_decode_factory_stays_
                 initial_params: vec![],
             });
             assert!(ack.success, "{ack:?}");
+            let receipt = ack.created_node.expect("committed root identity");
+            let created = engine.nodes.get(receipt.node_id).unwrap();
+            assert_eq!(created.get_type(), "live_creation_item");
+            assert_eq!(created.node_data().meta.uuid, receipt.uuid);
+            assert_eq!(created.node_data().parent, Some(engine.root));
         } else {
             engine
                 .queue_catalog_create(engine.root, "live_creation_item", None, None)

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onDestroy, tick } from 'svelte';
 	import { appState } from 'golden_ui/store/workbench.svelte';
-	import { createFixtureSession } from 'golden_ui/testing/session';
+	import { createFixtureSession, fixtureNode } from 'golden_ui/testing/session';
+	import NodeContextMenu from 'golden_ui/components/common/NodeContextMenu.svelte';
 	import { measureCollectionFlow } from 'golden_ui/testing/collections';
 	import { sendPatchMetaIntent } from 'golden_ui/store/ui-intents';
 	import type { PanelApi, PanelParams, PanelProps } from 'golden_ui';
@@ -87,6 +88,63 @@
 		await frames();
 	}
 	export const selection = () => [...fixture.session.selectedNodesIds];
+	let createdIds: number[] = [];
+	export async function setupCreation(nextKind: AppTreeKind) {
+		fixture.handleIntent(null);
+		await setup(nextKind, 1000);
+		createdIds = [];
+		const nodes = appTreeNodes(nextKind, 1000);
+		const sample = nodes[3];
+		for (const id of [1, 2])
+			nodes.find((node) => node.node_id === id)!.creatable_user_items = [
+				{
+					node_type: 'fixture.alias',
+					item_kind: sample.user_item_kind,
+					label: 'Create item',
+					menu_path: ['Fixture', 'Nested'],
+					initial_params: [],
+					select_when_created: true
+				},
+				{
+					node_type: 'fixture.other',
+					item_kind: sample.user_item_kind,
+					label: 'Other item',
+					menu_path: [],
+					initial_params: [],
+					select_when_created: true
+				}
+			];
+		fixture.loadNodes(nodes);
+		let sequence = 0;
+		fixture.handleIntent((intent) => {
+			if (intent.kind !== 'createUserItem') return null;
+			const id = 2000 + createdIds.length;
+			const node = fixtureNode(id, `New managed item ${createdIds.length}`, [], sample.node_type);
+			node.user_item_kind = sample.user_item_kind;
+			node.user_role = 'itemRoot';
+			fixture.session.graph.applyEvent({
+				time: { tick: ++sequence, micro: 0, seq: 0 },
+				kind: { kind: 'nodeCreated', node: id, snapshot: node }
+			});
+			fixture.session.graph.applyEvent({
+				time: { tick: ++sequence, micro: 0, seq: 0 },
+				kind: {
+					kind: 'childAdded',
+					parent: intent.parent,
+					child: id,
+					decl_id: '',
+					parent_children: [...fixture.session.getNodeData(intent.parent)!.children, id]
+				}
+			});
+			createdIds.push(id);
+			return Promise.resolve({
+				...fixture.editAcknowledgement(),
+				created_node: { node_id: id, uuid: node.uuid }
+			});
+		});
+		await frames();
+	}
+	export const creations = () => [...createdIds];
 	export async function filterBuiltin() {
 		formulaPanel!.toggleSource('builtin');
 		await frames();
@@ -135,6 +193,7 @@
 		{:else}<AlchemistEditorPanel {...props} />{/if}
 	{/key}
 </main>
+<NodeContextMenu />
 
 <style>
 	main {

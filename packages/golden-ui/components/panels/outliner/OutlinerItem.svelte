@@ -34,6 +34,7 @@
 		initiallyExpandedDepth = 5,
 		renderNodeChildren = true,
 		projectedVisible = false,
+		projectedExpansion = undefined,
 		transitionDurationMs = 150,
 		focusedNodeId = null,
 		autoExpandAncestorNodeIds = EMPTY_AUTO_EXPAND_ANCESTORS,
@@ -65,6 +66,8 @@
 		initiallyExpandedDepth?: number;
 		renderNodeChildren?: boolean;
 		projectedVisible?: boolean;
+		/** Disclosure from the same filtered projection that owns the rendered rows. */
+		projectedExpansion?: boolean;
 		transitionDurationMs?: number;
 		focusedNodeId?: number | null;
 		autoExpandAncestorNodeIds?: ReadonlySet<NodeId>;
@@ -261,7 +264,7 @@
 			canRenderNodeChildren(node) &&
 			(maxLevels === undefined || level < maxLevels)
 	);
-	let hasArrow = $derived(canRenderChildren);
+	let hasArrow = $derived(projectedVisible ? projectedExpansion !== undefined : canRenderChildren);
 	let canHaveVisibleWarnings = $derived.by((): boolean => {
 		if (!node) {
 			return false;

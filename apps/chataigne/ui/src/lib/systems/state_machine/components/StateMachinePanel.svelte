@@ -577,6 +577,9 @@
 		}
 		contextMenuOpen = false;
 		const center = preferredCenter ?? graphCanvas?.viewportCenter() ?? { x: 0, y: 0 };
+		const owner = session,
+			scope = interactionScope,
+			selection = owner?.selectionRevision;
 		const position = nearestFreeStatePosition(center, graphNodes, graphNodeWidth, graphNodeHeight);
 		const result = await sendCreateUserItemByTypeIntent(
 			manager.node_id,
@@ -593,8 +596,16 @@
 				]
 			}
 		);
-		if (result.selectWhenCreated && result.createdNodeId !== null) {
-			session?.selectNode(result.createdNodeId, 'REPLACE');
+		if (
+			owner &&
+			session === owner &&
+			interactionScope === scope &&
+			owner.selectionRevision === selection &&
+			result.selectWhenCreated &&
+			result.createdNodeId !== null &&
+			result.createdNodeUuid !== null
+		) {
+			owner.requestNodeSelection([{ node_id: result.createdNodeId, uuid: result.createdNodeUuid }]);
 		}
 	};
 

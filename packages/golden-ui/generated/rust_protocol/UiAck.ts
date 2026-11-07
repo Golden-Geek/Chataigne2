@@ -2,6 +2,7 @@
 import type { EngineTime } from "./EngineTime";
 import type { UiAckStatus } from "./UiAckStatus";
 import type { UiAppOperationResult } from "./UiAppOperationResult";
+import type { UiCreatedNode } from "./UiCreatedNode";
 import type { UiHistoryState } from "./UiHistoryState";
 
 /**
@@ -39,4 +40,8 @@ history: UiHistoryState,
 /**
  * App-owned result, present only after a successful app operation commits.
  */
-result?: UiAppOperationResult | null, };
+result?: UiAppOperationResult | null,
+/**
+ * Exact root committed by a successful user-item creation, independent of catalog aliases.
+ */
+created_node?: UiCreatedNode | null, };

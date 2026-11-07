@@ -113,3 +113,17 @@ fn app_operation_requests_and_exact_results_round_trip_without_an_engine_runtime
         );
     }
 }
+
+#[test]
+fn creation_receipt_round_trips_exact_identity_without_an_engine_or_app_payload() {
+    let wire = serde_json::json!({
+        "success": true, "status": "applied",
+        "history": {"can_undo":true,"can_redo":false,"undo_len":1,"redo_len":0,
+            "active_edit_session":false,"current_history_state_id":1},
+        "created_node": {"node_id": 42, "uuid": "00000000-0000-0000-0000-000000000001"}
+    });
+    let ack: UiAck = serde_json::from_value(wire.clone()).unwrap();
+    assert!(ack.result.is_none());
+    assert!(ack.created_node.is_some());
+    assert_eq!(serde_json::to_value(ack).unwrap(), wire);
+}

@@ -6,7 +6,7 @@
 		type PanelState,
 		type UiNodeDto
 	} from 'golden_ui';
-	import { isMediaTreeNode } from './tree';
+	import { isMediaTreeNode, canRenderMediaTreeChildren } from './tree';
 	import MediaTreeActions from './MediaTreeActions.svelte';
 	let props: PanelProps = $props();
 	export const setPanelState = (_next: PanelState) => {};
@@ -31,8 +31,7 @@
 		isTreeNode={isMediaTreeNode}
 		nodeSourceDraggable={(node) =>
 			['mapgyver.media.v8', 'mapgyver.media.reference.v3'].includes(node.node_type)}
-		canRenderNodeChildren={(node) =>
-			['mapgyver.media.folder', 'mapgyver.media.v8'].includes(node.node_type)}
+		canRenderNodeChildren={canRenderMediaTreeChildren}
 		canCreateNodeChildren={(node) => node.node_type === 'mapgyver.media.folder'}
 		rowSupplementComponent={MediaTreeActions} />
 </section>

@@ -90,7 +90,6 @@
 				FORMULA_EXTERNAL_FILE_CREATE_TYPE,
 				node.meta.label,
 				{
-					created_node_type: FORMULA_NODE_TYPE,
 					initial_params: [
 						{
 							decl_id: FORMULA_EXTERNAL_FILE_DECL_ID,
@@ -132,7 +131,6 @@
 				FORMULA_NODE_TYPE,
 				node.meta.label,
 				{
-					created_node_type: FORMULA_NODE_TYPE,
 					initial_params: [
 						{
 							decl_id: FORMULA_COPY_SOURCE_DECL_ID,

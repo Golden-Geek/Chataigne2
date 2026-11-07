@@ -330,6 +330,18 @@ pub struct UiAck {
     /// App-owned result, present only after a successful app operation commits.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub result: Option<UiAppOperationResult>,
+    /// Exact root committed by a successful user-item creation, independent of catalog aliases.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_node: Option<UiCreatedNode>,
+}
+
+/// Committed node identity for creation feedback; never inferred from neighboring graph edits.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct UiCreatedNode {
+    /// Runtime address in the acknowledged document generation.
+    pub node_id: NodeId,
+    /// Stable identity used to reject recycled runtime addresses.
+    pub uuid: NodeUuid,
 }
 
 /// Present app reply, including an explicit JSON null value.

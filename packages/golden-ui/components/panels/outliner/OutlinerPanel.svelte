@@ -352,6 +352,7 @@
 							initiallyExpandedDepth={3}
 							renderNodeChildren={false}
 							projectedVisible={true}
+							projectedExpansion={row.expanded}
 							{autoExpandAncestorNodeIds}
 							{opennessByNodeId}
 							onNodeOpennessChange={setNodeExpanded}

@@ -773,6 +773,7 @@ fn applied_ack_since<T: Node>(engine: &Engine<T>, previous_event_time: Option<En
         latest_event_time: events.last().map(|event| event.time),
         history: engine.ui_history_state(),
         result: None,
+        created_node: None,
     }
 }
 
@@ -786,6 +787,7 @@ fn rejected_ack<T: Node>(engine: &Engine<T>, code: &str, message: String) -> UiA
         latest_event_time: None,
         history: engine.ui_history_state(),
         result: None,
+        created_node: None,
     }
 }
 
@@ -799,5 +801,6 @@ fn skipped_after_failed_batch_ack<T: Node>(engine: &Engine<T>) -> UiAck {
         latest_event_time: None,
         history: engine.ui_history_state(),
         result: None,
+        created_node: None,
     }
 }

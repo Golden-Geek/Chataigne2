@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { sendCreateUserItemIntent } from '../../store/ui-intents';
-	import { appState } from '../../store/workbench.svelte';
+	import { createUserItemAndSelect } from '../../store/ui-intents';
 	import type { UiCreatableUserItem, UiNodeDto } from '../../types';
 	import ContextMenu from './ContextMenu.svelte';
 	import type { ContextMenuAnchor, ContextMenuItem } from './context-menu';
@@ -66,21 +65,7 @@
 			await onCreateItem(item);
 			return;
 		}
-		const owner = appState.session;
-		const selection = owner?.selectionRevision;
-		const generation = owner?.snapshotGeneration;
-		const result = await sendCreateUserItemIntent(node.node_id, item);
-		// A late creation receipt cannot replace a newer explicit selection or document.
-		if (
-			owner &&
-			appState.session === owner &&
-			owner.snapshotGeneration === generation &&
-			owner.selectionRevision === selection &&
-			result.selectWhenCreated &&
-			result.createdNodeId !== null
-		) {
-			owner.selectNode(result.createdNodeId, 'REPLACE');
-		}
+		await createUserItemAndSelect(node.node_id, item);
 	};
 
 	let menuAnchor = $derived.by((): ContextMenuAnchor | null => {

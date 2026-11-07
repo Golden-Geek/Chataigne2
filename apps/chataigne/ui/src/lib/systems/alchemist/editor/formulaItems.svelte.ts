@@ -84,7 +84,6 @@ export function createFormulaItems(
 					item.label,
 					{
 						select_when_created: true,
-						created_node_type: ANODE_NODE_TYPE,
 						initial_params: [
 							...item.initial_params,
 							initialParam('position', {
@@ -95,8 +94,10 @@ export function createFormulaItems(
 					}
 				);
 				if (!result.success) throw new Error(`failed to create ${item.label}`);
-				if (owner.current() && result.createdNodeId !== null) {
-					session?.selectNode(result.createdNodeId, 'REPLACE');
+				if (owner.current() && result.createdNodeId !== null && result.createdNodeUuid !== null) {
+					session?.requestNodeSelection([
+						{ node_id: result.createdNodeId, uuid: result.createdNodeUuid }
+					]);
 				}
 			})
 			.catch(() => undefined);
@@ -119,8 +120,10 @@ export function createFormulaItems(
 					}
 				);
 				if (!result.success) throw new Error(`failed to create ${item.label}`);
-				if (owner.current() && result.createdNodeId !== null) {
-					session?.selectNode(result.createdNodeId, 'REPLACE');
+				if (owner.current() && result.createdNodeId !== null && result.createdNodeUuid !== null) {
+					session?.requestNodeSelection([
+						{ node_id: result.createdNodeId, uuid: result.createdNodeUuid }
+					]);
 				}
 			})
 			.catch(() => undefined);
@@ -151,15 +154,16 @@ export function createFormulaItems(
 					formulaLabel,
 					{
 						select_when_created: true,
-						created_node_type: FORMULA_NODE_TYPE,
 						initial_params: [
 							initialParam(FORMULA_COPY_SOURCE_DECL_ID, formulaReferenceValue(sourceFormula))
 						]
 					}
 				);
 				if (!result.success) throw new Error(`failed to duplicate ${formulaLabel}`);
-				if (owner.current() && result.createdNodeId !== null) {
-					session?.selectNode(result.createdNodeId, 'REPLACE');
+				if (owner.current() && result.createdNodeId !== null && result.createdNodeUuid !== null) {
+					session?.requestNodeSelection([
+						{ node_id: result.createdNodeId, uuid: result.createdNodeUuid }
+					]);
 					source().setPreviewTarget({ kind: 'formula', nodeId: result.createdNodeId });
 				}
 			}, false)
@@ -181,7 +185,6 @@ export function createFormulaItems(
 					property.meta.label,
 					{
 						select_when_created: true,
-						created_node_type: ANODE_NODE_TYPE,
 						initial_params: [
 							initialParam('position', {
 								kind: 'vec2',
@@ -200,8 +203,10 @@ export function createFormulaItems(
 				if (!result.success) {
 					throw new Error(`failed to create getter for ${property.meta.label}`);
 				}
-				if (owner.current() && result.createdNodeId !== null) {
-					session?.selectNode(result.createdNodeId, 'REPLACE');
+				if (owner.current() && result.createdNodeId !== null && result.createdNodeUuid !== null) {
+					session?.requestNodeSelection([
+						{ node_id: result.createdNodeId, uuid: result.createdNodeUuid }
+					]);
 				}
 			})
 			.catch(() => undefined);
@@ -238,7 +243,6 @@ export function createFormulaItems(
 					manager.meta.label,
 					{
 						select_when_created: true,
-						created_node_type: ANODE_NODE_TYPE,
 						initial_params: [
 							initialParam('position', {
 								kind: 'vec2',
@@ -257,8 +261,10 @@ export function createFormulaItems(
 				if (!result.success) {
 					throw new Error(`failed to create manager node for ${manager.meta.label}`);
 				}
-				if (owner.current() && result.createdNodeId !== null) {
-					session?.selectNode(result.createdNodeId, 'REPLACE');
+				if (owner.current() && result.createdNodeId !== null && result.createdNodeUuid !== null) {
+					session?.requestNodeSelection([
+						{ node_id: result.createdNodeId, uuid: result.createdNodeUuid }
+					]);
 				}
 			})
 			.catch(() => undefined);

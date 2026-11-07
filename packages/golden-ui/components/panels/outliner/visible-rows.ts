@@ -26,6 +26,8 @@ interface VisibleRowsOptions {
 	rowVisible?: (node: UiNodeDto) => boolean;
 }
 
+const allRowsVisible = (_node: UiNodeDto) => true;
+
 /**
  * Panel-owned lookup projection. Reopening a branch must not repeat persistent-trie lookups
  * for every unchanged sibling. Published changes update only previously visited records.
@@ -231,7 +233,7 @@ export const collectVisibleOutlinerRows = ({
 		? []
 		: [{ nodeId: graph.rootId, parentId: null, level: 0, indent: 0 }],
 	canRenderChildren = () => true,
-	rowVisible = () => true
+	rowVisible = allRowsVisible
 }: VisibleRowsOptions): OutlinerRow[] => {
 	if (!roots.length) return [];
 	const filtered = matchesQuery
@@ -239,13 +241,40 @@ export const collectVisibleOutlinerRows = ({
 		: null;
 	const rows: OutlinerRow[] = [];
 	const visited = new Set<NodeId>();
+	const records = new Map<NodeId, UiNodeDto>();
+	const read = (id: NodeId) => {
+		if (filtered) return filtered.nodes.get(id);
+		let node = records.get(id);
+		if (!node) {
+			node = graph.nodesById.get(id);
+			if (node) records.set(id, node);
+		}
+		return node;
+	};
+	const visibleChild = (node: UiNodeDto): boolean => {
+		if (!canRenderChildren(node)) return false;
+		if (rowVisible === allRowsVisible && !filtered) return node.children.length > 0;
+		const pending = [...node.children];
+		const seen = new Set<NodeId>([node.node_id]);
+		while (pending.length) {
+			const id = pending.pop()!;
+			if (seen.has(id) || (filtered && !filtered.matches.has(id))) continue;
+			seen.add(id);
+			const child = read(id);
+			if (!child) continue;
+			if (rowVisible(child)) return true;
+			// Hidden structural bridges may hoist rows; hidden parameters remain closed.
+			if (canRenderChildren(child)) for (const id of child.children) pending.push(id);
+		}
+		return false;
+	};
 	const pending: OutlinerRow[] = [...roots].reverse();
 	while (pending.length > 0) {
 		const row = pending.pop()!;
 		if (visited.has(row.nodeId) || (filtered !== null && !filtered.matches.has(row.nodeId)))
 			continue;
 		visited.add(row.nodeId);
-		const node = filtered?.nodes.get(row.nodeId) ?? graph.nodesById.get(row.nodeId);
+		const node = read(row.nodeId);
 		if (!node) continue;
 		const showRow = rowVisible(node);
 		const explicit = opennessByNodeId[String(row.nodeId)];
@@ -257,7 +286,7 @@ export const collectVisibleOutlinerRows = ({
 		if (showRow)
 			rows.push({
 				...row,
-				expanded: node.children.length > 0 && canRenderChildren(node) ? expanded : undefined
+				expanded: visibleChild(node) ? expanded : undefined
 			});
 		if ((showRow && !expanded) || !canRenderChildren(node)) continue;
 		for (let index = node.children.length - 1; index >= 0; index -= 1) {

@@ -529,6 +529,7 @@
 									level={row.level}
 									renderNodeChildren={false}
 									projectedVisible={true}
+									projectedExpansion={row.expanded}
 									opennessByNodeId={openness.overrides}
 									onNodeOpennessChange={openness.setExpanded}
 									mode="tree"

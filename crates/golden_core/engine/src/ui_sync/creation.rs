@@ -507,9 +507,8 @@ impl<T: Node> Engine<T> {
         node_type: String,
         label: Option<String>,
         initial_params: Vec<UiCreateUserItemInitialParam>,
-    ) -> Result<(), crate::engine::EngineEditError> {
+    ) -> Result<NodeId, crate::engine::EngineEditError> {
         self.ui_apply_create_user_item_returning_node(parent, node_type, label, initial_params, None)
-            .map(|_| ())
     }
 
     fn ui_apply_create_user_item_returning_node(

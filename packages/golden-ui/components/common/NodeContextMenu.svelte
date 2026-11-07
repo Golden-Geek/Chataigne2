@@ -5,7 +5,7 @@
 	import ColorPicker from './ColorPicker.svelte';
 	import NodeConstraintMenu from './NodeConstraintMenu.svelte';
 	import { appState } from '../../store/workbench.svelte';
-	import { sendCreateUserItemIntent, sendPatchMetaIntent } from '../../store/ui-intents';
+	import { createUserItemAndSelect, sendPatchMetaIntent } from '../../store/ui-intents';
 	import { requestRemoveNodesById } from '../../store/node-removal';
 	import { executeCommand } from '../../store/commands.svelte';
 	import type { ContextMenuAnchor, ContextMenuItem } from './context-menu';
@@ -564,11 +564,7 @@
 		if (!activeNode) {
 			return;
 		}
-		void sendCreateUserItemIntent(activeNode.node_id, item).then((result) => {
-			if (result.selectWhenCreated && result.createdNodeId !== null) {
-				session?.selectNode(result.createdNodeId, 'REPLACE');
-			}
-		});
+		void createUserItemAndSelect(activeNode.node_id, item);
 		closeMenu();
 	};
 

@@ -5,6 +5,7 @@ import { writeFileSync, appendFileSync } from 'node:fs';
 import { build, preview } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { chromium } from 'playwright-core';
+import { qualifyManagerCreation } from './manager-creation.mjs';
 
 const root = fileURLToPath(new URL('./fixture/', import.meta.url));
 const repository = fileURLToPath(new URL('../../../../../', import.meta.url));
@@ -52,7 +53,9 @@ try {
 	});
 	await page.waitForFunction(() => Boolean(window.appTrees));
 	emit({ kind: 'environment', browser: await browser.version(), production: true, report });
-	if (process.argv.includes('--profile-formulas')) {
+	if (process.argv.includes('--manager-creation')) {
+		await qualifyManagerCreation(page, emit);
+	} else if (process.argv.includes('--profile-formulas')) {
 		await page.evaluate(() => window.appTrees.setup('formulas', 50000));
 		const cdp = await page.context().newCDPSession(page);
 		await cdp.send('Profiler.enable');

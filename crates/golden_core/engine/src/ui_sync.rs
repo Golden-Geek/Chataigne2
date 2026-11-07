@@ -231,7 +231,17 @@ impl<T: Node> Engine<T> {
                     ui_client_instance_id,
                     |engine| engine.ui_apply_create_user_item(parent, node_type, label, initial_params),
                 );
-                self.finish_ui_apply_now(before_event_time, result)
+                let created_node = result.as_ref().ok().and_then(|id| {
+                    self.nodes.get(*id).map(|node| UiCreatedNode {
+                        node_id: *id,
+                        uuid: node.node_data().meta.uuid,
+                    })
+                });
+                let mut ack = self.finish_ui_apply_now(before_event_time, result.map(|_| ()));
+                if ack.success {
+                    ack.created_node = created_node;
+                }
+                ack
             }
             UiEditIntent::CreateDashboardContainerWidget {
                 parent,
@@ -572,6 +582,7 @@ impl<T: Node> Engine<T> {
             latest_event_time: events.last().map(|event| event.time),
             history: self.ui_history_state(),
             result: None,
+            created_node: None,
         }
     }
 
@@ -585,6 +596,7 @@ impl<T: Node> Engine<T> {
             latest_event_time: None,
             history: self.ui_history_state(),
             result: None,
+            created_node: None,
         }
     }
 

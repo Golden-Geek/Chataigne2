@@ -17,4 +17,9 @@ fn discovery_and_product_identity_are_generated_from_the_public_protocol() {
     assert!(identity.contains("display_name: string"));
     let version = fs::read_to_string(output.join("protocol-version.ts")).unwrap();
     assert!(version.contains(UI_PROTOCOL_VERSION));
+    let ack = fs::read_to_string(output.join("UiAck.ts")).unwrap();
+    let created = fs::read_to_string(output.join("UiCreatedNode.ts")).unwrap();
+    assert!(ack.contains("created_node?: UiCreatedNode | null"));
+    assert!(created.contains("node_id: NodeId"));
+    assert!(created.contains("uuid: NodeUuid"));
 }

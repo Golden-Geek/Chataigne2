@@ -22,6 +22,7 @@ import {
 	parameterComponentPreview
 } from './session/parameter-write-preview';
 import type { WorkbenchSession } from './workbench.svelte';
+import type { UiCreatedNode } from '../generated/rust_protocol/UiCreatedNode';
 export type { UiEditSession } from './session/edit-session';
 
 let intentSequence = 0;
@@ -39,6 +40,7 @@ export interface UiIntentBatchResult {
 export interface CreateUserItemResult {
 	readonly success: boolean;
 	readonly createdNodeId: NodeId | null;
+	readonly createdNodeUuid: string | null;
 	readonly selectWhenCreated: boolean;
 }
 
@@ -249,36 +251,7 @@ export const sendCreateUserItemIntent = async (
 interface CreateUserItemOptions {
 	initial_params?: UiCreateUserItemInitialParam[];
 	select_when_created?: boolean;
-	created_node_type?: string;
 }
-
-const waitForCreatedDirectChild = async (
-	parent: NodeId,
-	knownChildren: ReadonlySet<NodeId>,
-	nodeType: string,
-	timeoutMs = 450
-): Promise<NodeId | null> => {
-	const deadline = Date.now() + timeoutMs;
-	while (Date.now() <= deadline) {
-		const session = appState.session;
-		const parentNode = session?.graph.state.nodesById.get(parent);
-		if (parentNode) {
-			for (const childId of parentNode.children) {
-				if (knownChildren.has(childId)) {
-					continue;
-				}
-				const child = session?.graph.state.nodesById.get(childId);
-				if (child?.node_type === nodeType) {
-					return childId;
-				}
-			}
-		}
-		await new Promise((resolve) => {
-			setTimeout(resolve, 16);
-		});
-	}
-	return null;
-};
 
 export const sendCreateUserItemByTypeIntent = async (
 	parent: NodeId,
@@ -287,30 +260,52 @@ export const sendCreateUserItemByTypeIntent = async (
 	options?: CreateUserItemOptions
 ): Promise<CreateUserItemResult> => {
 	const session = appState.session;
-	const knownChildren = new Set(session?.graph.state.nodesById.get(parent)?.children ?? []);
-	const success = await sendUiIntent({
-		kind: 'createUserItem',
-		parent,
-		node_type,
-		label,
-		initial_params: options?.initial_params
-	});
-	if (!success) {
-		return {
-			success: false,
-			createdNodeId: null,
-			selectWhenCreated: options?.select_when_created ?? true
-		};
-	}
+	const receipt: { node: UiCreatedNode | null } = { node: null };
+	const success = session
+		? await sendUiIntentToSession(
+				session,
+				{
+					kind: 'createUserItem',
+					parent,
+					node_type,
+					label,
+					initial_params: options?.initial_params
+				},
+				{
+					applied: (acks) => {
+						receipt.node =
+							acks.find((ack) => ack.success && ack.created_node)?.created_node ?? null;
+					}
+				}
+			)
+		: false;
 	return {
-		success: true,
-		createdNodeId: await waitForCreatedDirectChild(
-			parent,
-			knownChildren,
-			options?.created_node_type ?? node_type
-		),
+		success,
+		createdNodeId: success ? (receipt.node?.node_id ?? null) : null,
+		createdNodeUuid: success ? (receipt.node?.uuid ?? null) : null,
 		selectWhenCreated: options?.select_when_created ?? true
 	};
+};
+
+/** Menu creation owns selection feedback; the backend owns creation and its exact identity. */
+export const createUserItemAndSelect = async (
+	parent: NodeId,
+	item: UiCreatableUserItem
+): Promise<void> => {
+	const owner = appState.session;
+	const selection = owner?.selectionRevision;
+	const generation = owner?.snapshotGeneration;
+	const result = await sendCreateUserItemIntent(parent, item);
+	if (
+		owner &&
+		appState.session === owner &&
+		owner.snapshotGeneration === generation &&
+		owner.selectionRevision === selection &&
+		result.createdNodeId !== null &&
+		result.createdNodeUuid !== null
+	) {
+		owner.requestNodeSelection([{ node_id: result.createdNodeId, uuid: result.createdNodeUuid }]);
+	}
 };
 
 export const sendMoveDashboardWidgetIntent = async (

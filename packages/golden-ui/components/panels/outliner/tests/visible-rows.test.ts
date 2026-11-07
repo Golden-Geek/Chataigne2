@@ -37,6 +37,47 @@ const project = (
 	});
 
 describe('outliner visible row projection', () => {
+	it('discloses only admitted visible descendants, including hidden structural bridges', () => {
+		const nodes = [
+			node(0, [1, 2, 3]),
+			node(1, [4]),
+			node(2, [5]),
+			node(3, [6]),
+			node(4),
+			node(5, [7]),
+			node(6),
+			node(7)
+		];
+		const rows = collectVisibleOutlinerRows({
+			graph: graph(...nodes),
+			opennessByNodeId: {},
+			autoExpandAncestorNodeIds: new Set(),
+			initiallyExpandedDepth: 5,
+			rowVisible: (candidate) => ![4, 5, 6].includes(candidate.node_id),
+			canRenderChildren: (candidate) => candidate.node_id !== 6
+		});
+		expect(rows.map(({ nodeId, expanded }) => [nodeId, expanded])).toEqual([
+			[0, true],
+			[1, undefined],
+			[2, true],
+			[7, undefined],
+			[3, undefined]
+		]);
+	});
+	it('search disclosure agrees with the filtered rows rather than hidden matching parameters', () => {
+		const rows = collectVisibleOutlinerRows({
+			graph: graph(node(0, [1, 2]), node(1, [3]), node(2), node(3)),
+			opennessByNodeId: {},
+			autoExpandAncestorNodeIds: new Set(),
+			initiallyExpandedDepth: 5,
+			rowVisible: (candidate) => candidate.node_id !== 3,
+			matchesQuery: (candidate) => candidate.node_id === 1
+		});
+		expect(rows.map(({ nodeId, expanded }) => [nodeId, expanded])).toEqual([
+			[0, true],
+			[1, undefined]
+		]);
+	});
 	it('reads each graph record once while filtering and reuses it for row projection', () => {
 		const nodes = [
 			node(

@@ -1,0 +1,106 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/8",
+	"status": "Accepted",
+	"batch": { "started_utc": "18:38", "cutoff_utc": "19:23", "verification_finished_utc": "19:15" },
+	"progress": {
+		"verified": 75,
+		"total": 92,
+		"overall_percent": 82,
+		"m13_verified": 6,
+		"m13_total": 14,
+		"m13_percent": 43,
+		"completed_phases": 7,
+		"total_phases": 14
+	},
+	"calculation": "One complete fixed M13/8 gate added to74/92. Overall75/92 rounds to82%; M13 6/14 rounds to43%; phases remain7/14(50%). No denominator or performance-budget change.",
+	"implementation": {
+		"creation": "Golden CreateUserItem returns the exact committed root's node_id and UUID in Rust-owned UiAck.created_node. Protocol0.15.0, generated TypeScript and consumers change together. The ordinary transport decoder preserves receipt fields. Catalog aliases no longer require sibling scans, guessed concrete types or450ms polling; six Chataigne alias workarounds are removed.",
+		"selection": "Golden Add buttons and context menus use one helper and the existing event-driven pending-selection store. Every successful menu creation selects, including catalog hints intended to opt out for specialized editor callers. A delayed graph delta waits for its exact identity. Changed session/snapshot/explicit selection, failure and recycled IDs cannot replace current menu selection. Chataigne's explicit Formula/Property/State creation callbacks also consume exact identities through pending selection. Receipt-only editor and backend callers acquire no implicit menu selection behavior.",
+		"disclosure": "The shared filtered outliner projection owns both row disclosure and keyboard/accessibility expansion. Hidden Parameters do not create arrows; admitted children hoisted through hidden structural bridges do. Ordinary unfiltered closed traversal and panel-owned lookup caching retain their bounds.",
+		"mapgyver": "Medias registers actual media/folders and Matrix Layers/Groups/Columns/Column Groups/Cells/owned media. Hidden Channels bridge the real Matrix hierarchy; Parameters and Composition placement metadata stop traversal. Composition exposes its real child media. No separate authored UI tree is added.",
+		"architecture": "docs/architecture/manager-creation-and-disclosure.md"
+	},
+	"requirements": [
+		{
+			"requirement": "No leaf disclosure for hidden Parameters/Channels",
+			"proof": "Fresh bundled Shared Texture, Solid Color, Picture, Reference and empty Composition all have neither aria-expanded nor an arrow. Empty Folder has none until real children exist. Filtered Shared Texture also remains a leaf; focused projection tests cover hidden bridges and query visibility."
+		},
+		{
+			"requirement": "Real Matrix, Composition and folder hierarchies",
+			"proof": "Bundled nested Folder creation/context creation succeeds. A real Composition-owned Solid Color appears. A Matrix's actual Layer Group, Column Group, Layer, Column, Cell and owned media appear through its hidden Final channel; Parameters and Final are absent as rows. Selection and native definitions remain the real nodes."
+		},
+		{
+			"requirement": "Authoritative successful creation selects and drives Inspector through reusable menus",
+			"proof": "Twelve fresh bundled receipts cover all seven root Medias choices, nested Folder row Add, nested folder context Add, root background context Add, single-item Screens Add and Screen context Surface creation. Every exact UUID/runtime address is selected and its label drives Inspector, with one history step. Four real Chataigne manager components independently pass nested header, folder context and filtered header creation."
+		},
+		{
+			"requirement": "No selection on failure, stale replies or unrelated/concurrent graph additions",
+			"proof": "Owning backend rejection returns no receipt and leaves state/history unchanged. Focused menu/pending-selection tests cover rejection, changed explicit selection/session/snapshot, removed/recycled IDs, unrelated arrivals, delayed exact projection and receipt-only non-menu callers."
+		},
+		{
+			"requirement": "Filtered/virtualized managers, history/reload and affected Chataigne consumers",
+			"proof": "Real Chataigne Modules, Formulas, State Processors and Formula Properties each pass three creation paths with1000 rows and only26–28 mounted rows, including selection while the new object is filtered out. Shared manager/outliner/picker keyboard, lifecycle and existing browser timing limits pass15 size/panel cases through100000 rows. Bundled creation receipts prove single-step history, and real authoring Undo/Redo plus complete media catalog/project reload pass. Owning MapGyver catalog/folder/Screen history and project tests remain covered by the full560-test suite."
+		},
+		{
+			"requirement": "Headless/script creation independent of mounted UI",
+			"proof": "The full675-test Golden engine and560-test MapGyver suites run without mounted managers. Generic creation tests verify exact committed identities and rejection; MapGyver tests exercise each media catalog alias against its real created root, ordinary API parity, exact history and project roundtrip. The public protocol serializes receipts without an engine or host."
+		}
+	],
+	"software": {
+		"golden_engine": {
+			"command": "cargo test --locked -p golden_engine --lib user_item_creation -- --quiet; then its unchanged compiled full suite --quiet",
+			"passed": 675,
+			"ignored": 3,
+			"binary": "target/debug/deps/golden_engine-16af02416a61aaa8.exe",
+			"sha256": "7f34631a838e387b2afa7f793434a4ed823574c2b6c892cc9ec687c79324d4f6",
+			"exit": 0
+		},
+		"mapgyver": {
+			"command": "cargo test --locked -p MapGyver --lib --features native-preview-smoke,application-process-fixture -- --quiet",
+			"passed": 560,
+			"ignored": 3,
+			"binary": "target/debug/deps/mapgyver-f77e019373ee6e24.exe",
+			"sha256": "19c0f29e4769d061dd5a01b2a79dac773f6a05898ba778d1f35c2eeae10d2875",
+			"exit": 0
+		},
+		"protocol_and_generator": "cargo test --locked -p golden_protocol -p golden_codegen_support --tests -- --quiet:19 support units,3 app-node cases,1 UI generator case and6 public-protocol cases pass. All126 generated protocol files exactly match fresh Rust generation.",
+		"strict": "cargo clippy --locked -p golden_engine -p MapGyver --lib --tests --features MapGyver/native-qualification,MapGyver/application-process-fixture -- -D warnings and cargo clippy --locked -p golden_protocol -p golden_codegen_support --tests -- -D warnings both exit0. Subsequent product changes are UI receipt consumption/decoding; Rust owning code is unchanged.",
+		"ui": "Golden UI316 tests across58 files pass. MapGyver and Chataigne product Svelte checks, Golden browser Svelte check and Chataigne tree-fixture Svelte check all report0errors0warnings. The focused MapGyver tree registration test passes.",
+		"format": "Root and golden_core cargo fmt/check, touched-file Prettier, fixture Node syntax, generated equality and owned diff checks pass."
+	},
+	"bundled": {
+		"binary": "target/debug/deps/MapGyver-m138-manager-final.exe",
+		"binary_sha256": "28c1bf58967953a9620904e3b04982a2ee2a8507afa513c8e1b7272b0cf0a8df",
+		"result": "target/m138-manager-final-20261107/result.json",
+		"result_sha256": "4c15f80631b736172f5f861761736a0fa2ee91008e5fbe94c1b254fcc371f6db",
+		"pid": 23600,
+		"checks": 15,
+		"creation_receipts": 12,
+		"page_errors": 0,
+		"build_exit": 0,
+		"fixture_and_host_exit": 0,
+		"scope": "Actual bundled MapGyver frontend/ordinary headless host in Chromium, with real mouse menus and Inspector. No desktop input or native video cadence claim."
+	},
+	"shared_browser": {
+		"chataigne": {
+			"artifact": "target/qualification/p11-app-trees-2026-11-07T19-14-00-419Z.jsonl",
+			"sha256": "7ead52fb81fa4125f16f2384316a2062ebecd93ffc921ebeb4f0707a1e0f30af",
+			"scope": "Four actual manager components, fixture transport with authoritative concrete-type receipts,12 creation paths, filtered selection and26–28 mounted rows; not a native Chataigne backend run",
+			"exit": 0
+		},
+		"trees": {
+			"artifact": "target/qualification/p11-collections-2026-11-07T18-58-08-559Z.jsonl",
+			"sha256": "24c998e3e2426f77a991a8a658bb94db14b64306cc3867345b91b8de78232a0e",
+			"scope": "Manager/outliner/picker,1000/10000/20000/50000/100000 rows:15 correctness/lifecycle cases and30 existing browser timing cases pass. Original browser thresholds retained; no M13/4 native timing credit",
+			"exit": 0
+		}
+	},
+	"retained_failures": [
+		"target/m138-manager-creation-20261107:fixture initially omitted selecting the Medias tab; fixed by explicitly activating the tested panels.",
+		"target/m138-manager-creation-tabbed-20261107 and target/m138-manager-selection-final-20261107:real receipt/selection baseline failures; receipt-preserving transport decoding and event-driven pending selection fix the owning boundaries. Old failed binaries/receipts remain local.",
+		"target/m138-manager-transport-final-20261107:all seven root creations pass, then fixture queried old and new Folder menu items during the prior menu's outro. Fixture now waits for the previous menu to finish closing before the next operation. target/m138-manager-transport-menus-20261107 passes before the final all-menu selection policy check.",
+		"The initial disclosure implementation visited an unfiltered closed descendant; existing cache/traversal tests caught it and the final implementation preserves those original bounds. A Chataigne tree-fixture type check exposed duplicate workspace/symlink class identities; its compiler paths now resolve Golden UI canonically, and the unchanged strict fixture check passes."
+	],
+	"limits": "M13/8 alone closes. M13/9 self-contained Picture ownership is next. No desktop input was injected. M13/2, M13/4, M03/9, M05/8, M08/4 and M12/8 retain every recorded prerequisite, timing/memory/retirement budget and return action; final production qualification remains open."
+}

@@ -1,5 +1,13 @@
 import type { UiNodeDto } from 'golden_ui';
-import { ASSET_NODE_TYPE } from './generated/constants';
+import { ASSET_NODE_TYPE } from './generated/constants.ts';
+
+const structuralTypes = [
+	'mapgyver.matrix.layer.v3',
+	'mapgyver.matrix.group.v2',
+	'mapgyver.matrix.column.v2',
+	'mapgyver.matrix.column_group.v1',
+	'mapgyver.matrix.cell.v3'
+];
 
 export const isMediaTreeNode = (node: UiNodeDto | null): node is UiNodeDto =>
 	!!node &&
@@ -7,5 +15,15 @@ export const isMediaTreeNode = (node: UiNodeDto | null): node is UiNodeDto =>
 		'mapgyver.media.reference.v3',
 		'mapgyver.media.v8',
 		'mapgyver.media.folder',
-		ASSET_NODE_TYPE
+		ASSET_NODE_TYPE,
+		...structuralTypes
+	].includes(node.node_type);
+
+/** Channels bridge the real Matrix hierarchy; Parameters and placement metadata stay hidden. */
+export const canRenderMediaTreeChildren = (node: UiNodeDto): boolean =>
+	[
+		'mapgyver.media.folder',
+		'mapgyver.media.v8',
+		'mapgyver.media.channel',
+		...structuralTypes
 	].includes(node.node_type);

@@ -39,6 +39,12 @@ fn manager_catalog_and_api_share_defaults_unique_identity_and_atomic_history() {
         assert_eq!(generic.channels.len(), 1);
         assert_eq!(generic.channels[0].definition, ChannelDefinition::for_media(kind));
         let reference = generic.channels[0].reference;
+        let receipt = ack
+            .created_node
+            .as_ref()
+            .expect("catalog alias must return its exact committed root");
+        assert_eq!(receipt.uuid, reference.media.0);
+        assert_eq!(engine.node_id_by_uuid(receipt.uuid), Some(receipt.node_id));
         let created = create(&mut engine, kind);
         assert_ne!(created.media, reference.media);
         assert_ne!(created.channel, reference.channel);
@@ -95,6 +101,7 @@ fn manager_catalog_and_api_share_defaults_unique_identity_and_atomic_history() {
                 },
             );
             assert!(!ack.success, "derived output creation must reject: {ack:?}");
+            assert!(ack.created_node.is_none());
         }
         assert_eq!(engine.undo_len(), history);
         assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
