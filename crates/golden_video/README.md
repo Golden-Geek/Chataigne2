@@ -60,6 +60,19 @@ The implemented foundations are:
   Host geometry, session replacement, lease expiry and close withdraw every destination. Region
   fences are checked by the render worker independently of source admission and other outputs.
   Live placement storage is fixed per admitted view and charged to retained plan metadata.
+  Placement revisions wake the native renderer independently of the media deadline. Preparation
+  builds fixed dependency masks; changed geometry redraws its affected presentation passes and
+  outputs from admitted cached textures. Source reception and unrelated passes/outputs retain
+  their content cadence. Downstream presentation work uses the last content time, and does not
+  increment the media frame counter or replace its `FrameObservation`.
+  Redraws use the same in-flight limits, completion tokens, resource claims and project/device
+  fences as content submissions. Sampling alone cannot confirm delivery: pending state clears
+  only after the affected endpoint accepts the corresponding use. Pending GPU/ready-output
+  admission retries on the dedicated renderer worker after 1 ms; unavailable/recovering outputs
+  retry after 100 ms. These deadlines stop when accepted, and unrelated endpoints do not impose
+  their retry delay on the changed view. No engine/UI polling or new resource generation is
+  needed for unchanged-capacity geometry. This contract permits high-refresh presentation;
+  real-input scanout pacing and latency still need physical qualification.
 - `RegionPlacement::with_tile_capacity` reserves up to 2,048 checked image rectangles sharing
   one `BlitRegion` texture binding. `update_tiles` atomically replaces the bounded set; empty
   tiled placements draw no image. Each tile has its own normalized destination and source crop.

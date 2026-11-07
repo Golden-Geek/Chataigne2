@@ -47,8 +47,16 @@ Golden video UI's native input adapter admits a hit through the accepted native 
 projects explicitly captured movement in that stable native/DOM coordinate basis without
 per-move IPC. Terminal hit testing remains native; changed bounds/DPR or ownership cancels
 the sequence. This lets Screen/Source control delivery proceed independently of metadata
-reply time, alongside the bounded authored-edit queue. Native decoration drawing still uses
-the configured video cadence; this change alone does not establish 240 Hz presentation.
+reply time, alongside the bounded authored-edit queue.
+
+Golden Video now wakes a separate presentation submission when live placement changes.
+It reuses admitted content textures and redraws affected presentation branches/outputs between
+media deadlines, with the same completion/retirement and project/device fences. Media time,
+content frame counters and unrelated outputs retain their cadence; the footer describes those
+content metrics. Pending GPU/endpoint admission retries only on the native renderer worker,
+and stops after acceptance. See [Golden Video](../../crates/golden_video/README.md) for ownership
+and retry details. Both-GPU slow-media pixel checks prove independent redraws; actual 240 Hz
+presented pacing and pointer-to-visible latency remain M13/4 acceptance work.
 
 ## Acceptance
 

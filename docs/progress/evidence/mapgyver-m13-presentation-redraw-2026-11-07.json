@@ -1,0 +1,78 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/4 Active; event-driven cached native presentation implemented and functionally verified, actual240Hz qualification remains open",
+	"acceptance": { "verified": 71, "total": 92, "m13_verified": 2, "m13_total": 14 },
+	"deliverable": "Live preview placement/decorations can redraw between media deadlines. Admitted source textures, the media frame counter/time observation and unrelated outputs retain their content cadence.",
+	"ownership": "Golden video RegionPlacement revision notifications, prepared native dependency masks, runtime submission/retirement and D3D11 presentation. MapGyver consumes the existing mechanisms; its footer now identifies content FPS/CPU metrics. No new app policy, protocol declaration, resource generation or texture allocation per geometry update.",
+	"invariants": [
+		"Only reachable changed presentation passes and dependent outputs redraw; cached upstream content/source reception is reused.",
+		"A content frame initializes resources first. Presentation uses the last content TimeSnapshot and does not replace FrameObservation or increment frames_submitted.",
+		"Every redraw claims the same complete generation, in-flight slot and proposed completion token before backend entry. Pre-use failure rolls back; retirement waits for the actual last presentation use. Project/close admission reuses the content path fence.",
+		"Geometry updates notify/rearm one-shot worker watches. Sampling cannot clear pending delivery; the affected endpoint must accept that sampled cohort.",
+		"Pending admission retries only on the dedicated GPU worker:1ms for ready/busy endpoints,100ms for unavailable/recovering endpoints. Accepted unchanged geometry has no presentation retry deadline. No engine/UI polling, whole-document rebuild or relaxation of resource/endpoint budgets."
+	],
+	"software": {
+		"formatting": "cargo fmt --all and cargo fmt --manifest-path crates/golden_core/Cargo.toml --all completed; footer and receipt formatted with repository Prettier",
+		"golden_video_qualification": "241 passed,51 ignored; includes dependency/wake/acceptance and core initialization/in-flight/pre-use-failure/retirement tests, plus unchanged protocol/shader/contract checks",
+		"golden_video_strict": "qualification lib/tests Clippy -D warnings passed",
+		"headless": "no-default-features lib:158 passed; lib/tests Clippy -D warnings passed. Initial compile exposed the generic presentation fallback referencing a native-only UnsupportedPlan error variant; that generic error is now available without D3D11. Native feature-enabled behavior is unchanged.",
+		"mapgyver": "512 passed,2 ignored",
+		"mapgyver_strict": "native-preview-smoke,application-process-fixture all-targets Clippy -D warnings passed",
+		"mapgyver_ui": "Svelte0 errors/0 warnings",
+		"native_build": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m134-redraw; exit0"
+	},
+	"native_runtime": {
+		"test": "native::backend::tests::presentation_hardware::hardware_live_presentation_wakes_between_media_frames_without_resubmitting_an_independent_output",
+		"command": "cargo test --locked -p golden_video --features qualification --lib hardware_live_presentation_wakes_between_media_frames_without_resubmitting_an_independent_output -- --ignored --nocapture --test-threads=1",
+		"result": "1 passed,0 failed;13.65s; both hardware adapters",
+		"adapters": [
+			{ "low": 88937, "high": 0, "name": "Intel(R) Graphics" },
+			{ "low": 2427691359, "high": 0, "name": "NVIDIA GeForce RTX 5080 Laptop GPU" }
+		],
+		"each_adapter": "Media rate is deliberately one frame per minute.24 live geometry updates produce24 matching fresh complete4x4 RGBA captures;24 peer captures stay green. Content frames_submitted and independent peer acceptance remain1; active generation, last content completion observation and created texture count remain unchanged. Unchanged geometry stays idle, and closing retires/clears native endpoints.",
+		"scope": "Actual GPU/SDK pixels and runtime wake/admission/ownership, not a physical display or input-latency test.",
+		"fixture_failures_retained": [
+			"First validation failed0x80070057 in the peer readback because two probes shared an insufficient four-item caller capture pool. Each fresh receiver now has the existing three-item image/staging/CPU cap; runtime budgets are unchanged.",
+			"Second validation timed out comparing an earlier readiness snapshot. SpoutProbe explicitly captures one image and requires a fresh probe for new observations. The verifier now constructs a fresh bounded probe per expected image. No runtime implementation changed for either fixture correction."
+		]
+	},
+	"app_binary": {
+		"path": "target/debug/deps/MapGyver-m134-redraw.exe",
+		"sha256": "970d4f4d340855159d62f6ccc1737db0de32bb8500092167512a2a64a4ff147b"
+	},
+	"app_regression": {
+		"fixture": "Existing native-gesture-presentation.mjs + gesture-qualification.mjs; actual bundled WebView, real server and independent SDK consumer, owned-window activation via supported computer-use APIs",
+		"each_gpu": "All six held-request/final/history cases pass across Matrix Layer/Cell, Composition movement/rotated resize, Screen warp and Source crop. Current native hits agree with DOM handles. Pending physical Screen/Source edges have0.371104/0.375458px error at125%; stale edges are absent. Seven exact complete red output images match; no page errors or unexpected rejections.",
+		"intel": {
+			"artifacts": "target/m134-redraw-qual-intel",
+			"pid": 23088,
+			"app_exit": 0,
+			"fixture_exit": 0,
+			"gpu": "dxgi:00000000:00015b69",
+			"sdk_copies": 684,
+			"absent": 0,
+			"failed_receives": 0,
+			"descriptor_mismatch": 0,
+			"stable_shared_handle": 2147494402,
+			"first_frame": 65,
+			"last_frame": 748,
+			"max_receive_gap_ms": 33.1142
+		},
+		"nvidia": {
+			"artifacts": "target/m134-redraw-qual-nvidia",
+			"pid": 36260,
+			"app_exit": 0,
+			"fixture_exit": 0,
+			"gpu": "dxgi:00000000:90b3a15f",
+			"sdk_copies": 701,
+			"absent": 0,
+			"failed_receives": 0,
+			"descriptor_mismatch": 0,
+			"stable_shared_handle": 2147490754,
+			"first_frame": 69,
+			"last_frame": 769,
+			"max_receive_gap_ms": 33.9682
+		}
+	},
+	"remaining": "Measure actual240Hz real-input presented frame pacing, long stalls and pointer-to-visible p95/p99 on both GPUs; finish Composition/Matrix physical alignment, empty/other media/fully populated3x3/larger workloads, ordinary controls/scroll/dock and silent-intent audit. Functional SDK receive gaps do not qualify production cadence. Retained topology-creation limits and every original memory/timing/retirement gate remain unchanged. No acceptance awarded."
+}

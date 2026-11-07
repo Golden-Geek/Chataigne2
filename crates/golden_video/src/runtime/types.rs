@@ -181,7 +181,8 @@ pub enum RuntimeState {
     Faulted,
 }
 
-/// Metadata for the latest submitted frame; no pixels/native resources leave the worker.
+/// Metadata for the latest content-cadence frame. Presentation-only redraws retain GPU
+/// completion ownership but do not replace this media/time observation.
 #[derive(Clone, Copy, Debug)]
 pub struct FrameObservation {
     /// CPU wall duration of the successful backend submit call. Excludes preparation and
@@ -222,7 +223,7 @@ pub struct RuntimeSnapshot {
     pub prepared: bool,
     /// Requests retaining outcome admission credits.
     pub outstanding: usize,
-    /// Successfully submitted frames.
+    /// Successfully submitted content-cadence frames, excluding cached presentation redraws.
     pub frames_submitted: u64,
     /// Coalesced elapsed or admission-blocked frame deadlines.
     pub missed_frames: u64,

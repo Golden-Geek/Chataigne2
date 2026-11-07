@@ -308,6 +308,14 @@ impl OutputPool {
         self.bindings.get(&id).map(|binding| binding.config.descriptor())
     }
 
+    pub(super) fn presentation_retry_delay(&self, id: OutputId) -> std::time::Duration {
+        use std::time::Duration;
+        match self.bindings.get(&id).map(|binding| binding.recovery.state) {
+            Some(OutputState::Ready | OutputState::Busy) => Duration::from_millis(1),
+            _ => Duration::from_millis(100),
+        }
+    }
+
     pub(super) fn needs_conversion_texture(&self, id: OutputId) -> bool {
         matches!(
             self.bindings.get(&id).map(|binding| &binding.config),

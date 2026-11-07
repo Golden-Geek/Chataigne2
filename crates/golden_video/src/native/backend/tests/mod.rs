@@ -3,6 +3,9 @@ pub(in crate::native) mod copy_tap;
 mod envelope;
 mod images;
 mod inputs;
+mod presentation;
+#[cfg(feature = "qualification")]
+mod presentation_hardware;
 mod regions;
 #[cfg(feature = "qualification")]
 mod retirement;

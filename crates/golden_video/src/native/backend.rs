@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::time::Duration;
@@ -26,6 +26,7 @@ use super::timing::{
 };
 use super::{D3d11Config, D3d11Control, InputLimits, NativeFailure, OutputBinding};
 
+mod presentation;
 mod resources;
 
 struct NativeState {
@@ -70,6 +71,8 @@ pub(crate) struct D3d11Backend {
 }
 
 pub(crate) struct D3d11Resources {
+    presentation: RefCell<presentation::Presentation>,
+    content_time: Cell<Option<TimeSnapshot>>,
     generation: GenerationInfo,
     textures: BTreeMap<TextureId, Rc<Texture>>,
     scratch: BTreeMap<PassId, Rc<Texture>>,
@@ -399,13 +402,14 @@ impl Backend for D3d11Backend {
                 return Err(BackendError::DeviceLost);
             }
             native.inputs.ensure(plan)?;
-            let prepared = resources::prepare(native, plan, generation, &mut counts).map_err(|_| {
-                if native.device.removed() {
-                    BackendError::DeviceLost
-                } else {
-                    BackendError::AllocationFailed
-                }
-            });
+            let prepared =
+                resources::prepare(native, plan, generation, &mut counts, self.notify.clone()).map_err(|_| {
+                    if native.device.removed() {
+                        BackendError::DeviceLost
+                    } else {
+                        BackendError::AllocationFailed
+                    }
+                });
             native.textures.prune();
             prepared
         })();
@@ -437,6 +441,60 @@ impl Backend for D3d11Backend {
         token: CompletionToken,
         time: TimeSnapshot,
     ) -> Result<(), BackendError> {
+        self.submit_work(resources, plan, token, time, false)
+    }
+
+    fn presentation_pending(&self, resources: &Self::Resources) -> bool {
+        self.native.as_ref().is_some_and(|native| !native.quiesced) && resources.presentation.borrow().pending()
+    }
+
+    fn presentation_retry_delay(&self, resources: &Self::Resources) -> Option<Duration> {
+        let native = self.native.as_ref().filter(|native| !native.quiesced)?;
+        resources
+            .presentation
+            .borrow()
+            .pending_outputs()
+            .map(|output| native.outputs.presentation_retry_delay(output))
+            .min()
+    }
+
+    fn present(
+        &mut self,
+        resources: &Self::Resources,
+        plan: &CompiledPlan,
+        token: CompletionToken,
+        time: TimeSnapshot,
+    ) -> Result<(), BackendError> {
+        self.submit_work(resources, plan, token, time, true)
+    }
+
+    fn completion(&mut self) -> Result<CompletionToken, BackendError> {
+        self.observe_completion()
+    }
+
+    fn wait_for_completion(&mut self, timeout: Duration) -> Result<(), BackendError> {
+        self.wait_native_completion(timeout)
+    }
+
+    fn reset(&mut self, device: DeviceGeneration) -> Result<(), BackendError> {
+        self.reset_native(device)
+    }
+}
+
+impl D3d11Backend {
+    fn submit_work(
+        &mut self,
+        resources: &D3d11Resources,
+        plan: &CompiledPlan,
+        token: CompletionToken,
+        time: TimeSnapshot,
+        presentation_only: bool,
+    ) -> Result<(), BackendError> {
+        let time = if presentation_only {
+            resources.content_time.get().ok_or(BackendError::UnsupportedPlan)?
+        } else {
+            time
+        };
         let native = self.native.as_mut().ok_or(BackendError::DeviceLost)?;
         if token.device != self.generation || native.device.removed() {
             return Err(BackendError::DeviceLost);
@@ -444,6 +502,11 @@ impl Backend for D3d11Backend {
         if !native.completion.can_submit() {
             return Err(BackendError::SubmissionFailed);
         }
+        if !presentation_only {
+            resources.content_time.set(Some(time));
+        }
+        let mut presentation = resources.presentation.borrow_mut();
+        presentation.begin(presentation_only);
         let recorder = self.diagnostics.as_ref();
         let cpu = recorder.map(CpuScope::new);
         let submission = native.completion.begin(&native.device, token);
@@ -452,7 +515,7 @@ impl Backend for D3d11Backend {
         let inputs_begin = recorder.and_then(Recorder::stamp);
         let pipeline = &native.pipeline;
         pipeline.begin_frame(time);
-        for external in plan.external_textures() {
+        for external in plan.external_textures().iter().filter(|_| !presentation_only) {
             if !matches!(external.source, Some(ExternalSource::Spout(_))) {
                 continue;
             }
@@ -506,7 +569,10 @@ impl Backend for D3d11Backend {
         let render_begin = recorder.and_then(Recorder::stamp);
         // Every fallible native allocation/view lookup completed during preparation. From the
         // first command onward, output errors are observations and this token is always marked.
-        for pass in plan.passes() {
+        for (index, pass) in plan.passes().iter().enumerate() {
+            if !presentation.pass(index) {
+                continue;
+            }
             let output = &resources.textures[&pass.output];
             match &pass.operation {
                 RenderOperation::Clear(color) => pipeline.clear(context, output, *color),
@@ -602,6 +668,9 @@ impl Backend for D3d11Backend {
         }
         let render = recorder.and_then(|recorder| recorder.interval(render_begin));
         native.output_schedule.submit(plan.outputs().len(), |index, attempt| {
+            if !presentation.output(index) {
+                return Attempt::Complete;
+            }
             let output = &plan.outputs()[index];
             let converted = resources.outputs.get(&output.id).map(Rc::as_ref);
             let descriptor = native.outputs.descriptor(output.id).expect("validated native output");
@@ -649,6 +718,7 @@ impl Backend for D3d11Backend {
                 }
             };
             if outcome == super::outputs::Delivery::Accepted {
+                presentation.accepted(output.id);
                 for placement in &resources.presented_regions[&output.id] {
                     placement.mark_presented(output.id, token);
                 }
@@ -693,7 +763,7 @@ impl Backend for D3d11Backend {
         if removed { Err(BackendError::DeviceLost) } else { Ok(()) }
     }
 
-    fn completion(&mut self) -> Result<CompletionToken, BackendError> {
+    fn observe_completion(&mut self) -> Result<CompletionToken, BackendError> {
         let native = self.native.as_mut().ok_or(BackendError::DeviceLost)?;
         if native.device.removed() {
             return Err(BackendError::DeviceLost);
@@ -718,13 +788,13 @@ impl Backend for D3d11Backend {
         Ok(completed)
     }
 
-    fn wait_for_completion(&mut self, timeout: Duration) -> Result<(), BackendError> {
+    fn wait_native_completion(&mut self, timeout: Duration) -> Result<(), BackendError> {
         self.completion()?;
         std::thread::sleep(timeout.min(Duration::from_millis(20)));
         Ok(())
     }
 
-    fn reset(&mut self, device: DeviceGeneration) -> Result<(), BackendError> {
+    fn reset_native(&mut self, device: DeviceGeneration) -> Result<(), BackendError> {
         // SAFETY: metadata query on this worker's retained old device, before its destruction.
         #[cfg(all(test, feature = "qualification"))]
         if let Some(native) = &self.native

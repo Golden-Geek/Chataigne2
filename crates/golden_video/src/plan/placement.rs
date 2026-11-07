@@ -34,6 +34,7 @@ pub struct RegionGeometry {
 
 #[derive(Debug)]
 struct State {
+    revision: golden_io::RevisionSource,
     geometry: RegionGeometry,
     sampled: Option<(CompletionToken, RegionGeometry)>,
     first_use: Option<CompletionToken>,
@@ -78,6 +79,7 @@ impl RegionPlacement {
         (destination.is_valid() && source_rect.is_valid() && capacity <= MAX_VIEW_OVERLAYS).then(|| {
             Self(
                 Arc::new(Mutex::new(State {
+                    revision: golden_io::RevisionSource::default(),
                     geometry: RegionGeometry {
                         destination,
                         source_rect,
@@ -120,6 +122,7 @@ impl RegionPlacement {
         }
         let mut state = self.0.lock().unwrap_or_else(|error| error.into_inner());
         if state.geometry.tiles.as_ref() != tiles {
+            state.revision.advance();
             state.geometry.tiles = Arc::from(tiles);
             state.first_use = None;
         }
@@ -164,9 +167,17 @@ impl RegionPlacement {
         if state.geometry == geometry {
             return true;
         }
+        state.revision.advance();
         state.geometry = geometry;
         state.first_use = None;
         true
+    }
+    pub(crate) fn revisions(&self) -> golden_io::RevisionReader {
+        self.0
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .revision
+            .reader()
     }
     /// Sample from the render worker. Shared background/image passes use one coherent placement.
     pub fn sample(&self, token: CompletionToken) -> RegionGeometry {
@@ -237,7 +248,12 @@ impl RegionPlacement {
     }
     pub(crate) fn retained_heap_bytes(&self) -> usize {
         // Reserve latest, sampled and accepted arrays plus each bounded opaque hit identity.
+        let revision = self.revisions();
         std::mem::size_of::<Mutex<State>>()
+            + revision.guard_at(revision.current()).retained_heap_bytes()
+            // At most live + two retiring + one prepared generation subscribe here. Reserve
+            // watcher Arc/control metadata and registry slots along with the placement.
+            + 4 * (std::mem::size_of::<golden_io::RevisionSubscription>() + 8 * std::mem::size_of::<usize>())
             + 12 * std::mem::size_of::<usize>()
             + 3 * self.1 * (std::mem::size_of::<OverlayPrimitive>() + 128)
             + 3 * self.2 * std::mem::size_of::<RegionTile>()

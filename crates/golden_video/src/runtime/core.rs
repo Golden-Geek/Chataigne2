@@ -424,12 +424,33 @@ impl<B: Backend> RenderCore<B> {
     }
 
     pub(crate) fn submit(&mut self, time: TimeSnapshot) -> Result<Option<SubmissionInfo>, CoreError> {
+        self.submit_work(time, false)
+    }
+
+    pub(crate) fn submit_presentation(&mut self, time: TimeSnapshot) -> Result<Option<SubmissionInfo>, CoreError> {
+        self.submit_work(time, true)
+    }
+
+    pub(crate) fn presentation_retry_delay(&self) -> Option<Duration> {
+        let live = self.live.as_ref().filter(|live| live.last_use != 0)?;
+        self.backend.presentation_retry_delay(live.prepared.resources.as_ref()?)
+    }
+
+    fn submit_work(&mut self, time: TimeSnapshot, presentation: bool) -> Result<Option<SubmissionInfo>, CoreError> {
         self.poll_completion()?;
         self.ensure_device()?;
         let Some(live) = self.live.as_ref() else {
             return Ok(None);
         };
         if live.prepared.info.output_count == 0 {
+            return Ok(None);
+        }
+        if presentation
+            && (live.last_use == 0
+                || !self
+                    .backend
+                    .presentation_pending(live.prepared.resources.as_ref().unwrap()))
+        {
             return Ok(None);
         }
         if self.in_flight.len() >= self.limits.max_in_flight.get() {
@@ -448,12 +469,13 @@ impl<B: Backend> RenderCore<B> {
         self.live.as_mut().unwrap().last_use = serial;
         self.in_flight.push_back(serial);
         let live = self.live.as_ref().unwrap();
-        if let Err(error) = self.backend.submit(
-            live.prepared.resources.as_ref().unwrap(),
-            live.prepared.plan(),
-            token,
-            time,
-        ) {
+        let resources = live.prepared.resources.as_ref().unwrap();
+        let submitted = if presentation {
+            self.backend.present(resources, live.prepared.plan(), token, time)
+        } else {
+            self.backend.submit(resources, live.prepared.plan(), token, time)
+        };
+        if let Err(error) = submitted {
             self.in_flight.pop_back();
             self.submitted = serial - 1;
             self.live.as_mut().unwrap().last_use = previous_use;

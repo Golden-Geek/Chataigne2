@@ -35,8 +35,7 @@ pub enum BackendError {
     #[error("null qualification control is already bound")]
     AlreadyBound,
     /// The compiled plan needs a source or consumer not supported by this backend binding.
-    #[error("render plan has an unsupported or unbound native resource")]
-    #[cfg(all(windows, feature = "d3d11"))]
+    #[error("render plan has an unsupported or unbound resource")]
     UnsupportedPlan,
 }
 
@@ -96,6 +95,30 @@ pub(crate) trait Backend {
         token: CompletionToken,
         time: TimeSnapshot,
     ) -> Result<(), BackendError>;
+
+    /// Live presentation metadata changed after the last content/presentation submission.
+    /// Backends without a separate cached-content presentation path never request this work.
+    fn presentation_pending(&self, _resources: &Self::Resources) -> bool {
+        false
+    }
+
+    /// On-demand retry while a changed presentation is blocked on GPU/endpoint admission.
+    /// None keeps idle presentation free of a timer; this is not the media frame deadline.
+    fn presentation_retry_delay(&self, _resources: &Self::Resources) -> Option<Duration> {
+        None
+    }
+
+    /// Redraw only changed presentation branches from initialized cached content. The same
+    /// proposed-token and pre-use-error contract as `submit` applies, including unwinding.
+    fn present(
+        &mut self,
+        _resources: &Self::Resources,
+        _plan: &CompiledPlan,
+        _token: CompletionToken,
+        _time: TimeSnapshot,
+    ) -> Result<(), BackendError> {
+        Err(BackendError::UnsupportedPlan)
+    }
 
     fn completion(&mut self) -> Result<CompletionToken, BackendError>;
 

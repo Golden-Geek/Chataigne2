@@ -7,8 +7,8 @@
 		[
 			status?.gpu ? `Renderer adapter: ${status.gpu}` : 'No renderer adapter observation',
 			status?.gpu_restart_required ? 'GPU preference changed. Restart MapGyver to apply.' : '',
-			'Renderer FPS counts successful API frame calls, not display presentation.',
-			'CPU frame call time excludes asynchronous GPU work and presentation.',
+			'Content FPS excludes preview-only redraws and does not measure display refresh.',
+			'CPU content submission time excludes preview-only redraws, asynchronous GPU work and presentation.',
 			'Tracked bytes are renderer allocation charges, not physical VRAM residency.',
 			status?.resources
 				? `${status.resources.in_flight} in flight, ${status.resources.retiring} retiring`

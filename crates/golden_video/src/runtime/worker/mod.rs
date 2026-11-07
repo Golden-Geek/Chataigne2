@@ -330,6 +330,9 @@ impl<B: Backend> Runner<B> {
         if let Some(retry_at) = self.retry_at {
             delay = delay.min(retry_at.saturating_duration_since(Instant::now()));
         }
+        if rendering && let Some(presentation) = self.core.presentation_retry_delay() {
+            delay = delay.min(presentation);
+        }
         Instant::now()
             .checked_add(delay.min(Duration::from_secs(3600)))
             .unwrap_or_else(Instant::now)

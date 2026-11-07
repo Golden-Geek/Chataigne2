@@ -102,9 +102,12 @@ pub(super) fn prepare(
     plan: &CompiledPlan,
     generation: crate::runtime::GenerationInfo,
     counts: &mut PreparationCounts,
+    notify: Option<golden_io::WorkerNotifier>,
 ) -> Result<D3d11Resources> {
     native.textures.prune();
     let mut resources = D3d11Resources {
+        presentation: std::cell::RefCell::new(super::presentation::Presentation::new(plan, notify)),
+        content_time: std::cell::Cell::new(None),
         generation,
         textures: Default::default(),
         scratch: Default::default(),

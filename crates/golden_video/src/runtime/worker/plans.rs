@@ -162,7 +162,15 @@ impl<B: Backend> Runner<B> {
         }
         let tick = match self.cadence.consume_due(time.monotonic()) {
             Ok(Some(tick)) => tick,
-            Ok(None) => return,
+            Ok(None) => {
+                if rendering && self.can_submit_current() {
+                    match self.core.submit_presentation(time) {
+                        Ok(_) | Err(CoreError::InFlightFull) => {}
+                        Err(error) => self.core_fault(error, Some(time)),
+                    }
+                }
+                return;
+            }
             Err(error) => {
                 self.fault(RuntimeFailure::new(FailureCode::Time, error));
                 return;
@@ -231,15 +239,7 @@ impl<B: Backend> Runner<B> {
                 }
             }
         }
-        let can_submit = {
-            let state = self.shared.lock();
-            !state.closing
-                && self
-                    .core
-                    .snapshot()
-                    .active
-                    .is_some_and(|active| active.identity.project == state.project)
-        };
+        let can_submit = self.can_submit_current();
         if !can_submit {
             if let Some(schedule) = schedule {
                 self.core
@@ -275,5 +275,15 @@ impl<B: Backend> Runner<B> {
             }
             Err(error) => self.core_fault(error, Some(time)),
         }
+    }
+
+    fn can_submit_current(&self) -> bool {
+        let state = self.shared.lock();
+        !state.closing
+            && self
+                .core
+                .snapshot()
+                .active
+                .is_some_and(|active| active.identity.project == state.project)
     }
 }
