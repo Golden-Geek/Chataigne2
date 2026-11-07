@@ -10,11 +10,13 @@ import { adapterKey } from './native-adapter.mjs';
 import { createGestureQualification } from './gesture-qualification.mjs';
 import { createMixedGestureSources } from './gesture-mixed-sources.mjs';
 import { createEmptyGestureScenes, verifyEmptyGestureScenes } from './gesture-empty-scenes.mjs';
+import { verifyWorkbenchControls } from './gesture-workbench-controls.mjs';
 
 const directory = path.resolve(process.argv[2]);
 await mkdir(directory);
 const gpuIndex = process.argv[3] === undefined ? null : Number(process.argv[3]);
 const mixed = process.argv.includes('--mixed-media');
+const workbench = process.argv.includes('--workbench-controls');
 const populated = process.argv.includes('--populated-3x3') || mixed;
 const colors = [
 	{ rgba: [1, 0, 0, 1], rgb: [255, 0, 0] },
@@ -69,7 +71,8 @@ let token,
 	closing = false,
 	qualification;
 let mixedSources,
-	emptyReports = [];
+	emptyReports = [],
+	workbenchReport;
 const held = [],
 	requests = [],
 	receipts = [],
@@ -581,6 +584,10 @@ try {
 		await tab('Matrix').click();
 		await qualification?.grid({ phase: 'populated-after-gestures', snapshot, colors });
 	}
+	if (workbench) {
+		stage = 'ordinary controls, shared scrolling and docking';
+		workbenchReport = await verifyWorkbenchControls({ page, edit, post, qualification });
+	}
 	assert.deepEqual(errors, []);
 	assert(
 		receipts.every(
@@ -597,6 +604,7 @@ try {
 				app_pid: native.app.pid,
 				browser: native.browser.version(),
 				checks,
+				workbench: workbenchReport,
 				workload: {
 					populated_3x3: populated,
 					source_references: matrixSources,

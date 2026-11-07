@@ -32,6 +32,7 @@ await page.routeWebSocket('**', (socket) => {
 			frame = JSON.parse(String(message));
 		} catch {}
 		const intent = frame?.intent;
+		const operation = intent?.payload?.edit?.kind ?? intent?.payload?.kind;
 		const geometry =
 			frame?.kind === 'intent' &&
 			intent?.kind === 'invokeAppOperation' &&
@@ -49,7 +50,13 @@ await page.routeWebSocket('**', (socket) => {
 				mode,
 				sent: Date.now()
 			});
-		if (geometry && mode === 'hold') {
+		if (
+			(geometry && mode === 'hold') ||
+			(mode === 'hold-parameter' && intent?.kind === 'setParamComponent') ||
+			(mode === 'hold-background' &&
+				intent?.kind === 'invokeAppOperation' &&
+				operation?.startsWith('Inspect'))
+		) {
 			held.push({ message, connection, id: frame.request_id });
 			return;
 		}
@@ -230,6 +237,86 @@ try {
 	await page.mouse.move(point.x + 2, point.y);
 	await finish();
 	await resetTrace();
+	if (process.argv.includes('--silent-controls')) {
+		stage = 'delayed silent parameter';
+		const position = page
+			.locator('.parameter-inspector')
+			.filter({
+				has: page.getByText('Position', { exact: true })
+			})
+			.locator('input.number-field')
+			.first();
+		await position.waitFor();
+		const originalPosition = await position.inputValue();
+		const originalCanonical = (await inspect()).items[0].layer.position[0];
+		mode = 'hold-parameter';
+		await position.fill(String(Number(originalPosition) + 1));
+		await position.press('Enter');
+		await wait(
+			() => held.length,
+			(value) => value > 0
+		);
+		const parameterRequests = held.map((item) => item.id);
+		await delay(650);
+		assert.equal(await hidden(), 'true');
+		assert((await trace()).every((sample) => sample.hidden === 'true'));
+		mode = 'normal';
+		for (const pending of held.splice(0)) pending.connection.server.send(pending.message);
+		await wait(
+			() =>
+				parameterRequests.every((id) =>
+					receipts.some((receipt) => receipt.id === id && receipt.phase === 'applied')
+				),
+			Boolean
+		);
+		await wait(
+			async () => (await inspect()).items[0].layer.position[0],
+			(value) => Math.abs(value - Number(originalPosition) - 1) < 0.0001
+		);
+		await position.fill(String(originalCanonical));
+		await position.press('Enter');
+		await wait(
+			async () => (await inspect()).items[0].layer.position[0],
+			(value) => value === originalCanonical
+		);
+		checks.push({
+			stage,
+			held_ms: 650,
+			requests: parameterRequests,
+			visible: false,
+			canonical_restored: true
+		});
+		await resetTrace();
+		stage = 'delayed silent background inspections';
+		mode = 'hold-background';
+		await page
+			.getByRole('tab')
+			.filter({ hasText: /^Matrix(?::|$)/ })
+			.click();
+		// Opening Matrix already issues the background reads. Its controls are
+		// correctly disabled until those reads finish, so release before more input.
+		await wait(
+			() => held.length,
+			(value) => value > 0
+		);
+		const backgroundRequests = held.map((item) => item.id);
+		await delay(650);
+		assert.equal(await hidden(), 'true');
+		assert((await trace()).every((sample) => sample.hidden === 'true'));
+		mode = 'normal';
+		for (const pending of held.splice(0)) pending.connection.server.send(pending.message);
+		await wait(
+			() =>
+				backgroundRequests.every((id) =>
+					receipts.some((receipt) => receipt.id === id && receipt.phase === 'applied')
+				),
+			Boolean
+		);
+		checks.push({ stage, held_ms: 650, requests: backgroundRequests, visible: false });
+		await page.locator('.gc-dv-tab[data-content-panel-id="composition"]').click();
+		await ready();
+		await resetTrace();
+	}
 	stage = 'long fast-acknowledged gesture';
 	point = await start();
 	for (let i = 0; i < 40; i++) {

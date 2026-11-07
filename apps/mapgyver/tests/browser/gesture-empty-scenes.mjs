@@ -117,6 +117,15 @@ export async function verifyEmptyGestureScenes({ page, edit, screens, scene, qua
 	await tree.getByRole('button', { name: 'Empty gesture Surface', exact: true }).click();
 	await tab('Screen Warping').click();
 	await navigate('Screen view', 'Empty Screen');
+	await tab('Surface Source').click();
+	await page
+		.getByText('No source assigned. Choose a channel in Surface settings.', { exact: true })
+		.waitFor();
+	await navigate('Surface source view', 'Empty Surface Source');
+	assert.equal(
+		await page.locator('section[aria-label="Surface Source"] .native-preview').count(),
+		0
+	);
 	assert.deepEqual(
 		(await screens({ kind: 'InspectSurface', reference: scene.surface })).snapshot,
 		before,

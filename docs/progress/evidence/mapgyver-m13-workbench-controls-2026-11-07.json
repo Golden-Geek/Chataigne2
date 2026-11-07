@@ -1,0 +1,92 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/4 retained Blocked for high-refresh/presented timing; M13/5 selected next. No acceptance gate closed.",
+	"acceptance": { "verified": 71, "total": 92, "m13_verified": 2, "m13_total": 14 },
+	"batch": {
+		"started_utc": "05:54",
+		"planned_cutoff_utc": "06:39",
+		"native_checks_finished_utc": "06:03"
+	},
+	"ownership": "MapGyver existing bundled gesture/pending-feedback fixtures and focused workbench-controls helper; Golden intent-sender tests. No production code, schema, default, dispatch, resource budget or capture framework changed.",
+	"app": {
+		"commit": "b476c2f9151b34df88fc8f44257532ebb177cacb",
+		"path": "target/debug/deps/MapGyver-m134-focus.exe",
+		"sha256": "52f0b8c21a88e0be04c9a9dc818531848b63e45deaee9748ae955a7d2745ce77"
+	},
+	"prerequisites": "Unchanged successful app build/Svelte/keyboard and Rust/strict/generated evidence retained. Owned source executable and its successful compile prerequisite match the preceding mixed-media receipt. Changed JS syntax/Prettier, strict TypeScript check of new sender tests,29 owning Golden unit tests, root/Core cargo fmt and scoped diff checks pass. No live verification proceeded after a failed software prerequisite.",
+	"native_workbench_scope": "Existing mixed3x3/six gesture/history/physical-outline regression retained, plus five empty views including source-less Surface Source with zero native-preview registrations and unchanged authored Surface. Inspector12 real collapse/expand/numeric actions retain unrelated sibling/Parameter DOM with zero removals/disconnected/faded samples; Resolution input reads64 finally. This input readback alone does not prove every typed resolution/history contract. Actual wheel events scroll a batched40x40 zero-Cell Matrix from0 to600 on both axes and back to0. Actual dock pointer input narrows grid width701.4000->621.4000->701.4000, preserving grid DOM and exact entire Matrix snapshot. All recorded wheel/down/up events trusted. Independent output remains live throughout.",
+	"intel": {
+		"artifact": "target/m134-workbench-intel-20261107/result.json",
+		"sha256": "44426d11cb409bec6d343a10eddd323c43d9791415cb9001afedf8190c0456a1",
+		"app_pid": 28168,
+		"source_pid": 14544,
+		"fixture_exit": 0,
+		"inspector_actions": 12,
+		"inspector_dom_samples": 1018,
+		"requests": 1134,
+		"receipts": 1134,
+		"page_errors": 0,
+		"rejected_or_unsuccessful": 0,
+		"sdk_copies": 1685,
+		"absent": 0,
+		"failed_receives": 0,
+		"descriptor_mismatch": 0,
+		"stable_handle": 2147494082,
+		"first_frame": 67,
+		"last_frame": 1752,
+		"maximum_receive_gap_ms": 68.4335,
+		"consumer_exit": 0,
+		"independent_full_images": 16
+	},
+	"nvidia": {
+		"artifact": "target/m134-workbench-nvidia-20261107/result.json",
+		"sha256": "1df38e780576b8ca1805896c5085735d038a8e6cdd0d3832aead136aa0083476",
+		"app_pid": 11656,
+		"source_pid": 29624,
+		"fixture_exit": 0,
+		"inspector_actions": 12,
+		"inspector_dom_samples": 1019,
+		"requests": 1154,
+		"receipts": 1154,
+		"page_errors": 0,
+		"rejected_or_unsuccessful": 0,
+		"sdk_copies": 1761,
+		"absent": 0,
+		"failed_receives": 0,
+		"descriptor_mismatch": 0,
+		"stable_handle": 1073749250,
+		"first_frame": 71,
+		"last_frame": 1831,
+		"maximum_receive_gap_ms": 33.8503,
+		"consumer_exit": 0,
+		"independent_full_images": 16
+	},
+	"workbench_audit": "Request/terminal receipt ID cohorts uniquely match on each GPU, all applied/successful. Each run also retains18 thumbnail patches and six125%-scale physical pending outlines, maximum0.750161px error. Overall terminal0 proves owned app/source/receiver normal finalizers after result writing. DOM sample counts and SDK gaps are functional observations, never presentation/240Hz timing acceptance. Shared Texture source remains static BGRA8.",
+	"silent_boundary": "New10 Golden intent-sender tests cover all six intentionally silent kinds: beginEdit/endEdit/setParam/setParamComponent/resizeDashboardWidget/sendNodeEvent. Delayed completion still delivers canonical receipts without user activity; unlabelled silent batches remain quiet, explicitly labelled edit batches and app work track once, failures propagate to caller. Existing background app-operation test proves applied result/receipt preservation without entering activity. Existing9 PendingFeedback controlled-clock cases retain300ms delay, coalescing, lifetime, completion/failure and cancellation policy. Total29 tests pass; strict new-test TypeScript check passes.",
+	"native_silent_feedback": {
+		"artifact": "target/m134-silent-feedback-read-release-20261107/result.json",
+		"sha256": "bd888b516d050cf523cb4615631e2b381c415c1f94d63841d171a56d585ff8f8",
+		"pid": 19996,
+		"fixture_exit": 0,
+		"checks": 6,
+		"behavior": "Real Inspector setParamComponent held650ms stays hidden, applies expected float32 value within0.0001 and restores the exact original canonical coordinate. Real Matrix background inspection held650ms stays hidden and receives its terminal applied receipt. Long geometry gesture28 requests/max20ms observed routed acknowledgement interval stays quiet. Outstanding geometry shows Applying changes then Changes applied/Done; real rejected UUID leaves authored state unchanged and displays Failed; forced connection replacement recovers and retires abandoned feedback.",
+		"requests": 265,
+		"receipts": 264,
+		"missing": "Exactly the deliberately held/dropped EditLayerGeometry in abandoned-operation/reconnect stage; all other observed IDs have terminal receipts.",
+		"expected_rejections": "Injected invalid Matrix UUID plus one exact correlated old endEdit/edit_session_not_active after reconnect; its Failed caption is retained in the trace before retiring. No unexpected rejection or page error.",
+		"scope": "Actual native parameter/background paths plus software coverage of every silent kind; no claim that all six kinds were individually injected through native UI, no independent output or GPU/timing qualification from this fault-injection fixture. Both-GPU independent output comes from workbench runs above."
+	},
+	"retained_fixture_failures": [
+		{
+			"artifact": "target/m134-silent-feedback-20261107/failure.json",
+			"fixture_exit": 1,
+			"cause": "Silent write/quiet period succeeded but exact decimal82.2 equality rejected valid float32 canonical82.19999694824219. Added0.0001 expected-value tolerance while retaining exact original canonical restoration."
+		},
+		{
+			"artifact": "target/m134-silent-feedback-float-20261107/failure.json",
+			"fixture_exit": 1,
+			"cause": "Parameter/quiet/restoration passed. Fixture held the initial Matrix read then tried to click a correctly disabled Layer control before releasing that read. Corrected ordering uses the tab's existing read, observes650ms silence and releases it before further input; final regression above passes."
+		}
+	],
+	"return_queue": "M13/4 remains unaccepted for actual240Hz real-input presented frame pacing, stalls and pointer-to-visible p95/p99 across workloads/both GPUs, moving-frame native/DOM correspondence and retained physical/performance requirements. Existing QPC attempt collected zero actions. Return only when expected owned ROI pixels are available through that exact capture API, or an existing supported alternative supplies required clock authority/cadence; no unchanged probe rerun or relaxed budget. M13/5 initial Screen creation is functionally independent and selected next in the same M13 order; M10/M09 still wait for every prerequisite."
+}
