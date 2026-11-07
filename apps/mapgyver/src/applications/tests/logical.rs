@@ -211,16 +211,14 @@ fn unloaded_or_discarded_playback_never_creates_authored_history_or_a_phantom_sc
     );
     engine.edits.pending.clear();
     assert_eq!(capture_logical_applications(&engine).unwrap().demand.len(), 1);
-    let MediaEditResult::MatrixPlayback { snapshot } = edit(
+    let result = edit(
         &mut engine,
         MediaEdit::Matrix {
             media,
             edit: MatrixEdit::ClearPlayback,
         },
-    ) else {
-        panic!()
-    };
-    assert_eq!(snapshot.desired_column, None);
+    );
+    assert!(matches!(result, MediaEditResult::MatrixControlInvoked { .. }));
     assert!(capture_logical_applications(&engine).unwrap().demand.is_empty());
     assert_eq!(engine.undo_len(), history);
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), authored);

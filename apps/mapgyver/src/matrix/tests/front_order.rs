@@ -131,6 +131,7 @@ fn first_authored_layer_is_frontmost_after_root_group_reorder_history_and_reload
     );
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+    golden_core::app::prepare_engine_for_runtime(&mut loaded).unwrap();
     assert_eq!(inspect(&mut loaded, matrix.media), authored);
     launch(&mut loaded, matrix.media, column);
     assert_eq!(

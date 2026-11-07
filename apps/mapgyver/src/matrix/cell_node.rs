@@ -52,6 +52,17 @@ pub struct CellNode {
     source_version: AtomicU64,
 }
 impl CellNode {
+    pub(crate) fn control_parameter(&self, action: super::controls::Action) -> Option<NodeId> {
+        match action {
+            super::controls::Action::Play => Some(self.play.id()),
+            super::controls::Action::Cut => Some(self.cut.id()),
+            super::controls::Action::Stop => Some(self.stop.id()),
+            _ => None,
+        }
+    }
+    pub(crate) fn claim_control(&mut self, action: super::controls::Action, token: uuid::Uuid) -> bool {
+        self.pulses.claim(action, token)
+    }
     pub(crate) fn settings(&self, engine: &AppEngine) -> CellSettings {
         let position = self.position.get();
         CellSettings {
@@ -283,7 +294,8 @@ impl Node for CellNode {
         self.pulses.ready();
     }
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
-        super::controls::Pulses::result(ctx, self.id(), &event);
+        let id = self.id();
+        self.pulses.result(ctx, id, &event);
     }
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
         let action = if parameter == self.play.id() {

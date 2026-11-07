@@ -238,7 +238,7 @@ fn direct_cell_blends_only_its_layer_preserves_anchor_and_next_column_is_atomic_
     let peer = capture(&engine, matrix.media, rows[1], time);
     assert_eq!(first.inputs.len(), 1);
     let old = first.inputs[0].source;
-    let MediaEditResult::MatrixLaunched { snapshot } = edit(
+    let result = edit(
         &mut engine,
         matrix.media,
         MatrixEdit::LaunchCell {
@@ -246,7 +246,10 @@ fn direct_cell_blends_only_its_layer_preserves_anchor_and_next_column_is_atomic_
             column: columns[1],
             mode: LaunchMode::Configured,
         },
-    ) else {
+    );
+    assert!(matches!(result, MediaEditResult::MatrixControlInvoked { .. }));
+    let MediaEditResult::MatrixPlayback { snapshot } = super::super::playback::inspect(&engine, matrix.media).unwrap()
+    else {
         panic!()
     };
     assert_eq!(snapshot.desired_column, Some(columns[0]));
@@ -346,7 +349,7 @@ fn cell_override_and_disablement_are_typed_and_logical_direct_demand_works_witho
     }
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
-    let MediaEditResult::MatrixLaunched { snapshot } = edit(
+    let result = edit(
         &mut engine,
         matrix.media,
         MatrixEdit::LaunchCell {
@@ -354,7 +357,10 @@ fn cell_override_and_disablement_are_typed_and_logical_direct_demand_works_witho
             column: columns[1],
             mode: LaunchMode::Configured,
         },
-    ) else {
+    );
+    assert!(matches!(result, MediaEditResult::MatrixControlInvoked { .. }));
+    let MediaEditResult::MatrixPlayback { snapshot } = super::super::playback::inspect(&engine, matrix.media).unwrap()
+    else {
         panic!()
     };
     assert_eq!(snapshot.desired_column, None);
@@ -385,7 +391,7 @@ fn cell_override_and_disablement_are_typed_and_logical_direct_demand_works_witho
             mode: LaunchMode::Cut,
         },
     );
-    assert!(matches!(result, MediaEditResult::MatrixLaunched { .. }));
+    assert!(matches!(result, MediaEditResult::MatrixControlInvoked { .. }));
     let before = crate::matrix::playback::inspect(&engine, matrix.media).unwrap();
     edit(
         &mut engine,

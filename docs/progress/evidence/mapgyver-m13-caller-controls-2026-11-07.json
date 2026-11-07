@@ -1,0 +1,64 @@
+{
+  "gate": "M13/6",
+  "date": "2026-11-07",
+  "status": "partial; caller controls delivered, complete acceptance remains open",
+  "batch": { "started_utc": "08:19", "stopping_time_utc": "09:04" },
+  "product": [
+    "LaunchColumn, LaunchCell and ClearPlayback invoke the exact real Golden Trigger Parameter; existing double-click, context, script and command callers use that path.",
+    "MatrixControlInvoked identifies the owner and Parameter UUIDs; deferred playback admission and frame submission remain separate observations. Admission errors are owner warnings.",
+    "First Play on a sparse address materializes one normal empty Cell in one authored undo step. Subsequent pulses are ephemeral; Undo/Redo does not replay the pulse.",
+    "Internal delivery requires a matching one-use proof minted by the real Parameter callback; existing bounded service, atomic edit fences and owner cancellation remain intact.",
+    "Existing Cell launches use the address index; creation and App Control preparation share one canonical Cell materialization path."
+  ],
+  "software": {
+    "library_tests": { "passed": 532, "ignored": 2, "failed": 0 },
+    "strict_clippy": "passed: --lib --tests --features native-preview-smoke,application-process-fixture -- -D warnings",
+    "generated_contract": "Rust generator completed successfully; generated MediaEditResult.ts and consumers migrated together",
+    "svelte": "0 errors, 0 warnings",
+    "formatting": "root and golden_core cargo fmt; touched authored JavaScript Prettier and syntax checks pass",
+    "coverage": [
+      "Exact real owner/Parameter identity and empty first-use history; twenty repeat pulses and history replay",
+      "Disabled controls, transitions, anchor/independent demand and outgoing-retention regressions",
+      "Public API, script and command parity observes playback separately from invocation acknowledgment",
+      "Full-mix admission rejects deferred playback with a visible warning; Stop All frees admission without bypassing the budget",
+      "Random internal delivery cannot bypass the real Parameter callback"
+    ]
+  },
+  "process_integration": {
+    "command": "cargo test --locked -p MapGyver --test application_runtime --features native-preview-smoke,application-process-fixture -- --test-threads=1",
+    "exit_code": 0,
+    "passed": 13,
+    "ignored": 1,
+    "failed": 0,
+    "limit": "Owned process demand/PID/history, twenty nested-group cycles and held null-renderer final completion pass; not new scoped-stop native GPU completion qualification. Ignored descendant test requires the Golden IO fixture."
+  },
+  "native_functional": {
+    "binary": "target/debug/deps/MapGyver-m136-caller-controls.exe",
+    "binary_sha256": "3fb8a4376e63745af06d3342d11ab7d33415a5c1921ce3576cdba50b2f9570fa",
+    "build_exit": 0,
+    "failed_baseline": {
+      "result": "target/m136-caller-controls-native-20261107/result.json",
+      "sha256": "4b5f81934b8c972ccfa047de325cc18421ee149635b935b705be3aee1c05dfb3",
+      "pid": 26208,
+      "reason": "Context click at24,24 hit the newly materialized Cell's Play icon. Sparse double-click/owner identity had already passed; no production fix."
+    },
+    "final_result": "target/m136-caller-controls-native-body-20261107/result.json",
+    "result_sha256": "8ff150039bc3421963fbc3cded177938baee792cddfc93be1b50812140e74127",
+    "pid": 34964,
+    "fixture_exit": 0,
+    "app_exit": 0,
+    "passed": [
+      "Real sparse Cell double-click, both context actions and transport invocation identity; exactly one Cell added",
+      "Stop All, all scoped Stop buttons and Column/Cell Play fire their exact real Parameters",
+      "Thirty rapid cycles preserve history; reload does not replay pulses; nested group membership and unrelated anchors preserved",
+      "No WebView page errors; final stop-all.png inspected; normal owned app/profile shutdown"
+    ],
+    "limit": "Functional bundled WebView/HTTP controls only; no native timing or scoped GPU final-use qualification."
+  },
+  "remaining": [
+    "Complete every scoped trigger/caller and empty/disabled rapid-interruption acceptance matrix",
+    "Completion-safe native GPU and aggregate owned-process final-use retirement for scoped Stops",
+    "All retained timing, format, WOW64 and final-qualification gates remain required"
+  ],
+  "acceptance": { "newly_closed_gates": [], "overall": "72/92 (78%)", "M13": "3/14 (21%)" }
+}

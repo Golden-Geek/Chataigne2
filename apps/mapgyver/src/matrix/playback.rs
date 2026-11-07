@@ -491,7 +491,7 @@ pub(super) fn launch(
     engine.edits.push(Edit::EmitCustomEvent { event });
     let receipt = engine.edits.completion();
     control.stage(desired.clone(), receipt);
-    Ok(MediaEditResult::MatrixLaunched { snapshot: desired })
+    Ok(MediaEditResult::MatrixPlayback { snapshot: desired })
 }
 
 fn selected_transition(mut transition: TransitionDefinition, mode: LaunchMode) -> TransitionDefinition {
@@ -571,7 +571,7 @@ pub(super) fn launch_cell(
         .map_err(|error| error.to_string())?;
     engine.edits.push(Edit::EmitCustomEvent { event });
     control.stage(desired.clone(), engine.edits.completion());
-    Ok(MediaEditResult::MatrixLaunched { snapshot: desired })
+    Ok(MediaEditResult::MatrixPlayback { snapshot: desired })
 }
 
 pub(crate) fn unload(engine: &mut AppEngine, media: MediaId) -> Result<MediaEditResult, String> {

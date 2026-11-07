@@ -69,6 +69,15 @@ fn nested_group_demand_is_continuous_across_children_and_independent_cell_trigge
     let outside = columns(&mut engine, media, 1)[0];
     let a = configure(&mut engine, outer);
     let b = configure(&mut engine, inner);
+    edit(
+        &mut engine,
+        media,
+        MatrixEdit::ConfigureCell {
+            layer: row,
+            column: children[0],
+            settings: CellSettings::default(),
+        },
+    );
     let authored = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     for _ in 0..20 {
@@ -124,6 +133,7 @@ fn regrouping_invalidates_logical_ranges_and_existing_capture_guards() {
     assert_eq!(demand(&engine), [app].into_iter().collect());
     let encoded = to_sparse_project_json_pretty(&engine).unwrap();
     let mut loaded = from_sparse_project_json::<AppNode>(&encoded).unwrap();
+    golden_core::app::prepare_engine_for_runtime(&mut loaded).unwrap();
     launch(&mut loaded, media, child);
     assert_eq!(demand(&loaded), [app].into_iter().collect());
 }

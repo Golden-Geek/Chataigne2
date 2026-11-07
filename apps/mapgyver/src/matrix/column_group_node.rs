@@ -26,6 +26,9 @@ pub struct ColumnGroupNode {
 }
 
 impl ColumnGroupNode {
+    pub(crate) fn claim_control(&mut self, action: super::controls::Action, token: uuid::Uuid) -> bool {
+        self.pulses.claim(action, token)
+    }
     pub(crate) fn named(label: String) -> Self {
         let mut node = Self::new();
         node.node_data_mut().meta.label = label;
@@ -69,7 +72,8 @@ impl Node for ColumnGroupNode {
         }
     }
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
-        super::controls::Pulses::result(ctx, self.id(), &event);
+        let id = self.id();
+        self.pulses.result(ctx, id, &event);
     }
     fn user_container_rules(&self) -> Option<golden_core::node::UserContainerRules> {
         Some(golden_core::node::UserContainerRules::new(&[

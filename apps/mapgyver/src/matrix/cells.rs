@@ -7,10 +7,36 @@ use golden_core::{
     app::ProjectNode,
     edit::{Edit, NodeTree, UserItemTreeInsertion},
     engine::ProjectImportSpec,
-    node::{Node, NodeReference},
+    node::{Node, NodeId, NodeReference},
     parameter::{ParamValue, ParameterEventBehaviour},
 };
 use std::collections::{HashMap, HashSet};
+
+pub(super) fn ensure(
+    engine: &mut AppEngine,
+    document: &Document,
+    layer: LayerId,
+    column: ColumnId,
+) -> Result<NodeId, String> {
+    let parent = document.item(MatrixItemId::Layer { id: layer })?;
+    document.column(column)?;
+    if let Some(id) = document.cells.get(&(layer, column)) {
+        return Ok(*id);
+    }
+    document.admit(1)?;
+    let node = CellNode::from_address("Cell".into(), column, None);
+    node.bind_runtime(binding(engine, document));
+    let uuid = node.node_data().meta.uuid;
+    engine.edits.push(Edit::AddUserItemTree {
+        parent,
+        prev_sibling: engine.nodes.get(parent).unwrap().node_data().last_child,
+        tree: NodeTree::new(node),
+    });
+    engine.apply_edits().map_err(|error| error.to_string())?;
+    engine
+        .node_id_by_uuid(uuid)
+        .ok_or("Cell creation did not settle".into())
+}
 
 pub(super) fn create_media(
     engine: &mut AppEngine,

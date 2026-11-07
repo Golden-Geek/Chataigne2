@@ -5,7 +5,7 @@ use crate::{
     applications::{demand::*, protocol::*},
 };
 use golden_core::{
-    edit::{Edit, NodeTree},
+    edit::Edit,
     node::{Node, NodeId},
     parameter::ParameterEventBehaviour,
 };
@@ -88,22 +88,7 @@ fn ensure(
     layer: LayerId,
     column: ColumnId,
 ) -> Result<(NodeId, NodeId), String> {
-    let parent = document.item(MatrixItemId::Layer { id: layer })?;
-    document.column(column)?;
-    let cell = if let Some(id) = document.cells.get(&(layer, column)) {
-        *id
-    } else {
-        document.admit(1)?;
-        let node = super::CellNode::from_address("Cell".into(), column, None);
-        let uuid = node.node_data().meta.uuid;
-        engine.edits.push(Edit::AddUserItemTree {
-            parent,
-            prev_sibling: engine.nodes.get(parent).unwrap().node_data().last_child,
-            tree: NodeTree::new(node),
-        });
-        engine.apply_edits().map_err(|error| error.to_string())?;
-        engine.node_id_by_uuid(uuid).ok_or("Cell creation did not settle")?
-    };
+    let cell = super::cells::ensure(engine, document, layer, column)?;
     let Some(AppNode::MediaChannel(root)) = engine.nodes.get(document.root) else {
         unreachable!()
     };

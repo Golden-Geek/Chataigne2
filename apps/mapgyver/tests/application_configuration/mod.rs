@@ -16,10 +16,12 @@ fn cell_owned_control_launches_without_media_and_preserves_pid_across_neighbor_t
             },
         );
         assert!(ack.success, "{ack:?}");
+        golden_core::application::service_script_app_operations(engine).unwrap();
         serde_json::from_value(ack.result.unwrap().value).unwrap()
     }
     let mut engine = create_new_project_engine::<AppNode>().unwrap();
     engine.apply_edits().unwrap();
+    golden_core::app::prepare_engine_for_runtime(&mut engine).unwrap();
     let MediaEditResult::Created { reference } = operation(
         &mut engine,
         MediaEdit::CreateMedia {

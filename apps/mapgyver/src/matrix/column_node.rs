@@ -34,6 +34,17 @@ pub struct ColumnNode {
     runtime: OnceLock<super::playback::RuntimeBinding>,
 }
 impl ColumnNode {
+    pub(crate) fn control_parameter(&self, action: super::controls::Action) -> Option<NodeId> {
+        match action {
+            super::controls::Action::Play => Some(self.play.id()),
+            super::controls::Action::Cut => Some(self.cut.id()),
+            super::controls::Action::Stop => Some(self.stop.id()),
+            _ => None,
+        }
+    }
+    pub(crate) fn claim_control(&mut self, action: super::controls::Action, token: uuid::Uuid) -> bool {
+        self.pulses.claim(action, token)
+    }
     pub(crate) fn from_definition(label: String, definition: ColumnDefinition) -> Self {
         let mut node = Self::new();
         node.node_data_mut().meta.label = label;
@@ -140,7 +151,8 @@ impl Node for ColumnNode {
         self.invalidate();
     }
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
-        super::controls::Pulses::result(ctx, self.id(), &event);
+        let id = self.id();
+        self.pulses.result(ctx, id, &event);
     }
     fn project_decode_data(&mut self, value: &serde_json::Value) -> Result<(), String> {
         crate::parameters::reject_opaque(value)

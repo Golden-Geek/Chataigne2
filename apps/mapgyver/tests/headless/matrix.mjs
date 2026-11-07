@@ -98,8 +98,9 @@ export async function verifyMatrix({ post, intent, edit }) {
 	assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
 	for (const mode of ['Cut', 'Configured']) {
 		const reply = await matrix({ kind: 'LaunchColumn', column: columns[1], mode });
-		assert.equal(reply.kind, 'MatrixLaunched');
-		assert.equal(reply.snapshot.desired_column, columns[1]);
+		assert.equal(reply.kind, 'MatrixControlInvoked');
+		assert.equal(reply.owner, columns[1]);
+		assert.equal(typeof reply.parameter, 'string');
 		assert.equal((await playback()).desired_column, columns[1]);
 		assert.deepEqual(
 			await inspect(),

@@ -7,6 +7,7 @@ fn disabled_destination_keeps_shared_column_and_cell_process_without_a_renderer_
     use mapgyver::applications::logical::capture_logical_applications;
     let mut engine = create_new_project_engine::<AppNode>().unwrap();
     engine.apply_edits().unwrap();
+    golden_core::app::prepare_engine_for_runtime(&mut engine).unwrap();
     let MediaEditResult::Created { reference } = media_edit(
         &mut engine,
         MediaEdit::CreateMedia {
@@ -153,6 +154,7 @@ fn disabled_destination_keeps_shared_column_and_cell_process_without_a_renderer_
 fn direct_cell_without_column_anchor_launches_its_owned_process_and_unload_retires_it() {
     let mut engine = create_new_project_engine::<AppNode>().unwrap();
     engine.apply_edits().unwrap();
+    golden_core::app::prepare_engine_for_runtime(&mut engine).unwrap();
     let MediaEditResult::Created { reference } = media_edit(
         &mut engine,
         MediaEdit::CreateMedia {
@@ -209,7 +211,7 @@ fn direct_cell_without_column_anchor_launches_its_owned_process_and_unload_retir
     };
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
-    let MediaEditResult::MatrixLaunched { snapshot } = matrix(
+    let MediaEditResult::MatrixControlInvoked { .. } = matrix(
         &mut engine,
         MatrixEdit::LaunchCell {
             layer,
@@ -217,6 +219,9 @@ fn direct_cell_without_column_anchor_launches_its_owned_process_and_unload_retir
             mode: LaunchMode::Configured,
         },
     ) else {
+        panic!()
+    };
+    let MediaEditResult::MatrixPlayback { snapshot } = matrix(&mut engine, MatrixEdit::InspectPlayback) else {
         panic!()
     };
     assert_eq!(snapshot.desired_column, None);

@@ -232,3 +232,96 @@ fn stop_all_removes_independent_render_and_application_demand_while_old_capture_
             .is_empty()
     );
 }
+
+#[test]
+fn launch_wrappers_report_exact_real_parameters_and_sparse_first_play_owns_one_cell() {
+    let mut engine = fixture();
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    let row = layer(layers(&mut engine, matrix.media, None, 1)[0]);
+    let column = columns(&mut engine, matrix.media, 1)[0];
+    let history = engine.undo_len();
+    let MediaEditResult::MatrixControlInvoked {
+        owner,
+        parameter: invoked,
+    } = edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::LaunchColumn {
+            column,
+            mode: LaunchMode::Cut,
+        },
+    )
+    else {
+        panic!()
+    };
+    assert_eq!(owner, column.0);
+    assert_eq!(engine.node_id_by_uuid(invoked), Some(parameter(&engine, owner, "cut")));
+    assert_eq!(engine.undo_len(), history);
+    assert!(inspect(&mut engine, matrix.media).cells.is_empty());
+    let MediaEditResult::MatrixControlInvoked {
+        owner,
+        parameter: invoked,
+    } = edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::LaunchCell {
+            layer: row,
+            column,
+            mode: LaunchMode::Configured,
+        },
+    )
+    else {
+        panic!()
+    };
+    let authored = inspect(&mut engine, matrix.media);
+    assert_eq!(authored.cells.len(), 1);
+    assert_eq!(authored.cells[0].id.0, owner);
+    assert_eq!(authored.cells[0].media, None);
+    assert_eq!(engine.node_id_by_uuid(invoked), Some(parameter(&engine, owner, "play")));
+    assert_eq!(engine.undo_len(), history + 1);
+    assert_eq!(current(&engine, matrix.media).layers[0].column, Some(column));
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    for _ in 0..20 {
+        edit(
+            &mut engine,
+            matrix.media,
+            MatrixEdit::LaunchCell {
+                layer: row,
+                column,
+                mode: LaunchMode::Cut,
+            },
+        );
+    }
+    assert_eq!(engine.undo_len(), history + 1);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+    edit(&mut engine, matrix.media, MatrixEdit::ClearPlayback);
+    assert!(engine.undo().unwrap());
+    assert!(inspect(&mut engine, matrix.media).cells.is_empty());
+    assert!(engine.redo().unwrap());
+    golden_core::application::service_script_app_operations(&mut engine).unwrap();
+    assert_eq!(inspect(&mut engine, matrix.media), authored);
+    assert!(
+        current(&engine, matrix.media).layers.is_empty(),
+        "Redo must not replay the original pulse"
+    );
+}
+
+#[test]
+fn control_delivery_cannot_bypass_a_real_parameter_pulse() {
+    let mut engine = fixture();
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    let column = columns(&mut engine, matrix.media, 1)[0];
+    let before = current(&engine, matrix.media);
+    let ack = apply_project_intent(
+        &mut engine,
+        UiEditIntent::InvokeAppOperation {
+            namespace: super::super::controls::NAMESPACE.into(),
+            operation: "invoke".into(),
+            payload: serde_json::json!({ "owner": column.0, "action": "Cut", "token": uuid::Uuid::new_v4() }),
+        },
+    );
+    assert!(!ack.success);
+    assert_eq!(current(&engine, matrix.media), before);
+    pulse(&mut engine, column.0, "cut");
+    assert_eq!(current(&engine, matrix.media).desired_column, Some(column));
+}

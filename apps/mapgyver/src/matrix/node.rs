@@ -44,6 +44,9 @@ pub struct ElementNode {
     runtime: OnceLock<super::playback::RuntimeBinding>,
 }
 impl ElementNode {
+    pub(crate) fn claim_control(&mut self, action: super::controls::Action, token: uuid::Uuid) -> bool {
+        self.pulses.claim(action, token)
+    }
     pub(super) fn is_layer(&self) -> bool {
         matches!(self.kind, Kind::Layer)
     }
@@ -240,7 +243,8 @@ impl Node for ElementNode {
         self.pulses.ready();
     }
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
-        super::controls::Pulses::result(ctx, self.id(), &event);
+        let id = self.id();
+        self.pulses.result(ctx, id, &event);
     }
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
         if parameter == self.stop.id() {

@@ -87,16 +87,16 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         return super::view::inspect(engine, media, viewport, selection);
     }
     if let MatrixEdit::LaunchCell { layer, column, mode } = edit {
-        return super::playback::launch_cell(engine, media, layer, column, mode);
+        return super::controls::launch_cell(engine, media, layer, column, mode);
     }
     if let MatrixEdit::LaunchColumn { column, mode } = edit {
-        return super::playback::launch(engine, media, column, mode);
+        return super::controls::launch_column(engine, media, column, mode);
     }
     if matches!(edit, MatrixEdit::InspectPlayback) {
         return super::playback::inspect(engine, media);
     }
     if matches!(edit, MatrixEdit::ClearPlayback) {
-        return super::playback::unload(engine, media);
+        return super::controls::clear(engine, media);
     }
     let document = Document::load(engine, media)?;
     let edit = super::creation::resolve(engine, &document, edit)?;

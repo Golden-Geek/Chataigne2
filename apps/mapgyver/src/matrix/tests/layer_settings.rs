@@ -198,7 +198,7 @@ fn cell_then_column_then_layer_duration_controls_independent_and_atomic_column_b
     let owner = engine.nodes.get(cell).unwrap().node_data().meta.uuid;
     assert!(write(&mut engine, owner, "transition_override", ParamValue::Bool(true)).success);
     assert!(write(&mut engine, owner, "duration_ms", ParamValue::Float(17.0)).success);
-    let MediaEditResult::MatrixLaunched { snapshot } = edit(
+    let result = edit(
         &mut engine,
         media,
         MatrixEdit::LaunchCell {
@@ -206,7 +206,9 @@ fn cell_then_column_then_layer_duration_controls_independent_and_atomic_column_b
             column: columns[0],
             mode: LaunchMode::Configured,
         },
-    ) else {
+    );
+    assert!(matches!(result, MediaEditResult::MatrixControlInvoked { .. }));
+    let MediaEditResult::MatrixPlayback { snapshot } = super::super::playback::inspect(&engine, media).unwrap() else {
         panic!()
     };
     assert_eq!(
@@ -219,7 +221,7 @@ fn cell_then_column_then_layer_duration_controls_independent_and_atomic_column_b
             .duration_ms,
         17
     );
-    let MediaEditResult::MatrixLaunched { snapshot } = edit(
+    let result = edit(
         &mut engine,
         media,
         MatrixEdit::LaunchCell {
@@ -227,7 +229,9 @@ fn cell_then_column_then_layer_duration_controls_independent_and_atomic_column_b
             column: columns[0],
             mode: LaunchMode::Configured,
         },
-    ) else {
+    );
+    assert!(matches!(result, MediaEditResult::MatrixControlInvoked { .. }));
+    let MediaEditResult::MatrixPlayback { snapshot } = super::super::playback::inspect(&engine, media).unwrap() else {
         panic!()
     };
     assert_eq!(
@@ -240,7 +244,7 @@ fn cell_then_column_then_layer_duration_controls_independent_and_atomic_column_b
             .duration_ms,
         500
     );
-    let MediaEditResult::MatrixLaunched { snapshot } = edit(
+    let result = edit(
         &mut engine,
         media,
         MatrixEdit::LaunchCell {
@@ -248,7 +252,9 @@ fn cell_then_column_then_layer_duration_controls_independent_and_atomic_column_b
             column: columns[1],
             mode: LaunchMode::Configured,
         },
-    ) else {
+    );
+    assert!(matches!(result, MediaEditResult::MatrixControlInvoked { .. }));
+    let MediaEditResult::MatrixPlayback { snapshot } = super::super::playback::inspect(&engine, media).unwrap() else {
         panic!()
     };
     assert_eq!(

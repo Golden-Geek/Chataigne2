@@ -23,7 +23,9 @@ claim the renderer has submitted a frame.
 
 `controls::Pulses` captures an owner UUID and action into Golden's existing bounded operation
 service. The service resolves current ownership and rejects missing, disabled or mismatched
-owners. Weak lifetime tokens cancel queued work on disable/destruction. Readiness guards keep
+owners. Each callback mints a one-use token held by its owner; the internal delivery operation
+must consume that token. Transport callers cannot invoke the internal operation directly or
+replay a delivery. Weak lifetime tokens cancel queued work on disable/destruction. Readiness guards keep
 project reconstruction from replaying pulses. Control callbacks do not invalidate authored
 clip bindings or require a prior Matrix inspection. Backend playback still stages requests
 behind atomic edit-completion receipts; failed edits cannot publish a new request.
@@ -50,10 +52,21 @@ clears those inputs as well as independent playback. Previously captured render/
 plans remain owned until their consumers release them; these controls do not bypass GPU
 completion or process retirement barriers.
 
-M13/6 remains open. Cell double-click/context actions and high-level launch wrappers still
-call playback intents directly; routing every caller through real controls remains required,
-including sparse empty-address behavior. Native final-use/process retirement and complete
-scope/caller acceptance are not established by functional mix and button checks.
+High-level `LaunchColumn`, `LaunchCell` and `ClearPlayback` resolve and fire those same real
+Parameters. This also covers grid double-click/context actions, script and command callers.
+Their `MatrixControlInvoked` result identifies the owner and Parameter UUIDs. It acknowledges
+the invocation; deferred playback admission and frame submission are separate observations.
+Callers inspect playback for applied state; deferred rejection appears as a warning on the
+owner. Golden's existing atomic edit fences and bounded post-commit service remain intact.
+
+First Play at a sparse empty address creates one ordinary typed Cell, with no media, in one
+authored undo step. Its Parameter owns the pulse. Later Play/Cut pulses are ephemeral and do
+not alter project history. Undo/Redo reconstructs the Cell without replaying its original
+control. Existing Cells resolve through the bounded address index without rebuilding the
+document on every pulse.
+
+M13/6 remains open. Native final-use/process retirement and complete scope/caller acceptance
+are not established by functional mix and button checks.
 
 Project-candidate hierarchy classification keeps each owner's declared App Control root
 `Regular`, with non-curated permissions matching its embedded constructor. The typed owner's

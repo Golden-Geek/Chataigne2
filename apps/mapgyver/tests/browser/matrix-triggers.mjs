@@ -100,6 +100,39 @@ try {
 		0
 	);
 	assert.equal(await page.locator('.runtime-feedback').count(), 0);
+	const sparseColumn = original.columns[2].id;
+	const sparse = page
+		.getByRole('gridcell')
+		.filter({
+			has: page.locator('.source-label')
+		})
+		.and(page.locator(`[title="${original.items[0].label} / ${original.columns[2].label}"]`));
+	assert.equal(original.cells.length, 0);
+	await sparse.dblclick({ position: { x: 24, y: 24 } });
+	await wait(playback, (value) => value.layers.some((entry) => entry.column === sparseColumn));
+	const afterFirst = (await matrix({ kind: 'Inspect' })).snapshot;
+	const created = afterFirst.cells.find(
+		(cell) => cell.layer === row && cell.definition.column === sparseColumn
+	);
+	assert(created && created.media === null, 'double-click materializes a normal empty Cell');
+	assert.equal(afterFirst.cells.length, 2);
+	const pulse = await matrix({ kind: 'LaunchCell', layer: row, column: sparseColumn, mode: 'Cut' });
+	assert.equal(pulse.kind, 'MatrixControlInvoked');
+	assert.equal(pulse.owner, created.id);
+	assert.equal(typeof pulse.parameter, 'string');
+	for (const name of ['Trigger Cell', 'Cut Cell']) {
+		const bounds = await sparse.boundingBox();
+		assert(bounds);
+		await sparse.click({ button: 'right', position: { x: 8, y: bounds.height - 8 } });
+		await page.getByRole('menuitem', { name, exact: true }).click();
+		await wait(playback, (value) => value.layers.some((entry) => entry.column === sparseColumn));
+	}
+	assert.equal((await matrix({ kind: 'Inspect' })).snapshot.cells.length, 2);
+	await button.click();
+	await wait(playback, (value) => value.layers.length === 0);
+	checks.push(
+		'sparse Cell double-click, both context actions and transport share real control ownership without duplicate Cells'
+	);
 	const file = path.join(directory, 'authored.mapgyver');
 	await post('/api/ui/project-save', { path: file });
 	const history = (await post('/api/ui/snapshot', { scope: 'wholeGraph' })).history;

@@ -5,6 +5,7 @@ use super::{
 };
 use golden_core::{
     edit::Edit,
+    node::Node,
     parameter::{ParamValue, ParameterEventBehaviour},
 };
 use golden_time::TimeSnapshot;
@@ -348,7 +349,24 @@ fn stop_all_frees_interrupted_mix_admission_before_the_next_capture() {
             },
         },
     );
-    assert!(!rejected.success);
+    assert!(
+        rejected.success,
+        "the Parameter pulse is acknowledged independently of playback admission"
+    );
+    assert_ne!(current(&scene.engine, scene.media).desired_column, Some(more[31]));
+    let owner = scene.engine.node_id_by_uuid(more[31].0).unwrap();
+    assert!(
+        !scene
+            .engine
+            .nodes
+            .get(owner)
+            .unwrap()
+            .node_data()
+            .meta
+            .presentation
+            .warnings
+            .is_empty()
+    );
     pulse(&mut scene.engine, scene.media.0, "stop_all");
     edit(
         &mut scene.engine,

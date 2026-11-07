@@ -147,6 +147,7 @@ fn nested_groups_share_one_owned_process_across_switches_twenty_cycles_and_stopp
     assert_eq!(engine.undo_len(), history);
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
     let mut restored = from_sparse_project_json::<AppNode>(&saved).unwrap();
+    golden_core::app::prepare_engine_for_runtime(&mut restored).unwrap();
     let ready = launch(&mut driver, &mut restored, media, children[0]);
     assert_eq!(ready.consumers.len(), 2);
     matrix(&mut restored, media, MatrixEdit::RemoveColumnGroup { group: outer });

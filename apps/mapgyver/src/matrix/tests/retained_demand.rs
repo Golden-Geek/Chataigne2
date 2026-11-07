@@ -255,6 +255,15 @@ fn independent_outgoing_deadlines_survive_interruption_reorder_deletion_undo_and
             );
         }
     }
+    edit(
+        &mut engine,
+        reference.media,
+        MatrixEdit::ConfigureCell {
+            layer: rows[1],
+            column: columns[3],
+            settings: CellSettings::default(),
+        },
+    );
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     let now = time();

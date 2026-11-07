@@ -542,8 +542,9 @@ pub enum MediaEditResult {
     MatrixMissing {
         media: MediaId,
     },
-    MatrixLaunched {
-        snapshot: crate::matrix::protocol::MatrixPlaybackSnapshot,
+    MatrixControlInvoked {
+        owner: NodeUuid,
+        parameter: NodeUuid,
     },
     MatrixPlayback {
         snapshot: crate::matrix::protocol::MatrixPlaybackSnapshot,

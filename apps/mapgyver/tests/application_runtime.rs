@@ -41,6 +41,7 @@ fn media_edit(engine: &mut AppEngine, operation: MediaEdit) -> MediaEditResult {
         },
     );
     assert!(ack.success, "{ack:?}");
+    golden_core::application::service_script_app_operations(engine).unwrap();
     serde_json::from_value(ack.result.unwrap().value).unwrap()
 }
 fn remove_application(engine: &mut AppEngine, application: ApplicationId) {
@@ -68,6 +69,7 @@ fn fixture(readiness: ApplicationReadiness) -> (AppEngine, ApplicationId) {
 fn fixture_arguments(readiness: ApplicationReadiness, arguments: Vec<String>) -> (AppEngine, ApplicationId) {
     let mut engine = create_new_project_engine().unwrap();
     engine.apply_edits().unwrap();
+    golden_core::app::prepare_engine_for_runtime(&mut engine).unwrap();
     let MediaEditResult::Created { reference } = media_edit(
         &mut engine,
         MediaEdit::CreateMedia {
@@ -445,6 +447,7 @@ fn rendered_process_retention(individual: bool) {
             },
         );
         assert!(ack.success, "{ack:?}");
+        golden_core::application::service_script_app_operations(engine).unwrap();
         serde_json::from_value(ack.result.unwrap().value).unwrap()
     }
     fn installed(renderer: &ChannelRenderer, request: golden_video::runtime::RequestId) {
@@ -683,6 +686,7 @@ fn project_wide_driver_keeps_column_process_across_neighbor_and_exact_demand_wit
             },
         );
         assert!(ack.success, "{ack:?}");
+        golden_core::application::service_script_app_operations(engine).unwrap();
         serde_json::from_value(ack.result.unwrap().value).unwrap()
     }
     fn matrix(

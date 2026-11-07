@@ -42,6 +42,7 @@ mod view;
 fn fixture() -> AppEngine {
     let mut engine = create_new_project_engine::<AppNode>().unwrap();
     engine.apply_edits().unwrap();
+    golden_core::app::prepare_engine_for_runtime(&mut engine).unwrap();
     engine
 }
 fn invoke(engine: &mut AppEngine, edit: MediaEdit) -> golden_core::ui_sync::UiAck {

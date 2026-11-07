@@ -430,7 +430,13 @@ fn independent_cell_launch_preserves_anchor_and_authored_history_for_all_callers
             },
         )
         .unwrap();
-        let MediaEditResult::MatrixLaunched { snapshot } = serde_json::from_value(reply).unwrap() else {
+        assert!(matches!(
+            serde_json::from_value::<MediaEditResult>(reply).unwrap(),
+            MediaEditResult::MatrixControlInvoked { .. }
+        ));
+        let MediaEditResult::MatrixPlayback { snapshot } =
+            crate::matrix::apply(&mut engine, scene.root.media, MatrixEdit::InspectPlayback).unwrap()
+        else {
             panic!()
         };
         assert_eq!(snapshot.desired_column, Some(scene.snapshot.columns[0].id));
@@ -852,7 +858,13 @@ fn matrix_launch_and_clear_are_ephemeral_committed_callbacks_for_every_caller() 
                 },
             )
             .unwrap();
-            let MediaEditResult::MatrixLaunched { snapshot } = serde_json::from_value(reply).unwrap() else {
+            assert!(matches!(
+                serde_json::from_value::<MediaEditResult>(reply).unwrap(),
+                MediaEditResult::MatrixControlInvoked { .. }
+            ));
+            let MediaEditResult::MatrixPlayback { snapshot } =
+                crate::matrix::apply(&mut engine, scene.root.media, MatrixEdit::InspectPlayback).unwrap()
+            else {
                 panic!()
             };
             assert_eq!(snapshot.desired_column, Some(scene.snapshot.columns[0].id));
@@ -880,7 +892,13 @@ fn matrix_launch_and_clear_are_ephemeral_committed_callbacks_for_every_caller() 
             },
         )
         .unwrap();
-        let MediaEditResult::MatrixPlayback { snapshot } = serde_json::from_value(reply).unwrap() else {
+        assert!(matches!(
+            serde_json::from_value::<MediaEditResult>(reply).unwrap(),
+            MediaEditResult::MatrixControlInvoked { .. }
+        ));
+        let MediaEditResult::MatrixPlayback { snapshot } =
+            crate::matrix::apply(&mut engine, scene.root.media, MatrixEdit::InspectPlayback).unwrap()
+        else {
             panic!()
         };
         assert_eq!(snapshot.desired_column, None);

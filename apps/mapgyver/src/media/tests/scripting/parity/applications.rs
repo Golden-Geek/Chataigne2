@@ -27,6 +27,17 @@ fn named_column_cell_and_unload_calls_preserve_anchor_policy_without_authored_hi
     ) else {
         panic!()
     };
+    apply(
+        &mut baseline,
+        MediaEdit::Matrix {
+            media: matrix.media,
+            edit: MatrixEdit::ConfigureCell {
+                layer,
+                column: columns[1],
+                settings: CellSettings::default(),
+            },
+        },
+    );
     let document = to_sparse_project_json_pretty(&baseline).unwrap();
     for caller in CALLERS {
         for operation in [
@@ -63,7 +74,15 @@ fn named_column_cell_and_unload_calls_preserve_anchor_policy_without_authored_hi
                 },
             )
             .unwrap();
-            let snapshot: MatrixPlaybackSnapshot = serde_json::from_value(reply["snapshot"].clone()).unwrap();
+            assert!(matches!(
+                serde_json::from_value::<MediaEditResult>(reply).unwrap(),
+                MediaEditResult::MatrixControlInvoked { .. }
+            ));
+            let MediaEditResult::MatrixPlayback { snapshot } =
+                crate::matrix::apply(&mut engine, matrix.media, MatrixEdit::InspectPlayback).unwrap()
+            else {
+                panic!()
+            };
             assert_eq!(snapshot.desired_column, (!unloaded).then_some(columns[0]));
             if individual {
                 assert!(

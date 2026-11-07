@@ -46,6 +46,12 @@ pub struct MediaNode {
     matrix_root: OnceLock<golden_core::node::NodeUuid>,
 }
 impl MediaNode {
+    pub(crate) fn stop_all_parameter(&self) -> Option<golden_core::node::NodeId> {
+        (self.kind() == MediaKind::Matrix).then(|| self.stop_all.id())
+    }
+    pub(crate) fn claim_control(&mut self, action: crate::matrix::controls::Action, token: uuid::Uuid) -> bool {
+        self.pulses.claim(action, token)
+    }
     pub(super) fn initialize_auto_sender_selection(&mut self) {
         assert!(
             !self.sender_selection.is_bound(),
@@ -230,7 +236,8 @@ impl Node for MediaNode {
         }
     }
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
-        crate::matrix::controls::Pulses::result(ctx, self.id(), &event);
+        let id = self.id();
+        self.pulses.result(ctx, id, &event);
     }
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: golden_core::node::NodeId, _: ParamValue) {
         if parameter == self.stop_all.id() {

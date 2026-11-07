@@ -846,15 +846,23 @@ independent selected-object inspection, endpoint recovery and completion-safe re
    Cover Surface Editor, Screen Editor, Composition transforms and Matrix gestures, then
    shared scrolling, docking and ordinary controls. A **simple populated 3×3 Matrix** is a
    required regression fixture, alongside empty scenes and other media workloads. Interaction
-   feedback must track the actual display refresh, including the user's **240 Hz** display
-   (about **4.17 ms per refresh**); neither media/output cadence nor engine acknowledgements
-   may impose the reported 15–20 Hz feel or a fixed lower UI cadence. Keep local pointer/
+   feedback targets **at least 60 Hz** on a display supporting it (about **16.67 ms per update**).
+   The user's 2026-11-07 revision removes the 240 Hz interface requirement. Neither media/output
+   cadence nor engine acknowledgements may impose the reported 10–15 Hz feel. Keep local pointer/
    viewport feedback prompt while authoritative edits are bounded/coalesced with correct final
    state, history and cancellation; no per-gesture whole-document rebuilds or recurring
    millisecond engine/UI polling. Measure real-input presented frame pacing, long stalls and
    pointer-to-visible p95/p99 on the recorded refresh rate, alongside native/DOM alignment,
-   independent output continuity, both GPUs and larger projects. A 60 fps run or M05's latency
-   bound alone cannot accept 240 Hz smoothness; actual high-refresh interaction must be verified.
+   independent output continuity, both GPUs and larger projects. Verify actual presented
+   manipulation at the revised 60 Hz target, including missed updates/stalls; an engine FPS
+   counter alone does not prove interaction smoothness. Retain M05's latency bound separately.
+   **Display-aware output frame rate** is part of this gate: offer a real typed setting for
+   following the selected output display's refresh rate or choosing an explicit frame rate.
+   Keep rendering cadence independent of UI manipulation and source arrival. Verify selected
+   cadence/pacing, display changes/recovery, both GPUs, persistence and all public callers;
+   do not infer pacing from a configured value. Golden owns reusable scheduling/display
+   mechanics; MapGyver owns the authored output policy. This revision changes this gate's
+   scope without adding acceptance credit or changing the fixed gate denominator.
    **Applying changes** appears only when a genuinely outstanding operation exceeds a
    documented delay, rather than on every edit or merely because a gesture is long. Coalesce
    overlapping work and stabilize its visible lifetime so corner drags/transforms never flash

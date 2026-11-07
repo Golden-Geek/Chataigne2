@@ -304,6 +304,9 @@ fn run(engine: &mut AppEngine, caller: Caller, operation: MediaEdit) -> Option<s
             None
         }
     };
+    // A wrapper callback identifies its actual Parameter; the Parameter's deferred action
+    // is a separate bounded service turn and must run before history replay can cancel it.
+    service_script_app_operations(engine).unwrap();
     let after = authored(engine);
     if after != before {
         assert!(result.is_some());
@@ -393,6 +396,7 @@ fn baseline() -> Baseline {
 fn loaded(json: &str) -> AppEngine {
     let mut engine = from_sparse_project_json::<AppNode>(json).unwrap();
     engine.apply_edits().unwrap();
+    golden_core::app::prepare_engine_for_runtime(&mut engine).unwrap();
     engine
 }
 
