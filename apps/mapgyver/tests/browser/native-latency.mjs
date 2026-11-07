@@ -26,6 +26,18 @@ export function edges(frame, width, height) {
 		: null;
 }
 
+export function windowCaptureSource({ hwnd, left, top, width, height, viewport, dpr }) {
+	return [
+		`gfxcapture=hwnd=${hwnd}`,
+		'capture_cursor=0',
+		'max_framerate=120',
+		`crop_left=${left}`,
+		`crop_top=${top}`,
+		`crop_right=${Math.round(viewport.width * dpr) - left - width}`,
+		`crop_bottom=${Math.round(viewport.height * dpr) - top - height}`
+	].join(':');
+}
+
 export async function measureVisibleLatency({
 	native,
 	view,
@@ -89,15 +101,7 @@ export async function measureVisibleLatency({
 	const viewport = await native.page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
 	const source =
 		captureKind === 'window'
-			? [
-					`gfxcapture=hwnd=${hwnd}`,
-					'capture_cursor=0',
-					'max_framerate=120',
-					`crop_left=${cropLeft}`,
-					`crop_top=${cropTop}`,
-					`crop_right=${Math.round(viewport.width * dpr) - cropLeft - width}`,
-					`crop_bottom=${Math.round(viewport.height * dpr) - cropTop - height}`
-				].join(':')
+			? windowCaptureSource({ hwnd, left: cropLeft, top: cropTop, width, height, viewport, dpr })
 			: [
 					'ddagrab=output_idx=0',
 					'framerate=120',

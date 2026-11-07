@@ -7,15 +7,23 @@ import { createInterface } from 'node:readline';
 import { setTimeout as delay } from 'node:timers/promises';
 import { crc32, deflateSync } from 'node:zlib';
 
-async function picture(file, rgb) {
+export async function picture(file, rgb, inset = 0) {
 	const width = 120,
 		height = 90;
 	const rows = Buffer.alloc(height * (1 + width * 3));
 	for (let y = 0; y < height; y++)
-		for (let x = 0; x < width; x++)
+		for (let x = 0; x < width; x++) {
+			if (
+				x < width * inset ||
+				x >= width * (1 - inset) ||
+				y < height * inset ||
+				y >= height * (1 - inset)
+			)
+				continue;
 			rgb.forEach((value, channel) => {
 				rows[y * (1 + width * 3) + 1 + x * 3 + channel] = value;
 			});
+		}
 	const chunk = (name, data) => {
 		const type = Buffer.from(name),
 			length = Buffer.alloc(4),

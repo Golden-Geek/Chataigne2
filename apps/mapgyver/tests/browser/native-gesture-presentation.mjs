@@ -8,11 +8,12 @@ import { openNativeEditor } from './native-editor.mjs';
 import { execFileSync } from 'node:child_process';
 import { adapterKey } from './native-adapter.mjs';
 import { createGestureQualification } from './gesture-qualification.mjs';
-import { createMixedGestureSources } from './gesture-mixed-sources.mjs';
+import { createMixedGestureSources, picture } from './gesture-mixed-sources.mjs';
 import { createEmptyGestureScenes, verifyEmptyGestureScenes } from './gesture-empty-scenes.mjs';
 import { verifyWorkbenchControls } from './gesture-workbench-controls.mjs';
 import { heldEditorInput } from './held-editor-input.mjs';
 import { contentLock } from './content-lock.mjs';
+import { measureCompositionCadence } from './native-motion-cadence.mjs';
 
 const directory = path.resolve(process.argv[2]);
 await mkdir(directory);
@@ -26,6 +27,18 @@ const sharedTexture = process.argv.includes('--shared-texture');
 const mixed = process.argv.includes('--mixed-media');
 const workbench = process.argv.includes('--workbench-controls');
 const populated = process.argv.includes('--populated-3x3') || mixed;
+const motionCadence = process.argv.includes('--motion-cadence');
+assert(
+	!motionCadence ||
+		(!sharedTexture &&
+			!mixed &&
+			!populated &&
+			!liveSync &&
+			!workbench &&
+			!cancelInput &&
+			gpuIndex === null),
+	'Cadence acceptance selects one independent Picture scene'
+);
 const colors = [
 	{ rgba: [1, 0, 0, 1], rgb: [255, 0, 0] },
 	{ rgba: [0, 1, 0, 1], rgb: [0, 255, 0] },
@@ -80,7 +93,8 @@ let token,
 	qualification;
 let mixedSources,
 	emptyReports = [],
-	workbenchReport;
+	workbenchReport,
+	cadenceReport;
 let livePreview = null;
 let livePreviewId = null;
 let cancellationAttempt = null;
@@ -418,7 +432,7 @@ try {
 		? mixedSources.records[0]
 		: await edit({
 				kind: 'CreateMedia',
-				media_kind: sharedTexture ? 'SharedTexture' : 'SolidColor',
+				media_kind: motionCadence ? 'Picture' : sharedTexture ? 'SharedTexture' : 'SolidColor',
 				label: 'Gesture source'
 			});
 	await edit({
@@ -426,6 +440,16 @@ try {
 		media: source.media,
 		size: { kind: 'Fixed', extent: { width: 120, height: 90 } }
 	});
+	if (motionCadence) {
+		const file = path.join(directory, 'cadence-landmark.png');
+		await picture(file, [255, 0, 0], 0.1);
+		await edit({
+			kind: 'ImportPicture',
+			target: source,
+			locator: { kind: 'absolute', path: file },
+			label: null
+		});
+	}
 	if (sharedTexture)
 		await edit({
 			kind: 'ConfigureChannel',
@@ -730,6 +754,15 @@ try {
 		compPanel.locator('[data-instance-handle="Translate"]'),
 		transform
 	);
+	if (motionCadence) {
+		stage = 'Composition native image/control cadence';
+		cadenceReport = await measureCompositionCadence({
+			native,
+			directory,
+			shape: compShape,
+			control: compPanel.locator('[data-instance-handle="Translate"]')
+		});
+	}
 	if (liveSync) {
 		await liveInput(
 			'Composition live canvas',
@@ -823,6 +856,7 @@ try {
 				cancellation_checks: cancellationChecks,
 				cancellation_attempt: cancellationAttempt,
 				workbench: workbenchReport,
+				cadence: cadenceReport,
 				workload: {
 					populated_3x3: populated,
 					source_references: matrixSources,
