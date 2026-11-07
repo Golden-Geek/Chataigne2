@@ -1,0 +1,57 @@
+{
+	"date": "2026-11-07",
+	"deliverable": "Shared operation feedback preserves overlapping failures and cannot resurrect abandoned work after reconnect.",
+	"gate": "M13/4 remains Active; feedback lifetime slice functionally verified, presented smoothness and latency remain required.",
+	"acceptance": { "verified": 73, "total": 92, "m13_verified": 4, "m13_total": 14 },
+	"batch": { "started_utc": "12:41", "cutoff_utc": "13:26", "verification_finished_utc": "12:52" },
+	"ownership": "Golden action activity/coordinator and generic workbench connection lifecycle. MapGyver consumes the same public intent and session contracts. No app-specific notification implementation, protocol or Rust behavior changed.",
+	"fixes": [
+		"A rejected operation takes presentation priority over older outstanding work, without changing the oldest operation timestamp or pending count. Its existing 1200ms retention remains; older slow progress resumes afterward.",
+		"Activity reset cancels its event-boundary timers, failure-retention timers and paint callbacks. Late completion or rejection cannot retire new-session entries or recreate old feedback.",
+		"Generic workbench transport loss resets the activity lifetime. Reconnecting no longer briefly resurrects the abandoned request's Failed notice. Errors still reach callers and the existing logger/toast path."
+	],
+	"unchanged_policy": {
+		"delay_ms": 300,
+		"minimum_visible_ms": 350,
+		"completion_grace_ms": 150,
+		"failure_retention_ms": 1200,
+		"polling": false,
+		"silent_parameter_and_background_classification": "preserved"
+	},
+	"regression_proof": {
+		"software_baseline": "Restoring the previous oldest-entry selection and activity-only reset makes four targeted tests fail: hidden newer failure, hidden failure presentation, and retained paint callbacks after applied/rejected reset. The fixed implementation is restored; all affected tests pass.",
+		"native_baseline": "target/m134-feedback-lifetime-20261107/result.json, SHA256 2cc8cd16b3db8dd4dd7474ef2bc657063173add5a7ee7afb992b2de9c7a125c6, PID46060/exit0. The older fixture passed its final-hidden assertion, but its trace showed hidden at7548.5ms, stale Failed visible at7558.8ms, hidden again at8901.3ms. This is failed evidence for the stronger no-resurrection requirement; the fixture now checks every subsequent visibility transition."
+	},
+	"software": {
+		"golden_ui": "55 files,284 tests passed, including eight new coordinator/activity integration cases; 37 owning activity/feedback/intent/app-operation cases pass after the regression baseline is restored.",
+		"types": "New tests pass strict standalone TypeScript checking. MapGyver and Chataigne Svelte checks each report0 errors/0 warnings after final shared wiring changes.",
+		"build": "cargo rustc --locked -p MapGyver --bin MapGyver -- -C extra-filename=-m134-feedback-lifetime; terminal exit0. Current UI bundled into the native binary.",
+		"retained_rust": "No Rust or DTO change; preceding542 app tests/2ignored, strict Clippy and generated-contract evidence remains applicable to unchanged backend code.",
+		"format": "Scoped Prettier, Node syntax, root cargo fmt and golden_core cargo fmt passed."
+	},
+	"native": {
+		"driver": "apps/mapgyver/tests/browser/native-pending-feedback.mjs --silent-controls",
+		"artifacts": "target/m134-feedback-reconnect-20261107/result.json",
+		"sha256": "16549b741a9dca1499c967a068ffdf0351846dae215d743c5598854a36c283bd",
+		"binary": "target/debug/deps/MapGyver-m134-feedback-lifetime.exe",
+		"binary_sha256": "b27617fb314a04cbaffa3407770af929dd7f46de02b6ba42d4989eab711b29b0",
+		"pid": 49240,
+		"exit": 0,
+		"checks": 6,
+		"scope": [
+			"Delayed parameter and background Inspect requests each held650ms stay silent; canonical parameter state restores correctly.",
+			"Continuous trusted WebView drag sends40 actual geometry requests, maximum routed request-to-applied interval12ms, with no progress flash.",
+			"Genuinely held geometry shows progress, Finishing and Changes applied/Done before retiring.",
+			"Real server rejection shows Failed and leaves the complete authored Matrix snapshot unchanged.",
+			"Held work plus actual socket replacement establishes a second connection. After the initial hide, every recorded feedback transition stays hidden; no abandoned failure reappears."
+		],
+		"requests": 203,
+		"receipts": 202,
+		"unanswered": "Exactly the deliberately held/dropped geometry request during disconnect.",
+		"page_errors": [],
+		"expected_stale_end_receipts": 1,
+		"unexpected_rejections": 0,
+		"limit": "Real bundled WebView/real server with controlled transport faults. API/DOM observations and12ms routed receipts do not establish physical presented FPS or pointer-to-visible latency."
+	},
+	"remaining": "M13/4 actual moving-source presented30+fps native/DOM alignment, p95/p99 pointer latency, missed/stall metrics and all specified workloads/both GPUs/large-project coverage; physical cable/device-reset cadence events remain unverified by these runs. Original separate budgets and every retained return-queue gate remain required. No complete gate closes in this slice."
+}

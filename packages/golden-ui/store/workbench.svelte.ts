@@ -277,6 +277,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		wsUrl: options.wsUrl,
 		httpBaseUrl: options.httpBaseUrl,
 		onConnectionStateChange: (state, detail) => {
+			if (state !== 'connected') userActions.reset();
 			connectionState = state;
 			syncConnectionStatus();
 			updateLoadingForTransportState(state, detail);

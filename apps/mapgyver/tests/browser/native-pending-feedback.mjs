@@ -410,7 +410,14 @@ try {
 	await wait(hidden, (value) => value === 'true');
 	await delay(500);
 	assert.equal(await hidden(), 'true', 'abandoned deadline cannot resurrect old progress');
-	checks.push({ stage, connections: connections.length, trace: await trace() });
+	const reconnectTrace = await trace();
+	const firstHidden = reconnectTrace.findIndex((sample) => sample.hidden === 'true');
+	assert(firstHidden >= 0, 'connection loss must hide abandoned progress');
+	assert(
+		reconnectTrace.slice(firstHidden).every((sample) => sample.hidden === 'true'),
+		`reconnection must not resurrect abandoned feedback: ${JSON.stringify(reconnectTrace)}`
+	);
+	checks.push({ stage, connections: connections.length, trace: reconnectTrace });
 	const staleEnds = receipts.filter(
 		(receipt) =>
 			receipt.phase === 'rejected' &&

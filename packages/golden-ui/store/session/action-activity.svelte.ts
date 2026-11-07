@@ -164,6 +164,9 @@ export const createWorkbenchUserActionActivity = (
 ): WorkbenchUserActionActivity => {
 	let entries = $state<WorkbenchUserActionEntry[]>([]);
 	let nextId = 0;
+	// A newer failed action must remain visible even while older work is still pending.
+	const currentEntry = (): WorkbenchUserActionEntry | undefined =>
+		entries.find((entry) => entry.phase === 'rejected') ?? entries[0];
 
 	const updatePhase = (id: number, phase: UiControlLifecycle): void => {
 		const index = entries.findIndex((entry) => entry.id === id);
@@ -228,10 +231,10 @@ export const createWorkbenchUserActionActivity = (
 			return entries[0]?.queuedAtMs ?? null;
 		},
 		get currentLabel(): string | null {
-			return entries[0]?.label ?? null;
+			return currentEntry()?.label ?? null;
 		},
 		get currentPhase(): WorkbenchUserActionPhase | null {
-			return entries[0]?.phase ?? null;
+			return currentEntry()?.phase ?? null;
 		},
 		begin,
 		reset: (): void => {
@@ -248,6 +251,7 @@ export const createWorkbenchUserActionCoordinator = (
 		options.eventBoundaryTimeoutMs ?? DEFAULT_EVENT_BOUNDARY_TIMEOUT_MS;
 	const paintTimeoutMs = options.paintTimeoutMs ?? DEFAULT_PAINT_TIMEOUT_MS;
 	const failureVisibleMs = options.failureVisibleMs ?? DEFAULT_FAILURE_VISIBLE_MS;
+	let lifetime = new AbortController();
 	let appliedEventTime: EventTime | null = null;
 	let eventBoundaryWaiters: Array<{
 		boundary: EventTime;
@@ -302,29 +306,39 @@ export const createWorkbenchUserActionCoordinator = (
 		});
 	};
 
-	const waitForFrame = (): Promise<void> => {
-		if (typeof requestAnimationFrame !== 'function') {
+	const waitForFrame = (signal: AbortSignal): Promise<void> => {
+		if (signal.aborted || typeof requestAnimationFrame !== 'function') {
 			return Promise.resolve();
 		}
 		return new Promise((resolve) => {
 			let settled = false;
 			let timer: ReturnType<typeof setTimeout> | null = null;
+			let frame: number | null = null;
 			const finish = (): void => {
 				if (settled) {
 					return;
 				}
 				settled = true;
+				signal.removeEventListener('abort', finish);
+				if (frame !== null && typeof cancelAnimationFrame === 'function') {
+					cancelAnimationFrame(frame);
+				}
 				if (timer !== null) {
 					clearTimeout(timer);
 				}
 				resolve();
 			};
-			requestAnimationFrame(finish);
+			signal.addEventListener('abort', finish, { once: true });
+			frame = requestAnimationFrame(finish);
 			timer = setTimeout(finish, paintTimeoutMs);
 		});
 	};
 
-	const waitForAppliedFeedback = async (acknowledgements: readonly UiAck[]): Promise<void> => {
+	const waitForAppliedFeedback = async (
+		acknowledgements: readonly UiAck[],
+		signal: AbortSignal
+	): Promise<void> => {
+		if (signal.aborted) return;
 		const boundary = acknowledgements
 			.map((ack) => ack.latest_event_time ?? ack.earliest_event_time)
 			.filter((time): time is EventTime => time !== undefined)
@@ -334,18 +348,27 @@ export const createWorkbenchUserActionCoordinator = (
 				undefined
 			);
 		await waitForAppliedEventBoundary(boundary);
+		if (signal.aborted) return;
 		await options.afterStateUpdate();
+		if (signal.aborted) return;
 		// One frame applies a transport-staged delta; the second keeps the
 		// finishing feedback visible through an expensive graph render.
-		await waitForFrame();
-		await waitForFrame();
+		await waitForFrame(signal);
+		await waitForFrame(signal);
 	};
 
-	const waitForRejectedFeedback = async (): Promise<void> => {
+	const waitForRejectedFeedback = async (signal: AbortSignal): Promise<void> => {
+		if (signal.aborted) return;
 		await Promise.all([
-			waitForAppliedFeedback([]),
+			waitForAppliedFeedback([], signal),
 			new Promise<void>((resolve) => {
-				setTimeout(resolve, failureVisibleMs);
+				const finish = (): void => {
+					clearTimeout(timer);
+					signal.removeEventListener('abort', finish);
+					resolve();
+				};
+				const timer = setTimeout(finish, failureVisibleMs);
+				signal.addEventListener('abort', finish, { once: true });
 			})
 		]);
 	};
@@ -355,6 +378,7 @@ export const createWorkbenchUserActionCoordinator = (
 		dispatch: (progress: WorkbenchIntentProgressObserver) => Promise<void>
 	): Promise<void> => {
 		const handle = activity.begin(label);
+		const signal = lifetime.signal;
 		let retirementScheduled = false;
 		const scheduleRejectedRetirement = (): void => {
 			if (retirementScheduled) {
@@ -362,7 +386,7 @@ export const createWorkbenchUserActionCoordinator = (
 			}
 			retirementScheduled = true;
 			handle.lifecycle('rejected');
-			void waitForRejectedFeedback().then(handle.finish, handle.finish);
+			void waitForRejectedFeedback(signal).then(handle.finish, handle.finish);
 		};
 		const progress: WorkbenchIntentProgressObserver = {
 			lifecycle: (phase) => {
@@ -376,7 +400,7 @@ export const createWorkbenchUserActionCoordinator = (
 					return;
 				}
 				retirementScheduled = true;
-				void waitForAppliedFeedback(acknowledgements).then(handle.finish, handle.finish);
+				void waitForAppliedFeedback(acknowledgements, signal).then(handle.finish, handle.finish);
 			}
 		};
 
@@ -415,6 +439,11 @@ export const createWorkbenchUserActionCoordinator = (
 		run,
 		observeAppliedEventTime,
 		resetEventBoundary,
-		reset: activity.reset
+		reset: (): void => {
+			lifetime.abort();
+			lifetime = new AbortController();
+			clearEventBoundaryWaiters();
+			activity.reset();
+		}
 	};
 };

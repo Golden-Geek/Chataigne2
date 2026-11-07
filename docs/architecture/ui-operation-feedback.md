@@ -16,11 +16,17 @@ legible for at least 350 ms. Completion holds a truthful “Changes applied / Do
 through a 150 ms coalescing grace; it does not leave a spinner claiming unfinished work.
 An overlapping successor has one eligibility interval to become slow without an intervening
 hide, while a fresh stream of fast work cannot perpetually extend the previous notice.
-Rejections remain visible and retain the coordinator's existing failure lifetime.
+Rejections take priority over older pending work and remain visible for the coordinator's
+1,200 ms failure lifetime. When that lifetime ends, any remaining slow work resumes its
+own label and phase; the oldest operation timestamp still determines progress eligibility.
 
 One-shot deadlines replace polling. Session replacement, disconnection/loading and component
-disposal cancel presentation timers. These rules affect notification presentation only;
-they never delay intent dispatch, alter edit-session ownership, suppress errors or change
+disposal cancel presentation timers. Losing the transport connection also resets the
+coordinator's activity lifetime, cancelling event-boundary, failure-retention and paint
+waits. Late completion/rejection from that lifetime cannot recreate feedback after reconnect.
+Errors still propagate to their callers and the existing workbench log/toast path.
+These rules affect notification presentation only; they never delay intent dispatch,
+alter edit-session ownership, suppress errors or change
 history, acknowledgement fencing, renderer cadence or authored settings.
 
 Controlled-clock tests cover continuous fast work, delayed/overlapping work, minimum visible
