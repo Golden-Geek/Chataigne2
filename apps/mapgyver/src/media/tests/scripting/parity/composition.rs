@@ -99,7 +99,51 @@ fn bounded_editor_queries_match_all_public_callers_without_authored_changes() {
         for caller in CALLERS {
             let mut engine = loaded(&scene.document);
             let before = authored(&engine);
-            let result = run(&mut engine, caller, operation.clone());
+            let before_time = engine.time;
+            let mut result = run(&mut engine, caller, operation.clone());
+            if let Some(value) = &mut result {
+                let MediaEditResult::CompositionEditor { page } = serde_json::from_value(value.clone()).unwrap() else {
+                    panic!()
+                };
+                assert!(
+                    page.at >= before_time && page.at <= engine.time,
+                    "query fence must belong to this caller's read"
+                );
+                for (index, binding) in page.parameters.iter().enumerate() {
+                    for (field, uuid, declaration) in [
+                        ("position", binding.position, "parameters/position"),
+                        ("scale", binding.scale, "parameters/scale"),
+                        (
+                            "rotation_degrees",
+                            binding.rotation_degrees,
+                            "parameters/rotation_degrees",
+                        ),
+                        ("pivot", binding.pivot, "parameters/pivot"),
+                        ("opacity", binding.opacity, "parameters/opacity"),
+                        ("enabled", binding.enabled, "parameters/render_enabled"),
+                    ] {
+                        let id = engine
+                            .node_id_by_uuid(uuid)
+                            .expect("binding resolves in this caller's document");
+                        let node = engine.nodes.get(id).unwrap();
+                        assert!(node.engine_param_snapshot().is_some());
+                        assert_eq!(node.node_data().meta.decl_id.0, declaration);
+                        let mut ancestor = Some(id);
+                        let mut owned = false;
+                        for _ in 0..4 {
+                            let Some(id) = ancestor else { break };
+                            let node = engine.nodes.get(id).unwrap();
+                            owned |= node.node_data().meta.uuid == binding.instance.0;
+                            ancestor = node.node_data().parent;
+                        }
+                        assert!(owned, "binding belongs to its exact instance");
+                        // Declaration Parameters get fresh runtime UUIDs when this sparse document loads.
+                        value["page"]["parameters"][index][field] = serde_json::json!(declaration);
+                    }
+                }
+                // Script delivery takes engine micro-steps; authored content and bindings still match exactly.
+                value["page"].as_object_mut().unwrap().remove("at");
+            }
             assert_eq!(authored(&engine), before);
             if let Some(expected) = &canonical {
                 assert_eq!(&result, expected, "{caller:?}");

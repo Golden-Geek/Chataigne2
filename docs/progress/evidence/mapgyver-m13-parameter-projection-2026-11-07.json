@@ -1,0 +1,61 @@
+{
+	"date": "2026-11-07",
+	"deliverable": "Shared typed Golden editor presentation of live Inspector Parameter drafts and committed values, adopted by Composition with backend-owned bounded bindings and applied-receipt fences.",
+	"gate": "M13/4 Active; first build passes uncaptured manual Composition feedback in both directions, final shared publisher is software-verified; no full gate credit",
+	"acceptance": { "verified": 73, "total": 92, "m13_verified": 4, "m13_total": 14 },
+	"batch": { "started_utc": "14:04", "cutoff_utc": "14:49" },
+	"baseline": "User reports uncaptured editor-to-image lag and Inspector-to-controls lag. The preceding failed capture cohorts remain in mapgyver-m13-composition-cadence-2026-11-07.json; no new capture experiment was performed.",
+	"changes": [
+		"Ordinary full-value and component Parameter writes publish through the existing bounded session draft owner at Golden ui-intents. All generic numeric Inspector controls use that shared boundary without per-control patches. Actual dispatch, backend component edits, coalescing, history, failure and cancellation remain owned by their existing paths; preview capacity exhaustion never drops an authored write.",
+		"Golden reads exact Parameter UUIDs without subtree scans or authored copies. Local Inspector drafts precede transport receipts; cancellation, rejection, resync, loading, replacement and incompatible types retain their session fences.",
+		"The reusable reactive companion raises the graph event boundary through applied edits, preventing older delivered values from rewinding an accepted canvas transform after release.",
+		"Composition queries generate live bindings for at most128 visible instances plus one independent off-page selection. Rust remains the source of protocol declarations, transform semantics and validation; hidden panels skip live projection.",
+		"Composition translation writes Position only; rotation writes Rotation only; resize writes Position and Scale only. Unrelated authored f64 values no longer round-trip through the f32 render projection. Grouped history and existing latest-wins admission remain unchanged."
+	],
+	"software": {
+		"golden_ui": "302 tests pass, including11 new projection/receipt-fence cases and5 ordinary-write publication, event-boundary, rejection, stale-generation, capacity and synchronous-failure cases.",
+		"composition_media_ui": "17 Node tests pass, including immediate draft-to-geometry projection and ordinary operation/receipt forwarding.",
+		"rust": "543 pass/3 ignored with native-preview-smoke,application-process-fixture; includes exact unrelated f64 preservation, bounded binding ownership, public caller parity and generated-contract drift checks.",
+		"strict": "Strict MapGyver Clippy passes. Both apps report Svelte0errors0warnings. Focused strict TypeScript passes with the repository's Svelte, Node and Vite ambient types.",
+		"retained_failed_validation": "Initial test compilation missed a Node trait import; caller-parity updates initially assumed Result instead of Option, then exposed ephemeral declaration-Parameter UUIDs across sparse loads. The final check validates each exact live binding and owner before normalizing runtime UUIDs and read timestamps for cross-caller content comparison. All corrected software checks terminate successfully."
+	},
+	"transport_control": {
+		"scope": "Two headless cohorts,90 alternating sequential geometry edits and exact reads each, with normal host shutdown. No desktop, recorder or injected input. This rules out a coarse transport throttle in this small workload and makes no presented-frame claim.",
+		"before": {
+			"artifact": "target/m134-transport-before-20261107/result.json",
+			"median_edit_ms": 6.5315,
+			"p95_edit_ms": 7.2934,
+			"median_read_ms": 6.5644,
+			"p95_read_ms": 7.1373,
+			"exit": 0
+		},
+		"after": {
+			"artifact": "target/m134-transport-projection-20261107/result.json",
+			"median_edit_ms": 6.5472,
+			"p95_edit_ms": 7.5886,
+			"median_read_ms": 6.4932,
+			"p95_read_ms": 7.499,
+			"exit": 0
+		}
+	},
+	"native": {
+		"binary": "target/debug/deps/MapGyver-m134-parameter-projection.exe",
+		"sha256": "725d6879688842f688987c53837d54f4f2cfa7203f134a65d15481b8cdfd0933",
+		"build_exit": 0,
+		"manual_scene": "target/m134-projection-manual-20261107/ready.json",
+		"pid": 27680,
+		"deadline_utc": "14:42:40",
+		"capture": false,
+		"injected_input": false,
+		"feedback": "User replies 'Yes it's all good' to the explicit Inspector Position, editor translation and corner-resize check. This establishes perceived smoothness in both directions on this first build only, without a numerical FPS/alignment/latency claim.",
+		"fixture_exit": 0,
+		"app_exit": 0,
+		"final_publisher_build": {
+			"binary": "target/debug/deps/MapGyver-m134-draft-publisher.exe",
+			"sha256": "a046d88f52b35d2e981158d7b5d9a7eb0576a3f5ab220890e623d8ce124f638a",
+			"build_exit": 0,
+			"limit": "Adds shared ordinary-write draft publication after the manual check.302 Golden tests, both-app Svelte0errors0warnings and focused strict TypeScript pass on the final source. The first build's manual feedback is not relabelled as a test of this later binary."
+		}
+	},
+	"remaining": "Continue autonomously while the user is away for the weekend. Prove final shared publication through actual controls in a headless browser, add backend bindings for Matrix/Screen where required, and retain30+fps, native/DOM alignment, pointer p95/p99, missed/stall, full30-action latency and cancellation/recovery across all required workloads/both GPUs/large projects. The passing manual scene does not establish those quantitative gates. Do not reopen an unproven native fast-path redesign or create another capture variant; desktop input remains stopped after the earlier physical Escape."
+}

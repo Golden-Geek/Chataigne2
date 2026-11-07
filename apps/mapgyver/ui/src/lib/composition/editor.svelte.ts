@@ -1,5 +1,8 @@
 import { onDestroy } from 'svelte';
 import { observeEditor } from 'golden_ui/store/editor-observation.svelte';
+import { usePanelVisibility } from 'golden_ui/dockview/panel-visibility.svelte';
+import { createEditorParameterProjection } from 'golden_ui/store/editor-parameter-projection.svelte';
+import { projectInstanceParameters } from './parameter-projection';
 import { appState, type WorkbenchSession } from 'golden_ui';
 import { createUiEditSession } from 'golden_ui/store/ui-intents';
 import { createLatestEditGestureState } from 'golden_ui/store/latest-edit-gesture';
@@ -16,6 +19,7 @@ import type { InstanceReference } from '../media/generated/InstanceReference';
 import type { InstanceId } from '../media/generated/InstanceId';
 
 export function createCompositionEditor(query: () => CompositionEditorQuery) {
+	const panel = usePanelVisibility();
 	const session = $derived(appState.session);
 	const view = $state(createCompositionEditorState());
 	const controller = new CompositionEditorController<WorkbenchSession>(
@@ -24,6 +28,22 @@ export function createCompositionEditor(query: () => CompositionEditorQuery) {
 		invokeMediaEdit
 	);
 	const gestureState = $state(createLatestEditGestureState());
+	const projection = createEditorParameterProjection(() => session);
+	const parameters = $derived(
+		panel.visible && view.page ? projection.read(view.presentedGeneration, view.page.at) : null
+	);
+	const bindings = $derived(
+		new Map(view.page?.parameters.map((binding) => [binding.instance, binding]) ?? [])
+	);
+	const project = (instance: NonNullable<typeof controller.instance>) =>
+		parameters && !view.interacting
+			? projectInstanceParameters(instance, bindings.get(instance.reference.instance), parameters)
+			: instance;
+	const composition = $derived.by(() => {
+		const value = controller.composition;
+		return value ? { ...value, instances: value.instances.map(project) } : null;
+	});
+	const instance = $derived(controller.instance ? project(controller.instance) : null);
 	let activeInstance = $state<InstanceId | null>(null);
 	let presentation = $state.raw<InstancePresentation | null>(null);
 	const gesture = createInstanceGesture<WorkbenchSession>(() => session, gestureState, {
@@ -33,7 +53,7 @@ export function createCompositionEditor(query: () => CompositionEditorQuery) {
 				'composition-geometry',
 				session
 			),
-		invoke: invokeMediaEdit,
+		invoke: (current, edit) => invokeMediaEdit(current, edit, projection.applied()),
 		accepted: (snapshot) => controller.acceptInstance(snapshot),
 		present: (value) => {
 			presentation = value;
@@ -75,10 +95,10 @@ export function createCompositionEditor(query: () => CompositionEditorQuery) {
 			return controller.channel;
 		},
 		get composition() {
-			return controller.composition;
+			return composition;
 		},
 		get instance() {
-			return controller.instance;
+			return instance;
 		},
 		get busy() {
 			return controller.busy || session?.hasActiveEditSession === true;

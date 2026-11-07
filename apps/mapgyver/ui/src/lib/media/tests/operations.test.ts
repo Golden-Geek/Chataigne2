@@ -1,6 +1,40 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mediaOperationActivity } from '../operations.ts';
+import { invokeMediaEdit, mediaOperationActivity } from '../operations.ts';
+import type { WorkbenchSession } from 'golden_ui';
+import type { UiAck } from 'golden_ui/types';
+
+test('editor receipts remain on the ordinary authored operation and activity path', async () => {
+	const ack: UiAck = {
+		success: true,
+		status: 'applied',
+		latest_event_time: { tick: 8, micro: 0, seq: 1 }
+	};
+	let observed = false;
+	const applied = (acks: readonly UiAck[]) => {
+		assert.deepEqual(acks, [ack]);
+		observed = true;
+	};
+	const session: Pick<WorkbenchSession, 'invokeAppOperation'> = {
+		async invokeAppOperation(request, observer, options) {
+			assert.equal(request.namespace, 'mapgyver.media');
+			assert.equal(request.operation, 'edit');
+			assert.equal(observer, applied);
+			assert.equal(options?.activity, 'user');
+			observer?.([ack]);
+			return { kind: 'Changed' };
+		}
+	};
+	assert.deepEqual(
+		await invokeMediaEdit(
+			session,
+			{ kind: 'RenameMedia', media: 'media', label: 'Renamed' },
+			applied
+		),
+		{ kind: 'Changed' }
+	);
+	assert(observed);
+});
 
 test('viewport and application inspections stay background while group authoring and launch retain user activity', () => {
 	assert.equal(

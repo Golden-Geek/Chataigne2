@@ -42,6 +42,8 @@ const instance = (id: string) => ({
 	}
 });
 const page = (id = 'owner'): CompositionEditorPage => ({
+	at: { tick: 0, micro: 0, seq: 0 },
+	parameters: [],
 	label: id,
 	media_types: [],
 	document: 'project',

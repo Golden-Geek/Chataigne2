@@ -264,7 +264,7 @@ pub(crate) fn apply(
                 label: engine.nodes.get(id).unwrap().node_data().meta.label.clone(),
                 definition: definition.clone(),
             };
-            for edit in current.parameter_edits(definition) {
+            for edit in current.geometry_edits(definition, edit.mode) {
                 engine.edits.push(edit);
             }
             Ok(MediaEditResult::InstanceChanged { snapshot })

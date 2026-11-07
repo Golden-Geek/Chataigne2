@@ -181,6 +181,10 @@ pub struct CompositionEditorQuery {
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct CompositionEditorPage {
+    /// Event fence for projecting current Parameters without rewinding a newer read reply.
+    pub at: golden_core::engine::EngineTime,
+    /// Exact backend-owned bindings for the bounded page and independent selected instance.
+    pub parameters: Vec<InstanceParameterBindings>,
     pub label: Option<String>,
     pub media_types: Vec<super::super::protocol::MediaCreationChoice>,
     pub document: NodeUuid,
@@ -192,4 +196,15 @@ pub struct CompositionEditorPage {
     pub total: u32,
     /// Independent bounded lookup, including when the object is outside the visible page.
     pub selected: Option<InstanceSnapshot>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct InstanceParameterBindings {
+    pub instance: InstanceId,
+    pub position: NodeUuid,
+    pub scale: NodeUuid,
+    pub rotation_degrees: NodeUuid,
+    pub pivot: NodeUuid,
+    pub opacity: NodeUuid,
+    pub enabled: NodeUuid,
 }

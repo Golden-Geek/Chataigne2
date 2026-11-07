@@ -17,6 +17,10 @@ import { requestRemoveNodesById } from './node-removal';
 import { appState } from './workbench.svelte';
 import { createEditSession, type UiEditSession } from './session/edit-session';
 import type { AppliedIntentObserver } from './session/intent-sender';
+import {
+	previewParameterWrite,
+	parameterComponentPreview
+} from './session/parameter-write-preview';
 import type { WorkbenchSession } from './workbench.svelte';
 export type { UiEditSession } from './session/edit-session';
 
@@ -99,14 +103,21 @@ export const sendSetParamIntent = async (
 	behaviour: ParamEventBehaviour,
 	applied?: AppliedIntentObserver
 ): Promise<boolean> => {
-	return sendUiIntent(
-		{
-			kind: 'setParam',
-			node,
-			value,
-			behaviour
-		},
-		{ applied }
+	return previewParameterWrite(
+		appState.session,
+		node,
+		value,
+		(observer) =>
+			sendUiIntent(
+				{
+					kind: 'setParam',
+					node,
+					value,
+					behaviour
+				},
+				{ applied: observer }
+			),
+		applied
 	);
 };
 
@@ -117,7 +128,17 @@ export const sendSetParamComponentIntent = async (
 	behaviour: ParamEventBehaviour,
 	applied?: AppliedIntentObserver
 ): Promise<boolean> =>
-	sendUiIntent({ kind: 'setParamComponent', node, component, value, behaviour }, { applied });
+	previewParameterWrite(
+		appState.session,
+		node,
+		parameterComponentPreview(appState.session, node, component, value),
+		(observer) =>
+			sendUiIntent(
+				{ kind: 'setParamComponent', node, component, value, behaviour },
+				{ applied: observer }
+			),
+		applied
+	);
 
 export const sendSetTextParamSmartIntent = async (
 	node: NodeId,

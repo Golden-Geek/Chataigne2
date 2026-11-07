@@ -78,6 +78,8 @@ pub(in crate::media) fn inspect(
     let followed = owner(engine, query.selected);
     let document_matches = query.document.is_none_or(|expected| expected == document);
     let mut page = CompositionEditorPage {
+        at: engine.time,
+        parameters: Vec::new(),
         label: None,
         media_types: crate::media::creation::media_choices(),
         document,
@@ -124,6 +126,20 @@ pub(in crate::media) fn inspect(
         .and_then(|instance| authoring::instance(engine, parent, instance).ok())
         .or(first);
     page.selected = selected.map(|id| snapshot(engine, reference, id)).transpose()?;
+    let mut bound = instances
+        .iter()
+        .map(|instance| instance.reference.instance)
+        .collect::<Vec<_>>();
+    if let Some(selected) = &page.selected
+        && !bound.contains(&selected.reference.instance)
+    {
+        bound.push(selected.reference.instance);
+    }
+    for instance in bound {
+        let id = authoring::instance(engine, parent, instance)?;
+        page.parameters
+            .push(children::placement(engine, id)?.parameter_bindings(engine, instance));
+    }
     page.channel = Some(channel);
     page.composition = Some(CompositionSnapshot {
         reference,

@@ -36,6 +36,16 @@ fn bounded_pages_resolve_owned_descendants_and_keep_off_page_selection_independe
     let history = engine.ui_history_state();
     let mut request = query(selected);
     let page = read(&mut engine, request);
+    assert_eq!(page.at, engine.time);
+    assert_eq!(page.parameters.len(), 5);
+    for binding in &page.parameters {
+        let child = engine.node_id_by_uuid(binding.instance.0).unwrap();
+        let parameter = super::parameters::instance_parameter(&engine, child, "position");
+        assert_eq!(
+            binding.position,
+            engine.nodes.get(parameter).unwrap().node_data().meta.uuid
+        );
+    }
     assert_eq!(page.channel.unwrap().reference, owner);
     assert_eq!(page.total, 300);
     let composition = page.composition.unwrap();

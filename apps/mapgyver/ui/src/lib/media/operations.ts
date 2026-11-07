@@ -1,4 +1,5 @@
 import type { WorkbenchSession } from 'golden_ui';
+import type { AppliedIntentObserver } from 'golden_ui/store/session/intent-sender';
 import type { MediaEdit } from './generated/MediaEdit';
 import type { MediaEditResult } from './generated/MediaEditResult';
 import { MEDIA_NAMESPACE, MEDIA_OPERATION } from './generated/constants.ts';
@@ -36,7 +37,8 @@ export function mediaOperationActivity(edit: MediaEdit): 'background' | 'user' {
 /** Editors collect intents; backend operations own identity, defaults and validation. */
 export const invokeMediaEdit = async (
 	session: Pick<WorkbenchSession, 'invokeAppOperation'>,
-	edit: MediaEdit
+	edit: MediaEdit,
+	applied?: AppliedIntentObserver
 ) =>
 	(await session.invokeAppOperation(
 		{
@@ -45,6 +47,6 @@ export const invokeMediaEdit = async (
 			operation: MEDIA_OPERATION,
 			payload: edit
 		},
-		undefined,
+		applied,
 		{ activity: mediaOperationActivity(edit) }
 	)) as MediaEditResult;

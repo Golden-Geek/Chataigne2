@@ -1,5 +1,7 @@
 //! Composition settings are declared Golden parameters; definitions are read projections.
-use super::protocol::{BlendMode, InstanceDefinition, Transform2D};
+use super::protocol::{
+    BlendMode, InstanceDefinition, InstanceGeometryMode, InstanceId, InstanceParameterBindings, Transform2D,
+};
 use crate::media::protocol::{ChannelId, ChannelReference, MediaId};
 use golden_core::{
     node,
@@ -33,6 +35,59 @@ pub struct PlacementNode {
 }
 
 impl PlacementNode {
+    pub(crate) fn parameter_bindings(
+        &self,
+        engine: &crate::app::AppEngine,
+        instance: InstanceId,
+    ) -> InstanceParameterBindings {
+        let uuid = |id| {
+            engine
+                .nodes
+                .get(id)
+                .expect("materialized Placement parameter")
+                .node_data()
+                .meta
+                .uuid
+        };
+        InstanceParameterBindings {
+            instance,
+            position: uuid(self.position.id()),
+            scale: uuid(self.scale.id()),
+            rotation_degrees: uuid(self.rotation_degrees.id()),
+            pivot: uuid(self.pivot.id()),
+            opacity: uuid(self.opacity.id()),
+            enabled: uuid(self.render_enabled.id()),
+        }
+    }
+    pub(crate) fn geometry_edits(
+        &self,
+        definition: InstanceDefinition,
+        mode: InstanceGeometryMode,
+    ) -> Vec<golden_core::edit::Edit> {
+        use golden_core::{edit::Edit, parameter::ParameterEventBehaviour};
+        let write = |node, value| Edit::SetParam {
+            node,
+            value,
+            behaviour: ParameterEventBehaviour::Append,
+        };
+        let position = definition.transform.position.map(f64::from);
+        match mode {
+            InstanceGeometryMode::Translate => {
+                vec![write(self.position.id(), ParamValue::Vec2(position[0], position[1]))]
+            }
+            InstanceGeometryMode::Rotate => vec![write(
+                self.rotation_degrees.id(),
+                ParamValue::Float(f64::from(definition.transform.rotation_degrees)),
+            )],
+            InstanceGeometryMode::Resize { .. } => {
+                let scale = definition.transform.scale.map(f64::from);
+                vec![
+                    write(self.position.id(), ParamValue::Vec2(position[0], position[1])),
+                    write(self.scale.id(), ParamValue::Vec2(scale[0], scale[1])),
+                ]
+            }
+        }
+    }
     pub(crate) fn output(&self) -> Option<ChannelId> {
         let uuid = self.source_channel.get_ref().uuid;
         (!uuid.0.is_nil()).then_some(ChannelId(uuid))

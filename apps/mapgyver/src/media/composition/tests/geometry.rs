@@ -1,6 +1,6 @@
 use super::*;
 use crate::media::spatial::protocol::SpatialResizeHandle;
-use golden_core::{application::apply_project_intent, ui_sync::UiEditIntent};
+use golden_core::{application::apply_project_intent, node::Node, ui_sync::UiEditIntent};
 
 fn instance_fixture() -> (AppEngine, ChannelReference, InstanceSnapshot) {
     let mut engine = fixture();
@@ -98,6 +98,61 @@ fn geometry_publishes_parameters_without_catalog_invalidation() {
             .iter()
             .any(|event| matches!(&event.kind, EventKind::Custom(custom) if custom.topic == MEDIA_NAMESPACE))
     );
+}
+
+#[test]
+fn translation_preserves_unrelated_authored_f64_values_exactly() {
+    use golden_core::parameter::{ParamValue, ParameterEventBehaviour};
+    let (mut engine, composition, instance) = instance_fixture();
+    let media = engine.node_id_by_uuid(instance.reference.instance.0).unwrap();
+    let values = [
+        ("opacity", ParamValue::Float(0.123456789012345)),
+        ("rotation_degrees", ParamValue::Float(13.123456789012345)),
+        ("scale", ParamValue::Vec2(-2.123456789012345, 3.123456789012345)),
+        ("pivot", ParamValue::Vec2(0.123456789012345, 0.823456789012345)),
+    ]
+    .map(|(key, value)| (super::parameters::instance_parameter(&engine, media, key), value));
+    for (node, value) in &values {
+        let ack = apply_project_intent(
+            &mut engine,
+            UiEditIntent::SetParam {
+                node: *node,
+                value: value.clone(),
+                behaviour: ParameterEventBehaviour::Append,
+            },
+        );
+        assert!(ack.success, "{ack:?}");
+    }
+    let instance = inspect(&mut engine, composition).instances.remove(0);
+    let before = engine.undo_len();
+    group(&mut engine, true);
+    for step in 1..=30 {
+        edit(
+            &mut engine,
+            composition,
+            request(
+                &instance,
+                InstanceGeometryMode::Translate,
+                [0.0, 0.0],
+                [step as f32, 0.0],
+            ),
+        );
+        for (node, value) in &values {
+            assert_eq!(
+                engine.nodes.get(*node).unwrap().engine_param_snapshot().unwrap().value,
+                *value
+            );
+        }
+    }
+    group(&mut engine, false);
+    assert_eq!(engine.undo_len(), before + 1);
+    assert!(engine.undo().unwrap());
+    for (node, value) in &values {
+        assert_eq!(
+            engine.nodes.get(*node).unwrap().engine_param_snapshot().unwrap().value,
+            *value
+        );
+    }
 }
 
 #[test]
