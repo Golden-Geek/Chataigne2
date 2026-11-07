@@ -31,6 +31,8 @@ def audit(result, witnesses, capture_state):
     values = []
     previous = 0
     for index, (sample, event) in enumerate(zip(samples, events)):
+        assert all(type(sample[key]) is bool for key in [
+            'before_protected_content_masked_out', 'response_protected_content_masked_out']), 'Native desktop mask notices required'
         direction = 1 if index % 2 == 0 else -1
         assert sample['index'] == index and sample['deltaY'] == direction * 120
         assert event['trusted'] is True and event['deltaY'] == sample['deltaY']
@@ -52,8 +54,12 @@ def audit(result, witnesses, capture_state):
         values.append(upper)
     p95 = sorted(values)[math.ceil(len(values) * 0.95) - 1]
     assert math.isclose(p95, result['p95_upper_bound_ms'], abs_tol=1e-9)
+    p99 = sorted(values)[math.ceil(len(values) * 0.99) - 1]
+    assert math.isclose(p99, result['p99_upper_bound_ms'], abs_tol=1e-9)
     assert math.isclose(max(values), result['maximum_upper_bound_ms'], abs_tol=1e-9)
     assert result['within_50_ms'] == (p95 <= 50)
-    return {'complete': True, 'actions': len(values), 'p95_upper_bound_ms': p95,
+    return {'complete': True, 'actions': len(values), 'p95_upper_bound_ms': p95, 'p99_upper_bound_ms': p99,
+            'masked_desktop_observations': sum(sample['before_protected_content_masked_out'] or
+                                              sample['response_protected_content_masked_out'] for sample in samples),
             'within_50_ms': p95 <= 50,
             'scope': 'Native pre-input acknowledgement to pixel-copy completion; no scanout inference'}

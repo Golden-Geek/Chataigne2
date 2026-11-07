@@ -129,6 +129,13 @@ The implemented foundations are:
 - `qualification/` owns Rust-generated metadata for the held native-preview test fixture.
   The opt-in Windows `qualification` feature also exposes GPU source/consumer marker fixtures;
   app-owned runners select scenarios and own processes, without putting product policy in Golden.
+  Its bounded owned-desktop capture authenticates foreground HWND/PID, client bounds and DPI,
+  and reports pre-input/readback QPC values. DXGI's desktop-wide `ProtectedContentMaskedOut`
+  notice is retained as metadata, rather than rejecting an unrelated owned region. Windows'
+  already-masked pixels stay masked; consumers must establish the actual expected image and
+  overlay from the exported region. The notice never substitutes for pixel evidence. See the
+  [DXGI frame contract](https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_2/ns-dxgi1_2-dxgi_outdupl_frame_info).
+  Readback timing bounds do not establish physical scanout latency or high-refresh pacing.
 
 Source-local sRGB textures with straight or opaque alpha use typeless storage with separate
 raw UNORM and decoded SRGB views. The sampler selects the decoded view and skips shader gamma

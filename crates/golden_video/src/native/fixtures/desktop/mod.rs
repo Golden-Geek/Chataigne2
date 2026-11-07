@@ -40,6 +40,9 @@ pub struct DesktopFrame {
     pub desktop_update_qpc: u64,
     /// OS-reported desktop updates accumulated since the previous acquired image.
     pub accumulated_frames: u32,
+    /// Desktop-wide notice: Windows already blacked out some protected content. This does
+    /// not identify this owned region; callers must verify its actual pixels independently.
+    pub protected_content_masked_out: bool,
     /// Tightly packed BGRA8 pixels copied before the readback completion timestamp.
     pub bgra: Vec<u8>,
 }
@@ -184,9 +187,6 @@ impl DesktopCapture {
             };
         }
         let _lease = FrameLease(&self.duplication);
-        if info.ProtectedContentMaskedOut.as_bool() {
-            return Err(invalid("protected desktop pixels cannot qualify"));
-        }
         let texture: ID3D11Texture2D = resource.ok_or_else(|| invalid("missing desktop frame"))?.cast()?;
         let mut desc = D3D11_TEXTURE2D_DESC::default();
         unsafe { texture.GetDesc(&mut desc) };
@@ -252,6 +252,7 @@ impl DesktopCapture {
             readback_end_qpc: end,
             desktop_update_qpc: present,
             accumulated_frames: info.AccumulatedFrames,
+            protected_content_masked_out: info.ProtectedContentMaskedOut.as_bool(),
             bgra,
         }))
     }

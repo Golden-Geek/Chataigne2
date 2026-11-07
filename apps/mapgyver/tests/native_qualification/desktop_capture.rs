@@ -32,6 +32,7 @@ enum Event {
         readback_end_qpc: String,
         desktop_update_qpc: String,
         accumulated_frames: u32,
+        protected_content_masked_out: bool,
         bgra: Vec<u8>,
     },
     Stopped,
@@ -140,6 +141,7 @@ pub(super) fn run(mut args: Arguments) -> io::Result<()> {
                     readback_end_qpc: frame.readback_end_qpc.to_string(),
                     desktop_update_qpc: frame.desktop_update_qpc.to_string(),
                     accumulated_frames: frame.accumulated_frames,
+                    protected_content_masked_out: frame.protected_content_masked_out,
                     bgra: frame.bgra,
                 },
             )?;

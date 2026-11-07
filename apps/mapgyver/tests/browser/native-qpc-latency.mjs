@@ -109,6 +109,7 @@ export async function measureNativeQpcLatency({ native, view, directory, hwnd })
 			} else if (event.kind === 'Stamped') stamps.set(event.id, event.qpc);
 			else if (event.kind === 'Stopped') stopped = true;
 			else if (event.kind === 'Frame') {
+				assert.equal(typeof event.protected_content_masked_out, 'boolean');
 				assert.equal(event.bgra.length, width * height * 4);
 				assert(BigInt(event.acquire_begin_qpc) <= BigInt(event.readback_end_qpc));
 				assert(BigInt(event.desktop_update_qpc) <= BigInt(event.readback_end_qpc));
@@ -205,7 +206,9 @@ export async function measureNativeQpcLatency({ native, view, directory, hwnd })
 				before_serial: baseline.serial,
 				response_serial: response.serial,
 				desktop_update_qpc: response.desktop_update_qpc,
-				accumulated_frames: response.accumulated_frames
+				accumulated_frames: response.accumulated_frames,
+				before_protected_content_masked_out: baseline.protected_content_masked_out,
+				response_protected_content_masked_out: response.protected_content_masked_out
 			});
 			witnesses.push(baseline.raw, response.raw);
 		}
@@ -224,10 +227,11 @@ export async function measureNativeQpcLatency({ native, view, directory, hwnd })
 			observations,
 			events,
 			p95_upper_bound_ms: percentile(values, 0.95),
+			p99_upper_bound_ms: percentile(values, 0.99),
 			maximum_upper_bound_ms: Math.max(...values),
 			within_50_ms: percentile(values, 0.95) <= 50,
 			scope:
-				'Native pre-input acknowledgement to owned-pixel-copy completion on one QPC clock; desktop-update metadata is freshness only. Conservative composited-desktop bound, no scanout inference.'
+				'Native pre-input acknowledgement to owned-pixel-copy completion on one QPC clock; desktop-update metadata is freshness only. Desktop-wide masked-content flags are preserved; actual red-image and blue-overlay witnesses remain mandatory. Conservative composited-desktop bound, no scanout inference.'
 		};
 		await writeFile(path.join(directory, 'qpc-latency.json'), JSON.stringify(result, null, 2));
 		await writeFile(path.join(directory, 'qpc-witnesses.bgra'), Buffer.concat(witnesses));

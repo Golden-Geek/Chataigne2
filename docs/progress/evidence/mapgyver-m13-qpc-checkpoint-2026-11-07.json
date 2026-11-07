@@ -1,0 +1,65 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/4 Active; capture-verifier correction checked, timing acceptance unverified",
+	"acceptance": { "verified": 71, "total": 92, "m13_verified": 2, "m13_total": 14 },
+	"batch": {
+		"started_utc": "04:39",
+		"stopping_time_utc": "05:24",
+		"native_experiments": 2,
+		"native_experiment_limit": 2
+	},
+	"production_baseline": {
+		"commit": "3e457c6577c44ddc3e67dcb06b350cd1486ff66c",
+		"binary": "target/debug/deps/MapGyver-m134-redraw.exe",
+		"sha256": "970d4f4d340855159d62f6ccc1737db0de32bb8500092167512a2a64a4ff147b",
+		"behavior_changed_this_batch": false
+	},
+	"display": "Read-only Win32_VideoController reports Intel laptop2560x1600 at240Hz; NVIDIA has no separate current display mode. Both owned windows report120DPI/1.25DPR. No display settings changed.",
+	"hypothesis": "Use the existing common-QPC30-action baseline to qualify input-to-owned-pixel-copy bounds after independent native presentation. Actual240Hz pacing and physical scanout remain separate requirements.",
+	"correction": {
+		"owner": "Golden qualification-only DesktopCapture, Rust-owned capture events and the MapGyver JS/Python verifier",
+		"reason": "The first attempt rejected DXGI ProtectedContentMaskedOut as if it located masking inside the owned128x8 region. The documented flag describes the whole desktop image and cannot establish that location.",
+		"source": "https://learn.microsoft.com/en-us/windows/win32/api/dxgi1_2/ns-dxgi1_2-dxgi_outdupl_frame_info",
+		"contract": "Preserve the desktop-wide notice in each native frame and each before/response observation. Windows-masked content remains masked. Actual red-image and blue-overlay witnesses, exact owned foreground HWND/PID/client/DPI, original30 trusted actions, clock/freshness/terminal checks and50ms p95 remain required. Black/missing pixels cannot qualify. Add empirical p99 with nearest-rank replay; with30 samples it equals the maximum and is not a population-tail estimate. No protocol compatibility shim, production rendering change, fitted delay subtraction or budget revision."
+	},
+	"checks": {
+		"python": "11 independent latency replay tests passed, including masked desktop notices with valid pixels, rejection of black pixels/forged notices and p99 claims",
+		"native_cli": "12 tests passed; strict native-qualification,application-process-fixture bin Clippy -D warnings passed",
+		"golden": "2 owned desktop region/identity/bounds tests passed; qualification lib/tests Clippy -D warnings passed",
+		"build": "cargo rustc --locked -p MapGyver --features native-qualification,application-process-fixture --bin native_qualification -- -C extra-filename=-desktop-qpc; terminal exit0 before comparison",
+		"formatting": "Root/Core cargo fmt, JS Prettier/node syntax and scoped diff checks passed"
+	},
+	"attempts": [
+		{
+			"artifacts": "target/m134-qpc-intel-20261107",
+			"pid": 43348,
+			"hwnd": 591528598,
+			"capture_sha256": "ddbb25fd864c607e8504b291c33d09927a1ddfec5e4d9a32d22d03aef8530d84",
+			"fixture_exit": 1,
+			"capture_exit": 1,
+			"actions": 0,
+			"failure": "Owned native image/overlay warmup required: protected desktop pixels cannot qualify (0x80070057)",
+			"capture_state_sha256": "682b1a4297568da64068e06ff928eddfa05d11cb80de64401911291d9b73d3a1",
+			"failure_sha256": "aa3904d10a37666303db335970328b954f72c7f308a0a9b071687be9281f7d26"
+		},
+		{
+			"artifacts": "target/m134-qpc-intel-mask-20261107",
+			"pid": 15356,
+			"hwnd": 69405714,
+			"capture_sha256": "8489957eda2d341dc457b2ed7f4bc5dc4b1423f3979ecd94ef556da6b3d6a5d0",
+			"fixture_exit": 1,
+			"capture_exit": 0,
+			"capture_stop_acknowledged": true,
+			"capture_failure": null,
+			"complete": false,
+			"actions": 0,
+			"failure": "Owned native image/overlay warmup required",
+			"capture_state_sha256": "c398f6f0b255d2a1f38b920c2659da64cf2287412d3727a3f459b84a2741db25",
+			"failure_sha256": "d48a33bef657eda1ace2f6e87d0eb7f2c2594fe338ce32e53a2f5c0db1b94fdb",
+			"limit": "Terminal evidence establishes failed warmup, not its pixel-content cause. No retained response cohort exists; no p95/p99, actual masking location or timing pass is inferred. Owned app shut down through the fixture's normal close path."
+		}
+	],
+	"decision": "Stop this capture question after baseline plus one justified comparison. Do not add or restart a capture/profiler variant. M13/4 stays Active for its independent remaining physical alignment/workload/control acceptance.",
+	"timing_return_trigger": "New authoritative evidence must first demonstrate the expected red-image AND blue-overlay pixels through this exact desktop-capture path, or establish an existing alternative with the required timing authority/cadence. Then return to the original complete30-action baseline and240Hz pacing/stalls/latency requirements; no waived action or unchanged retry.",
+	"next": "Complete Composition/Matrix pending physical geometry alignment through the existing working owned-window capture path, then fully populated3x3/larger workload and ordinary-control/silent-intent scope. Timing, other GPUs and every original qualification requirement remain open; no gate closed."
+}

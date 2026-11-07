@@ -24,12 +24,14 @@ def fixture():
                         'response_qpc': str(begin + 40000), 'after_qpc': str(begin + 41000),
                         'desktop_update_qpc': str(begin + 39000), 'upper_bound_ms': 40.0,
                         'before_serial': index * 10, 'response_serial': index * 10 + 2,
+                        'before_protected_content_masked_out': False,
+                        'response_protected_content_masked_out': False,
                         'before': before, 'response': response})
         events.append({'trusted': True, 'deltaY': direction * 120})
         witnesses.extend([frame(0), frame(direction * 3)])
     return {'region': {'left': 0, 'top': 0, 'width': 32, 'height': 1}, 'frequency': '1000000', 'observations': samples,
             'pid': 2, 'hwnd': 1, 'geometry': {'desktop_bounds': [0, 0, 32, 1], 'window_dpi': 96},
-            'events': events, 'p95_upper_bound_ms': 40.0, 'maximum_upper_bound_ms': 40.0,
+            'events': events, 'p95_upper_bound_ms': 40.0, 'p99_upper_bound_ms': 40.0, 'maximum_upper_bound_ms': 40.0,
             'within_50_ms': True}, b''.join(witnesses)
 
 
@@ -43,6 +45,25 @@ def state(result):
 
 
 class NativeQpcLatency(unittest.TestCase):
+    def test_desktop_mask_notice_never_replaces_actual_owned_image_and_overlay_pixels(self):
+        result, witnesses = fixture()
+        for sample in result['observations']:
+            sample['before_protected_content_masked_out'] = True
+            sample['response_protected_content_masked_out'] = True
+        observed = audit(result, witnesses, state(result))
+        self.assertEqual(observed['masked_desktop_observations'], 30)
+        with self.assertRaises(AssertionError):
+            audit(result, bytes(len(witnesses)), state(result))
+        result['observations'][0]['response_protected_content_masked_out'] = 'true'
+        with self.assertRaises(AssertionError):
+            audit(result, witnesses, state(result))
+
+    def test_p99_cannot_be_replaced_with_a_better_claim(self):
+        result, witnesses = fixture()
+        result['p99_upper_bound_ms'] = 1
+        with self.assertRaises(AssertionError):
+            audit(result, witnesses, state(result))
+
     def test_one_native_clock_and_full_original_cohort(self):
         result, witnesses = fixture()
         self.assertTrue(audit(result, witnesses, state(result))['within_50_ms'])
