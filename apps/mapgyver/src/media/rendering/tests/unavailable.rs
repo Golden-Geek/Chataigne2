@@ -93,11 +93,16 @@ fn unavailable_reference_drops_recover_live_without_hidden_authoring_and_keep_ex
             let instance = drop_composition(&mut engine, owner, unavailable, copy);
             let (cell, owned) = drop_matrix(&mut engine, matrix, unavailable, copy);
             assert_eq!(engine.undo_len(), history + 2);
-            assert!(composition(&engine, owner).instances[0].definition.source.is_none());
+            let composition_output = crate::media::resolve_source_node(&engine, instance.0).unwrap();
+            let cell_output = crate::media::resolve_source_node(&engine, owned.0).unwrap();
+            assert_eq!(
+                composition(&engine, owner).instances[0].definition.source,
+                Some(composition_output)
+            );
             let snapshot = crate::matrix::inspect(&engine, matrix.media).unwrap();
             let selected = snapshot.cells.iter().find(|item| item.id == cell).unwrap();
             assert_eq!(selected.media, Some(owned));
-            assert!(selected.definition.source.is_none());
+            assert_eq!(selected.definition.source, Some(cell_output));
             let authored = to_sparse_project_json_pretty(&engine).unwrap();
             let mut restored = from_sparse_project_json::<AppNode>(&authored).unwrap();
             restored.apply_edits().unwrap();
@@ -105,30 +110,29 @@ fn unavailable_reference_drops_recover_live_without_hidden_authoring_and_keep_ex
             assert!(engine.undo().unwrap());
             assert!(engine.redo().unwrap());
             let parameters = output_parameters(&engine, instance, cell);
-            for parameter in parameters {
-                assert!(
-                    matches!(engine.nodes.get(parameter).unwrap().engine_param_snapshot().unwrap().value, ParamValue::Reference(value) if value.uuid.0.is_nil())
-                );
-            }
+            let selections = parameters.map(|parameter| {
+                engine
+                    .nodes
+                    .get(parameter)
+                    .unwrap()
+                    .engine_param_snapshot()
+                    .unwrap()
+                    .value
+            });
             launch(&mut engine, matrix.media, columns[0], LaunchMode::Cut);
             let time = time();
             let pending = capture_channels_at(&engine, &[matrix, owner], 64, time).unwrap();
             assert!(pending.is_current());
-            if copy {
-                for media in [MediaId(instance.0), owned] {
-                    edit(
-                        &mut engine,
-                        MediaEdit::ConfigureReference {
-                            media,
-                            target: Some(sources[0].media),
-                        },
-                    );
-                }
+            let targets = if copy {
+                vec![MediaId(instance.0), owned]
             } else {
+                vec![unavailable]
+            };
+            for media in &targets {
                 edit(
                     &mut engine,
                     MediaEdit::ConfigureReference {
-                        media: unavailable,
+                        media: *media,
                         target: Some(sources[0].media),
                     },
                 );
@@ -136,21 +140,15 @@ fn unavailable_reference_drops_recover_live_without_hidden_authoring_and_keep_ex
             assert!(!pending.is_current());
             let before_capture = to_sparse_project_json_pretty(&engine).unwrap();
             let ready = capture_channels_at(&engine, &[matrix, owner], 64, time).unwrap();
-            assert!(ready.channels.iter().any(|channel| channel.reference
-                == ChannelReference {
-                    media: owned,
-                    channel: sources[0].channel
-                }));
-            assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before_capture);
-            let mut definition = composition(&engine, owner).instances[0].definition.clone();
-            definition.opacity = 0.75;
-            edit(
-                &mut engine,
-                MediaEdit::Composition {
-                    reference: owner,
-                    edit: CompositionEdit::ConfigureInstance { instance, definition },
-                },
+            assert_eq!(
+                ready
+                    .channels
+                    .iter()
+                    .filter(|channel| channel.reference == sources[0])
+                    .count(),
+                1
             );
+            assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before_capture);
             let MediaEditResult::Created { reference: peer } = edit(
                 &mut engine,
                 MediaEdit::AddChannel {
@@ -167,50 +165,82 @@ fn unavailable_reference_drops_recover_live_without_hidden_authoring_and_keep_ex
                     after: None,
                 },
             );
-            assert_eq!(
-                composition(&engine, owner).instances[0]
-                    .definition
-                    .source
-                    .unwrap()
-                    .channel,
-                peer.channel
-            );
-            assert!(
-                capture_channels_at(&engine, &[matrix], 64, time)
-                    .unwrap()
-                    .channels
-                    .iter()
-                    .any(|channel| channel.reference
-                        == ChannelReference {
-                            media: owned,
-                            channel: peer.channel
-                        })
-            );
-            for parameter in parameters {
-                assert!(
-                    matches!(engine.nodes.get(parameter).unwrap().engine_param_snapshot().unwrap().value, ParamValue::Reference(value) if value.uuid.0.is_nil())
-                );
-                set_output(&mut engine, parameter, sources[0].channel);
+            let pinned = capture_channels_at(&engine, &[matrix, owner], 64, time).unwrap();
+            assert!(pinned.channels.iter().any(|channel| channel.reference == sources[0]));
+            assert!(!pinned.channels.iter().any(|channel| channel.reference == peer));
+            for media in &targets {
+                let AppNode::ReferenceMedia(reference) =
+                    engine.nodes.get(engine.node_id_by_uuid(media.0).unwrap()).unwrap()
+                else {
+                    panic!()
+                };
+                let parameter = reference.channel_parameter();
+                set_output(&mut engine, parameter, peer.channel);
             }
-            launch(&mut engine, matrix.media, columns[0], LaunchMode::Cut);
+            let changed = capture_channels_at(&engine, &[matrix, owner], 64, time).unwrap();
             assert_eq!(
-                composition(&engine, owner).instances[0]
-                    .definition
-                    .source
-                    .unwrap()
-                    .channel,
-                sources[0].channel
-            );
-            assert!(
-                capture_channels_at(&engine, &[matrix], 64, time)
-                    .unwrap()
+                changed
                     .channels
                     .iter()
-                    .any(|channel| channel.reference
-                        == ChannelReference {
-                            media: owned,
-                            channel: sources[0].channel
-                        })
+                    .filter(|channel| channel.reference == peer)
+                    .count(),
+                1
+            );
+            assert_eq!(
+                composition(&engine, owner).instances[0].definition.source,
+                Some(composition_output)
+            );
+            assert_eq!(
+                crate::matrix::inspect(&engine, matrix.media)
+                    .unwrap()
+                    .cells
+                    .iter()
+                    .find(|item| item.id == cell)
+                    .unwrap()
+                    .definition
+                    .source,
+                Some(cell_output)
+            );
+            for (parameter, original) in parameters.into_iter().zip(selections) {
+                assert_eq!(
+                    engine
+                        .nodes
+                        .get(parameter)
+                        .unwrap()
+                        .engine_param_snapshot()
+                        .unwrap()
+                        .value,
+                    original,
+                    "single-output placement selection must not acquire hidden writes"
+                );
+            }
+            edit(&mut engine, MediaEdit::RemoveChannel { reference: peer });
+            let missing = capture_channels_at(&engine, &[matrix, owner], 64, time).unwrap();
+            assert!(
+                missing
+                    .channels
+                    .iter()
+                    .any(|channel| channel.reference == peer && channel.definition.is_none()),
+                "an explicit deleted channel must not fall back to the first source"
+            );
+            assert!(engine.undo().unwrap());
+            let recovered = capture_channels_at(&engine, &[matrix, owner], 64, time).unwrap();
+            assert!(
+                recovered
+                    .channels
+                    .iter()
+                    .any(|channel| channel.reference == peer && channel.definition.is_some())
+            );
+            let saved = to_sparse_project_json_pretty(&engine).unwrap();
+            let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+            loaded.apply_edits().unwrap();
+            assert_eq!(
+                crate::media::resolve_source_node(&loaded, instance.0).unwrap(),
+                composition_output
+            );
+            assert_eq!(
+                crate::media::resolve_source_node(&loaded, owned.0).unwrap(),
+                cell_output
             );
         }
     }

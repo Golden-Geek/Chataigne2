@@ -56,10 +56,7 @@ fn reference_passthrough_reuses_target_and_forced_resolution_adds_one_shared_pas
     ) else {
         panic!()
     };
-    let alias = ChannelReference {
-        media,
-        channel: source.channel,
-    };
+    let alias = crate::media::resolve_source_node(&engine, media.0).unwrap();
     let passthrough = plan(&engine, &[source, alias, alias]);
     assert_eq!(passthrough.submission.plan.passes.len(), 1);
     assert!(passthrough.submission.plan.external_textures.is_empty());

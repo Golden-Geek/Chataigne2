@@ -12,6 +12,7 @@ mod pictures;
 mod preview;
 mod preview_admission;
 mod publication;
+mod reference_reload;
 mod references;
 mod retention;
 mod screens;

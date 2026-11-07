@@ -33,11 +33,7 @@ pub(crate) fn channel_extent(
         }
         if let ChannelSource::Reference { target: Some(target) } = definition.source {
             reference = target;
-            let (id, _) = super::authoring::media(engine, reference.media)?;
-            definition = match engine.nodes.get(id) {
-                Some(crate::app::AppNode::ReferenceMedia(node)) => node.definition(engine, reference.channel),
-                _ => super::channel(engine, reference)?.definition,
-            };
+            definition = super::channel(engine, reference)?.definition;
             continue;
         }
         if let Some(extent) = resolve(&definition, SourceObservation::Unavailable)?.extent {

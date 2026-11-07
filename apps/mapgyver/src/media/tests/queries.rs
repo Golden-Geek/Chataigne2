@@ -86,10 +86,7 @@ fn immutable_channel_query_and_project_intent_return_the_same_authored_page_and_
                 assert_eq!(page.total, 1);
                 assert_eq!(
                     page.channels[0].reference,
-                    ChannelReference {
-                        media,
-                        channel: source.channel
-                    }
+                    crate::media::resolve_source_node(&engine, media.0).unwrap()
                 );
             }
             Err(_) => {

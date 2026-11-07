@@ -1,13 +1,16 @@
-//! References own a target and optional output resampling, with virtual target-channel identity.
+//! One stable Reference-owned output selects one authored source channel.
 mod node;
+mod output;
 use crate::{
     app::{AppEngine, AppNode},
     media::protocol::*,
 };
 use golden_core::node::Node;
 pub use node::ReferenceNode;
+pub(crate) use output::OUTPUT_TYPE;
+pub use output::ReferenceOutputNode;
 use std::collections::{HashMap, HashSet};
-pub(crate) const NODE_TYPE: &str = "mapgyver.media.reference.v3";
+pub(crate) const NODE_TYPE: &str = "mapgyver.media.reference.v4";
 
 #[derive(Clone, Copy)]
 pub(super) enum Target {
@@ -20,12 +23,14 @@ pub(super) enum Target {
 pub(super) struct Resolver<'a> {
     engine: &'a AppEngine,
     leaves: HashMap<MediaId, Target>,
+    canonical: HashMap<ChannelReference, ChannelReference>,
 }
 impl<'a> Resolver<'a> {
     pub fn new(engine: &'a AppEngine) -> Self {
         Self {
             engine,
             leaves: HashMap::new(),
+            canonical: HashMap::new(),
         }
     }
     pub fn leaf(&mut self, media: MediaId) -> Result<Option<MediaId>, String> {
@@ -51,8 +56,19 @@ impl<'a> Resolver<'a> {
                 .and_then(|id| self.engine.nodes.get(id))
             {
                 Some(AppNode::Media(_)) => break Target::Ready(media),
-                Some(AppNode::ReferenceMedia(node)) => match node.target() {
-                    Some(target) => media = target,
+                Some(AppNode::ReferenceMedia(node)) => match node.source(self.engine) {
+                    Some(target) => {
+                        if super::authoring::channel_internal(self.engine, target).is_err() {
+                            break Target::Missing;
+                        }
+                        media = target.media;
+                    }
+                    None if node
+                        .target()
+                        .is_some_and(|target| self.engine.node_id_by_uuid(target.0).is_none()) =>
+                    {
+                        break Target::Missing;
+                    }
                     None => break Target::Unconfigured,
                 },
                 None => break Target::Missing,
@@ -65,14 +81,41 @@ impl<'a> Resolver<'a> {
         Ok(leaf)
     }
     pub fn canonical(&mut self, reference: ChannelReference) -> Result<ChannelReference, String> {
-        Ok(self
-            .leaf(reference.media)?
-            .map_or(reference, |media| ChannelReference { media, ..reference }))
+        let mut current = reference;
+        let mut path = Vec::new();
+        let mut seen = HashSet::new();
+        let result = loop {
+            if let Some(canonical) = self.canonical.get(&current) {
+                break *canonical;
+            }
+            if !seen.insert(current) {
+                return Err("Reference media dependency cycle".into());
+            }
+            path.push(current);
+            let Some(AppNode::ReferenceMedia(node)) = self
+                .engine
+                .node_id_by_uuid(current.media.0)
+                .and_then(|id| self.engine.nodes.get(id))
+            else {
+                break current;
+            };
+            if node.output_reference(self.engine) != current {
+                break current;
+            }
+            let Some(source) = node.source(self.engine) else {
+                break current;
+            };
+            current = source;
+        };
+        for source in path {
+            self.canonical.insert(source, result);
+        }
+        Ok(result)
     }
     pub fn channels(&mut self, owner: MediaId) -> Result<Channels<'a>, String> {
         let next = self
-            .leaf(owner)?
-            .and_then(|leaf| self.engine.node_id_by_uuid(leaf.0))
+            .engine
+            .node_id_by_uuid(owner.0)
             .and_then(|id| self.engine.nodes.get(id))
             .and_then(|node| node.node_data().first_child);
         Ok(Channels {
@@ -87,15 +130,17 @@ pub(super) struct Channels<'a> {
     next: Option<golden_core::node::NodeId>,
 }
 impl<'a> Iterator for Channels<'a> {
-    type Item = &'a super::ChannelNode;
+    type Item = &'a dyn Node;
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(id) = self.next {
             let node = self.engine.nodes.get(id)?;
             self.next = node.node_data().next_sibling;
-            if let AppNode::MediaChannel(channel) = node
-                && crate::matrix::outputs::exposed(self.engine, channel)
-            {
-                return Some(channel);
+            match node {
+                AppNode::MediaChannel(channel) if crate::matrix::outputs::exposed(self.engine, channel) => {
+                    return Some(channel.as_ref());
+                }
+                AppNode::ReferenceOutput(output) => return Some(output.as_ref()),
+                _ => {}
             }
         }
         None
@@ -103,25 +148,18 @@ impl<'a> Iterator for Channels<'a> {
 }
 
 pub(super) fn channel(engine: &AppEngine, reference: ChannelReference) -> Result<ChannelSnapshot, String> {
-    let leaf = Resolver::new(engine)
-        .leaf(reference.media)?
-        .ok_or("Reference target is missing or unconfigured")?;
-    let source = super::authoring::channel_internal(
-        engine,
-        ChannelReference {
-            media: leaf,
-            ..reference
-        },
-    )?;
     let Some(AppNode::ReferenceMedia(node)) = engine
         .node_id_by_uuid(reference.media.0)
         .and_then(|id| engine.nodes.get(id))
     else {
         return Err("media is not Reference".into());
     };
+    if node.output_reference(engine) != reference {
+        return Err("channel belongs to another media".into());
+    }
     Ok(ChannelSnapshot {
         reference,
-        label: source.label,
+        label: "Output".into(),
         definition: node.definition(engine, reference.channel),
     })
 }
@@ -136,7 +174,10 @@ pub(super) fn create(
         super::authoring::media(engine, target)?;
     }
     let label = super::authoring::label_with_reserved(engine, parent, requested, "Reference", &[])?;
-    let node = ReferenceNode::from_target(label, target);
+    let source = target
+        .map(|target| super::source_selection(engine, target.0))
+        .transpose()?;
+    let node = ReferenceNode::from_source(label, source);
     let media = MediaId(node.node_data().meta.uuid);
     engine.edits.push(golden_core::edit::Edit::AddUserItemTree {
         parent,

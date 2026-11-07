@@ -47,7 +47,7 @@ pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String>
         }
         if matches!(
             record.node_type.as_str(),
-            "mapgyver.media.v8" | "mapgyver.media.reference.v3" | super::commands::NODE_TYPE
+            "mapgyver.media.v8" | "mapgyver.media.reference.v4" | super::commands::NODE_TYPE
         ) && record.children.iter().any(|folder| {
             folder.children.iter().any(|parameter| {
                 parameter
@@ -139,7 +139,10 @@ pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String>
                 "Unsupported reference-only Composition instance schema; use child media with degree-based Placement v2".into(),
             );
         }
-        if record.node_type.starts_with("mapgyver.media.reference") && record.node_type != super::reference::NODE_TYPE {
+        if record.node_type.starts_with("mapgyver.media.reference")
+            && record.node_type != super::reference::NODE_TYPE
+            && record.node_type != super::reference::OUTPUT_TYPE
+        {
             return Err(format!("Unsupported Reference media schema '{}'", record.node_type));
         }
         if (record.node_type.starts_with("mapgyver.media.command") && record.node_type != super::commands::NODE_TYPE)

@@ -49,7 +49,8 @@ impl Document {
             let Some(AppNode::MediaChannel(node)) = engine.nodes.get(id) else {
                 return Err("Matrix children must be channels".into());
             };
-            let ChannelSource::Matrix { output } = &crate::media::authoring::effective_definition(engine, node)?.source
+            let ChannelSource::Matrix { output } =
+                &crate::media::authoring::effective_definition(engine, node.as_ref())?.source
             else {
                 return Err("Matrix channel kind mismatch".into());
             };
@@ -227,7 +228,13 @@ pub(crate) fn validate_project(engine: &AppEngine) -> Result<(), String> {
         if let AppNode::Media(node) = node
             && node.kind() == MediaKind::Matrix
         {
-            owned.extend(Document::load(engine, MediaId(node.node_data().meta.uuid))?.elements);
+            let document = Document::load(engine, MediaId(node.node_data().meta.uuid))?;
+            for cell in &document.snapshot.cells {
+                if let Some(source) = cell.definition.source {
+                    crate::media::targeting::validate_existing_output(engine, source)?;
+                }
+            }
+            owned.extend(document.elements);
         }
     }
     for (id, node) in engine.nodes.iter() {

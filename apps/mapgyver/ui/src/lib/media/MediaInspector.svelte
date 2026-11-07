@@ -165,7 +165,7 @@
 	{@render defaultChildren?.('', parametersOnly)}
 	{#if node.node_type === 'mapgyver.media.v8'}
 		{#key node.uuid}<ChannelsSection {node} {defaultChildren} />{/key}
-	{:else if node.node_type === 'mapgyver.media.reference.v3' && !collapsed}
+	{:else if node.node_type === 'mapgyver.media.reference.v4' && !collapsed}
 		{#key node.uuid}<ReferenceChannelsSection {node} />{/key}
 	{/if}
 	<div class="properties" class:channel-properties={node.node_type === 'mapgyver.media.channel.v2'}>

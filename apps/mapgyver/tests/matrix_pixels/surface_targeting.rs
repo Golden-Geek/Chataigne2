@@ -103,3 +103,96 @@ fn native_surface_media_parameter_default_and_explicit_channel_route_on_both_gpu
         }
     }
 }
+
+#[test]
+#[ignore = "requires explicit hardware D3D11 and native Spout output availability"]
+fn native_reference_selected_channel_and_stable_output_route_on_both_gpus() {
+    let adapters = golden_video::native::adapters()
+        .unwrap()
+        .into_iter()
+        .filter(|adapter| !adapter.software)
+        .collect::<Vec<_>>();
+    assert_eq!(adapters.len(), 2);
+    for adapter in adapters {
+        let mut engine = golden_core::app::create_new_project_engine::<AppNode>().unwrap();
+        engine.apply_edits().unwrap();
+        let red = color(&mut engine, [1., 0., 0., 1.]);
+        let MediaEditResult::Created { reference: blue } = edit(
+            &mut engine,
+            MediaEdit::AddChannel {
+                media: red.media,
+                label: None,
+            },
+        ) else {
+            panic!()
+        };
+        edit(
+            &mut engine,
+            MediaEdit::ConfigureChannel {
+                reference: blue,
+                source: ChannelSource::SolidColor { rgba: [0., 0., 1., 1.] },
+            },
+        );
+        let green = color(&mut engine, [0., 1., 0., 1.]);
+        let MediaEditResult::ReferenceCreated { media } = edit(
+            &mut engine,
+            MediaEdit::CreateReference {
+                target: Some(red.media),
+                label: None,
+            },
+        ) else {
+            panic!()
+        };
+        let output = mapgyver::media::resolve_source_node(&engine, media.0).unwrap();
+        assert_ne!(output.channel, red.channel);
+        let mut fixture = Fixture::new(adapter.id);
+        for (step, expected) in [
+            [1., 0., 0., 1.],
+            [0., 0., 1., 1.],
+            [0., 1., 0., 1.],
+            [0., 0., 1., 1.],
+            [0., 0., 1., 1.],
+            [0.; 4],
+            [0., 0., 1., 1.],
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            match step {
+                0 => {}
+                1 => {
+                    edit(
+                        &mut engine,
+                        MediaEdit::SelectReferenceChannel {
+                            media,
+                            channel: Some(blue.channel),
+                        },
+                    );
+                }
+                2 => {
+                    let target = surface_parameter(&engine, media.0, "parameters/target");
+                    set(&mut engine, target, green.media.0);
+                }
+                3 | 6 => {
+                    assert!(engine.undo().unwrap());
+                }
+                4 => {
+                    let saved = golden_core::app::to_sparse_project_json_pretty(&engine).unwrap();
+                    engine = golden_core::app::from_sparse_project_json::<AppNode>(&saved).unwrap();
+                    engine.apply_edits().unwrap();
+                    mapgyver::media::validate_project(&engine).unwrap();
+                }
+                5 => {
+                    edit(&mut engine, MediaEdit::RemoveChannel { reference: blue });
+                }
+                _ => unreachable!(),
+            }
+            engine
+                .dispatch_inbox(golden_core::process_ctx::ExecutionPhase::EndOfTickStabilization)
+                .unwrap();
+            assert_eq!(mapgyver::media::resolve_source_node(&engine, media.0).unwrap(), output);
+            fixture.publish_channels(&engine, &[output, output], output, None);
+            fixture.pixels(adapter.id, &image(expected), &format!("reference-target-{step}"));
+        }
+    }
+}

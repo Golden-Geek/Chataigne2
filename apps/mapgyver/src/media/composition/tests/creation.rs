@@ -28,7 +28,12 @@ fn every_catalog_type_is_an_owned_child_with_atomic_history_and_project_identity
         let instance = snapshot.instances.last().unwrap();
         assert_eq!(instance.definition.transform.position, [123., 234.]);
         if choice.media_kind == MediaKind::Reference {
-            assert!(instance.definition.source.is_none());
+            let output = instance.definition.source.unwrap();
+            assert_eq!(output, crate::media::resolve_source_node(&engine, uuid).unwrap());
+            assert!(matches!(
+                crate::media::channel(&engine, output).unwrap().definition.source,
+                crate::media::protocol::ChannelSource::Reference { target: None }
+            ));
         } else {
             assert_eq!(instance.definition.source.unwrap().media, MediaId(uuid));
         }

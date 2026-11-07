@@ -32,7 +32,13 @@ fn pages_bound_projection_without_copied_channel_nodes_and_preserve_history() {
     let mut references = Vec::new();
     let mut trees = vec![tree];
     for index in 0..128 {
-        let node = ReferenceNode::from_target(format!("Mirror {index}"), Some(previous));
+        let node = ReferenceNode::from_source(
+            format!("Reference {index}"),
+            Some(crate::media::MediaSource {
+                media: previous,
+                channel: None,
+            }),
+        );
         previous = MediaId(node.node_data().meta.uuid);
         references.push(previous);
         trees.push(NodeTree::new(node));
@@ -53,16 +59,23 @@ fn pages_bound_projection_without_copied_channel_nodes_and_preserve_history() {
     let history = engine.undo_len();
     let nodes = engine.nodes.len();
     for media in references {
-        let read = page(&mut engine, media, 480, 32);
+        let read = page(&mut engine, media, 0, 32);
         assert_eq!(read.status, MediaChannelsStatus::Ready);
-        assert_eq!(read.total, 512);
-        assert_eq!(read.channels.len(), 32);
-        assert_eq!(
-            read.channels.iter().map(|c| c.reference.channel).collect::<Vec<_>>(),
-            ids[480..]
-        );
+        assert_eq!(read.total, 1);
+        assert_eq!(read.channels.len(), 1);
+        assert!(!ids.contains(&read.channels[0].reference.channel));
         assert!(read.channels.iter().all(|c| c.reference.media == media));
     }
+    let source_page = page(&mut engine, target.media, 480, 32);
+    assert_eq!(source_page.total, 512);
+    assert_eq!(
+        source_page
+            .channels
+            .iter()
+            .map(|c| c.reference.channel)
+            .collect::<Vec<_>>(),
+        ids[480..]
+    );
     assert_eq!(page(&mut engine, previous, u32::MAX, 1).channels.len(), 0);
     for count in [0, 129, u16::MAX] {
         assert!(
@@ -127,7 +140,7 @@ fn channel_pages_follow_rename_reorder_remove_retarget_and_project_recovery() {
     let expected = page(&mut engine, mirror, 0, 32);
     assert_eq!(
         expected.channels.iter().map(|c| c.label.as_str()).collect::<Vec<_>>(),
-        ["Peer", "Renamed"]
+        ["Output"]
     );
     apply(&mut engine, MediaEdit::RemoveChannel { reference: peer });
     assert_eq!(page(&mut engine, mirror, 0, 32).total, 1);
@@ -136,7 +149,8 @@ fn channel_pages_follow_rename_reorder_remove_retarget_and_project_recovery() {
     apply(&mut engine, MediaEdit::RemoveMedia { media: source.media });
     let missing = page(&mut engine, mirror, 0, 32);
     assert_eq!(missing.status, MediaChannelsStatus::MissingTarget);
-    assert!(missing.channels.is_empty());
+    assert_eq!(missing.channels.len(), 1);
+    assert_eq!(missing.channels[0].reference, expected.channels[0].reference);
     let json = to_sparse_project_json_pretty(&engine).unwrap();
     let mut loaded = from_sparse_project_json::<AppNode>(&json).unwrap();
     loaded.apply_edits().unwrap();
@@ -206,10 +220,7 @@ fn named_channel_page_method_delivers_read_only_committed_callbacks_and_checks_b
     assert_eq!(read.total, 1);
     assert_eq!(
         read.channels[0].reference,
-        ChannelReference {
-            media: mirror,
-            channel: source.channel
-        }
+        crate::media::resolve_source_node(&engine, mirror.0).unwrap()
     );
     assert_eq!(engine.undo_len(), history);
 }

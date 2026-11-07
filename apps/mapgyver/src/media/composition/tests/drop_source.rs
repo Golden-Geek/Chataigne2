@@ -45,17 +45,14 @@ fn source_drop_adds_at_canvas_position_with_backend_defaults_and_one_history_ste
     assert_eq!(engine.undo_len(), history + 1);
     assert_eq!(
         engine.nodes.len(),
-        count + 15,
+        count + 17,
         "one complete detached instance subtree including Fit Mode"
     );
     let after = inspect(&mut engine, composition);
     assert_eq!(after.instances[0], before.instances[0]);
     assert_eq!(after.instances[1].reference, instances[0]);
     let expected = InstanceDefinition {
-        source: Some(ChannelReference {
-            media: MediaId(instances[0].instance.0),
-            channel: source.channel,
-        }),
+        source: Some(crate::media::resolve_source_node(&engine, instances[0].instance.0).unwrap()),
         transform: Transform2D {
             position: [-120., 2230.],
             ..Default::default()
@@ -138,10 +135,10 @@ fn source_replacement_preserves_exact_authored_parameters_labels_identity_and_pe
     assert_eq!(engine.undo_len(), history + 1);
     let after = inspect(&mut engine, composition);
     let mut expected = before.instances[0].clone();
-    expected.definition.source = Some(ChannelReference {
-        media: MediaId(target.0),
-        channel: replacement.channel,
-    });
+    expected.definition.source = before.instances[0].definition.source;
+    assert!(
+        matches!(crate::media::channel(&engine, expected.definition.source.unwrap()).unwrap().definition.source, crate::media::protocol::ChannelSource::Reference { target: Some(input) } if input == replacement)
+    );
     assert_eq!(after.instances[0], expected);
     assert_eq!(snapshot, expected);
     assert_eq!(after.instances[1], before.instances[1]);

@@ -94,10 +94,14 @@ fn native_hidden_nested_groups_keep_final_pixels_and_exact_export_recovery() {
         ) else {
             panic!()
         };
-        let alias_group = ChannelReference {
-            media: alias,
-            channel: scene.group_channel.channel,
-        };
+        edit(
+            &mut engine,
+            MediaEdit::SelectReferenceChannel {
+                media: alias,
+                channel: Some(scene.group_channel.channel),
+            },
+        );
+        let alias_group = mapgyver::media::resolve_source_node(&engine, alias.0).unwrap();
         let mut fixture = Fixture::new(adapter.id);
         let mut final_image = image([0.; 4]);
         for blend in [

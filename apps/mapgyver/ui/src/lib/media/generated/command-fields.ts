@@ -170,6 +170,10 @@ export const COMMAND_PARAMETER_FIELDS = {
     "channel",
     "after_channel"
   ],
+  "SelectReferenceChannel": [
+    "media",
+    "channel"
+  ],
   "SetApplicationFile": [
     "application_owner",
     "application_file"

@@ -12,6 +12,7 @@ pub(super) const METHODS: &[&str] = &[
     "createCompositionMedia",
     "createReference",
     "configureReference",
+    "selectReferenceChannel",
     "createMedia",
     "addChannel",
     "configureMediaResolution",
@@ -83,7 +84,7 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "createCompositionMedia" => 6,
         "dropMatrixMedia" => 5,
         "transferMatrixCell" => 5,
-        "createReference" | "configureReference" => 2,
+        "createReference" | "configureReference" | "selectReferenceChannel" => 2,
         _ => return Ok(None),
     };
     if args.len() != count {
@@ -176,6 +177,13 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
             media: MediaId(uuid(args, 0)?),
             target: optional_text(args, 1)?
                 .map(|value| uuid::Uuid::parse_str(&value).map(|id| MediaId(golden_core::node::NodeUuid(id))))
+                .transpose()
+                .map_err(|error| error.to_string())?,
+        },
+        "selectReferenceChannel" => MediaEdit::SelectReferenceChannel {
+            media: MediaId(uuid(args, 0)?),
+            channel: optional_text(args, 1)?
+                .map(|value| uuid::Uuid::parse_str(&value).map(|id| ChannelId(golden_core::node::NodeUuid(id))))
                 .transpose()
                 .map_err(|error| error.to_string())?,
         },

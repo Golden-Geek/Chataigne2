@@ -122,10 +122,7 @@ fn reference_fit_mode_persists_without_changing_virtual_channel_identity_or_auto
             mode: MediaFitMode::Stretch,
         },
     );
-    let reference = ChannelReference {
-        media,
-        channel: target.channel,
-    };
+    let reference = crate::media::resolve_source_node(&engine, media.0).unwrap();
     assert_eq!(
         channel(&engine, reference).unwrap().definition.fit_mode,
         MediaFitMode::Stretch

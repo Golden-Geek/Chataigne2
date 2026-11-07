@@ -1,32 +1,132 @@
 {
 	"date": "2026-11-08",
 	"gate": "M13/14",
-	"status": "Golden identity prerequisite verified; Reference integration remains in progress",
-	"batch": { "started_utc": "2026-11-07 22:23", "cutoff_utc": "2026-11-07 23:08", "checks_finished_utc": "2026-11-07 23:09" },
-	"progress": { "verified": 79, "total": 92, "overall_percent": 86, "m13_verified": 10, "m13_total": 14, "m13_percent": 71 },
-	"calculation": "No gate accepted. Existing79/92 rounds to86%; M13 10/14 rounds to71%. Every original requirement and budget remains required.",
-	"verified_milestone": {
-		"capability": "Golden nodes can preserve their UUID in sparse projects even when they are unreferenced declared defaults. This supplies the persistence boundary needed by independently addressable Reference outputs.",
-		"owner": "Golden Engine Node policy, live sparse codec, immutable project capture and node-enum dispatch; no app types or product policy in Golden.",
-		"architecture": "docs/architecture/sparse-node-identity.md",
-		"format": "Root and golden_core cargo fmt and owning diff checks pass.",
-		"behavior": { "command": "cargo test --locked -p golden_engine --lib app::tests:: --quiet", "passed": 18, "failed": 0, "ignored": 1, "filtered": 660, "exit": 0 },
-		"proof": "The new concrete declared-node fixture compares live and immutable sparse codecs, preserves an unreferenced child's UUID through loading, and proves an ordinary default sibling remains omitted. Existing project identity, capture and preference tests remain green.",
-		"strict": { "command": "cargo clippy --locked -p golden_engine --lib --tests -- -D warnings", "exit": 0 },
-		"limits": "The whole Golden test suite is not claimed. The hook uses the existing UUID record and adds no persisted data field; copy/import keeps its existing identity-remapping policy."
+	"status": "Reference v4 backend functionally verified; targeting UI and complete mixed native acceptance remain open",
+	"batch": {
+		"started_utc": "2026-11-07 23:17",
+		"cutoff_utc": "2026-11-08 00:02",
+		"verified_checkpoint_utc": "2026-11-07 23:43"
 	},
-	"unfinished_reference_integration": {
-		"delivery_state": "App changes remain in the same worktree, uncommitted, for continuation of this active gate. Only the verified Golden identity prerequisite is selected for this milestone commit.",
-		"implemented_prototype": "Reference v4 selects one typed Media/Channel input and declares one identity-only output node. Backend default/explicit selection, selected-channel intent/command/named script, generated consumers, capture/resolution/dependencies, catalog and source drops are being converted together. The identity-only output requires no source Parameters or tree snapshots.",
-		"correctness_finding": "A real reload comparison proved that an unreferenced default declared output was omitted and regenerated its UUID. The verified Golden policy corrects that persistence mechanism; no synthetic self-reference or opaque identity setting was introduced.",
-		"retention_finding": "Automatic output identity settles later in the same capture. RuntimeSources previously rejected a weak owner while its source list was still empty, dropping its outgoing graph. Registration now admits that owner until the existing completed-capture update prunes empty owners. This app fix remains with the unfinished Reference integration.",
-		"retention_checks": { "command": "cargo test --locked -p MapGyver --lib media::rendering::tests::transitions:: --quiet", "passed": 9, "failed": 0, "filtered": 561, "exit": 0, "receipt": "target/m1314-retained-output-current-20261107.log" },
-		"retention_scope": "The existing suite includes interrupted/relaunched source weights, retained producer graphs and the feedback edge that must remain rejected until the owning clip retires. No native retirement or full Reference acceptance is inferred.",
-		"ui_types": "MapGyver svelte-check passes with0errors0warnings; subsequent UI changes are output-row labels only. No new native UI check is claimed.",
-		"broader_validation": "The prior integration run returned529passed/38failed/2ignored/1filtered. Failures included obsolete mirrored-channel expectations, caller fixtures, recovery/copy identity and genuine retention regressions. Many fixtures and retention are now corrected, but a fresh complete suite is still required; the current failure count is unverified. Receipt: target/m1314-reference-integration-20261107.log.",
-		"superseded_run": "The earlier full run on the discarded parameter-heavy output model was explicitly stopped after the UUID defect was reproduced; its deep-forest case was still running. The4096-depth requirement stays open and must run on the corrected model. No timeout was treated as successful completion.",
-		"test_correction": "The first Golden fixture comparison included application_id stamped only by the full project writer. The corrected comparison uses the two raw sparse codecs, then separately loads the stamped project; the final19-test invocation and strict check pass."
+	"progress": {
+		"verified": 79,
+		"total": 92,
+		"overall_percent": 86,
+		"m13_verified": 10,
+		"m13_total": 14,
+		"m13_percent": 71
 	},
-	"remaining": "Finish current Reference integration and complete its full software/caller/copy/history/project/cycle/missing/recovery/large-catalog checks, including the4096-depth forest. Then validate native routing and producer reuse. Implement the shared bounded catalog-only Media picker/dependent Channel dropdown and complete every M13/14 requirement. M13/13 and M13/4 keep their exact desktop-input resumption triggers.",
-	"next": "Continue the same M13/14 gate from the uncommitted app migration; reconcile source and run a complete planned validation cycle after the remaining consumer fixtures are updated. Do not rerun the superseded output model, add another benchmark variant, switch phases or count this prerequisite as gate closure."
+	"calculation": "No gate accepted.79/92 rounds to86%; M13 10/14 rounds to71%. Every original requirement and budget remains required.",
+	"capability": "Reference v4 has typed Media/Channel inputs and one identity-only declared output. Media changes atomically pin the first output; same Media preserves selection, clear clears both, explicit missing channels remain authored, and resolved foreign outputs reject. Output identity survives retargeting, copy/history and sparse reload without allocating another producer.",
+	"architecture": "docs/architecture/mapgyver-reference-output.md",
+	"ownership": "MapGyver owns routing, channel defaults/membership, selected-edge cycle validation, catalog, drops, capture, retention and preview selection. Golden's public sparse identity policy remains app-agnostic.",
+	"prerequisite": {
+		"commit": "ba4e571a45777a41a595b77815d8a249986a9139",
+		"scope": "Golden live/immutable sparse codecs and node-enum dispatch preserve opted-in declared UUIDs; ordinary defaults stay omitted.",
+		"tests": {
+			"passed": 18,
+			"ignored": 1,
+			"exit": 0
+		},
+		"strict_exit": 0,
+		"architecture": "docs/architecture/sparse-node-identity.md"
+	},
+	"software": {
+		"functional": {
+			"command": "cargo test --locked -p MapGyver --lib --quiet",
+			"passed": 571,
+			"failed": 0,
+			"ignored": 2,
+			"exit": 0,
+			"receipt": "target/m1314-reference-functional-final-20261108.log",
+			"sha256": "47223ec7d8f82d0ddb7b5ecfad077b1bac895ba9459eb1648e36bd7972972d11"
+		},
+		"scope": "Includes the4096-depth authored forest, one-output pages/chains/cycles, copied internal/external identities, missing/recovery, generic Parameter edits, named script/hosted script/transport/UI parity, exact history/reload, all typed commands and outgoing-source retention.36 new selection cases cover four callers. Repeated Matrix assignment retains its owned Reference and adds no history.",
+		"reload_proof": "A small Matrix/Composition/Reference software fixture preserves authored geometry/output IDs and the captured producer through normal Golden runtime activation after decode. Capturing an unactivated decoded candidate failed; the corrected production lifecycle test passes.",
+		"retention": "RuntimeSources registers weak owners before late automatic output settlement; existing completed-capture pruning still removes empty owners. All9 interrupted/retained source and feedback tests pass in the full suite.",
+		"strict": {
+			"command": "cargo clippy --locked -p MapGyver --all-targets --features native-qualification -- -D warnings",
+			"exit": 0,
+			"receipt": "target/m1314-reference-strict-final-20261108.log"
+		},
+		"generated": "All140 checked-in media protocol files exactly match the Rust exporter, including the new SelectReferenceChannel intent, typed command and named script consumer.",
+		"ui": "MapGyver svelte-check:0errors0warnings.19 media unit tests and the icon classification test pass. Authored touched UI/doc formatting, root/core cargo fmt and owning diff checks pass.",
+		"qualification_compile": "Existing isolated qualification runner compiles repository matrix_rendering and channel_rendering targets and passes strict lint. The final explicit Cell-size fixture correction also compiles and passes strict lint; it has not been executed."
+	},
+	"scale": {
+		"command": "mapgyver-525cb3b3cf0e8654.exe --exact media::reference::tests::scale::reference_pages_and_fixed_edits_remain_bounded_with_ten_thousand_inactive_media --ignored --test-threads=1 --nocapture",
+		"exit": 0,
+		"samples_per_size": {
+			"queries": 25,
+			"edits": 50
+		},
+		"results": [
+			{
+				"references": 1000,
+				"actual_nodes": 10625,
+				"query_p95_ms": 0.0109,
+				"edit_p95_ms": 3.4697,
+				"capture_ms": 0.0672
+			},
+			{
+				"references": 5000,
+				"actual_nodes": 38626,
+				"query_p95_ms": 0.0112,
+				"edit_p95_ms": 20.3037,
+				"capture_ms": 0.0553
+			},
+			{
+				"references": 10000,
+				"actual_nodes": 73627,
+				"query_p95_ms": 0.0416,
+				"edit_p95_ms": 42.6381,
+				"capture_ms": 0.0431
+			}
+		],
+		"unchanged_limits": "Both query/edit p95 <=50ms. Each page is424bytes and15 consumers capture16 records, including one shared producer.",
+		"receipt": "target/m1314-reference-scale-isolated-20261108.log",
+		"sha256": "66b69d80f31d19ce949948016bc2313faa029e4816040701eeab4e68c34e6471",
+		"retained_failure": "The combined --include-ignored run returned571passed/1failed: the scale case exceeded50ms at5000References (51.735ms) while other large suites ran. The unchanged case passes in isolation. Receipt target/m1314-reference-final-software-20261108.log is retained; no whole-app production/cadence acceptance is inferred."
+	},
+	"native_routing": {
+		"command": "matrix_rendering-c4e257fea1eae2ec.exe native_reference_selected_channel_and_stable_output_route_on_both_gpus --ignored --nocapture",
+		"exit": 0,
+		"adapters": [
+			"00000000:00015b69",
+			"00000000:90b3a15f"
+		],
+		"stages": [
+			"default first red",
+			"explicit blue channel",
+			"generic Media retarget to green",
+			"Undo restores blue pair",
+			"sparse reload keeps own output",
+			"deleted explicit blue stays missing",
+			"Undo recovers blue"
+		],
+		"complete_images": 42,
+		"texels_per_image": 768,
+		"maximum_nominal_error_255": 0,
+		"maximum_envelope_error_255": 0,
+		"retirement": "Both native owners finish with zero source/output/plan resources and balanced plan allocations.",
+		"binary_sha256": "a0c8cd4ab169d6fc283457fed77e51069526a2df49723ba00074be6edea11cc0",
+		"receipt": "target/m1314-reference-routing-native-20261108.log",
+		"sha256": "561cf6dd508a7df54ea7d1b09f0a8f55510eb9687981d1d145e423f3c5c6c901"
+	},
+	"mixed_native": {
+		"status": "Incomplete; no complete mixed-source/native reuse or retirement acceptance",
+		"last_exit": 101,
+		"passing_scope": "On Intel, SolidColor passes all9stages (27images) including mixed Composition/Matrix, reload, deletion/Undo, independent copy and outgoing retention/final use. Picture passes the first6stages (18images), through reload/deletion/recovery. Pixel tolerance remains2/255.",
+		"remaining_failure": "Last run fails Picture/independent-copy/0: transparent versus expected red. The2x2 copied Picture was left at natural Cell size inside a4x4 Layer; the filled-image fixture now explicitly authors Cell Size4x4. That final correction is compiled/strict-clean but unexecuted. NVIDIA and SharedTexture stages were not reached.",
+		"fixture_reconciliation": "Earlier failures are retained: the old first default Layer stayed1920x1080 after Matrix resize; the fixture now uses the returned4x4 Layer. A raw decoded engine retained bootstrap events; the separate software reproducer proves normal runtime activation restores the selected producer. This new evidence justified one corrected native verification, which reached the Picture-copy issue. No further native retries in this batch.",
+		"last_tested_binary_sha256": "c581e539fc9e691414904a704577c65b7e457ef54b45203769016b21b51b9b0b",
+		"receipt": "target/m1314-reference-sharing-native-prepared-20261108.log",
+		"sha256": "706305d40cbbef2e69b22c1d91997e9b6b7d222426ead9b17fa3f460db43d277",
+		"earlier_receipts": [
+			"target/m1314-reference-sharing-native-20261108.log",
+			"target/m1314-reference-sharing-native-current-20261108.log"
+		],
+		"return_action": "After the bounded picker/browser slice passes its software prerequisites, run the corrected existing mixed fixture once with explicit Layer/Cell sizing and runtime activation; require every source kind on both GPUs, reuse and final retirement. Preserve this cumulative investigation and all earlier failed results."
+	},
+	"remaining": "Deliver the public bounded catalog-only Medias/folder picker and dependent Channel dropdown in the generic Inspector, backend ancestry/type validation and nested-Cell validity; reconcile existing unavailable-reference and matrix-output-exposure browser fixtures with the new selected-output contract and complete actual bundled UI/history/project coverage. Finish the retained mixed native check. M13/14 alone remains Active; stopped desktop input and M13/2,4,13 plus every older qualification gate remain unchanged.",
+	"delivery": "Checkpoint this coherent backend/schema/protocol/consumer milestone before beginning the bounded picker slice. A push does not accept the full gate."
 }

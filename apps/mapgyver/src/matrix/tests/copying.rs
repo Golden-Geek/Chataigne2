@@ -68,7 +68,10 @@ fn group_copy_remaps_internal_exports_and_keeps_sources_independent_through_relo
         .unwrap();
     let owned = a_copy.definition.source.unwrap();
     assert_ne!(owned.media, copies[1].channel.media);
-    assert_eq!(owned.channel, copies[1].channel.channel);
+    assert_ne!(owned.channel, copies[1].channel.channel);
+    assert!(
+        matches!(crate::media::channel(&engine, owned).unwrap().definition.source, ChannelSource::Reference { target: Some(target) } if target == copies[1].channel)
+    );
     let AppNode::ReferenceMedia(reference) = engine
         .nodes
         .get(engine.node_id_by_uuid(owned.media.0).unwrap())
@@ -85,7 +88,11 @@ fn group_copy_remaps_internal_exports_and_keeps_sources_independent_through_relo
         .definition
         .source
         .unwrap();
-    assert_eq!(external.channel, source.channel);
+    assert_ne!(external.channel, source.channel);
+    assert!(
+        matches!(crate::media::channel(&engine, external).unwrap().definition.source,
+        ChannelSource::Reference { target: Some(target) } if target == source)
+    );
     let AppNode::ReferenceMedia(reference) = engine
         .nodes
         .get(engine.node_id_by_uuid(external.media.0).unwrap())

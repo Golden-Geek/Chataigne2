@@ -396,7 +396,13 @@ fn project_candidate_preparation_rejects_loaded_feedback_and_orphaned_exports() 
         panic!()
     };
     let target = reference.target_parameter();
-    for (parameter, uuid) in [(target, matrix.media.0), (output, matrix.channel.0)] {
+    let selected = reference.channel_parameter();
+    let own_output = reference.output_reference(&engine).channel.0;
+    for (parameter, uuid) in [
+        (target, matrix.media.0),
+        (selected, matrix.channel.0),
+        (output, own_output),
+    ] {
         engine
             .nodes
             .get_mut(parameter)
@@ -408,7 +414,11 @@ fn project_candidate_preparation_rejects_loaded_feedback_and_orphaned_exports() 
     let encoded = to_sparse_project_json_pretty(&engine).unwrap();
     let mut loaded = from_sparse_project_json::<AppNode>(&encoded).unwrap();
     assert!(AppNode::prepare_project_candidate(&mut loaded).is_err());
-    for (parameter, uuid) in [(target, source.media.0), (output, source.channel.0)] {
+    for (parameter, uuid) in [
+        (target, source.media.0),
+        (selected, source.channel.0),
+        (output, own_output),
+    ] {
         engine
             .nodes
             .get_mut(parameter)

@@ -204,10 +204,15 @@ fn cell_transfers_share_atomic_history_rejection_and_ownership_for_all_public_sc
                 assert_eq!(created.definition.column, column);
                 assert_eq!(created.definition.settings, original.definition.settings);
                 assert_ne!(created.media, original.media);
-                assert_eq!(
-                    created.definition.source.unwrap().channel == original.definition.source.unwrap().channel,
-                    action == CellTransferAction::Reference
+                assert_ne!(
+                    created.definition.source.unwrap().channel,
+                    original.definition.source.unwrap().channel
                 );
+                if action == CellTransferAction::Reference {
+                    assert!(
+                        matches!(crate::media::channel(&engine, created.definition.source.unwrap()).unwrap().definition.source, ChannelSource::Reference { target: Some(source) } if source == original.definition.source.unwrap())
+                    );
+                }
                 assert_eq!(
                     created.definition.application.0,
                     if action == CellTransferAction::Reference {

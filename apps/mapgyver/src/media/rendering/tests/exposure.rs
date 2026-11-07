@@ -38,6 +38,13 @@ fn opt_in_discovery_keeps_ids_and_reference_choices_through_history_and_projects
     };
     assert_eq!(discovered(&mut engine, matrix.media), [matrix]);
     assert_eq!(discovered(&mut engine, alias).len(), 1);
+    edit(
+        &mut engine,
+        MediaEdit::SelectReferenceChannel {
+            media: alias,
+            channel: Some(item.channel.channel),
+        },
+    );
     let source = crate::media::MediaSource {
         media: matrix.media,
         channel: Some(item.channel.channel),
@@ -70,10 +77,7 @@ fn opt_in_discovery_keeps_ids_and_reference_choices_through_history_and_projects
     assert_eq!(engine.undo_len(), history + 1);
     assert!(discovered(&mut engine, matrix.media).contains(&item.channel));
     assert_eq!(source.output(&engine).unwrap(), Some(item.channel));
-    let alias_channel = ChannelReference {
-        media: alias,
-        channel: item.channel.channel,
-    };
+    let alias_channel = crate::media::resolve_source_node(&engine, alias.0).unwrap();
     assert!(discovered(&mut engine, alias).contains(&alias_channel));
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     let mut restored = from_sparse_project_json::<AppNode>(&saved).unwrap();

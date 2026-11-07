@@ -37,7 +37,14 @@ fn mirror(engine: &mut AppEngine, target: MediaId, channel: ChannelId) -> Channe
     ) else {
         panic!()
     };
-    ChannelReference { media, channel }
+    edit(
+        engine,
+        MediaEdit::SelectReferenceChannel {
+            media,
+            channel: Some(channel),
+        },
+    );
+    mapgyver::media::resolve_source_node(engine, media.0).unwrap()
 }
 fn matrix_edit(engine: &mut AppEngine, matrix: MediaId, operation: MatrixEdit) -> MediaEditResult {
     edit(
@@ -254,7 +261,7 @@ fn references_share_native_production_through_composition_matrix_and_owned_retir
                 _ => unreachable!(),
             }
             let a = mirror(&mut engine, source.media, source.channel);
-            let b = mirror(&mut engine, a.media, source.channel);
+            let b = mirror(&mut engine, a.media, a.channel);
             let mut fixture = Fixture::new(adapter.id);
             if kind == MediaKind::Picture {
                 fixture
@@ -336,11 +343,13 @@ fn references_share_native_production_through_composition_matrix_and_owned_retir
                 },
             );
             let matrix = create(&mut engine, MediaKind::Matrix);
-            matrix_edit(
+            let MediaEditResult::MatrixCreated { items, .. } = matrix_edit(
                 &mut engine,
                 matrix.media,
                 MatrixEdit::AddLayers { parent: None, count: 1 },
-            );
+            ) else {
+                panic!()
+            };
             matrix_edit(
                 &mut engine,
                 matrix.media,
@@ -350,9 +359,22 @@ fn references_share_native_production_through_composition_matrix_and_owned_retir
             else {
                 panic!()
             };
-            let MatrixItemId::Layer { id: layer } = snapshot.items[0].id else {
+            let MatrixItemId::Layer { id: layer } = items[0] else {
                 panic!()
             };
+            // Creation already includes three authored 1920x1080 Layers. Use the returned
+            // Layer created after the 4x4 resize, rather than stretching the old first Layer.
+            assert_eq!(
+                snapshot
+                    .items
+                    .iter()
+                    .find(|item| item.id == items[0])
+                    .unwrap()
+                    .layer
+                    .unwrap()
+                    .size,
+                Extent2D::new(4, 4).unwrap()
+            );
             matrix_edit(
                 &mut engine,
                 matrix.media,
@@ -378,6 +400,7 @@ fn references_share_native_production_through_composition_matrix_and_owned_retir
             let saved = to_sparse_project_json_pretty(&engine).unwrap();
             let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
             loaded.apply_edits().unwrap();
+            golden_core::app::prepare_engine_for_runtime(&mut loaded).unwrap();
             matrix_edit(
                 &mut loaded,
                 matrix.media,
@@ -416,6 +439,20 @@ fn references_share_native_production_through_composition_matrix_and_owned_retir
             ) else {
                 panic!()
             };
+            // This sharing fixture expects a filled 4x4 Layer. Picture/Spout copies retain
+            // their natural 2x2 size unless placement is explicitly authored.
+            matrix_edit(
+                &mut loaded,
+                matrix.media,
+                MatrixEdit::ConfigureCell {
+                    layer,
+                    column: snapshot.columns[1].id,
+                    settings: CellSettings {
+                        size: Some(Extent2D::new(4, 4).unwrap()),
+                        ..Default::default()
+                    },
+                },
+            );
             let MediaEditResult::Channels { page } = edit(
                 &mut loaded,
                 MediaEdit::InspectChannels {

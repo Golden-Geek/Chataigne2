@@ -61,13 +61,16 @@ pub(super) fn channel_id(engine: &AppEngine, reference: ChannelReference) -> Res
     let id = engine
         .node_id_by_uuid(reference.channel.0)
         .ok_or("channel reference is missing")?;
-    let Some(AppNode::MediaChannel(node)) = engine.nodes.get(id) else {
-        return Err("reference is not a channel".into());
-    };
+    let node = engine.nodes.get(id).ok_or("channel is missing")?;
     if node.node_data().parent != Some(parent) {
         return Err("channel belongs to another media".into());
     }
-    if node.kind() != kind {
+    let actual_kind = match node {
+        AppNode::MediaChannel(node) => node.kind(),
+        AppNode::ReferenceOutput(_) => MediaKind::Reference,
+        _ => return Err("reference is not a channel".into()),
+    };
+    if actual_kind != kind {
         return Err("channel source does not match its media kind".into());
     }
     Ok(id)
@@ -91,7 +94,7 @@ pub(crate) fn channel_internal(engine: &AppEngine, reference: ChannelReference) 
     Ok(ChannelSnapshot {
         reference,
         label: node.node_data().meta.label.clone(),
-        definition: effective_definition(engine, node)?,
+        definition: effective_definition(engine, node.as_ref())?,
     })
 }
 
@@ -146,6 +149,22 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         }
         MediaEdit::ConfigureReference { media, target } => {
             super::reference::configure(engine, media, target)?;
+            MediaEditResult::Changed
+        }
+        MediaEdit::SelectReferenceChannel { media: owner, channel } => {
+            let (id, _) = media(engine, owner)?;
+            let Some(AppNode::ReferenceMedia(node)) = engine.nodes.get(id) else {
+                return Err("media is not Reference".into());
+            };
+            engine.edits.push(Edit::SetParam {
+                node: node.channel_parameter(),
+                value: golden_core::parameter::ParamValue::Reference(
+                    channel.map_or_else(golden_core::node::NodeReference::empty, |id| {
+                        golden_core::node::NodeReference::new(id.0)
+                    }),
+                ),
+                behaviour: golden_core::parameter::ParameterEventBehaviour::Append,
+            });
             MediaEditResult::Changed
         }
         MediaEdit::Applications { edit } => crate::applications::apply(engine, edit)?,
@@ -564,11 +583,16 @@ fn move_channel(
     Ok(())
 }
 
-pub(crate) fn effective_definition(engine: &AppEngine, channel: &ChannelNode) -> Result<ChannelDefinition, String> {
-    let Some(AppNode::Media(media)) = channel.node_data().parent.and_then(|id| engine.nodes.get(id)) else {
-        return Err("channel owner is not media".into());
-    };
-    Ok(channel.definition(media, engine))
+pub(crate) fn effective_definition(engine: &AppEngine, channel: &dyn Node) -> Result<ChannelDefinition, String> {
+    match channel.node_data().parent.and_then(|id| engine.nodes.get(id)) {
+        Some(AppNode::Media(media)) => channel
+            .as_any()
+            .downcast_ref::<ChannelNode>()
+            .map(|channel| channel.definition(media, engine))
+            .ok_or("invalid source channel".into()),
+        Some(AppNode::ReferenceMedia(media)) => Ok(media.definition(engine, ChannelId(channel.node_data().meta.uuid))),
+        _ => Err("channel owner is not media".into()),
+    }
 }
 
 fn configure_resolution(engine: &mut AppEngine, owner: MediaId, size: SizePolicy) -> Result<(), String> {
@@ -615,14 +639,26 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
             super::composition::children::placement(engine, id)?;
         }
         match node {
-            AppNode::ReferenceMedia(_) => {
+            AppNode::ReferenceMedia(reference) => {
+                if reference.target().is_none() && reference.selected_channel().is_some() {
+                    return Err("Reference Channel requires a Media target".into());
+                }
+                if let Some(source) = reference.source(engine) {
+                    super::targeting::validate_existing_output(engine, source)?;
+                }
                 if !managed.contains(&id) {
                     return Err("Reference is outside its media hierarchy".into());
                 }
+                let mut outputs = 0;
                 for child in crate::parameters::domain_children(engine, id)? {
-                    if !matches!(engine.nodes.get(child), Some(AppNode::CompositionPlacement(_))) {
-                        return Err("Reference owns only Parameters and Placement".into());
+                    match engine.nodes.get(child) {
+                        Some(AppNode::ReferenceOutput(_)) => outputs += 1,
+                        Some(AppNode::CompositionPlacement(_)) => {}
+                        _ => return Err("Reference owns only Parameters, one Output and optional Placement".into()),
                     }
+                }
+                if outputs != 1 {
+                    return Err("Reference requires exactly one output".into());
                 }
             }
             AppNode::MediaCommand(node) => {
@@ -673,17 +709,31 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                     return Err("Composition must expose exactly one output channel".into());
                 }
             }
+            AppNode::ReferenceOutput(node) => {
+                if !node
+                    .node_data()
+                    .parent
+                    .and_then(|id| engine.nodes.get(id))
+                    .is_some_and(|parent| matches!(parent, AppNode::ReferenceMedia(_)))
+                    || node.node_data().meta.decl_id.0 != "output"
+                    || crate::parameters::has_domain_children(engine, id)
+                {
+                    return Err("Reference output must occupy its owner's declared output slot".into());
+                }
+            }
             AppNode::MediaChannel(node) => {
-                effective_definition(engine, node)?.validate()?;
+                effective_definition(engine, node.as_ref())?.validate()?;
                 let parent = node
                     .node_data()
                     .parent
                     .and_then(|id| engine.nodes.get(id))
                     .ok_or("channel owner is missing")?;
-                let AppNode::Media(parent) = parent else {
-                    return Err("channel owner is not media".into());
+                let kind = match parent {
+                    AppNode::Media(parent) => parent.kind(),
+                    AppNode::ReferenceMedia(_) => MediaKind::Reference,
+                    _ => return Err("channel owner is not media".into()),
                 };
-                if parent.kind() != node.kind() {
+                if kind != node.kind() {
                     return Err("channel source does not match its media kind".into());
                 }
                 if !node.is_matrix_final() && crate::parameters::has_domain_children(engine, id) {
@@ -706,6 +756,9 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 }
                 super::composition::children::placement(engine, parent)?;
                 node.definition(MediaId(owner.node_data().meta.uuid)).validate()?;
+                if let Some(source) = super::composition::children::definition(engine, parent)?.source {
+                    super::targeting::validate_existing_output(engine, source)?;
+                }
             }
             _ => {}
         }

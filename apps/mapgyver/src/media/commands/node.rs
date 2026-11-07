@@ -20,7 +20,7 @@ use std::sync::Arc;
         media: NodeReference = NodeReference::empty() (
             label = "Media",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.v8".into(), "mapgyver.media.reference.v3".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.v8".into(), "mapgyver.media.reference.v4".into()]
         );
         matrix_layer: NodeReference = NodeReference::empty() (label = "Layer", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v3".into()]);
         matrix_column: NodeReference = NodeReference::empty() (label = "Column", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v3".into()]);
@@ -29,13 +29,13 @@ use std::sync::Arc;
         launch_mode: Enum = "Configured" (label = "Launch mode", enum_options = crate::parameters::enum_options(&["Configured", "Cut"]), constraint_policy = "reject");
         position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position", description = "Composition canvas texels.");
         copy_media: bool = false (label = "Copy media");
-        composition_target: NodeReference = NodeReference::empty() (label = "Replace media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v8".into(), "mapgyver.media.reference.v3".into()]);
+        composition_target: NodeReference = NodeReference::empty() (label = "Replace media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v8".into(), "mapgyver.media.reference.v4".into()]);
         reference_target: NodeReference = NodeReference::empty() (label = "Target media", reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.v8".into(), "mapgyver.media.reference.v3".into()]);
+            reference_allowed_node_types = vec!["mapgyver.media.v8".into(), "mapgyver.media.reference.v4".into()]);
         channel: NodeReference = NodeReference::empty() (
             label = "Channel",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.channel.v2".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.channel.v2".into(), crate::media::reference::OUTPUT_TYPE.into()]
         );
         asset: NodeReference = NodeReference::empty() (
             label = "Asset",
@@ -50,12 +50,12 @@ use std::sync::Arc;
         entry: NodeReference = NodeReference::empty() (
             label = "Entry",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.folder".into(), "mapgyver.media.v8".into(), "mapgyver.media.reference.v3".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.folder".into(), "mapgyver.media.v8".into(), "mapgyver.media.reference.v4".into()]
         );
         after_channel: NodeReference = NodeReference::empty() (
             label = "After channel",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.channel.v2".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.channel.v2".into(), crate::media::reference::OUTPUT_TYPE.into()]
         );
         label: String = "" (label = "Label", description = "Empty uses the backend default when creating objects.");
         media_kind: Enum = "SolidColor" (
@@ -218,6 +218,10 @@ impl MediaCommandNode {
             MediaCommandKind::ConfigureReference => MediaEdit::ConfigureReference {
                 media,
                 target: optional(self.reference_target.get_ref()).map(MediaId),
+            },
+            MediaCommandKind::SelectReferenceChannel => MediaEdit::SelectReferenceChannel {
+                media,
+                channel: optional(self.channel.get_ref()).map(ChannelId),
             },
             MediaCommandKind::CreateMedia => MediaEdit::CreateMedia {
                 media_kind: choice(self.media_kind.get_ref().as_str())?,

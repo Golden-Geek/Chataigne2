@@ -208,7 +208,8 @@ pub(crate) fn capture_channels_with_time(
             .unwrap_or_else(|| frozen.map_or(0, |channel| channel.picture_reload));
         let definition = match media {
             Some(AppNode::ReferenceMedia(node))
-                if super::folders::contains_parent(engine, node.node_data().parent, manager_id) =>
+                if super::folders::contains_parent(engine, node.node_data().parent, manager_id)
+                    && node.output_reference(engine) == reference =>
             {
                 guards.push(node.guard());
                 guards.push(manager.membership_guard());
@@ -240,7 +241,7 @@ pub(crate) fn capture_channels_with_time(
                         }
                         guards.push(channel.guard());
                         Some((
-                            super::authoring::effective_definition(engine, channel)?,
+                            super::authoring::effective_definition(engine, channel.as_ref())?,
                             channel.node_data().effective_enabled,
                         ))
                     }

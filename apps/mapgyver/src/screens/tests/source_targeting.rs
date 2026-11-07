@@ -156,13 +156,19 @@ fn reference_targets_choose_an_available_output_and_empty_targets_remain_truthfu
         definition(&engine, surface).source,
         Some(crate::media::protocol::ChannelReference {
             media: linked,
-            channel: solid.channel
+            channel: crate::media::resolve_source_node(&engine, linked.0).unwrap().channel
         })
     );
     assert!(set(&mut engine, target, value(empty.0)).success);
     assert_eq!(reference_value(&engine, target), empty.0);
-    assert!(reference_value(&engine, channel).0.is_nil());
-    assert_eq!(definition(&engine, surface).source, None);
+    assert_eq!(
+        reference_value(&engine, channel),
+        crate::media::resolve_source_node(&engine, empty.0).unwrap().channel.0
+    );
+    assert_eq!(
+        definition(&engine, surface).source,
+        Some(crate::media::resolve_source_node(&engine, empty.0).unwrap())
+    );
     // A raw engine parameter edit uses the same companion policy as transport/Inspector.
     engine.edits.push(Edit::SetParam {
         node: target,

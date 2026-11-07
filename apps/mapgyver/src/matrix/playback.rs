@@ -386,7 +386,7 @@ pub(super) fn launch(
     };
     let ChannelSource::Matrix {
         output: MatrixOutput::Final { .. },
-    } = &crate::media::authoring::effective_definition(engine, root)?.source
+    } = &crate::media::authoring::effective_definition(engine, root.as_ref())?.source
     else {
         return Err("column is outside its Matrix Final channel".into());
     };

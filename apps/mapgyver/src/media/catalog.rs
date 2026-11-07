@@ -5,7 +5,7 @@ use golden_core::node::Node;
 use super::protocol::*;
 use crate::app::{AppEngine, AppNode};
 
-/// Only the requested page owns snapshots; Reference membership stays virtual.
+/// Only the requested page owns snapshots; every output keeps its real document identity.
 pub(super) fn channels(engine: &AppEngine, query: MediaChannelsQuery) -> Result<MediaChannelsPage, String> {
     if query.count == 0 || query.count > 128 {
         return Err("media channel pages require 1..128 results".into());
@@ -68,8 +68,18 @@ pub(super) fn choices(engine: &AppEngine, query: ChannelChoiceQuery) -> Result<C
         }
         let media_id = MediaId(node.node_data().meta.uuid);
         for channel in resolver.channels(media_id)? {
-            if matches!(query.scope, ChannelChoiceScope::MatrixFinal) && !channel.is_matrix_final() {
-                continue;
+            if matches!(query.scope, ChannelChoiceScope::MatrixFinal) {
+                let actual = resolver.canonical(ChannelReference {
+                    media: media_id,
+                    channel: ChannelId(channel.node_data().meta.uuid),
+                })?;
+                if !engine
+                    .node_id_by_uuid(actual.channel.0)
+                    .and_then(|id| engine.nodes.get(id))
+                    .is_some_and(|node| matches!(node, AppNode::MediaChannel(channel) if channel.is_matrix_final()))
+                {
+                    continue;
+                }
             }
             let label = format!("{} / {}", node.node_data().meta.label, channel.node_data().meta.label);
             if !label.to_lowercase().contains(&search) {

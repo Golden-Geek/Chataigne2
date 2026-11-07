@@ -57,8 +57,10 @@ pub(crate) fn reference_tree(
     source: Option<crate::media::MediaSource>,
     definition: InstanceDefinition,
 ) -> (NodeTree, InstanceId) {
-    let node = ReferenceNode::from_target(label, source.map(|source| source.media));
+    let node = ReferenceNode::from_source(label, source);
     let id = InstanceId(node.node_data().meta.uuid);
+    let mut definition = definition;
+    definition.source = None;
     let tree = NodeTree::new(node).with_child(NodeTree::new(PlacementNode::from_definition(
         "Placement".into(),
         definition,

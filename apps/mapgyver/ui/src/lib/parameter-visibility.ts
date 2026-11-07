@@ -17,7 +17,7 @@ function visible(child: UiNodeDto) {
 	const field = child.decl_id.split('/').at(-1);
 	if (
 		field === 'fit_mode' &&
-		(owner.node_type === 'mapgyver.media.v8' || owner.node_type === 'mapgyver.media.reference.v3')
+		(owner.node_type === 'mapgyver.media.v8' || owner.node_type === 'mapgyver.media.reference.v4')
 	) {
 		return folder.children.some((id) => {
 			const parameter = session.getNodeData(id);

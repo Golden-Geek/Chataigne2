@@ -174,10 +174,7 @@ fn scene() -> Scene {
         panic!()
     };
     let definition = InstanceDefinition {
-        source: Some(ChannelReference {
-            media: MediaId(instances[0].instance.0),
-            channel: sources[0].channel,
-        }),
+        source: Some(crate::media::resolve_source_node(&engine, instances[0].instance.0).unwrap()),
         transform: Transform2D {
             position: [100.0, 80.0],
             scale: [-2.0, 3.0],

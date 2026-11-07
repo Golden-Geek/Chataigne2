@@ -110,11 +110,13 @@ pub(crate) fn source_selection(engine: &AppEngine, source: NodeUuid) -> Result<M
                 next = node.node_data().next_sibling;
             }
         }
-        AppNode::MediaChannel(_) => {
+        AppNode::MediaChannel(_) | AppNode::ReferenceOutput(_) => {
             let parent = node.node_data().parent.ok_or("source channel has no owner")?;
-            let Some(AppNode::Media(owner)) = engine.nodes.get(parent) else {
-                return Err("source channel owner is not media".into());
-            };
+            let owner = engine
+                .nodes
+                .get(parent)
+                .filter(|node| matches!(node, AppNode::Media(_) | AppNode::ReferenceMedia(_)))
+                .ok_or("source channel owner is not media")?;
             ChannelReference {
                 media: MediaId(owner.node_data().meta.uuid),
                 channel: ChannelId(source),

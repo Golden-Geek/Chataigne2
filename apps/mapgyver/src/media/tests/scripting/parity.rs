@@ -10,6 +10,7 @@ mod cell_transfers;
 mod composition;
 mod matrix;
 mod picture_file;
+mod reference_selection;
 
 #[derive(Clone, Copy, Debug)]
 enum Caller {
@@ -22,6 +23,14 @@ const CALLERS: [Caller; 4] = [Caller::Ui, Caller::QuickJs, Caller::HostedQuickJs
 
 fn named_invocation(operation: &MediaEdit) -> String {
     let (method, args) = match operation {
+        MediaEdit::ConfigureReference { media, target } => (
+            "configureReference",
+            serde_json::json!([media, target.map(|id| id.0.0.to_string()).unwrap_or_default()]),
+        ),
+        MediaEdit::SelectReferenceChannel { media, channel } => (
+            "selectReferenceChannel",
+            serde_json::json!([media, channel.map(|id| id.0.0.to_string()).unwrap_or_default()]),
+        ),
         MediaEdit::Matrix {
             media,
             edit:

@@ -1,27 +1,21 @@
 //! Pure media target resolution for atomic Parameter proposals; never UI-owned defaults.
 use super::{ChannelNode, MediaNode, ReferenceNode};
 use golden_core::node::{NodeId, NodeUuid, ParameterValidationContext};
-use std::collections::HashSet;
 
-pub(crate) fn leaf(change: &ParameterValidationContext<'_>, mut media: NodeUuid) -> Result<Option<NodeId>, String> {
-    let mut seen = HashSet::new();
-    loop {
-        if !seen.insert(media) {
-            return Err("Reference media dependency cycle".into());
-        }
-        let Some(id) = change.resolve(media) else {
-            return Ok(None);
-        };
-        let Some(node) = change.node(id) else { return Ok(None) };
-        if let Some(reference) = node.as_any().downcast_ref::<ReferenceNode>() {
-            let Some(target) = reference.target_for_validation(change) else {
-                return Ok(None);
-            };
-            media = target;
-        } else {
-            return Ok(node.as_any().is::<MediaNode>().then_some(id));
-        }
+/// Project validation retains missing identities, while rejecting a resolved foreign output.
+pub(crate) fn validate_existing_output(
+    engine: &crate::app::AppEngine,
+    output: super::protocol::ChannelReference,
+) -> Result<(), String> {
+    if engine.node_id_by_uuid(output.media.0).is_some() && engine.node_id_by_uuid(output.channel.0).is_some() {
+        super::authoring::channel_internal(engine, output)?;
     }
+    Ok(())
+}
+pub(crate) fn owner(change: &ParameterValidationContext<'_>, media: NodeUuid) -> Option<NodeId> {
+    let id = change.resolve(media)?;
+    let node = change.node(id)?;
+    (node.as_any().is::<MediaNode>() || node.as_any().is::<ReferenceNode>()).then_some(id)
 }
 
 /// Select only a currently exposed output. An empty result stays unconfigured instead of
@@ -30,7 +24,7 @@ pub(crate) fn first_output(
     change: &ParameterValidationContext<'_>,
     media: NodeUuid,
 ) -> Result<Option<NodeUuid>, String> {
-    let Some(owner) = leaf(change, media)? else {
+    let Some(owner) = owner(change, media) else {
         return Ok(None);
     };
     let mut next = change.node(owner).and_then(|node| node.node_data().first_child);
@@ -40,6 +34,9 @@ pub(crate) fn first_output(
         if let Some(channel) = node.as_any().downcast_ref::<ChannelNode>()
             && crate::matrix::outputs::exposed_for_validation(change, channel)
         {
+            return Ok(Some(node.node_data().meta.uuid));
+        }
+        if node.as_any().is::<super::ReferenceOutputNode>() {
             return Ok(Some(node.node_data().meta.uuid));
         }
     }
@@ -53,7 +50,7 @@ pub(crate) fn validate_output_membership(
     media: NodeUuid,
     output: NodeUuid,
 ) -> Result<(), String> {
-    if let Some(owner) = leaf(change, media)?
+    if let Some(owner) = owner(change, media)
         && let Some(id) = change.resolve(output)
         && change
             .node(id)

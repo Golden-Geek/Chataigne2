@@ -176,7 +176,7 @@ fn assign_sources(
             let current = node.selection(engine)?;
             let unchanged = current == source || node.content(engine)?.is_some_and(|id| {
                 matches!(engine.nodes.get(id), Some(AppNode::ReferenceMedia(reference)) if source.is_some_and(|source|
-                    reference.target() == Some(source.media) && current.is_some_and(|current| current.channel == source.channel)))
+                    reference.target() == Some(source.media) && reference.selected_channel() == source.channel))
             });
             if unchanged {
                 continue;
@@ -219,7 +219,7 @@ fn assign_sources(
     )?;
     let mut insertions = Vec::with_capacity(additions);
     for ((layer, column), source) in changes {
-        let content = source.map(|source| ReferenceNode::from_target("Reference".into(), Some(source.media)));
+        let content = source.map(|source| ReferenceNode::from_source("Reference".into(), Some(source)));
         if let Some(id) = document.cells.get(&(layer, column)) {
             let AppNode::MatrixCell(current) = engine.nodes.get(*id).unwrap() else {
                 unreachable!()
@@ -230,18 +230,14 @@ fn assign_sources(
             }
             engine.edits.push(Edit::SetParam {
                 node: current.output_parameter(),
-                value: ParamValue::Reference(
-                    source
-                        .and_then(|source| source.channel)
-                        .map_or_else(NodeReference::empty, |channel| NodeReference::new(channel.0)),
-                ),
+                value: ParamValue::Reference(NodeReference::empty()),
                 behaviour: ParameterEventBehaviour::Append,
             });
             if let Some(node) = content {
                 insertions.push(UserItemTreeInsertion::new(*id, NodeTree::new(node)));
             }
         } else {
-            let node = CellNode::from_address("Cell".into(), column, source.and_then(|source| source.channel));
+            let node = CellNode::from_address("Cell".into(), column, None);
             node.bind_runtime(binding(engine, document));
             let mut tree = NodeTree::new(node);
             if let Some(content) = content {

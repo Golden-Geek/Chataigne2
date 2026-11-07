@@ -31,7 +31,7 @@ pub(crate) fn media_choices() -> Vec<super::protocol::MediaCreationChoice> {
 
 pub(crate) fn owned_tree(engine: &AppEngine, kind: MediaKind, label: String) -> NodeTree {
     if kind == MediaKind::Reference {
-        NodeTree::new(super::ReferenceNode::from_target(label, None))
+        NodeTree::new(super::ReferenceNode::from_source(label, None))
     } else {
         media(engine, kind, label).0
     }

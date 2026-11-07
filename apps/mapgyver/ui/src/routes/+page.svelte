@@ -43,7 +43,7 @@
 	for (const type of [
 		'mapgyver.media.manager',
 		'mapgyver.media.v8',
-		'mapgyver.media.reference.v3',
+		'mapgyver.media.reference.v4',
 		'mapgyver.media.channel.v2',
 		ASSET_NODE_TYPE,
 		'mapgyver.media.folder',

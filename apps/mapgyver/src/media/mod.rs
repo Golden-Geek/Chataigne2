@@ -46,6 +46,7 @@ pub use nodes::MediaManagerNode;
 pub(crate) use persistence::validate_project_file;
 pub(crate) use queries::query_operation;
 pub use reference::ReferenceNode;
+pub use reference::ReferenceOutputNode;
 pub use source_node::resolve_source_node;
 pub(crate) use source_node::{MediaSource, source_selection};
 

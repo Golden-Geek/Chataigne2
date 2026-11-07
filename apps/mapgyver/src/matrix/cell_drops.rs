@@ -105,6 +105,10 @@ fn duplicate(
     if mode == DuplicateMode::Reference {
         project.root.children.retain(|child| Some(child.uuid) != content);
         initial_params.push((
+            DeclId("parameters/output".into()),
+            ParamValue::Reference(NodeReference::empty()),
+        ));
+        initial_params.push((
             DeclId("parameters/shared_app_control".into()),
             ParamValue::Reference(NodeReference::new(cell.0)),
         ));
@@ -139,9 +143,9 @@ fn duplicate(
             engine.edits.push(Edit::AddUserItemTree {
                 parent: root,
                 prev_sibling: None,
-                tree: NodeTree::new(crate::media::ReferenceNode::from_target(
+                tree: NodeTree::new(crate::media::ReferenceNode::from_source(
                     "Reference".into(),
-                    Some(source.media),
+                    Some(source),
                 )),
             });
         }

@@ -28,7 +28,7 @@ pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v4";
         read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode,
         reference_allowed_node_types = vec!["mapgyver.matrix.cell.v4".into()]);
     output: NodeReference = NodeReference::empty() (label = "Output", description = "Empty follows the first available output.",
-        reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.channel.v2".into()]);
+        reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.channel.v2".into(), crate::media::reference::OUTPUT_TYPE.into()]);
     position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position");
     size: Vec2 = Vec2::new(1920.0, 1080.0) [(1.0, 1.0)..(16384.0, 16384.0)] (
         label = "Size", description = "Placement size in Layer pixels. Disable to follow the source's natural size.",
@@ -352,7 +352,7 @@ impl Node for CellNode {
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[
             "mapgyver.media.v8",
-            "mapgyver.media.reference.v3",
+            "mapgyver.media.reference.v4",
         ]))
     }
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {

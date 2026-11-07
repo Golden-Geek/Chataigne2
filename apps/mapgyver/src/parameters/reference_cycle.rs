@@ -1,5 +1,4 @@
 //! Reference validation follows reachable authored/retained channels without a tree snapshot.
-use crate::media::targeting::leaf;
 use crate::{
     matrix::{
         node::ElementNode,
@@ -11,25 +10,43 @@ use golden_core::node::{NodeId, NodeUuid, ParameterValidationContext};
 use golden_core::parameter::ParamValue;
 fn canonical(
     change: &ParameterValidationContext<'_>,
-    source: crate::media::protocol::ChannelReference,
+    mut source: crate::media::protocol::ChannelReference,
 ) -> Result<Option<NodeUuid>, String> {
-    let Some(owner) = leaf(change, source.media.0)? else {
-        return Ok(None);
-    };
-    let channel = if source.channel.0.0.is_nil() {
-        children(change, owner)
-            .into_iter()
-            .filter_map(|id| change.node(id))
-            .find(|node| node.as_any().is::<ChannelNode>())
-            .map(|node| node.node_data().meta.uuid)
-    } else {
-        Some(source.channel.0)
-    };
-    Ok(channel
-        .and_then(|channel| change.resolve(channel))
-        .and_then(|id| change.node(id))
-        .filter(|node| node.node_data().parent == Some(owner))
-        .map(|node| node.node_data().meta.uuid))
+    let mut seen = std::collections::HashSet::new();
+    loop {
+        if !seen.insert(source) {
+            return Err("Reference media dependency cycle".into());
+        }
+        let Some(owner) = crate::media::targeting::owner(change, source.media.0) else {
+            return Ok(None);
+        };
+        let channel = if source.channel.0.0.is_nil() {
+            crate::media::targeting::first_output(change, source.media.0)?
+        } else {
+            Some(source.channel.0)
+        };
+        let Some(node) = channel
+            .and_then(|uuid| change.resolve(uuid))
+            .and_then(|id| change.node(id))
+            .filter(|node| {
+                node.node_data().parent == Some(owner)
+                    && (node.as_any().is::<ChannelNode>() || node.as_any().is::<crate::media::ReferenceOutputNode>())
+            })
+        else {
+            return Ok(None);
+        };
+        if let Some(reference) = change
+            .node(owner)
+            .and_then(|node| node.as_any().downcast_ref::<crate::media::ReferenceNode>())
+        {
+            let Some(target) = reference.source_for_validation(change)? else {
+                return Ok(None);
+            };
+            source = target;
+        } else {
+            return Ok(Some(node.node_data().meta.uuid));
+        }
+    }
 }
 pub(crate) fn validate_output(
     change: &ParameterValidationContext<'_>,
@@ -37,20 +54,16 @@ pub(crate) fn validate_output(
     output: NodeUuid,
 ) -> Result<(), String> {
     crate::media::targeting::validate_output_membership(change, media, output)?;
-    validate_media(change, media)
-}
-/// A Reference target is a whole media, but cycles remain channel-specific. Canonical aliases
-/// avoid expanding every mirrored channel across every Reference in a large document.
-pub(crate) fn validate_media(change: &ParameterValidationContext<'_>, target: NodeUuid) -> Result<(), String> {
-    let Some(root) = leaf(change, target)? else {
-        return Ok(());
-    };
+    let root = canonical(
+        change,
+        crate::media::protocol::ChannelReference {
+            media: crate::media::protocol::MediaId(media),
+            channel: crate::media::protocol::ChannelId(output),
+        },
+    )?;
     let mut states = std::collections::HashMap::new();
-    for root in children(change, root) {
-        let Some(node) = change.node(root).filter(|node| node.as_any().is::<ChannelNode>()) else {
-            continue;
-        };
-        let mut pending = vec![(node.node_data().meta.uuid, false)];
+    if let Some(root) = root {
+        let mut pending = vec![(root, false)];
         while let Some((id, exiting)) = pending.pop() {
             if exiting {
                 states.insert(id, 2u8);

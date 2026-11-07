@@ -69,7 +69,9 @@ fn locks_are_document_scoped_and_references_recover_through_history_and_reload()
     query.document = Some(first.document);
     assert_eq!(first.selected.unwrap().reference.media, media);
     apply(&mut engine, MediaEdit::RemoveMedia { media: source.media });
-    assert!(inspect(&mut engine, query).selected.is_none());
+    let missing = inspect(&mut engine, query);
+    assert_eq!(missing.selected.unwrap().reference.media, media);
+    assert_eq!(missing.channels.unwrap().status, MediaChannelsStatus::MissingTarget);
     assert!(engine.undo().unwrap());
     assert!(inspect(&mut engine, query).selected.is_some());
     let saved = to_sparse_project_json_pretty(&engine).unwrap();

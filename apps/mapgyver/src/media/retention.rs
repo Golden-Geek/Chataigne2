@@ -26,9 +26,8 @@ struct State {
 impl RuntimeSources {
     pub fn register(&self, media: MediaId, owner: RuntimeBinding) -> Result<(), String> {
         let mut state = self.state.lock().expect("source retention lock poisoned");
-        if owner.sources().is_none_or(|sources| sources.is_empty()) {
-            return Ok(());
-        }
+        // Automatic outputs settle later in the same scene capture. Register the weak owner
+        // now; update() prunes empty owners after every demanded Layer has resolved its output.
         if !state.owners.contains_key(&media) && state.owners.len() == MAX_CHANNELS {
             Self::roots(&mut state.owners);
             if state.owners.len() == MAX_CHANNELS {

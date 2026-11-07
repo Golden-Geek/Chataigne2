@@ -146,7 +146,7 @@ fn fit_preserves_reference_resolution_overrides_and_rejects_unknown_inputs_atomi
     ) else {
         panic!()
     };
-    let alias = crate::media::protocol::ChannelReference { media, ..source };
+    let alias = crate::media::resolve_source_node(&engine, media.0).unwrap();
     let mut original = definition(&engine, reference);
     original.source = Some(alias);
     apply(

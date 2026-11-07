@@ -81,7 +81,9 @@ fn independent_instances_copy_order_remove_and_roundtrip_with_atomic_history() {
         panic!()
     };
     let copied = inspect(&mut engine, composition);
-    definition.source.as_mut().unwrap().media = MediaId(copies[0].instance.0);
+    let original_output = definition.source.unwrap();
+    definition.source = Some(crate::media::resolve_source_node(&engine, copies[0].instance.0).unwrap());
+    assert_ne!(definition.source.unwrap().channel, original_output.channel);
     assert_eq!(copied.instances[2].definition, definition);
     assert_eq!(copied.instances[2].reference, copies[0]);
     edit(
@@ -207,8 +209,8 @@ fn a_thousand_instances_are_one_forest_and_one_undo_without_source_duplication()
     let started = std::time::Instant::now();
     let instances = add(&mut engine, composition, vec![source; 1000]);
     eprintln!("Composition 1000-instance forest: {:?}", started.elapsed());
-    // Each Reference owns three Parameters and an eight-Parameter Placement subtree.
-    assert_eq!(engine.nodes.len(), before + 1000 * 15);
+    // Each Reference adds its selected Channel Parameter and one identity-only output.
+    assert_eq!(engine.nodes.len(), before + 1000 * 17);
     assert_eq!(engine.undo_len(), history + 1);
     assert_eq!(inspect(&mut engine, composition).instances.len(), 1000);
     assert!(engine.undo().unwrap());

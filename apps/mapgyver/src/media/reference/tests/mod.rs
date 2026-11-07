@@ -17,7 +17,7 @@ fn reference(engine: &mut AppEngine, target: Option<MediaId>) -> MediaId {
     media
 }
 #[test]
-fn references_mirror_live_channel_order_with_target_identities_and_no_channel_nodes() {
+fn references_keep_one_own_output_and_pin_the_selected_source_through_reorder_and_reload() {
     let mut engine = fixture();
     let target = create(&mut engine, MediaKind::SolidColor);
     let MediaEditResult::ReferenceCreated { media } = apply(
@@ -29,15 +29,12 @@ fn references_mirror_live_channel_order_with_target_identities_and_no_channel_no
     ) else {
         panic!()
     };
-    let snapshot = channel(
-        &engine,
-        ChannelReference {
-            media,
-            channel: target.channel,
-        },
-    )
-    .unwrap();
-    assert_eq!(snapshot.reference.channel, target.channel);
+    let output = crate::media::resolve_source_node(&engine, media.0).unwrap();
+    let snapshot = channel(&engine, output).unwrap();
+    assert_ne!(output.channel, target.channel);
+    assert!(
+        matches!(snapshot.definition.source, ChannelSource::Reference { target: Some(selected) } if selected == target)
+    );
     let MediaEditResult::Created { reference: second } = apply(
         &mut engine,
         MediaEdit::AddChannel {
@@ -61,19 +58,33 @@ fn references_mirror_live_channel_order_with_target_identities_and_no_channel_no
             .unwrap()
             .map(|node| ChannelId(node.node_data().meta.uuid))
             .collect::<Vec<_>>(),
-        vec![second.channel, target.channel]
+        vec![output.channel]
+    );
+    assert!(
+        matches!(channel(&engine, output).unwrap().definition.source, ChannelSource::Reference { target: Some(selected) } if selected == target)
+    );
+    apply(
+        &mut engine,
+        MediaEdit::SelectReferenceChannel {
+            media,
+            channel: Some(second.channel),
+        },
+    );
+    assert!(
+        matches!(channel(&engine, output).unwrap().definition.source, ChannelSource::Reference { target: Some(selected) } if selected == second)
     );
     apply(&mut engine, MediaEdit::RemoveMedia { media: target.media });
-    assert!(Resolver::new(&engine).channels(media).unwrap().next().is_none());
+    assert_eq!(Resolver::new(&engine).channels(media).unwrap().count(), 1);
     assert!(engine.undo().unwrap());
-    assert_eq!(Resolver::new(&engine).channels(media).unwrap().count(), 2);
+    assert_eq!(Resolver::new(&engine).channels(media).unwrap().count(), 1);
     let id = engine.node_id_by_uuid(media.0).unwrap();
-    assert!(crate::parameters::domain_children(&engine, id).unwrap().is_empty());
+    assert_eq!(crate::parameters::domain_children(&engine, id).unwrap().len(), 1);
     let saved = golden_core::app::to_sparse_project_json_pretty(&engine).unwrap();
     let mut loaded = golden_core::app::from_sparse_project_json::<AppNode>(&saved).unwrap();
     loaded.apply_edits().unwrap();
     crate::media::validate_project(&loaded).unwrap();
-    assert_eq!(Resolver::new(&loaded).channels(media).unwrap().count(), 2);
+    assert_eq!(Resolver::new(&loaded).channels(media).unwrap().count(), 1);
+    assert_eq!(crate::media::resolve_source_node(&loaded, media.0).unwrap(), output);
 }
 
 #[test]
@@ -119,10 +130,7 @@ fn missing_target_capture_and_disabled_reference_guards_reject_stale_plans() {
     let mut engine = fixture();
     let source = create(&mut engine, MediaKind::SolidColor);
     let reference = reference(&mut engine, Some(source.media));
-    let key = ChannelReference {
-        media: reference,
-        channel: source.channel,
-    };
+    let key = crate::media::resolve_source_node(&engine, reference.0).unwrap();
     let captured = crate::media::capture_channels(&engine, &[key], 8).unwrap();
     apply(&mut engine, MediaEdit::RemoveMedia { media: source.media });
     assert!(!captured.is_current());
@@ -186,7 +194,11 @@ fn reference_script_functions_return_committed_identity_and_chain_target_callbac
     assert_eq!(Resolver::new(&engine).channels(media).unwrap().count(), 1);
     assert_eq!(engine.undo_len(), before + 2);
     assert!(engine.undo().unwrap());
-    assert!(Resolver::new(&engine).channels(media).unwrap().next().is_none());
+    assert_eq!(Resolver::new(&engine).channels(media).unwrap().count(), 1);
+    assert!(matches!(
+        Resolver::new(&engine).target(media).unwrap(),
+        Target::Unconfigured
+    ));
 }
 
 #[test]
@@ -196,10 +208,7 @@ fn mixed_composition_feedback_through_reference_aliases_is_rejected() {
     let composition = create(&mut engine, MediaKind::Composition);
     let a = reference(&mut engine, Some(composition.media));
     let b = reference(&mut engine, Some(a));
-    let alias = ChannelReference {
-        media: b,
-        channel: composition.channel,
-    };
+    let alias = crate::media::resolve_source_node(&engine, b.0).unwrap();
     assert!(channel(&engine, alias).is_ok());
     let before = to_sparse_project_json_pretty(&engine).unwrap();
     let ack = crate::media::tests::invoke(
@@ -220,6 +229,7 @@ fn reference_retarget_detects_feedback_from_existing_missing_channel_aliases() {
     let mut engine = fixture();
     let composition = create(&mut engine, MediaKind::Composition);
     let a = reference(&mut engine, None);
+    let output = crate::media::resolve_source_node(&engine, a.0).unwrap();
     let parent = engine.node_id_by_uuid(composition.media.0).unwrap();
     engine.edits.push(Edit::AddNodeTree {
         parent,
@@ -228,12 +238,12 @@ fn reference_retarget_detects_feedback_from_existing_missing_channel_aliases() {
             "Missing alias".into(),
             Some(crate::media::MediaSource {
                 media: a,
-                channel: Some(composition.channel),
+                channel: Some(output.channel),
             }),
             InstanceDefinition {
                 source: Some(ChannelReference {
                     media: a,
-                    channel: composition.channel,
+                    channel: output.channel,
                 }),
                 ..Default::default()
             },

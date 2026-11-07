@@ -254,6 +254,10 @@ pub enum MediaEdit {
         media: MediaId,
         target: Option<MediaId>,
     },
+    SelectReferenceChannel {
+        media: MediaId,
+        channel: Option<ChannelId>,
+    },
     Applications {
         edit: crate::applications::protocol::ApplicationEdit,
     },

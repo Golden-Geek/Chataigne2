@@ -29,7 +29,7 @@ pub(super) fn inspect(engine: &AppEngine, query: MediaPreviewQuery) -> Result<Me
     let mut descendant_channel = None;
     while let Some(id) = next {
         let node = engine.nodes.get(id).ok_or("selected ancestor is missing")?;
-        if matches!(node, AppNode::MediaChannel(_)) && descendant_channel.is_none() {
+        if matches!(node, AppNode::MediaChannel(_) | AppNode::ReferenceOutput(_)) && descendant_channel.is_none() {
             descendant_channel = Some(ChannelId(node.node_data().meta.uuid));
         }
         if matches!(node, AppNode::Media(_) | AppNode::ReferenceMedia(_)) {

@@ -27,6 +27,7 @@ command_kinds! {
     CreateCompositionMedia => "Create Composition Media", "Composition", ["media", "channel", "media_kind", "label", "position"];
     CreateReference => "Create Reference", "Media", ["reference_target", "label"];
     ConfigureReference => "Set Reference Target", "Media", ["media", "reference_target"];
+    SelectReferenceChannel => "Set Reference Channel", "Media", ["media", "channel"];
     CreateMedia => "Create Media", "Media", ["media_kind", "label"];
     CreateMediaInFolder => "Create Media in Folder", "Media", ["target_folder", "media_kind", "label"];
     RenameMedia => "Rename Media", "Media", ["media", "label"];

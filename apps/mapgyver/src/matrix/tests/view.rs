@@ -247,7 +247,11 @@ fn viewport_reads_are_bounded_sparse_cached_and_do_not_launch_or_change_authored
     let last = viewport(&mut engine, matrix.media, 990, 996);
     assert_eq!((last.rows.len(), last.columns.len(), last.cells.len()), (10, 4, 1));
     assert_ne!(last.cells[0].cell.definition.source.unwrap().media, source.media);
-    assert_eq!(last.cells[0].cell.definition.source.unwrap().channel, source.channel);
+    let output = last.cells[0].cell.definition.source.unwrap();
+    assert_eq!(
+        output,
+        crate::media::resolve_source_node(&engine, output.media.0).unwrap()
+    );
     assert!(!last.cells[0].source_missing);
     assert_eq!(last.cells[0].source_preview, Some(source));
     assert_eq!(last.playback.desired_column, None);
@@ -306,7 +310,11 @@ fn viewport_refreshes_structure_payload_labels_history_and_missing_source_withou
     let current = viewport(&mut engine, matrix.media, 0, 0);
     assert_eq!(current.rows[0].item.label, "Renamed");
     assert_ne!(current.cells[0].cell.definition.source.unwrap().media, source.media);
-    assert_eq!(current.cells[0].cell.definition.source.unwrap().channel, source.channel);
+    let output = current.cells[0].cell.definition.source.unwrap();
+    assert_eq!(
+        output,
+        crate::media::resolve_source_node(&engine, output.media.0).unwrap()
+    );
     edit(
         &mut engine,
         matrix.media,
@@ -392,7 +400,12 @@ fn selected_inspector_is_bounded_outside_the_viewport_and_tracks_history_and_sou
     );
     assert_eq!(
         selected.cell.as_ref().unwrap().cell.definition.source.unwrap().channel,
-        source.channel
+        crate::media::resolve_source_node(
+            &engine,
+            selected.cell.as_ref().unwrap().cell.definition.source.unwrap().media.0
+        )
+        .unwrap()
+        .channel
     );
     assert!(!selected.cell.as_ref().unwrap().source_missing);
     assert_eq!(engine.undo_len(), history);

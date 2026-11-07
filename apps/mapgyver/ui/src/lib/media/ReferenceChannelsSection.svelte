@@ -76,13 +76,13 @@
 		{:else if channels.status === 'MissingMedia'}<p role="status">Media no longer exists.</p>
 		{:else if channels.total === 0}<p role="status">No channels.</p>
 		{:else}
-			<ul aria-label="Mirrored channels">
+			<ul aria-label="Reference output">
 				{#each channels.channels as channel (channel.reference.channel)}
 					<li data-channel={channel.reference.channel}>
 						<span class="label">{channel.label}</span>
 						<IconButton
 							icon={referenceIcon}
-							label={`Edit target channel ${channel.label}`}
+							label={`Select output ${channel.label}`}
 							disabled={busy}
 							onclick={() => selection.select(channel.reference.channel)} />
 					</li>

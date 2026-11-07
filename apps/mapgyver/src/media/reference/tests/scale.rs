@@ -39,7 +39,13 @@ fn reference_pages_and_fixed_edits_remain_bounded_with_ten_thousand_inactive_med
         let folder = crate::media::MediaFolderNode::new(format!("References to {count}"));
         let mut tree = NodeTree::new(folder);
         for index in references.len()..count {
-            let node = ReferenceNode::from_target(format!("Reference {index}"), Some(source.media));
+            let node = ReferenceNode::from_source(
+                format!("Reference {index}"),
+                Some(crate::media::MediaSource {
+                    media: source.media,
+                    channel: Some(source.channel),
+                }),
+            );
             references.push(MediaId(node.node_data().meta.uuid));
             tree.push_child(NodeTree::new(node).as_user_item());
         }
@@ -61,7 +67,7 @@ fn reference_pages_and_fixed_edits_remain_bounded_with_ten_thousand_inactive_med
                 MediaEdit::InspectChannels {
                     query: MediaChannelsQuery {
                         media: *references.last().unwrap(),
-                        start: 480,
+                        start: 0,
                         count: 32,
                     },
                 },
@@ -69,7 +75,7 @@ fn reference_pages_and_fixed_edits_remain_bounded_with_ten_thousand_inactive_med
                 panic!()
             };
             query_ms.push(started.elapsed().as_secs_f64() * 1000.0);
-            assert_eq!((page.total, page.channels.len()), (512, 32));
+            assert_eq!((page.total, page.channels.len()), (1, 1));
             payload_bytes = serde_json::to_vec(&page).unwrap().len();
             assert!(payload_bytes < 32768);
         }
@@ -88,10 +94,7 @@ fn reference_pages_and_fixed_edits_remain_bounded_with_ten_thousand_inactive_med
         let active = references
             .iter()
             .take(15)
-            .map(|media| ChannelReference {
-                media: *media,
-                channel: source.channel,
-            })
+            .map(|media| crate::media::resolve_source_node(&engine, media.0).unwrap())
             .collect::<Vec<_>>();
         let started = Instant::now();
         let captured = crate::media::capture_channels(&engine, &active, 16).unwrap();
@@ -107,7 +110,7 @@ fn reference_pages_and_fixed_edits_remain_bounded_with_ten_thousand_inactive_med
             "{}",
             serde_json::json!({
                 "scope":"M04 Reference backend path; not whole-app Q04", "authored_references":count,
-                "actual_nodes":engine.nodes.len(), "mirrored_channels":count * 512, "source_channels":512,
+                "actual_nodes":engine.nodes.len(), "selected_outputs":count, "source_channels":512,
                 "incremental_batched_setup_ms":setup_ms, "query_samples":query_ms.len(), "query_p95_ms":query_p95_ms,
                 "edit_samples":edit_ms.len(), "edit_p95_ms":edit_p95_ms,
                 "captured_records":captured.channels.len(), "capture_ms":capture_ms, "page_bytes":payload_bytes,

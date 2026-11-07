@@ -36,6 +36,7 @@ mod parameters;
 mod placement;
 mod playback;
 mod playback_acceptance;
+mod reference_assignment;
 mod retained_demand;
 mod stops;
 mod timeline;

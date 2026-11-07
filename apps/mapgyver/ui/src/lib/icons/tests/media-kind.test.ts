@@ -28,7 +28,7 @@ test('media icon classification reads the real immutable Parameter with bounded 
 	);
 	assert.equal(reads, 4);
 	assert.equal(
-		mediaIconKind({ node_type: 'mapgyver.media.reference.v3' } as UiNodeDto, () => undefined),
+		mediaIconKind({ node_type: 'mapgyver.media.reference.v4' } as UiNodeDto, () => undefined),
 		'Reference'
 	);
 	assert.equal(

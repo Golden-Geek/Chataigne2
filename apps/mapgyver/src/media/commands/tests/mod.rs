@@ -177,11 +177,14 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
             set(&mut engine, command, name, value);
         }
         if *kind != MediaCommandKind::ImportPicture {
-            let owner = if *kind == MediaCommandKind::ConfigureReference {
+            let owner = if matches!(
+                kind,
+                MediaCommandKind::ConfigureReference | MediaCommandKind::SelectReferenceChannel
+            ) {
                 let MediaEditResult::ReferenceCreated { media } = apply(
                     &mut engine,
                     MediaEdit::CreateReference {
-                        target: None,
+                        target: (*kind == MediaCommandKind::SelectReferenceChannel).then_some(solid.media),
                         label: None,
                     },
                 ) else {
@@ -192,7 +195,12 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
                 target.media
             };
             set(&mut engine, command, "media", reference(owner.0));
-            set(&mut engine, command, "channel", reference(target.channel.0));
+            let channel = if *kind == MediaCommandKind::SelectReferenceChannel {
+                peer.channel
+            } else {
+                target.channel
+            };
+            set(&mut engine, command, "channel", reference(channel.0));
         }
         let id = engine.node_id_by_uuid(command).unwrap();
         let AppNode::MediaCommand(node) = engine.nodes.get(id).unwrap() else {

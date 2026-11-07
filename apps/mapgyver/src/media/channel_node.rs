@@ -79,7 +79,7 @@ impl ChannelNode {
         );
         match definition.source {
             ChannelSource::Reference { .. } => {
-                unreachable!("Reference outputs are virtual, never authored Channel nodes")
+                unreachable!("Reference outputs use an identity-only node")
             }
             ChannelSource::SolidColor { rgba } => {
                 seed!(

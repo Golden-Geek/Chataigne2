@@ -142,7 +142,10 @@ fn atomic_source_batches_validate_the_final_dependency_graph_and_replay_it_witho
                 ParamValue::Reference(NodeReference::new(source.media.0)),
             ),
             (
-                instance_parameter(engine, root, "source_channel"),
+                match engine.nodes.get(root).unwrap() {
+                    AppNode::ReferenceMedia(node) => node.channel_parameter(),
+                    _ => panic!(),
+                },
                 ParamValue::Reference(NodeReference::new(source.channel.0)),
             ),
         ]
@@ -172,7 +175,9 @@ fn atomic_source_batches_validate_the_final_dependency_graph_and_replay_it_witho
         old_a.instances[0].definition.source,
         Some(ChannelReference {
             media: MediaId(a_instance.instance.0),
-            channel: b.channel
+            channel: crate::media::resolve_source_node(&engine, a_instance.instance.0)
+                .unwrap()
+                .channel
         })
     );
     // Moving A -> B to B -> A is valid when A's old edge is removed in this batch.
@@ -186,14 +191,18 @@ fn atomic_source_batches_validate_the_final_dependency_graph_and_replay_it_witho
         new_a.instances[0].definition.source,
         Some(ChannelReference {
             media: MediaId(a_instance.instance.0),
-            channel: solid.channel
+            channel: crate::media::resolve_source_node(&engine, a_instance.instance.0)
+                .unwrap()
+                .channel
         })
     );
     assert_eq!(
         new_b.instances[0].definition.source,
         Some(ChannelReference {
             media: MediaId(b_instance.instance.0),
-            channel: a.channel
+            channel: crate::media::resolve_source_node(&engine, b_instance.instance.0)
+                .unwrap()
+                .channel
         })
     );
     assert_eq!(engine.undo_len(), history + 2);

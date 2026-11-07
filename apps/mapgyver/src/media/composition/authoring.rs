@@ -22,7 +22,7 @@ pub(super) fn channel(
     let AppNode::MediaChannel(node) = engine.nodes.get(id).unwrap() else {
         unreachable!()
     };
-    match super::super::authoring::effective_definition(engine, node)?.source {
+    match super::super::authoring::effective_definition(engine, node.as_ref())?.source {
         ChannelSource::Composition { canvas } => Ok((id, canvas)),
         _ => Err("channel is not a Composition output".into()),
     }

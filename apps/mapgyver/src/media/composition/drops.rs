@@ -57,12 +57,10 @@ pub(super) fn apply(
         if let Some(id) = existing {
             if let Some(AppNode::ReferenceMedia(node)) = engine.nodes.get(id) {
                 let target_parameter = node.target_parameter();
+                let channel_parameter = node.channel_parameter();
                 let placement = children::placement(engine, id)?;
                 let mut definition = children::definition(engine, id)?;
-                definition.source = source.channel.map(|channel| ChannelReference {
-                    media: MediaId(target.unwrap().0),
-                    channel,
-                });
+                definition.source = Some(node.output_reference(engine));
                 engine.edits.push(Edit::SetParamsAtomic {
                     values: vec![
                         (
@@ -70,7 +68,7 @@ pub(super) fn apply(
                             ParamValue::Reference(golden_core::node::NodeReference::new(source.media.0)),
                         ),
                         (
-                            placement.output_parameter(),
+                            channel_parameter,
                             ParamValue::Reference(
                                 source
                                     .channel
@@ -78,6 +76,10 @@ pub(super) fn apply(
                                         golden_core::node::NodeReference::new(channel.0)
                                     }),
                             ),
+                        ),
+                        (
+                            placement.output_parameter(),
+                            ParamValue::Reference(golden_core::node::NodeReference::empty()),
                         ),
                     ],
                     behaviour: ParameterEventBehaviour::Append,
@@ -211,13 +213,7 @@ fn replace_with_reference(
     engine.edits.push(Edit::RemoveNode { node: old });
     engine.edits.push(Edit::SetParam {
         node: output,
-        value: ParamValue::Reference(
-            source
-                .channel
-                .map_or_else(golden_core::node::NodeReference::empty, |channel| {
-                    golden_core::node::NodeReference::new(channel.0)
-                }),
-        ),
+        value: ParamValue::Reference(golden_core::node::NodeReference::empty()),
         behaviour: ParameterEventBehaviour::Append,
     });
     engine.edits.push(Edit::PatchMeta {
@@ -227,10 +223,7 @@ fn replace_with_reference(
             ..Default::default()
         },
     });
-    definition.source = source.channel.map(|channel| ChannelReference {
-        media: MediaId(instance.0),
-        channel,
-    });
+    definition.source = children::definition(engine, new)?.source;
     Ok(MediaEditResult::InstanceChanged {
         snapshot: InstanceSnapshot {
             reference: InstanceReference {

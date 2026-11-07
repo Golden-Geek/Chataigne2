@@ -38,8 +38,9 @@ export const treeIcons: NodeIconSet = {
 		'mapgyver.media.matrix': mediaIcons.Matrix,
 		'mapgyver.media.folder': folder,
 		'mapgyver.media.v8': media,
-		'mapgyver.media.reference.v3': reference,
+		'mapgyver.media.reference.v4': reference,
 		'mapgyver.media.channel.v2': channel,
+		'mapgyver.media.reference.output': channel,
 		'mapgyver.screen': screen,
 		'mapgyver.surface': surface,
 		'mapgyver.app_control.v1': application

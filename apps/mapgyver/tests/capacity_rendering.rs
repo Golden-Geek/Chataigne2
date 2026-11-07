@@ -89,10 +89,7 @@ fn scene() -> (AppEngine, Vec<ChannelReference>, Vec<[u8; 4]>) {
         ) else {
             panic!()
         };
-        references.push(ChannelReference {
-            media,
-            channel: references[index].channel,
-        });
+        references.push(mapgyver::media::resolve_source_node(&engine, media.0).unwrap());
         colors.push(colors[index]);
     }
     (engine, references, colors)
