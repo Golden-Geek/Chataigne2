@@ -12,8 +12,13 @@ so planning replaced valid input with a transparent clear. The [actual-app recei
 retains that reproduced RGBA32F failure and the corrected both-GPU comparison. Four actual
 native captures show RGBA32F in Media Preview and Screen Warping; fourteen representative
 app/output cases pass with existing2/255 SDR output tolerance. Source precision evidence above
-remains separate from the app's downstream pass/output policy. Continuous-producer changes,
-device/D3D9 and named interpretation/API limits still require acceptance.
+remains separate from the app's downstream pass/output policy. The
+[continuous-source receipt](../progress/evidence/mapgyver-m13-live-formats-2026-11-07.json)
+verifies24 actual-app stages across both GPUs: distinct unchanged-layout frames, float/integer/
+sRGB/planar transitions, exact intrinsic dimensions and stop/restart of the selected sender.
+The independent producer retains its SDK/device until explicit stop; new native storage waits
+for prior GPU completion. Device/D3D9, broader app classes and named interpretation/API limits
+still require acceptance.
 
 ## Current import path
 

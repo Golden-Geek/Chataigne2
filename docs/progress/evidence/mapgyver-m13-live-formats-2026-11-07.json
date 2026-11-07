@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "date": "2026-11-07",
+  "gate": "M13/2",
+  "status": "Active; continuous frame/format/size changes and sender stop/restart verified in the actual app on both GPUs; full gate remains open",
+  "base_commit": "bcc734860ddd87aacb50189679bb16b741968006",
+  "deliverable": "Actual MapGyver receives new frames, changes native source storage and intrinsic dimensions, and recovers the exact selected sender without restarting the app or changing GPU.",
+  "implementation": {
+    "shipping_runtime": "Unchanged from bcc73486; this slice verifies its continuous-source behavior.",
+    "producer": "Existing independent test Sender gains completion-guarded UpdateSubresource/SDK SendTexture updates. Same SDK allocation and D3D11 device survive the first eleven stages. New local texture storage is allocated only for changed native layout/extent after previous GPU completion. SDK get_device is checked before and after every update.",
+    "ownership": "Sender retains the currently submitted texture and waits for its latest completion serial before release, including assertion unwinding. Exact source bytes are independently staged and compared after every publication.",
+    "app": "Ordinary isolated app/profile, public media/screen operations, actual WebView2 controls, public preview-status events and exact runtime adapter identity. No format setting, private shipping API, fallback, CPU image conversion or budget change."
+  },
+  "checks": [
+    { "command": "cargo test --locked -p golden_video --features qualification --lib -- --quiet", "result": "238 passed,49 ignored,exit0; completed before native checks" },
+    { "command": "cargo clippy --locked -p golden_video --features qualification --all-targets -- -D warnings", "result": "Pass,exit0 before native checks; initial unnecessary_unwrap finding fixed with if-let" },
+    { "command": "node --check on both changed browser scripts; prettier --check on both", "result": "Pass" },
+    { "command": "cargo fmt --all; cargo fmt --manifest-path crates/golden_core/Cargo.toml --all", "result": "Pass" }
+  ],
+  "prerequisite_correction": "An initial --features d3d11 lib-test command failed in existing capture_pixels qualification-only test references. No native check ran on that result. The intended qualification feature configuration then compiled and passed its complete software suite and strict lint. The d3d11-only test configuration remains an uncorrected pre-existing issue; no test-configuration claim is inferred.",
+  "native_cohorts": 1,
+  "cases_per_adapter": 12,
+  "output_contract": "Every complete independent SDK-received 96x64 output image has all RGBA values within the existing2/255 SDR output tolerance of independently calculated expected values. Source precision remains covered by earlier native receipts, not this downstream8-bit image.",
+  "common_assertions": [
+    "Distinct colors distinguish every sequential frame, including unchanged BGRA8 and RGBA32F layouts.",
+    "First eleven stages retain one producer session/SDK/device. Explicit stop destroys it; restart has a different session.",
+    "App preview status reports each exact intrinsic width/height with no error or unavailability message.",
+    "Media Preview and Screen Warping install native previews after every stage.",
+    "NV12 to P010 changes native format while canonical descriptor remains RGBA32F/opaque; new gray pixels arrive.",
+    "Stop produces a public unavailable-source status; selected sender and exact active GPU remain unchanged before restart.",
+    "Selected sender and active GPU are checked after every successful stage.",
+    "No WebView page errors; both source processes and both apps close normally with exit0."
+  ],
+  "cases": [
+    { "label": "initial-red", "dxgi": 87, "extent": [4,4], "expected": [255,0,0,255] },
+    { "label": "same-layout-green", "dxgi": 87, "extent": [4,4], "expected": [0,255,0,255] },
+    { "label": "float-cyan", "dxgi": 2, "extent": [4,4], "expected": [99,188,225,255] },
+    { "label": "same-layout-float-pink", "dxgi": 2, "extent": [4,4], "expected": [225,99,188,255] },
+    { "label": "half-wide", "dxgi": 10, "extent": [6,4], "expected": [188,225,99,255] },
+    { "label": "uint-wide", "dxgi": 3, "extent": [6,4], "expected": [225,188,99,255] },
+    { "label": "sint-tall", "dxgi": 4, "extent": [4,6], "expected": [188,99,225,255] },
+    { "label": "nv12", "dxgi": 103, "extent": [4,4], "expected": [140,140,140,255] },
+    { "label": "p010-same-canonical-layout", "dxgi": 104, "extent": [4,4], "expected": [83,83,83,255] },
+    { "label": "nv12-wide", "dxgi": 103, "extent": [6,4], "expected": [197,197,197,255] },
+    { "label": "srgb-wide", "dxgi": 29, "extent": [8,4], "expected": [128,64,192,255] },
+    { "label": "restart-float", "dxgi": 2, "extent": [4,4], "expected": [137,225,99,255] }
+  ],
+  "adapters": [
+    {
+      "index": 0,
+      "key": "dxgi:00000000:00015b69",
+      "description": "Intel(R) Graphics",
+      "command": "node apps/mapgyver/tests/browser/native-source-formats.mjs target/mapgyver-m13-live-formats-baseline-intel-20261107 0 --continuous",
+      "result": "12/12 stages pass; node/source/app exit0",
+      "producer_session": "ce17bd38-1ad2-4610-8cdd-94cb3dca0de6",
+      "restarted_session": "3746e955-04fe-4de0-82e6-7720ff96560e",
+      "float_rgb_observation": [99,188,224],
+      "artifact": "target/mapgyver-m13-live-formats-baseline-intel-20261107/result.json"
+    },
+    {
+      "index": 1,
+      "key": "dxgi:00000000:79e2f347",
+      "description": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "command": "node apps/mapgyver/tests/browser/native-source-formats.mjs target/mapgyver-m13-live-formats-baseline-nvidia-20261107 1 --continuous",
+      "result": "12/12 stages pass; node/source/app exit0",
+      "producer_session": "2fb14c2b-bb55-4e2e-aecd-e9cb4d646018",
+      "restarted_session": "913694ab-5e53-41c2-b68a-8f811679be52",
+      "float_rgb_observation": [99,187,224],
+      "artifact": "target/mapgyver-m13-live-formats-baseline-nvidia-20261107/result.json"
+    }
+  ],
+  "binaries_sha256": {
+    "target/debug/deps/MapGyver-m132-app-formats.exe": "93e3d4d92f2c26d95d40b952f45b6427297b8689cd5c53af7ebaa73918681d90",
+    "target/debug/deps/golden_video-fa94e9e28cc1568b.exe": "b4fc577671f7d839e44a705223e17d8451d257880e0b7c3b9b85b091fa049436",
+    "target/debug/native_qualification.exe": "be5830476e4c7f2eb0d383876546158fed6878fbe404afd292e40aa6703be2e8"
+  },
+  "remaining": [
+    "Actual driver/device loss and recovery for the expanded format paths.",
+    "Actual D3D9 producer and broader actual-app native storage classes.",
+    "Unadvertised colorimetry/chroma and arbitrary typeless producer-view inference.",
+    "Named RGB32 and NVIDIA P016/BGR4444 SDK allocation limits retain their existing authoritative-producer/backend/new-path return triggers.",
+    "No physical desktop capture, latency/cadence, device reset or full M13/2 acceptance is claimed."
+  ],
+  "gate_changes": "None:70/92 accepted gates,76%; M13 1/14,7%;7/14 phases complete,50%."
+}

@@ -14,6 +14,8 @@ struct Frame {
     width: u32,
     height: u32,
     bytes: Vec<u8>,
+    #[serde(default)]
+    continuous: bool,
 }
 
 #[test]
@@ -42,6 +44,7 @@ fn owned_native_source_for_app_format_checks() {
         }
     });
     let mut live: Option<Sender> = None;
+    let mut session = uuid::Uuid::nil();
     println!("OK ready");
     io::stdout().flush().unwrap();
     for line in io::stdin().lock().lines() {
@@ -77,22 +80,30 @@ fn owned_native_source_for_app_format_checks() {
                 let rows = frame.height + if planar { frame.height / 2 } else { 0 };
                 let pitch = frame.width as usize * pixel_bytes;
                 assert_eq!(frame.bytes.len(), pitch * rows as usize);
-                drop(live.take());
-                let sender = Sender::from_rows(
-                    adapter.id,
-                    &name,
-                    DXGI_FORMAT(frame.format as i32),
-                    Extent2D::new(frame.width, frame.height).unwrap(),
-                    &frame.bytes,
-                    pitch as u32,
-                );
+                let format = DXGI_FORMAT(frame.format as i32);
+                let extent = Extent2D::new(frame.width, frame.height).unwrap();
+                if frame.continuous
+                    && let Some(sender) = live.as_mut()
+                {
+                    sender.update_rows(format, extent, &frame.bytes, pitch as u32);
+                } else {
+                    drop(live.take());
+                    live = Some(Sender::from_rows(
+                        adapter.id,
+                        &name,
+                        format,
+                        extent,
+                        &frame.bytes,
+                        pitch as u32,
+                    ));
+                    session = uuid::Uuid::new_v4();
+                }
                 assert_eq!(
-                    sender.pixels(pixel_bytes),
+                    live.as_ref().unwrap().pixels(pixel_bytes),
                     frame.bytes,
                     "independent native source bits"
                 );
-                live = Some(sender);
-                println!("OK started {} {} {}", frame.format, frame.width, frame.height);
+                println!("OK started {} {} {} {session}", frame.format, frame.width, frame.height);
             }
         }
         io::stdout().flush().unwrap();

@@ -10,9 +10,11 @@ import { openNativeEditor } from './native-editor.mjs';
 import { adapterKey, observeNativeAdapter } from './native-adapter.mjs';
 import { createPreviewOutputObserver } from './preview-output-observer.mjs';
 import { contentLock } from './content-lock.mjs';
+import { liveCases } from './native-source-live-cases.mjs';
 
 const directory = path.resolve(process.argv[2]);
 const index = Number(process.argv[3]);
+const continuous = process.argv[4] === '--continuous';
 assert(Number.isInteger(index) && index >= 0);
 await mkdir(directory);
 const probe = path.resolve('target/debug/native_qualification.exe');
@@ -198,6 +200,17 @@ async function checkpoint(label, view) {
 }
 try {
 	await page.getByRole('tab').first().waitFor();
+	await page.evaluate(async () => {
+		const host = window.__TAURI_INTERNALS__;
+		window.__formatPreviewStatuses = [];
+		await host.invoke('plugin:event|listen', {
+			event: 'mapgyver-preview-status',
+			target: { kind: 'Any' },
+			handler: host.transformCallback((event) => {
+				window.__formatPreviewStatuses = event.payload;
+			})
+		});
+	});
 	token = (await post('/api/ui/session', {})).token;
 	const { reference } = await edit('media', {
 		kind: 'CreateMedia',
@@ -213,11 +226,48 @@ try {
 	output = await createPreviewOutputObserver(post, path.join(directory, 'output'), page);
 	const { screen } = await output.demand(reference);
 	assert.equal((await observeNativeAdapter(page, hardware)).key, key);
-	for (const item of cases) {
-		const bytes = item.bytes ?? Array.from({ length: 16 }, () => item.pixel).flat();
-		child.stdin.write(JSON.stringify({ format: item.format, width: 4, height: 4, bytes }) + '\n');
-		await reply();
-		// Sender replacement, not a continuous-producer format change; scope stays explicit.
+	let session;
+	const verifySelection = async () => {
+		const { page: channels } = await edit('media', {
+			kind: 'InspectChannels',
+			query: { media: reference.media, start: 0, count: 8 }
+		});
+		assert.deepEqual(
+			channels.channels.find((channel) => channel.reference.channel === reference.channel)
+				.definition.source,
+			{ kind: 'Spout', sender }
+		);
+		assert.equal((await observeNativeAdapter(page, hardware)).key, key);
+	};
+	for (const item of continuous ? liveCases : cases) {
+		if (item.restart) {
+			child.stdin.write('stop\n');
+			assert((await reply()).includes('OK stopped'));
+			await page.waitForFunction(
+				(reference) =>
+					window.__formatPreviewStatuses.some(
+						(status) =>
+							status.source.kind === 'Channel' &&
+							status.source.reference.channel === reference.channel &&
+							(status.error || status.message)
+					),
+				reference
+			);
+			await verifySelection();
+		}
+		const width = item.width ?? 4,
+			height = item.height ?? 4;
+		const bytes = item.bytes ?? Array.from({ length: width * height }, () => item.pixel).flat();
+		child.stdin.write(
+			JSON.stringify({ format: item.format, width, height, bytes, continuous }) + '\n'
+		);
+		const acknowledgment = await reply();
+		const nextSession = acknowledgment.trim().split(' ').at(-1);
+		if (continuous && session) {
+			if (item.restart) assert.notEqual(nextSession, session, 'restart creates a new producer');
+			else assert.equal(nextSession, session, 'live updates retain the producer SDK/device');
+		}
+		session = nextSession;
 		await delay(700);
 		await output.observePixels(item.label, item.rgba, 2);
 		await tab('Medias').click();
@@ -232,6 +282,20 @@ try {
 			.waitFor();
 		if ((await media.getAttribute('data-preview-locked')) !== 'true')
 			await (await contentLock(media, false)).click();
+		await page.waitForFunction(
+			({ reference, width, height }) =>
+				window.__formatPreviewStatuses.some(
+					(status) =>
+						status.source.kind === 'Channel' &&
+						status.source.reference.channel === reference.channel &&
+						!status.error &&
+						!status.message &&
+						status.extent?.width === width &&
+						status.extent?.height === height
+				),
+			{ reference, width, height }
+		);
+		await verifySelection();
 		if (item.visual) await checkpoint(item.label, 'media');
 		await tab('Screens').click();
 		await page
@@ -252,6 +316,9 @@ try {
 			expected: item.rgba,
 			output: output.observations.at(-1),
 			preview_installed: true,
+			intrinsic_extent: { width, height },
+			producer_session: session,
+			sender_restarted: item.restart ?? false,
 			screen
 		});
 	}
@@ -263,8 +330,8 @@ try {
 				adapter: { index, key, description: adapter.description },
 				stages,
 				errors,
-				source_replacement: true,
-				continuous_producer: false
+				source_replacement: !continuous,
+				continuous_producer: continuous
 			},
 			null,
 			2

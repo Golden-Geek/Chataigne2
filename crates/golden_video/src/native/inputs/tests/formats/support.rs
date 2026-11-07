@@ -113,6 +113,67 @@ impl Sender {
         readback_native(&self.device, &self.texture, pixel_bytes)
     }
 
+    /// Replace source storage only after its GPU use completes; retain the SDK and device.
+    pub fn update_rows(&mut self, format: DXGI_FORMAT, extent: crate::Extent2D, bytes: &[u8], row_bytes: u32) {
+        let rows = extent.height()
+            + if matches!(format.0, 103..=105) {
+                extent.height() / 2
+            } else {
+                0
+            };
+        assert_eq!(bytes.len(), row_bytes as usize * rows as usize);
+        wait("previous independent source update must complete", || {
+            self.completion
+                .completed(&self.device, self.token.device)
+                .unwrap()
+                .serial
+                >= self.token.serial
+        });
+        let mut desc = D3D11_TEXTURE2D_DESC::default();
+        unsafe { self.texture.GetDesc(&mut desc) };
+        if desc.Format != format || desc.Width != extent.width() || desc.Height != extent.height() {
+            desc.Format = format;
+            desc.Width = extent.width();
+            desc.Height = extent.height();
+            let mut texture = None;
+            unsafe {
+                self.device
+                    .device
+                    .CreateTexture2D(&desc, None, Some(&mut texture))
+                    .unwrap()
+            };
+            self.texture = texture.unwrap();
+        }
+        self.token.serial = self.token.serial.checked_add(1).unwrap();
+        {
+            let _submission = self.completion.begin(&self.device, self.token);
+            unsafe {
+                assert_eq!(
+                    sdk::spout_dx_get_device(self.sdk.0.as_ptr()),
+                    self.device.device.as_raw()
+                );
+                self.device
+                    .context
+                    .UpdateSubresource(&self.texture, 0, None, bytes.as_ptr().cast(), row_bytes, 0);
+                assert_eq!(
+                    sdk::spout_dx_send_texture_status(self.sdk.0.as_ptr(), self.texture.as_raw(), 0),
+                    sdk::SPOUT_DX_TRANSFER_COPIED
+                );
+                assert_eq!(
+                    sdk::spout_dx_get_device(self.sdk.0.as_ptr()),
+                    self.device.device.as_raw()
+                );
+            }
+        }
+        wait("updated independent SDK source publication must complete", || {
+            self.completion
+                .completed(&self.device, self.token.device)
+                .unwrap()
+                .serial
+                >= self.token.serial
+        });
+    }
+
     pub fn new(adapter: AdapterId, name: &str, format: DXGI_FORMAT, color: [f32; 4]) -> Self {
         Self::new_sized(adapter, name, format, color, crate::Extent2D::new(2, 2).unwrap())
     }
@@ -278,7 +339,7 @@ impl Drop for Sender {
             && !self
                 .completion
                 .completed(&self.device, self.token.device)
-                .is_ok_and(|done| done.serial >= 1)
+                .is_ok_and(|done| done.serial >= self.token.serial)
         {
             std::thread::sleep(Duration::from_millis(1));
         }
