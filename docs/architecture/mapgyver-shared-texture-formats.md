@@ -5,6 +5,16 @@ GPU sampling. MapGyver consumes the observed descriptor when preparing its media
 the UI supplies no format setting or conversion policy. Sender selection is independent;
 see [sender creation and recovery](mapgyver-sender-selection.md).
 
+MapGyver's media size resolver accepts the valid descriptor supplied by Golden, checking
+the app's dimension bound without duplicating encoding/alpha defaults. The old sRGB/straight
+restriction incorrectly classified linear float/integer and opaque video input as incompatible,
+so planning replaced valid input with a transparent clear. The [actual-app receipt](../progress/evidence/mapgyver-m13-app-formats-2026-11-07.json)
+retains that reproduced RGBA32F failure and the corrected both-GPU comparison. Four actual
+native captures show RGBA32F in Media Preview and Screen Warping; fourteen representative
+app/output cases pass with existing2/255 SDR output tolerance. Source precision evidence above
+remains separate from the app's downstream pass/output policy. Continuous-producer changes,
+device/D3D9 and named interpretation/API limits still require acceptance.
+
 ## Current import path
 
 Spout metadata discovery admits native RGBA8/BGRA8, RGBA16F/RGBA32F, RGBA16 UNORM/SNORM,

@@ -78,7 +78,8 @@ export async function createPreviewOutputObserver(post, directory, page) {
 		});
 		return { screen, surface };
 	}
-	async function pixels(phase, expected) {
+	async function pixels(phase, expected, tolerance = 0) {
+		assert(Number.isInteger(tolerance) && tolerance >= 0 && tolerance <= 2);
 		const actual = await observeNativeAdapter(page, hardware);
 		adapter ??= actual;
 		assert.equal(actual.key, adapter.key, 'shared-texture connection retains its exact GPU');
@@ -103,8 +104,21 @@ export async function createPreviewOutputObserver(post, directory, page) {
 				path.join(target, 'pixels.png')
 			])
 		);
-		assert.deepEqual(colors, [expected], `${phase}: complete output pixels`);
-		observations.push({ phase, rgba: expected, extent: [96, 64] });
+		if (tolerance === 0) assert.deepEqual(colors, [expected], `${phase}: complete output pixels`);
+		else
+			assert(
+				colors.length > 0 &&
+					colors.every((color) =>
+						color.every((value, i) => Math.abs(value - expected[i]) <= tolerance)
+					),
+				`${phase}: ${JSON.stringify(colors)} versus ${JSON.stringify(expected)}`
+			);
+		observations.push({
+			phase,
+			rgba: expected,
+			extent: [96, 64],
+			...(tolerance ? { actualColors: colors, tolerance } : {})
+		});
 	}
 	async function finish() {
 		if (!consumer) {

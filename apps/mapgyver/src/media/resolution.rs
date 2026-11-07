@@ -4,7 +4,7 @@ pub(crate) use observations::{ResolutionSnapshot, RuntimeResolutions};
 #[cfg(test)]
 mod tests;
 
-use golden_video::{AlphaMode, ColorEncoding, Extent2D, LinearColor, TextureDescriptor};
+use golden_video::{Extent2D, LinearColor, TextureDescriptor};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -203,9 +203,7 @@ pub fn resolve(definition: &ChannelDefinition, observed: SourceObservation) -> R
             SourceObservation::Unavailable => (None, ChannelAvailability::Unavailable),
             SourceObservation::Available(actual)
                 if actual.extent.width() <= MAX_CHANNEL_DIMENSION
-                    && actual.extent.height() <= MAX_CHANNEL_DIMENSION
-                    && actual.color_encoding == ColorEncoding::Srgb
-                    && actual.alpha_mode == AlphaMode::Straight =>
+                    && actual.extent.height() <= MAX_CHANNEL_DIMENSION =>
             {
                 (Some(actual.extent), ChannelAvailability::Ready)
             }

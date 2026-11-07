@@ -1,0 +1,507 @@
+{
+  "schema": 1,
+  "date": "2026-11-07",
+  "gate": "M13/2",
+  "status": "Active; actual-app byte-era readiness defect corrected and representative app paths verified; remaining live/device/D3D9/API scope unaccepted",
+  "base_commit": "c14e6777a49d0b8de85de445bfb89a4509f28da0",
+  "deliverable": "MapGyver accepts valid native linear/opaque and other typed texture descriptors when resolving Shared Texture dimensions, allowing float/integer/video input to render through actual previews and output.",
+  "owner": "App media resolution/availability boundary. Golden retains native format/color/alpha validation and GPU sampling.",
+  "root_cause": {
+    "trigger": "An actual owned app received BGRA8 successfully, then an independent SDK sender with the same exact name advertised literal RGBA32F linear/straight pixels.",
+    "before": "App resolution required sRGB and Straight for every Spout observation. The valid linear descriptor became Incompatible; render planning replaced its source with an unavailable placeholder/clear.",
+    "failure": "Intel baseline BGRA8 passed; RGBA32F output was uniformly[0,0,0,0] rather than mathematical SDR[99,188,225,255].",
+    "after": "Size resolution checks the native extent bounds and accepts Golden's typed descriptor. No app-owned format, encoding or alpha shortlist is duplicated.",
+    "bounds": "The16384-texel dimension limit, unavailable-source behavior, fixed/automatic sizing and revision/device/source ownership fences remain."
+  },
+  "checks": [
+    {
+      "command": "cargo test --locked -p golden_video --features qualification --lib -- --quiet",
+      "result": "238 passed,49 ignored; adds one explicitly owned, ignored stdio source fixture. Production Golden runtime is unchanged fromc14e6777."
+    },
+    {
+      "command": "cargo clippy --locked -p golden_video --features qualification --all-targets -- -D warnings",
+      "result": "Pass before native baseline."
+    },
+    {
+      "command": "cargo build --locked -p MapGyver --features native-qualification --bin native_qualification",
+      "result": "Pass; current independent receiver/preferences CLI built before baseline."
+    },
+    {
+      "command": "cargo test --locked -p MapGyver --lib -- --quiet",
+      "result": "509 passed,2 ignored. New regression checks float16/32, UINT/SINT, narrow opaque, BGRX, canonical video opaque and premultiplied descriptors with automatic/fixed sizing and oversized rejection."
+    },
+    {
+      "command": "cargo clippy --locked -p MapGyver --all-targets -- -D warnings",
+      "result": "Pass before corrected comparison."
+    },
+    {
+      "command": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m132-app-formats",
+      "result": "Corrected isolated actual app builds,exit0 in36.92seconds. User executable/profile not replaced."
+    },
+    {
+      "command": "node --check apps/mapgyver/tests/browser/native-source-formats.mjs; node --check apps/mapgyver/tests/browser/preview-output-observer.mjs; node node_modules/prettier/bin/prettier.cjs --check apps/mapgyver/tests/browser/native-source-formats.mjs apps/mapgyver/tests/browser/preview-output-observer.mjs",
+      "result": "Syntax and formatting pass before native comparison."
+    },
+    {
+      "command": "cargo fmt --all; cargo fmt --all --manifest-path crates/golden_core/Cargo.toml",
+      "result": "Both run."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "target/debug/deps/MapGyver-m132-app-formats.exe",
+      "sha256": "93e3d4d92f2c26d95d40b952f45b6427297b8689cd5c53af7ebaa73918681d90"
+    },
+    {
+      "path": "target/debug/deps/golden_video-fa94e9e28cc1568b.exe",
+      "sha256": "72c124b6fe59b8bb78126569318a93e3b27327b8275c5fec56313a6a7125ab1e"
+    },
+    {
+      "path": "target/debug/native_qualification.exe",
+      "sha256": "be5830476e4c7f2eb0d383876546158fed6878fbe404afd292e40aa6703be2e8"
+    }
+  ],
+  "native": {
+    "cohorts": 2,
+    "baseline": {
+      "command": "MAPGYVER_TEST_BINARY=target/debug/deps/MapGyver-m132-planar-video.exe node apps/mapgyver/tests/browser/native-source-formats.mjs target/mapgyver-m13-app-formats-baseline-intel-20261107 0",
+      "result": "Failed,exit1 at RGBA32F output comparison after BGRA8 success. Both owned app and source perform normal cleanup.",
+      "app_sha256": "b79cedb365374002816041500ebf0a7ca27ad906cef8c6836c5a41d3a0b77892",
+      "source_error": "",
+      "actual": [
+        [
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "expected": [
+        99,
+        188,
+        225,
+        255
+      ]
+    },
+    "comparison": {
+      "commands": [
+        "MAPGYVER_TEST_BINARY=target/debug/deps/MapGyver-m132-app-formats.exe node apps/mapgyver/tests/browser/native-source-formats.mjs target/mapgyver-m13-app-formats-comparison-intel-20261107 0",
+        "MAPGYVER_TEST_BINARY=target/debug/deps/MapGyver-m132-app-formats.exe node apps/mapgyver/tests/browser/native-source-formats.mjs target/mapgyver-m13-app-formats-comparison-nvidia-20261107 1"
+      ],
+      "result": "Both exit0;7 source contracts per GPU,14 total.",
+      "input": "Independent D3D11 literal rows and real SDK SendTexture; source bits verified by finite native staging before source acknowledgement. No Golden render pass generates source pixels.",
+      "app": "Ordinary bundled MapGyver in a private temporary profile, public media/Screen authoring, actual WebView controls and explicit matching GPU preference.",
+      "output": "Separate SDK probe process receives complete96x64 BGRA8/straight sRGB output images; every pixel must be within existing2/255 byte-kernel tolerance of the mathematical reference.",
+      "tolerance": "Only the new callers request tolerance2; existing observer calls retain exact comparisons. This is an SDR output check, not a claim of32-bit downstream output.",
+      "results": [
+        {
+          "adapter": {
+            "index": 0,
+            "key": "dxgi:00000000:00015b69",
+            "description": "Intel(R) Graphics"
+          },
+          "cases": [
+            {
+              "label": "bgra8",
+              "native_format": 87,
+              "expected_rgba": [
+                255,
+                0,
+                0,
+                255
+              ],
+              "actual_colors": [
+                [
+                  255,
+                  0,
+                  0,
+                  255
+                ]
+              ],
+              "extent": [
+                96,
+                64
+              ],
+              "tolerance": 2,
+              "preview_installed": true
+            },
+            {
+              "label": "rgba32f",
+              "native_format": 2,
+              "expected_rgba": [
+                99,
+                188,
+                225,
+                255
+              ],
+              "actual_colors": [
+                [
+                  99,
+                  188,
+                  224,
+                  255
+                ]
+              ],
+              "extent": [
+                96,
+                64
+              ],
+              "tolerance": 2,
+              "preview_installed": true
+            },
+            {
+              "label": "rgba16f",
+              "native_format": 10,
+              "expected_rgba": [
+                99,
+                188,
+                225,
+                255
+              ],
+              "actual_colors": [
+                [
+                  99,
+                  188,
+                  224,
+                  255
+                ]
+              ],
+              "extent": [
+                96,
+                64
+              ],
+              "tolerance": 2,
+              "preview_installed": true
+            },
+            {
+              "label": "rgba32uint",
+              "native_format": 3,
+              "expected_rgba": [
+                99,
+                188,
+                225,
+                255
+              ],
+              "actual_colors": [
+                [
+                  99,
+                  188,
+                  224,
+                  255
+                ]
+              ],
+              "extent": [
+                96,
+                64
+              ],
+              "tolerance": 2,
+              "preview_installed": true
+            },
+            {
+              "label": "nv12",
+              "native_format": 103,
+              "expected_rgba": [
+                140,
+                140,
+                140,
+                255
+              ],
+              "actual_colors": [
+                [
+                  140,
+                  140,
+                  140,
+                  255
+                ]
+              ],
+              "extent": [
+                96,
+                64
+              ],
+              "tolerance": 2,
+              "preview_installed": true
+            },
+            {
+              "label": "rgba8-srgb",
+              "native_format": 29,
+              "expected_rgba": [
+                128,
+                64,
+                192,
+                255
+              ],
+              "actual_colors": [
+                [
+                  128,
+                  64,
+                  192,
+                  255
+                ]
+              ],
+              "extent": [
+                96,
+                64
+              ],
+              "tolerance": 2,
+              "preview_installed": true
+            },
+            {
+              "label": "rgba32f-alpha",
+              "native_format": 2,
+              "expected_rgba": [
+                99,
+                188,
+                225,
+                128
+              ],
+              "actual_colors": [
+                [
+                  99,
+                  188,
+                  225,
+                  128
+                ]
+              ],
+              "extent": [
+                96,
+                64
+              ],
+              "tolerance": 2,
+              "preview_installed": true
+            }
+          ],
+          "page_errors": [],
+          "app_exit_code": 0,
+          "producer_exit_code": 0,
+          "source_replacement": true,
+          "continuous_producer": false
+        },
+        {
+          "adapter": {
+            "index": 1,
+            "key": "dxgi:00000000:79e2f347",
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+          },
+          "cases": [
+            {
+              "label": "bgra8",
+              "native_format": 87,
+              "expected_rgba": [
+                255,
+                0,
+                0,
+                255
+              ],
+              "actual_colors": [
+                [
+                  255,
+                  0,
+                  0,
+                  255
+                ]
+              ],
+              "extent": [
+                96,
+                64
+              ],
+              "tolerance": 2,
+              "preview_installed": true
+            },
+            {
+              "label": "rgba32f",
+              "native_format": 2,
+              "expected_rgba": [
+                99,
+                188,
+                225,
+                255
+              ],
+              "actual_colors": [
+                [
+                  99,
+                  187,
+                  224,
+                  255
+                ]
+              ],
+              "extent": [
+                96,
+                64
+              ],
+              "tolerance": 2,
+              "preview_installed": true
+            },
+            {
+              "label": "rgba16f",
+              "native_format": 10,
+              "expected_rgba": [
+                99,
+                188,
+                225,
+                255
+              ],
+              "actual_colors": [
+                [
+                  99,
+                  187,
+                  224,
+                  255
+                ]
+              ],
+              "extent": [
+                96,
+                64
+              ],
+              "tolerance": 2,
+              "preview_installed": true
+            },
+            {
+              "label": "rgba32uint",
+              "native_format": 3,
+              "expected_rgba": [
+                99,
+                188,
+                225,
+                255
+              ],
+              "actual_colors": [
+                [
+                  99,
+                  187,
+                  224,
+                  255
+                ]
+              ],
+              "extent": [
+                96,
+                64
+              ],
+              "tolerance": 2,
+              "preview_installed": true
+            },
+            {
+              "label": "nv12",
+              "native_format": 103,
+              "expected_rgba": [
+                140,
+                140,
+                140,
+                255
+              ],
+              "actual_colors": [
+                [
+                  140,
+                  140,
+                  140,
+                  255
+                ]
+              ],
+              "extent": [
+                96,
+                64
+              ],
+              "tolerance": 2,
+              "preview_installed": true
+            },
+            {
+              "label": "rgba8-srgb",
+              "native_format": 29,
+              "expected_rgba": [
+                128,
+                64,
+                192,
+                255
+              ],
+              "actual_colors": [
+                [
+                  128,
+                  64,
+                  192,
+                  255
+                ]
+              ],
+              "extent": [
+                96,
+                64
+              ],
+              "tolerance": 2,
+              "preview_installed": true
+            },
+            {
+              "label": "rgba32f-alpha",
+              "native_format": 2,
+              "expected_rgba": [
+                99,
+                188,
+                225,
+                128
+              ],
+              "actual_colors": [
+                [
+                  99,
+                  188,
+                  225,
+                  127
+                ]
+              ],
+              "extent": [
+                96,
+                64
+              ],
+              "tolerance": 2,
+              "preview_installed": true
+            }
+          ],
+          "page_errors": [],
+          "app_exit_code": 0,
+          "producer_exit_code": 0,
+          "source_replacement": true,
+          "continuous_producer": false
+        }
+      ]
+    },
+    "visual": {
+      "api": "computer-use skill: @oai/sky list_windows/get_window/activate_window/get_window_state through node_repl; Windows.Graphics.Capture",
+      "observations": [
+        {
+          "gpu": "Intel(R) Graphics",
+          "pid": 30684,
+          "window_id": 16058656,
+          "views": [
+            "Media Preview",
+            "Screen Warping"
+          ],
+          "result": "Both show the expected nonblack uniform cyan-blue RGBA32F image after independent output comparison passed."
+        },
+        {
+          "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+          "pid": 37628,
+          "window_id": 14357342,
+          "views": [
+            "Media Preview",
+            "Screen Warping"
+          ],
+          "result": "Both show the expected nonblack uniform cyan-blue RGBA32F image after independent output comparison passed."
+        }
+      ],
+      "scope": "Four actual native window captures were displayed and inspected in the tool conversation. No saved desktop screenshot artifact, numeric desktop pixel/DPI, latency or cadence measurement is claimed."
+    }
+  },
+  "limits": [
+    "The7 representative contracts are BGRA8,RGBA32F,RGBA16F,RGBA32UINT,NV12,RGBA8-sRGB and fractional-alpha RGBA32F. This is not a separate actual-app pixel matrix for every70/68 native format.",
+    "Float16/32 and UINT cases intentionally use equivalent normalized RGB values for transfer comparison. They do not independently prove freshness across those equal-color replacements; distinct-color continuous transitions remain required.",
+    "The producer recreates its SDK/device sender between commands; this verifies named sender replacement, not continuous-producer format/size change or driver reset.",
+    "Full continuous source changes, device loss/recovery, actual D3D9 producer scope, broader app classes and all named interpretation/API limits remain unaccepted. No full gate, physical timing or release qualification is inferred."
+  ],
+  "acceptance": {
+    "gate_closed": false,
+    "accepted_gates": 70,
+    "total_gates": 92,
+    "overall_percent": 76,
+    "m13_accepted": 1,
+    "m13_total": 14,
+    "m13_percent": 7,
+    "complete_phases": 7,
+    "total_phases": 14
+  }
+}

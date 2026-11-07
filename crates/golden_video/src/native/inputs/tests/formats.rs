@@ -13,6 +13,7 @@ pub(super) mod inventory;
 mod legacy;
 mod normalized;
 mod packed;
+mod source_fixture;
 mod srgb;
 pub(super) mod support;
 mod typeless;

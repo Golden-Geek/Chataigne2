@@ -51,8 +51,62 @@ fn automatic_and_fixed_extents_keep_availability_separate() {
         resolve(&spout, SourceObservation::Available(actual))
             .unwrap()
             .availability,
-        ChannelAvailability::Incompatible
+        ChannelAvailability::Ready
     );
+}
+
+#[test]
+fn shared_texture_sizing_accepts_native_color_contracts_and_keeps_dimension_bounds() {
+    let mut source = ChannelDefinition::for_media(MediaKind::SharedTexture);
+    source.source = ChannelSource::Spout {
+        sender: Some("Native format input".into()),
+    };
+    for (format, color_encoding, alpha_mode) in [
+        (PixelFormat::Rgba32Float, ColorEncoding::Linear, AlphaMode::Straight),
+        (PixelFormat::Rgba16Float, ColorEncoding::Linear, AlphaMode::Straight),
+        (PixelFormat::Rgba32Uint, ColorEncoding::Linear, AlphaMode::Straight),
+        (PixelFormat::Rgba32Sint, ColorEncoding::Linear, AlphaMode::Straight),
+        (PixelFormat::R8Unorm, ColorEncoding::Linear, AlphaMode::Opaque),
+        (PixelFormat::Bgrx8Unorm, ColorEncoding::Srgb, AlphaMode::Opaque),
+        (PixelFormat::Rgba32Float, ColorEncoding::Linear, AlphaMode::Opaque),
+        (PixelFormat::Rgba8Unorm, ColorEncoding::Srgb, AlphaMode::Premultiplied),
+    ] {
+        let actual = TextureDescriptor {
+            extent: Extent2D::new(64, 48).unwrap(),
+            format,
+            color_encoding,
+            alpha_mode,
+        };
+        for size in [
+            SizePolicy::Automatic,
+            SizePolicy::Fixed {
+                extent: Extent2D::new(128, 96).unwrap(),
+            },
+        ] {
+            source.size = size;
+            let resolved = resolve(&source, SourceObservation::Available(actual)).unwrap();
+            assert_eq!(resolved.availability, ChannelAvailability::Ready);
+            assert_eq!(
+                resolved.extent,
+                Some(match size {
+                    SizePolicy::Automatic => actual.extent,
+                    SizePolicy::Fixed { extent } => extent,
+                })
+            );
+            assert_eq!(
+                resolve(
+                    &source,
+                    SourceObservation::Available(TextureDescriptor {
+                        extent: Extent2D::new(MAX_CHANNEL_DIMENSION + 1, 48).unwrap(),
+                        ..actual
+                    })
+                )
+                .unwrap()
+                .availability,
+                ChannelAvailability::Incompatible
+            );
+        }
+    }
 }
 
 #[test]
