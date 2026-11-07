@@ -39,6 +39,7 @@ fn configured_backend(inputs: InputLimits) -> (D3d11Backend, D3d11Control) {
     let control = D3d11Control::default();
     let backend = D3d11Backend::new(
         D3d11Config {
+            output_rates: Vec::new(),
             diagnostics: None,
             adapter: AdapterId { low: 0, high: 0 },
             inputs,
@@ -84,6 +85,7 @@ fn native_output_contracts_are_rejected_before_startup() {
             max_in_flight: NonZeroUsize::MIN,
             max_retiring: 1,
         },
+        additional_frame_rates: Vec::new(),
         frame_rate: golden_time::RationalRate::new(60, 1).unwrap(),
         max_outstanding: NonZeroUsize::MIN,
         max_input_bytes: NonZeroUsize::new(65536).unwrap(),
@@ -104,6 +106,7 @@ fn native_output_contracts_are_rejected_before_startup() {
         (20, PixelFormat::Bgrx8Unorm, false),
     ] {
         let config = D3d11Config {
+            output_rates: Vec::new(),
             diagnostics: None,
             adapter: AdapterId { low: 0, high: 0 },
             inputs: InputLimits::default(),

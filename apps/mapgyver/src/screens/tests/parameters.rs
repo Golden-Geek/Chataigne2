@@ -101,6 +101,52 @@ fn screen_antialiasing_is_typed_history_safe_and_persisted() {
 }
 
 #[test]
+fn screen_frame_rate_is_typed_atomic_history_safe_and_persisted() {
+    let mut engine = fixture();
+    let (screen, _) = create(&mut engine);
+    let root = engine.node_id_by_uuid(screen.0).unwrap();
+    let fields = parameters(&engine, root);
+    let mode = fields["parameters/frame_rate_mode"];
+    let fps = fields["parameters/frames_per_second"];
+    let original = screen_definition(&engine, screen);
+    let history = engine.undo_len();
+    atomic(
+        &mut engine,
+        vec![
+            (mode, ParamValue::Enum("Explicit".into())),
+            (fps, ParamValue::Float(29.97)),
+        ],
+    )
+    .unwrap();
+    let explicit = screen_definition(&engine, screen);
+    assert_eq!(explicit.frame_rate, ScreenFrameRate::Explicit { fps: 29.97 });
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(engine.undo().unwrap());
+    dispatch(&mut engine);
+    assert_eq!(screen_definition(&engine, screen), original);
+    assert!(engine.redo().unwrap());
+    dispatch(&mut engine);
+    assert_eq!(screen_definition(&engine, screen), explicit);
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    for invalid in [0.0, 1001.0, f64::NAN] {
+        assert!(!set(&mut engine, fps, ParamValue::Float(invalid)).success);
+    }
+    assert!(!set(&mut engine, mode, ParamValue::Enum("Source".into())).success);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+    let loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+    validate_engine_project_candidate(&loaded).unwrap();
+    assert_eq!(screen_definition(&loaded, screen), explicit);
+    // Switching to display-following retains the remembered explicit FPS Parameter.
+    assert!(set(&mut engine, mode, ParamValue::Enum("Follow display".into())).success);
+    assert_eq!(
+        screen_definition(&engine, screen).frame_rate,
+        ScreenFrameRate::FollowDisplay
+    );
+    assert!(set(&mut engine, mode, ParamValue::Enum("Explicit".into())).success);
+    assert_eq!(screen_definition(&engine, screen), explicit);
+}
+
+#[test]
 fn screen_antialiasing_defaults_raw_and_checks_extent_arithmetic() {
     use golden_video::Extent2D;
     let definition: ScreenDefinition = serde_json::from_str("{}").unwrap();
@@ -188,7 +234,7 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
     let surface_node = engine.node_id_by_uuid(surface.surface.0).unwrap();
     let screen_fields = parameters(&engine, screen_node);
     let surface_fields = parameters(&engine, surface_node);
-    assert_eq!(screen_fields.len(), 15);
+    assert_eq!(screen_fields.len(), 17);
     assert!(!screen_fields.contains_key("parameters/render_enabled"));
     assert_eq!(surface_fields.len(), 10);
     assert!(!surface_fields.contains_key("parameters/render_enabled"));
@@ -283,7 +329,7 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
     assert_eq!(super::super::inspect(&loaded).unwrap(), snapshot);
     let loaded_screen_fields = parameters(&loaded, loaded.node_id_by_uuid(screen.0).unwrap());
     let loaded_surface_fields = parameters(&loaded, loaded.node_id_by_uuid(surface.surface.0).unwrap());
-    assert_eq!(loaded_screen_fields.len(), 15);
+    assert_eq!(loaded_screen_fields.len(), 17);
     assert_eq!(loaded_surface_fields.len(), 10);
     // Sparse projects omit unchanged, unreferenced declared leaves. Their schema
     // declarations restore the same parameter configuration with fresh identities.
@@ -584,6 +630,7 @@ fn atomic_screen_endpoint_swaps_validate_final_uniqueness_and_rectangle_bounds()
             ScreenEdit::ConfigureScreen {
                 screen,
                 definition: ScreenDefinition {
+                    frame_rate: Default::default(),
                     target: Some(ScreenTarget::Spout {
                         sender: sender.into(),
                         extent: golden_video::Extent2D::new(1920, 1080).unwrap(),

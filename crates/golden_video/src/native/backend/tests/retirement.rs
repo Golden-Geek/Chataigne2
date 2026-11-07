@@ -49,6 +49,7 @@ impl Owner {
         let runtime = VideoRuntime::spawn_d3d11_with_control(
             config,
             D3d11Config {
+                output_rates: Vec::new(),
                 adapter,
                 diagnostics: None,
                 inputs,

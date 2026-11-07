@@ -1,5 +1,5 @@
 //! Screen output settings are typed Parameters; definitions are validated projections.
-use super::protocol::{PhysicalRectangle, ScreenAntiAliasing, ScreenDefinition, ScreenTarget};
+use super::protocol::{PhysicalRectangle, ScreenAntiAliasing, ScreenDefinition, ScreenFrameRate, ScreenTarget};
 use golden_core::{
     node,
     node::{
@@ -34,6 +34,8 @@ mod selection;
         height: i32 = 1080 [1..8192] (label = "Height", description = "Physical output pixels.", constraint_policy = "reject");
         sender: String = "Screen".to_owned() (label = "Sender name");
         anti_aliasing: Enum = "Raw" (label = "Anti-aliasing", enum_options = crate::parameters::enum_options(&["Raw", "Smooth (2×)"]), constraint_policy = "reject");
+        frame_rate_mode: Enum = "Follow display" (label = "Frame rate", enum_options = crate::parameters::enum_options(&["Follow display", "Explicit"]), constraint_policy = "reject", description = "Follow the resolved display refresh. Shared Texture or unknown display refresh uses 60 FPS. Editing and previews retain their independent cadence.");
+        frames_per_second: f64 = 60.0 [1.0..1000.0] (label = "FPS", constraint_policy = "reject");
         display_edid: String = String::new() (label = "Display EDID", read_only = true, persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false);
         display_name: String = String::new() (label = "Display name hint", read_only = true, persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false);
         display_os_index: i32 = 0 [0..2147483647] (label = "Display number hint", read_only = true, persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false);
@@ -55,6 +57,13 @@ impl ScreenNode {
         node.node_data_mut().meta = NodeMeta::new(label).with_user_permissions(permissions);
         node.node_data_mut().meta.enabled = definition.enabled;
         node.anti_aliasing = ParameterHandle::new(Enum::new(definition.anti_aliasing.name()));
+        match definition.frame_rate {
+            ScreenFrameRate::FollowDisplay => {}
+            ScreenFrameRate::Explicit { fps } => {
+                node.frame_rate_mode = ParameterHandle::new(Enum::new("Explicit"));
+                node.frames_per_second = ParameterHandle::new(fps);
+            }
+        }
         match definition.target {
             Some(ScreenTarget::Fullscreen { display }) => {
                 node.target_kind = ParameterHandle::new(Enum::new("Fullscreen"));
@@ -114,6 +123,14 @@ impl ScreenNode {
             }
         };
         values.push((self.target_kind.id(), ParamValue::Enum(kind.into())));
+        let mode = match definition.frame_rate {
+            ScreenFrameRate::FollowDisplay => "Follow display",
+            ScreenFrameRate::Explicit { fps } => {
+                values.push((self.frames_per_second.id(), ParamValue::Float(fps)));
+                "Explicit"
+            }
+        };
+        values.push((self.frame_rate_mode.id(), ParamValue::Enum(mode.into())));
         values.push((
             self.anti_aliasing.id(),
             ParamValue::Enum(definition.anti_aliasing.name().into()),
@@ -126,7 +143,7 @@ impl ScreenNode {
         reader.guard_at(reader.current())
     }
 
-    fn parameter_ids(&self) -> [NodeId; 15] {
+    fn parameter_ids(&self) -> [NodeId; 17] {
         [
             self.target_kind.id(),
             self.display.id(),
@@ -136,6 +153,8 @@ impl ScreenNode {
             self.height.id(),
             self.sender.id(),
             self.anti_aliasing.id(),
+            self.frame_rate_mode.id(),
+            self.frames_per_second.id(),
             self.display_edid.id(),
             self.display_name.id(),
             self.display_os_index.id(),
@@ -156,6 +175,8 @@ impl ScreenNode {
             height: read(&self.height, change),
             sender: read(&self.sender, change),
             anti_aliasing: read(&self.anti_aliasing, change),
+            frame_rate_mode: read(&self.frame_rate_mode, change),
+            frames_per_second: read(&self.frames_per_second, change),
             enabled: self.node_data().meta.enabled,
         }
     }
@@ -291,6 +312,8 @@ struct ScreenValues {
     height: i32,
     sender: String,
     anti_aliasing: Enum,
+    frame_rate_mode: Enum,
+    frames_per_second: f64,
     enabled: bool,
 }
 
@@ -318,12 +341,23 @@ impl ScreenValues {
         ScreenDefinition {
             target,
             enabled: self.enabled,
+            frame_rate: if self.frame_rate_mode.as_str() == "Explicit" {
+                ScreenFrameRate::Explicit {
+                    fps: self.frames_per_second,
+                }
+            } else {
+                ScreenFrameRate::FollowDisplay
+            },
             anti_aliasing: ScreenAntiAliasing::parse(self.anti_aliasing.as_str())
                 .expect("validated Screen anti-aliasing"),
         }
     }
 
     fn validate(&self) -> Result<(), String> {
+        if !["Follow display", "Explicit"].contains(&self.frame_rate_mode.as_str()) {
+            return Err("unknown Screen frame rate mode".into());
+        }
+        ScreenFrameRate::explicit_rate(self.frames_per_second)?;
         if ScreenAntiAliasing::parse(self.anti_aliasing.as_str()).is_none() {
             return Err("unknown Screen anti-aliasing mode".into());
         }

@@ -102,6 +102,9 @@ pub struct D3d11Config {
     pub adapter: AdapterId,
     /// Fixed bindings admitted before their native pools are created.
     pub outputs: Vec<OutputBinding>,
+    /// Independent delivery clocks. Omitted consumers deliver on every runtime frame.
+    /// Each rate also contributes an exact runtime wake deadline.
+    pub output_rates: Vec<(OutputId, golden_time::RationalRate)>,
     /// Reserved source capacity, shared by prepared/live/retiring plan subscriptions.
     pub inputs: InputLimits,
 }
@@ -185,6 +188,12 @@ impl D3d11Config {
                     return Err(invalid("Spout outputs require eight-bit RGBA or BGRA storage"));
                 }
                 _ => {}
+            }
+        }
+        let mut paced = BTreeSet::new();
+        for (id, _) in &self.output_rates {
+            if !ids.contains(id) || !paced.insert(*id) {
+                return Err(invalid("output cadence requires a unique bound consumer"));
             }
         }
         Ok(())

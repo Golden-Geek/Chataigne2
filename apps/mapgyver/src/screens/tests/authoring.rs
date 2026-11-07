@@ -95,6 +95,7 @@ fn targets_and_ordered_surfaces_roundtrip_with_atomic_history() {
             ScreenEdit::ConfigureScreen {
                 screen,
                 definition: ScreenDefinition {
+                    frame_rate: Default::default(),
                     target: Some(target),
                     enabled: true,
                     anti_aliasing: Default::default(),
@@ -187,6 +188,7 @@ fn invalid_edits_leave_project_and_history_untouched() {
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 target: Some(ScreenTarget::Spout {
                     sender: "".into(),
                     extent: Extent2D::new(1, 1).unwrap(),
@@ -198,6 +200,7 @@ fn invalid_edits_leave_project_and_history_untouched() {
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 target: Some(ScreenTarget::Rectangle {
                     bounds: PhysicalRectangle {
                         left: i32::MAX,

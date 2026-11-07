@@ -407,6 +407,7 @@ impl Renderer {
     fn new(adapter: AdapterId, plan: &CompiledPlan) -> Self {
         let identity = Uuid::new_v4();
         let config = D3d11Config {
+            output_rates: Vec::new(),
             diagnostics: None,
             adapter,
             inputs: InputLimits {

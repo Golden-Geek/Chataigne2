@@ -568,6 +568,7 @@ fn rendered_process_retention(individual: bool) {
             max_in_flight: NonZeroUsize::new(2).unwrap(),
             max_retiring: 2,
         },
+        additional_frame_rates: Vec::new(),
         frame_rate: golden_time::RationalRate::new(60, 1).unwrap(),
         max_outstanding: NonZeroUsize::new(16).unwrap(),
         max_input_bytes: NonZeroUsize::new(65536).unwrap(),

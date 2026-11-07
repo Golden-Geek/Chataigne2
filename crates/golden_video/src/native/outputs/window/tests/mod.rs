@@ -211,6 +211,7 @@ fn hardware_window_charge_has_only_two_backbuffers_and_rejects_foreign_context_b
     let generation = DeviceGeneration::new(Uuid::new_v4(), 1);
     let control = D3d11Control::default();
     let config = D3d11Config {
+        output_rates: Vec::new(),
         diagnostics: None,
         adapter,
         inputs: InputLimits::default(),

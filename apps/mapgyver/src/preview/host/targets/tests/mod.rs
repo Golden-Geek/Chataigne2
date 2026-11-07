@@ -33,6 +33,7 @@ fn configure(engine: &mut AppEngine, screen: ScreenId, sender: &str, enabled: bo
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 enabled,
                 target: Some(ScreenTarget::Spout {
                     sender: sender.into(),
@@ -125,6 +126,7 @@ fn rectangle_and_spout_share_output_admission_without_windows_on_the_actor() {
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 enabled: true,
                 target: Some(ScreenTarget::Rectangle { bounds }),
                 anti_aliasing: Default::default(),
@@ -177,6 +179,7 @@ fn fullscreen_resolves_exact_identity_and_recovers_without_primary_or_geometry_f
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 enabled: true,
                 target: Some(ScreenTarget::Fullscreen {
                     display: "wanted".into(),
@@ -191,6 +194,7 @@ fn fullscreen_resolves_exact_identity_and_recovers_without_primary_or_geometry_f
         extent: Extent2D::new(1920, 1080).unwrap(),
     };
     let wanted = DisplayInfo {
+        refresh_rate: None,
         id: "wanted".into(),
         name: "Same label".into(),
         edid: None,
@@ -296,6 +300,7 @@ fn fullscreen_resolves_exact_identity_and_recovers_without_primary_or_geometry_f
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 enabled: false,
                 target: Some(ScreenTarget::Fullscreen {
                     display: "wanted".into(),
@@ -305,6 +310,7 @@ fn fullscreen_resolves_exact_identity_and_recovers_without_primary_or_geometry_f
         },
     );
     let preview_display = DisplayInfo {
+        refresh_rate: None,
         id: "wanted".into(),
         name: "Monitor".into(),
         edid: None,

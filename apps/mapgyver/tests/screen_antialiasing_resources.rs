@@ -114,6 +114,7 @@ impl Scene {
                 ScreenEdit::ConfigureScreen {
                     screen,
                     definition: ScreenDefinition {
+                        frame_rate: Default::default(),
                         anti_aliasing: mode,
                         enabled: true,
                         target: Some(ScreenTarget::Spout {
@@ -229,6 +230,7 @@ fn qualify(adapter: &AdapterInfo, width: u32, height: u32) -> Value {
     let runtime = VideoRuntime::spawn_d3d11(
         config.clone(),
         D3d11Config {
+            output_rates: Vec::new(),
             adapter: adapter.id,
             diagnostics: None,
             inputs: InputLimits {

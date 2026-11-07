@@ -18,6 +18,7 @@ use lifetime::Endpoint;
 use recovery::Recovery;
 
 mod lifetime;
+mod pacing;
 mod recovery;
 pub(super) mod scheduling;
 pub(crate) mod spout;
@@ -168,6 +169,7 @@ impl AdmittedOutput<'_> {
 
 struct Binding {
     config: OutputBinding,
+    pacing: pacing::Pacing,
     endpoint: Endpoint<Output>,
     recovery: Recovery,
     flush_before_create: bool,
@@ -272,15 +274,18 @@ impl OutputPool {
         }
         control.register_outputs(generation, config.outputs.iter().map(OutputBinding::id));
         let diagnostics = config.diagnostics.is_some();
+        let config_rates: BTreeMap<_, _> = config.output_rates.into_iter().collect();
         let mut pool = Self {
             bindings: config
                 .outputs
                 .into_iter()
                 .map(|config| {
+                    let rate = config_rates.get(&config.id()).copied();
                     (
                         config.id(),
                         Binding {
                             config,
+                            pacing: pacing::Pacing::new(rate),
                             endpoint: Endpoint::new(),
                             recovery: Recovery::new(),
                             flush_before_create: false,
@@ -306,6 +311,18 @@ impl OutputPool {
 
     pub(super) fn descriptor(&self, id: OutputId) -> Option<TextureDescriptor> {
         self.bindings.get(&id).map(|binding| binding.config.descriptor())
+    }
+
+    /// Called once per consumer per batch, before conversion or endpoint admission.
+    /// Clock replacement and device recovery begin a fresh phase; stalls never catch up.
+    pub(super) fn due(&mut self, id: OutputId, now: golden_time::TimeSnapshot) -> bool {
+        let Some(binding) = self.bindings.get_mut(&id) else {
+            return false;
+        };
+        binding.pacing.due(now)
+    }
+    pub(super) fn ready(&self, id: OutputId, now: golden_time::TimeSnapshot) -> bool {
+        self.bindings.get(&id).is_some_and(|binding| binding.pacing.ready(now))
     }
 
     pub(super) fn presentation_retry_delay(&self, id: OutputId) -> std::time::Duration {

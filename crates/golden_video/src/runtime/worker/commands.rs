@@ -27,7 +27,11 @@ impl<B: Backend> Runner<B> {
                         let previous = self.authority.sample().unwrap_or_else(|_| self.shared.snapshot().time);
                         self.close_schedule(previous);
                         self.authority = authority;
-                        self.cadence = super::Cadence::new(self.config.frame_rate, time.monotonic());
+                        self.cadence = super::Cadence::new(
+                            self.config.frame_rate,
+                            &self.config.additional_frame_rates,
+                            time.monotonic(),
+                        );
                         next_clock = Some(clock);
                         Ok(time)
                     })

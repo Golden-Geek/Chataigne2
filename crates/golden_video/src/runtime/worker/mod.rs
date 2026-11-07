@@ -7,9 +7,9 @@ use golden_io::{BoundedWorker, ReconnectBackoff, RetirementPool, WorkerContext};
 use golden_time::{Clock, TimeAuthority, TimeSnapshot};
 
 use super::backend::Backend;
-use super::cadence::Cadence;
 use super::core::{PreparedGeneration, RenderCore};
 use super::identity::{DeviceGeneration, ProjectEpoch};
+use super::multi_cadence::Cadences as Cadence;
 use super::null::{NullBackend, NullConfig, NullControl};
 use super::preparation::{self, PreparationJob, PreparationResult};
 use super::shared::{PlanRequest, Shared};
@@ -158,7 +158,7 @@ fn run_backend<B: Backend>(
             admission: None,
             project_retirements: VecDeque::new(),
             authority,
-            cadence: Cadence::new(config.frame_rate, time.monotonic()),
+            cadence: Cadence::new(config.frame_rate, &config.additional_frame_rates, time.monotonic()),
             recovery: ReconnectBackoff::new(config.recovery_delay, config.max_recovery_delay),
             retry_at: None,
             rebuild: None,
@@ -209,16 +209,23 @@ impl<B: Backend> Runner<B> {
         if !self.core.observes_schedule() {
             return;
         }
-        match self.cadence.fence(time) {
-            Ok(Some(schedule)) => self.core.observe_schedule(schedule, super::FrameAdmission::Fence),
-            Ok(None) => {}
+        match self.cadence.fences(time) {
+            Ok(schedules) => {
+                for schedule in schedules {
+                    self.core.observe_schedule(schedule, super::FrameAdmission::Fence);
+                }
+            }
             Err(error) => self.fault(RuntimeFailure::new(FailureCode::Time, error)),
         }
     }
 
     fn reset_cadence(&mut self, time: TimeSnapshot) {
         self.close_schedule(time);
-        self.cadence = Cadence::new(self.config.frame_rate, time.monotonic());
+        self.cadence = Cadence::new(
+            self.config.frame_rate,
+            &self.config.additional_frame_rates,
+            time.monotonic(),
+        );
     }
     fn run_loop(&mut self) {
         self.publish_snapshot();

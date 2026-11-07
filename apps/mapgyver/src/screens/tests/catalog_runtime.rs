@@ -70,6 +70,7 @@ fn disabled_connected_display_row_is_present_after_runtime_allocation_excludes_o
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 enabled: false,
                 target: Some(ScreenTarget::Fullscreen {
                     display: displays[0].id.clone(),
@@ -111,6 +112,7 @@ fn fullscreen_allocation_handoff_is_pending_until_current_metadata_confirms_targ
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 target: Some(ScreenTarget::Fullscreen {
                     display: "screen-b".into(),
                 }),
@@ -140,6 +142,7 @@ fn fullscreen_allocation_handoff_is_pending_until_current_metadata_confirms_targ
             ScreenEdit::ConfigureScreen {
                 screen,
                 definition: ScreenDefinition {
+                    frame_rate: Default::default(),
                     target: Some(ScreenTarget::Fullscreen {
                         display: "screen-b".into(),
                     }),
@@ -176,6 +179,7 @@ fn fullscreen_allocation_handoff_is_pending_until_current_metadata_confirms_targ
 }
 fn display(id: &str, index: u32, primary: bool, edid: u8) -> DisplayInfo {
     DisplayInfo {
+        refresh_rate: None,
         id: id.into(),
         name: format!("Monitor {index}"),
         edid: Some(format!("{edid:02x}").repeat(128)),
@@ -313,6 +317,7 @@ fn display_metadata_stale_prepared_hint_cannot_replace_new_selection_or_activate
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 target: Some(ScreenTarget::Fullscreen {
                     display: "screen-b".into(),
                 }),

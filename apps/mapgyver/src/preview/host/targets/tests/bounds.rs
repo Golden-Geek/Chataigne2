@@ -42,6 +42,12 @@ fn window_moves_and_display_reassignment_preserve_bindings_but_resize_retires_ba
         display: "second display".into(),
     };
     assert!(moved.same_binding(&reassigned));
+    let mut different_rate = reassigned.clone();
+    different_rate.frame_rate = golden_time::RationalRate::new(30, 1).unwrap();
+    assert!(
+        !reassigned.same_binding(&different_rate),
+        "a changed immutable cadence rebinds after normal retirement"
+    );
     let mut resized = reassigned.clone();
     resized.descriptor.extent = Extent2D::new(640, 360).unwrap();
     assert!(

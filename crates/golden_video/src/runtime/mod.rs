@@ -5,12 +5,13 @@
 //! event is not a native-window lifetime proof; use the dedicated retirement handle off UI/actor.
 
 pub(crate) mod backend;
-mod cadence;
+pub(crate) mod cadence;
 mod control;
 mod core;
 mod error;
 mod identity;
 mod lifetime;
+mod multi_cadence;
 mod null;
 mod observation;
 mod preparation;

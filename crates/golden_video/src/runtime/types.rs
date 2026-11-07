@@ -19,6 +19,8 @@ pub struct RuntimeConfig {
     pub resource_limits: ResourceLimits,
     /// Independent frame cadence, not a source of show-time advancement.
     pub frame_rate: golden_time::RationalRate,
+    /// Additional independent absolute deadlines; at most 32, duplicates are coalesced.
+    pub additional_frame_rates: Vec<golden_time::RationalRate>,
     /// All accepted requests, including undrained outcomes, share these credits.
     pub max_outstanding: NonZeroUsize,
     /// Maximum retained input heap charge for one submitted plan.
@@ -188,7 +190,9 @@ pub struct FrameObservation {
     /// CPU wall duration of the successful backend submit call. Excludes preparation and
     /// asynchronous GPU execution/presentation; this is never a GPU frame-time measurement.
     pub submit_duration: Duration,
-    /// Absolute cadence ordinal, without a catch-up frame loop.
+    /// Rate identifying the selected independent cadence for this observation's ordinal.
+    pub cadence_rate: golden_time::RationalRate,
+    /// Absolute ordinal within cadence_rate, without a catch-up frame loop.
     pub frame_index: u64,
     /// Ideal cadence deadline, distinct from actual submission and physical presentation.
     pub scheduled_at: golden_time::MonotonicTime,

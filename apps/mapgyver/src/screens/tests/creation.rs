@@ -12,6 +12,7 @@ use std::sync::Arc;
 
 fn display(id: &str, index: u32, primary: bool, edid: u8) -> DisplayInfo {
     DisplayInfo {
+        refresh_rate: None,
         id: id.into(),
         name: format!("Display {index}"),
         index,

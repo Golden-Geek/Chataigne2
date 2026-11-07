@@ -6,6 +6,7 @@ pub(crate) mod catalog_runtime;
 pub(crate) mod creation;
 pub mod display_matching;
 mod editor;
+mod frame_rate;
 mod geometry;
 mod nodes;
 pub mod protocol;

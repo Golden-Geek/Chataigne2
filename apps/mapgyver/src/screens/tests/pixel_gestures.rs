@@ -25,6 +25,7 @@ fn pixel_samples_use_output_extent_and_coalesce_without_losing_distance_or_histo
             ScreenEdit::ConfigureScreen {
                 screen,
                 definition: ScreenDefinition {
+                    frame_rate: Default::default(),
                     target: Some(target),
                     enabled: false,
                     anti_aliasing: Default::default(),
@@ -67,6 +68,7 @@ fn fullscreen_pixel_extent_uses_cached_intended_identity_and_rejects_unavailable
     let mut engine = fixture();
     let (screen, reference) = create(&mut engine);
     let display = DisplayInfo {
+        refresh_rate: None,
         id: "pixels-display".into(),
         name: "Pixels".into(),
         edid: None,
@@ -88,6 +90,7 @@ fn fullscreen_pixel_extent_uses_cached_intended_identity_and_rejects_unavailable
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 target: Some(ScreenTarget::Fullscreen { display: display.id }),
                 enabled: false,
                 anti_aliasing: Default::default(),
@@ -122,6 +125,7 @@ fn fullscreen_pixel_extent_uses_cached_intended_identity_and_rejects_unavailable
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 target: None,
                 enabled: false,
                 anti_aliasing: Default::default(),

@@ -113,6 +113,12 @@ fn create(
     let runtime = VideoRuntime::spawn_d3d11(
         config.video,
         D3d11Config {
+            output_rates: std::iter::once((
+                OutputId::new(1).unwrap(),
+                golden_time::RationalRate::new(60, 1).unwrap(),
+            ))
+            .chain(targets.iter().map(|target| (target.id, target.frame_rate)))
+            .collect(),
             diagnostics: None,
             adapter: adapter.id,
             inputs: InputLimits {
@@ -767,11 +773,10 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     .map(|adapter| adapter.key());
                 let routes = owner
                     .as_ref()
-                    .map(|owner| {
-                        owner
-                            .escapes
+                    .map(|_| {
+                        topology
                             .iter()
-                            .map(|(target, _)| (target.screen, target.id, target.descriptor.extent))
+                            .map(|target| (target.screen, target.id, target.descriptor.extent))
                             .collect::<Vec<_>>()
                     })
                     .unwrap_or_default();

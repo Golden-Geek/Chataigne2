@@ -217,6 +217,7 @@ mod windows_smoke {
             let window = window.clone();
             Ok(NativePresentationTask::new(move |stop| {
                 let config = D3d11Config {
+                    output_rates: Vec::new(),
                     diagnostics: None,
                     adapter,
                     inputs: Default::default(),

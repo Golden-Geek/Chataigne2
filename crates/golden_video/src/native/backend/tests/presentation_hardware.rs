@@ -68,6 +68,7 @@ fn hardware_live_presentation_wakes_between_media_frames_without_resubmitting_an
             VideoRuntime::spawn_d3d11_with_control(
                 config,
                 D3d11Config {
+                    output_rates: Vec::new(),
                     diagnostics: None,
                     adapter: adapter.id,
                     inputs: InputLimits::default(),

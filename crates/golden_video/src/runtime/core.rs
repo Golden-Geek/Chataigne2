@@ -445,6 +445,14 @@ impl<B: Backend> RenderCore<B> {
         if live.prepared.info.output_count == 0 {
             return Ok(None);
         }
+        if !self.backend.submission_due(
+            live.prepared.resources.as_ref().unwrap(),
+            live.prepared.plan(),
+            time,
+            presentation,
+        ) {
+            return Ok(None);
+        }
         if presentation
             && (live.last_use == 0
                 || !self

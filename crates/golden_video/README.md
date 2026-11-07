@@ -48,6 +48,11 @@ The implemented foundations are:
   Its timer and notification event retire with that context; saved notifiers retain neither.
   Ordinary workers keep their existing waits. No busy spin or global timer-resolution change
   is used, and OS wake precision is not a hard real-time or display-deadline guarantee.
+  `RuntimeConfig.additional_frame_rates` contributes independent absolute deadlines rather
+  than quantizing slower consumers onto the fastest clock. Native `D3d11Config.output_rates`
+  supplies per-consumer delivery clocks and automatically adds their runtime deadlines.
+  Output conversion/admission observes those clocks even during cached presentation redraws;
+  show transport does not reset their phase. Apps own display-following or explicit-rate policy.
 - `preview/` owns metadata-only session negotiation, full-layout replacement, installation status,
   host geometry conversion and coalesced leased registration. Apps resolve opaque source keys;
   neither app-domain types nor native handles belong in these DTOs.

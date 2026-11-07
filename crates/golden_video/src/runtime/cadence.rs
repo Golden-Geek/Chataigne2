@@ -2,7 +2,7 @@ use golden_time::{MonotonicTime, RationalRate, Rounding, TimeError};
 use uuid::Uuid;
 
 /// Worker-local absolute frame schedule, independent of show transport rate.
-pub(super) struct Cadence {
+pub(crate) struct Cadence {
     rate: RationalRate,
     anchor: MonotonicTime,
     next_index: u64,
@@ -11,14 +11,17 @@ pub(super) struct Cadence {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct CadenceTick {
-    pub(super) index: u64,
-    pub(super) scheduled: MonotonicTime,
-    pub(super) missed: u64,
+pub(crate) struct CadenceTick {
+    pub(crate) index: u64,
+    pub(crate) scheduled: MonotonicTime,
+    pub(crate) missed: u64,
 }
 
 impl Cadence {
-    pub(super) fn new(rate: RationalRate, anchor: MonotonicTime) -> Self {
+    pub(crate) fn rate(&self) -> RationalRate {
+        self.rate
+    }
+    pub(crate) fn new(rate: RationalRate, anchor: MonotonicTime) -> Self {
         Self {
             rate,
             anchor,
@@ -28,11 +31,11 @@ impl Cadence {
         }
     }
 
-    pub(super) fn deadline(&self) -> Result<MonotonicTime, TimeError> {
+    pub(crate) fn deadline(&self) -> Result<MonotonicTime, TimeError> {
         self.scheduled_at(self.next_index)
     }
 
-    pub(super) fn consume_due(&mut self, now: MonotonicTime) -> Result<Option<CadenceTick>, TimeError> {
+    pub(crate) fn consume_due(&mut self, now: MonotonicTime) -> Result<Option<CadenceTick>, TimeError> {
         let elapsed = now.duration_since(self.anchor)?;
         if now < self.deadline()? {
             return Ok(None);
@@ -54,7 +57,7 @@ impl Cadence {
         self.anchor.checked_add(self.rate.duration_for(index, Rounding::Ceil)?)
     }
 
-    pub(super) fn schedule(
+    pub(crate) fn schedule(
         &mut self,
         tick: CadenceTick,
         observed: golden_time::TimeSnapshot,
@@ -76,11 +79,11 @@ impl Cadence {
         })
     }
 
-    pub(super) fn submitted(&mut self, index: u64) {
+    pub(crate) fn submitted(&mut self, index: u64) {
         self.last_submitted = Some(index);
     }
 
-    pub(super) fn fence(
+    pub(crate) fn fence(
         &mut self,
         observed: golden_time::TimeSnapshot,
     ) -> Result<Option<super::FrameSchedule>, TimeError> {

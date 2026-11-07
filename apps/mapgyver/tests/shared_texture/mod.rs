@@ -21,6 +21,7 @@ impl Fixture {
         let runtime = VideoRuntime::spawn_d3d11(
             config.clone(),
             D3d11Config {
+                output_rates: Vec::new(),
                 adapter,
                 diagnostics: None,
                 inputs: InputLimits {

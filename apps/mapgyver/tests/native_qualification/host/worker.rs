@@ -122,6 +122,7 @@ fn run_capture(mut input: Input, stop: NativePresentationStop) -> io::Result<()>
     let runtime = VideoRuntime::spawn_d3d11(
         scene::config(ceiling, input.notifier.clone()),
         D3d11Config {
+            output_rates: Vec::new(),
             diagnostics: Some(DiagnosticsConfig {
                 capacity: NonZeroUsize::new(input.config.trace_capacity)
                     .ok_or_else(|| Error::other("trace capacity is zero"))?,

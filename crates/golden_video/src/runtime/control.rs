@@ -102,8 +102,14 @@ impl VideoRuntime {
     /// Starts native execution on an explicitly selected hardware adapter. Native resources
     /// are created on the render worker after baseline admission, never on the caller/UI.
     #[cfg(all(windows, feature = "d3d11"))]
-    pub fn spawn_d3d11(config: RuntimeConfig, native: crate::native::D3d11Config) -> Result<Self, RuntimeStartError> {
+    pub fn spawn_d3d11(
+        mut config: RuntimeConfig,
+        native: crate::native::D3d11Config,
+    ) -> Result<Self, RuntimeStartError> {
         native.validate(&config)?;
+        config
+            .additional_frame_rates
+            .extend(native.output_rates.iter().map(|(_, rate)| *rate));
         let source = crate::native::timing::ScheduleClockSource::new(native.diagnostics.is_some());
         Self::spawn(
             config,
@@ -114,16 +120,22 @@ impl VideoRuntime {
 
     #[cfg(all(test, windows, feature = "d3d11"))]
     pub(crate) fn spawn_d3d11_with_control(
-        config: RuntimeConfig,
+        mut config: RuntimeConfig,
         native: crate::native::D3d11Config,
         control: crate::native::D3d11Control,
     ) -> Result<Self, RuntimeStartError> {
         native.validate(&config)?;
+        config
+            .additional_frame_rates
+            .extend(native.output_rates.iter().map(|(_, rate)| *rate));
         let source = crate::native::timing::ScheduleClockSource::new(native.diagnostics.is_some());
         Self::spawn(config, source.clock(), BackendStart::D3d11(native, control, source))
     }
 
     fn spawn(config: RuntimeConfig, clock: Arc<dyn Clock>, backend: BackendStart) -> Result<Self, RuntimeStartError> {
+        if config.additional_frame_rates.len() > 32 {
+            return Err(RuntimeStartError::InvalidConfig("more than 32 additional frame clocks"));
+        }
         if config.max_input_bytes > config.max_retained_input_bytes {
             return Err(RuntimeStartError::InvalidConfig(
                 "per-plan input limit exceeds aggregate limit",

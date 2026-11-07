@@ -47,6 +47,7 @@ fn set_mode(engine: &mut AppEngine, screen: ScreenId, mode: ScreenAntiAliasing) 
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 target: Some(ScreenTarget::Spout {
                     sender: "AA authored endpoint".into(),
                     extent: Extent2D::new(32, 24).unwrap(),

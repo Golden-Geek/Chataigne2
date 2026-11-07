@@ -168,6 +168,7 @@ fn config() -> RuntimeConfig {
             max_in_flight: NonZeroUsize::MIN,
             max_retiring: 0,
         },
+        additional_frame_rates: Vec::new(),
         frame_rate: RationalRate::new(60, 1).unwrap(),
         max_outstanding: NonZeroUsize::MIN,
         max_input_bytes: NonZeroUsize::MIN,

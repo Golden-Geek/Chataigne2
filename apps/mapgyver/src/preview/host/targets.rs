@@ -19,6 +19,7 @@ pub(super) struct Target {
     pub id: OutputId,
     pub kind: ResolvedTarget,
     pub descriptor: TextureDescriptor,
+    pub frame_rate: golden_time::RationalRate,
 }
 
 impl Target {
@@ -39,6 +40,7 @@ impl Target {
             && self.screen == next.screen
             && self.id == next.id
             && self.descriptor == next.descriptor
+            && self.frame_rate == next.frame_rate
             && match (&self.kind, &next.kind) {
                 (ResolvedTarget::Spout { sender: left, .. }, ResolvedTarget::Spout { sender: right, .. }) => {
                     left == right
@@ -93,6 +95,7 @@ impl Targets {
                 authored: output.authored.clone(),
                 id,
                 kind: output.target.clone(),
+                frame_rate: output.frame_rate,
                 descriptor: TextureDescriptor {
                     extent: output.extent(),
                     format: PixelFormat::Bgra8Unorm,

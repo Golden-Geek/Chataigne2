@@ -122,6 +122,7 @@ fn config() -> RuntimeConfig {
             max_in_flight: NonZeroUsize::new(2).unwrap(),
             max_retiring: 2,
         },
+        additional_frame_rates: Vec::new(),
         frame_rate: golden_time::RationalRate::new(60, 1).unwrap(),
         max_outstanding: NonZeroUsize::new(16).unwrap(),
         max_input_bytes: NonZeroUsize::new(65536).unwrap(),
@@ -144,6 +145,7 @@ fn renderer(adapter: golden_video::native::AdapterId, name: &str) -> OwnedRender
     let runtime = VideoRuntime::spawn_d3d11(
         config.clone(),
         D3d11Config {
+            output_rates: Vec::new(),
             diagnostics: None,
             adapter,
             inputs: InputLimits {

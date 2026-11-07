@@ -81,6 +81,7 @@ impl Owner {
         let runtime = VideoRuntime::spawn_d3d11(
             scene::config(ceiling, WorkerNotifier::new(|| {})),
             D3d11Config {
+                output_rates: Vec::new(),
                 adapter,
                 diagnostics: None,
                 inputs: InputLimits {

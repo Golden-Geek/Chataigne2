@@ -74,6 +74,7 @@ fn an_old_admitted_frame_cannot_repopulate_the_replaced_projects_latest_frame() 
     let (clock, time) = clock_pair(100, 0);
     let shared = Shared::new(old_project, time, clock, 4, None);
     let frame = |project, serial| FrameObservation {
+        cadence_rate: golden_time::RationalRate::new(60, 1).unwrap(),
         submit_duration: Duration::from_nanos(123),
         frame_index: serial,
         scheduled_at: time.monotonic(),
@@ -173,6 +174,7 @@ fn time_intents_do_not_certify_backend_recovery_or_revive_a_stopping_runtime() {
     assert_eq!(shared.snapshot().state, RuntimeState::Faulted);
     assert_eq!(shared.snapshot().failure.unwrap().code(), FailureCode::Backend);
     let frame = |project, serial| FrameObservation {
+        cadence_rate: golden_time::RationalRate::new(60, 1).unwrap(),
         submit_duration: Duration::from_nanos(123),
         frame_index: serial,
         scheduled_at: changed.monotonic(),

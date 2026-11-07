@@ -139,6 +139,7 @@ fn config() -> RuntimeConfig {
             max_in_flight: NonZeroUsize::new(2).unwrap(),
             max_retiring: 2,
         },
+        additional_frame_rates: Vec::new(),
         frame_rate: RationalRate::new(60, 1).unwrap(),
         max_outstanding: NonZeroUsize::new(4).unwrap(),
         max_input_bytes: NonZeroUsize::new(65536).unwrap(),
@@ -176,6 +177,101 @@ fn endpoint(control: &D3d11Control, id: u64) -> crate::native::OutputSnapshot {
 }
 
 #[test]
+#[ignore = "explicit both-GPU mixed output cadence API-delivery verification; no desktop input"]
+fn hardware_independent_output_rates_preserve_mixed_fractional_deadlines_on_each_gpu() {
+    for adapter in adapters().unwrap().into_iter().filter(|adapter| !adapter.software) {
+        for rates in [
+            [RationalRate::new(30, 1).unwrap(), RationalRate::new(60, 1).unwrap()],
+            [
+                RationalRate::new(50, 1).unwrap(),
+                RationalRate::new(60_000, 1_001).unwrap(),
+            ],
+            [RationalRate::new(120, 1).unwrap(), RationalRate::new(30, 1).unwrap()],
+        ] {
+            let identity = Uuid::new_v4();
+            let mut guard = RuntimeGuard(Some(
+                VideoRuntime::spawn_d3d11(
+                    config(),
+                    D3d11Config {
+                        adapter: adapter.id,
+                        diagnostics: None,
+                        inputs: InputLimits::default(),
+                        output_rates: rates
+                            .iter()
+                            .enumerate()
+                            .map(|(index, rate)| (OutputId::new(index as u64 + 1).unwrap(), *rate))
+                            .collect(),
+                        outputs: (1..=2)
+                            .map(|id| OutputBinding::Spout {
+                                id: OutputId::new(id).unwrap(),
+                                name: format!("GoldenCadence-{identity}-{id}"),
+                                descriptor: descriptor(),
+                            })
+                            .collect(),
+                    },
+                )
+                .unwrap(),
+            ));
+            let runtime = guard.0.as_mut().unwrap();
+            let control = runtime.d3d11_control().unwrap();
+            runtime
+                .submit_plan(
+                    runtime.project_epoch(),
+                    scene(),
+                    PlanActivation::NextFrame(runtime.read_time().unwrap().epoch()),
+                    LatePolicy::Activate,
+                )
+                .unwrap();
+            wait("both cadence outputs active", || {
+                control.output_snapshots().len() == 2 && (1..=2).all(|id| endpoint(&control, id).accepted_frames > 4)
+            });
+            let before = [endpoint(&control, 1), endpoint(&control, 2)];
+            let started = Instant::now();
+            std::thread::sleep(Duration::from_secs(2));
+            let elapsed = started.elapsed().as_secs_f64();
+            let after = [endpoint(&control, 1), endpoint(&control, 2)];
+            println!(
+                "cadence-state native={:?} runtime={:?} before={:?} after={:?}",
+                control.snapshot(),
+                runtime.snapshot(),
+                before,
+                after
+            );
+            for index in 0..2 {
+                let frames = after[index].accepted_frames - before[index].accepted_frames;
+                let nominal = f64::from(rates[index].numerator()) / f64::from(rates[index].denominator());
+                let observed = frames as f64 / elapsed;
+                println!(
+                    "cadence-api adapter={:?} output={} nominal={} observed={} frames={} elapsed={}",
+                    adapter.description,
+                    index + 1,
+                    nominal,
+                    observed,
+                    frames,
+                    elapsed
+                );
+                assert!(
+                    (frames as f64 - nominal * elapsed).abs() <= 2.0 + nominal * elapsed * 0.05,
+                    "mixed output delivery rate: {nominal} vs {observed}"
+                );
+                assert_eq!(
+                    before[index].generation, after[index].generation,
+                    "cadence must not recreate the endpoint per frame"
+                );
+            }
+            assert!(runtime.snapshot().failure.is_none());
+            assert_eq!(control.snapshot().failed_outputs, 0);
+            assert!(
+                control.snapshot().submitted <= control.snapshot().accepted_outputs,
+                "a GPU batch must have a due consumer instead of occupying completion slots without delivery"
+            );
+            // Guard proves actual GPU retirement before starting the next owned sender pair.
+            drop(guard);
+        }
+    }
+}
+
+#[test]
 #[ignore = "requires hardware D3D11 and owned native Spout senders"]
 fn hardware_output_collision_recovers_through_public_runtime_without_stopping_healthy_output() {
     let (done, stop) = mpsc::channel();
@@ -200,6 +296,7 @@ fn hardware_output_collision_recovers_through_public_runtime_without_stopping_he
         VideoRuntime::spawn_d3d11(
             config(),
             D3d11Config {
+                output_rates: Vec::new(),
                 diagnostics: None,
                 adapter: adapter.id,
                 inputs: InputLimits::default(),

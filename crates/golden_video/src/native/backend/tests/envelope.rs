@@ -104,6 +104,7 @@ fn hardware_shared_time_fades_preserve_premultiplied_pixels_group_opacity_and_on
         let device = DeviceGeneration::new(uuid::Uuid::new_v4(), 1);
         let mut backend = D3d11Backend::new(
             D3d11Config {
+                output_rates: Vec::new(),
                 adapter: adapter.id,
                 diagnostics: None,
                 inputs: InputLimits {

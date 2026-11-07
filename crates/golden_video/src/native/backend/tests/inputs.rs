@@ -160,6 +160,7 @@ pub(super) fn input_limits() -> InputLimits {
 
 fn native_config(adapter: AdapterId, output_name: String) -> D3d11Config {
     D3d11Config {
+        output_rates: Vec::new(),
         diagnostics: None,
         adapter,
         inputs: input_limits(),
@@ -186,6 +187,7 @@ pub(super) fn runtime_config() -> RuntimeConfig {
             max_in_flight: NonZeroUsize::new(2).unwrap(),
             max_retiring: 2,
         },
+        additional_frame_rates: Vec::new(),
         frame_rate: RationalRate::new(60, 1).unwrap(),
         max_outstanding: NonZeroUsize::new(4).unwrap(),
         max_input_bytes: NonZeroUsize::new(65536).unwrap(),

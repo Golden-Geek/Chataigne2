@@ -263,6 +263,7 @@ fn qualify(adapter: &AdapterInfo) -> serde_json::Value {
     let runtime = VideoRuntime::spawn_d3d11(
         config.clone(),
         D3d11Config {
+            output_rates: Vec::new(),
             adapter: adapter.id,
             diagnostics: None,
             inputs: InputLimits {
@@ -388,6 +389,7 @@ fn qualify_pressure(adapter: &AdapterInfo) -> serde_json::Value {
     let runtime = VideoRuntime::spawn_d3d11(
         config.clone(),
         D3d11Config {
+            output_rates: Vec::new(),
             adapter: adapter.id,
             diagnostics: None,
             inputs: InputLimits {

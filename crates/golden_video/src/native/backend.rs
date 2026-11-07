@@ -447,6 +447,28 @@ impl Backend for D3d11Backend {
     fn presentation_pending(&self, resources: &Self::Resources) -> bool {
         self.native.as_ref().is_some_and(|native| !native.quiesced) && resources.presentation.borrow().pending()
     }
+    fn submission_due(
+        &self,
+        resources: &Self::Resources,
+        plan: &CompiledPlan,
+        time: TimeSnapshot,
+        presentation: bool,
+    ) -> bool {
+        let Some(native) = self.native.as_ref().filter(|native| !native.quiesced) else {
+            return false;
+        };
+        if presentation {
+            resources
+                .presentation
+                .borrow()
+                .pending_outputs()
+                .any(|id| native.outputs.ready(id, time))
+        } else {
+            plan.outputs()
+                .iter()
+                .any(|output| native.outputs.ready(output.id, time))
+        }
+    }
 
     fn presentation_retry_delay(&self, resources: &Self::Resources) -> Option<Duration> {
         let native = self.native.as_ref().filter(|native| !native.quiesced)?;
@@ -490,6 +512,7 @@ impl D3d11Backend {
         time: TimeSnapshot,
         presentation_only: bool,
     ) -> Result<(), BackendError> {
+        let output_time = time;
         let time = if presentation_only {
             resources.content_time.get().ok_or(BackendError::UnsupportedPlan)?
         } else {
@@ -672,6 +695,9 @@ impl D3d11Backend {
                 return Attempt::Complete;
             }
             let output = &plan.outputs()[index];
+            if attempt == Admission::Poll && !native.outputs.due(output.id, output_time) {
+                return Attempt::Complete;
+            }
             let converted = resources.outputs.get(&output.id).map(Rc::as_ref);
             let descriptor = native.outputs.descriptor(output.id).expect("validated native output");
             let admission_begin = recorder.and_then(Recorder::stamp);

@@ -16,6 +16,7 @@ fn runtime() -> AppEngine {
 
 fn display(id: &str, index: u32) -> DisplayInfo {
     DisplayInfo {
+        refresh_rate: None,
         id: id.into(),
         name: format!("Panel {index}"),
         edid: Some(format!("{index:02x}").repeat(128)),
@@ -135,6 +136,7 @@ fn shared_texture_requester_replaces_the_occupied_output_without_changing_its_su
         ScreenEdit::ConfigureScreen {
             screen: requester,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 target: Some(ScreenTarget::Fullscreen { display: "two".into() }),
                 enabled: true,
                 anti_aliasing: Default::default(),
@@ -210,6 +212,7 @@ fn a_recovered_physical_display_is_occupied_even_when_the_saved_path_is_offline(
         ScreenEdit::ConfigureScreen {
             screen: requester,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 target: Some(ScreenTarget::Fullscreen {
                     display: "replacement-path".into(),
                 }),

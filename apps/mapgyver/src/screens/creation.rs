@@ -86,6 +86,7 @@ fn with_surface(
     let mut screen = ScreenNode::from_definition(
         label,
         ScreenDefinition {
+            frame_rate: Default::default(),
             target: Some(target),
             enabled: true,
             anti_aliasing: Default::default(),

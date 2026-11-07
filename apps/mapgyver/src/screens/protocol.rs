@@ -23,7 +23,35 @@ pub struct DisplayInfo {
     pub index: u32,
     #[serde(default)]
     pub primary: bool,
+    #[serde(default)]
+    pub refresh_rate: Option<DisplayRefreshRate>,
     pub bounds: PhysicalRectangle,
+}
+
+/// Exact active desktop frequency, preserving fractional display modes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct DisplayRefreshRate {
+    pub numerator: u32,
+    pub denominator: u32,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind")]
+pub enum ScreenFrameRate {
+    #[default]
+    FollowDisplay,
+    Explicit {
+        fps: f64,
+    },
+}
+
+impl ScreenFrameRate {
+    pub fn explicit_rate(fps: f64) -> Result<golden_time::RationalRate, String> {
+        if !fps.is_finite() || !(1.0..=1000.0).contains(&fps) {
+            return Err("Screen frame rate must be finite and between 1 and 1000 FPS".into());
+        }
+        golden_time::RationalRate::new((fps * 1_000_000.0).round() as u32, 1_000_000).map_err(|error| error.to_string())
+    }
 }
 
 /// Authored destination evidence, retained unchanged while runtime routing recovers elsewhere.
@@ -100,13 +128,14 @@ pub enum ScreenTarget {
     },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(default)]
 pub struct ScreenDefinition {
     /// An unconfigured Screen must not create a window or select a sender implicitly.
     pub target: Option<ScreenTarget>,
     pub enabled: bool,
     pub anti_aliasing: ScreenAntiAliasing,
+    pub frame_rate: ScreenFrameRate,
 }
 
 impl Default for ScreenDefinition {
@@ -118,6 +147,7 @@ impl Default for ScreenDefinition {
             }),
             enabled: true,
             anti_aliasing: ScreenAntiAliasing::Raw,
+            frame_rate: ScreenFrameRate::FollowDisplay,
         }
     }
 }
@@ -439,6 +469,9 @@ pub enum ScreenEditResult {
 
 impl ScreenDefinition {
     pub fn validate(&self) -> Result<(), String> {
+        if let ScreenFrameRate::Explicit { fps } = self.frame_rate {
+            ScreenFrameRate::explicit_rate(fps)?;
+        }
         match &self.target {
             Some(ScreenTarget::Fullscreen { display }) => text(display, 1024, "display identity")?,
             Some(ScreenTarget::Rectangle { bounds }) => {

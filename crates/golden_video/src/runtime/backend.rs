@@ -96,6 +96,18 @@ pub(crate) trait Backend {
         time: TimeSnapshot,
     ) -> Result<(), BackendError>;
 
+    /// Before claiming a completion slot, omit work with no due consumer. Cached
+    /// presentation may consider only its dirty outputs; no GPU use occurs here.
+    fn submission_due(
+        &self,
+        _resources: &Self::Resources,
+        _plan: &CompiledPlan,
+        _time: TimeSnapshot,
+        _presentation: bool,
+    ) -> bool {
+        true
+    }
+
     /// Live presentation metadata changed after the last content/presentation submission.
     /// Backends without a separate cached-content presentation path never request this work.
     fn presentation_pending(&self, _resources: &Self::Resources) -> bool {

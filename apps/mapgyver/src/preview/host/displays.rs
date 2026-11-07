@@ -73,6 +73,9 @@ pub(super) fn scan() -> Result<Vec<DisplayInfo>, String> {
                 edid: display.edid,
                 index: display.index,
                 primary: display.primary,
+                refresh_rate: display.refresh_rate.map(|(numerator, denominator)| {
+                    crate::screens::protocol::DisplayRefreshRate { numerator, denominator }
+                }),
                 bounds: crate::screens::protocol::PhysicalRectangle {
                     left: display.bounds.left(),
                     top: display.bounds.top(),

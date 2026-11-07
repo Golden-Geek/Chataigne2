@@ -4,6 +4,7 @@ use super::*;
 fn virtual_sender_names_leave_room_for_the_native_frame_counter_namespace() {
     for (length, valid) in [(239, true), (240, false)] {
         let definition = ScreenDefinition {
+            frame_rate: Default::default(),
             enabled: true,
             target: Some(ScreenTarget::Spout {
                 sender: "a".repeat(length),

@@ -88,6 +88,7 @@ fn scene(extent: Extent2D, mode: ScreenAntiAliasing) -> (AppEngine, ChannelRefer
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 enabled: true,
                 anti_aliasing: mode,
                 target: Some(ScreenTarget::Spout {
@@ -158,6 +159,7 @@ fn capture(
     let runtime = VideoRuntime::spawn_d3d11(
         config.clone(),
         D3d11Config {
+            output_rates: Vec::new(),
             adapter: adapter.id,
             diagnostics: Some(DiagnosticsConfig {
                 capacity: NonZeroUsize::new(65536).unwrap(),

@@ -8,6 +8,7 @@ fn screen(index: u128) -> ScreenId {
 }
 fn display(id: &str, edid: Option<&str>, name: &str, index: u32, left: i32) -> DisplayInfo {
     DisplayInfo {
+        refresh_rate: None,
         id: id.into(),
         edid: edid.map(str::to_owned),
         name: name.into(),

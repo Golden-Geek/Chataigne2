@@ -10,6 +10,7 @@ fn fullscreen_row_uses_human_name_and_truthful_missing_state_without_changing_id
         panic!()
     };
     node.set_displays(std::sync::Arc::from([DisplayInfo {
+        refresh_rate: None,
         id: identity.into(),
         name: "Studio projector".into(),
         index: 2,
@@ -93,6 +94,7 @@ fn row_reads_are_constant_size_read_only_and_follow_targets_source_renames_and_m
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 enabled: false,
                 target: Some(ScreenTarget::Rectangle {
                     bounds: PhysicalRectangle {

@@ -28,7 +28,7 @@ use golden_core::{
     ui_sync::{UiAck, UiEditIntent},
 };
 
-fn fixture() -> AppEngine {
+pub(super) fn fixture() -> AppEngine {
     let mut engine = create_new_project_engine().unwrap();
     engine.apply_edits().unwrap();
     // These domain-operation suites deliberately start with an empty manager.
@@ -50,13 +50,13 @@ fn invoke(engine: &mut AppEngine, edit: ScreenEdit) -> UiAck {
     )
 }
 
-fn apply(engine: &mut AppEngine, edit: ScreenEdit) -> ScreenEditResult {
+pub(super) fn apply(engine: &mut AppEngine, edit: ScreenEdit) -> ScreenEditResult {
     let ack = invoke(engine, edit);
     assert!(ack.success, "{ack:?}");
     serde_json::from_value(ack.result.unwrap().value).unwrap()
 }
 
-fn create(engine: &mut AppEngine) -> (ScreenId, SurfaceReference) {
+pub(super) fn create(engine: &mut AppEngine) -> (ScreenId, SurfaceReference) {
     let ScreenEditResult::ScreenCreated { screen, surface } = apply(engine, ScreenEdit::CreateScreen { label: None })
     else {
         panic!()

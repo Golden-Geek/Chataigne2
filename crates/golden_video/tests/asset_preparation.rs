@@ -87,6 +87,7 @@ fn public_video_consumer_uses_worker_prepared_extent_and_rechecks_asset_fences_a
             max_in_flight: NonZeroUsize::new(2).unwrap(),
             max_retiring: 2,
         },
+        additional_frame_rates: Vec::new(),
         frame_rate: RationalRate::new(60, 1).unwrap(),
         max_outstanding: NonZeroUsize::new(8).unwrap(),
         max_input_bytes: NonZeroUsize::new(16 * 1024).unwrap(),

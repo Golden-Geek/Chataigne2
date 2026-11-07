@@ -40,6 +40,9 @@ fn displays() -> io::Result<Vec<mapgyver::screens::protocol::DisplayInfo>> {
         .into_iter()
         .map(|display| {
             Ok(mapgyver::screens::protocol::DisplayInfo {
+                refresh_rate: display.refresh_rate.map(|(numerator, denominator)| {
+                    mapgyver::screens::protocol::DisplayRefreshRate { numerator, denominator }
+                }),
                 id: display.id,
                 name: display.name,
                 edid: display.edid,

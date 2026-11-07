@@ -75,6 +75,12 @@ pub(super) fn enumerate() -> io::Result<Vec<NativeDisplay>> {
                 let gdi_name = source_name(&path);
                 displays.push(NativeDisplay {
                     id,
+                    refresh_rate: (path.targetInfo.refreshRate.Numerator != 0
+                        && path.targetInfo.refreshRate.Denominator != 0)
+                        .then_some((
+                            path.targetInfo.refreshRate.Numerator,
+                            path.targetInfo.refreshRate.Denominator,
+                        )),
                     name: String::from_utf16_lossy(terminated(&name.monitorFriendlyDeviceName)),
                     edid: monitor_registry::read_edid(&name.monitorDevicePath),
                     index: gdi_name.as_deref().map(metadata::display_index).unwrap_or(0),

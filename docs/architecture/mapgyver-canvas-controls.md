@@ -6,6 +6,9 @@ pointer and animation lifetimes. Native preview underlays remain owned by the de
 MapGyver supplies contextual action snippets to the same toolbar; Composition, Screen
 Warping and Surface Source no longer need duplicated navigation or internal title bars.
 
+[Screen output cadence](mapgyver-output-cadence.md) is authored independently of editor input
+and the native preview's 60 FPS consumer. Shared clocks and endpoint pacing belong in Golden.
+
 Matrix keeps bounded table scrolling. Home and Frame use cached global row/column indices
 in the Rust selection snapshot, including when the selected object is outside the visible
 window. Column positions are indexed when the cached view is built; selection lookup does

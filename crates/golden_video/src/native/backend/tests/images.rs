@@ -198,6 +198,7 @@ struct Renderer {
 impl Renderer {
     fn new(adapter: AdapterId, image: &PreparedImageFixture, width: u32) -> Self {
         let config = D3d11Config {
+            output_rates: Vec::new(),
             diagnostics: None,
             adapter,
             inputs: InputLimits {

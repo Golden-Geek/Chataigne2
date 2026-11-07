@@ -15,6 +15,7 @@ fn fullscreen_capture_and_plan_withdrawal_work_without_a_native_host() {
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 enabled: true,
                 target: Some(ScreenTarget::Fullscreen {
                     display: "intended".into(),
@@ -24,6 +25,7 @@ fn fullscreen_capture_and_plan_withdrawal_work_without_a_native_host() {
         },
     );
     let displays = [DisplayInfo {
+        refresh_rate: None,
         id: "intended".into(),
         name: "Monitor".into(),
         edid: None,
@@ -63,6 +65,7 @@ fn configure(engine: &mut AppEngine, screen: ScreenId, name: &str, enabled: bool
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 enabled,
                 target: Some(ScreenTarget::Spout {
                     sender: name.into(),
@@ -137,6 +140,7 @@ fn output_catalog_rejects_duplicate_names_and_enforces_bounds_before_native_crea
             payload: serde_json::to_value(ScreenEdit::ConfigureScreen {
                 screen: second,
                 definition: ScreenDefinition {
+                    frame_rate: Default::default(),
                     enabled: true,
                     target: Some(ScreenTarget::Spout {
                         sender: "Same".into(),

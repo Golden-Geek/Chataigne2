@@ -1,0 +1,312 @@
+{
+  "date": "2026-11-07",
+  "gate": "M13/4 Active; no new gate credit",
+  "progress": {
+    "accepted": 73,
+    "total": 92,
+    "percent": 79
+  },
+  "deliverable": "Typed per-Screen display-following or explicit output FPS, independent 60 FPS native preview, shared multi-cadence scheduling and no GPU submissions without due consumers",
+  "ownership": {
+    "MapGyver": "Real frame_rate_mode and frames_per_second Golden Parameters; current display/rectangle routing policy",
+    "Golden": "Bounded desktop refresh metadata, independent absolute frame deadlines, native consumer pacing and pre-submission demand guard"
+  },
+  "policy": {
+    "default": "FollowDisplay",
+    "fullscreen": "Exact refresh of the currently resolved/recovered monitor",
+    "rectangle": "Largest physical overlap, then primary/stable identity",
+    "spout_or_unknown": "60 FPS fallback",
+    "explicit": "Finite 1..1000 FPS; decimal rate resolved at micro-FPS precision",
+    "reconfiguration": "Normal complete GPU retirement/rebinding with retained physical window leases and pinned adapter"
+  },
+  "software": {
+    "app_rust": {
+      "passed": 541,
+      "ignored": 2,
+      "failed": 0
+    },
+    "golden_video": {
+      "passed": 243,
+      "ignored": 52,
+      "failed": 0
+    },
+    "strict_clippy": "MapGyver lib/tests with native-preview-smoke,application-process-fixture and Golden Video d3d11,qualification: -D warnings passes; final status fix app strict passes",
+    "ui": "43 Screen/runtime Node tests pass; MapGyver Svelte 0 errors/0 warnings; touched TS/MJS Prettier and syntax checks pass",
+    "protocol": "Rust Screen contracts generated to a temporary directory, then applied through the editing tool; exact generated parity passes",
+    "behavior": "Typed atomic Parameter edits, invalid values, one-step history, remembered explicit FPS, sparse project reload, hosted script caller, live exact fractional display changes, rectangle overlap and immutable-binding replacement"
+  },
+  "native_hardware": {
+    "result": "pass",
+    "test": "native::outputs::tests::hardware::hardware_independent_output_rates_preserve_mixed_fractional_deadlines_on_each_gpu",
+    "workload": "Two owned 8x8 procedural Spout outputs, each pair measured for two seconds; all three pairs on each hardware GPU",
+    "observations": [
+      {
+        "adapter": "Intel(R) Graphics",
+        "output": 1,
+        "nominal_fps": 30,
+        "accepted_fps": 29.999104526729877,
+        "frames": 60,
+        "seconds": 2.0000597
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "output": 2,
+        "nominal_fps": 60,
+        "accepted_fps": 59.49822397801426,
+        "frames": 119,
+        "seconds": 2.0000597
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "output": 1,
+        "nominal_fps": 50,
+        "accepted_fps": 49.986955903856895,
+        "frames": 100,
+        "seconds": 2.0005219
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "output": 2,
+        "nominal_fps": 59.94005994005994,
+        "accepted_fps": 59.98434708462827,
+        "frames": 120,
+        "seconds": 2.0005219
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "output": 1,
+        "nominal_fps": 120,
+        "accepted_fps": 119.99251246722204,
+        "frames": 240,
+        "seconds": 2.0001248
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "output": 2,
+        "nominal_fps": 30,
+        "accepted_fps": 29.99812811680551,
+        "frames": 60,
+        "seconds": 2.0001248
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "output": 1,
+        "nominal_fps": 30,
+        "accepted_fps": 29.993321986859627,
+        "frames": 60,
+        "seconds": 2.0004453
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "output": 2,
+        "nominal_fps": 60,
+        "accepted_fps": 59.986643973719254,
+        "frames": 120,
+        "seconds": 2.0004453
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "output": 1,
+        "nominal_fps": 50,
+        "accepted_fps": 49.99033936691735,
+        "frames": 100,
+        "seconds": 2.0003865
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "output": 2,
+        "nominal_fps": 59.94005994005994,
+        "accepted_fps": 59.988407240300816,
+        "frames": 120,
+        "seconds": 2.0003865
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "output": 1,
+        "nominal_fps": 120,
+        "accepted_fps": 119.9767724968446,
+        "frames": 240,
+        "seconds": 2.0003872
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "output": 2,
+        "nominal_fps": 30,
+        "accepted_fps": 29.99419312421115,
+        "frames": 60,
+        "seconds": 2.0003872
+      }
+    ],
+    "invariants": "No API failures, endpoint incarnation stable during the measurement, actual GPU retirement before each next pair, submitted GPU batches do not exceed accepted consumer deliveries",
+    "scope": "API delivery rates only; not physical scanout or production timing acceptance"
+  },
+  "investigation": {
+    "pre_guard_failures": [
+      {
+        "trial": "baseline",
+        "nvidia_50_fps_observed": 3.9988599250353727
+      },
+      {
+        "trial": "repeat with existing runtime/completion metadata",
+        "nvidia_50_fps_observed": 2.999698530297705,
+        "in_flight": 2,
+        "submitted": 23,
+        "completed": 21,
+        "missed_frames": 297
+      },
+      {
+        "trial": "0.25ms deadline coalescing candidate",
+        "nvidia_50_fps_observed": 5.9992911837466405,
+        "in_flight": 2,
+        "submitted": 35,
+        "completed": 33,
+        "missed_frames": 279
+      }
+    ],
+    "decision": "The coalescing candidate failed and was removed. Final correction checks due consumers before claiming a completion slot or issuing GPU work, including dirty-only cached presentations. The same required fixture then passes every mixed pair on both GPUs; no budget was relaxed."
+  },
+  "bundled_app": {
+    "state": "pass; both owned app hosts close normally with exit code 0",
+    "fixture": "apps/mapgyver/tests/browser/output-cadence.mjs",
+    "status_fix": "Per-Screen observations now use all active targets instead of only windows with Escape handlers; previous actual Spout outputs ran but were absent from status",
+    "retained_failures": [
+      {
+        "path": "target/m134-output-cadence-app-20261107/failure.json",
+        "sha256": "2522bad9982903b08045ea1320e11743373cd1f18ca50b8f8634a0751d99d72e",
+        "cause": "Fixture startup navigation race; now waits for mounted footer"
+      },
+      {
+        "path": "target/m134-output-cadence-app-ready-20261107/failure.json",
+        "sha256": "7e6ae45f60ca65cc85ca398e4b0892cf30784615896450b2f592690a2a286366",
+        "cause": "Spout omitted from runtime Screen status; subsequent fixture with actual ColorBars content confirmed the same product status bug"
+      },
+      {
+        "path": "target/m134-output-cadence-app-content-20261107/failure.json",
+        "cause": "Actual content confirmed missing Spout status; final host samples every active target"
+      },
+      {
+        "path": "target/m134-output-cadence-app-observed-20261107/failure.json",
+        "cause": "First-GPU rates passed; fixture string comparison120.000 vs120 corrected to numeric assertion"
+      }
+    ],
+    "receipt": {
+      "receipt": "target/m134-output-cadence-app-verified-20261107/result.json",
+      "sha256": "5678fec074346e4bd16fef2d081c5ba81eff0eaa5448acc112553b2f22c564ee",
+      "results": [
+        {
+          "pid": 24532,
+          "adapter": {
+            "key": "dxgi:00000000:00015b69",
+            "index": 0,
+            "description": "Intel(R) Graphics"
+          },
+          "displays": [
+            {
+              "name": "RTK FHD HDR",
+              "refresh_rate": {
+                "numerator": 14850000,
+                "denominator": 247500
+              }
+            },
+            {
+              "name": "",
+              "refresh_rate": {
+                "numerator": 116467300,
+                "denominator": 485280
+              }
+            }
+          ],
+          "checks": [
+            {
+              "stage": "rates 30,60",
+              "accepted_fps": [
+                30.735868242669792,
+                60.4802568646083
+              ]
+            },
+            {
+              "stage": "rates 50,59.94",
+              "accepted_fps": [
+                49.7365554132869,
+                59.68386649594428
+              ]
+            },
+            {
+              "stage": "rates 120,30",
+              "accepted_fps": [
+                119.84279794306178,
+                29.71309039910623
+              ]
+            },
+            {
+              "stage": "Shared Texture follow-display fallback",
+              "accepted_fps": [
+                60.448809619248806,
+                29.728922763564988
+              ]
+            }
+          ],
+          "errors": []
+        },
+        {
+          "pid": 48768,
+          "adapter": {
+            "key": "dxgi:00000000:90b3a15f",
+            "index": 1,
+            "description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+          },
+          "displays": [
+            {
+              "name": "RTK FHD HDR",
+              "refresh_rate": {
+                "numerator": 14850000,
+                "denominator": 247500
+              }
+            },
+            {
+              "name": "",
+              "refresh_rate": {
+                "numerator": 116467300,
+                "denominator": 485280
+              }
+            }
+          ],
+          "checks": [
+            {
+              "stage": "rates 30,60",
+              "accepted_fps": [
+                29.742740168909023,
+                59.485480337818046
+              ]
+            },
+            {
+              "stage": "rates 50,59.94",
+              "accepted_fps": [
+                50.60436495391728,
+                59.53454700460857
+              ]
+            },
+            {
+              "stage": "rates 120,30",
+              "accepted_fps": [
+                120.3149626968927,
+                29.830156040551913
+              ]
+            },
+            {
+              "stage": "Shared Texture follow-display fallback",
+              "accepted_fps": [
+                60.439741726121376,
+                29.724463143994118
+              ]
+            }
+          ],
+          "errors": []
+        }
+      ]
+    },
+    "binary_sha256": "bd625b6c82f2b5bf32f38790acbc6bccdecac03b10ef8455aa06cdfc6ee63eb1",
+    "invariants": "Selected adapter retained, actual rational refresh catalog, three rate pairs per GPU, ordinary120 FPS Inspector, Follow display hides FPS and Shared Texture returns to60; no page errors"
+  },
+  "remaining": "Native display refresh-change/hotplug recovery and cadence/pacing across required workloads; actual presented30+fps manipulation, alignment and p95/p99 latency on both GPUs; complete cancellation/final-state/progress and full caller/persistence/copy acceptance. All original budgets and return gates remain unchanged."
+}

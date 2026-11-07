@@ -259,6 +259,7 @@ impl<B: Backend> Runner<B> {
                     self.cadence.submitted(tick.index);
                 }
                 self.shared.record_frame(FrameObservation {
+                    cadence_rate: self.cadence.rate(),
                     submit_duration: submit_started.elapsed(),
                     frame_index: tick.index,
                     scheduled_at: tick.scheduled,

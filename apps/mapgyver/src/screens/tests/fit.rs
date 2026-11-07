@@ -27,6 +27,7 @@ fn fill_and_fit_use_backend_target_and_cropped_source_aspect_with_history_and_ro
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 target: Some(ScreenTarget::Spout {
                     sender: "Fit".into(),
                     extent: Extent2D::new(800, 600).unwrap(),
@@ -121,6 +122,7 @@ fn fit_preserves_reference_resolution_overrides_and_rejects_unknown_inputs_atomi
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 target: Some(ScreenTarget::Rectangle {
                     bounds: PhysicalRectangle {
                         left: -800,
@@ -249,6 +251,7 @@ fn fit_uses_cached_fullscreen_extent_and_rejects_lost_display_without_history_ch
     let (screen, reference) = create(&mut engine);
     let source = super::drop_sources::source(&mut engine);
     let display = DisplayInfo {
+        refresh_rate: None,
         id: "fit-display".into(),
         name: "Fit display".into(),
         edid: None,
@@ -270,6 +273,7 @@ fn fit_uses_cached_fullscreen_extent_and_rejects_lost_display_without_history_ch
         ScreenEdit::ConfigureScreen {
             screen,
             definition: ScreenDefinition {
+                frame_rate: Default::default(),
                 target: Some(ScreenTarget::Fullscreen { display: display.id }),
                 enabled: false,
                 anti_aliasing: Default::default(),

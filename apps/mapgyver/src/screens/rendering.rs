@@ -45,6 +45,7 @@ pub struct CapturedOutput {
     pub screen: ScreenId,
     pub authored: ScreenTarget,
     pub target: ResolvedTarget,
+    pub frame_rate: golden_time::RationalRate,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -169,6 +170,7 @@ pub fn capture_outputs(
             outputs.push(CapturedOutput {
                 screen,
                 authored,
+                frame_rate: super::frame_rate::resolve(node.definition().frame_rate, &target, displays),
                 target,
             });
         }
