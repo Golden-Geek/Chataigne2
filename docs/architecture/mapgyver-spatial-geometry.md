@@ -44,6 +44,10 @@ Viewport ownership excludes inputs and navigation controls. Focus loss flushes t
 gesture and discards queued input; Escape, changed target/mode/project/snapshot and unavailable
 sessions cancel unsent input. Stale repeats cannot reopen a cancelled gesture. Handle buttons
 retain focus during their active gesture while the ordinary admission guard rejects new starts.
+Temporarily busy Composition/Matrix handles use `aria-disabled` while retaining DOM focus.
+Native HTML disabling would blur the current resize target during history/projection refresh.
+Pointer starts and the shared keyboard queue still use the existing current-geometry admission
+guards; preserving focus never admits stale geometry or changes a cancellation fence.
 Only the backend authors Parameters or validates coordinates and opposite anchors.
 
 Admitted keyboard geometry selects the displayed object through the same document-selection

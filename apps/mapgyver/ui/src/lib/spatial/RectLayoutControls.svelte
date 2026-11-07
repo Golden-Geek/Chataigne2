@@ -132,7 +132,7 @@
 			y={object.position[1] / canvas.height}
 			data-layout-cell={kind === 'Cell' ? object.id : undefined}
 			label={`Move ${object.label}`}
-			disabled={disabled && !active}
+			aria-disabled={disabled && !active}
 			onclick={() => {
 				if (!disabled) select(object.id);
 			}}
@@ -150,7 +150,7 @@
 			data-matrix-layer-resize={kind === 'Layer' ? handle.name : undefined}
 			data-matrix-cell-resize={kind === 'Cell' ? handle.name : undefined}
 			style={`border-radius: 0.1rem; cursor: ${handle.cursor}`}
-			disabled={disabled && !active}
+			aria-disabled={disabled && !active}
 			onpointerdown={(event) => {
 				if (item) down(event, item, { Resize: { handle: handle.name } });
 			}} />

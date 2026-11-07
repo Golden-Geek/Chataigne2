@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
-import { writeFile } from 'node:fs/promises';
+import { stat, writeFile } from 'node:fs/promises';
 import { contentLock } from './content-lock.mjs';
 import { observeNativeRejectedRequests } from './intent-observer.mjs';
 
 export async function verifySpatialAcceptance({ page, edit, post, directory, nativePid }) {
 	let stage = 'arrange sparse project';
+	let resizeFocus;
 	const errors = [],
 		receipts = await observeNativeRejectedRequests(page, () => stage);
 	page.on('pageerror', (error) => errors.push(String(error)));
@@ -124,6 +125,16 @@ export async function verifySpatialAcceptance({ page, edit, post, directory, nat
 			'128 visible Layers plus the independent far selection'
 		);
 		assert.deepEqual(await inspect(), authored, 'sparse selection does not materialize addresses');
+		const activation = process.env.MAPGYVER_SPATIAL_ACTIVATION;
+		if (activation) {
+			assert(Number.isSafeInteger(nativePid) && nativePid > 0);
+			await writeFile(`${activation}.json`, JSON.stringify({ nativePid }));
+			const deadline = Date.now() + 90000;
+			while (!(await stat(activation).catch(() => null))) {
+				assert(Date.now() < deadline, 'Owned sparse fixture activation timed out');
+				await delay(50);
+			}
+		}
 		const undo = async (expected) => {
 			await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 			await wait(inspect, (value) => isDeepStrictEqual(value, expected));
@@ -200,7 +211,12 @@ export async function verifySpatialAcceptance({ page, edit, post, directory, nat
 		const handle = panel.locator('[data-matrix-cell-resize="Right"]');
 		await wait(() => handle.isEnabled(), Boolean);
 		await handle.focus();
-		assert(await handle.evaluate((element) => document.activeElement === element));
+		resizeFocus = await handle.evaluate((element) => ({
+			focused: document.activeElement === element,
+			nativeDisabled: element.disabled,
+			ariaDisabled: element.getAttribute('aria-disabled')
+		}));
+		assert(resizeFocus.focused && !resizeFocus.nativeDisabled, JSON.stringify(resizeFocus));
 		for (let step = 0; step < 3; step++) await page.keyboard.down('ArrowRight');
 		await page.keyboard.up('ArrowRight');
 		const resized = await wait(inspect, (value) => settings(value).size?.width === 243);
@@ -282,12 +298,16 @@ export async function verifySpatialAcceptance({ page, edit, post, directory, nat
 			initialCells: 3,
 			cellsAfterCopy: 4,
 			visibleLayerBound: 129,
+			resizeFocus,
 			errors,
 			receipts,
 			scope:
 				'large sparse spatial Layer/Cell selection and geometry; active Cell authoring retains exact playback; natural source resize and independent authored Size; exact history/copy/layout/project reload; locked target and New-while-held/same-UUID Load fence'
 		};
-		await writeFile('target/m12-spatial-acceptance-ui.json', JSON.stringify(result, null, 2));
+		await writeFile(
+			process.env.MAPGYVER_SPATIAL_RESULT ?? 'target/m12-spatial-acceptance-ui.json',
+			JSON.stringify(result, null, 2)
+		);
 		console.log(JSON.stringify(result));
 	} catch (error) {
 		console.error(
@@ -295,6 +315,19 @@ export async function verifySpatialAcceptance({ page, edit, post, directory, nat
 				stage,
 				errors,
 				receipts,
+				focus: await page
+					.evaluate(() => ({
+						document: document.hasFocus(),
+						active: document.activeElement?.tagName,
+						resize: document.activeElement?.getAttribute('data-matrix-cell-resize'),
+						right: [...document.querySelectorAll('[data-matrix-cell-resize="Right"]')].map(
+							(element) => ({
+								disabled: element.disabled,
+								focused: element === document.activeElement
+							})
+						)
+					}))
+					.catch(() => null),
 				body: (await page.locator('body').innerText()).slice(-3000)
 			})
 		);

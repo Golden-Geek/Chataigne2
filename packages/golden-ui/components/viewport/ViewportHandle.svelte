@@ -45,7 +45,8 @@
 		pointer-events: auto;
 		touch-action: none;
 	}
-	.viewport-handle:disabled {
+	.viewport-handle:disabled,
+	.viewport-handle[aria-disabled='true'] {
 		cursor: default;
 	}
 	.ghost {

@@ -1,0 +1,121 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/4 Active; transient spatial-handle focus defect repaired and large/populated functional regressions verified; actual240Hz timing unaccepted",
+	"acceptance": { "verified": 71, "total": 92, "m13_verified": 2, "m13_total": 14 },
+	"batch": {
+		"started_utc": "05:16",
+		"planned_cutoff_utc": "06:01",
+		"checks_finished_utc": "05:29"
+	},
+	"defect": "NVIDIA's1000x1000 sparse UI flow fails before resize input: after focusing an enabled Right handle, a background history/projection refresh applies native HTML disabled, blurring the handle to BODY. Explicitly activating the owned app repeats the failure with document.hasFocus=true and Right.disabled=true. This is not an unavailable desktop-control tool or a missing OS foreground precondition.",
+	"fix": "App-owned Composition/Matrix handles use aria-disabled for temporary busy states, retaining DOM focus. Existing pointer-start, current-geometry keyboard queue, history/project/snapshot and cancellation admission guards remain unchanged. Golden ViewportHandle styles the standard ARIA state; its native ghost disabling remains unchanged. No backend/protocol/authored-policy or resource-budget change, and no production polling.",
+	"software": {
+		"svelte": "MapGyver0 errors/0 warnings",
+		"keyboard": "Golden UI keyboard-gesture unit suite5 passed; bounded queued input/drain/cancellation behavior retained",
+		"format": "Touched Svelte/JS Prettier, JS syntax, root/Core cargo fmt and scoped diff checks passed",
+		"build": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m134-focus; terminal exit0 before verification",
+		"unchanged_scope": "Rust backend/strict/generated-contract evidence is reused for unchanged executed layers; no extra passing-suite reruns or timing qualification inferred"
+	},
+	"binary": {
+		"path": "target/debug/deps/MapGyver-m134-focus.exe",
+		"sha256": "52f0b8c21a88e0be04c9a9dc818531848b63e45deaee9748ae955a7d2745ce77"
+	},
+	"baseline_binary": {
+		"commit": "50412d02e92eb52f25609c36143a68863b9c44b2",
+		"path": "target/debug/deps/MapGyver-m134-cell-selection.exe",
+		"sha256": "58c17d1254241af6a6c1366725872822227973a48ae890d3ed4a2f0974acc7f3"
+	},
+	"large_scope": "Existing spatial-acceptance fixture:1000 Layers x1000 Columns, three authored Cells,128 visible Layers plus independently selected far Layer; far Cell inspection/keyboard geometry; active playback unchanged by authoring; natural source120->240 width and independent authored243 width; exact grouped history; copy produces four Cells; locked selection survives reload; New while held and same-UUID Load cannot replay stale input. This is functional keyboard/UI/backend proof, not physical alignment or timing.",
+	"large_intel": {
+		"result": "pass",
+		"pid": 29348,
+		"gpu": "dxgi:00000000:00015b69",
+		"fixture_exit": 0,
+		"artifact": "target/m134-large-sparse-intel-focus-20261107.json",
+		"sha256": "ee47817da17b9b6bc2d7fd5bb4acd62969acbf57f432426a1537dddb3dc47e39",
+		"resize_focus": { "focused": true, "native_disabled": false, "aria_disabled": false },
+		"observed_requests": 302,
+		"observed_receipts": 301,
+		"rejected": 0,
+		"page_errors": 0
+	},
+	"large_nvidia": {
+		"result": "pass",
+		"pid": 34600,
+		"gpu": "dxgi:00000000:90b3a15f",
+		"fixture_exit": 0,
+		"artifact": "target/m134-large-sparse-nvidia-focus-20261107.json",
+		"sha256": "9b840c4be695388077670f63bd5a60b68a7647037d7d4ae7146203a01c802f6c",
+		"resize_focus": { "focused": true, "native_disabled": false, "aria_disabled": true },
+		"observed_requests": 309,
+		"observed_receipts": 308,
+		"rejected": 0,
+		"page_errors": 0
+	},
+	"large_receipt_limit": "The large-flow observer ends with one unmatched observed request per run; its kind is not retained. Do not claim a fully reconciled terminal receipt cohort or complete background-intent audit from it. Exact canonical/history/playback assertions and normal close establish the named functional scope only.",
+	"populated_scope": "On this same fixed binary, existing populated3x3 suite passes both GPUs: nine distinct source identities and18 matching native thumbnail patches before/after per adapter; six held-request/final/history cases; selected Cell owns its overlapping drag area; six physical outlines per adapter within0.750161px at125%; Screen/Source native accepted-frame hits; seven complete independent red96x64 images per adapter. No page errors or rejected/unsuccessful acknowledgements. Owned app/fixture and SDK consumers close normally.",
+	"populated_intel": {
+		"artifact": "target/m134-focus-populated-intel-20261107/result.json",
+		"sha256": "3d01dac172e1065f0e2981d6aef8fc533d640a21152db0fa58305daacd5f4cb6",
+		"pid": 25868,
+		"fixture_exit": 0,
+		"requests": 634,
+		"receipts": 634,
+		"sdk_copies": 910,
+		"absent": 0,
+		"failed_receives": 0,
+		"descriptor_mismatch": 0,
+		"stable_shared_handle": 3221239682,
+		"first_frame": 65,
+		"last_frame": 975,
+		"maximum_receive_gap_ms": 50.0565,
+		"consumer_exit": 0
+	},
+	"populated_nvidia": {
+		"artifact": "target/m134-focus-populated-nvidia-20261107/result.json",
+		"sha256": "71570f4fcbec3bebcd7017713447b44860150c005958b7935558130b04ad5127",
+		"pid": 26008,
+		"fixture_exit": 0,
+		"requests": 628,
+		"receipts": 628,
+		"sdk_copies": 949,
+		"absent": 0,
+		"failed_receives": 0,
+		"descriptor_mismatch": 0,
+		"stable_shared_handle": 2147494018,
+		"first_frame": 70,
+		"last_frame": 1018,
+		"maximum_receive_gap_ms": 32.8901,
+		"consumer_exit": 0
+	},
+	"retained_baselines": [
+		{
+			"pid": 31552,
+			"gpu": "Intel",
+			"fixture_exit": 0,
+			"artifact": "target/m134-large-sparse-intel-20261107.json",
+			"result": "Initial old-binary large flow passes; this alone does not resolve the subsequent NVIDIA failure."
+		},
+		{
+			"pid": 38408,
+			"gpu": "NVIDIA",
+			"fixture_exit": 1,
+			"stage": "natural source resize then independent placement",
+			"failure": "Focused Right-handle assertion fails before resize keys; zero page errors/rejected requests."
+		},
+		{
+			"pid": 16628,
+			"gpu": "NVIDIA",
+			"fixture_exit": 1,
+			"stage": "natural source resize then independent placement",
+			"focus": {
+				"document": true,
+				"active": "BODY",
+				"right_disabled": true,
+				"right_focused": false
+			},
+			"failure": "Same assertion fails after supported owned-window foreground activation, reproducing the native-disabling cause before the fix."
+		}
+	],
+	"remaining": "Empty/other-media interaction, ordinary controls/scroll/docking and complete silent/background-intent audit; actual240Hz presented pacing, long stalls and pointer-to-visible p95/p99 across required workloads on both GPUs. Receive gaps above are preserved functional continuity data, including Intel50.0565ms, not production cadence or latency acceptance. The separate zero-action QPC return trigger and every original physical/memory/timing/retirement requirement remain unchanged. No full gate closed."
+}
