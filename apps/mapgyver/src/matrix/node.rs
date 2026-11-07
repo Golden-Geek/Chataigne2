@@ -41,7 +41,7 @@ pub struct ElementNode {
     runtime: OnceLock<super::playback::RuntimeBinding>,
 }
 impl ElementNode {
-    fn is_layer(&self) -> bool {
+    pub(super) fn is_layer(&self) -> bool {
         matches!(self.kind, Kind::Layer)
     }
     pub(crate) fn with_layer_settings(mut self, settings: LayerSettings) -> Self {

@@ -34,9 +34,12 @@ use std::sync::OnceLock;
         sender_selection: Enum = "Manual" (label = "Sender selection", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::SharedTexture,
             enum_options = crate::parameters::enum_options(&["Manual", "Auto"]), constraint_policy = "reject");
         empty_cell: Enum = "Transparent" (label = "Empty cell", enum_options = crate::parameters::enum_options(&["Transparent"]));
+        stop_all: ParamValue = ParamValue::Trigger() (label = "Stop All", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Matrix);
     }
 )]
 pub struct MediaNode {
+    #[state(default = crate::matrix::controls::Pulses::default())]
+    pulses: crate::matrix::controls::Pulses,
     #[state(default = RevisionSource::default())]
     membership: RevisionSource,
     #[state(default = OnceLock::new())]
@@ -148,6 +151,9 @@ impl MediaNode {
 }
 #[node("mapgyver.media.v8", from_struct)]
 impl Node for MediaNode {
+    fn inbox_requires_tree_snapshot(&self, _: &golden_core::events::EventFrame) -> bool {
+        false
+    }
     fn init(&mut self, ctx: &mut ProcessCtx) {
         ctx.add_event_listener_subtree(self.id(), self.id(), 2);
     }
@@ -209,12 +215,31 @@ impl Node for MediaNode {
         }
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
+        self.pulses.destroy();
         self.membership.advance();
     }
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
         self.membership.advance();
     }
-    fn on_param_change(&mut self, _: &mut ProcessCtx, _: golden_core::node::NodeId, _: ParamValue) {
+    fn on_node_ready(&mut self, _: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
+        self.pulses.ready();
+    }
+    fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
+        if !enabled {
+            self.pulses.revoke();
+        }
+    }
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        crate::matrix::controls::Pulses::result(ctx, self.id(), &event);
+    }
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: golden_core::node::NodeId, _: ParamValue) {
+        if parameter == self.stop_all.id() {
+            if self.kind() == MediaKind::Matrix {
+                self.pulses
+                    .invoke(ctx, &self.node_data, crate::matrix::controls::Action::StopAll);
+            }
+            return;
+        }
         self.membership.advance();
     }
     fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {

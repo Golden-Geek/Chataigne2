@@ -13,6 +13,7 @@ pub(crate) mod column_group_node;
 mod column_groups;
 pub(crate) mod column_node;
 pub(crate) mod configuration;
+pub(crate) mod controls;
 mod copying;
 mod creation;
 pub(crate) mod defaults;

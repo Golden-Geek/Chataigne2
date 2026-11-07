@@ -97,6 +97,8 @@ impl ProjectLifecycle for AppNode {
     ) -> Result<serde_json::Value, String> {
         if namespace == crate::media::protocol::MEDIA_NAMESPACE {
             crate::media::apply_operation(engine, operation, payload)
+        } else if namespace == crate::matrix::controls::NAMESPACE {
+            crate::matrix::controls::apply(engine, operation, payload)
         } else if namespace == crate::screens::protocol::SCREEN_NAMESPACE {
             crate::screens::apply_operation(engine, operation, payload)
         } else {

@@ -20,6 +20,7 @@ mod cell_settings;
 mod column_group_demand;
 mod column_group_view;
 mod column_groups;
+mod controls;
 mod copying;
 mod creation;
 mod defaults;

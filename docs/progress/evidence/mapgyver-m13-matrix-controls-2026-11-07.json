@@ -1,0 +1,59 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/6",
+	"state": "Active",
+	"acceptance_change": "None: 72/92 gates, M13 3/14, remain verified. This is a coherent functional implementation milestone.",
+	"deliverable": [
+		"Column and Cell own real Play/Cut Golden Trigger Parameter children, callable through generic Inspector, script property writes and parameter transport.",
+		"Matrix media owns a real Stop All Trigger; the grid uses its ordinary Golden Trigger editor in place of the Installed dropdown.",
+		"Stop All clears base and independent playback/application demand using the existing Cut and atomic completion path; earlier captured plans remain independently owned.",
+		"Pulses use the existing bounded app-operation dispatcher, current backend ownership, readiness guards and weak cancellation on disable/removal, without polling or authored-binding invalidation."
+	],
+	"software": {
+		"app_tests": {
+			"passed": 520,
+			"failed": 0,
+			"ignored": 2,
+			"command": "cargo test --locked -p MapGyver --lib --no-fail-fast --quiet"
+		},
+		"new_behavioral_tests": [
+			"Column/independent Cell transition and anchor semantics, Stop All, unchanged authored project/history, reload and callable loaded controls",
+			"Script Parameter value write on product-default Matrix without prior Matrix inspection",
+			"Queued trigger cancellation on disable/removal and absence of history replay",
+			"Independent rendered input/application demand clears while an older capture remains intact"
+		],
+		"strict_lint": "cargo clippy --locked -p MapGyver --lib --tests -- -D warnings: exit 0",
+		"ui": "npm run check: 0 errors, 0 warnings",
+		"generated_contracts": "Media and Screen generated TypeScript equality tests pass in the app suite; no public DTO change.",
+		"format": "Root and golden_core cargo fmt, touched Svelte/JS Prettier check and JS syntax check pass."
+	},
+	"native_functional": {
+		"build_command": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m136-controls",
+		"binary": "target/debug/deps/MapGyver-m136-controls.exe",
+		"sha256": "c8ba5a69c27517590eacbbe73b5ed3e3e43a06444f064538285df69d655841d9",
+		"fixture": "apps/mapgyver/tests/browser/matrix-triggers.mjs",
+		"result": "target/m136-controls-native-wire-20261107/result.json",
+		"result_sha256": "f85c36be8d29e34d22ccbf5f41ae98875bc1d91d47efc501163880f0cb0925af",
+		"pid": 38356,
+		"exit_code": 0,
+		"checks": [
+			"Bundled native WebView Stop All sends setParam for the exact real Trigger node and clears Column plus independent Cell requests.",
+			"30 rapid HTTP Parameter stop cycles preserve authored history.",
+			"Project reload does not replay playback and preserves the working Stop All widget.",
+			"No page errors; screenshot inspected; owned app exits normally."
+		],
+		"screenshot": "target/m136-controls-native-wire-20261107/stop-all.png",
+		"limits": "Functional UI/transport validation only. No GPU cadence, timing, cross-adapter output, native final-use or process retirement qualification is inferred."
+	},
+	"corrected_failures": [
+		"An initial declaration order placed conditional Stop All before media_kind; loaded playback materialized it and added history. Moving it after kind/configuration fixes the reproduced regression; the full existing launch/callback parity test passes.",
+		"New script/load tests initially used pre-activation or incompletely dispatched engines. They now exercise public runtime preparation and the normal script/property inbox path.",
+		"The first UI fixture expected the UI-local trigger value on the wire. The actual captured frame uses the existing Rust wire value {Trigger: []}; the corrected fixture passes. Failed result remains at target/m136-controls-native-20261107/result.json."
+	],
+	"remaining_requirement": [
+		"Implement real scoped Stop triggers on Layer, Column, Layer Group, Column Group and Cell, with outgoing-clip scope membership, unrelated-fade preservation and bounded requests.",
+		"Route grid Play/context actions and high-level wrappers through the real controls; they still use direct playback intents in this slice.",
+		"Verify every scope/caller, disabled/empty/nested cases, interruption/visible state and completion-safe native/process retirement."
+	],
+	"next_deliverable": "Scoped backend Cut stops that preserve unrelated outgoing clips and Column-anchor semantics; M13/6 remains the only Active gate."
+}

@@ -18,6 +18,8 @@ use std::sync::{
 pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v3";
 #[node("mapgyver.matrix.cell.v3", label = "Cell")]
 #[children(folder(parameters, label = "Parameters") {
+    play: ParamValue = ParamValue::Trigger() (label = "Play");
+    cut: ParamValue = ParamValue::Trigger() (label = "Cut");
     column: NodeReference = NodeReference::empty() (label = "Column", read_only = true, persist_read_only_value = true,
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v2".into()]);
     output: NodeReference = NodeReference::empty() (label = "Output", description = "Empty follows the first available output.",
@@ -38,6 +40,8 @@ node app_control: crate::applications::AppControlNode = (self.create_app_control
 );
 )]
 pub struct CellNode {
+    #[state(default = super::controls::Pulses::default())]
+    pulses: super::controls::Pulses,
     // Detached subtree construction seed only; authored state lives on the Size Parameter.
     #[state(default = None)]
     initial_size: Option<golden_video::Extent2D>,
@@ -268,10 +272,30 @@ impl Node for CellNode {
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
         self.invalidate();
     }
-    fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, _: bool) {
+    fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
+        if !enabled {
+            self.pulses.revoke();
+        }
         self.invalidate();
     }
-    fn on_param_change(&mut self, _: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
+    fn on_node_ready(&mut self, _: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
+        self.pulses.ready();
+    }
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        super::controls::Pulses::result(ctx, self.id(), &event);
+    }
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
+        let action = if parameter == self.play.id() {
+            Some(super::controls::Action::Play)
+        } else if parameter == self.cut.id() {
+            Some(super::controls::Action::Cut)
+        } else {
+            None
+        };
+        if let Some(action) = action {
+            self.pulses.invoke(ctx, &self.node_data, action);
+            return;
+        }
         if [
             self.transition_override.id(),
             self.duration_ms.id(),
@@ -297,6 +321,7 @@ impl Node for CellNode {
         }
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
+        self.pulses.destroy();
         self.invalidate();
     }
     fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {

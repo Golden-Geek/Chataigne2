@@ -22,7 +22,7 @@
 	import ColumnGroupHeaders from './ColumnGroupHeaders.svelte';
 	import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
 	import CellPreviews from './CellPreviews.svelte';
-	import RuntimeFeedback from './RuntimeFeedback.svelte';
+	import StopAllControl from './StopAllControl.svelte';
 	import { rowDropTarget, type GridDrag } from './grid-drag';
 	let {
 		snapshot,
@@ -333,7 +333,7 @@
 					style:top={`${projection.top}rem`}
 					style:height={`${projection.header}rem`}
 					style:left={`${projection.left}rem`}>
-					<RuntimeFeedback {snapshot} {observation} />
+					<StopAllControl media={snapshot.media} {disabled} />
 				</div>
 				<GridCreationHeaders
 					{projection}

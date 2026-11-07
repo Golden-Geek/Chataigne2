@@ -16,6 +16,8 @@ pub const COLUMN_TYPE: &str = "mapgyver.matrix.column.v2";
 })]
 #[children(
     folder(parameters, label = "Parameters", can_be_disabled = false) {
+        play: ParamValue = ParamValue::Trigger() (label = "Play");
+        cut: ParamValue = ParamValue::Trigger() (label = "Cut");
         transition_override: bool = false (label = "Override transition");
         duration_ms: f64 = 250.0 [0.0..4294967295.0] (
             label = "Transition duration", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject"
@@ -25,6 +27,8 @@ pub const COLUMN_TYPE: &str = "mapgyver.matrix.column.v2";
     node app_control: crate::applications::AppControlNode = (self.create_app_control()) (label = "App control");
 )]
 pub struct ColumnNode {
+    #[state(default = super::controls::Pulses::default())]
+    pulses: super::controls::Pulses,
     #[state(default = OnceLock::new())]
     runtime: OnceLock<super::playback::RuntimeBinding>,
 }
@@ -93,6 +97,12 @@ impl ColumnNode {
 }
 #[node("mapgyver.matrix.column.v2", from_struct)]
 impl Node for ColumnNode {
+    fn inbox_requires_tree_snapshot(&self, _: &golden_core::events::EventFrame) -> bool {
+        false
+    }
+    fn on_node_ready(&mut self, _: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
+        self.pulses.ready();
+    }
     fn needs_update(&self) -> bool {
         false
     }
@@ -102,14 +112,32 @@ impl Node for ColumnNode {
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
         self.invalidate();
     }
-    fn on_param_change(&mut self, _: &mut ProcessCtx, _: NodeId, _: ParamValue) {
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
+        let action = if parameter == self.play.id() {
+            Some(super::controls::Action::Play)
+        } else if parameter == self.cut.id() {
+            Some(super::controls::Action::Cut)
+        } else {
+            None
+        };
+        if let Some(action) = action {
+            self.pulses.invoke(ctx, &self.node_data, action);
+            return;
+        }
         self.invalidate();
     }
-    fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, _: bool) {
+    fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
+        if !enabled {
+            self.pulses.revoke();
+        }
         self.invalidate();
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
+        self.pulses.destroy();
         self.invalidate();
+    }
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        super::controls::Pulses::result(ctx, self.id(), &event);
     }
     fn project_decode_data(&mut self, value: &serde_json::Value) -> Result<(), String> {
         crate::parameters::reject_opaque(value)

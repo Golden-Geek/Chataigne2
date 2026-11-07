@@ -58,6 +58,7 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
             match kind {
                 MediaKind::SharedTexture => 5,
                 MediaKind::Picture => 4,
+                MediaKind::Matrix => 4,
                 _ => 3,
             }
         );
