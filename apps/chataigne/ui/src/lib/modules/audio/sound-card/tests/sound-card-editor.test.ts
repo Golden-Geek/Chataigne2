@@ -9,6 +9,10 @@ const props: PanelProps = {
 	title: 'Sound Card',
 	params: {},
 	panelApi: {
+		observeVisibility: (listener) => {
+			listener(true);
+			return () => {};
+		},
 		setContentBinding: vi.fn(),
 		setTitle: vi.fn(),
 		close: vi.fn(),

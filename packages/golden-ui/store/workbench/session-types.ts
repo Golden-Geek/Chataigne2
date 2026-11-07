@@ -63,6 +63,8 @@ export interface WorkbenchSession {
 	readonly engineLowFrequencyHz: number;
 	readonly selectedNodesIds: NodeId[];
 	readonly selectedNodeId: NodeId | null;
+	/** Stable first-selected identity; value-only graph projections do not invalidate it. */
+	readonly selectedNodeUuid: string | null;
 	/** Monotonic explicit selection intent; graph projection alone does not advance it. */
 	readonly selectionRevision: number;
 	readonly status: WorkbenchConnectionStatus;

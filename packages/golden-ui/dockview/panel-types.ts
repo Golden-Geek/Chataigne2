@@ -14,6 +14,8 @@ export interface PanelState {
 }
 
 export interface PanelApi {
+	/** Observe actual dock visibility, including the initial state; dispose with the panel consumer. */
+	observeVisibility: (listener: (visible: boolean) => void) => () => void;
 	setContentBinding: (binding: PanelContentBinding | null) => void;
 	setTitle: (title: string) => void;
 	close: () => void;

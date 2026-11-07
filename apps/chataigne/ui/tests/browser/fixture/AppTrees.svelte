@@ -21,6 +21,10 @@
 	let processorPanel = $state<ReturnType<typeof StateProcessorManager>>();
 	let parameters = $state.raw<PanelParams>({});
 	const panelApi: PanelApi = {
+		observeVisibility: (listener) => {
+			listener(true);
+			return () => {};
+		},
 		setContentBinding: () => {},
 		setTitle: () => {},
 		close: () => {},

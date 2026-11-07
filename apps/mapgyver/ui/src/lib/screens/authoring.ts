@@ -88,7 +88,7 @@ export class ScreenEditorController<S extends EditorConnection> {
 			session.projectGeneration === project
 		);
 	}
-	refresh(query = this.query) {
+	refresh(query = this.query, resolve = false) {
 		if (this.disposed || !query) return;
 		this.query = query;
 		const session = this.session();
@@ -117,11 +117,12 @@ export class ScreenEditorController<S extends EditorConnection> {
 		}
 		const generation = session.snapshotGeneration,
 			project = session.projectGeneration;
+		if (resolve) this.reads.invalidate();
 		const key = JSON.stringify(query),
 			history = session.currentHistoryStateId,
 			editing = session.hasActiveEditSession === true,
 			revision = editing ? session.editSessionEpoch : history;
-		if (key !== this.queryKey) this.state.resolving = true;
+		if (resolve || key !== this.queryKey) this.state.resolving = true;
 		this.queryKey = key;
 		this.state.refreshing = true;
 		const current = () =>

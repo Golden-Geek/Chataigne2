@@ -76,14 +76,21 @@ per-move IPC. Terminal hit testing remains native; changed bounds/DPR or ownersh
 the sequence. This lets Screen/Source control delivery proceed independently of metadata
 reply time, alongside the bounded authored-edit queue.
 
+Golden's public `PanelApi.observeVisibility` reports the actual dock visibility immediately
+and on changes, with explicit subscription disposal. Retained Screen/Surface tabs keep
+metadata, title and routing observation, but suspend live typed-leaf inspection while hidden.
+Showing a tab refreshes its bounded authoritative snapshot before further editing. This keeps
+offscreen tabs from adding per-sample queries to another editor's drag while preserving
+locked-panel identity and rename feedback.
+
 Golden Video now wakes a separate presentation submission when live placement changes.
 It reuses admitted content textures and redraws affected presentation branches/outputs between
 media deadlines, with the same completion/retirement and project/device fences. Media time,
 content frame counters and unrelated outputs retain their cadence; the footer describes those
 content metrics. Pending GPU/endpoint admission retries only on the native renderer worker,
 and stops after acceptance. See [Golden Video](../../crates/golden_video/README.md) for ownership
-and retry details. Both-GPU slow-media pixel checks prove independent redraws; actual 240 Hz
-presented pacing and pointer-to-visible latency remain M13/4 acceptance work.
+and retry details. Both-GPU slow-media pixel checks prove independent redraws; actual30+fps
+presented manipulation (60preferred) and pointer-to-visible latency remain M13/4 acceptance work.
 
 ## Acceptance
 

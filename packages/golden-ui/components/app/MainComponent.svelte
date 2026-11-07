@@ -244,6 +244,13 @@
 				};
 
 				const panelApi: PanelApi = {
+					observeVisibility: (listener) => {
+						const subscription = parameters.api.onDidVisibilityChange((event) =>
+							listener(event.isVisible)
+						);
+						listener(parameters.api.isVisible);
+						return () => subscription.dispose();
+					},
 					setContentBinding: (binding) => contentBindings.set(parameters.api.id, binding),
 					setTitle: (nextTitle: string): void => {
 						parameters.api.setTitle(nextTitle);

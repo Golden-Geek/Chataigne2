@@ -47,6 +47,10 @@
 	let mounted = $state(true);
 	let params = $state.raw<PanelParams>({ camera: { x: 0, y: 0, zoom: 1 } });
 	const panelApi: PanelApi = {
+		observeVisibility: (listener) => {
+			listener(true);
+			return () => {};
+		},
 		setContentBinding: () => {},
 		setTitle() {},
 		close() {},

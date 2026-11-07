@@ -8,6 +8,7 @@ export interface WorkbenchSelectionStore {
 	readonly revision: number;
 	readonly selectedNodeIds: NodeId[];
 	readonly selectedNodeId: NodeId | null;
+	readonly selectedNodeUuid: string | null;
 	getSelectedNodes(): UiNodeDto[];
 	getFirstSelectedNode(): UiNodeDto | null;
 	isNodeSelected(nodeId: NodeId): boolean;
@@ -22,6 +23,11 @@ export interface WorkbenchSelectionStore {
 
 export const createWorkbenchSelectionStore = (graph: GraphStore): WorkbenchSelectionStore => {
 	let selectedNodeIds = $state<NodeId[]>([]);
+	// Consumers that route by identity must not observe every graph value projection.
+	const selectedNodeUuid = $derived.by(() => {
+		const id = selectedNodeIds[0];
+		return id === undefined ? null : (graph.state.nodesById.get(id)?.uuid ?? null);
+	});
 	const selectedIds = $derived(new Set(selectedNodeIds));
 	let revision = $state(0);
 	let persistedSelection = loadPersistedSelection();
@@ -158,6 +164,9 @@ export const createWorkbenchSelectionStore = (graph: GraphStore): WorkbenchSelec
 		},
 		get selectedNodeId(): NodeId | null {
 			return selectedNodeIds[0] ?? null;
+		},
+		get selectedNodeUuid(): string | null {
+			return selectedNodeUuid;
 		},
 		getSelectedNodes,
 		getFirstSelectedNode,

@@ -22,7 +22,7 @@
 		choice = spatialPanelState(readPanelPersistedState<SpatialPanelState>(next.params));
 	};
 	const owner = createSpatialBinding(() => ({
-		selected: appState.session?.getSelectedNodes()[0]?.uuid ?? null,
+		selected: appState.session?.selectedNodeUuid ?? null,
 		document: choice.document,
 		locked: choice.locked,
 		retained: choice.retained

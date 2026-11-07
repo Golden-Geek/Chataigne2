@@ -8,7 +8,7 @@ import { SCREEN_NAMESPACE } from './generated/constants';
 import type { ScreenEditorQuery } from './generated/ScreenEditorQuery';
 import type { SurfacePresentation } from './surface-gesture';
 
-export function createScreenEditor(query: () => ScreenEditorQuery) {
+export function createScreenEditor(query: () => ScreenEditorQuery, visible: () => boolean) {
 	const session = $derived(appState.session);
 	const view = $state(screenEditorState());
 	const controller = new ScreenEditorController<WorkbenchSession>(
@@ -45,9 +45,11 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 		active: (active) => controller.setInteracting(active),
 		finished: () => controller.refresh()
 	});
+	let previouslyShown = false;
 	$effect(() => {
 		const current = session,
-			request = query();
+			request = query(),
+			shown = visible();
 		void view.pending;
 		void view.interacting;
 		if (current) {
@@ -61,12 +63,20 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 			void current.getCustomEventSequence(SCREEN_NAMESPACE);
 		}
 		untrack(() => {
+			if (!shown) gesture.stop();
 			gesture.observe();
-			controller.refresh(request);
+			controller.refresh(request, shown && !previouslyShown);
+			previouslyShown = shown;
 		});
 	});
 	let observed: { session: WorkbenchSession; owners: string; values: string } | null = null;
 	$effect(() => {
+		// Retained dock tabs still follow routing/metadata above, but do not query every
+		// live Parameter change. Becoming visible explicitly refreshes their snapshot.
+		if (!visible()) {
+			observed = null;
+			return;
+		}
 		const current = session,
 			page = controller.page;
 		if (!current || current.status !== 'connected' || current.loading.visible || !page?.screen) {

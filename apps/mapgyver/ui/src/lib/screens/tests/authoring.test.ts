@@ -70,6 +70,31 @@ const deferred = <T>() => {
 	return { promise, resolve, reject };
 };
 
+test('returning to a retained tab fences the old read until its fresh snapshot arrives', async () => {
+	const host = session(),
+		state = screenEditorState();
+	const pending = [deferred<ScreenEditResult>(), deferred<ScreenEditResult>()];
+	let calls = 0;
+	const controller = new ScreenEditorController(
+		() => host,
+		state,
+		() => pending[calls++].promise
+	);
+	controller.refresh(query());
+	controller.refresh(query(), true);
+	assert.equal(state.resolving, true);
+	pending[0].resolve(reply('stale'));
+	await flush();
+	assert.equal(controller.screen, null);
+	assert.equal(state.resolving, true);
+	assert.equal(calls, 2);
+	pending[1].resolve(reply());
+	await flush();
+	assert.equal(controller.page?.screen?.id, 'current');
+	assert.equal(state.resolving, false);
+	controller.dispose();
+});
+
 test('backend selection and explicit Surface deselection survive refresh without a UI default', async () => {
 	const state = screenEditorState(),
 		host = session();

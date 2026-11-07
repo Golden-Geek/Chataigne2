@@ -824,6 +824,9 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		get selectedNodeId(): NodeId | null {
 			return selection.selectedNodeId;
 		},
+		get selectedNodeUuid(): string | null {
+			return selection.selectedNodeUuid;
+		},
 		get status(): WorkbenchConnectionStatus {
 			return status;
 		},

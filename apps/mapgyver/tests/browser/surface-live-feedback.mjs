@@ -156,10 +156,15 @@ async function drag(name, control, shape, dx, dy, alt = false) {
 		(entry) => entry.phase === name && entry.at >= start && entry.at <= end
 	);
 	const counts = {};
+	const editors = {};
 	for (const entry of sent) {
 		const key =
 			entry.intent.kind === 'invokeAppOperation' ? entry.intent.payload?.kind : entry.intent.kind;
 		counts[key] = (counts[key] ?? 0) + 1;
+		if (key === 'InspectEditor') {
+			const editor = entry.intent.payload.query.editor;
+			editors[editor] = (editors[editor] ?? 0) + 1;
+		}
 	}
 	phases.push({
 		name,
@@ -168,10 +173,18 @@ async function drag(name, control, shape, dx, dy, alt = false) {
 		before,
 		after,
 		counts,
+		editors,
 		samples,
 		input
 	});
 	assert(input.length <= (dense ? 120 : 48) + 1, `${name}: unexpected external pointer input`);
+	if (process.argv.includes('--expect-hidden-idle')) {
+		const hidden = name.includes('crop') ? 'Screen' : 'Surface';
+		assert(
+			(editors[hidden] ?? 0) <= 8,
+			`${name}: hidden ${hidden} queried ${editors[hidden]} times`
+		);
+	}
 }
 try {
 	token = (await post('/api/ui/session', {})).token;
@@ -249,6 +262,21 @@ try {
 		dense ? 120 : 35,
 		12
 	);
+	phase = 'hidden-metadata';
+	await op('mapgyver.screens', {
+		kind: 'RenameSurface',
+		reference: surface,
+		label: 'Renamed live Surface'
+	});
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Surface Source: Renamed live Surface/ })
+		.waitFor();
+	await op('mapgyver.screens', {
+		kind: 'RenameSurface',
+		reference: surface,
+		label: 'Live geometry Surface'
+	});
 	const row = (label) =>
 		page.locator('.parameter-inspector').filter({ has: page.getByText(label, { exact: true }) });
 	await drag(
@@ -264,9 +292,37 @@ try {
 		'svg[aria-label="Source crop controls"] rect[data-native-hit-id="crop"]'
 	);
 	await crop.waitFor();
+	const near = (actual, expected) =>
+		actual.length === expected.length &&
+		actual.every((value, index) => Math.abs(value - expected[index]) < 0.00001);
+	const cropValues = (snapshot) => {
+		const { x, y, width, height } = snapshot.definition.crop;
+		return [x, y, width, height];
+	};
+	const shownCrop = cropValues((await inspect()).snapshot);
+	await wait(
+		() => shapeValue(crop),
+		(value) => near(value.split(',').map(Number), shownCrop)
+	);
 	await drag('inspector-crop-origin', row('Crop origin').locator('.slider').first(), crop, 12, 0);
 	await drag('inspector-crop-size', row('Crop size').locator('.slider').first(), crop, -12, 0);
+	const beforeCrop = cropValues((await inspect()).snapshot);
 	await drag('canvas-crop', crop, crop, dense ? 120 : 20, dense ? 32 : 8);
+	phase = 'history';
+	const finalCrop = cropValues((await inspect()).snapshot);
+	assert(near((await shapeValue(crop)).split(',').map(Number), finalCrop));
+	await page.getByRole('button', { name: 'Ctrl/Cmd+Z', exact: true }).click();
+	await wait(inspect, (value) => near(cropValues(value.snapshot), beforeCrop));
+	await wait(
+		() => shapeValue(crop),
+		(value) => near(value.split(',').map(Number), beforeCrop)
+	);
+	await page.getByRole('button', { name: 'Ctrl/Cmd+Shift+Z or Ctrl+Y', exact: true }).click();
+	await wait(inspect, (value) => near(cropValues(value.snapshot), finalCrop));
+	await wait(
+		() => shapeValue(crop),
+		(value) => near(value.split(',').map(Number), finalCrop)
+	);
 	if (process.argv.includes('--expect-live')) {
 		for (const result of phases)
 			assert(

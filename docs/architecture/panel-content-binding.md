@@ -4,6 +4,15 @@ Golden owns tab presentation and capability lifetime. Applications own the meani
 resolution of a panel's target. A binding is presentation state, separate from authored
 document Parameters.
 
+`PanelApi.observeVisibility(listener)` immediately reports the panel's actual dock visibility
+and follows visibility changes until the returned disposer runs. Retained content can suspend
+expensive live observation without losing target/title ownership. Visibility is presentation
+state, never an authored setting; showing an editor must resolve current document data again.
+`WorkbenchSession.selectedNodeUuid` exposes the first selected identity as a memoized primitive.
+Identity-based routing uses it rather than subscribing to full selected-node data, so ordinary
+Parameter projections cannot schedule unchanged routing reads. The graph index still resolves
+deletion, selection and replacement snapshots; no independent selection cache is maintained.
+
 `PanelApi.setContentBinding({ locked, canLock, toggle })` publishes one panel instance's
 live capability. The workbench renders its keyboard-accessible lock immediately before
 Close, reflects `aria-pressed`, and removes the capability when the content is disposed.

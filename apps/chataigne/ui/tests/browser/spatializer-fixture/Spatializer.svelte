@@ -102,6 +102,10 @@
 	let moduleId: number | null = null;
 	let params = $state.raw<PanelParams>({});
 	const panelApi: PanelApi = {
+		observeVisibility: (listener) => {
+			listener(true);
+			return () => {};
+		},
 		setContentBinding: () => {},
 		setTitle() {},
 		close() {},

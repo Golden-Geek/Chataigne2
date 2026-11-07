@@ -29,6 +29,10 @@
 	let query = $state('');
 	let panelParams = $state.raw<PanelParams>({});
 	const panelApi: PanelApi = {
+		observeVisibility: (listener) => {
+			listener(true);
+			return () => {};
+		},
 		setContentBinding: () => {},
 		setTitle: () => {},
 		close: () => {},
