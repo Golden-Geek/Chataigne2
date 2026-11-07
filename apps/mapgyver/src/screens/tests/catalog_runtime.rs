@@ -201,6 +201,75 @@ fn catalog() -> Arc<[DisplayInfo]> {
 }
 
 #[test]
+fn recovered_display_cadence_tracks_current_refresh_without_changing_authored_policy_or_history() {
+    let mut engine = runtime();
+    let mut primary = display("primary", 1, true, 1);
+    primary.refresh_rate = Some(DisplayRefreshRate {
+        numerator: 240,
+        denominator: 1,
+    });
+    let mut intended = display("intended", 2, false, 2);
+    intended.refresh_rate = Some(DisplayRefreshRate {
+        numerator: 60_000,
+        denominator: 1_001,
+    });
+    let connected: Arc<[DisplayInfo]> = Arc::from([primary.clone(), intended.clone()]);
+    publish(&mut engine, connected.clone());
+    let (screen, _) = create(&mut engine);
+    apply(
+        &mut engine,
+        ScreenEdit::ConfigureScreen {
+            screen,
+            definition: ScreenDefinition {
+                target: Some(ScreenTarget::Fullscreen {
+                    display: "intended".into(),
+                }),
+                frame_rate: ScreenFrameRate::FollowDisplay,
+                ..Default::default()
+            },
+        },
+    );
+    publish(&mut engine, connected.clone());
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = (engine.undo_len(), engine.redo_len());
+    let capture = |engine: &AppEngine, displays: &[DisplayInfo]| {
+        super::super::rendering::capture_outputs(engine, 128, 16, displays).unwrap()
+    };
+    assert_eq!(
+        capture(&engine, &connected).outputs[0].frame_rate,
+        golden_time::RationalRate::new(60_000, 1_001).unwrap()
+    );
+    let missing: Arc<[DisplayInfo]> = Arc::from([primary.clone()]);
+    publish(&mut engine, missing.clone());
+    let fallback = capture(&engine, &missing);
+    assert!(!fallback.allocation_pending);
+    assert_eq!(
+        fallback.outputs[0].frame_rate,
+        golden_time::RationalRate::new(240, 1).unwrap()
+    );
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+    // The returning monitor has a different Windows path and refresh but the same EDID.
+    intended.id = "reinstalled-intended".into();
+    intended.refresh_rate = Some(DisplayRefreshRate {
+        numerator: 120,
+        denominator: 1,
+    });
+    let returned: Arc<[DisplayInfo]> = Arc::from([primary, intended]);
+    publish(&mut engine, returned.clone());
+    let recovered = capture(&engine, &returned);
+    assert!(!recovered.allocation_pending);
+    assert_eq!(
+        recovered.outputs[0].frame_rate,
+        golden_time::RationalRate::new(120, 1).unwrap()
+    );
+    assert!(
+        matches!(&recovered.outputs[0].target, super::super::rendering::ResolvedTarget::Fullscreen { display, .. } if display == "reinstalled-intended")
+    );
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+    assert_eq!((engine.undo_len(), engine.redo_len()), history);
+}
+
+#[test]
 fn display_metadata_latest_mailbox_preserves_authored_state_history_and_shared_domains() {
     let mut engine = runtime();
     let initial = catalog();

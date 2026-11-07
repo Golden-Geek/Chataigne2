@@ -1,0 +1,454 @@
+{
+  "date": "2026-11-07",
+  "gate": "M13/4 remains Active; no gate or final performance credit",
+  "verified_scope": "Cadence copy/persistence, physical monitor routing and ordinary endpoint/project recovery",
+  "binary": {
+    "path": "target/debug/deps/MapGyver-m134-output-cadence.exe",
+    "sha256": "bd625b6c82f2b5bf32f38790acbc6bccdecac03b10ef8455aa06cdfc6ee63eb1",
+    "implementation_commit": "bde882c9ab8dd46fa28f306ddd22502f071133ba",
+    "note": "Production implementation unchanged in this verification milestone"
+  },
+  "software": {
+    "command": "cargo test --locked -p MapGyver --lib",
+    "passed": 542,
+    "ignored": 2,
+    "failed": 0,
+    "strict": "cargo clippy --locked -p MapGyver --lib --tests --features native-preview-smoke,application-process-fixture -- -D warnings: pass",
+    "protocol": "Generated parity remains in the app suite; no DTO/type/consumer change",
+    "reused": "Previously passing Golden Video/UI/type checks apply to unchanged implementation",
+    "new_proofs": [
+      "Non-default Explicit29.97 copies independently, changes to50 on the copy only, and survives Undo/Redo and project roundtrip alongside anti-aliasing",
+      "Saving Follow display retains hidden explicit29.97; reloading then selecting Explicit restores the exact remembered value",
+      "Runtime display metadata loss routes Follow display from60000/1001 to fallback240, then back to a same-EDID monitor with a changed Windows path at120; authored project bytes and history are unchanged"
+    ]
+  },
+  "native": {
+    "command": "node apps/mapgyver/tests/browser/output-cadence.mjs target/m134-cadence-routing-verified-20261107 --routing",
+    "receipt": "target/m134-cadence-routing-verified-20261107/result.json",
+    "receipt_sha256": "5ca070d7e030dbf89ef576235a6080218d65b97fa6e99665483ad46ee971621f",
+    "result": "pass",
+    "profiles": [
+      {
+        "pid": 26816,
+        "adapter": {
+          "key": "dxgi:00000000:00015b69",
+          "index": 0,
+          "description": "Intel(R) Graphics"
+        },
+        "checks": [
+          {
+            "name": "Follow display on slower monitor",
+            "expected_fps": 60,
+            "accepted_fps": [
+              59.60977651996735,
+              29.804888259983674
+            ],
+            "window": [
+              6751134,
+              2640,
+              80,
+              128,
+              96
+            ],
+            "center_rgb": [
+              255,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "Follow display on faster monitor",
+            "expected_fps": 240.00020606660073,
+            "accepted_fps": [
+              239.29900816494145,
+              29.665166301439026
+            ],
+            "window": [
+              6751134,
+              80,
+              80,
+              128,
+              96
+            ],
+            "center_rgb": [
+              255,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "Explicit30 on faster monitor",
+            "expected_fps": 30,
+            "accepted_fps": [
+              29.868908348150804,
+              29.868908348150804
+            ],
+            "window": [
+              6751134,
+              260,
+              80,
+              128,
+              96
+            ],
+            "center_rgb": [
+              255,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "Explicit30 after monitor move",
+            "expected_fps": 30,
+            "accepted_fps": [
+              29.81613285353212,
+              29.81613285353212
+            ],
+            "window": [
+              6751134,
+              2820,
+              80,
+              128,
+              96
+            ],
+            "center_rgb": [
+              255,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "Follow display restored",
+            "expected_fps": 60,
+            "accepted_fps": [
+              59.628668430217665,
+              29.814334215108833
+            ],
+            "window": [
+              6751134,
+              2640,
+              80,
+              128,
+              96
+            ],
+            "center_rgb": [
+              255,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "WebView reconnect retains physical output",
+            "expected_fps": 60,
+            "accepted_fps": [
+              60.30108628947052,
+              30.64481434382928
+            ],
+            "window": [
+              6751134,
+              2640,
+              80,
+              128,
+              96
+            ],
+            "center_rgb": [
+              255,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "Disabled output physically retired"
+          },
+          {
+            "name": "Reenabled output restores cadence",
+            "expected_fps": 60,
+            "accepted_fps": [
+              59.60831969213495,
+              29.804159846067474
+            ],
+            "window": [
+              6816670,
+              2640,
+              80,
+              128,
+              96
+            ],
+            "center_rgb": [
+              255,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "New project retires the old physical window"
+          },
+          {
+            "name": "Project load restores authored cadence and output pixels",
+            "expected_fps": 60,
+            "accepted_fps": [
+              59.52058549209537,
+              29.760292746047686
+            ],
+            "window": [
+              6882206,
+              2640,
+              80,
+              128,
+              96
+            ],
+            "center_rgb": [
+              255,
+              0,
+              0
+            ]
+          }
+        ],
+        "page_errors": []
+      },
+      {
+        "pid": 47464,
+        "adapter": {
+          "key": "dxgi:00000000:90b3a15f",
+          "index": 1,
+          "description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+        },
+        "checks": [
+          {
+            "name": "Follow display on slower monitor",
+            "expected_fps": 60,
+            "accepted_fps": [
+              60.430742406530484,
+              29.720037249113354
+            ],
+            "window": [
+              2822650,
+              2640,
+              80,
+              128,
+              96
+            ],
+            "center_rgb": [
+              255,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "Follow display on faster monitor",
+            "expected_fps": 240.00020606660073,
+            "accepted_fps": [
+              235.22714009056543,
+              29.77558735323613
+            ],
+            "window": [
+              2822650,
+              80,
+              80,
+              128,
+              96
+            ],
+            "center_rgb": [
+              255,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "Explicit30 on faster monitor",
+            "expected_fps": 30,
+            "accepted_fps": [
+              29.807897045908234,
+              29.807897045908234
+            ],
+            "window": [
+              2822650,
+              260,
+              80,
+              128,
+              96
+            ],
+            "center_rgb": [
+              255,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "Explicit30 after monitor move",
+            "expected_fps": 30,
+            "accepted_fps": [
+              29.7335015985226,
+              29.7335015985226
+            ],
+            "window": [
+              2822650,
+              2820,
+              80,
+              128,
+              96
+            ],
+            "center_rgb": [
+              255,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "Follow display restored",
+            "expected_fps": 60,
+            "accepted_fps": [
+              60.422188652138466,
+              29.715830484658262
+            ],
+            "window": [
+              2822650,
+              2640,
+              80,
+              128,
+              96
+            ],
+            "center_rgb": [
+              255,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "WebView reconnect retains physical output",
+            "expected_fps": 60,
+            "accepted_fps": [
+              59.507781386263524,
+              29.753890693131762
+            ],
+            "window": [
+              2822650,
+              2640,
+              80,
+              128,
+              96
+            ],
+            "center_rgb": [
+              255,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "Disabled output physically retired"
+          },
+          {
+            "name": "Reenabled output restores cadence",
+            "expected_fps": 60,
+            "accepted_fps": [
+              60.510716398275186,
+              29.759368720463208
+            ],
+            "window": [
+              2888186,
+              2640,
+              80,
+              128,
+              96
+            ],
+            "center_rgb": [
+              255,
+              0,
+              0
+            ]
+          },
+          {
+            "name": "New project retires the old physical window"
+          },
+          {
+            "name": "Project load restores authored cadence and output pixels",
+            "expected_fps": 60,
+            "accepted_fps": [
+              60.55849225635582,
+              29.782865044109418
+            ],
+            "window": [
+              2953722,
+              2640,
+              80,
+              128,
+              96
+            ],
+            "center_rgb": [
+              255,
+              0,
+              0
+            ]
+          }
+        ],
+        "page_errors": []
+      }
+    ],
+    "normal_shutdown": "Both owned app hosts exit0; no page errors",
+    "invariants": [
+      "All sixteen visible checkpoints independently read PID-scoped physical client bounds and red compositor pixels",
+      "One native window identity survives monitor/rate changes and WebView reconnect on each GPU",
+      "Moving Explicit30 between monitors does not retire the GPU session",
+      "Disabled/New physically removes the old output window; enable/Load restores red pixels and the authored rate",
+      "The independently owned peer Spout output returns at30 FPS through each measured stage",
+      "The actual selected DXGI adapter remains pinned and sampled retiring generations are zero"
+    ],
+    "measurement_limits": "Short API-delivery means use the fixture's functional tolerance max(2 FPS,10%). Fast-display samples are239.30 FPS Intel and235.23 NVIDIA against OS240.0002, not exact240 or scanout proof. No original cadence/drop/CPU/GPU/latency budget is relaxed.",
+    "monitor_inventory": [
+      {
+        "name": "RTK FHD HDR",
+        "primary": false,
+        "index": 2,
+        "bounds": {
+          "left": 2560,
+          "top": 0,
+          "extent": {
+            "width": 1920,
+            "height": 1080
+          }
+        },
+        "refresh_rate": {
+          "numerator": 14850000,
+          "denominator": 247500
+        }
+      },
+      {
+        "name": "",
+        "primary": true,
+        "index": 1,
+        "bounds": {
+          "left": 0,
+          "top": 0,
+          "extent": {
+            "width": 2560,
+            "height": 1600
+          }
+        },
+        "refresh_rate": {
+          "numerator": 116467300,
+          "denominator": 485280
+        }
+      }
+    ],
+    "window_columns": [
+      "HWND",
+      "physical left",
+      "physical top",
+      "physical width",
+      "physical height"
+    ]
+  },
+  "failed_attempt": {
+    "receipt": "target/m134-cadence-routing-20261107/failure.json",
+    "sha256": "58b57a3854b48ab0de900d97fc7479b4efda57a7d0f06b7d216d3f600fb86b40",
+    "cause": "Fixture expected project-load.ok; the current public load contract returns path/recovery. Actual load succeeded. Assertion corrected against the existing public response; final complete run passes."
+  },
+  "remaining": "Actual presented manipulation30+fps, video/overlay alignment, p95/p99 pointer latency and missed/stall metrics across all required workloads/both GPUs; full final-state/cancellation/progress scope. This run does not physically unplug/replug a monitor or reset a graphics device; those exact events are not newly certified for cadence. All M03/M05/M08/M12 retained budgets and return gates remain unchanged.",
+  "closed_gates": [],
+  "progress": {
+    "accepted": 73,
+    "total": 92,
+    "percent": 79,
+    "m13": "4/14",
+    "completed_phases": "7/14"
+  }
+}

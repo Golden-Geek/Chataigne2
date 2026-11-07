@@ -142,6 +142,21 @@ fn screen_frame_rate_is_typed_atomic_history_safe_and_persisted() {
         screen_definition(&engine, screen).frame_rate,
         ScreenFrameRate::FollowDisplay
     );
+    let remembered = to_sparse_project_json_pretty(&engine).unwrap();
+    let mut remembered = from_sparse_project_json::<AppNode>(&remembered).unwrap();
+    validate_engine_project_candidate(&remembered).unwrap();
+    let remembered_root = remembered.node_id_by_uuid(screen.0).unwrap();
+    let remembered_mode = parameters(&remembered, remembered_root)["parameters/frame_rate_mode"];
+    assert_eq!(
+        screen_definition(&remembered, screen).frame_rate,
+        ScreenFrameRate::FollowDisplay
+    );
+    assert!(set(&mut remembered, remembered_mode, ParamValue::Enum("Explicit".into())).success);
+    assert_eq!(
+        screen_definition(&remembered, screen),
+        explicit,
+        "hidden explicit FPS survives a Follow display project reload"
+    );
     assert!(set(&mut engine, mode, ParamValue::Enum("Explicit".into())).success);
     assert_eq!(screen_definition(&engine, screen), explicit);
 }

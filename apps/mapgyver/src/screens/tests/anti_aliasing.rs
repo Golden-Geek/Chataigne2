@@ -7,11 +7,12 @@ use golden_core::{
 };
 
 #[test]
-fn copying_a_screen_retains_independent_antialiasing_through_history_and_projects() {
+fn copying_a_screen_retains_independent_output_settings_through_history_and_projects() {
     let mut engine = fixture();
     let (screen, _) = create(&mut engine);
     let mut original = super::super::inspect(&engine).unwrap().screens[0].definition.clone();
     original.anti_aliasing = ScreenAntiAliasing::Smooth2x;
+    original.frame_rate = ScreenFrameRate::Explicit { fps: 29.97 };
     original.enabled = false;
     apply(
         &mut engine,
@@ -55,6 +56,7 @@ fn copying_a_screen_retains_independent_antialiasing_through_history_and_project
             screen: copied,
             definition: ScreenDefinition {
                 anti_aliasing: ScreenAntiAliasing::Raw,
+                frame_rate: ScreenFrameRate::Explicit { fps: 50.0 },
                 ..original.clone()
             },
         },
@@ -75,6 +77,16 @@ fn copying_a_screen_retains_independent_antialiasing_through_history_and_project
         ScreenAntiAliasing::Raw
     );
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    assert_eq!(
+        edited
+            .screens
+            .iter()
+            .find(|item| item.id == copied)
+            .unwrap()
+            .definition
+            .frame_rate,
+        ScreenFrameRate::Explicit { fps: 50.0 }
+    );
     let loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
     validate_engine_project_candidate(&loaded).unwrap();
     assert_eq!(super::super::inspect(&loaded).unwrap(), edited);

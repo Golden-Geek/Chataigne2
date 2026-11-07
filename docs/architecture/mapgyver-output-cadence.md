@@ -23,8 +23,8 @@ missed slots without catch-up loops. Frame observations identify the selected cl
 ordinal. `D3d11Config.output_rates` admits unique bound consumer/rate pairs and automatically
 contributes their clocks. Native endpoint pacing gates conversion and delivery before admission,
 including cached presentation redraws. The render core admits no GPU batch or completion slot
-when no consumer is due; cached redraws consider only dirty consumers. It retains phase through show seek/pause and starts a new
-phase for a replacement monotonic authority or device lifetime.
+when no consumer is due; cached redraws consider only dirty consumers. It retains phase through
+show seek/pause and starts a new phase for a replacement monotonic authority or device lifetime.
 
 MapGyver's native host assigns its independent preview consumer 60 FPS and assigns each Screen
 its resolved output rate. Shared source evaluation remains one runtime, rather than one decoder
@@ -41,3 +41,12 @@ budgets. Those requirements remain in M13/4 and the existing qualification retur
 Windows frequency metadata uses
 [`DISPLAYCONFIG_PATH_TARGET_INFO.refreshRate`](https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-displayconfig_path_target_info),
 which describes the desktop refresh frequency. It is not a measurement of presented frames.
+
+The native `tests/browser/output-cadence.mjs` fixture checks explicit-rate pairs and ordinary
+Inspector presentation on both hardware GPUs. Its `--routing` mode uses a small owned physical
+output and the two current monitors: Follow display, Explicit FPS, position-only window reuse,
+WebView reconnect, disable/enable and project New/Load. Read-only PID-scoped observations check
+physical client bounds and composited red pixels independently of the WebView. It changes no
+Windows display settings and does not simulate a physical cable disconnect. Backend tests cover
+current refresh metadata, retained authored identity through EDID/path recovery, copied output
+settings and remembered explicit FPS while Follow display is saved.

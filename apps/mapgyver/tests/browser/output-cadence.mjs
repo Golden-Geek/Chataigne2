@@ -7,6 +7,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
 import { adapterKey, observeNativeAdapter } from './native-adapter.mjs';
+import { verifyOutputCadenceRouting } from './output-cadence-routing.mjs';
 
 const directory = path.resolve(process.argv[2]);
 await mkdir(directory);
@@ -120,6 +121,32 @@ for (const adapter of hardware.adapters.filter((adapter) => !adapter.software)) 
 				(display) => display.refresh_rate?.numerator > 0 && display.refresh_rate?.denominator > 0
 			)
 		);
+		if (process.argv.includes('--routing')) {
+			stage = 'physical cadence routing and recovery';
+			const report = await verifyOutputCadenceRouting({
+				native,
+				post,
+				edit,
+				inspect,
+				status,
+				wait,
+				ids,
+				displays,
+				directory,
+				adapter: observedAdapter,
+				checks
+			});
+			assert.deepEqual(errors, []);
+			results.push({
+				pid: native.app.pid,
+				adapter: observedAdapter,
+				displays,
+				checks,
+				errors,
+				scope: report.scope
+			});
+			continue;
+		}
 		for (const rates of [
 			[30, 60],
 			[50, 59.94],
