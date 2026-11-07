@@ -20,6 +20,8 @@ mod cell_editor;
 mod cell_geometry;
 mod cell_sizing;
 mod layer_geometry;
+#[cfg(feature = "application-process-fixture")]
+mod scoped_stops;
 mod spatial_acceptance;
 mod tests;
 mod transitions;

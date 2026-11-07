@@ -846,15 +846,16 @@ independent selected-object inspection, endpoint recovery and completion-safe re
    Cover Surface Editor, Screen Editor, Composition transforms and Matrix gestures, then
    shared scrolling, docking and ordinary controls. A **simple populated 3×3 Matrix** is a
    required regression fixture, alongside empty scenes and other media workloads. Interaction
-   feedback targets **at least 60 Hz** on a display supporting it (about **16.67 ms per update**).
-   The user's 2026-11-07 revision removes the 240 Hz interface requirement. Neither media/output
+   manipulation feedback currently requires **30+ fps**, with **60 fps preferred**, on a display
+   supporting it (about 33.33 ms / 16.67 ms per update). The user's later 2026-11-07 revision accepts
+   this 30+ fps minimum for now and removes the 240 Hz interface requirement. Neither media/output
    cadence nor engine acknowledgements may impose the reported 10–15 Hz feel. Keep local pointer/
    viewport feedback prompt while authoritative edits are bounded/coalesced with correct final
    state, history and cancellation; no per-gesture whole-document rebuilds or recurring
    millisecond engine/UI polling. Measure real-input presented frame pacing, long stalls and
    pointer-to-visible p95/p99 on the recorded refresh rate, alongside native/DOM alignment,
    independent output continuity, both GPUs and larger projects. Verify actual presented
-   manipulation at the revised 60 Hz target, including missed updates/stalls; an engine FPS
+   manipulation at the revised 30+ fps minimum, including missed updates/stalls; an engine FPS
    counter alone does not prove interaction smoothness. Retain M05's latency bound separately.
    **Display-aware output frame rate** is part of this gate: offer a real typed setting for
    following the selected output display's refresh rate or choosing an explicit frame rate.
@@ -863,6 +864,17 @@ independent selected-object inspection, endpoint recovery and completion-safe re
    do not infer pacing from a configured value. Golden owns reusable scheduling/display
    mechanics; MapGyver owns the authored output policy. This revision changes this gate's
    scope without adding acceptance credit or changing the fixed gate denominator.
+   **2026-11-07 synchronization regression:** the user's UI manipulation itself is acceptable,
+   and live Spout image content is smooth. During direct Screen Warping / Surface Source
+   manipulation, the rendered geometry lags/chops behind the smooth editing handles and catches
+   up on release. Inspector opacity changes already give smooth video feedback; preserve that.
+   Inspector corner edits update video promptly but editing handles lag. Inspector crop
+   position/size updates video smoothly while the crop rectangle waits until release. Reproduce
+   and verify both directions of parameter/video/editor synchronization continuously during
+   input, including final release/cancellation. Passing overlay-only or source-FPS checks cannot
+   accept this gate. The supplied 30 fps recording is symptom evidence, not an authoritative
+   live update-rate measurement. Keep latency bounds: a higher average FPS cannot excuse
+   geometry/handles trailing input or waiting for release.
    **Applying changes** appears only when a genuinely outstanding operation exceeds a
    documented delay, rather than on every edit or merely because a gesture is long. Coalesce
    overlapping work and stabilize its visible lifetime so corner drags/transforms never flash

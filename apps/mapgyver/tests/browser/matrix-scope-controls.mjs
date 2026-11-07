@@ -138,5 +138,121 @@ export async function verifyMatrixScopeControls({ page, matrix, wait, sent }) {
 			request(value, 1)?.column === null &&
 			value.desired_column === columns[2]
 	);
-	return 'real Column/Cell Play and Cell/Layer/Column/nested Layer Group/nested Column Group Stop buttons send exact Parameter triggers and preserve unrelated scope/anchor';
+	const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
+	const label = (name) => grid.getByTitle(`Select ${name}`, { exact: true }).click();
+	async function inspectorStop(owner, select, both = false, all = false) {
+		await trigger(columns[2], 'play');
+		await trigger(cell(0, 0), 'play');
+		await trigger(cell(1, 1), 'play');
+		const control = all
+			? page.locator('[data-matrix-stop-all]')
+			: page.locator(`[data-matrix-control="stop"][data-owner-uuid="${owner}"]`);
+		const parameter = Number(await control.getAttribute('data-parameter-id'));
+		assert(Number.isSafeInteger(parameter) && parameter > 0);
+		await page.keyboard.press('Escape');
+		await select();
+		const inspector = page.locator(`.parameter-inspector[data-node-id="${parameter}"]`);
+		const button = inspector.getByRole('button', {
+			name: 'Trigger',
+			exact: true
+		});
+		await button.waitFor();
+		const before = sent.length;
+		await button.click();
+		await wait(
+			() => sent.slice(before),
+			(intents) =>
+				intents.some(
+					(intent) =>
+						intent.kind === 'setParam' &&
+						intent.node === parameter &&
+						Array.isArray(intent.value?.Trigger)
+				)
+		);
+		await wait(playback, (value) =>
+			all
+				? value.desired_column === null && value.layers.length === 0
+				: value.desired_column === columns[2] &&
+					request(value, 0)?.column === null &&
+					request(value, 1)?.column === (both ? null : columns[1])
+		);
+	}
+	const selectCell = async () => {
+		const target = grid
+			.getByRole('gridcell')
+			.filter({ has: page.locator('.source-label') })
+			.and(
+				page.locator(
+					`[title="${initial.items.find((item) => item.id.id === rows[0]).label} / ${initial.columns[0].label}"]`
+				)
+			);
+		const bounds = await target.boundingBox();
+		assert(bounds);
+		await target.click({ position: { x: 8, y: bounds.height - 8 } });
+	};
+	await inspectorStop(cell(0, 0), selectCell);
+	await inspectorStop(rows[0], () =>
+		label(initial.items.find((item) => item.id.id === rows[0]).label)
+	);
+	await inspectorStop(columns[0], () => label(initial.columns[0].label));
+	await inspectorStop(outer.id, () => label('Layer Stop Group'), true);
+	await inspectorStop(group, () => label('Column Stop Group'), true);
+	await inspectorStop(
+		null,
+		async () => {
+			await page
+				.getByRole('tab')
+				.filter({ hasText: /^Medias$/ })
+				.click();
+			await page
+				.locator('[data-panel-id="media-manager"]')
+				.getByRole('button', { name: 'Typed Matrix controls', exact: true })
+				.click();
+			await page
+				.getByRole('tab')
+				.filter({ hasText: /^Matrix(?::|$)/ })
+				.click();
+		},
+		true,
+		true
+	);
+	for (const individual of [false, true]) {
+		const owner = individual ? cell(0, 0) : columns[0];
+		for (const field of ['play', 'cut']) {
+			await matrix({ kind: 'ClearPlayback' });
+			const play = page.locator(`[data-matrix-control="play"][data-owner-uuid="${owner}"]`);
+			const playParameter = Number(await play.getAttribute('data-parameter-id'));
+			await page.keyboard.press('Escape');
+			if (individual) await selectCell();
+			else await label(initial.columns[0].label);
+			await page.locator(`.parameter-inspector[data-node-id="${playParameter}"]`).waitFor();
+			const name = 'Trigger';
+			const parameterRow =
+				field === 'play'
+					? page.locator(`.parameter-inspector[data-node-id="${playParameter}"]`)
+					: page
+							.locator('.parameter-inspector')
+							.filter({ has: page.getByText('Cut', { exact: true }) });
+			const parameter = Number(await parameterRow.getAttribute('data-node-id'));
+			assert(Number.isSafeInteger(parameter) && parameter > 0);
+			const before = sent.length;
+			await parameterRow.getByRole('button', { name, exact: true }).click();
+			await wait(
+				() => sent.slice(before),
+				(intents) =>
+					intents.some(
+						(intent) =>
+							intent.kind === 'setParam' &&
+							intent.node === parameter &&
+							Array.isArray(intent.value?.Trigger)
+					)
+			);
+			await wait(playback, (value) =>
+				individual
+					? value.desired_column === null && request(value, 0)?.column === columns[0]
+					: value.desired_column === columns[0] && value.layers.length === 0
+			);
+		}
+	}
+	return 'real grid and generic Inspector Stops at all six scopes plus Column/Cell Play/Cut send exact Parameter triggers and preserve the independent/anchor contract';
 }

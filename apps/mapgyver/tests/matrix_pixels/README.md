@@ -60,3 +60,22 @@ texel against propagated legal UNORM ranges with the unchanged 2/255 residual to
 The active ledger owns current gate acceptance; old-schema run history remains evidence only.
 Global process/handle/private-growth, sustained CPU/GPU/cadence and integrated qualification
 retain their original M03/M05/M09 owners.
+
+M13/6's `scoped_stops.rs` uses the shared public-contract `../matrix_controls` scene with
+`application_configuration/scoped_stops.rs`. Six scopes preserve an unrelated independent
+Cell and empty Column anchor. The software suite holds null-renderer final completion and
+proves aggregate process retention through Stop All/project/renderer close. The selected
+native test checks real output/preview pixels, shared process identity and zero balanced
+native inventories on both GPUs:
+
+```text
+cargo test --locked -p MapGyver --features native-qualification,application-process-fixture --test application_runtime --test matrix_rendering
+cargo test --locked -p MapGyver --features native-qualification,application-process-fixture --test matrix_rendering native_scoped_stops -- --ignored --nocapture --test-threads=1
+```
+
+Cargo's integration-test binary prerequisites can try to replace a running development app.
+The [M13/6 receipt](../../../../docs/progress/evidence/mapgyver-m13-control-acceptance-2026-11-07.json)
+records the isolated Cargo-package workaround used while preserving that app: existing test
+and process-fixture sources, the public MapGyver library, original vendor patches, unchanged
+dependency versions and the optimized test profile. No alternate rendering or completion
+implementation is introduced. Its temporary manifest/lock and exact binary hashes are recorded.

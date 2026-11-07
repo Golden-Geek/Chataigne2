@@ -1,0 +1,78 @@
+{
+  "gate": "M13/6",
+  "date": "2026-11-07",
+  "status": "Accepted",
+  "batch": { "started_utc": "08:58", "stopping_time_utc": "09:43", "verification_finished_utc": "09:29" },
+  "product_fix": "Column Group's app-owned Inspector registration exposed only app_control, hiding the new intrinsic Stop Parameter folder. Include parameters alongside app_control; keep generic Golden widgets and existing nested settings.",
+  "prior_delivery": [
+    "mapgyver-m13-caller-controls-2026-11-07.json: exact real Parameters for public wrappers, double-click/context, script/command; sparse first-use/history and admission warnings",
+    "mapgyver-m13-scoped-stops-2026-11-07.json: scope/anchor rules, outgoing interrupted clips, preserved unrelated weights/deadlines, bounded cuts and discarded edit receipts",
+    "mapgyver-m13-intrinsic-controls-2026-11-07.json: typed App Control ownership on load, nested regrouping and exact Undo/Redo"
+  ],
+  "software": {
+    "source": "apps/mapgyver/tests/matrix_controls/mod.rs shares one public-contract nested scene with real sparse Cells, independent red/blue clips, empty Column anchor and optional aggregate process demand",
+    "process_runtime": { "passed": 16, "failed": 0, "ignored": 2 },
+    "raster_preflight": { "passed": 8, "failed": 0, "ignored": 9 },
+    "new_coverage": [
+      "All six Stop scopes through real transport Parameters and script property writes, twenty cycles per scope/caller, exact project/history and prepared reload",
+      "Every scope cancels queued pulses on owner disable; Undo does not replay; fresh controls still work",
+      "All six scopes retain one actual process shared by two Cell consumers while null-renderer final completion is held. Stop All, project close and renderer close cannot release it early; release permits full process/renderer retirement"
+    ],
+    "prerequisites": "Both integration software suites and root native-qualification,application-process-fixture --lib --tests strict Clippy return0 before native tests. Svelte0errors0warnings and touched JS/Svelte formatting pass.",
+    "retained": "Unchanged532 library tests/2ignored, generated protocol and public script/command parity from31e9d45c remain applicable; no backend/protocol source changed in this batch."
+  },
+  "build_workaround": {
+    "reason": "Normal Cargo integration build and cargo rustc --test attempted to replace the running user-owned target/debug/MapGyver.exe and failed with OS error5. That app remains running; failed builds accepted no hardware check.",
+    "manifest": "target/m136-control-qualification/Cargo.toml",
+    "manifest_sha256": "30434a752ff7bc757365dcba47dcf6cdc7077410623ac9e0ca8c92e64bce2589",
+    "method": "Temporary standalone Cargo package selects the existing application_runtime.rs and matrix_rendering.rs test sources and the existing owned process fixture binary; MapGyver is a public crate dependency, so its desktop executable is not an implicit test prerequisite. Original vendor patches and optimized test profile are retained.",
+    "lock": "Seeded from root Cargo.lock; offline resolution adds only mapgyver_control_qualification@0.1.0, no dependency name/version absent from the root lock. Root manifests/lock and user executable remain untouched.",
+    "lock_sha256": "cd6477681ada2ab91c1803bbe731cbfa3fa7d027153ebe8fefe7646ce9645c5b",
+    "software_command": "cargo test --offline --manifest-path target/m136-control-qualification/Cargo.toml --target-dir target --test application_runtime --test matrix_rendering -- --test-threads=1",
+    "exit_code": 0,
+    "runner_strict": "cargo clippy --locked --offline --manifest-path target/m136-control-qualification/Cargo.toml --target-dir target --tests -- -D warnings: exit0"
+  },
+  "native": {
+    "test_binary": "target/debug/deps/matrix_rendering-8306e6d868a999de.exe",
+    "test_binary_sha256": "81e832671477682e5dcb58c6fd30558a35f69d3cf938b290a3b578d3a186dd35",
+    "process_test_binary_sha256": "6c2352ceed71190a20d3dc9768d66af342ca15c58dc5e3ac508cdf16d2efd305",
+    "command": "matrix_rendering-8306e6d868a999de.exe --ignored --exact matrix_pixels::scoped_stops::native_scoped_stops_preserve_peer_pixels_aggregate_process_and_balanced_gpu_retirement --nocapture --test-threads=1",
+    "exit_code": 0,
+    "elapsed_seconds": 16.80,
+    "log": "target/m136-scoped-native-20261107/native.log",
+    "log_sha256": "ae096b03fae41c9f4ddc9f669a3fa2744c6a56ff2b487597a0c14a62c1bc6f82",
+    "adapters": ["Intel(R) Graphics LUID low88937/high0", "NVIDIA GeForce RTX5080 Laptop GPU LUID low2427691359/high0"],
+    "cases": 12,
+    "images": 102,
+    "texels_per_image": 768,
+    "maximum_error": "0/255 for every output and preview image",
+    "assertions": "Real scoped Stop removes the red target while unrelated blue peer/anchor survives; Stop All removes both. Shared process PID survives peer demand. Actual accepted native outputs/preview, then process Idle and renderer retirement are required. Each fixture ends with17 created/17 released plan textures, live0, owned_texel_bytes0 and empty output/source inventories.",
+    "underlying_barrier": "Unchanged Golden native completion/removal ownership and actual blocked-GPU/SDK cases are retained from mapgyver-m03-blocked-retirement-2026-11-06.json; current scoped app tests add held final-use process proof and actual both-GPU resource retirement, without a new completion seam.",
+    "limit": "No frame pacing, general latency/private-memory, external-source format or complete WOW64 qualification claim."
+  },
+  "bundled_inspector": {
+    "first_failure": "target/m136-scope-inspector-native-20261107/result.json: fixture expected Trigger Stop; generic Inspector accessible button name is Trigger, unlike the inline Stop All widget.",
+    "first_failure_sha256": "fa6aa79a1e6e8772086b447ead6d607ceaf70db7f72bb709ef1323bbadc46628",
+    "second_failure": "target/m136-scope-inspector-names-native-20261107/result.json: corrected names verify Cell/Layer/Column/Layer Group, then Column Group's real Stop row is absent. Source inspection identifies its app_control-only child filter.",
+    "second_failure_sha256": "4ab7b661e8157790b6fc0b5ece3d4b9d2f4d9ecf8dd325b21502ab779e575568",
+    "attempt_accounting": "One planned both-GPU qualification run passes. Inspector investigation uses two attempts: fixture name mismatch, then reproduced owning filter defect. Stop probing, correct that product filter, and rerun the original required fixture for fix verification; no new measurement variant or unchanged retry.",
+    "build": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m136-inspector-controls: exit0",
+    "binary": "target/debug/deps/MapGyver-m136-inspector-controls.exe",
+    "binary_sha256": "def22c1e9ef558dedc3c16ee03854e564fcf3272242e59c53a87ff476f80d675",
+    "final": "target/m136-scope-inspector-fixed-native-20261107/result.json",
+    "result_sha256": "09b4bd5fab5336c739d15792973ee63226d40cd4ac9aace84de51573be37ac7b",
+    "pid": 31140,
+    "fixture_exit": 0,
+    "app_exit": 0,
+    "assertions": "Real grid and generic Inspector Stops at all six scopes plus Column/Cell Play/Cut send exact real Parameter IDs, preserving independent/anchor behavior. Sparse double-click/context/transport, thirty rapid cycles/history, reload and nested grouping still pass. No page errors; final stop-all.png inspected and owned app/profile closed normally."
+  },
+  "requirement_audit": {
+    "real_owners": "Typed Column/Cell Play/Cut and every scoped Stop are actual Parameter children; public wrappers and UI/script/transport reach those nodes, with one-use internal delivery proof.",
+    "scope_semantics": "All six scopes cover current nested hierarchy and independent clips, retain unrelated anchors/mixes/deadlines, and clear outgoing addresses. Pure mix/rollback/admission and actual both-GPU peer-pixel checks agree.",
+    "callers_and_visible_state": "Grid, generic Inspector, double-click/context, script property writes, transport and named script/command wrappers are covered by this receipt and retained caller parity. Invocation acknowledgments identify Parameters without claiming frame submission.",
+    "empty_disabled_rapid": "Sparse first-use creates exactly one normal Cell; repeated pulses are ephemeral. Existing empty/disabled Cell tests plus every-scope queued-disable/Undo and twenty-cycle/caller/reload checks pass.",
+    "history_and_structure": "Exact sparse project/history, failure fences, one-step first-use Undo/Redo, typed intrinsic App Control ownership on load and nested regrouping remain verified.",
+    "completion_safe_retirement": "Every scoped Stop passes held-completion aggregate process retention, and both native GPUs produce the exact new pixels then retire all native inventories/processes. Golden's unchanged real incomplete-GPU/SDK ownership proof remains at its owning boundary. No timeout-based release is introduced."
+  },
+  "acceptance": { "newly_closed_gates": ["M13/6"], "overall": "73/92 (79%)", "M13": "4/14 (29%)", "completed_phases": "7/14 (50%)" }
+}

@@ -1,6 +1,7 @@
 use super::*;
 mod cell_launch;
 mod column_groups;
+mod scoped_stops;
 mod sharing;
 
 #[test]

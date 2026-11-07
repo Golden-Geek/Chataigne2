@@ -65,8 +65,12 @@ not alter project history. Undo/Redo reconstructs the Cell without replaying its
 control. Existing Cells resolve through the bounded address index without rebuilding the
 document on every pulse.
 
-M13/6 remains open. Native final-use/process retirement and complete scope/caller acceptance
-are not established by functional mix and button checks.
+M13/6 is [Accepted](../progress/evidence/mapgyver-m13-control-acceptance-2026-11-07.json).
+All six scopes pass real transport/script and generic Inspector controls, rapid/history/load
+checks, held-completion aggregate process retention and actual both-GPU output/preview pixels
+with balanced native retirement. Column Group's app-owned Inspector filter includes its real
+Parameters folder alongside App Control; filtering only App Control hid Stop from the Inspector.
+Separate interaction timing, source format, WOW64 and production qualification gates remain open.
 
 Project-candidate hierarchy classification keeps each owner's declared App Control root
 `Regular`, with non-curated permissions matching its embedded constructor. The typed owner's

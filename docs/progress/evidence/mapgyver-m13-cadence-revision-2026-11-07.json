@@ -1,14 +1,29 @@
 {
   "gate": "M13/4",
   "date": "2026-11-07",
-  "authority": "User explicitly says 240 Hz interface is unnecessary, manipulation should feel at least60Hz rather than10–15Hz, display-dependent rendering frame-rate choice is desirable, and gates may change.",
+  "authority": "User removes240Hz UI requirement, initially requests60Hz manipulation and display-dependent output rate, then explicitly accepts30+fps for now. Reported10–15fps is perceived, not measured. Gates may change.",
   "revision": {
-    "interaction": "At least60Hz presented manipulation on a supporting display, approximately16.67ms per update; remove240Hz/4.17ms interface acceptance.",
+    "interaction": "Current acceptance minimum30+fps presented geometry/overlay manipulation, with60fps preferred; approximately33.33ms/16.67ms per update. Remove240Hz/4.17ms interface acceptance. Continuous synchronization and separate latency bounds remain required.",
     "measurement": "Retain actual presented input/pacing/stalls/p95/p99, native/DOM alignment, both GPUs, populated3x3 and larger workloads, history/cancellation and delayed truthful progress. Configured FPS or an engine counter alone does not establish smoothness.",
     "rendering": "Add real typed output cadence choice: follow selected display refresh or explicit frame rate. Verify actual cadence, display changes/recovery, persistence and callers. Keep source arrival and UI manipulation independent.",
     "unchanged": "M05 latency, M12 Intel4K, M03 resource/timing and all correctness/ownership/final qualification requirements remain separate. No acceptance credit and no denominator change."
   },
-  "execution": "M13/6 remains the only Active gate until its next checkpoint. M13/4 is Pending with an executable product action: inspect existing scheduling/display contracts and implement authored output cadence, then qualify60Hz interaction with authoritative presented evidence. Old zero-action masked capture remains failed evidence; no unchanged retry.",
+  "execution": "After M13/6 acceptance, M13/4 alone becomes Active: reproduce the recorded geometry/overlay synchronization failures, repair their owning publication/observation paths, add authored output cadence and qualify the30+fps minimum with authoritative presented evidence. Old zero-action masked capture remains failed evidence; no unchanged retry.",
+  "user_visual_feedback": {
+    "source": "D:/Desktop/Recording 2026-11-07 100641.mp4",
+    "sha256": "fc41141a74cc41a12c03bb2f4520b3398f1fe0deb2f61ea90fb9b766321955b4",
+    "metadata": "6.866633 seconds;1194x684;30/1 fps. FFprobe succeeds; extracted1Hz contact sheet inspected at target/m134-user-feedback-20261107.png.",
+    "reported": [
+      "UI manipulation itself is smooth/acceptable and Spout source animation is smooth.",
+      "Direct Screen Warping/Surface Source manipulation: native video geometry is choppy and trails the smooth editing handles until release.",
+      "Inspector opacity: video feedback is smooth; preserve it.",
+      "Inspector corner handles: video geometry responds immediately but editor handles are laggy.",
+      "Inspector crop position/size: video responds smoothly but the editor rectangle updates only on release."
+    ],
+    "observation": "Recording/contact sheet shows a moving Spout demo cube and changing quadrilateral, with a visible handle/image-boundary mismatch during manipulation. It does not establish60Hz cadence or the cause.",
+    "acceptance_change": "Reproduce and close parameter-to-render and parameter-to-editor synchronization in both directions during input, not just after release. Preserve smooth source content/opacity; retain final state, cancellation, history and output ownership.",
+    "hypothesis_only": "Different canvas publication and Inspector/overlay observation paths may throttle or defer geometry. Root cause is not established."
+  },
   "historical_evidence": "mapgyver-m13-qpc-checkpoint-2026-11-07.json records the former240Hz contract and capture failure; this amendment supersedes only its interface target.",
   "acceptance": { "newly_closed_gates": [], "overall": "72/92 (78%)", "M13": "3/14 (21%)" }
 }

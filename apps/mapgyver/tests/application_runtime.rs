@@ -18,6 +18,7 @@ use std::time::{Duration, Instant};
 
 mod application_configuration;
 mod lifecycle;
+mod matrix_controls;
 
 fn edit(engine: &mut AppEngine, edit: ApplicationEdit) -> MediaEditResult {
     let ack = apply_project_intent(
