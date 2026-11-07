@@ -2,7 +2,7 @@ use golden_core::{
     edit::{Edit, NodeTree},
     events::CustomEvent,
     node::{Node, NodeId},
-    parameter::ParameterEventBehaviour,
+    parameter::{ParamValue, ParameterEventBehaviour},
 };
 use serde_json::Value;
 
@@ -276,7 +276,8 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             };
             let mut definition = current.definition();
             edit.apply(&mut definition, extent)?;
-            set_geometry(engine, reference, node, definition)
+            let values = current.geometry_parameter_values(&definition, edit);
+            set_geometry(engine, reference, node, definition, values)
         }
         ScreenEdit::FitSurface { reference, mode } => {
             let node = surface_id(engine, reference)?;
@@ -293,7 +294,8 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                     super::geometry::fit(&mut definition, output, source)?;
                 }
             }
-            set_geometry(engine, reference, node, definition)
+            let values = current.quad_parameter_values(definition.quad).into();
+            set_geometry(engine, reference, node, definition, values)
         }
         ScreenEdit::ReorderSurface { reference, after } => {
             let node = surface_id(engine, reference)?;
@@ -322,13 +324,14 @@ fn set_geometry(
     reference: SurfaceReference,
     node: NodeId,
     definition: SurfaceDefinition,
+    values: Vec<(NodeId, ParamValue)>,
 ) -> ScreenEditResult {
     let Some(AppNode::Surface(current)) = engine.nodes.get(node) else {
         unreachable!()
     };
-    let snapshot = SurfaceSnapshot::new(reference, current.node_data().meta.label.clone(), definition.clone());
+    let snapshot = SurfaceSnapshot::new(reference, current.node_data().meta.label.clone(), definition);
     engine.edits.push(Edit::SetParamsAtomic {
-        values: current.parameter_values(definition),
+        values,
         behaviour: ParameterEventBehaviour::Append,
     });
     ScreenEditResult::SurfaceChanged { snapshot }

@@ -108,7 +108,15 @@ try {
 	const handle = page.locator('[data-instance-handle="Translate"]');
 	await handle.click();
 	const position = () => handle.evaluate((element) => parseFloat(element.style.left) * 4);
-	async function verifyControl(name, read, display, canonical, label = 'Position', field = false) {
+	async function verifyControl(
+		name,
+		read,
+		display,
+		canonical,
+		label = 'Position',
+		field = false,
+		increment = 7
+	) {
 		const row = page
 			.locator('.parameter-inspector')
 			.filter({ has: page.getByText(label, { exact: true }) });
@@ -126,7 +134,7 @@ try {
 			hold = true;
 			let pointer;
 			if (field) {
-				await input.fill(String(origin + 7));
+				await input.fill(String(origin + increment));
 				await input.press('Enter');
 			} else {
 				const box = await slider.boundingBox();
@@ -150,7 +158,7 @@ try {
 			hold = false;
 			const pending = held.shift();
 			if (reject) {
-				pending.frame.intent.value = 1e100;
+				pending.frame.intent.component = 2;
 				pending.server.send(JSON.stringify(pending.frame));
 			} else pending.server.send(pending.message);
 			const final = await wait(
@@ -292,6 +300,70 @@ try {
 		(value) => value.size.width,
 		'Size',
 		true
+	);
+	stage = 'Surface setup';
+	const screens = async (payload) => {
+		const ack = await post('/api/ui/intent', {
+			kind: 'invokeAppOperation',
+			namespace: 'mapgyver.screens',
+			operation: 'edit',
+			payload
+		});
+		assert(ack.success, JSON.stringify(ack));
+		return { value: ack.result.value, history: ack.history };
+	};
+	const created = (await screens({ kind: 'CreateScreen', label: 'Draft Screen' })).value;
+	const reference = created.surface;
+	await screens({ kind: 'RenameSurface', reference, label: 'Draft Surface' });
+	const inspectSurface = async () => {
+		const result = await screens({ kind: 'InspectSurface', reference });
+		return { value: result.value.snapshot.definition, history: result.history };
+	};
+	const originalSurface = (await inspectSurface()).value;
+	await screens({
+		kind: 'ConfigureSurface',
+		reference,
+		definition: { ...originalSurface, source, crop: { x: 0.1, y: 0.1, width: 0.7, height: 0.7 } }
+	});
+	await tab('Screens').click();
+	const tree = page.locator('section[aria-label="Screens"]');
+	const screenRow = tree.getByRole('treeitem', { name: 'Draft Screen', exact: true });
+	await screenRow.getByRole('button', { name: 'Draft Screen', exact: true }).click();
+	if ((await screenRow.getAttribute('aria-expanded')) === 'false') {
+		await screenRow.focus();
+		await screenRow.press('ArrowRight');
+	}
+	await tree.getByRole('button', { name: 'Draft Surface', exact: true }).click();
+	await tab('Screen Warping').click();
+	const polygon = page.locator(`polygon[data-surface-drop-target="${reference.surface}"]`);
+	await verifyControl(
+		'Screen corner',
+		inspectSurface,
+		async () => Number((await polygon.getAttribute('points')).split(/[ ,]/)[0]),
+		(value) => value.quad.corners[0].x,
+		'Top left',
+		true,
+		0.05
+	);
+	await tab('Surface Source').click();
+	const crop = page.locator('[aria-label="Source crop controls"] rect');
+	await verifyControl(
+		'Surface crop origin',
+		inspectSurface,
+		async () => Number(await crop.getAttribute('x')),
+		(value) => value.crop.x,
+		'Crop origin',
+		true,
+		0.05
+	);
+	await verifyControl(
+		'Surface crop size',
+		inspectSurface,
+		async () => Number(await crop.getAttribute('width')),
+		(value) => value.crop.width,
+		'Crop size',
+		true,
+		-0.05
 	);
 	assert.deepEqual(errors, []);
 	await writeFile(

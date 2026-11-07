@@ -1,5 +1,8 @@
 import { onDestroy } from 'svelte';
 import { observeEditor } from 'golden_ui/store/editor-observation.svelte';
+import { usePanelVisibility } from 'golden_ui/dockview/panel-visibility.svelte';
+import { createEditorParameterProjection } from 'golden_ui/store/editor-parameter-projection.svelte';
+import { projectSurface } from './parameter-projection';
 import { appState, type WorkbenchSession } from 'golden_ui';
 import { createUiEditSession } from 'golden_ui/store/ui-intents';
 import { ScreenEditorController, screenEditorState } from './authoring';
@@ -10,6 +13,7 @@ import type { ScreenEditorQuery } from './generated/ScreenEditorQuery';
 import type { SurfacePresentation } from './surface-gesture';
 
 export function createScreenEditor(query: () => ScreenEditorQuery) {
+	const panel = usePanelVisibility();
 	const session = $derived(appState.session);
 	const view = $state(screenEditorState());
 	const controller = new ScreenEditorController<WorkbenchSession>(
@@ -18,6 +22,32 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 		invokeScreenEdit
 	);
 	const gestureState = $state(createSurfaceGestureState());
+	const projection = createEditorParameterProjection(() => session);
+	const parameters = $derived(
+		panel.visible && view.page ? projection.read(view.presentedGeneration, view.page.at) : null
+	);
+	const bindings = $derived(
+		new Map(view.page?.parameters.map((binding) => [binding.surface, binding]) ?? [])
+	);
+	const surface = $derived(
+		controller.surface && parameters && !view.interacting
+			? projectSurface(
+					controller.surface,
+					bindings.get(controller.surface.reference.surface),
+					parameters
+				)
+			: controller.surface
+	);
+	const screen = $derived(
+		controller.screen && parameters && !view.interacting
+			? {
+					...controller.screen,
+					surfaces: controller.screen.surfaces.map((value) =>
+						projectSurface(value, bindings.get(value.reference.surface), parameters)
+					)
+				}
+			: controller.screen
+	);
 	let presentation = $state.raw<SurfacePresentation | null>(null);
 	const gesture = new SurfaceGesture<WorkbenchSession>(() => session, gestureState, {
 		group: (current, handle) =>
@@ -31,11 +61,15 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 				current
 			),
 		move: async (current, reference, edit) => {
-			const result = await invokeScreenEdit(current, {
-				kind: 'EditSurfaceGeometry',
-				reference,
-				edit
-			});
+			const result = await invokeScreenEdit(
+				current,
+				{
+					kind: 'EditSurfaceGeometry',
+					reference,
+					edit
+				},
+				projection.applied()
+			);
 			if (result.kind !== 'SurfaceChanged') throw new Error('Unexpected Surface geometry response');
 			return result.snapshot;
 		},
@@ -70,6 +104,12 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 		controller,
 		gestureState,
 		gesture,
+		get screen() {
+			return screen;
+		},
+		get surface() {
+			return surface;
+		},
 		get presentation() {
 			return presentation;
 		}

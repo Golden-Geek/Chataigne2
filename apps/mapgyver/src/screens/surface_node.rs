@@ -1,5 +1,7 @@
 //! Surface references and mapping properties are real typed Golden Parameters.
-use super::protocol::{Calibration, Point, Quad, SurfaceDefinition, UnitRect};
+use super::protocol::{
+    Calibration, Point, Quad, SurfaceDefinition, SurfaceGeometryEdit, SurfaceId, SurfaceParameterBindings, UnitRect,
+};
 use crate::media::protocol::{ChannelId, ChannelReference, MediaId};
 use golden_core::{
     node,
@@ -38,6 +40,72 @@ pub struct SurfaceNode {
 }
 
 impl SurfaceNode {
+    pub(super) fn parameter_bindings(
+        &self,
+        engine: &crate::app::AppEngine,
+        surface: SurfaceId,
+    ) -> SurfaceParameterBindings {
+        let uuid = |id| {
+            engine
+                .nodes
+                .get(id)
+                .expect("materialized Surface Parameter")
+                .node_data()
+                .meta
+                .uuid
+        };
+        SurfaceParameterBindings {
+            surface,
+            crop_origin: uuid(self.crop_origin.id()),
+            crop_size: uuid(self.crop_size.id()),
+            corners: [
+                self.top_left.id(),
+                self.top_right.id(),
+                self.bottom_right.id(),
+                self.bottom_left.id(),
+            ]
+            .map(uuid),
+            opacity: uuid(self.opacity.id()),
+        }
+    }
+
+    pub(super) fn quad_parameter_values(&self, quad: Quad) -> [(NodeId, ParamValue); 4] {
+        let ids = [
+            self.top_left.id(),
+            self.top_right.id(),
+            self.bottom_right.id(),
+            self.bottom_left.id(),
+        ];
+        std::array::from_fn(|index| (ids[index], vector_value(point_vector(quad.corners[index]))))
+    }
+
+    /// The candidate and corner index have already passed geometry validation.
+    pub(super) fn geometry_parameter_values(
+        &self,
+        definition: &SurfaceDefinition,
+        edit: SurfaceGeometryEdit,
+    ) -> Vec<(NodeId, ParamValue)> {
+        match edit {
+            SurfaceGeometryEdit::QuadTranslation { .. } => self.quad_parameter_values(definition.quad).into(),
+            SurfaceGeometryEdit::QuadCorner { corner, .. } | SurfaceGeometryEdit::QuadCornerPixels { corner, .. } => {
+                vec![self.quad_parameter_values(definition.quad)[usize::from(corner)].clone()]
+            }
+            SurfaceGeometryEdit::CropOrigin { .. } => vec![(
+                self.crop_origin.id(),
+                vector_value(vector(definition.crop.x, definition.crop.y)),
+            )],
+            SurfaceGeometryEdit::CropCorner { .. } => vec![
+                (
+                    self.crop_origin.id(),
+                    vector_value(vector(definition.crop.x, definition.crop.y)),
+                ),
+                (
+                    self.crop_size.id(),
+                    vector_value(vector(definition.crop.width, definition.crop.height)),
+                ),
+            ],
+        }
+    }
     pub(crate) fn from_definition(label: String, definition: SurfaceDefinition) -> Self {
         let mut node = Self::new();
         let permissions = node.node_data().meta.user_permissions.clone();

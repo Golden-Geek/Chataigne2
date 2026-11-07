@@ -47,6 +47,8 @@ const surface = (width = 1): SurfaceSnapshot => ({
 const reply = (id = 'current', selected: SurfaceSnapshot | null = surface()): ScreenEditResult => ({
 	kind: 'Editor',
 	page: {
+		at: { tick: 0, micro: 0, seq: 0 },
+		parameters: [],
 		document: 'document',
 		document_matches: true,
 		target: { kind: 'Screen', screen: id },

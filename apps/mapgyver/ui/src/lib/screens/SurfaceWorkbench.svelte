@@ -62,8 +62,8 @@
 	}));
 	const selection = useDocumentSelection();
 	const { view, controller, gestureState, gesture } = owner;
-	const screen = $derived(controller.screen),
-		surface = $derived(controller.surface);
+	const screen = $derived(owner.screen),
+		surface = $derived(owner.surface);
 	function persist() {
 		writePanelPersistedState(panelApi, { ...choice });
 	}

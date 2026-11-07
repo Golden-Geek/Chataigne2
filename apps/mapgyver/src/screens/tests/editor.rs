@@ -18,7 +18,7 @@ fn read(engine: &mut AppEngine, query: ScreenEditorQuery) -> ScreenEditorPage {
     let ScreenEditResult::Editor { page } = apply(engine, ScreenEdit::InspectEditor { query }) else {
         panic!()
     };
-    page
+    *page
 }
 
 #[test]
@@ -110,10 +110,26 @@ fn large_screen_pages_and_source_inspections_keep_selected_definitions_independe
     }
     let history = engine.ui_history_state();
     let page = read(&mut engine, request(ScreenEditorKind::Screen, selected.surface.0));
+    assert_eq!(page.parameters.len(), 129);
+    assert!(
+        page.parameters
+            .iter()
+            .any(|binding| binding.surface == selected.surface)
+    );
+    for binding in &page.parameters {
+        for uuid in [binding.crop_origin, binding.crop_size, binding.opacity]
+            .into_iter()
+            .chain(binding.corners)
+        {
+            assert!(engine.node_id_by_uuid(uuid).is_some());
+        }
+    }
     assert_eq!(page.screen.unwrap().surfaces.len(), 128);
     assert!(page.has_more_surfaces);
     assert_eq!(page.surface.unwrap().reference, selected);
     let source = read(&mut engine, request(ScreenEditorKind::Surface, selected.surface.0));
+    assert_eq!(source.parameters.len(), 1);
+    assert_eq!(source.parameters[0].surface, selected.surface);
     assert!(source.screen.unwrap().surfaces.is_empty());
     assert_eq!(source.surface.unwrap().reference, selected);
     assert_eq!(engine.ui_history_state(), history);

@@ -1,4 +1,5 @@
 import type { WorkbenchSession } from 'golden_ui';
+import type { AppliedIntentObserver } from 'golden_ui/store/session/intent-sender';
 import type { ScreenEdit } from './generated/ScreenEdit';
 import type { ScreenEditResult } from './generated/ScreenEditResult';
 import { SCREEN_NAMESPACE, SCREEN_OPERATION } from './generated/constants.ts';
@@ -14,7 +15,8 @@ export const screenOperationActivity = (edit: ScreenEdit): 'background' | 'user'
 /** Backend operations own Screen/Surface identities, defaults, validation and history. */
 export const invokeScreenEdit = async (
 	session: Pick<WorkbenchSession, 'invokeAppOperation'>,
-	edit: ScreenEdit
+	edit: ScreenEdit,
+	applied?: AppliedIntentObserver
 ) =>
 	(await session.invokeAppOperation(
 		{
@@ -23,7 +25,7 @@ export const invokeScreenEdit = async (
 			operation: SCREEN_OPERATION,
 			payload: edit
 		},
-		undefined,
+		applied,
 		{
 			activity: screenOperationActivity(edit)
 		}

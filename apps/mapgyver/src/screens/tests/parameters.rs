@@ -10,7 +10,7 @@ use golden_core::{
 };
 use std::collections::HashMap;
 
-fn parameters(engine: &AppEngine, root: NodeId) -> HashMap<String, NodeId> {
+pub(super) fn parameters(engine: &AppEngine, root: NodeId) -> HashMap<String, NodeId> {
     let mut child = engine.nodes.get(root).unwrap().node_data().first_child;
     while let Some(id) = child {
         let node = engine.nodes.get(id).unwrap();
@@ -34,7 +34,7 @@ fn parameters(engine: &AppEngine, root: NodeId) -> HashMap<String, NodeId> {
     panic!("missing Parameters folder")
 }
 
-fn set(engine: &mut AppEngine, node: NodeId, value: ParamValue) -> UiAck {
+pub(super) fn set(engine: &mut AppEngine, node: NodeId, value: ParamValue) -> UiAck {
     apply_project_intent(
         engine,
         UiEditIntent::SetParam {

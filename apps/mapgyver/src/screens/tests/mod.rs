@@ -9,6 +9,7 @@ mod enabled;
 mod fit;
 mod free_warp;
 mod geometry;
+mod geometry_parameters;
 mod gestures;
 mod output_input;
 mod parameters;

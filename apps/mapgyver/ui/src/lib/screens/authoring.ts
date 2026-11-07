@@ -20,7 +20,8 @@ export const screenEditorState = () => ({
 	interacting: false,
 	error: '',
 	readError: '',
-	presentedHistory: undefined as unknown
+	presentedHistory: undefined as unknown,
+	presentedGeneration: null as number | null
 });
 export type ScreenEditorState = ReturnType<typeof screenEditorState>;
 
@@ -142,6 +143,7 @@ export class ScreenEditorController<S extends EditorConnection> {
 				this.context = { session, project };
 				this.state.page = result.page;
 				this.state.presentedHistory = history;
+				this.state.presentedGeneration = generation;
 				this.state.resolving = false;
 				this.state.readError = '';
 			},

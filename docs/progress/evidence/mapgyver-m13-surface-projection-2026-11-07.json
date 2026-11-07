@@ -1,0 +1,47 @@
+{
+	"date": "2026-11-07",
+	"deliverable": "Screen Warping and Surface Source consume the shared Golden live Parameter projection; geometry intents preserve unrelated authored precision.",
+	"gate": "M13/4 remains open; functional synchronization verified, quantitative native acceptance not awarded",
+	"acceptance": { "verified": 73, "total": 92, "m13_verified": 4, "m13_total": 14 },
+	"batch": { "started_utc": "15:17", "cutoff_utc": "16:02" },
+	"ownership": "Rust supplies bounded exact Surface Parameter bindings and authoritative geometry validation. Golden owns ordinary-write publication, typed lookup and receipt fences. MapGyver adapters project crop/corners/opacity without copying transport, validation or source policy.",
+	"changes": [
+		"Screen queries return the first128 Surface bindings plus an independently selected off-page Surface; Source queries return one selected binding. The generated DTO includes the engine event fence. No whole-document lookup or polling is added.",
+		"Both Surface editors use the same live reader as Composition and Matrix. Hidden panels skip live projection; generation, receipt and ordinary gesture fences remain intact. Backend mapping validity remains authoritative.",
+		"Quad translation writes four corners; corner/pixel edits write their single corner; crop movement writes origin; crop resize writes origin/size; Fit/Fill writes only the quad. Unrelated f64 Parameters no longer round-trip through f32 render definitions.",
+		"Media Preview audit: stable channel identity goes directly to NativePreview; renderer extents determine presentation. Its existing live-group bounded reader preserves same-project native presentation across refresh/reconnect. No delayed authored-geometry copy or extra adapter is introduced."
+	],
+	"software": {
+		"rust": "547 pass/3 ignored with native-preview-smoke,application-process-fixture; includes bounded/off-page bindings, exact f64 preservation, Undo/Redo and generated contracts.",
+		"golden_ui": "303 pass.",
+		"focused_app_ui": "98 Node tests pass, including Surface projections/receipts and Media Preview lifetime/read behavior alongside Composition and Matrix.",
+		"strict": "Strict MapGyver Clippy passes; both-app Svelte0errors0warnings; focused strict TypeScript passes.",
+		"format": "Root/Core Rust formatting and scoped authored formatting; generated DTOs retain generator output.",
+		"corrected_validation": "The initial generator compile found a missing ParamValue import. Strict Clippy then identified the enlarged ScreenEditResult variant; its page is boxed without changing its wire shape. Both were corrected before bundled execution; final software prerequisites passed."
+	},
+	"bundled_headless": {
+		"binary": "target/debug/deps/MapGyver-m134-screen-projection.exe",
+		"sha256": "2ff77c1b8f537121eea943ed5344100294cfc494f5e6f2753449890489564c98",
+		"build_exit": 0,
+		"artifact": "target/m134-screen-drafts-20261107/result.json",
+		"artifact_sha256": "f0387d68b27da290a2bdc3c69e366fce7d015914638e2dd0e1f8514092e809ed",
+		"pid": 47332,
+		"fixture_exit": 0,
+		"host_exit": 0,
+		"cases": 16,
+		"controls": [
+			"Composition Position",
+			"Matrix Layer Position",
+			"Matrix Layer Canvas Size",
+			"Matrix Cell Position",
+			"Matrix Cell Size",
+			"Screen corner",
+			"Surface crop origin",
+			"Surface crop size"
+		],
+		"proof": "Actual generic Inspector input changes the bound control while its request is held before engine delivery and canonical state stays exactly unchanged. Successful edits create one history operation with exact Undo/Redo. Rejected invalid-component requests clear drafts and preserve authored state/history. Composition/Layer/Cell Position also publish a later queued draft while the first request is held. Surface Source has a real assigned Solid Color channel; Matrix has nine populated Cells.",
+		"page_errors": [],
+		"limits": "Actual bundled frontend plus ordinary headless host in headless Chromium. No desktop input, native/GPU pixels, presented FPS, alignment or pointer latency is measured."
+	},
+	"remaining": "Full30+fps native manipulation, native/DOM alignment, pointer p95/p99, missed updates/stalls, full30-action latency and cancellation/recovery across required workloads/both GPUs/large projects. Media Preview native continuity still needs physical qualification. Earlier passing uncaptured Composition user feedback retains its own binary scope. Desktop injected input remains stopped after physical Escape; no full-gate or release claim."
+}

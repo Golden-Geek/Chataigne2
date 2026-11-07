@@ -313,7 +313,7 @@ pub enum ScreenEdit {
     },
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum SurfaceGeometryEdit {
     /// Translate a starting quad by the current pointer displacement, without accumulating samples.
@@ -414,6 +414,9 @@ pub struct ScreenEditorQuery {
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct ScreenEditorPage {
+    pub at: golden_core::engine::EngineTime,
+    /// Exact geometry Parameters for the bounded visible page and independent selected Surface.
+    pub parameters: Vec<SurfaceParameterBindings>,
     pub document: NodeUuid,
     pub document_matches: bool,
     pub target: Option<ScreenEditorTarget>,
@@ -424,6 +427,15 @@ pub struct ScreenEditorPage {
     pub selected_surface: Option<SurfaceId>,
     /// Independent lookup keeps off-page selected geometry editable.
     pub surface: Option<SurfaceSnapshot>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct SurfaceParameterBindings {
+    pub surface: SurfaceId,
+    pub crop_origin: NodeUuid,
+    pub crop_size: NodeUuid,
+    pub corners: [NodeUuid; 4],
+    pub opacity: NodeUuid,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -438,7 +450,7 @@ pub struct ScreenRowSnapshot {
 #[serde(tag = "kind")]
 pub enum ScreenEditResult {
     Editor {
-        page: ScreenEditorPage,
+        page: Box<ScreenEditorPage>,
     },
     Row {
         /// None when deletion/project replacement overtook a mounted row's read.

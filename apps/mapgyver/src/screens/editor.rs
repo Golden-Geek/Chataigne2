@@ -69,6 +69,8 @@ pub(super) fn inspect(engine: &AppEngine, query: ScreenEditorQuery) -> Result<Sc
     });
     let matches = query.document.is_none_or(|expected| expected == document);
     let mut page = ScreenEditorPage {
+        at: engine.time,
+        parameters: Vec::new(),
         document,
         document_matches: matches || (query.locked.is_none() && eligible.is_some()),
         target: None,
@@ -127,6 +129,8 @@ pub(super) fn inspect(engine: &AppEngine, query: ScreenEditorQuery) -> Result<Sc
                 page.has_more_surfaces = true;
                 break;
             }
+            page.parameters
+                .push(node.parameter_bindings(engine, SurfaceId(node.node_data().meta.uuid)));
             snapshot.surfaces.push(SurfaceSnapshot::new(
                 SurfaceReference {
                     screen,
@@ -136,6 +140,19 @@ pub(super) fn inspect(engine: &AppEngine, query: ScreenEditorQuery) -> Result<Sc
                 node.definition(),
             ));
         }
+    }
+    if let Some(selected) = &page.surface
+        && !page
+            .parameters
+            .iter()
+            .any(|binding| binding.surface == selected.reference.surface)
+    {
+        let id = authoring::surface_id(engine, selected.reference)?;
+        let Some(AppNode::Surface(node)) = engine.nodes.get(id) else {
+            return Err("Surface changed".into());
+        };
+        page.parameters
+            .push(node.parameter_bindings(engine, selected.reference.surface));
     }
     page.target = Some(target);
     page.screen = Some(snapshot);
