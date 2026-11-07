@@ -52,6 +52,13 @@
 	});
 	const displayed = $derived(objects.map((object) => displayRect(object, presentation)));
 	const item = $derived(displayed.find((object) => object.id === selected));
+	// Cells are alternative Column states. Keep the selected Cell's controls above
+	// overlapping alternatives; Layers retain their backend-defined compositing order.
+	const paintOrder = $derived(
+		kind === 'Cell' && item
+			? [...displayed.filter((object) => object.id !== item.id), item]
+			: displayed
+	);
 	function down(event: PointerEvent, object: LayoutRect, mode: RectGeometryMode) {
 		if (disabled) return;
 		pointer.start(event, (at) => {
@@ -85,7 +92,7 @@
 	onpointerup={(event) => pointer.release(event)}
 	onpointercancel={(event) => pointer.release(event, true)}
 	onlostpointercapture={pointer.cancel}>
-	{#each displayed as object (object.id)}
+	{#each paintOrder as object (object.id)}
 		{#if object.size}
 			<rect
 				data-layer-id={kind === 'Layer' ? object.id : undefined}

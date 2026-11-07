@@ -12,6 +12,19 @@ import { createGestureQualification } from './gesture-qualification.mjs';
 const directory = path.resolve(process.argv[2]);
 await mkdir(directory);
 const gpuIndex = process.argv[3] === undefined ? null : Number(process.argv[3]);
+const populated = process.argv.includes('--populated-3x3');
+const colors = [
+	{ rgba: [1, 0, 0, 1], rgb: [255, 0, 0] },
+	{ rgba: [0, 1, 0, 1], rgb: [0, 255, 0] },
+	{ rgba: [0, 0, 1, 1], rgb: [0, 0, 255] },
+	{ rgba: [1, 1, 0, 1], rgb: [255, 255, 0] },
+	{ rgba: [0, 1, 1, 1], rgb: [0, 255, 255] },
+	{ rgba: [1, 0, 1, 1], rgb: [255, 0, 255] },
+	{ rgba: [1, 1, 1, 1], rgb: [255, 255, 255] },
+	{ rgba: [0.5, 0.5, 0.5, 1], rgb: [188, 188, 188] },
+	{ rgba: [1, 0.5, 0, 1], rgb: [255, 188, 0] }
+];
+const matrixSources = [];
 const probe = path.resolve('target/debug/native_qualification.exe');
 const hardware =
 	gpuIndex === null
@@ -152,6 +165,22 @@ async function gesture(name, svg, shape, control, inspect, tolerance = 0.00001) 
 	const box = await control.boundingBox();
 	assert(box);
 	const point = { x: box.x + box.width * 0.43, y: box.y + box.height * 0.43 };
+	const inputHit =
+		name === 'Matrix Cell translation'
+			? await control.evaluate((element, point) => {
+					const hit = document.elementFromPoint(point.x, point.y);
+					return {
+						selected: element.getAttribute('data-layout-cell'),
+						actual: hit?.getAttribute('data-layout-cell'),
+						matches: hit === element
+					};
+				}, point)
+			: null;
+	if (inputHit)
+		assert(
+			inputHit.matches,
+			`Selected Cell must own its overlapping drag area: ${JSON.stringify(inputHit)}`
+		);
 	await page.mouse.move(point.x, point.y);
 	await page.mouse.down();
 	hold = true;
@@ -221,6 +250,7 @@ async function gesture(name, svg, shape, control, inspect, tolerance = 0.00001) 
 	);
 	checks.push({
 		name,
+		input_hit: inputHit,
 		initial,
 		held_first: first,
 		held_latest: latest,
@@ -244,12 +274,33 @@ try {
 		media: source.media,
 		size: { kind: 'Fixed', extent: { width: 120, height: 90 } }
 	});
-	if (hardware) {
+	if (hardware || populated) {
 		await edit({
 			kind: 'ConfigureChannel',
 			reference: source,
 			source: { kind: 'SolidColor', rgba: [1, 0, 0, 1] }
 		});
+	}
+	matrixSources.push(source);
+	if (populated) {
+		for (let index = 1; index < colors.length; index++) {
+			const { reference } = await edit({
+				kind: 'CreateMedia',
+				media_kind: 'SolidColor',
+				label: `Gesture source ${index + 1}`
+			});
+			await edit({
+				kind: 'ConfigureMediaResolution',
+				media: reference.media,
+				size: { kind: 'Fixed', extent: { width: 120, height: 90 } }
+			});
+			await edit({
+				kind: 'ConfigureChannel',
+				reference,
+				source: { kind: 'SolidColor', rgba: colors[index].rgba }
+			});
+			matrixSources.push(reference);
+		}
 	}
 	const { reference } = await edit({
 		kind: 'CreateMedia',
@@ -266,6 +317,8 @@ try {
 	const snapshot = await matrixSnapshot(),
 		layer = snapshot.items[0].id.id,
 		column = snapshot.columns[0].id;
+	assert.equal(snapshot.items.length, 3);
+	assert.equal(snapshot.columns.length, 3);
 	await matrix({
 		kind: 'ConfigureLayer',
 		layer,
@@ -273,14 +326,35 @@ try {
 	});
 	await matrix({
 		kind: 'SetCells',
-		assignments: snapshot.items.flatMap((row) =>
-			snapshot.columns.map((col) => ({
+		assignments: snapshot.items.flatMap((row, rowIndex) =>
+			snapshot.columns.map((col, columnIndex) => ({
 				layer: row.id.id,
 				column: col.id,
-				source: row.id.id === layer && col.id === column ? source : null
+				source: populated
+					? matrixSources[rowIndex * 3 + columnIndex]
+					: row.id.id === layer && col.id === column
+						? source
+						: null
 			}))
 		)
 	});
+	if (populated) {
+		const configured = await matrixSnapshot();
+		assert.equal(configured.cells.length, 9);
+		const view = (
+			await matrix({
+				kind: 'InspectViewport',
+				viewport: { row_start: 0, row_count: 3, axis_start: 0, axis_count: 3 },
+				selection: null
+			})
+		).snapshot;
+		const key = (reference) => `${reference.media}:${reference.channel}`;
+		assert.deepEqual(
+			view.cells.map((cell) => key(cell.source_preview)).sort(),
+			matrixSources.map(key).sort(),
+			'Nine owned Cell aliases resolve to the nine distinct original source references'
+		);
+	}
 	await matrix({
 		kind: 'ConfigureCell',
 		layer,
@@ -366,6 +440,8 @@ try {
 		.click();
 	await tab('Matrix').click();
 	const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
+	if (populated)
+		await qualification?.grid({ phase: 'populated-before-gestures', snapshot, colors });
 	await grid.getByTitle('Select Layer 1', { exact: true }).click();
 	await page.locator('.gc-dv-tab[data-content-panel-id="composition"]').click();
 	const panel = page.locator(
@@ -475,6 +551,15 @@ try {
 		cropPanel.getByRole('button', { name: 'Crop corner 1', exact: true }),
 		async () => (await surfaceSnapshot()).definition.crop
 	);
+	if (populated) {
+		await tab('Medias').click();
+		await page
+			.locator('[data-panel-id="media-manager"]')
+			.getByRole('button', { name: 'Gesture Matrix', exact: true })
+			.click();
+		await tab('Matrix').click();
+		await qualification?.grid({ phase: 'populated-after-gestures', snapshot, colors });
+	}
 	assert.deepEqual(errors, []);
 	assert(
 		receipts.every(
@@ -491,6 +576,7 @@ try {
 				app_pid: native.app.pid,
 				browser: native.browser.version(),
 				checks,
+				workload: { populated_3x3: populated, source_references: matrixSources },
 				requests,
 				receipts,
 				errors,

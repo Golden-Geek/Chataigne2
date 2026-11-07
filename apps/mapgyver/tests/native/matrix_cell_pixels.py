@@ -18,7 +18,6 @@ def main():
     user = ctypes.windll.user32
     user.GetForegroundWindow.restype = wintypes.HWND
     user.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
-    user.SetForegroundWindow.argtypes = [wintypes.HWND]
     user.IsWindowVisible.argtypes = [wintypes.HWND]
     user.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
     matches = []
@@ -36,7 +35,8 @@ def main():
     user.EnumWindows(visit, 0)
     assert len(matches) == 1, "exactly one visible owned native test window required"
     hwnd = matches[0]
-    user.SetForegroundWindow(hwnd)
+    # Activation belongs to supported desktop control or the human setup step. This
+    # verifier only observes the exact owned foreground window and never steals focus.
     # Optional human setup wait, separate from render readiness and unchanged pixel guards.
     deadline = time.monotonic() + args.foreground_wait_seconds
     while user.GetForegroundWindow() != hwnd and time.monotonic() < deadline:

@@ -11,6 +11,11 @@ in the Rust selection snapshot, including when the selected object is outside th
 window. Column positions are indexed when the cached view is built; selection lookup does
 not scan the document. Toolbar clearance preserves access to the column headers.
 
+In the Cell layout editor, the selected Cell's controls paint above overlapping Column
+alternatives so its drag area remains reachable in a populated Matrix. Layers keep their
+backend compositing order. Reordering these bounded keyed controls preserves SVG-root
+pointer capture and never changes authored order, source routing or history ownership.
+
 Unselected Surfaces have a thin transparent outline and no handles or hover fill. Selection
 adds a light fill, stronger outline and handles. Invalid mapping retains a red outline with
 only a light selected fill; unrelated areas remain clear.

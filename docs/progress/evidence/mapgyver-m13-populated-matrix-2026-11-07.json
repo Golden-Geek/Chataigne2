@@ -1,0 +1,81 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/4 Active; populated3x3 functional/native regression verified, actual240Hz timing remains unaccepted",
+	"acceptance": { "verified": 71, "total": 92, "m13_verified": 2, "m13_total": 14 },
+	"batch": {
+		"started_utc": "05:02",
+		"planned_cutoff_utc": "05:47",
+		"native_checks_finished_utc": "05:12"
+	},
+	"problem": "With all nine Cells populated, the selected first Cell's rectangle remains[20,20,100,80] during its drag, although a geometry request is in flight. Later overlapping Column alternatives paint above the selected rectangle and receive the drag instead. The one-populated-Cell fixture did not expose this.",
+	"fix": "MapGyver RectLayoutControls paints the selected Cell last among the bounded displayed alternatives. Layer paint order remains its existing backend compositing order. Keyed rectangles and SVG-root pointer capture retain gesture ownership; no authored settings, ordering, source routing, protocol, backend history or resource admission changes.",
+	"fixture": "native-gesture-presentation.mjs --populated-3x3: nine real default-grid Cells, nine distinct source media with red/green/blue/yellow/cyan/magenta/white/grey/orange opaque colors. Public bounded InspectViewport verifies each owned Cell alias resolves to its exact original source. One installed native grid view exposes nine logical sources; all nine3x3 pixel patches match expected RGB within the original2-code-value limit before and after editing. Existing six held-request geometry/history/physical-outline cases and an independent SDK consumer run through the same scene.",
+	"input_proof": "Before the Cell drag, document.elementFromPoint at the actual input coordinate equals the selected Cell rectangle on each GPU. It then changes through the latest local hint, settles to canonical settings and supports exact grouped Undo/Redo. This directly covers the reproduced overlapping-selected-Cell failure.",
+	"each_gpu": "Six held-request cases pass across Matrix Layer/Cell, Composition translation/rotated resize, Screen warp and Source crop; one in-flight edit, no rewind on older acknowledgement, exact final/history and no authored mutation from qualification observations. Six pending physical outlines have maximum0.750161px error at125%, with no matching stale sample within2px. Native accepted-frame hit IDs remain checked for Screen/Source. Two grid captures verify18 Cell patches; seven independent complete96x64 images are exactly RGBA[255,0,0,255].633 requests have633 applied/successful receipts, zero page errors and normal app/fixture/consumer closure.",
+	"binary": {
+		"path": "target/debug/deps/MapGyver-m134-cell-selection.exe",
+		"sha256": "58c17d1254241af6a6c1366725872822227973a48ae890d3ed4a2f0974acc7f3"
+	},
+	"checks": {
+		"ui": "MapGyver Svelte0 errors/0 warnings; touched Svelte/JS repository Prettier and JS syntax checks passed",
+		"oracle": "Existing pending-outline independent Python oracle:3 tests passed",
+		"build": "cargo rustc --locked -p MapGyver --features native-preview-smoke,application-process-fixture --bin MapGyver -- -C extra-filename=-m134-cell-selection; terminal exit0 before native verification",
+		"scope": "Production change is Svelte control paint order only. Prior Rust backend/strict/generated proofs are reused within their unchanged executed scope. The final complete-receipt assertion was moved after the added final-grid flow, and both saved complete terminal receipt sets were independently audited:633 requests/receipts each, zero rejected/unsuccessful acknowledgements.",
+		"formatting": "Root/Core cargo fmt and scoped diff checks passed"
+	},
+	"intel": {
+		"artifacts": "target/m134-populated3x3-intel-clean-20261107",
+		"pid": 32544,
+		"gpu": "dxgi:00000000:00015b69",
+		"fixture_exit": 0,
+		"selected_hit_matches": true,
+		"sdk_copies": 915,
+		"absent": 0,
+		"failed_receives": 0,
+		"descriptor_mismatch": 0,
+		"first_frame": 62,
+		"last_frame": 976,
+		"stable_shared_handle": 2147485378,
+		"maximum_receive_gap_ms": 23.8652,
+		"consumer_exit": 0,
+		"result_sha256": "ec7982fe0da8501577f492c1ae56dca13ad9a300932d31fda2b9c4ceb5c31a84"
+	},
+	"nvidia": {
+		"artifacts": "target/m134-populated3x3-nvidia-20261107",
+		"pid": 30208,
+		"gpu": "dxgi:00000000:90b3a15f",
+		"fixture_exit": 0,
+		"selected_hit_matches": true,
+		"sdk_copies": 943,
+		"absent": 0,
+		"failed_receives": 0,
+		"descriptor_mismatch": 0,
+		"first_frame": 70,
+		"last_frame": 1012,
+		"stable_shared_handle": 3221227970,
+		"maximum_receive_gap_ms": 33.4325,
+		"consumer_exit": 0,
+		"result_sha256": "fb1fac29f123c995a89378a57e7c83f20c30915bb1172fb6f38e11a1ab974f50"
+	},
+	"retained_failures": [
+		{
+			"artifacts": "target/m134-populated3x3-intel-20261107",
+			"fixture_exit": 1,
+			"classification": "Verifier setup error before native capture: compared owned Cell alias references with original media references. Public bounded InspectViewport source_preview resolution verifies the intended identities. No product change for this correction."
+		},
+		{
+			"artifacts": "target/m134-populated3x3-intel-alias-20261107",
+			"pid": 3692,
+			"fixture_exit": 1,
+			"classification": "Real pre-fix Cell input failure after nine thumbnail pixels and Layer gesture/history pass. Selected Cell geometry never advances from[20,20,100,80]. Retained old binary hash970d4f4d340855159d62f6ccc1737db0de32bb8500092167512a2a64a4ff147b."
+		},
+		{
+			"artifacts": "target/m134-populated3x3-intel-fixed-20261107",
+			"pid": 21196,
+			"fixture_exit": 1,
+			"classification": "Invalid initial orange-thumbnail capture: the saved image visibly contains the desktop's blue pointer halo over the sampled patch. Fixed binary unchanged. Supported owned-window input parks the pointer on the title bar before each final marker/capture; no color/pixel threshold changed."
+		}
+	],
+	"capture_ownership": "matrix_cell_pixels.py no longer calls SetForegroundWindow. Activation and pointer placement use supported computer-use APIs in the uniquely returned owned app window; capture only reads exact owned foreground pixels. No user app, desktop setting or pointer-highlight setting changed.",
+	"remaining": "Actual240Hz presented pacing, stalls and pointer-to-visible p95/p99, including this populated workload; empty/other-media/larger projects; ordinary controls/scroll/docking and silent/background-intent audit. Physical outline/SDK continuity data are functional proofs only, not moving image correspondence, general DPI, production cadence or latency acceptance. The separate QPC return trigger and every original timing/memory/retirement/physical requirement remain unchanged. No full gate closed."
+}

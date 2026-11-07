@@ -7,6 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { adapterKey } from './native-adapter.mjs';
 import { ownedWindowHandle } from './capture-alignment.mjs';
 import { createPreviewOutputObserver } from './preview-output-observer.mjs';
+import { captureMatrixCellPixels } from './matrix-cell-previews.mjs';
 
 export async function createGestureQualification({
 	native,
@@ -17,6 +18,8 @@ export async function createGestureQualification({
 	gpuIndex
 }) {
 	const page = native.page;
+	// Prepare this owned window with supported desktop control before the marker.
+	// Park the desktop pointer outside image probes so cursor halos cannot alter pixels.
 	await writeFile(
 		path.join(directory, 'activate.json'),
 		JSON.stringify({ pid: native.app.pid, binary: process.env.MAPGYVER_TEST_BINARY })
@@ -28,6 +31,7 @@ export async function createGestureQualification({
 	}
 	const output = await createPreviewOutputObserver(post, path.join(directory, 'output'), page);
 	const alignment = [];
+	const grids = [];
 	let finished = false;
 	try {
 		await output.observe('first-grid', { first: source });
@@ -37,6 +41,42 @@ export async function createGestureQualification({
 		throw error;
 	}
 	return {
+		async grid({ phase, snapshot, colors }) {
+			const panel = page.locator('[data-panel-id="matrix"]');
+			const surface = panel.locator('.cell-previews');
+			await page.waitForFunction(() => {
+				const surface = document.querySelector('[data-panel-id="matrix"] .cell-previews');
+				const views = surface?.querySelectorAll('.native-preview');
+				return (
+					surface?.getAttribute('data-matrix-preview-source-count') === '9' &&
+					views.length === 1 &&
+					[...views].every(
+						(view) =>
+							view.dataset.previewState === 'available' &&
+							view.dataset.previewInstalled === 'true' &&
+							!view.querySelector('.tile-unavailable')
+					)
+				);
+			});
+			assert.equal(await surface.locator('.native-preview').count(), 1);
+			const cells = [];
+			for (let row = 0; row < 3; row++)
+				for (let column = 0; column < 3; column++) {
+					const cell = panel
+						.locator(`.row[data-row-id="${snapshot.items[row].id.id}"]`)
+						.getByRole('gridcell')
+						.nth(column);
+					cells.push({ box: await cell.boundingBox(), rgb: colors[row * 3 + column].rgb });
+				}
+			const pixels = await captureMatrixCellPixels({
+				directory,
+				phase,
+				page,
+				nativePid: native.app.pid,
+				cells
+			});
+			grids.push({ phase, logical_sources: 9, native_views: 1, pixels });
+		},
 		async pending({ name, svg, shape, control, initial, latest }) {
 			const nativeControls = ['Screen warp corner', 'Surface Source crop'].includes(name);
 			let hit = null,
@@ -145,6 +185,7 @@ export async function createGestureQualification({
 			return {
 				adapter: output.adapter,
 				alignment,
+				grids,
 				output: summary,
 				observations: output.observations,
 				scope:
