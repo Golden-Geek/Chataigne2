@@ -6,6 +6,73 @@ fn matrix(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) -> MediaEdit
 }
 
 #[test]
+fn reference_chain_capacity_rejection_is_atomic_for_every_public_caller() {
+    let mut engine = fixture();
+    let root = create(&mut engine, MediaKind::Matrix);
+    matrix(
+        &mut engine,
+        root.media,
+        MatrixEdit::AddColumns {
+            parent: None,
+            count: 30,
+        },
+    );
+    let initial = crate::matrix::inspect(&engine, root.media).unwrap();
+    let MatrixItemId::Layer { id: row } = initial.items[0].id else {
+        panic!()
+    };
+    let MediaEditResult::MatrixMediaCreated { cell: mut source, .. } = matrix(
+        &mut engine,
+        root.media,
+        MatrixEdit::CreateCellMedia {
+            layer: row,
+            column: initial.columns[0].id,
+            media_kind: MediaKind::SolidColor,
+        },
+    ) else {
+        panic!()
+    };
+    for column in &initial.columns[1..32] {
+        let MediaEditResult::MatrixCellPrepared { cell, .. } = matrix(
+            &mut engine,
+            root.media,
+            MatrixEdit::TransferCell {
+                cell: source,
+                layer: row,
+                column: column.id,
+                action: CellTransferAction::Reference,
+            },
+        ) else {
+            panic!()
+        };
+        source = cell;
+    }
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    for caller in CALLERS {
+        let mut engine = loaded(&saved);
+        assert!(
+            run(
+                &mut engine,
+                caller,
+                MediaEdit::Matrix {
+                    media: root.media,
+                    edit: MatrixEdit::TransferCell {
+                        cell: source,
+                        layer: row,
+                        column: initial.columns[32].id,
+                        action: CellTransferAction::Reference,
+                    }
+                }
+            )
+            .is_none(),
+            "{caller:?}"
+        );
+        assert_eq!(crate::matrix::inspect(&engine, root.media).unwrap().cells.len(), 32);
+        crate::media::validate_project(&engine).unwrap();
+    }
+}
+
+#[test]
 fn cell_transfers_share_atomic_history_rejection_and_ownership_for_all_public_script_and_transport_callers() {
     let mut base = fixture();
     let root = create(&mut base, MediaKind::Matrix);

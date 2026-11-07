@@ -41,8 +41,10 @@ Cell application configuration or source replacement clears the shared link.
 Column and Group preparation remain part of the destination's hierarchy;
 Cell-local producer ownership is what the reference shares.
 
-Shared owner chains are bounded and cycle-checked. Their cached projections use
-one definition-revision guard, separate from runtime launch revisions. Source
+Shared owner chains are bounded to32 Cells and cycle-checked. Reference admission
+reserves its new hop before any subtree is imported, so the operation cannot
+create a document its owner resolver rejects. Cached projections use one
+definition-revision guard, separate from runtime launch revisions. Source
 application edits invalidate linked consumers, while launches reuse the authored
 index. A Layer checks newly added Cells for configured/shared application
 ownership, including history restoration. It requests the shared callback tree
@@ -85,6 +87,7 @@ An already running clip retains its admitted owned producer graph through this
 removal, following the existing Matrix lifetime contract. The authored Reference
 can report missing while that clip finishes; a fresh launch resolves the current
 missing target, and stopping the final consumer retires the retained graph.
-Relocation/swapping still requires one Matrix. Complete native/process/
-copy-reference lifetime and large-project qualification remain M13/7 work;
-software and browser milestones alone do not accept that gate.
+Relocation/swapping requires one Matrix. The [M13/7 acceptance audit](../progress/evidence/mapgyver-m13-cell-drop-acceptance-2026-11-07.json)
+covers all public callers, bundled UI operations, sparse structural updates and
+both-GPU playback/source/process lifetime and retirement. Structural timings
+do not establish manipulation cadence or waive retained production budgets.

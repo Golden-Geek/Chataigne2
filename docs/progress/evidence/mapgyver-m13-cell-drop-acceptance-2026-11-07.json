@@ -1,0 +1,140 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/7",
+	"status": "Accepted",
+	"batch": { "started_utc": "17:59", "cutoff_utc": "18:44", "verification_finished_utc": "18:32" },
+	"acceptance": {
+		"previous_verified": 73,
+		"verified": 74,
+		"total": 92,
+		"m13_verified": 5,
+		"m13_total": 14,
+		"completed_phases": 7,
+		"total_phases": 14
+	},
+	"calculation": "One complete fixed M13/7 gate is newly verified. Overall74/92 rounds to80%; M13 5/14 rounds to36%; phase completion remains7/14(50%). No denominator or original performance requirement changes.",
+	"product_fix": "The audit reproduced an applied33rd Reference Cell although owner resolution already stops at32. Reference admission now reserves its new hop through the owning shared resolver before importing any subtree. Exact project/history rejection passes at the boundary and through all four public callers. The existing32-Cell limit is unchanged.",
+	"requirements": [
+		{
+			"requirement": "Atomic app-owned swap/move; normal existing-Cell drop swaps and an empty address moves",
+			"proof": "TransferCell Drop/Move uses actual subtrees, at most two Column values and two parent links. Owning relocation tests, ordinary HTTP, bundled mouse dragging and fresh both-GPU Layer/Final/preview pixels all pass."
+		},
+		{
+			"requirement": "Alt opens Move/Copy/Reference; occupied handling is explicit and loses no content",
+			"proof": "Bundled real HTML dragging opens the standard menu with no mutation until selection. All three explicit occupied choices reject without partial state/history; prepared Cells remain occupied. Same-address Move/Drop is an exact no-op."
+		},
+		{
+			"requirement": "Copy preserves settings and owned media with independent identities",
+			"proof": "Dense public subtree import preserves precise opacity plus non-default position, explicit size, Fill and disabled state, application definitions and independent media/channel/Parameter identities. Same/cross-Matrix history/reload, native live-edit independence and distinct physical producer targets pass."
+		},
+		{
+			"requirement": "Reference links media without duplicating its producer and preserves relevant application ownership",
+			"proof": "Actual Reference child and typed shared app owner preserve exact settings and channel identity. Local App File override/fallback, definition-cache invalidation, bounded chains and no duplicate launch index pass. Native target identity is shared; real process demand coalesces the same application owner."
+		},
+		{
+			"requirement": "Reject cycles/invalid destinations without partial edits",
+			"proof": "Prepared/occupied/foreign/missing/same-address duplicate and feedback/own-descendant cases reject atomically in owning tests and public caller/UI cases. New32+1 chain regression proves exact unchanged project bytes/history; every public caller receives rejection without importing a Cell."
+		},
+		{
+			"requirement": "Keep external-media drops distinct",
+			"proof": "Fresh bundled manager-to-grid mouse drags send DropSource, not TransferCell. Normal external drop References and Alt immediately Copies; neither opens the Cell operation menu. Exact ownership and single-step history pass."
+		},
+		{
+			"requirement": "Populated, empty, prepared, self, cross-Layer and supported cross-Matrix scope",
+			"proof": "Owning and browser/HTTP cases cover all addresses, including empty media with authored settings/app control. Move/swap is same-Matrix; Copy/Reference supports cross-Matrix. Unsupported cross-Matrix relocation rejects explicitly through all four public callers."
+		},
+		{
+			"requirement": "Scrolling, keyboard/context equivalents and cancellation",
+			"proof": "Twenty-four bundled browser cases cover real dragging, Alt choices, menu/drag Escape, Copy/Cut/Paste/Reference, rejected cut retention and successful cut clearing. In sparse1000x1000 nested Layer/Column Groups, the source unmounts and only100 controls remain; offscreen clipboard, grouped move/swap and exact history still pass. Session/project/generation/menu/late-selection fences pass focused tests."
+		},
+		{
+			"requirement": "Running Cells preserve playback and app-control demand; explicit relaunch follows authoring",
+			"proof": "Fresh native relocation compares independent Layer outputs and Final preview, not just unchanged Final pixels. Exact playback snapshots/application IDs/PID persist through move/swap and Undo/Redo; new launches use the new addresses. Copy/Reference preserves the peer and shares/owns the correct producer and process identities."
+		},
+		{
+			"requirement": "Copy/reference lifetime, source changes/missing recovery and final-use retirement",
+			"proof": "Content/Layer/Matrix removal, source replacement, empty sources, exact Undo/Redo/reload and truthful authored missing state pass. A running clip retains its admitted owned producer; a fresh missing launch is transparent and Undo recovers exactly. Real held renderer completion prevents early process release after Stop All/project/renderer close. Both GPUs retire every renderer/process owner."
+		},
+		{
+			"requirement": "Single-step Undo/Redo and reload",
+			"proof": "All actual authoring mutations in the public caller/HTTP/browser/owning suites have exact single-step history. Native move/swap and Copy/Reference replay/reload use fresh project owners, reject old-owner cross-project reconciliation and release old output/process resources before new ones render persisted identities."
+		},
+		{
+			"requirement": "Bounded sparse updates through every caller",
+			"proof": "Sixteen final1000x1000 cases use a43106-node Matrix with only two populated Cells. Move/swap keeps43106 nodes; Copy adds exactly46 source-subtree nodes and Reference adds38 settings/link nodes. Axes and unrelated Cells are unchanged; no Cartesian slots materialize. Every public caller also proves exact history and applicable rejection."
+		}
+	],
+	"software": {
+		"library": "560 pass/3 ignored with native-preview-smoke,application-process-fixture; includes exact generated-contract checks. After strengthening only test assertions/settings, focused chain tests2/2 and non-default copy/reference settings1/1 pass on the final compiled suite.",
+		"caller_cases": {
+			"ordinary_and_boundary": 60,
+			"large_sparse": 16,
+			"paths": [
+				"transport intent",
+				"gc.invokeAppOperation",
+				"hosted editMedia",
+				"named transferMatrixCell"
+			]
+		},
+		"process_and_raster": "Current isolated runner passes17 process/runtime tests/2 ignored and10 raster preflights/11 explicitly ignored hardware tests. Both named transfer hardware tests are then run explicitly below.",
+		"strict": "Root --lib --tests with native-qualification,application-process-fixture and isolated runner --tests both pass Clippy -D warnings. Final root strict check includes strengthened non-default settings assertions.",
+		"ui_reuse": "Unchanged product frontend retains passing MapGyver/Golden Svelte0errors0warnings and40 focused UI tests from178013e5; the fresh bundled24-case flow is rerun below.",
+		"format": "Root and golden_core cargo fmt, touched fixture Prettier/Node syntax and owned diff checks pass.",
+		"corrected_compile": "An initial raster helper used f64 for an f32 placement coordinate; corrected before native execution. No failing prerequisite was used to run hardware."
+	},
+	"final_artifacts": {
+		"library_binary": "target/debug/deps/mapgyver-f77e019373ee6e24.exe",
+		"library_binary_sha256": "3cf298d19c29ad9337a03eba0cf3765583a3e6268156b20a005b7e083ccaf6ee",
+		"chain_log": "target/m137-relocation-acceptance-20261107/chain-fix.log",
+		"chain_log_sha256": "a9c1bf1835bb5d2d59f00dffdd5dd451036fba1e82bc3aa9ba238fa009db5f97",
+		"settings_log": "target/m137-relocation-acceptance-20261107/settings-final.log",
+		"settings_log_sha256": "bcfe489a795fe3197873c4f05d38856d34a3c745e6567f0482ee2a3defd49bc6",
+		"scale_log": "target/m137-relocation-acceptance-20261107/scale-final.log",
+		"scale_log_sha256": "4d3788d05ad162b80a047056146129141ccf6032a647f902bbdd60646dfaca64",
+		"scale_exit": 0,
+		"scale_observations": "Discrete commit/callback observations range44.896–642.615ms across16 cases on the43106-node scene. Setup, snapshot comparison and history replay are excluded. These prove bounded structural mutations and report actual cost; they are not manipulation/cadence/production-latency acceptance and do not revise any retained timing budget."
+	},
+	"native": {
+		"binary": "target/debug/deps/matrix_rendering-8306e6d868a999de.exe",
+		"binary_sha256": "601a9c2d5070d1f9b3b7f1e0e1ca1d9b4256087341e2691ef7c2376c5868278f",
+		"process_binary_sha256": "f7e9f744caf002b04a6568eb9a955d270d29b7f32aa29653471ee6fc78a33a68",
+		"relocation_log": "target/m137-relocation-acceptance-20261107/native-final.log",
+		"relocation_log_sha256": "74709d05df0f5506eaddc1d5d677da503c19c0b32580c715b351cc59de1b1f9d",
+		"relocation_exit": 0,
+		"relocation_seconds": 13.06,
+		"copy_reference_log": "target/m137-relocation-acceptance-20261107/copy-reference-final.log",
+		"copy_reference_log_sha256": "2891491c19c35a9f450ca70bf9f6b532938d716356e8be1c1146e2f215456003",
+		"copy_reference_exit": 0,
+		"copy_reference_seconds": 19.95,
+		"adapters": [
+			"Intel(R) Graphics LUID88937/0",
+			"NVIDIA GeForce RTX5080 Laptop GPU LUID2427691359/0"
+		],
+		"cases": 8,
+		"images": 216,
+		"texels_per_image": 768,
+		"maximum_error": "0/255 on every independent Layer/Final/output/preview image",
+		"retirement": "Sixteen renderer lifetimes balance274 created/released plan textures, live0, owned_texel_bytes0 and empty source/output inventories; all corresponding process owners retire. The unchanged held-completion process test is rerun in the17-test integration suite."
+	},
+	"bundled_ui": {
+		"binary": "target/debug/deps/MapGyver-m137-cell-drop-accepted.exe",
+		"binary_sha256": "64b80913e4c5fcd405adc65f60903d43b762c42538333c60eefa3ff0d13aa7bc",
+		"build_exit": 0,
+		"artifact": "target/m137-cell-drop-final-20261107/result.json",
+		"artifact_sha256": "a7f91c4954d725a0997e17106875cfda5b5b36bf3ffb73ae2168c5502bdc821c",
+		"pid": 23044,
+		"fixture_exit": 0,
+		"host_exit": 0,
+		"cases": 24,
+		"page_errors": 0,
+		"scope": "Actual bundled frontend and ordinary host, real mouse HTML drags, keyboard and Golden context/toolbar menus in headless Chromium. Native rendering/process evidence is separate above. No desktop input or manipulation timing claim."
+	},
+	"prior_evidence": [
+		"mapgyver-m13-cell-relocation-2026-11-07.json: actual subtree records, same-Column reparent membership, cycles/foreign/prepared/self and running-clip identity",
+		"mapgyver-m13-cell-duplicates-2026-11-07.json: precise parameter/application ownership, local override/fallback and launch-cache separation",
+		"mapgyver-m13-cell-grid-2026-11-07.json: shared command-registry fix, deferred menu, clipboard and stale-target guards",
+		"mapgyver-m13-cell-recovery-2026-11-07.json: empty/missing/replaced source and exact history/reload plus grouped sparse UI",
+		"mapgyver-m13-transfer-lifetime-2026-11-07.json: named API/public parity, final-use process proof and retained failed fixture attempts"
+	],
+	"limits_and_return_queue": "No remaining M13/7 requirement. M13/8 is selected next. M13/4's30+fps/full native input/timing/alignment, M13/2 external source prerequisites, M03/9 production budgets, M05/8 physical/timing, M08/4 WOW64 retirement and M12/8 Intel4K Smooth limits remain open exactly as recorded. This is feature-gate acceptance, not final production qualification or release readiness."
+}

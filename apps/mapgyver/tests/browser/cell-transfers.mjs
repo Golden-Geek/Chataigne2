@@ -88,6 +88,13 @@ try {
 	).value.cell;
 	const prepared = (await edit({ kind: 'EnsureCell', layer: rows[2], column: columns[0] })).value
 		.cell;
+	const external = (
+		await operation({
+			kind: 'CreateMedia',
+			media_kind: 'SolidColor',
+			label: 'External Cell Source'
+		})
+	).value.reference;
 	const sparse = await prepareCellScrollTransfers(operation);
 	browser = await chromium.launch({ headless: true });
 	const page = await browser.newPage({ viewport: { width: 1600, height: 1100 } });
@@ -98,7 +105,8 @@ try {
 			try {
 				const frame = JSON.parse(String(payload));
 				const edit = frame.intent?.payload?.edit;
-				if (edit?.kind === 'TransferCell') requests.push({ stage, ...edit });
+				if (edit && ['TransferCell', 'DropSource'].includes(edit.kind))
+					requests.push({ stage, ...edit });
 			} catch {}
 		})
 	);
@@ -349,6 +357,45 @@ try {
 	);
 	await history(before, after, other.media);
 	checks.push({ stage, exact_history: true });
+	await show('Grid Cell Transfers', matrix.media);
+	for (const [copy, column] of [
+		[false, columns[1]],
+		[true, columns[2]]
+	]) {
+		stage = copy
+			? 'external media Alt-copy remains distinct'
+			: 'external media default Reference remains distinct';
+		before = await read();
+		await ready();
+		const label = page
+			.locator('section[aria-label="Medias"]')
+			.getByRole('button', { name: 'External Cell Source', exact: true });
+		assert.equal(await label.getAttribute('draggable'), 'true');
+		const from = await label.boundingBox(),
+			to = await cell(rows[1], column).boundingBox();
+		assert(from && to);
+		await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(from.x + from.width / 2 + 12, from.y + from.height / 2 + 2, { steps: 3 });
+		if (copy) await page.keyboard.down('Alt');
+		await page.mouse.move(to.x + to.width / 4 + 2, to.y + to.height * 0.65, { steps: 8 });
+		await page.mouse.move(to.x + to.width / 4, to.y + to.height * 0.65);
+		await page.mouse.up();
+		if (copy) await page.keyboard.up('Alt');
+		after = await wait(read, (value) => value.value.cells.length === before.value.cells.length + 1);
+		const inserted = after.value.cells.find(
+			(item) => !before.value.cells.some((old) => old.id === item.id)
+		);
+		assert(inserted);
+		assert.equal(inserted.definition.source.channel === external.channel, !copy);
+		assert.equal(await page.getByRole('menuitem', { name: /^Move\b/ }).count(), 0);
+		const delivered = requests.filter((request) => request.stage === stage);
+		assert.equal(delivered.length, 1);
+		assert.equal(delivered[0].kind, 'DropSource');
+		assert.equal(delivered[0].copy, copy);
+		await history(before, after);
+		checks.push({ stage, exact_history: true, external_policy: true });
+	}
 	await verifyCellScrollTransfers({
 		scene: sparse,
 		page,

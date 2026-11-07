@@ -5,6 +5,7 @@ use golden_core::app::ProjectNode;
 use golden_video::Extent2D;
 
 mod applications;
+mod cell_transfer_scale;
 mod cell_transfers;
 mod composition;
 mod matrix;
@@ -276,6 +277,14 @@ fn authored(
 
 /// The observer is installed before measuring history. Only the operation itself earns a step.
 fn run(engine: &mut AppEngine, caller: Caller, operation: MediaEdit) -> Option<serde_json::Value> {
+    run_measured(engine, caller, operation).0
+}
+
+fn run_measured(
+    engine: &mut AppEngine,
+    caller: Caller,
+    operation: MediaEdit,
+) -> (Option<serde_json::Value>, std::time::Duration) {
     let request = serde_json::to_string(&operation).unwrap();
     match caller {
         Caller::Ui => {}
@@ -297,6 +306,7 @@ fn run(engine: &mut AppEngine, caller: Caller, operation: MediaEdit) -> Option<s
     }
     let before = authored(engine);
     let history = engine.undo_len();
+    let started = std::time::Instant::now();
     let result = if matches!(caller, Caller::Ui) {
         let ack = invoke(engine, operation);
         ack.success.then(|| ack.result.unwrap().value)
@@ -321,6 +331,7 @@ fn run(engine: &mut AppEngine, caller: Caller, operation: MediaEdit) -> Option<s
     // A wrapper callback identifies its actual Parameter; the Parameter's deferred action
     // is a separate bounded service turn and must run before history replay can cancel it.
     service_script_app_operations(engine).unwrap();
+    let elapsed = started.elapsed();
     let after = authored(engine);
     if after != before {
         assert!(result.is_some());
@@ -343,7 +354,10 @@ fn run(engine: &mut AppEngine, caller: Caller, operation: MediaEdit) -> Option<s
     }
     // JavaScript JSON numbers do not retain serde's integer/float representation. Decode the
     // actual public DTO before comparison, preserving typed values rather than lexical numbers.
-    result.map(|value| serde_json::to_value(serde_json::from_value::<MediaEditResult>(value).unwrap()).unwrap())
+    (
+        result.map(|value| serde_json::to_value(serde_json::from_value::<MediaEditResult>(value).unwrap()).unwrap()),
+        elapsed,
+    )
 }
 
 struct Baseline {

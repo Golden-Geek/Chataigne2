@@ -18,6 +18,8 @@ use std::{
 
 mod cell_editor;
 mod cell_geometry;
+#[cfg(feature = "application-process-fixture")]
+mod cell_relocation;
 mod cell_sizing;
 #[cfg(feature = "application-process-fixture")]
 mod cell_transfers;

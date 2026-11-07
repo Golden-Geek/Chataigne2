@@ -9,6 +9,8 @@ use golden_core::node::{Node, NodeId};
 use golden_io::RevisionGuard;
 use std::collections::HashSet;
 
+const MAX_OWNER_CHAIN: usize = 32;
+
 pub(super) fn snapshot_has_application(ctx: &golden_core::process_ctx::ProcessCtx, cell: NodeId) -> bool {
     let Some(tree) = ctx.tree_snapshot() else { return false };
     let Some(node) = tree.node(cell) else { return false };
@@ -45,10 +47,19 @@ pub(super) fn matrix(engine: &AppEngine, cell: NodeId) -> Result<MediaId, String
     Err("Cell ownership exceeds depth64".into())
 }
 
-pub(super) fn owner(engine: &AppEngine, mut cell: CellId) -> Result<ApplicationId, String> {
+pub(super) fn owner(engine: &AppEngine, cell: CellId) -> Result<ApplicationId, String> {
+    resolve_owner(engine, cell, MAX_OWNER_CHAIN)
+}
+
+pub(super) fn validate_new_reference(engine: &AppEngine, source: CellId) -> Result<(), String> {
+    // Reserve the new Cell's hop before importing anything into the target document.
+    resolve_owner(engine, source, MAX_OWNER_CHAIN - 1).map(|_| ())
+}
+
+fn resolve_owner(engine: &AppEngine, mut cell: CellId, maximum: usize) -> Result<ApplicationId, String> {
     let mut seen = HashSet::new();
     let mut configured = None;
-    for _ in 0..32 {
+    for _ in 0..maximum {
         if !seen.insert(cell) {
             return Err("Cell app-control reference cycle".into());
         }
@@ -68,7 +79,9 @@ pub(super) fn owner(engine: &AppEngine, mut cell: CellId) -> Result<ApplicationI
             None => return Ok(configured.unwrap_or(ApplicationId(cell.0))),
         }
     }
-    Err("Cell app-control reference chain exceeds32".into())
+    Err(format!(
+        "Cell app-control reference chain exceeds {MAX_OWNER_CHAIN} Cells"
+    ))
 }
 
 pub(super) fn dependencies(
@@ -90,7 +103,7 @@ pub(super) fn dependencies(
             continue;
         };
         linked = true;
-        for _ in 0..32 {
+        for _ in 0..MAX_OWNER_CHAIN {
             if !seen.insert(next) {
                 break;
             }

@@ -68,6 +68,9 @@ fn duplicate(
     };
     let source_media = super::cell_application_links::matrix(engine, id)?;
     let source_document = Document::load(engine, source_media)?;
+    if mode == DuplicateMode::Reference {
+        super::cell_application_links::validate_new_reference(engine, cell)?;
+    }
     let original = source_document
         .snapshot
         .cells

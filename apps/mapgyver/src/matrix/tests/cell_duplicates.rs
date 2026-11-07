@@ -92,6 +92,21 @@ fn copy_and_reference_preserve_exact_parameters_with_independent_or_linked_owner
     let (media, row, columns) = scene(&mut engine);
     let (other, other_row, other_columns) = scene(&mut engine);
     let source = owned(&mut engine, media, row, columns[0]);
+    edit(
+        &mut engine,
+        media,
+        MatrixEdit::ConfigureCell {
+            layer: row,
+            column: columns[0],
+            settings: CellSettings {
+                position: [37.5, -19.25],
+                size: Some(golden_video::Extent2D::new(41, 23).unwrap()),
+                fit_mode: MediaFitMode::Fill,
+                opacity: 0.25,
+                enabled: false,
+            },
+        },
+    );
     let opacity = field(&engine, source, "opacity");
     assert!(
         apply_project_intent(
@@ -382,4 +397,42 @@ fn reference_application_dependencies_follow_definition_edits_without_rebuilding
             .unwrap()
             .configured()
     );
+}
+
+#[test]
+fn reference_chain_limit_rejects_the_new_link_atomically_before_importing_a_cell() {
+    let mut engine = fixture();
+    let (media, row, mut columns) = scene(&mut engine);
+    columns.extend(super::columns(&mut engine, media, 30));
+    let mut source = owned(&mut engine, media, row, columns[0]);
+    for column in &columns[1..32] {
+        source = duplicate(&mut engine, media, source, row, *column, CellTransferAction::Reference);
+        inspect(&mut engine, media);
+    }
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    let ack = invoke(
+        &mut engine,
+        MediaEdit::Matrix {
+            media,
+            edit: MatrixEdit::TransferCell {
+                cell: source,
+                layer: row,
+                column: columns[32],
+                action: CellTransferAction::Reference,
+            },
+        },
+    );
+    assert!(
+        !ack.success,
+        "a new link may not exceed the existing32-Cell owner bound: {ack:?}"
+    );
+    assert!(
+        ack.error_message
+            .as_deref()
+            .is_some_and(|message| message.contains("reference chain exceeds 32"))
+    );
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+    assert_eq!(inspect(&mut engine, media).cells.len(), 32);
 }
