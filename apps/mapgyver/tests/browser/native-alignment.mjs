@@ -149,6 +149,11 @@ try {
 		label: 'Alignment screen'
 	});
 	await edit('screens', {
+		kind: 'RenameSurface',
+		reference,
+		label: 'Alignment surface'
+	});
+	await edit('screens', {
 		kind: 'ConfigureScreen',
 		screen,
 		definition: {
@@ -358,8 +363,14 @@ try {
 			);
 			console.log(result.stdout.trim());
 		}
-	} else if (process.argv.includes('--latency')) {
-		await measureVisibleLatency({ native, view, directory, hwnd: metadata.hwnd });
+	} else if (process.argv.includes('--latency') || process.argv.includes('--window-latency')) {
+		await measureVisibleLatency({
+			native,
+			view,
+			directory,
+			hwnd: metadata.hwnd,
+			captureKind: process.argv.includes('--window-latency') ? 'window' : 'desktop'
+		});
 	} else if (process.argv.includes('--qpc-latency')) {
 		await measureNativeQpcLatency({ native, view, directory, hwnd: metadata.hwnd });
 	} else if (process.argv.includes('--zoom')) {

@@ -1,0 +1,66 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/4 Active; native image/control capture prerequisite established, complete smoothness and latency acceptance unverified",
+	"acceptance": { "verified": 73, "total": 92, "m13_verified": 4, "m13_total": 14 },
+	"batch": {
+		"started_utc": "12:54",
+		"cutoff_utc": "13:39",
+		"native_capture_experiments": 2,
+		"native_capture_experiment_limit": 2
+	},
+	"decision": "The installed FFmpeg9.0.1 gfxcapture window source captures both native image and editing outline, unlike the retained failed DXGI warmup. Stop capture-path investigation after baseline and one comparison; do not restart the unchanged DXGI probe or add another capture variant. Continue independent final-state/cancellation scope; retain complete30-action latency as an explicit return requirement.",
+	"ownership": "Existing MapGyver native-alignment/native-latency acceptance fixtures. No production rendering, authoring, protocol, output scheduler or resource-budget change.",
+	"setup_failure": "The first owned scene in target/m134-gfxcapture-20261107 exited1 before capture because two real Screens each contain Surface1. The fixture now explicitly renames its owned Surface through the public edit API; the replacement scene succeeds. This preparation failure supplies no capture or timing evidence.",
+	"implementation": [
+		"native-alignment --window-latency selects the installed WGC source through the existing latency function. Its default Desktop Duplication path remains separately selectable.",
+		"The window crop uses the authenticated owned HWND, actual physical client placement and WebView DPR. Existing foreground/PID/bounds/DPI guards, complete30 trusted actions, paired native-image/outline responses and50ms p95 remain required.",
+		"Window capture preserves relative WGC frame timestamps; it does not replace them with frame indices. Conservative response bounds still use one Node monotonic clock before CDP dispatch and after complete raw-pixel arrival. No clock offset fitting or subtraction.",
+		"After the comparison stopped at the freshness precondition, the verifier now waits boundedly for a fresh baseline and still asserts its age is at most25ms before dispatch. Partial witnesses/error state are retained, p99 is reported for complete cohorts, and successful capture requires normal exit. These final guard/retention changes have software checks only, not a new native rerun.",
+		"The alignment fixture explicitly names its Surface. The newly implemented default Screen otherwise makes Surface1 ambiguous; no product behavior changed."
+	],
+	"environment": {
+		"binary": "target/debug/deps/MapGyver-m134-feedback-lifetime.exe",
+		"binary_sha256": "b27617fb314a04cbaffa3407770af929dd7f46de02b6ba42d4989eab711b29b0",
+		"pid": 45496,
+		"hwnd": 306777184,
+		"app_exit": 0,
+		"observed_renderer": "NVIDIA GeForce RTX5080 Laptop GPU in the actual owned footer",
+		"capture_adapter_index": 0,
+		"read_only_display": "Intel laptop2560x1600/240Hz; owned window120DPI, WebView1.25DPR. No display settings changed.",
+		"selection": "Supported computer-use selected the unique returned owned executable window, activated it and displayed native red pixels plus blue controls."
+	},
+	"baseline": {
+		"artifact": "target/m134-gfxcapture-ready-20261107/baseline.nut",
+		"sha256": "ab012d7baec60492500c45136598c922734197df58b3f310a6d490683345e319",
+		"capture_exit": 0,
+		"region": [128, 8],
+		"frames": 182,
+		"duration_seconds": 2.991667,
+		"capture_fps": 60.50138601655866,
+		"maximum_capture_gap_ms": 33.334,
+		"independent_replay": "FFmpeg decoding with fps_mode=passthrough plus ffprobe confirms exactly182 original frames. The Python independent edge detector finds native red edge18 and blue outline15.5 in every frame. Decoding with default frame-rate conversion would duplicate frames and is not used for this count.",
+		"scope": "A static image/control capture and useful capture cadence. This is not actual changing geometry FPS or scanout acceptance."
+	},
+	"comparison": {
+		"artifact": "target/m134-gfxcapture-ready-20261107/capture-state.json",
+		"sha256": "2c57b6d059dea0b861779cc64ede583c7de1ee9b1f196713701f9d2475edab17",
+		"capture_exit": { "code": 0, "signal": null },
+		"fixture_exit": 1,
+		"complete": false,
+		"observed_actions": 4,
+		"required_actions": 30,
+		"response_upper_bounds_ms": [66.0477, 81.3268, 95.0604, 88.457],
+		"frames_delivered": 298,
+		"capture_timestamp_count": 299,
+		"timestamp_limit": "The final showinfo frame was processed but not emitted before normal q shutdown; do not equate log entries with delivered images.",
+		"maximum_capture_timestamp_gap_ms": 41.666,
+		"failure": "Fresh edge observation required before action5. No input was sent using that stale baseline.",
+		"scope": "Four directional paired native-image/outline responses. Partial response pixel witnesses were not saved by the pre-correction failure path, so this cohort cannot independently replay or accept any latency budget. No p95/p99 or actual latency failure is inferred from these conservative upper bounds."
+	},
+	"checks": "Changed Node scripts pass syntax and scoped Prettier checks. Three independent historical latency replay tests pass, including rejection of missing/forged pixels and untrusted input. Root/Core cargo fmt passes. Native checks used the already successful current bundled compile and284 Golden tests/both-app Svelte checks; Rust/protocol code is unchanged.",
+	"sources": [
+		"https://raw.githubusercontent.com/FFmpeg/FFmpeg/n9.0.1/libavfilter/vsrc_gfxcapture_winrt.cpp",
+		"https://github.com/MicrosoftDocs/windows-dev-docs/blob/docs/hub/apps/develop/media-authoring-processing/screen-capture.md"
+	],
+	"remaining": "Complete30-action trustworthy response cohort and original latency bound; continuous moving-source/geometry presented30+fps pacing, native/DOM alignment, stalls/missed updates, both GPUs, large projects and final-state/cancellation. The exact old DXGI path remains unqualified. No full acceptance gate closes; overall stays73/92 (79%)."
+}
