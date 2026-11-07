@@ -183,6 +183,7 @@ pub enum SizePolicy {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
+#[serde(deny_unknown_fields)]
 pub enum ChannelSource {
     Reference {
         target: Option<ChannelReference>,
@@ -194,7 +195,7 @@ pub enum ChannelSource {
         canvas: Extent2D,
     },
     Picture {
-        asset: Option<AssetId>,
+        file: Option<AssetLocator>,
     },
     /// Straight linear-light RGBA. Conversion/premultiplication happens in the backend.
     SolidColor {
@@ -299,7 +300,7 @@ pub enum MediaEdit {
     CreateScript {
         label: Option<String>,
     },
-    /// Atomically imports an asset and creates Picture media, or assigns an existing Picture channel.
+    /// Creates a self-contained Picture, or edits the target Picture's own File Parameter.
     ImportPicture {
         locator: AssetLocator,
         target: Option<ChannelReference>,
@@ -449,8 +450,7 @@ pub struct FileParameterAddress {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct PictureFileBinding {
     pub reference: ChannelReference,
-    pub asset: Option<AssetId>,
-    pub parameter: Option<FileParameterAddress>,
+    pub parameter: FileParameterAddress,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
@@ -570,7 +570,6 @@ pub enum MediaEditResult {
     },
     PictureImported {
         reference: ChannelReference,
-        asset: AssetId,
     },
     AssetCreated {
         asset: AssetId,

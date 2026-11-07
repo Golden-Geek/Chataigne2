@@ -20,7 +20,7 @@ test('media manager admits real domain hierarchy and hides parameter/channel pre
 		assert.equal(isMediaTreeNode(node), false, type);
 		assert.equal(canRenderMediaTreeChildren(node), false, type);
 	}
-	const channel = { node_type: 'mapgyver.media.channel' } as UiNodeDto;
+	const channel = { node_type: 'mapgyver.media.channel.v2' } as UiNodeDto;
 	assert.equal(isMediaTreeNode(channel), false);
 	assert.equal(canRenderMediaTreeChildren(channel), true);
 });

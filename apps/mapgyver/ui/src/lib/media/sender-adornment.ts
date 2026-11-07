@@ -18,7 +18,7 @@ export function registerSenderAdornment() {
 			const channelId = folder && parents?.get(folder.node_id);
 			const channel = channelId == null ? null : nodes.get(channelId);
 			return (
-				channel?.node_type === 'mapgyver.media.channel' &&
+				channel?.node_type === 'mapgyver.media.channel.v2' &&
 				folder?.children.some((id) => nodes.get(id)?.decl_id === 'parameters/sender_choice') ===
 					true
 			);

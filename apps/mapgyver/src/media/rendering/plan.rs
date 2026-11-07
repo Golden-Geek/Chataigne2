@@ -123,7 +123,7 @@ pub(super) fn build(
                 && channel.definition.as_ref().is_some_and(|definition| {
                     matches!(
                         definition.source,
-                        ChannelSource::Picture { asset: Some(_) } | ChannelSource::Spout { sender: Some(_), .. }
+                        ChannelSource::Picture { file: Some(_) } | ChannelSource::Spout { sender: Some(_), .. }
                     )
                 })
         })
@@ -134,10 +134,12 @@ pub(super) fn build(
             .map(|route| route.screen.work_count(route.extent))
             .sum::<usize>()
         + preview.map_or(0, super::PreviewLayout::maximum_dependencies);
+    let mut images = HashSet::new();
     let image_guards = capture
         .assets
         .iter()
         .filter_map(|asset| pictures.and_then(|pictures| pictures.get(asset.record.id)))
+        .filter(|image| images.insert(image.id()))
         .map(|image| image.guards().len())
         .sum::<usize>();
     let guard_budget = limits
@@ -219,7 +221,10 @@ pub(super) fn build(
                         }
                     }
                 }
-                Some(source @ ChannelSource::Picture { asset }) => {
+                Some(source @ ChannelSource::Picture { file }) => {
+                    let asset = file
+                        .as_ref()
+                        .map(|_| golden_assets::AssetId::from_uuid(reference.channel.0.0));
                     let value = asset.and_then(|id| pictures.and_then(|pictures| pictures.get(id)));
                     resolution = resolution::resolve(
                         channel.definition.as_ref().unwrap(),

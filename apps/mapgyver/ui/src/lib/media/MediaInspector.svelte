@@ -7,13 +7,11 @@
 	import { ASSET_NODE_TYPE, MEDIA_NAMESPACE } from './generated/constants';
 	import AssetLocatorForm from './AssetLocatorForm.svelte';
 	import reloadIcon from 'golden_ui/style/icons/reset.svg';
-	import referenceIcon from 'golden_ui/style/icons/parameter/reference.svg';
 	import { useDocumentSelection } from '../selection.svelte';
 	import ChannelsSection from './ChannelsSection.svelte';
 	import ReferenceChannelsSection from './ReferenceChannelsSection.svelte';
 	import MediaScriptsSection from './MediaScriptsSection.svelte';
 	import MediaCommandsSection from './MediaCommandsSection.svelte';
-	import PictureChannelFile from './PictureChannelFile.svelte';
 	let {
 		node,
 		defaultHeader,
@@ -37,7 +35,6 @@
 	let owner = $state.raw<{ session: typeof session; generation: number } | null>(null);
 	let read = 0,
 		disposed = false;
-	let chooseExistingFor = $state<string | null>(null);
 	const channel = $derived(
 		session?.status === 'connected' &&
 			!session.loading.visible &&
@@ -62,7 +59,7 @@
 			current.status !== 'connected' ||
 			current.loading.visible ||
 			collapsed ||
-			node.node_type !== 'mapgyver.media.channel'
+			node.node_type !== 'mapgyver.media.channel.v2'
 		) {
 			snapshot = null;
 			owner = null;
@@ -153,32 +150,7 @@
 	});
 </script>
 
-{#snippet channelActions()}
-	{#if channel?.definition.source.kind === 'Picture'}
-		<IconButton
-			icon={referenceIcon}
-			label="Choose existing Picture asset"
-			disabled={busy}
-			aria-pressed={chooseExistingFor === node.uuid}
-			onclick={() => {
-				chooseExistingFor = chooseExistingFor === node.uuid ? null : node.uuid;
-			}} />
-		{#if channel.definition.source.asset}
-			{@const asset = channel.definition.source.asset}
-			<IconButton
-				icon={reloadIcon}
-				label="Reload Picture"
-				disabled={busy}
-				onclick={() => edit({ kind: 'ReloadAsset', asset })} />
-			<IconButton
-				icon={referenceIcon}
-				label="Inspect Picture asset"
-				disabled={busy}
-				onclick={() => selection.select(asset)} />
-		{/if}
-	{/if}
-{/snippet}
-{@render defaultHeader?.(channelActions)}
+{@render defaultHeader?.()}
 {#snippet content()}
 	{@render defaultChildren?.('', parametersOnly)}
 	{#if node.node_type === 'mapgyver.media.v8'}
@@ -186,7 +158,7 @@
 	{:else if node.node_type === 'mapgyver.media.reference.v3' && !collapsed}
 		{#key node.uuid}<ReferenceChannelsSection {node} />{/key}
 	{/if}
-	<div class="properties" class:channel-properties={node.node_type === 'mapgyver.media.channel'}>
+	<div class="properties" class:channel-properties={node.node_type === 'mapgyver.media.channel.v2'}>
 		{#if error}<p role="alert">{error}</p>{/if}
 		{#if node.node_type === 'mapgyver.media.manager'}
 			<MediaCommandsSection {node} {defaultChildren} disabled={busy} />
@@ -203,16 +175,6 @@
 					const result = await edit({ kind: 'CreateScript', label: null });
 					if (result?.kind === 'ScriptCreated') select(result.script);
 				}} />
-		{/if}
-		{#if channel}
-			{#if channel.definition.source.kind === 'Picture'}
-				<PictureChannelFile
-					{node}
-					{channel}
-					{busy}
-					{edit}
-					chooseExisting={chooseExistingFor === node.uuid} />
-			{/if}
 		{/if}
 		{#if node.node_type === ASSET_NODE_TYPE}
 			<IconButton

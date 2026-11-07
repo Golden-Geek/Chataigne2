@@ -1,0 +1,56 @@
+{
+	"date": "2026-11-07",
+	"gate": "M13/9",
+	"status": "Active: ownership slice functionally verified; full acceptance pending",
+	"batch": { "started_utc": "19:16", "cutoff_utc": "20:01" },
+	"progress": {
+		"verified": 75,
+		"total": 92,
+		"overall_percent": 82,
+		"m13_verified": 6,
+		"m13_total": 14,
+		"completed_phases": 7,
+		"total_phases": 14
+	},
+	"calculation": "No gate awarded for a partial slice. All fixed denominators and original native/performance/retirement requirements remain unchanged.",
+	"capability": "Each Picture channel owns a real typed File Parameter. Generic Inspector, source intents, commands, named scripts and targeted import edit it directly. Creating/importing/copying Pictures creates no implicit Asset; independent owners may share internal decode/upload resources.",
+	"architecture": "docs/architecture/mapgyver-picture-file-ownership.md",
+	"schemas": {
+		"channel": "mapgyver.media.channel.v2",
+		"command": "mapgyver.media.command.v6",
+		"old_schemas": "Rejected before recoverable project decoding; no Asset forwarding shim"
+	},
+	"resource_contract": "Preparation groups equal locators within the renderer project/root and gives each group its own logical source identity. Owner File changes cannot collide with a retained peer image. Unique images count once against preparation and guard admission. Worker bounds, scope fencing, frozen owned playback and retirement barriers remain in use.",
+	"software": {
+		"rust": {
+			"command": "cargo test --locked -p MapGyver --lib --features native-preview-smoke,application-process-fixture -- --quiet",
+			"passed": 560,
+			"ignored": 3,
+			"exit": 0,
+			"binary": "target/debug/deps/mapgyver-f77e019373ee6e24.exe",
+			"sha256": "bb3b447498bd0a5880f9dcd9080f0b2853dd4a3b988f67e5a7d7c816e7e4b2ec",
+			"scope": "Direct/generic/script/command/import parity; select/change/clear/relink topology and exact history; no implicit catalog objects; independent duplicate File values; project admission/reload; null-renderer sharing, first-owner divergence, retry/relocation and removed playing-source retirement; exact generated TypeScript equality. Initial superseded Asset/schema expectations were repaired before the complete passing run."
+		},
+		"strict": {
+			"command": "cargo clippy --locked -p MapGyver --lib --tests --features native-qualification,application-process-fixture -- -D warnings",
+			"exit": 0
+		},
+		"ui": "MapGyver Svelte check: zero errors/warnings. Focused manager tree test passes with the new schema. Touched UI/fixture formatting and Node syntax checks pass.",
+		"format": "Root and golden_core cargo fmt/check pass.",
+		"generator_note": "ts-rs emits its existing unsupported enum deny_unknown_fields attribute diagnostic. The separate serde tag attribute preserves the generated discriminator; serialization rejection and full generated equality tests pass."
+	},
+	"bundled": {
+		"command": "MAPGYVER_TEST_BINARY=target/debug/deps/MapGyver-m139-owned-file.exe node apps/mapgyver/tests/headless/media.mjs --parameter-ui",
+		"binary_sha256": "703faf863248b8075f1024dc5e70a890fb0c6a5d6ad48327ab85dfb74ac035ee",
+		"build_exit": 0,
+		"fixture_and_host_exit": 0,
+		"scope": "Actual fresh bundled UI with ordinary isolated headless host in Chromium; no desktop input or native video claim. Source intents cover three media kinds/six channels, independent explicit catalog operations, rejection/history and Save/New/Load. Generic widgets cover ten Parameter nodes, five scalar and eight component writes, two expected invariant rejections, zero page errors. Picture File change/clear/invalid-path/history preserve its Parameter address, independent peer and unchanged catalog; secondary asset buttons are absent.",
+		"fixture_correction": "The first bundled attempt stopped at a superseded Spout sender widget expectation before Picture checks. The existing generic-parameter fixture now explicitly seeds Manual mode; Auto remains the product default and its accepted tests are unchanged. The corrected complete run passes."
+	},
+	"remaining": [
+		"Provide an ordinary owned-Picture same-path Reload action through Inspector/command/script/runtime authority; explicit standalone ReloadAsset no longer retargets Pictures. Current renderer retry accepts ChannelReference, missing-file retry and File relink work, but ordinary replacement recovery is not yet accepted.",
+		"Reconcile remaining source/reload/native-asset/native-channel/fit/pattern browser fixtures with the superseded Asset workflow and verify no extra selection/real generic File controls across required manager/channel/copy paths.",
+		"Run current native Picture pixels and bounded sharing/replacement/retirement qualification on both GPUs only after successful software prerequisites. Native Rust consumers compile under strict lint; their execution is not claimed here."
+	],
+	"gate_change": "None. M13/9 remains the only Active gate; desktop input remains stopped and all retained return gates remain visible."
+}

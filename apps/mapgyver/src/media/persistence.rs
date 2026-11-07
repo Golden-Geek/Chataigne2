@@ -4,6 +4,9 @@ use golden_core::engine::ProjectFile;
 pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String> {
     let mut pending = vec![(&project.root, None)];
     while let Some((record, parent_type)) = pending.pop() {
+        if record.node_type.starts_with("mapgyver.media.channel") && record.node_type != "mapgyver.media.channel.v2" {
+            return Err("Unsupported channel schema: Pictures require channel-owned File Parameters (v2)".into());
+        }
         if record.node_type.starts_with("mapgyver.media.asset") {
             if record.node_type != super::protocol::ASSET_NODE_TYPE {
                 return Err(format!(

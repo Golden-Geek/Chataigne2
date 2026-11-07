@@ -53,7 +53,7 @@ function visible(child: UiNodeDto) {
 		return true;
 	}
 	if (owner.node_type === ASSET_NODE_TYPE) return field === 'file';
-	if (owner.node_type === 'mapgyver.media.command.v5') {
+	if (owner.node_type === 'mapgyver.media.command.v6') {
 		if (field === 'command_kind' || field === 'trigger') return true;
 		const key = choice('command_kind') as keyof typeof COMMAND_PARAMETER_FIELDS;
 		const fields: readonly string[] = COMMAND_PARAMETER_FIELDS[key] ?? [];
@@ -79,11 +79,11 @@ function visible(child: UiNodeDto) {
 			choice('media_kind') === 'Matrix'
 		);
 	}
-	if (owner.node_type !== 'mapgyver.media.channel') return true;
+	if (owner.node_type !== 'mapgyver.media.channel.v2') return true;
 	if (field === 'source_kind') return false;
 	const source = choice('source_kind');
 	if (source === 'SolidColor') return field === 'rgba';
-	if (source === 'Picture') return false;
+	if (source === 'Picture') return field === 'file';
 	if (source === 'SharedTexture') {
 		const media = parent(owner);
 		const parameters = media?.children
@@ -112,7 +112,7 @@ export function registerParameterVisibility() {
 		(node) =>
 			node.node_type === 'folder' &&
 			node.decl_id === 'parameters' &&
-			parent(node)?.node_type === 'mapgyver.media.channel',
+			parent(node)?.node_type === 'mapgyver.media.channel.v2',
 		{ childFilter: visible, inlineChildren: true, childDensity: 'compact' }
 	);
 	registerNodeInspectorMatcher(

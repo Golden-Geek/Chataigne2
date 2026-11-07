@@ -9,7 +9,7 @@ use golden_core::{
 use golden_video::Extent2D;
 use std::sync::Arc;
 
-#[node("mapgyver.media.command.v5", label = "Media Command", user_permissions = golden_core::node::NodeUserPermissions {
+#[node("mapgyver.media.command.v6", label = "Media Command", user_permissions = golden_core::node::NodeUserPermissions {
     can_edit_name: true, can_remove_and_duplicate: true, ..Default::default()
 })]
 #[children(
@@ -35,7 +35,7 @@ use std::sync::Arc;
         channel: NodeReference = NodeReference::empty() (
             label = "Channel",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.channel".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.channel.v2".into()]
         );
         asset: NodeReference = NodeReference::empty() (
             label = "Asset",
@@ -55,7 +55,7 @@ use std::sync::Arc;
         after_channel: NodeReference = NodeReference::empty() (
             label = "After channel",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.channel".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.channel.v2".into()]
         );
         label: String = "" (label = "Label", description = "Empty uses the backend default when creating objects.");
         media_kind: Enum = "SolidColor" (
@@ -84,6 +84,7 @@ use std::sync::Arc;
         );
         project_path: File = File::default() (label = "Project path");
         absolute_path: File = File::default() (label = "Absolute path");
+        picture_file: File = File::default() (label = "File");
         direction: Enum = "Earlier" (
             label = "Direction",
             enum_options = crate::parameters::enum_options(&["Earlier", "Later"]),
@@ -282,7 +283,7 @@ impl MediaCommandNode {
             MediaCommandKind::Picture => MediaEdit::ConfigureChannel {
                 reference,
                 source: ChannelSource::Picture {
-                    asset: optional(self.asset.get_ref()).map(|uuid| AssetId::from_uuid(uuid.0)),
+                    file: super::super::assets::parse_file(self.picture_file.get_ref().as_str())?,
                 },
             },
             MediaCommandKind::SharedTexture => MediaEdit::ConfigureChannel {
@@ -374,7 +375,7 @@ impl MediaCommandNode {
     }
 }
 
-#[node("mapgyver.media.command.v5", from_struct)]
+#[node("mapgyver.media.command.v6", from_struct)]
 impl Node for MediaCommandNode {
     fn needs_update(&self) -> bool {
         false
@@ -453,6 +454,7 @@ impl Node for MediaCommandNode {
         crate::parameters::reject_opaque(data)
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
+        super::super::assets::parse_file(self.picture_file.get_ref().as_str())?;
         self.kind()?;
         choice::<MediaKind>(self.media_kind.get_ref().as_str())?;
         choice::<MediaFitMode>(self.fit_mode.get_ref().as_str())?;
@@ -469,6 +471,11 @@ impl Node for MediaCommandNode {
         super::super::media_node::validate_resolution(self.resolution.get())
     }
     fn validate_parameter_change(&self, ctx: &ParameterValidationContext<'_>) -> Result<(), String> {
+        if ctx.parameter == self.picture_file.id()
+            && let ParamValue::File(path) = ctx.value
+        {
+            super::super::assets::parse_file(path)?;
+        }
         if ctx.parameter == self.resolution.id()
             && let ParamValue::Vec2(x, y) = ctx.value
         {

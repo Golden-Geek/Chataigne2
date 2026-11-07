@@ -183,14 +183,14 @@ impl Node for MediaNode {
         // Container shape is stable while parameter values bind during project decode.
         // Catalog creation and app admission apply the source-specific policy.
         Some(UserContainerRules::new(&[
-            "mapgyver.media.channel",
+            "mapgyver.media.channel.v2",
             "mapgyver.media.v8",
             super::reference::NODE_TYPE,
             super::composition::PLACEMENT_TYPE,
         ]))
     }
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
-        (node_type == "mapgyver.media.channel").then(|| {
+        (node_type == "mapgyver.media.channel.v2").then(|| {
             // Sparse encode and decode must see the same baseline, including before
             // the parent's declared kind parameter has been materialized or bound.
             Box::new(ChannelNode::new()) as Box<dyn Node>
@@ -201,7 +201,7 @@ impl Node for MediaNode {
         node_type: &str,
         _context: &golden_core::node::UserItemCreationContext<'_>,
     ) -> Option<golden_core::edit::NodeTree> {
-        if node_type == "mapgyver.media.channel" && self.kind().has_authored_channel_variants() {
+        if node_type == "mapgyver.media.channel.v2" && self.kind().has_authored_channel_variants() {
             Some(golden_core::edit::NodeTree::new(ChannelNode::from_definition(
                 "Channel".into(),
                 ChannelDefinition::for_media(self.kind()),
@@ -215,7 +215,7 @@ impl Node for MediaNode {
             Vec::new()
         } else {
             vec![
-                UserCreatableItem::new("mapgyver.media.channel", "mapgyver.media.channel", "Channel")
+                UserCreatableItem::new("mapgyver.media.channel.v2", "mapgyver.media.channel.v2", "Channel")
                     .with_select_when_created(false),
             ]
         }

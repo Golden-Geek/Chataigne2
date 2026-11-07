@@ -1,64 +1,47 @@
-//! Channel File presentation forwards the actual catalog Parameter; paths have one authority.
+//! File authoring edits only the selected Picture channel's own typed Parameter.
 use super::protocol::*;
 use crate::app::{AppEngine, AppNode};
 use golden_core::{
     edit::Edit,
-    node::{Node, NodeUuid},
+    node::Node,
     parameter::{ParamValue, ParameterEventBehaviour},
 };
 
+fn channel(engine: &AppEngine, reference: ChannelReference) -> Result<&super::ChannelNode, String> {
+    let snapshot = super::authoring::channel(engine, reference)?;
+    if snapshot.definition.media_kind() != MediaKind::Picture {
+        return Err("File editing requires a Picture channel".into());
+    }
+    let id = super::authoring::channel_id(engine, reference)?;
+    let AppNode::MediaChannel(channel) = engine.nodes.get(id).unwrap() else {
+        unreachable!()
+    };
+    Ok(channel)
+}
+
 pub(super) fn inspect(engine: &AppEngine, reference: ChannelReference) -> Result<Option<PictureFileBinding>, String> {
-    let Some(channel) = super::queries::inspect_channel(engine, reference)? else {
+    if super::queries::inspect_channel(engine, reference)?.is_none() {
         return Ok(None);
-    };
-    let ChannelSource::Picture { asset } = channel.definition.source else {
-        return Err("File binding requires a Picture channel".into());
-    };
-    let parameter = if let Some(asset) = asset
-        && engine.node_id_by_uuid(NodeUuid(asset.get())).is_some()
-    {
-        let id = super::assets::node_id(engine, asset)?;
-        let Some(AppNode::MediaAsset(node)) = engine.nodes.get(id) else {
-            unreachable!("validated asset");
-        };
-        let node_id = node.file_parameter();
-        let parameter = engine.nodes.get(node_id).ok_or("asset File Parameter is missing")?;
-        Some(FileParameterAddress {
-            node: node_id,
-            uuid: parameter.node_data().meta.uuid,
-        })
-    } else {
-        None
-    };
+    }
+    let channel = channel(engine, reference)?;
+    let node = channel.file_parameter();
+    let parameter = engine.nodes.get(node).ok_or("Picture File Parameter is missing")?;
     Ok(Some(PictureFileBinding {
         reference,
-        asset,
-        parameter,
+        parameter: FileParameterAddress {
+            node,
+            uuid: parameter.node_data().meta.uuid,
+        },
     }))
 }
 
 pub(super) fn configure(engine: &mut AppEngine, reference: ChannelReference, file: &str) -> Result<(), String> {
-    let locator = super::assets::parse_file(file)?;
-    let channel = super::authoring::channel(engine, reference)?;
-    let ChannelSource::Picture { asset } = channel.definition.source else {
-        return Err("File editing requires a Picture channel".into());
-    };
-    if let Some(asset) = asset
-        && engine.node_id_by_uuid(NodeUuid(asset.get())).is_some()
-    {
-        let id = super::assets::node_id(engine, asset)?;
-        let Some(AppNode::MediaAsset(node)) = engine.nodes.get(id) else {
-            unreachable!("validated asset");
-        };
-        engine.edits.push(Edit::SetParam {
-            node: node.file_parameter(),
-            value: ParamValue::File(file.to_owned()),
-            behaviour: ParameterEventBehaviour::Append,
-        });
-    } else if let Some(locator) = locator {
-        // Initial assignment and recovery from a deleted asset use the same atomic import
-        // boundary. A blank unbound control does not allocate an unused catalog entry.
-        super::importing::picture(engine, locator, Some(reference), None)?;
-    }
+    super::assets::parse_file(file)?;
+    let node = channel(engine, reference)?.file_parameter();
+    engine.edits.push(Edit::SetParam {
+        node,
+        value: ParamValue::File(file.to_owned()),
+        behaviour: ParameterEventBehaviour::Append,
+    });
     Ok(())
 }

@@ -99,12 +99,14 @@ fn asset_intents_validate_locator_and_exact_catalog_owner_atomically() {
 }
 
 #[test]
-fn asset_removal_relink_and_undo_fence_captures_even_when_history_retains_the_node() {
+fn explicit_catalog_relink_and_removal_do_not_retarget_picture_owned_files() {
     let mut engine = fixture();
     let id = import(&mut engine, "source.png");
     let reference = create(&mut engine, MediaKind::Picture);
     let mut definition = channel(&engine, reference).unwrap().definition;
-    definition.source = ChannelSource::Picture { asset: Some(id) };
+    definition.source = ChannelSource::Picture {
+        file: Some(relative("source.png")),
+    };
     apply(
         &mut engine,
         MediaEdit::ConfigureChannel {
@@ -120,19 +122,19 @@ fn asset_removal_relink_and_undo_fence_captures_even_when_history_retains_the_no
             locator: relative("replacement.png"),
         },
     );
-    assert!(!captured.is_current());
+    assert!(captured.is_current());
     let captured = capture_channels(&engine, &[reference], 16).unwrap();
     apply(&mut engine, MediaEdit::RemoveAsset { asset: id });
     assert!(
-        !captured.is_current(),
-        "history-retained asset must stop authorizing old preparation"
+        captured.is_current(),
+        "catalog removal must not change the Picture-owned File"
     );
     assert_eq!(channel(&engine, reference).unwrap().definition, definition);
     let missing = capture_channels(&engine, &[reference], 16).unwrap();
     assert!(engine.undo().unwrap());
     assert!(
-        !missing.is_current(),
-        "undo-restored missing asset must require a new capture"
+        missing.is_current(),
+        "restoring a separate catalog object must not alter Picture demand"
     );
     assert_eq!(asset(&engine, id).unwrap().locator, relative("replacement.png"));
     let captured = capture_channels(&engine, &[reference], 16).unwrap();

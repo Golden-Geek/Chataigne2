@@ -177,6 +177,8 @@ try {
 	const sources = [];
 	for (const kind of ['SolidColor', 'Picture', 'SharedTexture']) {
 		const { reference: first } = await edit({ kind: 'CreateMedia', media_kind: kind, label: kind });
+		if (kind === 'SharedTexture')
+			await edit({ kind: 'ConfigureMediaSenderSelection', media: first.media, mode: 'Manual' });
 		const { reference: second } = await edit({
 			kind: 'AddChannel',
 			media: first.media,
@@ -193,7 +195,8 @@ try {
 					kind: 'SolidColor',
 					rgba: index === 0 ? [0.25, 0.5, 0.75, 0.5] : [0.75, 0.5, 0.25, 0.25]
 				};
-			if (kind === 'Picture') source = { kind: 'Picture', asset };
+			if (kind === 'Picture')
+				source = { kind: 'Picture', file: { kind: 'project_relative', path: 'first.png' } };
 			if (kind === 'SharedTexture')
 				source = {
 					kind: 'Spout',
@@ -242,7 +245,10 @@ try {
 	});
 	const picture = sources.find((source) => source.kind === 'Picture');
 	for (const reference of [picture.first, picture.second])
-		assert.equal((await channel(reference)).definition.source.asset, asset);
+		assert.deepEqual((await channel(reference)).definition.source.file, {
+			kind: 'project_relative',
+			path: 'first.png'
+		});
 	const beforeReload = await inspect();
 	await edit({ kind: 'ReloadAsset', asset });
 	assert.deepEqual(await inspect(), beforeReload);
@@ -583,7 +589,7 @@ try {
 		JSON.stringify({
 			result: 'pass',
 			scope:
-				'M04 ordinary headless source intents, atomic rejection, shared assets, history and Save/New/Load',
+				'M04 ordinary headless source intents, owned Picture Files, independent catalog, atomic rejection, history and Save/New/Load',
 			sources: sources.length,
 			channels: sources.length * 2,
 			stable_asset: asset,

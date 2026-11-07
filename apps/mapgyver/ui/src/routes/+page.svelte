@@ -44,7 +44,7 @@
 		'mapgyver.media.manager',
 		'mapgyver.media.v8',
 		'mapgyver.media.reference.v3',
-		'mapgyver.media.channel',
+		'mapgyver.media.channel.v2',
 		ASSET_NODE_TYPE,
 		'mapgyver.media.folder',
 		'mapgyver.screen',

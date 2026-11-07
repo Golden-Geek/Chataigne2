@@ -35,7 +35,7 @@
 		const node = resolveDragNode(session.graph.state, readNodeDragPayload(event), session);
 		return node?.node_type === 'mapgyver.media.reference.v3' ||
 			node?.node_type === 'mapgyver.media.v8' ||
-			node?.node_type === 'mapgyver.media.channel'
+			node?.node_type === 'mapgyver.media.channel.v2'
 			? node
 			: null;
 	}

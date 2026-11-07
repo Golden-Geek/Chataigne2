@@ -1,11 +1,8 @@
 use super::PictureDecoder;
-use crate::media::{
-    capture::{CapturedAsset, CapturedChannels},
-    protocol::ChannelSource,
-};
+use crate::media::{capture::CapturedChannels, protocol::ChannelSource};
 use golden_assets::{
-    AssetId, AssetPreparer, AssetRequestId, AssetRetirement, AssetScope, PreparationAdmissionError, PreparationFailure,
-    PreparationLimits, PreparedAsset,
+    AssetBinding, AssetId, AssetLocator, AssetPreparer, AssetRequestId, AssetRetirement, AssetScope,
+    PreparationAdmissionError, PreparationFailure, PreparationLimits, PreparedAsset,
 };
 use golden_io::{DelayedNotifier, WorkerNotifier};
 use golden_video::image::ImageData;
@@ -16,7 +13,7 @@ use std::time::{Duration, Instant};
 
 struct Entry {
     scope: AssetScope,
-    authored: CapturedAsset,
+    binding: AssetBinding,
     request: Option<AssetRequestId>,
     value: Option<PreparedAsset<ImageData>>,
     failure: Option<PreparationFailure>,
@@ -27,7 +24,8 @@ pub(crate) struct Pictures {
     root: PathBuf,
     project: Option<uuid::Uuid>,
     service: AssetPreparer<PictureDecoder>,
-    entries: HashMap<AssetId, Entry>,
+    entries: HashMap<AssetLocator, Entry>,
+    bindings: HashMap<AssetId, AssetLocator>,
     retry_wake: Option<DelayedNotifier>,
 }
 
@@ -38,6 +36,7 @@ impl Pictures {
             return Ok(false);
         }
         self.entries.clear();
+        self.bindings.clear();
         self.project = None;
         self.root = root.to_path_buf();
         Ok(true)
@@ -55,6 +54,7 @@ impl Pictures {
             project: None,
             service,
             entries: HashMap::new(),
+            bindings: HashMap::new(),
             retry_wake,
         })
     }
@@ -72,41 +72,47 @@ impl Pictures {
             .filter(|channel| channel.enabled && wanted_routes.contains(&channel.reference))
             .filter_map(
                 |channel| match channel.definition.as_ref().map(|definition| &definition.source) {
-                    Some(ChannelSource::Picture { asset: Some(asset) }) => Some(*asset),
+                    Some(ChannelSource::Picture { file: Some(_) }) => {
+                        Some(AssetId::from_uuid(channel.reference.channel.0.0))
+                    }
                     _ => None,
                 },
             )
             .collect::<HashSet<_>>();
-        if demanded.len() > limit {
+        let bindings: HashMap<_, _> = capture
+            .assets
+            .iter()
+            .filter(|asset| demanded.contains(&asset.record.id))
+            .map(|asset| (asset.record.id, asset.record.locator.clone()))
+            .collect();
+        if bindings.values().collect::<HashSet<_>>().len() > limit {
             return Err("picture demand exceeds admitted source count".into());
         }
         let mut changed = false;
         if self.project != Some(capture.project) {
             self.entries.clear();
+            self.bindings.clear();
             self.project = Some(capture.project);
             changed = true;
         }
-        let present = capture
-            .assets
-            .iter()
-            .map(|asset| asset.record.id)
-            .collect::<HashSet<_>>();
-        self.entries
-            .retain(|id, _| demanded.contains(id) && present.contains(id));
+        self.bindings = bindings;
+        let present = self.bindings.values().collect::<HashSet<_>>();
+        self.entries.retain(|locator, _| present.contains(locator));
         for asset in &capture.assets {
             if !demanded.contains(&asset.record.id) {
                 continue;
             }
-            let replace = self
-                .entries
-                .get(&asset.record.id)
-                .is_none_or(|entry| !entry.authored.guard.is_current() || entry.authored.record != asset.record);
-            if replace {
+            if !self.entries.contains_key(&asset.record.locator) {
                 self.entries.insert(
-                    asset.record.id,
+                    asset.record.locator.clone(),
                     Entry {
                         scope: AssetScope::new(&self.root).map_err(|error| error.to_string())?,
-                        authored: asset.clone(),
+                        // Logical File sources have independent lifetimes from their channel
+                        // bindings: one owner may change File while a peer still uses this one.
+                        binding: AssetBinding::new(golden_assets::AssetRecord {
+                            id: AssetId::new(),
+                            locator: asset.record.locator.clone(),
+                        }),
                         request: None,
                         value: None,
                         failure: None,
@@ -125,7 +131,11 @@ impl Pictures {
         self.service.drain(&mut outcomes, NonZeroUsize::new(32).unwrap());
         let mut changed = false;
         for outcome in outcomes {
-            let Some(entry) = self.entries.get_mut(&outcome.asset) else {
+            let Some(entry) = self
+                .entries
+                .values_mut()
+                .find(|entry| entry.binding.record().id == outcome.asset)
+            else {
                 continue;
             };
             if entry.request != Some(outcome.request) {
@@ -160,15 +170,13 @@ impl Pictures {
             }
         }
         for entry in self.entries.values_mut() {
-            if entry.request.is_some() || entry.value.is_some() || !entry.authored.guard.is_current() {
+            if entry.request.is_some() || entry.value.is_some() {
                 continue;
             }
             if entry.failure.is_some() && entry.retry_at.is_none_or(|at| at > Instant::now()) {
                 continue;
             }
-            let capture = entry
-                .scope
-                .capture_record(entry.authored.record.clone(), entry.authored.guard.clone());
+            let capture = entry.scope.capture(&entry.binding);
             match self.service.submit(capture) {
                 Ok(request) => {
                     entry.request = Some(request);
@@ -188,12 +196,14 @@ impl Pictures {
 
     pub fn get(&self, id: AssetId) -> Option<&PreparedAsset<ImageData>> {
         self.entries
-            .get(&id)
+            .get(self.bindings.get(&id)?)
             .and_then(|entry| entry.value.as_ref())
             .filter(|value| value.is_current())
     }
     pub fn failure(&self, id: AssetId) -> Option<PreparationFailure> {
-        self.entries.get(&id).and_then(|entry| entry.failure)
+        self.entries
+            .get(self.bindings.get(&id)?)
+            .and_then(|entry| entry.failure)
     }
 
     /// Invoke after a filesystem change/explicit retry. Decoding stays on the worker. Prepared
@@ -210,7 +220,11 @@ impl Pictures {
         Ok(())
     }
     pub fn retry_asset(&mut self, asset: AssetId) -> Result<(), String> {
-        if let Some(entry) = self.entries.get_mut(&asset) {
+        if let Some(entry) = self
+            .bindings
+            .get(&asset)
+            .and_then(|locator| self.entries.get_mut(locator))
+        {
             entry.scope = AssetScope::new(&self.root).map_err(|error| error.to_string())?;
             entry.request = None;
             entry.value = None;

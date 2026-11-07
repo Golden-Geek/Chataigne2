@@ -165,12 +165,14 @@ fn named_invocation(operation: &MediaEdit) -> String {
                 "configureSolidColor",
                 serde_json::json!([reference.media, reference.channel, rgba[0], rgba[1], rgba[2], rgba[3]]),
             ),
-            ChannelSource::Picture { asset } => (
+            ChannelSource::Picture { file } => (
                 "configurePicture",
                 serde_json::json!([
                     reference.media,
                     reference.channel,
-                    asset.map(|asset| asset.get().to_string()).unwrap_or_default()
+                    file.as_ref()
+                        .map(crate::media::assets::locator_path)
+                        .unwrap_or_default()
                 ]),
             ),
             ChannelSource::Spout { sender } => (
@@ -390,7 +392,7 @@ fn baseline() -> Baseline {
         for (index, reference) in [first, second].into_iter().enumerate() {
             let mut definition = channel(&engine, reference).unwrap().definition;
             match &mut definition.source {
-                ChannelSource::Picture { asset: selected } => *selected = Some(asset),
+                ChannelSource::Picture { file: selected } => *selected = Some(relative("first.png")),
                 ChannelSource::Spout { sender } => {
                     *sender = Some(format!("Source {index}"));
                 }
@@ -461,7 +463,7 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
         let mut definition = channel(&initial, first).unwrap().definition;
         match &mut definition.source {
             ChannelSource::SolidColor { rgba } => *rgba = [0.75, 0.25, 0.5, 0.25],
-            ChannelSource::Picture { asset } => *asset = None,
+            ChannelSource::Picture { file } => *file = None,
             ChannelSource::Spout { sender, .. } => *sender = Some("Exact replacement".into()),
             _ => unreachable!(),
         }
@@ -526,7 +528,7 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
     cases.push(MediaEdit::ConfigureChannel {
         reference: baseline.references[1][0],
         source: ChannelSource::Picture {
-            asset: Some(baseline.asset),
+            file: Some(relative("first.png")),
         },
     });
     cases.push(MediaEdit::RenameChannel {
@@ -659,17 +661,15 @@ fn allocating_channel_and_picture_intents_return_owned_ids_without_changing_othe
                     assert_eq!(crate::media::asset(&engine, asset).unwrap().locator, *locator);
                     assert_eq!(after.assets.len(), before.assets.len() + 1);
                 }
-                (
-                    MediaEdit::ImportPicture { locator, target, .. },
-                    MediaEditResult::PictureImported { reference, asset },
-                ) => {
-                    assert_eq!(crate::media::asset(&engine, asset).unwrap().locator, *locator);
+                (MediaEdit::ImportPicture { locator, target, .. }, MediaEditResult::PictureImported { reference }) => {
                     let selected = channel(&engine, reference).unwrap();
                     assert_eq!(
                         selected.definition.source,
-                        ChannelSource::Picture { asset: Some(asset) }
+                        ChannelSource::Picture {
+                            file: Some(locator.clone())
+                        }
                     );
-                    assert_eq!(after.assets.len(), before.assets.len() + 1);
+                    assert_eq!(after.assets, before.assets);
                     if let Some(target) = target {
                         assert_eq!(reference, *target);
                         let previous = channel(&loaded(&baseline.json), *target).unwrap();

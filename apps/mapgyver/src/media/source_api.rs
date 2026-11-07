@@ -237,10 +237,7 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "configurePicture" => MediaEdit::ConfigureChannel {
             reference: reference(args)?,
             source: ChannelSource::Picture {
-                asset: optional_text(args, 2)?
-                    .map(|value| uuid::Uuid::parse_str(&value).map(AssetId::from_uuid))
-                    .transpose()
-                    .map_err(|error| error.to_string())?,
+                file: super::assets::parse_file(optional_text(args, 2)?.as_deref().unwrap_or_default())?,
             },
         },
         "configurePictureFile" => MediaEdit::ConfigurePictureFile {

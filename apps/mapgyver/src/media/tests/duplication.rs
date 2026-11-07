@@ -7,21 +7,10 @@ use golden_core::{
 use golden_video::Extent2D;
 
 #[test]
-fn source_media_and_variant_copies_preserve_shared_settings_assets_and_independent_history() {
+fn source_media_and_variant_copies_preserve_settings_owned_files_and_independent_history() {
     for kind in [MediaKind::SolidColor, MediaKind::Picture, MediaKind::SharedTexture] {
         for copy_media in [false, true] {
             let mut engine = fixture();
-            let MediaEditResult::AssetCreated { asset } = apply(
-                &mut engine,
-                MediaEdit::ImportAsset {
-                    locator: AssetLocator::ProjectRelative {
-                        path: "shared-copy.png".to_owned().try_into().unwrap(),
-                    },
-                    label: None,
-                },
-            ) else {
-                panic!()
-            };
             let first = create(&mut engine, kind);
             let MediaEditResult::Created { reference: second } = apply(
                 &mut engine,
@@ -37,7 +26,11 @@ fn source_media_and_variant_copies_preserve_shared_settings_assets_and_independe
                     MediaKind::SolidColor => ChannelSource::SolidColor {
                         rgba: [index as f32, 0.25, 0.75, 0.5],
                     },
-                    MediaKind::Picture => ChannelSource::Picture { asset: Some(asset) },
+                    MediaKind::Picture => ChannelSource::Picture {
+                        file: Some(AssetLocator::ProjectRelative {
+                            path: "shared-copy.png".to_owned().try_into().unwrap(),
+                        }),
+                    },
                     MediaKind::SharedTexture => ChannelSource::Spout {
                         sender: Some(format!("Exact copy source {index}")),
                     },
@@ -86,7 +79,7 @@ fn source_media_and_variant_copies_preserve_shared_settings_assets_and_independe
             assert!(ack.success, "{kind:?}, media={copy_media}: {ack:?}");
             assert_eq!(engine.undo_len(), history + 1);
             let copied = catalog::inspect(&engine).unwrap();
-            assert_eq!(copied.assets, before.assets, "source copies share the authored asset");
+            assert!(copied.assets.is_empty(), "copying a File never creates catalog assets");
             let copy = if copy_media {
                 let copy = copied.media.iter().find(|media| media.id != first.media).unwrap();
                 assert_eq!(copy.channels.len(), 2);
@@ -112,7 +105,7 @@ fn source_media_and_variant_copies_preserve_shared_settings_assets_and_independe
             };
             let replacement = match kind {
                 MediaKind::SolidColor => ChannelSource::SolidColor { rgba: [0.5; 4] },
-                MediaKind::Picture => ChannelSource::Picture { asset: None },
+                MediaKind::Picture => ChannelSource::Picture { file: None },
                 MediaKind::SharedTexture => ChannelSource::Spout { sender: None },
                 _ => unreachable!(),
             };

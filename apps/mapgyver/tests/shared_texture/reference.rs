@@ -235,11 +235,12 @@ fn references_share_native_production_through_composition_matrix_and_owned_retir
                     ) else {
                         panic!()
                     };
+                    let file = mapgyver::media::asset(&engine, asset).unwrap().locator;
                     edit(
                         &mut engine,
                         MediaEdit::ConfigureChannel {
                             reference: source,
-                            source: ChannelSource::Picture { asset: Some(asset) },
+                            source: ChannelSource::Picture { file: Some(file) },
                         },
                     );
                 }

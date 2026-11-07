@@ -28,7 +28,7 @@ pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v3";
         read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode,
         reference_allowed_node_types = vec!["mapgyver.matrix.cell.v3".into()]);
     output: NodeReference = NodeReference::empty() (label = "Output", description = "Empty follows the first available output.",
-        reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.channel".into()]);
+        reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.channel.v2".into()]);
     position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position");
     size: Vec2 = Vec2::new(1920.0, 1080.0) [(1.0, 1.0)..(16384.0, 16384.0)] (
         label = "Size", description = "Placement size in Layer pixels. Disable to follow the source's natural size.",

@@ -132,11 +132,11 @@ impl ChannelRenderer {
         Ok(())
     }
     /// File-change/relink recovery for one source; healthy prepared sources remain admitted.
-    pub fn retry_picture(&mut self, asset: super::protocol::AssetId) -> Result<(), String> {
+    pub fn retry_picture(&mut self, reference: ChannelReference) -> Result<(), String> {
         self.pictures
             .as_mut()
             .ok_or("picture preparation is not configured")?
-            .retry_asset(asset)?;
+            .retry_asset(super::protocol::AssetId::from_uuid(reference.channel.0.0))?;
         self.resolution_owner = Default::default();
         Ok(())
     }
@@ -304,10 +304,12 @@ impl ChannelRenderer {
             PlanActivation::NextFrame(self.runtime.read_time().map_err(|error| error.to_string())?.epoch());
         let mut guards = capture.revision_guards().cloned().collect::<Vec<_>>();
         guards.extend(observations.sources.iter().map(|source| source.guard.clone()));
+        let mut images = std::collections::HashSet::new();
         for image in capture
             .assets
             .iter()
             .filter_map(|asset| self.pictures.as_ref()?.get(asset.record.id))
+            .filter(|image| images.insert(image.id()))
         {
             guards.extend(image.guards().iter().cloned());
         }

@@ -24,6 +24,6 @@ export const canRenderMediaTreeChildren = (node: UiNodeDto): boolean =>
 	[
 		'mapgyver.media.folder',
 		'mapgyver.media.v8',
-		'mapgyver.media.channel',
+		'mapgyver.media.channel.v2',
 		...structuralTypes
 	].includes(node.node_type);

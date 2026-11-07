@@ -9,7 +9,7 @@ use golden_core::{
     parameter::{File, ParamValue, ParameterEventBehaviour},
     process_ctx::ProcessCtx,
 };
-use golden_io::{RevisionGuard, RevisionSource};
+use golden_io::RevisionSource;
 
 #[node(
     "mapgyver.media.asset.v2",
@@ -42,9 +42,6 @@ impl AssetNode {
     pub fn id(&self) -> AssetId {
         AssetId::from_uuid(self.node_data().meta.uuid.0)
     }
-    pub(super) fn file_parameter(&self) -> NodeId {
-        self.file.id()
-    }
     fn locator(&self) -> Option<AssetLocator> {
         parse_file(self.file.get_ref().as_str()).ok().flatten()
     }
@@ -67,10 +64,6 @@ impl AssetNode {
             value: ParamValue::File(locator_path(&locator).to_owned()),
             behaviour: ParameterEventBehaviour::Append,
         }]
-    }
-    pub(super) fn guard(&self) -> RevisionGuard {
-        let reader = self.revision.reader();
-        reader.guard_at(reader.current())
     }
     pub(super) fn reload(&mut self) {
         self.revision.advance();
@@ -106,7 +99,7 @@ impl Node for AssetNode {
     }
 }
 
-fn locator_path(locator: &AssetLocator) -> &str {
+pub(super) fn locator_path(locator: &AssetLocator) -> &str {
     match locator {
         AssetLocator::ProjectRelative { path } => path.as_str(),
         AssetLocator::Absolute { path } => path.as_str(),

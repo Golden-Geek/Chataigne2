@@ -4,7 +4,6 @@
 use super::composition::protocol::InstanceDefinition;
 use super::protocol::{AssetId, AssetRecord, ChannelDefinition, ChannelReference, ChannelSource};
 use crate::app::{AppEngine, AppNode};
-use golden_core::model::NodeUuid;
 use golden_core::node::Node;
 use golden_io::RevisionGuard;
 use std::collections::HashSet;
@@ -24,7 +23,6 @@ pub struct CapturedChannels {
 #[derive(Clone)]
 pub(super) struct CapturedAsset {
     pub record: AssetRecord,
-    pub guard: RevisionGuard,
 }
 
 #[derive(Clone)]
@@ -429,28 +427,19 @@ pub(crate) fn capture_channels_with_time(
         }
         if enabled
             && let Some(ChannelDefinition {
-                source: ChannelSource::Picture { asset: Some(asset) },
+                source: ChannelSource::Picture { file: Some(file) },
                 ..
             }) = &definition
-            && seen_assets.insert(*asset)
+            && seen_assets.insert(AssetId::from_uuid(reference.channel.0.0))
         {
-            // Catalog membership also fences a source moved out through a generic edit.
-            if seen_assets.len() == 1 {
-                guards.push(manager.membership_guard());
-            }
-            let node = engine
-                .node_id_by_uuid(NodeUuid(asset.get()))
-                .and_then(|id| engine.nodes.get(id));
-            match node {
-                Some(AppNode::MediaAsset(node)) if node.node_data().parent == Some(manager_id) => {
-                    let guard = node.guard();
-                    guards.push(guard.clone());
-                    if let Ok(record) = node.record() {
-                        assets.push(CapturedAsset { record, guard });
-                    }
-                }
-                _ => guards.push(manager.membership_guard()),
-            }
+            // The File is already captured in the channel definition. Its resource address is
+            // runtime metadata, including when a playing owned source outlives authored removal.
+            assets.push(CapturedAsset {
+                record: AssetRecord {
+                    id: AssetId::from_uuid(reference.channel.0.0),
+                    locator: file.clone(),
+                },
+            });
         }
         let mut ancestor = media.and_then(|node| node.node_data().parent);
         let mut owned = frozen.is_some();

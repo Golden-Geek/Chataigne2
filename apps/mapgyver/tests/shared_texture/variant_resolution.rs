@@ -139,7 +139,6 @@ fn same_media_variants_share_resolution_and_preserve_native_identity_through_his
                 format!("MapGyverVariantsB-{}", uuid::Uuid::new_v4()),
             ];
             let mut producers = Vec::new();
-            let mut picture = None;
             match kind {
                 MediaKind::SolidColor => {
                     source(
@@ -160,9 +159,10 @@ fn same_media_variants_share_resolution_and_preserve_native_identity_through_his
                 MediaKind::Picture => {
                     let a = asset(&mut engine, "first.png");
                     let b = asset(&mut engine, "variant.png");
-                    picture = Some(b);
-                    source(&mut engine, first, ChannelSource::Picture { asset: Some(a) });
-                    source(&mut engine, second, ChannelSource::Picture { asset: Some(b) });
+                    let a = mapgyver::media::asset(&engine, a).unwrap().locator;
+                    let b = mapgyver::media::asset(&engine, b).unwrap().locator;
+                    source(&mut engine, first, ChannelSource::Picture { file: Some(a) });
+                    source(&mut engine, second, ChannelSource::Picture { file: Some(b) });
                 }
                 MediaKind::SharedTexture => {
                     let mut a = Producer::new(index, &names[0], &children);
@@ -231,12 +231,7 @@ fn same_media_variants_share_resolution_and_preserve_native_identity_through_his
                 ),
                 MediaKind::Picture => {
                     image(root.path(), 4, 3, [0, 255, 255, 255]);
-                    edit(
-                        &mut engine,
-                        MediaEdit::ReloadAsset {
-                            asset: picture.unwrap(),
-                        },
-                    );
+                    live.live().retry_picture(second).unwrap();
                 }
                 MediaKind::SharedTexture => {
                     let native = live.live().native_control().unwrap();

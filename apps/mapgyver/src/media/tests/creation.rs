@@ -95,7 +95,7 @@ fn manager_catalog_and_api_share_defaults_unique_identity_and_atomic_history() {
                 &mut engine,
                 UiEditIntent::CreateUserItem {
                     parent,
-                    node_type: "mapgyver.media.channel".into(),
+                    node_type: "mapgyver.media.channel.v2".into(),
                     label: None,
                     initial_params: vec![],
                 },
@@ -155,7 +155,7 @@ fn intrinsic_channel_baselines_are_kind_independent_and_live_catalog_defaults_su
         let reference = create(&mut engine, kind);
         let parent = engine.node_id_by_uuid(reference.media.0).unwrap();
         let owner = engine.nodes.get(parent).unwrap();
-        let baseline = owner.create_user_item("mapgyver.media.channel").unwrap();
+        let baseline = owner.create_user_item("mapgyver.media.channel.v2").unwrap();
         assert_eq!(
             baseline.as_any().downcast_ref::<ChannelNode>().unwrap().kind(),
             MediaKind::SolidColor
@@ -168,7 +168,7 @@ fn intrinsic_channel_baselines_are_kind_independent_and_live_catalog_defaults_su
             &mut engine,
             UiEditIntent::CreateUserItem {
                 parent,
-                node_type: "mapgyver.media.channel".into(),
+                node_type: "mapgyver.media.channel.v2".into(),
                 label: Some("Contextual channel".into()),
                 initial_params: vec![],
             },

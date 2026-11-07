@@ -1,5 +1,5 @@
 use super::*;
-use crate::media::{asset, channel, validate_project};
+use crate::media::{channel, validate_project};
 use golden_core::app::{from_sparse_project_json, to_sparse_project_json_pretty};
 use golden_video::Extent2D;
 
@@ -8,33 +8,17 @@ fn relative(path: &str) -> AssetLocator {
         path: path.to_owned().try_into().unwrap(),
     }
 }
-
-fn import(engine: &mut AppEngine, target: Option<ChannelReference>, path: &str) -> (ChannelReference, AssetId) {
-    let MediaEditResult::PictureImported { reference, asset } = apply(
-        engine,
-        MediaEdit::ImportPicture {
-            locator: relative(path),
-            target,
-            label: None,
-        },
-    ) else {
-        panic!("Picture import result")
-    };
-    (reference, asset)
-}
-
 fn inspect(engine: &mut AppEngine) -> MediaManagerSnapshot {
     let MediaEditResult::Manager { snapshot } = apply(engine, MediaEdit::InspectManager) else {
         panic!()
     };
     snapshot
 }
-
 #[test]
-fn import_creates_asset_media_and_channel_in_one_history_step_with_unique_labels_and_stable_ids() {
+fn import_creates_only_one_picture_tree_with_owned_file_and_atomic_history_and_reload() {
     let mut engine = fixture();
-    let before = engine.undo_len();
-    let MediaEditResult::PictureImported { reference, asset: id } = apply(
+    let history = engine.undo_len();
+    let MediaEditResult::PictureImported { reference } = apply(
         &mut engine,
         MediaEdit::ImportPicture {
             locator: relative("same.png"),
@@ -44,103 +28,93 @@ fn import_creates_asset_media_and_channel_in_one_history_step_with_unique_labels
     ) else {
         panic!()
     };
-    assert_eq!(engine.undo_len(), before + 1);
+    assert_eq!(engine.undo_len(), history + 1);
     let snapshot = inspect(&mut engine);
     assert_eq!(snapshot.media.len(), 1);
-    assert_eq!(snapshot.assets.len(), 1);
-    assert_ne!(snapshot.media[0].label, snapshot.assets[0].label);
-    let mut expected = ChannelDefinition::for_media(MediaKind::Picture);
-    expected.source = ChannelSource::Picture { asset: Some(id) };
-    assert_eq!(channel(&engine, reference).unwrap().definition, expected);
+    assert!(snapshot.assets.is_empty());
+    assert_eq!(snapshot.media[0].label, "same.png");
+    assert_eq!(
+        channel(&engine, reference).unwrap().definition.source,
+        ChannelSource::Picture {
+            file: Some(relative("same.png"))
+        }
+    );
     assert!(engine.undo().unwrap());
     assert!(channel(&engine, reference).is_err());
-    assert!(asset(&engine, id).is_err());
     assert!(inspect(&mut engine).media.is_empty());
-    assert!(inspect(&mut engine).assets.is_empty());
     assert!(engine.redo().unwrap());
     assert_eq!(inspect(&mut engine), snapshot);
-    let json = to_sparse_project_json_pretty(&engine).unwrap();
-    let mut loaded = from_sparse_project_json::<crate::app::AppNode>(&json).unwrap();
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let mut loaded = from_sparse_project_json::<crate::app::AppNode>(&saved).unwrap();
     loaded.apply_edits().unwrap();
     validate_project(&loaded).unwrap();
     assert_eq!(inspect(&mut loaded), snapshot);
 }
-
 #[test]
-fn import_into_one_channel_preserves_output_settings_and_relink_keeps_shared_asset_identity() {
+fn targeted_picture_import_preserves_topology_sizing_fit_and_independent_peer_file() {
     let mut engine = fixture();
-    let (first, shared) = import(&mut engine, None, "original.png");
-    let MediaEditResult::Created { reference: second } = apply(
+    let first = create(&mut engine, MediaKind::Picture);
+    let second = create(&mut engine, MediaKind::Picture);
+    apply(
         &mut engine,
-        MediaEdit::AddChannel {
-            media: first.media,
-            label: None,
+        MediaEdit::ConfigurePictureFile {
+            reference: first,
+            file: "original.png".into(),
         },
-    ) else {
-        panic!()
-    };
-    let size = SizePolicy::Fixed {
-        extent: Extent2D::new(320, 240).unwrap(),
-    };
+    );
     apply(
         &mut engine,
         MediaEdit::ConfigureMediaResolution {
-            media: first.media,
-            size,
+            media: second.media,
+            size: SizePolicy::Fixed {
+                extent: Extent2D::new(320, 240).unwrap(),
+            },
         },
     );
     apply(
         &mut engine,
         MediaEdit::ConfigureMediaFitMode {
-            media: first.media,
+            media: second.media,
             mode: MediaFitMode::Fill,
         },
     );
-    let first_definition = channel(&engine, first).unwrap().definition;
-    apply(
+    let before = channel(&engine, second).unwrap().definition;
+    let count = engine.nodes.len();
+    let history = engine.undo_len();
+    let MediaEditResult::PictureImported { reference } = apply(
         &mut engine,
-        MediaEdit::ConfigureChannel {
-            reference: second,
-            source: first_definition.source.clone(),
+        MediaEdit::ImportPicture {
+            locator: relative("replacement.png"),
+            target: Some(second),
+            label: None,
         },
-    );
-    let definition = channel(&engine, second).unwrap().definition;
-    let before = engine.undo_len();
-    let (assigned, replacement) = import(&mut engine, Some(second), "replacement.png");
-    assert_eq!(assigned, second);
-    assert_ne!(replacement, shared);
-    assert_eq!(engine.undo_len(), before + 1);
-    let actual = channel(&engine, second).unwrap().definition;
+    ) else {
+        panic!()
+    };
+    assert_eq!(reference, second);
+    assert_eq!(engine.nodes.len(), count);
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(inspect(&mut engine).assets.is_empty());
+    let after = channel(&engine, second).unwrap().definition;
+    assert_eq!(after.size, before.size);
+    assert_eq!(after.fit_mode, before.fit_mode);
     assert_eq!(
-        actual.source,
+        after.source,
         ChannelSource::Picture {
-            asset: Some(replacement)
+            file: Some(relative("replacement.png"))
         }
     );
-    assert_eq!(actual.size, definition.size);
-    assert_eq!(actual.fit_mode, definition.fit_mode);
-    assert_eq!(channel(&engine, first).unwrap().definition, first_definition);
-    assert!(engine.undo().unwrap());
-    assert!(asset(&engine, replacement).is_err());
-    assert_eq!(channel(&engine, second).unwrap().definition, definition);
-    apply(
-        &mut engine,
-        MediaEdit::RelinkAsset {
-            asset: shared,
-            locator: relative("moved.png"),
-        },
+    assert_eq!(
+        channel(&engine, first).unwrap().definition.source,
+        ChannelSource::Picture {
+            file: Some(relative("original.png"))
+        }
     );
-    assert_eq!(asset(&engine, shared).unwrap().locator, relative("moved.png"));
-    for reference in [first, second] {
-        assert_eq!(
-            channel(&engine, reference).unwrap().definition.source,
-            ChannelSource::Picture { asset: Some(shared) }
-        );
-    }
     assert!(engine.undo().unwrap());
-    assert_eq!(asset(&engine, shared).unwrap().locator, relative("original.png"));
+    assert_eq!(channel(&engine, second).unwrap().definition, before);
+    assert!(engine.redo().unwrap());
+    assert_eq!(channel(&engine, second).unwrap().definition, after);
 }
-
 #[test]
 fn invalid_picture_import_does_not_leave_orphan_assets_or_partial_media() {
     let mut engine = fixture();
@@ -189,7 +163,7 @@ fn invalid_picture_import_does_not_leave_orphan_assets_or_partial_media() {
 }
 
 #[test]
-fn quickjs_picture_import_returns_the_same_committed_channel_asset_and_single_history_step() {
+fn quickjs_picture_import_returns_the_same_committed_picture_and_single_history_step() {
     use golden_core::application::service_script_app_operations;
     use golden_core::events::EventKind;
     use golden_core::script::{ScriptNode, ScriptNodeConfig, ScriptSource};
@@ -224,18 +198,17 @@ fn quickjs_picture_import_returns_the_same_committed_channel_asset_and_single_hi
         })
         .unwrap();
     assert_eq!(reply["status"], "applied");
-    let MediaEditResult::PictureImported { reference, asset: id } =
-        serde_json::from_value(reply["value"].clone()).unwrap()
-    else {
+    let MediaEditResult::PictureImported { reference } = serde_json::from_value(reply["value"].clone()).unwrap() else {
         panic!()
     };
     assert_eq!(
         channel(&engine, reference).unwrap().definition.source,
-        ChannelSource::Picture { asset: Some(id) }
+        ChannelSource::Picture {
+            file: Some(relative("script.png"))
+        }
     );
-    assert_eq!(asset(&engine, id).unwrap().locator, relative("script.png"));
+    assert!(inspect(&mut engine).assets.is_empty());
     assert_eq!(engine.undo_len(), history + 1);
     assert!(engine.undo().unwrap());
     assert!(channel(&engine, reference).is_err());
-    assert!(asset(&engine, id).is_err());
 }

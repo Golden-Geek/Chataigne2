@@ -657,7 +657,9 @@ fn import(engine: &mut AppEngine, path: &str) -> AssetId {
 
 fn configure(engine: &mut AppEngine, reference: ChannelReference, asset: AssetId) {
     let mut definition = channel(engine, reference).unwrap().definition;
-    definition.source = ChannelSource::Picture { asset: Some(asset) };
+    definition.source = ChannelSource::Picture {
+        file: Some(mapgyver::media::asset(engine, asset).unwrap().locator),
+    };
     edit(
         engine,
         MediaEdit::ConfigureChannel {
@@ -792,19 +794,19 @@ fn authored_picture_assets_decode_upload_share_relink_reload_and_recreate_native
     let stale = capture_channels(&engine, &references, 16).unwrap();
     edit(
         &mut engine,
-        MediaEdit::RelinkAsset {
-            asset: first_asset,
-            locator: relative("replacement.png"),
+        MediaEdit::ConfigurePictureFile {
+            reference: first,
+            file: "replacement.png".into(),
         },
     );
     assert!(!stale.is_current());
     publish(live, &engine, references);
-    ready(live, [Extent2D::new(4, 3).unwrap(); 2]);
+    ready(live, [Extent2D::new(4, 3).unwrap(), Extent2D::new(2, 2).unwrap()]);
     let MediaEditResult::Asset { record } = edit(&mut engine, MediaEdit::InspectAsset { asset: first_asset }) else {
         panic!()
     };
     assert_eq!(record.id, first_asset);
-    assert_eq!(record.locator, relative("replacement.png"));
+    assert_eq!(record.locator, relative("red.png"));
     let json = golden_core::app::to_sparse_project_json_pretty(&engine).unwrap();
     let mut loaded = golden_core::app::from_sparse_project_json::<AppNode>(&json).unwrap();
     loaded.apply_edits().unwrap();
@@ -821,7 +823,7 @@ fn authored_picture_assets_decode_upload_share_relink_reload_and_recreate_native
     let mut recreated = renderer(adapter.id, directory.path());
     let live = recreated.0.as_mut().unwrap();
     publish(live, &loaded, references);
-    ready(live, [Extent2D::new(4, 3).unwrap(); 2]);
+    ready(live, [Extent2D::new(4, 3).unwrap(), Extent2D::new(2, 2).unwrap()]);
     assert!(
         live.publish_observed(
             capture_channels(&loaded, &references, 16).unwrap(),
@@ -836,12 +838,12 @@ fn authored_picture_assets_decode_upload_share_relink_reload_and_recreate_native
             .zip(references)
             .all(|(channel, reference)| channel.reference == reference)
     );
-    assert_eq!(live.channels()[0].source, live.channels()[1].source);
+    assert_ne!(live.channels()[0].source, live.channels()[1].source);
     let MediaEditResult::Asset { record } = edit(&mut loaded, MediaEdit::InspectAsset { asset: first_asset }) else {
         panic!()
     };
     assert_eq!(record.id, first_asset);
-    assert_eq!(record.locator, relative("replacement.png"));
+    assert_eq!(record.locator, relative("red.png"));
     assert!(live.native_control().unwrap().sources().is_empty());
     drop(recreated);
     done.send(()).unwrap();

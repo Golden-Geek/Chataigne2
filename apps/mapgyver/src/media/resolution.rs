@@ -63,7 +63,7 @@ impl ChannelDefinition {
     pub fn for_media(kind: MediaKind) -> Self {
         let source = match kind {
             MediaKind::Reference => ChannelSource::Reference { target: None },
-            MediaKind::Picture => ChannelSource::Picture { asset: None },
+            MediaKind::Picture => ChannelSource::Picture { file: None },
             MediaKind::Composition => ChannelSource::Composition {
                 canvas: default_canvas(),
             },
@@ -193,8 +193,8 @@ pub fn resolve(definition: &ChannelDefinition, observed: SourceObservation) -> R
             },
         ),
         ChannelSource::SolidColor { .. } => (Some(default_canvas()), ChannelAvailability::Ready),
-        ChannelSource::Picture { asset: None } => (None, ChannelAvailability::Unconfigured),
-        ChannelSource::Picture { asset: Some(_) } => match observed {
+        ChannelSource::Picture { file: None } => (None, ChannelAvailability::Unconfigured),
+        ChannelSource::Picture { file: Some(_) } => match observed {
             SourceObservation::Unavailable => (None, ChannelAvailability::Unavailable),
             SourceObservation::Available(actual) => (Some(actual.extent), ChannelAvailability::Ready),
         },

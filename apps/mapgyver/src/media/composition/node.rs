@@ -18,7 +18,7 @@ pub const PLACEMENT_TYPE: &str = "mapgyver.composition.placement.v2";
     folder(parameters, label = "Parameters") {
         source_channel: NodeReference = NodeReference::empty() (
             label = "Output", description = "Empty follows the first available output.", reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.channel".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.channel.v2".into()]
         );
         position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position");
         scale: Vec2 = Vec2::new(1.0, 1.0) (label = "Scale");

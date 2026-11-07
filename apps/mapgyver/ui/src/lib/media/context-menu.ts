@@ -4,11 +4,11 @@ import type { ChannelMoveDirection } from './generated/ChannelMoveDirection';
 
 export function registerChannelContextMenu() {
 	registerNodeContextMenuContributor('mapgyver.channel-order', {
-		match: ({ node }) => node.node_type === 'mapgyver.media.channel',
+		match: ({ node }) => node.node_type === 'mapgyver.media.channel.v2',
 		items: ({ node, parentNode, session, closeMenu }) => {
 			if (
 				!parentNode?.creatable_user_items?.some(
-					(item) => item.node_type === 'mapgyver.media.channel'
+					(item) => item.node_type === 'mapgyver.media.channel.v2'
 				)
 			)
 				return [];

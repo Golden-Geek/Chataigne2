@@ -93,52 +93,62 @@ export async function verifyMediaParameters({
 	assert.deepEqual(await channel(inputPeer.reference), inputPeer);
 	await page.screenshot({ path: 'target/mapgyver-channel-parameters-ui.png' });
 
-	stage('generic Picture reference and asset File Parameters');
+	stage('generic Picture-owned File Parameters and independent peer');
 	const linked = picture.channels[0];
 	await select(linked.reference);
 	await fields(['File']);
 	assert.equal(await parameter('File').locator('input.path-input').count(), 1);
-	await page.getByRole('button', { name: 'Inspect Picture asset', exact: true }).click();
-	await fields(['File']);
-	const asset = catalog.assets.find((item) => item.id === linked.definition.source.asset);
-	assert(asset);
-	const readAsset = async () => (await inspectMedia()).assets.find((item) => item.id === asset.id);
+	assert.equal(
+		await page.getByRole('button', { name: 'Inspect Picture asset', exact: true }).count(),
+		0
+	);
+	assert.equal(
+		await page.getByRole('button', { name: 'Choose existing Picture asset', exact: true }).count(),
+		0
+	);
+	const readPicture = () => channel(linked.reference);
 	const pathId = await parameter('File').getAttribute('data-node-id');
 	await setText(parameter('File').locator('input.path-input'), 'media/parameter-ui.png');
 	const replacement = await wait(
-		readAsset,
-		(value) => value.locator.path === 'media/parameter-ui.png'
+		readPicture,
+		(value) => value.definition.source.file?.path === 'media/parameter-ui.png'
 	);
 	await undo();
-	await wait(readAsset, (value) => isDeepStrictEqual(value, asset));
+	await wait(readPicture, (value) => isDeepStrictEqual(value, linked));
 	await redo();
-	await wait(readAsset, (value) => isDeepStrictEqual(value, replacement));
+	await wait(readPicture, (value) => isDeepStrictEqual(value, replacement));
 	await setText(parameter('File').locator('input.path-input'), '');
-	await wait(readAsset, (value) => value.locator === null);
+	await wait(readPicture, (value) => value.definition.source.file === null);
 	await fields(['File']);
 	await undo();
-	await wait(readAsset, (value) => isDeepStrictEqual(value, replacement));
+	await wait(readPicture, (value) => isDeepStrictEqual(value, replacement));
 	await fields(['File']);
 	assert.equal(await parameter('File').getAttribute('data-node-id'), pathId);
 	const rejectionCount = rejected.length;
-	stage('generic asset path rejects traversal without document or history mutation');
+	stage('generic Picture path rejects traversal without document or history mutation');
 	await setText(parameter('File').locator('input.path-input'), '../outside.png');
 	await wait(
 		() => rejected.length,
 		(count) => count === rejectionCount + 1
 	);
-	assert.deepEqual(await readAsset(), replacement);
+	assert.deepEqual(await readPicture(), replacement);
 	await parameter('File').locator('input.path-input').press('Escape');
 	await undo();
-	await wait(readAsset, (value) => isDeepStrictEqual(value, asset));
+	await wait(readPicture, (value) => isDeepStrictEqual(value, linked));
 	await redo();
-	await wait(readAsset, (value) => isDeepStrictEqual(value, replacement));
+	await wait(readPicture, (value) => isDeepStrictEqual(value, replacement));
 	const currentPicture = (await inspectMedia()).media.find((media) => media.id === picture.id);
-	assert(
-		currentPicture.channels.every((item) => item.definition.source.asset === asset.id),
-		'Shared Picture references retain the same asset identity'
+	assert.deepEqual(
+		currentPicture.channels[1],
+		picture.channels[1],
+		'Peer File remains independent'
 	);
-	await page.screenshot({ path: 'target/mapgyver-asset-parameters-ui.png' });
+	assert.deepEqual(
+		(await inspectMedia()).assets,
+		catalog.assets,
+		'File writes create no catalog object'
+	);
+	await page.screenshot({ path: 'target/mapgyver-picture-parameters-ui.png' });
 
 	async function canvas(reference, width, height, readCanvas) {
 		const media = (await inspectMedia()).media.find((item) => item.id === reference.media);

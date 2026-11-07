@@ -66,7 +66,10 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
         let fields = parameters(&engine, root);
         assert_eq!(
             fields.len(),
-            if kind == MediaKind::SharedTexture { 7 } else { 6 },
+            match kind {
+                MediaKind::SharedTexture | MediaKind::Picture => 6,
+                _ => 5,
+            },
             "{fields:?}"
         );
         for removed in [
@@ -202,7 +205,7 @@ fn asset_locator_parameters_relink_and_reject_traversal_with_history_and_roundtr
 }
 
 #[test]
-fn one_asset_file_switches_location_and_clears_all_shared_consumers_without_changing_identity() {
+fn explicit_catalog_file_edits_do_not_forward_to_self_contained_picture_channels() {
     let mut engine = fixture();
     let MediaEditResult::AssetCreated { asset } = apply(
         &mut engine,
@@ -222,88 +225,33 @@ fn one_asset_file_switches_location_and_clears_all_shared_consumers_without_chan
     for reference in references {
         apply(
             &mut engine,
-            MediaEdit::ConfigureChannel {
+            MediaEdit::ConfigurePictureFile {
                 reference,
-                source: ChannelSource::Picture { asset: Some(asset) },
+                file: "images/source.png".into(),
             },
         );
     }
+    let original = references.map(|reference| channel(&engine, reference).unwrap());
     let root = engine
         .node_id_by_uuid(golden_core::node::NodeUuid(asset.get()))
         .unwrap();
-    let fields = parameters(&engine, root);
-    assert_eq!(fields.len(), 1);
-    let file = fields["parameters/file"];
-    let uuid = engine.nodes.get(file).unwrap().node_data().meta.uuid;
-    let original = crate::media::asset(&engine, asset).unwrap();
-    let captured = crate::media::capture_channels(&engine, &references, 16).unwrap();
-    let directory = tempfile::tempdir().unwrap();
-    let absolute = directory.path().join("replacement.png").to_str().unwrap().to_owned();
+    let file = parameters(&engine, root)["parameters/file"];
     let history = engine.undo_len();
-    assert!(set(&mut engine, file, ParamValue::File(absolute.clone())).success);
+    assert!(set(&mut engine, file, ParamValue::File("catalog-only.png".into())).success);
     assert_eq!(engine.undo_len(), history + 1);
-    assert!(!captured.is_current());
-    let replacement = crate::media::asset(&engine, asset).unwrap();
-    assert_eq!(
-        replacement.locator,
-        AssetLocator::Absolute {
-            path: absolute.try_into().unwrap()
-        }
-    );
-    assert!(engine.undo().unwrap());
-    assert_eq!(crate::media::asset(&engine, asset).unwrap(), original);
-    assert!(engine.redo().unwrap());
-    assert_eq!(crate::media::asset(&engine, asset).unwrap(), replacement);
-    let active = crate::media::capture_channels(&engine, &references, 16).unwrap();
-    assert_eq!(
-        active.assets.len(),
-        1,
-        "shared channels retain one authoritative source"
-    );
-    assert!(set(&mut engine, file, ParamValue::File(String::new())).success);
-    assert!(!active.is_current());
-    assert!(crate::media::asset(&engine, asset).is_err());
-    let cleared = crate::media::capture_channels(&engine, &references, 16).unwrap();
-    assert!(cleared.assets.is_empty());
-    let cleared_json = to_sparse_project_json_pretty(&engine).unwrap();
-    let cleared_loaded = from_sparse_project_json::<AppNode>(&cleared_json).unwrap();
-    assert!(crate::media::asset(&cleared_loaded, asset).is_err());
-    assert!(
-        cleared_loaded
-            .node_id_by_uuid(golden_core::node::NodeUuid(asset.get()))
-            .is_some()
-    );
-    for reference in references {
-        assert_eq!(
-            channel(&engine, reference).unwrap().definition.source,
-            ChannelSource::Picture { asset: Some(asset) }
-        );
+    for (reference, expected) in references.into_iter().zip(&original) {
+        assert_eq!(channel(&engine, reference).unwrap(), *expected);
     }
-    assert!(engine.undo().unwrap());
-    assert!(!cleared.is_current());
-    apply(
-        &mut engine,
-        MediaEdit::RelinkAsset {
-            asset,
-            locator: original.locator.clone(),
-        },
-    );
-    assert_eq!(parameters(&engine, root), fields);
-    assert_eq!(engine.nodes.get(file).unwrap().node_data().meta.uuid, uuid);
-    assert_eq!(crate::media::asset(&engine, asset).unwrap(), original);
+    assert!(set(&mut engine, file, ParamValue::File(String::new())).success);
+    assert!(crate::media::asset(&engine, asset).is_err());
+    for (reference, expected) in references.into_iter().zip(&original) {
+        assert_eq!(channel(&engine, reference).unwrap(), *expected);
+    }
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     let loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
-    assert_eq!(crate::media::asset(&loaded, asset).unwrap(), original);
-    assert_eq!(
-        parameters(
-            &loaded,
-            loaded
-                .node_id_by_uuid(golden_core::node::NodeUuid(asset.get()))
-                .unwrap()
-        )
-        .len(),
-        1
-    );
+    for (reference, expected) in references.into_iter().zip(&original) {
+        assert_eq!(channel(&loaded, reference).unwrap(), *expected);
+    }
 }
 
 #[test]

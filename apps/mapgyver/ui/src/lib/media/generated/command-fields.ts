@@ -124,7 +124,7 @@ export const COMMAND_PARAMETER_FIELDS = {
   "Picture": [
     "media",
     "channel",
-    "asset"
+    "picture_file"
   ],
   "RelinkAsset": [
     "asset",

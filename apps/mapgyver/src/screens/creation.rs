@@ -157,7 +157,7 @@ fn first_source(context: &UserItemCreationContext<'_>) -> Result<Option<ChannelR
                 let mut next = node.node_data().first_child;
                 while let Some(id) = next {
                     let channel = context.node(id).ok_or("media child is missing")?;
-                    if channel.get_type() == "mapgyver.media.channel" {
+                    if channel.get_type() == "mapgyver.media.channel.v2" {
                         return Ok(Some(ChannelReference {
                             media: MediaId(node.node_data().meta.uuid),
                             channel: ChannelId(channel.node_data().meta.uuid),

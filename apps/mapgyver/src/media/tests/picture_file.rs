@@ -1,8 +1,5 @@
 use super::*;
-use crate::{
-    app::AppNode,
-    media::{asset, channel},
-};
+use crate::{app::AppNode, media::channel};
 use golden_core::{
     app::{ProjectLifecycle, from_sparse_project_json, to_sparse_project_json_pretty},
     node::{Node, NodeUuid},
@@ -17,14 +14,74 @@ fn binding(engine: &mut AppEngine, reference: ChannelReference) -> PictureFileBi
     };
     binding
 }
+fn topology(engine: &AppEngine) -> Vec<(NodeUuid, Option<NodeUuid>)> {
+    let mut nodes = engine
+        .nodes
+        .iter()
+        .map(|(_, node)| {
+            let data = node.node_data();
+            (
+                data.meta.uuid,
+                data.parent
+                    .and_then(|id| engine.nodes.get(id))
+                    .map(|node| node.node_data().meta.uuid),
+            )
+        })
+        .collect::<Vec<_>>();
+    nodes.sort_by_key(|(uuid, _)| uuid.0);
+    nodes
+}
+
+fn persisted_topology(json: &str) -> Vec<(String, Option<String>)> {
+    let project: serde_json::Value = serde_json::from_str(json).unwrap();
+    let mut pending = vec![(&project["root"], None)];
+    let mut result = Vec::new();
+    while let Some((node, parent)) = pending.pop() {
+        let uuid = node["uuid"].as_str().unwrap().to_owned();
+        result.push((uuid.clone(), parent));
+        if let Some(children) = node["children"].as_array() {
+            pending.extend(children.iter().map(|child| (child, Some(uuid.clone()))));
+        }
+    }
+    result.sort();
+    result
+}
 
 #[test]
-fn channel_file_materializes_once_and_forwards_one_real_parameter_across_shared_consumers() {
+fn picture_file_is_an_owned_parameter_and_every_edit_preserves_document_topology_and_exact_history() {
     let mut engine = fixture();
     let reference = create(&mut engine, MediaKind::Picture);
-    let empty = binding(&mut engine, reference);
-    assert!(empty.asset.is_none() && empty.parameter.is_none());
-    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let address = binding(&mut engine, reference).parameter;
+    let shape = topology(&engine);
+    for file in ["images/source.png", "images/relinked.png", ""] {
+        let before = to_sparse_project_json_pretty(&engine).unwrap();
+        let history = engine.undo_len();
+        apply(
+            &mut engine,
+            MediaEdit::ConfigurePictureFile {
+                reference,
+                file: file.into(),
+            },
+        );
+        assert_eq!(engine.undo_len(), history + 1);
+        assert_eq!(topology(&engine), shape);
+        assert_eq!(binding(&mut engine, reference).parameter, address);
+        assert_eq!(
+            engine
+                .nodes
+                .get(address.node)
+                .unwrap()
+                .engine_param_snapshot()
+                .unwrap()
+                .value,
+            ParamValue::File(file.into())
+        );
+        let after = to_sparse_project_json_pretty(&engine).unwrap();
+        assert!(engine.undo().unwrap());
+        assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+        assert!(engine.redo().unwrap());
+        assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), after);
+    }
     let history = engine.undo_len();
     apply(
         &mut engine,
@@ -34,115 +91,106 @@ fn channel_file_materializes_once_and_forwards_one_real_parameter_across_shared_
         },
     );
     assert_eq!(engine.undo_len(), history);
-    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
-    apply(
-        &mut engine,
-        MediaEdit::ConfigurePictureFile {
-            reference,
-            file: "images/source.png".into(),
-        },
-    );
-    assert_eq!(engine.undo_len(), history + 1);
-    let configured = binding(&mut engine, reference);
-    let id = configured.asset.unwrap();
-    let address = configured.parameter.as_ref().unwrap();
-    let parameter = engine.nodes.get(address.node).unwrap();
-    assert_eq!(parameter.node_data().meta.uuid, address.uuid);
-    assert_eq!(
-        parameter.engine_param_snapshot().unwrap().value,
-        ParamValue::File("images/source.png".into())
-    );
-    assert!(engine.undo().unwrap());
-    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
-    assert!(engine.redo().unwrap());
-    let peer = create(&mut engine, MediaKind::Picture);
-    apply(
-        &mut engine,
-        MediaEdit::ConfigureChannel {
-            reference: peer,
-            source: ChannelSource::Picture { asset: Some(id) },
-        },
-    );
-    assert_eq!(binding(&mut engine, peer).parameter, configured.parameter);
-    apply(
-        &mut engine,
-        MediaEdit::ConfigurePictureFile {
-            reference: peer,
-            file: "images/shared.png".into(),
-        },
-    );
-    assert_eq!(binding(&mut engine, reference).asset, Some(id));
-    assert_eq!(
-        asset(&engine, id).unwrap().locator,
-        AssetLocator::ProjectRelative {
-            path: "images/shared.png".to_owned().try_into().unwrap()
-        }
-    );
-    apply(
-        &mut engine,
-        MediaEdit::ConfigurePictureFile {
-            reference,
-            file: String::new(),
-        },
-    );
-    assert!(asset(&engine, id).is_err());
-    assert_eq!(binding(&mut engine, peer).asset, Some(id));
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
-    assert_eq!(binding(&mut loaded, reference).parameter.unwrap().uuid, address.uuid);
+    assert_eq!(binding(&mut loaded, reference).parameter.uuid, address.uuid);
+    assert_eq!(loaded.nodes.len(), shape.len());
+    // Golden rematerializes default declared children and places Parameters
+    // before user items on load. Authored identities/parents must still match.
     assert_eq!(
-        channel(&loaded, peer).unwrap().definition.source,
-        ChannelSource::Picture { asset: Some(id) }
+        persisted_topology(&to_sparse_project_json_pretty(&loaded).unwrap()),
+        persisted_topology(&saved)
     );
+    assert_eq!(
+        crate::media::catalog::inspect(&loaded),
+        crate::media::catalog::inspect(&engine)
+    );
+    assert!(crate::media::catalog::inspect(&loaded).unwrap().assets.is_empty());
 }
 
 #[test]
-fn channel_file_rejections_are_atomic_and_deleted_asset_replacement_is_undoable() {
+fn picture_file_parameters_are_independent_and_generic_edits_share_the_same_authority_and_validation() {
     let mut engine = fixture();
-    let picture = create(&mut engine, MediaKind::Picture);
-    let solid = create(&mut engine, MediaKind::SolidColor);
-    for (reference, file) in [(picture, "../escape.png"), (solid, "image.png")] {
-        let saved = to_sparse_project_json_pretty(&engine).unwrap();
-        let history = engine.undo_len();
-        assert!(
-            !invoke(
-                &mut engine,
-                MediaEdit::ConfigurePictureFile {
-                    reference,
-                    file: file.into()
-                }
-            )
-            .success
-        );
+    let first = create(&mut engine, MediaKind::Picture);
+    let second = create(&mut engine, MediaKind::Picture);
+    apply(
+        &mut engine,
+        MediaEdit::ConfigurePictureFile {
+            reference: first,
+            file: "source.png".into(),
+        },
+    );
+    let source = channel(&engine, first).unwrap().definition.source;
+    apply(
+        &mut engine,
+        MediaEdit::ConfigureChannel {
+            reference: second,
+            source: source.clone(),
+        },
+    );
+    let first_file = binding(&mut engine, first).parameter;
+    let second_file = binding(&mut engine, second).parameter;
+    assert_ne!(first_file.uuid, second_file.uuid);
+    let shape = topology(&engine);
+    let history = engine.undo_len();
+    assert!(
+        apply_project_intent(
+            &mut engine,
+            UiEditIntent::SetParam {
+                node: second_file.node,
+                value: ParamValue::File("independent.png".into()),
+                behaviour: golden_core::parameter::ParameterEventBehaviour::Append,
+            }
+        )
+        .success
+    );
+    assert_eq!(engine.undo_len(), history + 1);
+    assert_eq!(channel(&engine, first).unwrap().definition.source, source);
+    assert_eq!(
+        channel(&engine, second).unwrap().definition.source,
+        ChannelSource::Picture {
+            file: Some(crate::media::assets::parse_file("independent.png").unwrap().unwrap())
+        }
+    );
+    assert_eq!(topology(&engine), shape);
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    for intent in [
+        UiEditIntent::SetParam {
+            node: second_file.node,
+            value: ParamValue::File("../escape.png".into()),
+            behaviour: golden_core::parameter::ParameterEventBehaviour::Append,
+        },
+        UiEditIntent::InvokeAppOperation {
+            namespace: MEDIA_NAMESPACE.into(),
+            operation: MEDIA_OPERATION.into(),
+            payload: serde_json::to_value(MediaEdit::ConfigurePictureFile {
+                reference: second,
+                file: "../escape.png".into(),
+            })
+            .unwrap(),
+        },
+    ] {
+        assert!(!apply_project_intent(&mut engine, intent).success);
         assert_eq!(engine.undo_len(), history);
-        assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+        assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
     }
-    apply(
-        &mut engine,
-        MediaEdit::ConfigurePictureFile {
-            reference: picture,
-            file: "first.png".into(),
-        },
+    let solid = create(&mut engine, MediaKind::SolidColor);
+    assert!(
+        !invoke(
+            &mut engine,
+            MediaEdit::ConfigurePictureFile {
+                reference: solid,
+                file: "source.png".into()
+            }
+        )
+        .success
     );
-    let first = binding(&mut engine, picture).asset.unwrap();
-    apply(&mut engine, MediaEdit::RemoveAsset { asset: first });
-    let missing = binding(&mut engine, picture);
-    assert_eq!(missing.asset, Some(first));
-    assert!(missing.parameter.is_none());
-    apply(
-        &mut engine,
-        MediaEdit::ConfigurePictureFile {
-            reference: picture,
-            file: "replacement.png".into(),
-        },
-    );
-    let replacement = binding(&mut engine, picture).asset.unwrap();
-    assert_ne!(replacement, first);
-    assert!(engine.undo().unwrap());
-    assert_eq!(binding(&mut engine, picture), missing);
-    assert!(engine.node_id_by_uuid(NodeUuid(replacement.get())).is_none());
-    assert!(engine.undo().unwrap());
-    assert!(asset(&engine, first).is_ok());
+    assert!(serde_json::from_value::<ChannelSource>(serde_json::json!({"kind":"Picture","asset":null})).is_err());
+    let old = to_sparse_project_json_pretty(&engine)
+        .unwrap()
+        .replace("mapgyver.media.channel.v2", "mapgyver.media.channel");
+    assert!(from_sparse_project_json::<AppNode>(&old).is_err());
 }
 
 #[test]

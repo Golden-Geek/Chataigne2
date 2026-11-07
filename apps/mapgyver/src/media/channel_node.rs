@@ -7,20 +7,20 @@ use golden_core::{
     node::{
         Node, NodeId, NodeReference, ParameterHandle, ParameterValidationContext, UserContainerRules, UserCreatableItem,
     },
-    parameter::{Color, Enum, ParamValue, ParameterEventBehaviour, ReferenceTargetKind},
+    parameter::{Color, Enum, File, ParamValue, ParameterEventBehaviour, ReferenceTargetKind},
     process_ctx::ProcessCtx,
 };
 use golden_io::{RevisionGuard, RevisionSource};
 
 use std::sync::OnceLock;
 
-#[node("mapgyver.media.channel", label = "Channel", collapsed = false)]
+#[node("mapgyver.media.channel.v2", label = "Channel", collapsed = false)]
 #[children(
     folder(parameters, label = "Parameters") {
         source_kind: Enum = "SolidColor" (label = "Source kind", read_only = true, persist_read_only_value = true,
             enum_options = crate::parameters::enum_options(&["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix"]));
         rgba: Color = Color::new(1.0, 1.0, 1.0, 1.0) [0.0..1.0] (label = "Color", description = "Straight linear-light RGBA.", constraint_policy = "reject");
-        asset: NodeReference = NodeReference::empty() (label = "Picture asset", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec![crate::media::protocol::ASSET_NODE_TYPE.into()]);
+        file: File = File::default() (label = "File", description = "This Picture channel's project-relative or native absolute source path.", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Picture);
         sender: String = String::new() (label = "Spout sender");
         sender_choice: Enum = "" (label = "Sender", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::SharedTexture,
             enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
@@ -85,12 +85,10 @@ impl ChannelNode {
                     Color::new(rgba[0].into(), rgba[1].into(), rgba[2].into(), rgba[3].into())
                 );
             }
-            ChannelSource::Picture { asset } => {
+            ChannelSource::Picture { file } => {
                 seed!(
-                    asset,
-                    asset.map_or_else(NodeReference::empty, |id| NodeReference::new(
-                        golden_core::node::NodeUuid(id.get())
-                    ))
+                    file,
+                    File::new(file.as_ref().map(super::assets::locator_path).unwrap_or_default())
                 );
             }
             ChannelSource::Composition { .. } => {}
@@ -144,8 +142,7 @@ impl ChannelNode {
         let settings = media.matrix_settings();
         let source = match self.source_kind.get_ref().as_str() {
             "Picture" => ChannelSource::Picture {
-                asset: (!self.asset.get_ref().uuid.0.is_nil())
-                    .then(|| golden_assets::AssetId::from_uuid(self.asset.get_ref().uuid.0)),
+                file: super::assets::parse_file(self.file.get_ref().as_str()).expect("validated Picture File"),
             },
             "Composition" => ChannelSource::Composition { canvas },
             "SharedTexture" => ChannelSource::Spout {
@@ -194,11 +191,14 @@ impl ChannelNode {
                 self.rgba.id(),
                 ParamValue::Color(rgba[0].into(), rgba[1].into(), rgba[2].into(), rgba[3].into()),
             )),
-            ChannelSource::Picture { asset } => values.push((
-                self.asset.id(),
-                ParamValue::Reference(asset.map_or_else(NodeReference::empty, |id| {
-                    NodeReference::new(golden_core::node::NodeUuid(id.get()))
-                })),
+            ChannelSource::Picture { file } => values.push((
+                self.file.id(),
+                ParamValue::File(
+                    file.as_ref()
+                        .map(super::assets::locator_path)
+                        .unwrap_or_default()
+                        .to_owned(),
+                ),
             )),
             ChannelSource::Reference { .. } | ChannelSource::Composition { .. } | ChannelSource::Matrix { .. } => {
                 return Err("derived outputs have no authored channel settings".into());
@@ -227,6 +227,9 @@ impl ChannelNode {
         let reader = self.revision.reader();
         reader.guard_at(reader.current())
     }
+    pub(super) fn file_parameter(&self) -> NodeId {
+        self.file.id()
+    }
     pub(crate) fn matrix_playback(&self) -> Option<&crate::matrix::playback::PlaybackControl> {
         (self.source_kind.get_ref().as_str() == "Matrix" && self.output_kind.get_ref().as_str() == "Final")
             .then(|| self.matrix_playback.get_or_init(Default::default))
@@ -239,7 +242,7 @@ impl ChannelNode {
         }
     }
 }
-#[node("mapgyver.media.channel", from_struct)]
+#[node("mapgyver.media.channel.v2", from_struct)]
 impl Node for ChannelNode {
     fn needs_update(&self) -> bool {
         false
@@ -270,7 +273,7 @@ impl Node for ChannelNode {
         if [
             self.source_kind.id(),
             self.rgba.id(),
-            self.asset.id(),
+            self.file.id(),
             self.sender.id(),
             self.output_kind.id(),
             self.output_item.id(),
@@ -322,6 +325,7 @@ impl Node for ChannelNode {
         crate::parameters::reject_opaque(data)
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
+        super::assets::parse_file(self.file.get_ref().as_str())?;
         for (value, allowed) in [
             (
                 self.source_kind.get_ref().as_str(),
@@ -356,6 +360,11 @@ impl Node for ChannelNode {
     }
 
     fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
+        if change.parameter == self.file.id()
+            && let ParamValue::File(path) = change.value
+        {
+            super::assets::parse_file(path)?;
+        }
         for (id, current) in [
             (
                 self.source_kind.id(),
