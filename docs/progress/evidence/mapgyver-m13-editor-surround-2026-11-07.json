@@ -43,6 +43,16 @@
 		"Initial broad strict invocation omitted golden_video/qualification; native test references require the feature-gated readback API. Corrected explicit feature invocation passes; no product API workaround added.",
 		"First browser expectation used fallback#252525 although the real fixture imports Golden's current#1f2021 panel token. Corrected assertion to actual declared theme, then reran the suite successfully."
 	],
+	"prepared_desktop_scenes": {
+		"date": "2026-11-08",
+		"fixture": "apps/mapgyver/tests/browser/prepare-editor-surround.mjs",
+		"artifact": "target/m1313-surround-scenes-ZzsPLI/prepared.json",
+		"receipt": "target/m1313-surround-scenes-final-20261108.log",
+		"result": "Software preparation passes, terminal exit0 and normal owned host shutdown. Three small half-alpha/opaque/missing projects each pass exact Save/New/Load comparison of Screen target, Surface geometry/binding and source Channel definition/absence. Screen/Surface/source UUIDs and unique Spout sender remain fixed across states; no timed desktop window is left running.",
+		"geometry": "800x600 source/output; binary-exact crop[0.25,0.25,0.5,0.5] and quad[0.25,0.25] through[0.75,0.75]. Source is red at alpha0.5 or1; missing state preserves the explicit authored source UUID. Each project is under14KiB.",
+		"corrections": "Initial preparation scripts used the wrong InspectScreen reply projection and decimal f64 coordinates compared with returned f32 values. Corrected to its generated definition result and binary-exact quarter landmarks. Failed receipts remain target/m1313-surround-scenes-preparation-20261108.log and target/m1313-surround-scenes-prepared-20261108.log; no product defect or native experiment is inferred.",
+		"limits": "Prepared projects only; no new native image, desktop input, timing, output-pixel or full-gate acceptance. Existing two native experiments/eight images retain their scope."
+	},
 	"remaining": "Full M13/13 acceptance still requires actual desktop pixels/clipping on both GPUs through Screen Warping and Surface Source pan/zoom/resize, missing sources, alpha, theme/scale, docking and project transitions, with bounds/imagery/overlays/hits aligned and unchanged output pixels.",
 	"blocker": "Owned-window desktop input remains stopped after physical Escape. No CDP input bypass was used. Two native experiments, including the failed baseline, are complete; no further native probe in this batch.",
 	"return_trigger": "User resumes owned-window input; run the remaining actual-app desktop transition cases using this implementation and existing native capture tools. Do not rerun unchanged standalone probes as a prerequisite.",
