@@ -3,16 +3,19 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Clone)]
-pub(super) struct Budget(Arc<State>);
+pub(in crate::native) struct Budget(Arc<State>);
 struct State {
     limit: u64,
     used: AtomicU64,
 }
-pub(super) struct Lease {
+pub(in crate::native) struct Lease {
     budget: Budget,
     bytes: u64,
 }
 impl Budget {
+    pub fn used(&self) -> u64 {
+        self.0.used.load(Ordering::Acquire)
+    }
     pub fn new(limit: u64) -> Self {
         Self(Arc::new(State {
             limit,

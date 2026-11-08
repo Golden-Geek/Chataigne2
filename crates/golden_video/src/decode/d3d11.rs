@@ -29,6 +29,23 @@ pub struct D3d11Frame {
     _local: PhantomData<Rc<()>>,
 }
 impl D3d11Frame {
+    pub(crate) fn retain(&self) -> Result<Self, DecodeError> {
+        // Video::clone copies planes. av_frame_ref instead retains the hardware pool lease.
+        let mut frame = ffmpeg::frame::Video::empty();
+        let result = unsafe { ffmpeg::ffi::av_frame_ref(frame.as_mut_ptr(), self.frame.as_ptr()) };
+        if result < 0 {
+            return Err(ffmpeg::Error::from(result).into());
+        }
+        Ok(Self {
+            texture: self.texture.clone(),
+            slice: self.slice,
+            extent: self.extent,
+            storage: self.storage,
+            adapter: self.adapter,
+            frame,
+            _local: PhantomData,
+        })
+    }
     /// Exact observed adapter LUID, checked against the requested adapter on every frame.
     pub fn adapter(&self) -> AdapterId {
         self.adapter

@@ -41,10 +41,34 @@ These per-pool bounds do not replace the caller's budget across retained old poo
 and retains the actual FFmpeg frame, not just a COM texture reference: the frame lease prevents
 the decoder from reusing that pool slice. Old frames therefore remain independently owned
 across codec replacement and decoder shutdown. Software conversion rejects hardware storage;
-only qualification tests copy/map it for independent luma checks. Current-device failures are
-reported for withdrawal/reopen. The app still selects software until native GPU conversion,
-synchronized publication/import and generation/budget recovery are integrated. Hardware
-decoder tests alone do not establish hardware playback in MapGyver.
+only qualification tests map/read back pixels for independent luma checks. Current-device failures are
+reported for withdrawal/reopen. Hardware decoder tests alone do not establish hardware playback
+in MapGyver.
+
+Golden's `GpuFramePublisher` now converts decoded NV12/P010 storage on that same device and
+publishes completed RGBA images through `GpuFrameStream`. It copies only on the GPU into a
+sampleable plane texture, then applies supported BT.709 matrix, full/limited range and
+BT.709/sRGB/linear transfer metadata. Unsupported interpretation is rejected. The three fixed
+NT/keyed-mutex slots carry encoded sRGB/straight-alpha RGB into the ordinary render plan through
+`ExternalSource::GpuFrames`; CPU image streams remain separate and unchanged.
+
+Submit retains an actual FFmpeg frame reference through GPU completion. Poll never waits and
+returns only completed images; the media owner must validate its source/clock epoch before
+publishing. Busy conversion or held slots retain the previous image. Drop drains real completion
+or confirmed removal on the file worker and withdraws its stream. Source faults and released
+slots wake that worker, with availability notification following strong-lease release.
+
+The renderer acquires a nonblocking import lease before queuing the copy and retains it through
+the matching render completion. Shared image and imported-view lifetimes both retain admission,
+so closing a producer/NT handle cannot return its budget while another worker still owns the
+allocation. Unused imports are pruned, and plan generations reuse their admitted target texture.
+`GpuFrameBudget` bounds conversion/bridge storage across producers and retained observers;
+the decoder's separate frame pools and renderer targets still need their own admission.
+
+The app remains on software until File workers bind this native path with complete decoder-pool
+and generation budgets, shared-clock publication fencing, selected-adapter recovery and explicit
+software fallback. The common renderer mechanism is ready; app hardware playback and sustained
+performance remain unqualified.
 
 The [pinned dependency helper](../../tools/mapgyver/ffmpeg/README.md) verifies the exact Windows
 shared LGPL archive and establishes only process-local build/runtime paths. Packet/image/work
@@ -168,5 +192,5 @@ DLL directory on `PATH`. Tiny clips establish functional checkpoints, not sustai
 physical panel/cadence qualification.
 
 Default feature/redistribution wiring, broader actual-app visual qualification, complete profile/color/alpha coverage,
-GPU-resident D3D11 hardware frames, HAP and sustained recovery/resource/performance acceptance
+complete app integration/qualification of GPU-resident D3D11 frames, HAP and sustained recovery/resource/performance acceptance
 remain required by M10. The implemented software path does not close a codec acceptance gate.

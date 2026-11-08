@@ -173,6 +173,9 @@ pub enum ExternalSource {
     Image(golden_assets::PreparedAsset<crate::image::ImageData>),
     /// Fixed-descriptor latest software frames; native storage is reused across publications.
     Frames(crate::image::ImageStream),
+    /// Completed immutable GPU bridge images; native interfaces stay on their workers.
+    #[cfg(all(windows, feature = "d3d11"))]
+    GpuFrames(crate::native::GpuFrameStream),
 }
 
 impl ExternalSource {
@@ -181,6 +184,8 @@ impl ExternalSource {
         match self {
             Self::Spout(source) => Some(source),
             Self::Image(_) | Self::Frames(_) => None,
+            #[cfg(all(windows, feature = "d3d11"))]
+            Self::GpuFrames(_) => None,
         }
     }
 
@@ -189,6 +194,8 @@ impl ExternalSource {
             Self::Spout(_) => true,
             Self::Image(image) => image.is_current(),
             Self::Frames(_) => true,
+            #[cfg(all(windows, feature = "d3d11"))]
+            Self::GpuFrames(_) => true,
         }
     }
 
@@ -197,6 +204,8 @@ impl ExternalSource {
             Self::Spout(source) => source.sender.capacity(),
             Self::Image(image) => image.retained_bytes(),
             Self::Frames(stream) => stream.retained_bytes(),
+            #[cfg(all(windows, feature = "d3d11"))]
+            Self::GpuFrames(stream) => stream.retained_bytes(),
         }
     }
 }

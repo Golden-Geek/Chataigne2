@@ -61,6 +61,12 @@ pub(super) fn compile(
                 return Err(PlanError::InvalidSourceBinding(texture.id));
             }
             Some(ExternalSource::Image(_) | ExternalSource::Frames(_)) | None => {}
+            #[cfg(all(windows, feature = "d3d11"))]
+            Some(ExternalSource::GpuFrames(stream)) => {
+                if stream.descriptor() != texture.descriptor {
+                    return Err(PlanError::InvalidSourceBinding(texture.id));
+                }
+            }
         }
         insert_resource(&mut resources, texture.id, Writer::External, bytes)?;
     }

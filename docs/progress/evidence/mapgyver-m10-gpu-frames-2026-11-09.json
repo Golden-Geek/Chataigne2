@@ -1,0 +1,41 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/1 Active; shared native GPU frame handoff implemented and functionally verified; app hardware selection remains open",
+	"progress": { "accepted": 83, "total": 102, "percent": 81, "m10_accepted": 0, "m10_total": 4 },
+	"batch": { "started_utc": "2026-11-08 22:30", "cutoff_utc": "2026-11-08 23:15", "native_experiments": 2 },
+	"deliverable": "Golden converts resident decoded NV12/P010 frames into completed shared RGBA images and imports them into the existing renderer with exact-device checks, bounded slots, backpressure and completion-retained ownership. Production paths perform no hardware-to-CPU transfer/readback.",
+	"architecture": "docs/architecture/mapgyver-video.md",
+	"ownership": {
+		"producer": "GpuFramePublisher prepares one sampleable plane texture, fixed shader/uniforms and three NT/keyed-mutex slots. One conversion may be pending. It retains an actual FFmpeg AVFrame reference until the copy/conversion query completes; FFmpeg Video::clone is not used. submit rejects changed device/adapter/extent/storage/interpretation. poll never waits and returns only completed images.",
+		"stream": "GpuFrameStream retains one latest immutable GpuImage; no frame queue grows. Its adapter and descriptor are fixed. replace returns displaced ownership so an app can fence publication under its shared clock/source lock, then close old handles outside that lock. Publisher drop withdraws and drains actual completion or confirmed removal on the source worker.",
+		"consumer": "ExternalSource::GpuFrames uses the ordinary native target/plan path. Nonblocking imports acquire ownership before queuing the copy, and ReadLease is stored before GPU commands. Matching renderer completion releases readers; unsupported cross-adapter bindings fail. Imported COM views and strong image leases both retain the admitted allocation. Stale imports are pruned, and release wakes follow strong slot-lease disposal.",
+		"budget": "GpuFrameBudget reuses the native atomic admission primitive. It bounds one conversion image, three bridge images and16 uniform bytes across producers and retired observers. Decoder pools, renderer targets, driver overhead and complete app/global generation admission remain separate; their budgets are not claimed here.",
+		"interpretation": "Supported BT.709 matrix with full/limited range and BT.709, sRGB or linear transfer; RGBA8 sRGB/straight-alpha output. Unsupported file interpretation is typed. Existing Spout interpretation-zero behavior is preserved."
+	},
+	"software": {
+		"command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 test --locked -p MapGyver -p golden_video --lib --features MapGyver/video-files,golden_video/ffmpeg,golden_video/qualification --quiet",
+		"app": { "passed": 611, "failed": 0, "ignored": 2, "exit": 0 },
+		"golden": { "passed": 262, "failed": 0, "ignored": 57, "exit": 0 },
+		"affected": "After final lease/import/wake ordering changes, native:: selection passes86 tests with56 ignored, exit0. The final small replace/device-identity refinements receive focused frame tests and strict compilation; broad unchanged app results are reused.",
+		"strict": "Combined app/Golden --lib --tests video-files/ffmpeg/qualification strict Clippy, default app strict Clippy and ffmpeg-only Golden strict Clippy pass. Root and golden_core Cargo formatting completed. No protocol/TypeScript declarations change.",
+		"initial_repairs": "Compile checks caught two metadata-only Surface fixtures missing their new optional lease, invalid Rust fractional literals in the new oracle, and a Clippy div_ceil suggestion. These were fixed before native execution; no hardware experiment ran on a known failing software prerequisite."
+	},
+	"native": {
+		"prerequisites": "Current software suites and strict results inspected before each cohort. No desktop manipulation, monitor changes or driver reset.",
+		"gpu_streams": {
+			"filter": "native::backend::tests::images::gpu_streams -- --ignored --nocapture --test-threads=1",
+			"passed": 2, "failed": 0, "exit": 0, "seconds": 60.17,
+			"coverage": "Both Intel(R) Graphics and NVIDIA GeForce RTX5080 Laptop GPU:72 synthetic plane/range/transfer/luma cases across NV12/P010, full/limited, BT.709/sRGB/linear, black/mid/white. Native renderer output readbacks meet the existing4/255 linear component budget, alpha is255, repeated frames reuse admitted renderer storage, and withdrawal returns zero pixels.",
+			"retirement": "Each GPU passes fixed-three-slot saturation/reuse, held-image admission after producer drop and return to zero. A real render use with completion observation withheld retains allocation after source teardown; releasing matching completion and pruning imports returns budget to zero. No timeout is treated as retirement.",
+			"actual_file": "All six actual Intel H.264 frames pass decoder-to-GPU-converter-to-shared-image-to-renderer without CPU conversion. The caller's decoded frame is dropped before polling conversion completion. BT.2020 and PQ files are rejected before bridge admission; no blanket support claim for those interpretations."
+		},
+		"existing_video_regression": {
+			"filter": "native::inputs::tests::video -- --ignored --nocapture --test-threads=1",
+			"passed": 3, "failed": 0, "exit": 0, "seconds": 72.56,
+			"coverage": "Existing packed, paired and planar native-source groups pass their available-layout precision/alpha/storage cases on both GPUs with unchanged1e-6 comparisons.",
+			"unaccepted": "The fixture explicitly reports NVIDIA native format105 (P016) SDK shared allocation unavailable, HRESULT-2147024809. That case remains unaccepted in the existing format return scope; a passing aggregate test does not qualify it."
+		},
+		"reuse_limits": "The final release-wake ordering, displaced-handle return API and same-device submit guard are compiler/software checked; unchanged conversion/copy/completion proof is reused rather than running a third native experiment. App integration qualification still has to exercise the full caller path."
+	},
+	"remaining": "Bind this mechanism in MapGyver File workers with complete FFmpeg decoder-pool/generation admission, selected-GPU recovery, explicit software fallback and shared-clock publication/step fences. Complete supported NVIDIA/HEVC/P010 decode/profile and app/caller/color/alpha/default acceptance. Earlier initialization failures remain in the decoder receipt and are not replaced by synthetic conversion passes. Then HAP and bundled first-pass qualification precede M14. No full M10 gate closes."
+}

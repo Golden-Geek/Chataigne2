@@ -16,6 +16,7 @@ fn surface(descriptor: TextureDescriptor) -> Arc<Surface> {
         index: 0,
         descriptor,
         storage_descriptor: descriptor,
+        _lease: None,
     })
 }
 

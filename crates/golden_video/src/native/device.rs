@@ -180,6 +180,22 @@ impl Drop for Device {
 }
 
 impl Device {
+    #[cfg(feature = "ffmpeg")]
+    pub(super) fn from_existing(device: ID3D11Device, adapter: AdapterId) -> Result<Self> {
+        use windows::Win32::Graphics::Dxgi::IDXGIDevice;
+        use windows::core::Interface;
+        let context = unsafe { device.GetImmediateContext()? };
+        let desc = unsafe { device.cast::<IDXGIDevice>()?.GetAdapter()?.GetDesc()? };
+        if desc.AdapterLuid.LowPart != adapter.low || desc.AdapterLuid.HighPart != adapter.high {
+            return Err(Error::from_hresult(DXGI_ERROR_UNSUPPORTED));
+        }
+        Ok(Self {
+            device,
+            context,
+            adapter,
+            _local: PhantomData,
+        })
+    }
     pub(super) fn new(id: AdapterId) -> Result<Self> {
         // SAFETY: exact LUID selection on a live factory, with no WARP/adapter fallback.
         let factory: IDXGIFactory1 = unsafe { CreateDXGIFactory1()? };

@@ -34,6 +34,7 @@ struct NativeState {
     #[cfg(all(test, feature = "qualification"))]
     copy_tap: Option<tests::copy_tap::Tap>,
     textures: resources::TextureCache,
+    gpu_uses: Vec<(u64, super::frames::ReadLease)>,
     timing: Option<GpuTiming>,
     inputs: SourcePool,
     outputs: OutputPool,
@@ -80,6 +81,7 @@ pub(crate) struct D3d11Resources {
     presented_regions: BTreeMap<OutputId, Vec<crate::plan::RegionPlacement>>,
     input_sequences: BTreeMap<TextureId, Cell<Option<CopyFrame>>>,
     stream_sequences: BTreeMap<TextureId, Cell<Option<u64>>>,
+    gpu_imports: RefCell<super::frames::Imports>,
     canvas_images: BTreeMap<usize, Rc<Texture>>,
     _demands: Option<SourceDemands>,
 }
@@ -134,6 +136,9 @@ impl D3d11Backend {
             }
             Some(ExternalSource::Image(image)) => image.value().descriptor() != external.descriptor,
             Some(ExternalSource::Frames(stream)) => stream.descriptor() != external.descriptor,
+            Some(ExternalSource::GpuFrames(stream)) => {
+                stream.descriptor() != external.descriptor || stream.adapter() != self.config.adapter
+            }
             None => true,
         }) {
             self.control
@@ -216,6 +221,7 @@ impl D3d11Backend {
                 #[cfg(all(test, feature = "qualification"))]
                 copy_tap: tests::copy_tap::Tap::new(&device, self.control.copy_tap.clone())?,
                 textures: resources::TextureCache::new(self.control.texture_allocations.clone()),
+                gpu_uses: Vec::new(),
                 timing,
                 inputs,
                 outputs,
@@ -541,6 +547,41 @@ impl D3d11Backend {
         let pipeline = &native.pipeline;
         pipeline.begin_frame(time);
         for external in plan.external_textures().iter().filter(|_| !presentation_only) {
+            if let Some(ExternalSource::GpuFrames(stream)) = &external.source {
+                resources.gpu_imports.borrow_mut().prune();
+                let sequence = &resources.stream_sequences[&external.id];
+                let target = &resources.textures[&external.id];
+                if sequence.get().is_none() {
+                    unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
+                }
+                if let Some(sample) = stream.sample()
+                    && sequence.get() != Some(sample.sequence)
+                {
+                    if let Some(image) = sample.image {
+                        match resources
+                            .gpu_imports
+                            .borrow_mut()
+                            .acquire(&native.device, target, image.clone())
+                        {
+                            Ok(Some(reader)) => {
+                                native.gpu_uses.push((token.serial, reader));
+                                native.gpu_uses.last().unwrap().1.copy_to(&native.device, target);
+                                sequence.set(Some(sample.sequence));
+                            }
+                            Ok(None) => {} // Zero-timeout contention retains the prior image.
+                            Err(error) => {
+                                image.fail(error.code().0);
+                                unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
+                                sequence.set(Some(sample.sequence));
+                            }
+                        }
+                    } else {
+                        unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
+                        sequence.set(Some(sample.sequence));
+                    }
+                }
+                continue;
+            }
             if let Some(ExternalSource::Frames(stream)) = &external.source {
                 let sequence = &resources.stream_sequences[&external.id];
                 let target = &resources.textures[&external.id];
@@ -843,6 +884,7 @@ impl D3d11Backend {
         #[cfg(all(test, feature = "qualification"))]
         let completed = self.control.completion_gate.observe(completed);
         native.inputs.retire(completed.serial);
+        native.gpu_uses.retain(|(serial, _)| *serial > completed.serial);
         native.outputs.retire(completed.serial);
         if let Some(timing) = &mut native.timing {
             timing.poll(&native.device.context, completed);

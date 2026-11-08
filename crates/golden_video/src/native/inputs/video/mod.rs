@@ -1,6 +1,6 @@
 //! Native video storage and plane views are distinct from the sampled RGB image contract.
 mod decoder;
-pub(super) use decoder::Decoder;
+pub(in crate::native) use decoder::Decoder;
 
 use super::super::device::Device;
 use crate::{Extent2D, TextureDescriptor, TextureError};

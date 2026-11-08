@@ -10,14 +10,15 @@ use super::super::texture::{Texture, format};
 use crate::TextureDescriptor;
 
 /// Only immutable identity and a retained NT handle cross workers, never COM resources.
-pub(super) struct Surface {
+pub(in crate::native) struct Surface {
     pub handle: OwnedHandle,
     pub index: usize,
     pub descriptor: TextureDescriptor,
     pub storage_descriptor: TextureDescriptor,
+    pub(in crate::native) _lease: Option<Arc<super::budget::Lease>>,
 }
 
-pub(super) struct Slot {
+pub(in crate::native) struct Slot {
     pub surface: Arc<Surface>,
     pub texture: Texture,
     pub mutex: IDXGIKeyedMutex,
@@ -25,6 +26,14 @@ pub(super) struct Slot {
 
 impl Slot {
     pub fn new(device: &Device, descriptor: TextureDescriptor, index: usize) -> Result<Self> {
+        Self::new_leased(device, descriptor, index, None)
+    }
+    pub fn new_leased(
+        device: &Device,
+        descriptor: TextureDescriptor,
+        index: usize,
+        lease: Option<Arc<super::budget::Lease>>,
+    ) -> Result<Self> {
         let storage_descriptor = super::conversion::bridge_descriptor(descriptor);
         let mut texture = None;
         // SAFETY: fixed admitted storage, one level/sample, explicit NT/keyed-mutex sharing.
@@ -61,6 +70,7 @@ impl Slot {
                 index,
                 descriptor,
                 storage_descriptor,
+                _lease: lease,
             }),
         })
     }
@@ -73,7 +83,7 @@ impl Slot {
     }
 }
 
-pub(super) fn acquire(mutex: &IDXGIKeyedMutex, key: u64) -> Result<bool> {
+pub(in crate::native) fn acquire(mutex: &IDXGIKeyedMutex, key: u64) -> Result<bool> {
     // SAFETY: zero timeout on a retained interface. Inspect exact HRESULT because positive
     // WAIT_TIMEOUT/WAIT_ABANDONED are erased by windows-rs Result<()>.
     let result = unsafe { (Interface::vtable(mutex).AcquireSync)(Interface::as_raw(mutex), key, 0) };

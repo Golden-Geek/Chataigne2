@@ -11,14 +11,19 @@ use super::super::{device::Device, texture::Texture};
 use super::shared::Shared;
 use super::surface::{Surface, acquire};
 
-pub(super) struct Imported {
+pub(in crate::native) struct Imported {
     pub texture: Texture,
     conversion: Option<super::conversion::Converter>,
-    mutex: IDXGIKeyedMutex,
+    pub(in crate::native) mutex: IDXGIKeyedMutex,
     surface: Weak<Surface>,
+    // Release native views/texture before returning admission, even after the NT handle closes.
+    _lease: Option<Arc<super::budget::Lease>>,
 }
 
 impl Imported {
+    pub(in crate::native) fn alive(&self) -> bool {
+        self.surface.strong_count() != 0
+    }
     pub fn open(device: &Device, surface: &Arc<Surface>) -> Result<Self> {
         let device1: ID3D11Device1 = device.device.cast()?;
         // SAFETY: this strong surface keeps its owned NT handle alive through import.
@@ -30,6 +35,7 @@ impl Imported {
                 .then(|| super::conversion::Converter::new(&device.device, surface.descriptor.format))
                 .transpose()?,
             surface: Arc::downgrade(surface),
+            _lease: surface._lease.clone(),
         })
     }
 

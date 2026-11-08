@@ -1,4 +1,6 @@
 use std::time::{Duration, Instant};
+#[cfg(feature = "ffmpeg")]
+mod gpu_streams;
 mod streams;
 
 use golden_time::{PlaybackRate, ShowPosition, SystemClock, TimeAuthority};

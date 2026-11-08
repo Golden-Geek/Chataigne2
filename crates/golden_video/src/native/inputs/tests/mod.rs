@@ -114,6 +114,7 @@ fn publication_coalescing_cannot_revive_a_disabled_or_retiring_input() {
         index: 0,
         descriptor,
         storage_descriptor: descriptor,
+        _lease: None,
     });
     let publication = |sequence| Publication {
         surface: surface.clone(),

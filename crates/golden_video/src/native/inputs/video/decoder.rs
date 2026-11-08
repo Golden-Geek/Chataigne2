@@ -9,11 +9,11 @@ struct Parameters {
     format: u32,
     encoding: u32,
     alpha: u32,
-    reserved: u32,
+    interpretation: u32,
 }
 const _: () = assert!(size_of::<Parameters>() == super::UNIFORM_BYTES as usize);
 
-pub(in crate::native::inputs) struct Decoder {
+pub(in crate::native) struct Decoder {
     vertex: ID3D11VertexShader,
     pixel: ID3D11PixelShader,
     rasterizer: ID3D11RasterizerState,
@@ -21,6 +21,14 @@ pub(in crate::native::inputs) struct Decoder {
 }
 impl Decoder {
     pub fn new(device: &ID3D11Device, format: Format, descriptor: TextureDescriptor) -> Result<Self> {
+        Self::with_interpretation(device, format, descriptor, 0)
+    }
+    pub(in crate::native) fn with_interpretation(
+        device: &ID3D11Device,
+        format: Format,
+        descriptor: TextureDescriptor,
+        interpretation: u32,
+    ) -> Result<Self> {
         let parameters = Parameters {
             format: format.native(),
             encoding: u32::from(descriptor.color_encoding == ColorEncoding::Srgb),
@@ -29,7 +37,7 @@ impl Decoder {
                 AlphaMode::Premultiplied => 1,
                 AlphaMode::Opaque => 2,
             },
-            reserved: 0,
+            interpretation,
         };
         let (mut vertex, mut pixel, mut rasterizer, mut constants) = (None, None, None, None);
         unsafe {

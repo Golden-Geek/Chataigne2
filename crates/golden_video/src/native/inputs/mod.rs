@@ -1,13 +1,13 @@
 //! Fixed-size source pools. SDK/device work stays on one worker per configured input;
 //! renderer imports are local and remain leased through matching renderer completion.
 
-mod budget;
+pub(in crate::native) mod budget;
 pub(in crate::native) mod capture;
 pub(in crate::native) mod conversion;
-mod reader;
+pub(in crate::native) mod reader;
 pub(crate) mod receiver;
 mod shared;
-mod surface;
+pub(in crate::native) mod surface;
 pub(in crate::native) mod video;
 mod worker;
 

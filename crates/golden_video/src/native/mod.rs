@@ -13,6 +13,7 @@ mod device;
 mod discovery;
 #[cfg(feature = "qualification")]
 pub mod fixtures;
+mod frames;
 mod inputs;
 mod memory;
 mod observation;
@@ -32,6 +33,9 @@ pub use allocations::{
 pub use config::{AdapterId, D3d11Config, InputLimits, NativeConfigError, OutputBinding, WindowTarget};
 pub use device::{AdapterInfo, AdapterOutput, AdapterOutputs, adapters, preferred_adapters};
 pub use discovery::{DiscoveryError, MAX_DISCOVERY_SENDERS, SpoutDiscovery, SpoutSenderCatalog};
+pub use frames::{GpuFrameBudget, GpuFrameStream, GpuImage};
+#[cfg(feature = "ffmpeg")]
+pub use frames::{GpuFrameError, GpuFramePublisher};
 pub use inputs::{SourceSnapshot, SourceState};
 pub use memory::{
     AdapterMemorySnapshot, MemoryAdmissionError, MemoryQueryError, MemorySegmentSnapshot, query_adapter_memory,

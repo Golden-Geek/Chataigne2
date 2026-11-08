@@ -9,7 +9,7 @@ cbuffer VideoParameters : register(b3) {
     uint video_format;
     uint video_target_encoding;
     uint video_target_alpha;
-    uint video_reserved;
+    uint video_interpretation;
 };
 
 cbuffer Parameters : register(b0) {
@@ -125,8 +125,8 @@ float decode_bt709(float value) {
     return power * power;
 }
 
-// Video defaults: studio-range BT.709. Native metadata contains neither
-// colorimetry nor range; alternate assumptions remain an explicit API limitation.
+// Interpretation zero preserves Spout's studio-range BT.709 default, because its native
+// metadata contains no colorimetry/range. File conversion passes explicit supported flags.
 float4 ps_video(Vertex input) : SV_Target {
     uint2 pixel = uint2(input.position.xy);
     bool paired = video_format >= 107;
@@ -144,13 +144,23 @@ float4 ps_video(Vertex input) : SV_Target {
     float y = paired ? ((pixel.x & 1) == 0 ? code.r : code.b) : video_format == 100 ? code.b : code.g;
     float u = paired || video_format == 100 ? code.g : code.r;
     float v = paired ? code.a : video_format == 100 ? code.r : code.b;
-    y = (y - 16.0 * scale) / (219.0 * scale);
-    u = (u - 128.0 * scale) / (224.0 * scale);
-    v = (v - 128.0 * scale) / (224.0 * scale);
+    if ((video_interpretation & 1) != 0) {
+        float maximum = scale == 1.0 ? 255.0 : scale == 4.0 ? 1023.0 : 65535.0;
+        y /= maximum;
+        u = (u - 128.0 * scale) / maximum;
+        v = (v - 128.0 * scale) / maximum;
+    } else {
+        y = (y - 16.0 * scale) / (219.0 * scale);
+        u = (u - 128.0 * scale) / (224.0 * scale);
+        v = (v - 128.0 * scale) / (224.0 * scale);
+    }
     float3 encoded = float3(y + 1.5748 * v,
         y - (0.0722 * 1.8556 / 0.7152) * u - (0.2126 * 1.5748 / 0.7152) * v,
         y + 1.8556 * u);
-    float3 color = float3(decode_bt709(encoded.r), decode_bt709(encoded.g), decode_bt709(encoded.b));
+    float3 color;
+    if ((video_interpretation & 4) != 0) color = encoded;
+    else if ((video_interpretation & 2) != 0) color = decode_rgb(encoded);
+    else color = float3(decode_bt709(encoded.r), decode_bt709(encoded.g), decode_bt709(encoded.b));
     float maximum_alpha = video_format == 100 ? 255.0 : video_format == 101 ? 3.0 : 65535.0;
     float coverage = paired || planar || video_target_alpha == ALPHA_OPAQUE ? 1.0 : code.a / maximum_alpha;
     [branch] if (video_target_encoding == ENCODING_SRGB) color = encode_rgb(color);

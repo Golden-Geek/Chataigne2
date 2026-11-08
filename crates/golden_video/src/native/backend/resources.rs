@@ -115,6 +115,7 @@ pub(super) fn prepare(
         presented_regions: Default::default(),
         input_sequences: Default::default(),
         stream_sequences: Default::default(),
+        gpu_imports: Default::default(),
         canvas_images: Default::default(),
         _demands: None,
     };
@@ -122,7 +123,10 @@ pub(super) fn prepare(
     let device = &native.device.device;
     for external in plan.external_textures() {
         let role = Role::External(external.id);
-        if matches!(&external.source, Some(ExternalSource::Frames(_))) {
+        if matches!(
+            &external.source,
+            Some(ExternalSource::Frames(_) | ExternalSource::GpuFrames(_))
+        ) {
             resources
                 .stream_sequences
                 .insert(external.id, std::cell::Cell::new(None));
