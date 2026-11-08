@@ -26,6 +26,17 @@ this plan update implements nothing and accepts no gate. Preserve the ledger's c
 gate and suspended desktop state; select M13/1 at the next product-delivery boundary after
 checkpointing that gate, retaining every unfinished qualification gate and its return trigger.
 
+The user's **2026-11-08 feedback** is incorporated in **M14** as ten acceptance gates.
+**Video first pass (M10/1,2,4: common codecs, HAP and bundled integration, without DXV/WebP)
+comes first, then M14, then extended codecs (M10/3) and remaining acceptance closure.**
+This explicit priority overrides the earlier all-feedback-before-Video ordering above and below.
+Unrelated M03/9, M08/4, M12/8 and M13 qualification no longer prevent first-pass Video product
+delivery; their complete requirements, failures and investigation limits remain in the return
+queue and still gate M09. A reproduced correctness, ownership or integrity defect on Video's
+actual dependency path must be fixed before building on it. M14 supersedes conflicting older
+editor selection/navigation, Composition ordering/enabled, Screen defaults/targets and Matrix
+enabled/stop contracts. Earlier evidence retains only its tested scope. Planning accepts no gate.
+
 ## Entry, order and delivery
 
 1. Read AGENTS.md, this plan and the compact status page. Reconcile the checkout, current
@@ -39,21 +50,25 @@ checkpointing that gate, retaining every unfinished qualification gate and its r
    cumulative limit. Finish or checkpoint the same gate at cutoff rather than expanding scope.
 4. Execute the revision in this order: **M04 ownership/Resolution/Reference → M04 Media Preview
    and M05 navigation/Screen interaction → M06 Composition → M08 reusable app-control boundary
-   and M07 Matrix redesign together → M11 feedback corrections → M12 feedback → M13 feedback →
-   M10 Video tiers → M09 final qualification**.
+   and M07 Matrix redesign together → delivered M11/M12/M13 functional contracts →
+   M10 first-pass Video (1 → 2 → 4) → M14 feedback (1–10) → M10/3 DXV/WebP →
+   remaining acceptance closure → M09 final qualification**.
    M08's shared configuration/runtime contract precedes dependent Matrix app controls; this
    dependency does not authorize two active gates. Deliver their coherent slices sequentially.
-   Next product delivery is **M13/1–14**, retaining unfinished M12 and qualification gates;
-   then M10 and M09 after all their prerequisites.
+   Next product delivery is **M10/1 common-codec Video**, followed by HAP and complete first-pass
+   bundled recovery/performance. Checkpoint M13/4's existing failed correspondence evidence and
+   return to it after M14 (or sooner for a reproduced Video-path blocker). Retain every unfinished
+   M12/M13 and qualification gate; this priority change awards no acceptance.
    M08/4 retains its [blocked complete-retirement qualification](../progress/mapgyver-m08-retirement.md),
    alongside the named M03/M05 return lanes. M08's functional boundary and ordinary-app integration
    are verified; independent M11 stability/editor work does not depend on unverified external-target
    cleanup. This 2026-11-04 ordering change uses rule 6 below and accepts or waives no gate.
    A reproduced defect blocking the selected product path still takes precedence. Do not start
-   M10 or M09 while M08/4 or any M11/M12/M13 gate remains unaccepted. The 2026-11-05 user priority
+   M09 while M08/4 or any M11/M12/M13/M14 gate remains unaccepted. The 2026-11-08 Video priority
+   supersedes the former M10 prerequisite here. The 2026-11-05 user priority
    moves unfinished M05/8 qualification to Pending with its existing evidence and exact return
    action; it does not waive that gate or restart its investigation allowance. That historical
-   M12/1 selection is complete; the current ledger and M13 amendment above govern continuation.
+   M12/1 selection is complete; the current ledger and M14 amendment above govern continuation.
    Finish or hand off any already-running check before changing work.
 5. The unrestricted finite Surface-warp correction is already delivered and manually accepted.
    Preserve it and its evidence; do not restart that correction.
@@ -94,9 +109,9 @@ whole-document snapshots during bulk typed creation. [M08/3 actual runtime accep
 now verifies both native readiness modes, shared owned processes, cancellation, completion-based
 retention and stale-project rejection. [M08 ordinary-app integration](../progress/mapgyver-m08-app-integration.md)
 also verifies picker, commands, scripts/callbacks and project/recovery/shutdown. M08/4 remains
-Blocked on [complete singleton retirement](../progress/mapgyver-m08-retirement.md); M13 now owns
-the next independent product corrections. Retained physical/timing qualification and the
-original Matrix fixture budgets are unchanged.
+Blocked on [complete singleton retirement](../progress/mapgyver-m08-retirement.md); M10 first-pass
+Video now owns the next product delivery, then M14 corrections. Retained physical/timing
+qualification and the original Matrix fixture budgets are unchanged.
 
 [Typed Layer/Group settings](../progress/mapgyver-m07-model.md) use real Parameters and
 the generic Inspector, with atomic Configure/history/copy/project behavior. Layer position,
@@ -163,14 +178,15 @@ Historical batches, pauses and execution instructions in the
   cancellation, project/device fencing and completion-based final-use retirement.
 - No compatibility layer is planned. Version changed document structures explicitly and reject
   unsupported old records clearly; never reinterpret old records silently.
-- M13 owns the latest feedback contract. Authored/playback controls are real Golden nodes and
+- M14 owns the latest feedback contract; M13's unchanged requirements remain binding.
+  Authored/playback controls are real Golden nodes and
   Parameters, including triggers and optional-Parameter metadata. Interaction feedback must
   remain smooth at the display refresh rate independently of media/output frame cadence.
 
 ## Milestones and dependencies
 
-IDs remain stable; **M13 is the next product milestone, before M10 and M09**. M04–M12 retain
-their earlier evidence within its tested scope; M13 owns acceptance of the latest corrections.
+IDs remain stable; **M10 first pass precedes M14, extended codecs and remaining qualification**.
+M04–M13 retain earlier evidence within its tested scope; M14 owns the latest changed contracts.
 Counts refer to the numbered acceptance gates below, not commits or elapsed work.
 
 | ID  | Outcome                                                       | Functional dependency                                       | Gates |
@@ -187,8 +203,9 @@ Counts refer to the numbered acceptance gates below, not commits or elapsed work
 | M11 | Feedback: stable rendering, simpler authoring, shared UX      | Existing M04–M08 product contracts; one gate at a time      | 10    |
 | M12 | Feedback: stable panels, Matrix groups/layout, polish         | Existing M04–M11 contracts; one gate at a time              | 11    |
 | M13 | Latest feedback: smooth interaction, Matrix controls, media UX | Existing M04–M12 functional contracts; one gate at a time   | 14    |
-| M10 | Tiered Video playback                                         | Revised working contracts and all M11/M12/M13 gates         | 4     |
-| M09 | Actual-app qualification and Windows artifact                 | All retained feature/qualification gates, including M10–M13 | 1     |
+| M10 | Tiered Video playback                                         | Existing functional media/runtime contracts; gates 1,2,4 first; gate 3 after M14 | 4     |
+| M14 | Shared 2D interaction, Composition, Screen and Matrix feedback | M10 first-pass gates 1,2,4; one gate at a time                | 10    |
+| M09 | Actual-app qualification and Windows artifact                 | All retained feature/qualification gates, including M10–M14 | 1     |
 
 ### M00 — Reconcile and define evidence
 
@@ -237,8 +254,8 @@ accepted. M03/4 source/device recovery and completion-safe blocked-work retireme
 accepted; M03/9 production qualification remains open. M05/8 translucent Source-menu reference
 passes on both GPUs, with broader reference/timing scope retained. The user has returned to
 autonomous work and explicitly authorizes needed development resets, while retaining the
-acceptance-first order. All original requirements and M12/M08 prerequisites for Video/final
-qualification remain unchanged.
+acceptance-first order at that time. The 2026-11-08 amendment now prioritizes first-pass Video;
+all original requirements and M12/M08 prerequisites for final qualification remain unchanged.
 
 Golden Video owns app-neutral immutable render plans, scheduling, opaque resources and native
 execution. MapGyver projects its authored media into guarded plans. Reuse Golden Time and Assets.
@@ -615,8 +632,9 @@ image/target/resource/recovery coverage. A bounded two-experiment Screen-only ba
 Intel 4K Smooth costs near 40 ms and rejected a branch-only correction; no timing budget or
 requirement changes. Advance the functionally independent M12/9 thumbnail presentation next,
 then return to M12/8 with a concrete generic Canvas evaluation change rather than repeating
-the same probes. Keep its warmed sustained series and all original acceptance open. M10/M09
-still require every M12 gate Accepted. The ledger owns the single Active gate and return queue.
+the same probes. Keep its warmed sustained series and all original acceptance open. M09
+still requires every M12 gate Accepted; first-pass Video now follows the 2026-11-08 priority.
+The ledger owns the single Active gate and return queue.
 
 **Execution ordering, 2026-11-06:** M12/9 is Accepted and the generic spatial Canvas change
 improves M12/8's short Intel 4K Smooth median to 27.30 ms. The exact optimized case's original
@@ -635,7 +653,7 @@ hypothesis without another GPU probe. Keep M12/8 unaccepted and finish independe
 menu icons while a precise functional-feature versus production-timing gate split is proposed
 to the user. That proposal changes no requirement until explicitly approved. Return to M12/8
 on the scope answer or a justified owning renderer redesign addressing the reproduced cost;
-all other sustained cohorts, original budgets and M10/M09 prerequisites remain required.
+all other sustained cohorts, original budgets and M09 prerequisites remain required.
 
 After M12/11 acceptance, return to M12/8's still-required canonical cost matrix while the
 scope answer is pending. The known Intel 4K Smooth failure remains unaccepted; measuring
@@ -649,7 +667,8 @@ on the pending explicit feature/production scope answer or an owning renderer co
 meeting those unchanged limits. Do not repeat the measured cases or extend the rejected
 shader investigation. Resume the retained M05/8 native animation/alignment queue while
 that blocker remains; preserve every remaining DPI/input/physical requirement. This changes
-execution order only: M10/M09 still require all M12 gates and retained M08/4 acceptance.
+execution order only: M09 still requires all M12 gates and retained M08/4 acceptance.
+The later 2026-11-08 amendment prioritizes first-pass Video before unrelated qualification.
 
 1. **Recorded glitches, flashes, panel reloads and Media Preview resizing.** Owners: Golden
    docking/Inspector/host/native-preview lifetime and MapGyver panel adapters. Reproduce the
@@ -788,7 +807,8 @@ execution order only: M10/M09 still require all M12 gates and retained M08/4 acc
 
 Close each gate only after its relevant Rust/strict/generated-contract/UI checks and the named
 native behavior pass. Update owning architecture docs with implementation. **All eleven M12
-gates are prerequisites for M10 and M09**; M08/4 and retained physical/performance/device gates
+gates are prerequisites for M09**; the 2026-11-08 amendment removes the former first-pass Video
+prerequisite. M08/4 and retained physical/performance/device gates
 remain required. The new scope adds eleven gates and one phase without awarding acceptance.
 
 ### M13 — Resolve the 2026-11-06 feedback before Video
@@ -986,14 +1006,20 @@ Close each gate only after its complete behavioral checks and relevant formattin
 strict lint, generated-contract/UI checks and named native interaction/pixel validation pass.
 Inspect compile/software results before desktop/hardware work. Update owning architecture
 docs with implementation, including Picture ownership and Reference channel semantics.
-**All fourteen M13 gates are prerequisites for M10 and M09.** This adds fourteen gates and
+**All fourteen M13 gates remain prerequisites for M09.** The 2026-11-08 amendment prioritizes
+first-pass Video before unfinished M13 qualification. This adds fourteen gates and
 one phase, preserving every older unfinished acceptance requirement and numeric budget.
 
 ### M10 — Deliver Video playback in codec tiers
 
-Start only after **M11/1–10, M12/1–11 and M13/1–14 are Accepted** and retained M08/4 passes. Video has
-**one transport per media and one file
-per channel**; References only mirror outputs. Reuse M11's simplified Channels, shared Fit Mode,
+**2026-11-08 priority:** deliver **gates 1 → 2 → 4** as the first pass before M14; defer
+**gate 3 (DXV/WebP)** until after M14. Gate 4 qualifies the complete first-pass codec set and
+does not depend on gate 3. Gate 3 subsequently includes bundled integration/recovery/performance
+for its added codecs under the same gate-4 contracts. This changes execution order and that
+codec coverage boundary, not the four-gate count or any acceptance budget. Use existing verified
+functional contracts; retain unrelated open qualification in its explicit return queue.
+Video has **one transport per media and one file per channel**; References only mirror outputs.
+Reuse M11's simplified Channels, shared Fit Mode,
 draggable time-style Parameters, icons and stable-preview contracts, with M13's self-contained
 File ownership and simplified media/channel targeting rather than restoring obsolete controls.
 Use a shared monotonic media timeline and timestamp-based sampling. Defaults: paused at zero,
@@ -1016,9 +1042,11 @@ Library capability is not acceptance of any codec/profile in MapGyver.
    consumers; compressed textures, alpha/color correctness and one decoder/render owner.
 3. **Extended compatibility:** DXV and WebP, including animated WebP. Record codec/profile variants
    individually; unverified variants remain explicit follow-up requirements within this gate.
-4. **Bundled integration:** pinned redistribution/build/license dependencies, exact seek fixtures,
-   bounded file/decode workers and queues, coalesced superseding seeks/stale-result rejection,
-   missing-file relink/retry, device recovery and actual-app sustained 1080p/4K/resource performance.
+4. **First-pass bundled integration (after gates 1 and 2):** pinned redistribution/build/license
+   dependencies, exact seek fixtures, bounded file/decode workers and queues,
+   coalesced superseding seeks/stale-result rejection,
+   missing-file relink/retry, device recovery and actual-app sustained 1080p/4K/resource performance
+   for all common and HAP codecs. A playable prototype alone does not close the first pass.
 
 Use frame-numbered fixtures for exact seeks, mixed frame rates and stale-seek rejection.
 Record cold/warm seek latency, timestamp accuracy, sustained throughput and per-format software
@@ -1026,10 +1054,125 @@ upload cost. Do not start native acceptance until prerequisite software/build ch
 Audio, effects, mesh warp, edge blending, streaming and cross-platform/cross-adapter guarantees
 remain outside this plan.
 
+### M14 — Apply the 2026-11-08 feedback after first-pass Video
+
+Source: the user's editor, Composition, Screen and Matrix feedback in this chat.
+Execute **after M10/1,2,4**, before M10/3 DXV/WebP and final qualification. The ten gates
+below cover every requested behavior; incorporation implements nothing and accepts no gate.
+
+Golden owns reusable 2D selection/input, viewport animation, workbench context menus and
+enabled/optional-Parameter mechanisms. MapGyver owns editor target resolution, Composition
+geometry/order, display allocation, sender naming and Matrix playback policy. Specialized
+editors send explicit backend intents; do not implement domain defaults or structural edits
+in UI helpers. Change typed Parameters, DTOs, generation and consumers together. Every owning
+slice includes command/script/callback/snippet parity where relevant, atomic rejection,
+Undo/Redo, copy/reload, bounded offscreen Inspector access and project/connection fencing.
+
+1. **Consistent selection and hover in every 2D-like editor.** Owners: Golden public input/
+   selection contracts and each app's editor adapters. Inventory all applicable editors,
+   including graph canvases, Screen Warping, Surface Source, Composition and Matrix spatial
+   editing, so this is not a fix limited to one panel. Select on primary **mouse/pointer down**,
+   without waiting for mouse up or click. Background down deselects child elements and, where
+   applicable, selects the edited owner (Composition → Composition, Screen Warping → Screen);
+   resolve other owners explicitly through the adapter. Only selected elements show transform
+   controls. Hovering an unselected element slightly highlights its contour without displaying
+   handles or changing selection. **Escape deselects**. Share workbench/Inspector selection;
+   background actions and Escape must not leave stale local handles. Preserve capture/cancel,
+   multi-selection, locks and specialized tool behavior. Verify overlapping hit order,
+   mouse-down-before-release, deselect/owner inspection, native/DOM agreement, offscreen
+   selection, keyboard focus and two independent editors, including unavailable-source geometry.
+2. **Smooth zoom, Frame and Home with common shortcuts.** Owner: Golden reusable viewport/
+   animation mechanisms, consumed by every applicable 2D-like editor. Zoom is smooth;
+   **F = Frame**, **H = Home**, and Frame/Home use a short, fast **ease-in/ease-out animation**
+   instead of a camera jump. Toolbar and keyboard actions use the same path. Preserve pointer
+   zoom anchoring, bounded frame lookup, focused text-field input, interrupted/repeated actions
+   and the existing reduced-motion preference. Verify intermediate presented frames and final
+   bounds in actual editors, native image/control alignment during animation, panel resize,
+   sparse/large documents and both GPUs. Coordinate with retained M13/4 synchronization and
+   M05/8 latency requirements; navigation animation does not close those independent gates.
+3. **Composition actions, context menus and front-first order.** Owners: MapGyver Composition
+   backend intents and editor contributions to Golden's toolbar/node context menu. Remove
+   **Copy** and **Delete toolbar buttons**. Replace them with Screen-warper-style compact icon
+   actions to fill the complete Composition extent or fit while preserving the source ratio;
+   use shared backend geometry semantics. Add **to Front / to Back** icon buttons. The **first
+   child is on top**, last is at the back; hierarchy, renderer, editor paint/hits and reordering
+   agree for all callers. Right-clicking an item opens its ordinary Outliner node controls,
+   extended with **Arrange → to Back / to Front** and **Transform → Reset / Fit**. Reset/Fit
+   operate on the same typed placement Parameters as the Inspector. Preserve standard node
+   controls in the menu; only toolbar Copy/Delete are removed. Verify toolbar/menu/command/
+   script/headless parity, overlapping native alpha/order pixels and hit targets, mixed source
+   ratios, history, nested folders where supported, copies and reload.
+4. **Zero-scale Composition items remain valid.** Owners: MapGyver placement validation and
+   Golden render-plan admission where needed. Allow exactly zero scale on either or both axes.
+   Skip those degenerate draws without reporting **Source incompatible** or preventing other
+   items from rendering. Keep the item selected/inspectable and recover rendering when scale
+   becomes nonzero. Verify direct/Inspector/script/transport edits, mixed healthy/zero-scale
+   items, zero crossings, source recovery, history/reload and independent native output pixels.
+   Preserve rejection of nonfinite geometry; zero area must not poison the whole render plan.
+5. **Composition uses media enabled metadata.** Owner: MapGyver media/placement projection
+   on Golden's node metadata API. Remove **Placement → Parameters → Enabled** and use the
+   child media's **enabled meta** as the sole authored enable state. Disabled media still
+   appear in the dashboard and remain selectable/editable. Verify Inspector, dashboard, menu,
+   scripts/transport/headless, render suppression/restoration, shared demand/final-use policy,
+   history/copy/reload and absence of a duplicate Enabled Parameter or UI visibility filter.
+6. **New Screens claim unused external displays.** Owners: MapGyver backend creation/default
+   policy and Golden public display inventory/host output contracts. For **every creation path**,
+   including startup and New File's automatic Screen, choose FullScreen on an available
+   **external display not already used by MapGyver**. If none is free (including no external
+   display), create **FullScreen with no display selected**. Exclude the built-in panel and
+   already assigned displays; backend allocation must handle multiple Screens created together
+   without duplicate claims. Keep display identity independent of enumeration order; preserve
+   existing authored choices on load and do not retarget them on hotplug. Use current recovery
+   behavior when an assigned display disappears/returns. Verify zero/one/multiple externals,
+   all occupied, sequential/atomic multi-create, startup/New/menu/script/headless, history and
+   reload, actual physical outputs and disappearance/recovery on both GPUs. Record any missing
+   hardware case as open acceptance rather than treating a mocked topology as physical proof.
+7. **Optional Shared Texture Target sender name.** Owner: MapGyver Screen target Parameters/
+   sender supervision, using Golden's optional String Parameter metadata. Make **Sender Name
+   disableable**, disabled by default. Disabled means the effective sender name is
+   **MapGyver - <Screen name>**; enabled means the authored name is used. Preserve the dormant
+   custom value across toggles. Screen rename updates the automatic name only; explicit mode
+   retains its name. Do not add a separate boolean. Validate SDK naming/collision errors
+   truthfully, retain endpoint retry/recovery, and retire old senders safely on rename/mode/
+   target/project changes. Verify fresh defaults, actual discovery/consumer pixels, toggles,
+   rename, multiple Screens, all callers and history/copy/reload without leaked senders.
+8. **Screen anti-aliasing includes 4x.** Owners: MapGyver typed Screen quality contract and
+   Golden reusable native render mechanism. Add **4x** to the existing choices and implement
+   its corresponding rendering path, not just an Inspector label. Verify generated contracts,
+   all callers, switching/history/reload, supported GPU capabilities, independent edge/alpha
+   pixels and measured sustained 1080p/4K cost on both GPUs under the existing budgets. Report
+   unsupported hardware explicitly. Keep retained M12/8 Intel4K Smooth failures open; adding
+   4x neither waives them nor silently changes quality modes or performance limits.
+9. **Matrix Layer and Cell use enabled metadata.** Owner: MapGyver Matrix authoring/playback/
+   render projection on Golden metadata. Remove Layer **Render Enabled** and Cell **Enabled**
+   Parameters. Use each node's **enabled meta** as its sole corresponding state. Disabled Layers
+   still appear in the dashboard; disabled Cells retain their editable grid identity. Preserve
+   the distinction between render suppression and play/stop/demand: disabling is not an implicit
+   Stop or a new app-control policy. Define disabled-Cell launch behavior in the backend and
+   preserve the existing verified lifecycle contract except for the requested state ownership.
+   Verify UI/Inspector/script/transport/headless, groups, sparse/offscreen selection, active and
+   outgoing Cells, native rendering, history/copy/reload and removal of duplicate settings.
+10. **Layer Stop follows transition duration and overrides.** Owner: MapGyver Matrix playback
+    resolver/runtime. Layer **Stop** fades using the resolved transition duration/curve rather
+    than cutting immediately. Apply the established optional **Cell → Column → Layer** override
+    precedence for the selected/playing Cell involved in that stop; selection in the UI is not
+    the source of backend policy. Resolve and document independently launched or multiple
+    outgoing Cells explicitly. Zero duration remains immediate. Retain outgoing media/app demand
+    until transition completion and actual final GPU use. Verify default/Cell/Column overrides,
+    disabled overrides/dormant values, zero/nonzero/Linear/Smooth, interrupted fades, repeated
+    Stop and unrelated Layers through all callers, plus native timed alpha and completion-safe
+    process/resource retirement. Preserve other scoped-stop contracts.
+
+Close each gate only after the complete owning behavioral/software/strict/generated/UI and
+specified actual-app/native checks pass. Update owning architecture docs when implementing;
+planning does not describe these behaviors as already delivered. All ten gates and all four
+M10 gates remain required before M09. This amendment adds **ten gates and one phase** without
+awarding acceptance or changing retained budgets.
+
 ### M09 — Qualify the actual app and Windows artifact
 
-**Gate 1:** after all M11/M12/M13 feedback gates, qualify the complete revised bundled Windows x64 product
-and all retained M03–M13 requirements, not only a static render or native probe. Run exact
+**Gate 1:** after all M10–M14 feature/feedback gates, qualify the complete revised bundled Windows x64 product
+and all retained M03–M14 requirements, not only a static render or native probe. Run exact
 binary/assets/dependency
 identity and license checks, Rust/UI/codegen/public-boundary and affected Chataigne regressions,
 Q01/Q02 prescribed release series, revised Q03 soak, Q04 authored/active scale and full Q05
