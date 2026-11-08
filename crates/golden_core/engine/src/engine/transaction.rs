@@ -40,10 +40,13 @@ pub(crate) struct EditCheckpoint {
 }
 
 impl<T: Node> Engine<T> {
-    pub(crate) fn settle_edit_notifications(
-        &mut self,
-        max_passes: usize,
-    ) -> Result<(), crate::engine::EngineEditError> {
+    /// Applies queued edits and dispatches their notifications to a bounded fixed point.
+    ///
+    /// App operation adapters can use this before reading updated parameter handles or
+    /// issuing runtime requests that depend on their callbacks. This does not create an
+    /// atomic transaction: invoke it within the application's operation boundary when
+    /// rollback is required. Callback-generated edits participate in the current history.
+    pub fn settle_edit_notifications(&mut self, max_passes: usize) -> Result<(), crate::engine::EngineEditError> {
         self.settle_edit_notifications_with_history(max_passes, true)
     }
 

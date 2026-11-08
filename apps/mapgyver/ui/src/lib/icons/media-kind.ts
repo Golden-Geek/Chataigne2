@@ -15,7 +15,7 @@ export function mediaIconKind(
 	const data = leaf === undefined ? null : read(leaf)?.data;
 	if (data?.kind !== 'parameter' || data.param.value.kind !== 'enum') return null;
 	const kind = data.param.value.value;
-	return ['Picture', 'SolidColor', 'SharedTexture', 'Composition', 'Matrix'].includes(kind)
+	return ['Picture', 'Video', 'SolidColor', 'SharedTexture', 'Composition', 'Matrix'].includes(kind)
 		? (kind as MediaKind)
 		: null;
 }

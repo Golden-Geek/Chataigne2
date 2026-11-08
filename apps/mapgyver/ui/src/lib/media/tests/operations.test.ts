@@ -37,6 +37,11 @@ test('editor receipts remain on the ordinary authored operation and activity pat
 });
 
 test('viewport and application inspections stay background while group authoring and launch retain user activity', () => {
+	assert.equal(mediaOperationActivity({ kind: 'InspectVideo', media: 'video' }), 'background');
+	assert.equal(
+		mediaOperationActivity({ kind: 'Video', media: 'video', edit: { kind: 'Play' } }),
+		'user'
+	);
 	assert.equal(
 		mediaOperationActivity({
 			kind: 'InspectSpatialEditor',

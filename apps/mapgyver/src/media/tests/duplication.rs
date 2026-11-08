@@ -8,7 +8,12 @@ use golden_video::Extent2D;
 
 #[test]
 fn source_media_and_variant_copies_preserve_settings_owned_files_and_independent_history() {
-    for kind in [MediaKind::SolidColor, MediaKind::Picture, MediaKind::SharedTexture] {
+    for kind in [
+        MediaKind::SolidColor,
+        MediaKind::Picture,
+        MediaKind::Video,
+        MediaKind::SharedTexture,
+    ] {
         for copy_media in [false, true] {
             let mut engine = fixture();
             let first = create(&mut engine, kind);
@@ -29,6 +34,11 @@ fn source_media_and_variant_copies_preserve_settings_owned_files_and_independent
                     MediaKind::Picture => ChannelSource::Picture {
                         file: Some(AssetLocator::ProjectRelative {
                             path: "shared-copy.png".to_owned().try_into().unwrap(),
+                        }),
+                    },
+                    MediaKind::Video => ChannelSource::Video {
+                        file: Some(AssetLocator::ProjectRelative {
+                            path: "shared-copy.mov".to_owned().try_into().unwrap(),
                         }),
                     },
                     MediaKind::SharedTexture => ChannelSource::Spout {
@@ -53,6 +63,15 @@ fn source_media_and_variant_copies_preserve_settings_owned_files_and_independent
                     MediaEdit::ConfigureMediaFitMode {
                         media: first.media,
                         mode: MediaFitMode::Fill,
+                    },
+                );
+            }
+            if kind == MediaKind::Video {
+                apply(
+                    &mut engine,
+                    MediaEdit::Video {
+                        media: first.media,
+                        edit: crate::media::video::protocol::VideoEdit::Seek { position_ms: 1250.5 },
                     },
                 );
             }
@@ -103,9 +122,25 @@ fn source_media_and_variant_copies_preserve_settings_owned_files_and_independent
                 assert_eq!(channels[1].definition, before.media[0].channels[0].definition);
                 channels[1].reference
             };
+            if kind == MediaKind::Video {
+                let control = |reference: ChannelReference| {
+                    let id = engine.node_id_by_uuid(reference.media.0).unwrap();
+                    let Some(crate::app::AppNode::Media(node)) = engine.nodes.get(id) else {
+                        panic!()
+                    };
+                    assert_eq!(node.video_settings().unwrap().position_ms, 1250.5);
+                    node.video_control().unwrap()
+                };
+                assert_eq!(
+                    std::sync::Arc::ptr_eq(&control(first), &control(copy)),
+                    !copy_media,
+                    "channel copies share transport; media copies own a fresh runtime"
+                );
+            }
             let replacement = match kind {
                 MediaKind::SolidColor => ChannelSource::SolidColor { rgba: [0.5; 4] },
                 MediaKind::Picture => ChannelSource::Picture { file: None },
+                MediaKind::Video => ChannelSource::Video { file: None },
                 MediaKind::SharedTexture => ChannelSource::Spout { sender: None },
                 _ => unreachable!(),
             };

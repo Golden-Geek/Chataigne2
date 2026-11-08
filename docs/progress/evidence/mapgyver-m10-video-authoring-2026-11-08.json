@@ -1,0 +1,43 @@
+{
+	"date": "2026-11-08",
+	"gate": "M10/1 Active; typed app authoring implemented, full playback acceptance remains open",
+	"progress": { "accepted": 83, "total": 102, "percent": 81, "m10_accepted": 0, "m10_total": 4 },
+	"batch": { "started_utc": "18:37", "cutoff_utc": "19:22" },
+	"deliverable": "Video is registered in the real media catalog, with one media-owned transport and a real typed File per channel. Generic Inspector, app operations, command nodes and hosted script methods edit the same Parameters. No decoded Video preview/output is claimed.",
+	"architecture": "docs/architecture/mapgyver-video.md",
+	"authoring": {
+		"parameters": "Media: Playback, Seek to in milliseconds, Rate, Loop, existing Resolution/Fit Mode. Channel: File with project-relative/native absolute validation. No opaque authored DTO or UI store persistence.",
+		"invariants": "Paused at zero/rate1/loop-off defaults; Stop sets zero atomically; seeking a stopped media changes it to Paused; invalid settings and foreign channel/owner requests reject without history. Transport edits do not invalidate media membership or rebuild render plans.",
+		"callers": "Nine command kinds and nine named functions: configureVideoFile, playVideo, pauseVideo, stopVideo, seekVideo, setVideoRate, setVideoLoop, stepVideo, inspectVideo. Typed MediaEdit and generated TypeScript share Rust-owned contracts. App-owned template includes these functions and the real committed/rejected onAppOperationResult callback.",
+		"ownership": "One Arc<VideoControl> per media incarnation; channel variants share it. Media copies and project replacement create independent runtime owners while preserving authored Parameters. Selected-channel step requests coalesce and reject superseded results; actual timestamp resolution remains pending.",
+		"runtime_state": "Snapshot.ready currently means duration metadata is usable; playing describes the transport clock. Neither proves decoded or presented frames. Tests explicitly inject metadata to verify intent-to-clock projection; the app has no bound file worker yet. Configured Video renders transparent/Unavailable.",
+		"ordering_fix": "Golden's existing bounded settle_edit_notifications is now public. Video adapters use it inside the existing atomic app operation before reading Parameter handles or queuing runtime requests. Draining edits alone returned stale Paused settings after Play; the retained transport test covers the correction."
+	},
+	"validation": {
+		"status": "All selected software checks reached terminal success. No native playback acceptance was attempted in this authoring slice.",
+		"app": {
+			"command": "cargo test --locked -p MapGyver --lib --quiet",
+			"passed": 593,
+			"failed": 0,
+			"ignored": 2,
+			"exit": 0
+		},
+		"golden_operations": {
+			"command": "cargo test --locked -p golden_engine --lib application::tests::app_operations --quiet",
+			"passed": 18,
+			"failed": 0,
+			"ignored": 0,
+			"exit": 0
+		},
+		"strict": {
+			"command": "cargo clippy --locked -p MapGyver -p golden_engine --lib --tests -- -D warnings",
+			"exit": 0
+		},
+		"ui_check": "npm run check --workspace mapgyver-ui: exit0, zero errors/warnings.",
+		"ui_units": "Media icon/operation activity tests: 3 passed, exit0; Video inspections stay background and transport edits remain user activity.",
+		"ui_bundle": "npm run build --workspace mapgyver-ui: exit0. The final successful app strict build additionally rebuilt the embedded UI bundle after the later activity-classification edit.",
+		"format": "Root and golden_core cargo fmt pass; touched authored UI/template/docs/evidence formatting and staged whitespace checks pass. Existing ts-rs deny_unknown_fields parsing notices remain; these are not Rust lint findings.",
+		"coverage": "Catalog/generic creation, typed File variants, source/transport commands, hosted QuickJS callbacks and rejection, generic Parameter constraints, exact history, sparse project reload, media/channel copies and stale step resolution. The full app suite also checks generated-contract equality."
+	},
+	"remaining": "Bind bounded/coalesced file/decode workers to the existing software decoder and shared timeline; render actual frames through Media Preview, Composition, Matrix, Screen and References. Resolve selected-channel step timestamps and commit their resulting seek through the engine. Complete common-codec hardware/software upload paths, mixed-rate/shorter-file sampling, recovery and actual-app parity. HAP and complete first-pass bundling/license/performance remain required before M14; DXV/WebP follows M14. No M10 gate closes in this authoring slice."
+}

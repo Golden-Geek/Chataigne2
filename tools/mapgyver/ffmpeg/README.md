@@ -1,7 +1,7 @@
 # FFmpeg dependency boundary
 
-Golden Video owns file demux and decode through the optional `ffmpeg` feature. MapGyver will
-own the authored per-media transport and per-channel File parameters. Decode runs on a worker;
+Golden Video owns file demux and decode through the optional `ffmpeg` feature. MapGyver owns
+the authored per-media transport and per-channel File parameters. Decode runs on a worker;
 the engine and UI never call FFmpeg or own its contexts.
 
 `windows-x64.json` pins `ffmpeg-next =9.0.0` and an exact shared LGPL Windows x64 build.
@@ -26,8 +26,8 @@ It makes no implicit color conversion or GPU readback. Its limits do not claim t
 third-party temporary allocations; queue admission and cancellation belong to the owning worker.
 
 The app-owned `MediaTransport` now provides the shared monotonic playback policy, and the
-decoder can seek in original stream timestamps with fresh codec state. Authored controls,
-selected-channel step resolution, worker/recovery integration and GPU-resident D3D11 frames
+decoder can seek in original stream timestamps with fresh codec state. Typed controls and
+public callers are wired; selected-channel step resolution, worker/recovery integration and GPU-resident D3D11 frames
 remain required. Do not label software decoding as hardware playback. See the
 [Video ownership](../../../docs/architecture/mapgyver-video.md) for the current integration boundary.
 M10/4 owns final DLL packaging, dependency notices, corresponding-source delivery and sustained

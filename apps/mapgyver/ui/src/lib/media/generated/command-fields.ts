@@ -101,6 +101,9 @@ export const COMMAND_PARAMETER_FIELDS = {
     "count"
   ],
   "InspectManager": [],
+  "InspectVideo": [
+    "media"
+  ],
   "LaunchMatrixCell": [
     "media",
     "matrix_layer",
@@ -189,6 +192,37 @@ export const COMMAND_PARAMETER_FIELDS = {
     "rgba"
   ],
   "UnloadMatrix": [
+    "media"
+  ],
+  "VideoFile": [
+    "media",
+    "channel",
+    "video_file"
+  ],
+  "VideoLoop": [
+    "media",
+    "video_looping"
+  ],
+  "VideoPause": [
+    "media"
+  ],
+  "VideoPlay": [
+    "media"
+  ],
+  "VideoRate": [
+    "media",
+    "video_rate"
+  ],
+  "VideoSeek": [
+    "media",
+    "video_position_ms"
+  ],
+  "VideoStep": [
+    "media",
+    "channel",
+    "video_step_direction"
+  ],
+  "VideoStop": [
     "media"
   ]
 } as const;

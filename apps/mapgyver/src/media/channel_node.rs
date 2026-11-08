@@ -18,9 +18,9 @@ use std::sync::OnceLock;
 #[children(
     folder(parameters, label = "Parameters") {
         source_kind: Enum = "SolidColor" (label = "Source kind", read_only = true, persist_read_only_value = true,
-            enum_options = crate::parameters::enum_options(&["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix"]));
+            enum_options = crate::parameters::enum_options(&["Picture", "Video", "SolidColor", "SharedTexture", "Composition", "Matrix"]));
         rgba: Color = Color::new(1.0, 1.0, 1.0, 1.0) [0.0..1.0] (label = "Color", description = "Straight linear-light RGBA.", constraint_policy = "reject");
-        file: File = File::default() (label = "File", description = "This Picture channel's project-relative or native absolute source path.", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Picture);
+        file: File = File::default() (label = "File", description = "This channel's project-relative or native absolute source path.", dependency = |node: &Self| matches!(node.kind(), super::protocol::MediaKind::Picture | super::protocol::MediaKind::Video));
         sender: String = String::new() (label = "Spout sender");
         sender_choice: Enum = "" (label = "Sender", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::SharedTexture,
             enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
@@ -87,7 +87,7 @@ impl ChannelNode {
                     Color::new(rgba[0].into(), rgba[1].into(), rgba[2].into(), rgba[3].into())
                 );
             }
-            ChannelSource::Picture { file } => {
+            ChannelSource::Picture { file } | ChannelSource::Video { file } => {
                 seed!(
                     file,
                     File::new(file.as_ref().map(super::assets::locator_path).unwrap_or_default())
@@ -143,6 +143,9 @@ impl ChannelNode {
         };
         let settings = media.matrix_settings();
         let source = match self.source_kind.get_ref().as_str() {
+            "Video" => ChannelSource::Video {
+                file: super::assets::parse_file(self.file.get_ref().as_str()).expect("validated Video File"),
+            },
             "Picture" => ChannelSource::Picture {
                 file: super::assets::parse_file(self.file.get_ref().as_str()).expect("validated Picture File"),
             },
@@ -193,7 +196,7 @@ impl ChannelNode {
                 self.rgba.id(),
                 ParamValue::Color(rgba[0].into(), rgba[1].into(), rgba[2].into(), rgba[3].into()),
             )),
-            ChannelSource::Picture { file } => values.push((
+            ChannelSource::Picture { file } | ChannelSource::Video { file } => values.push((
                 self.file.id(),
                 ParamValue::File(
                     file.as_ref()
@@ -341,7 +344,14 @@ impl Node for ChannelNode {
         for (value, allowed) in [
             (
                 self.source_kind.get_ref().as_str(),
-                &["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix"][..],
+                &[
+                    "Picture",
+                    "Video",
+                    "SolidColor",
+                    "SharedTexture",
+                    "Composition",
+                    "Matrix",
+                ][..],
             ),
             (self.output_kind.get_ref().as_str(), &["Final", "Layer", "Group"][..]),
         ] {

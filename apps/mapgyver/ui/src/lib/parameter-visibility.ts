@@ -73,6 +73,7 @@ function visible(child: UiNodeDto) {
 		return false;
 	}
 	if (owner.node_type === 'mapgyver.media.v8') {
+		if (field?.startsWith('video_')) return choice('media_kind') === 'Video';
 		if (field === 'media_kind') return false;
 		return (
 			!['empty_cell', 'transition_ms', 'transition_curve'].includes(field ?? '') ||
@@ -83,7 +84,7 @@ function visible(child: UiNodeDto) {
 	if (field === 'source_kind') return false;
 	const source = choice('source_kind');
 	if (source === 'SolidColor') return field === 'rgba';
-	if (source === 'Picture') return field === 'file';
+	if (source === 'Picture' || source === 'Video') return field === 'file';
 	if (source === 'SharedTexture') {
 		const media = parent(owner);
 		const parameters = media?.children

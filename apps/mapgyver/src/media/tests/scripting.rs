@@ -2,6 +2,7 @@ use super::*;
 mod applications;
 mod availability;
 mod parity;
+mod video;
 use crate::app::AppNode;
 use crate::media::{authoring::manager, scripting};
 use golden_core::{

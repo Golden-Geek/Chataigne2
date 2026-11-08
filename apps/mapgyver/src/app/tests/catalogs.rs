@@ -19,6 +19,7 @@ fn manager_catalogs_expose_document_objects_and_reject_automation_wrappers() {
                 "Reference",
                 "Solid Color",
                 "Picture",
+                "Video",
                 "Shared Texture",
                 "Composition",
                 "Matrix",

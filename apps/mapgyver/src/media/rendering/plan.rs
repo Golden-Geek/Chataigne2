@@ -186,6 +186,11 @@ pub(super) fn build(
                 .filter(|_| channel.enabled)
                 .map(|definition| &definition.source);
             match source {
+                Some(ChannelSource::Video { .. }) => {
+                    entry.source = None;
+                    resolution =
+                        resolution::resolve(channel.definition.as_ref().unwrap(), SourceObservation::Unavailable)?;
+                }
                 Some(ChannelSource::Reference { target }) => {
                     entry.source = None;
                     let definition = channel.definition.as_ref().unwrap();

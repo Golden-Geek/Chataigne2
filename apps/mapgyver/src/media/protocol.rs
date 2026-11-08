@@ -76,6 +76,7 @@ pub enum ChannelMoveDirection {
 pub enum MediaKind {
     Reference,
     Picture,
+    Video,
     SolidColor,
     SharedTexture,
     Composition,
@@ -93,6 +94,7 @@ impl MediaKind {
         match self {
             Self::Reference => "Reference",
             Self::Picture => "Picture",
+            Self::Video => "Video",
             Self::SolidColor => "Solid Color",
             Self::SharedTexture => "Shared Texture",
             Self::Composition => "Composition",
@@ -101,7 +103,10 @@ impl MediaKind {
     }
 
     pub(crate) fn has_authored_channel_variants(self) -> bool {
-        matches!(self, Self::Picture | Self::SolidColor | Self::SharedTexture)
+        matches!(
+            self,
+            Self::Picture | Self::Video | Self::SolidColor | Self::SharedTexture
+        )
     }
 }
 
@@ -198,6 +203,9 @@ pub enum ChannelSource {
     Picture {
         file: Option<AssetLocator>,
     },
+    Video {
+        file: Option<AssetLocator>,
+    },
     /// Straight linear-light RGBA. Conversion/premultiplication happens in the backend.
     SolidColor {
         rgba: [f32; 4],
@@ -247,6 +255,17 @@ impl MediaFitMode {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEdit {
+    Video {
+        media: MediaId,
+        edit: super::video::protocol::VideoEdit,
+    },
+    InspectVideo {
+        media: MediaId,
+    },
+    ConfigureVideoFile {
+        reference: ChannelReference,
+        file: String,
+    },
     InspectTargetPicker {
         query: TargetPickerQuery,
     },
@@ -474,6 +493,9 @@ pub struct PictureFileBinding {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    Video {
+        snapshot: super::video::protocol::VideoTransportSnapshot,
+    },
     TargetPicker {
         page: Option<TargetPickerPage>,
     },

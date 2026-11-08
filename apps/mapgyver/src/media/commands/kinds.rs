@@ -15,6 +15,15 @@ macro_rules! command_kinds {
     };
 }
 command_kinds! {
+    VideoPlay => "Play Video", "Video", ["media"];
+    VideoPause => "Pause Video", "Video", ["media"];
+    VideoStop => "Stop Video", "Video", ["media"];
+    VideoSeek => "Seek Video", "Video", ["media", "video_position_ms"];
+    VideoRate => "Set Video Rate", "Video", ["media", "video_rate"];
+    VideoLoop => "Set Video Loop", "Video", ["media", "video_looping"];
+    VideoStep => "Step Video Frame", "Video", ["media", "channel", "video_step_direction"];
+    VideoFile => "Set Video File", "Video", ["media", "channel", "video_file"];
+    InspectVideo => "Inspect Video Transport", "Video", ["media"];
     SetApplicationFile => "Set App File", "App control", ["application_owner", "application_file"];
     LaunchMatrixColumn => "Launch Matrix Column", "App control", ["media", "matrix_column", "launch_mode"];
     LaunchMatrixCell => "Launch Matrix Cell", "App control", ["media", "matrix_layer", "matrix_column", "launch_mode"];

@@ -60,6 +60,7 @@ impl ChannelDefinition {
         let source = match kind {
             MediaKind::Reference => ChannelSource::Reference { target: None },
             MediaKind::Picture => ChannelSource::Picture { file: None },
+            MediaKind::Video => ChannelSource::Video { file: None },
             MediaKind::Composition => ChannelSource::Composition {
                 canvas: default_canvas(),
             },
@@ -82,6 +83,7 @@ impl ChannelDefinition {
         match self.source {
             ChannelSource::Reference { .. } => MediaKind::Reference,
             ChannelSource::Picture { .. } => MediaKind::Picture,
+            ChannelSource::Video { .. } => MediaKind::Video,
             ChannelSource::Composition { .. } => MediaKind::Composition,
             ChannelSource::Matrix { .. } => MediaKind::Matrix,
             ChannelSource::SolidColor { .. } => MediaKind::SolidColor,
@@ -100,7 +102,7 @@ impl ChannelDefinition {
                     definition.validate()?;
                 }
             }
-            ChannelSource::Picture { .. } => {}
+            ChannelSource::Picture { .. } | ChannelSource::Video { .. } => {}
             ChannelSource::Composition { canvas } => validate_extent(*canvas)?,
             ChannelSource::SolidColor { rgba } => {
                 LinearColor::from_straight(rgba[0], rgba[1], rgba[2], rgba[3]).map_err(|e| e.to_string())?;
@@ -189,8 +191,10 @@ pub fn resolve(definition: &ChannelDefinition, observed: SourceObservation) -> R
             },
         ),
         ChannelSource::SolidColor { .. } => (Some(default_canvas()), ChannelAvailability::Ready),
-        ChannelSource::Picture { file: None } => (None, ChannelAvailability::Unconfigured),
-        ChannelSource::Picture { file: Some(_) } => match observed {
+        ChannelSource::Picture { file: None } | ChannelSource::Video { file: None } => {
+            (None, ChannelAvailability::Unconfigured)
+        }
+        ChannelSource::Picture { file: Some(_) } | ChannelSource::Video { file: Some(_) } => match observed {
             SourceObservation::Unavailable => (None, ChannelAvailability::Unavailable),
             SourceObservation::Available(actual) => (Some(actual.extent), ChannelAvailability::Ready),
         },

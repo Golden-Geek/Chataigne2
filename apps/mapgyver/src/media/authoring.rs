@@ -144,6 +144,14 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         }
     );
     let result = match edit {
+        MediaEdit::Video { media, edit } => super::video::authoring::apply(engine, media, edit)?,
+        MediaEdit::InspectVideo { media } => MediaEditResult::Video {
+            snapshot: super::video::authoring::inspect(engine, media)?,
+        },
+        MediaEdit::ConfigureVideoFile { reference, file } => {
+            super::video::authoring::file(engine, reference, &file)?;
+            MediaEditResult::Changed
+        }
         MediaEdit::InspectTargetPicker { query } => MediaEditResult::TargetPicker {
             page: super::target_picker::read(engine, query)?,
         },

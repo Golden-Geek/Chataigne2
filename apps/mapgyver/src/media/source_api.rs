@@ -6,6 +6,15 @@ use serde::de::DeserializeOwned;
 use super::protocol::*;
 
 pub(super) const METHODS: &[&str] = &[
+    "playVideo",
+    "pauseVideo",
+    "stopVideo",
+    "seekVideo",
+    "setVideoRate",
+    "setVideoLoop",
+    "stepVideo",
+    "configureVideoFile",
+    "inspectVideo",
     "dropMatrixMedia",
     "transferMatrixCell",
     "dropCompositionMedia",
@@ -67,6 +76,9 @@ fn reference(args: &[ParamValue]) -> Result<ChannelReference, String> {
 /// Arguments exclude the request id; invalid argument shapes never enqueue partial operations.
 pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<MediaEdit>, String> {
     let count = match method {
+        "playVideo" | "pauseVideo" | "stopVideo" | "inspectVideo" => 1,
+        "seekVideo" | "setVideoRate" | "setVideoLoop" => 2,
+        "stepVideo" | "configureVideoFile" => 3,
         "createMedia"
         | "addChannel"
         | "configureMediaFitMode"
@@ -91,6 +103,51 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         return Err(format!("{method} expects a request id and {count} argument(s)"));
     }
     Ok(Some(match method {
+        "playVideo" => MediaEdit::Video {
+            media: MediaId(uuid(args, 0)?),
+            edit: super::video::protocol::VideoEdit::Play,
+        },
+        "pauseVideo" => MediaEdit::Video {
+            media: MediaId(uuid(args, 0)?),
+            edit: super::video::protocol::VideoEdit::Pause,
+        },
+        "stopVideo" => MediaEdit::Video {
+            media: MediaId(uuid(args, 0)?),
+            edit: super::video::protocol::VideoEdit::Stop,
+        },
+        "seekVideo" => MediaEdit::Video {
+            media: MediaId(uuid(args, 0)?),
+            edit: super::video::protocol::VideoEdit::Seek {
+                position_ms: number(args, 1)?,
+            },
+        },
+        "setVideoRate" => MediaEdit::Video {
+            media: MediaId(uuid(args, 0)?),
+            edit: super::video::protocol::VideoEdit::Rate { rate: number(args, 1)? },
+        },
+        "setVideoLoop" => {
+            let Some(ParamValue::Bool(looping)) = args.get(1) else {
+                return Err("Video loop must be boolean".into());
+            };
+            MediaEdit::Video {
+                media: MediaId(uuid(args, 0)?),
+                edit: super::video::protocol::VideoEdit::Loop { looping: *looping },
+            }
+        }
+        "stepVideo" => MediaEdit::Video {
+            media: MediaId(uuid(args, 0)?),
+            edit: super::video::protocol::VideoEdit::Step {
+                channel: ChannelId(uuid(args, 1)?),
+                direction: choice(args, 2)?,
+            },
+        },
+        "configureVideoFile" => MediaEdit::ConfigureVideoFile {
+            reference: reference(args)?,
+            file: text(args, 2)?.into(),
+        },
+        "inspectVideo" => MediaEdit::InspectVideo {
+            media: MediaId(uuid(args, 0)?),
+        },
         "transferMatrixCell" => MediaEdit::Matrix {
             media: MediaId(uuid(args, 0)?),
             edit: crate::matrix::protocol::MatrixEdit::TransferCell {

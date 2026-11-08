@@ -33,6 +33,9 @@ pub(crate) fn query_operation(engine: &AppEngine, operation: &str, payload: &Val
         edit => edit,
     };
     let result = match edit {
+        MediaEdit::InspectVideo { media } => {
+            super::video::authoring::inspect(engine, media).map(|snapshot| MediaEditResult::Video { snapshot })
+        }
         MediaEdit::InspectTargetPicker { query } => {
             super::target_picker::read(engine, query).map(|page| MediaEditResult::TargetPicker { page })
         }

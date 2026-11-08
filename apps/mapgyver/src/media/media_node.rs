@@ -25,7 +25,7 @@ use std::sync::OnceLock;
 #[children(
     folder(parameters, label = "Parameters") {
         media_kind: Enum = "SolidColor" (label = "Kind", read_only = true, persist_read_only_value = true,
-            enum_options = crate::parameters::enum_options(&["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix"]));
+            enum_options = crate::parameters::enum_options(&["Picture", "Video", "SolidColor", "SharedTexture", "Composition", "Matrix"]));
         resolution: Vec2 = Vec2::new(1920.0, 1080.0) [(1.0, 1.0)..(16384.0, 16384.0)] (
             label = "Resolution", description = "Output width and height in pixels. Disable to use each source's native size.",
             enabled = false, can_be_disabled = true, step = 1.0, constraint_policy = "reject");
@@ -35,6 +35,13 @@ use std::sync::OnceLock;
             enum_options = crate::parameters::enum_options(&["Manual", "Auto"]), constraint_policy = "reject");
         empty_cell: Enum = "Transparent" (label = "Empty cell", enum_options = crate::parameters::enum_options(&["Transparent"]));
         stop_all: ParamValue = ParamValue::Trigger() (label = "Stop All", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Matrix);
+        video_mode: Enum = "Paused" (label = "Playback", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video,
+            enum_options = crate::parameters::enum_options(&["Playing", "Paused", "Stopped"]), constraint_policy = "reject");
+        video_position_ms: f64 = 0.0 [0.0..9000000000000.0] (label = "Seek to", widget = "time", unit = "ms",
+            dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video, constraint_policy = "reject");
+        video_rate: f64 = 1.0 [-16.0..16.0] (label = "Rate", step = 0.01,
+            dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video, constraint_policy = "reject");
+        video_looping: bool = false (label = "Loop", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
     }
 )]
 pub struct MediaNode {
@@ -44,8 +51,73 @@ pub struct MediaNode {
     membership: RevisionSource,
     #[state(default = OnceLock::new())]
     matrix_root: OnceLock<golden_core::node::NodeUuid>,
+    #[state(default = OnceLock::new())]
+    video_control: OnceLock<std::sync::Arc<super::video::VideoControl>>,
+    #[state(default = false)]
+    video_ready: bool,
 }
 impl MediaNode {
+    pub(crate) fn video_control(&self) -> Option<std::sync::Arc<super::video::VideoControl>> {
+        (self.kind() == MediaKind::Video).then(|| self.video_control.get_or_init(Default::default).clone())
+    }
+    pub(crate) fn video_settings(&self) -> Result<super::video::protocol::VideoTransportSettings, String> {
+        let settings = super::video::protocol::VideoTransportSettings {
+            mode: super::video::protocol::VideoPlaybackMode::parse(self.video_mode.get_ref().as_str())?,
+            position_ms: self.video_position_ms.get(),
+            rate: self.video_rate.get(),
+            looping: self.video_looping.get(),
+        };
+        settings.validate()?;
+        Ok(settings)
+    }
+    pub(crate) fn video_parameter_values(
+        &self,
+        edit: &super::video::protocol::VideoEdit,
+    ) -> Vec<(golden_core::node::NodeId, ParamValue)> {
+        use super::video::protocol::{VideoEdit, VideoPlaybackMode};
+        match edit {
+            VideoEdit::Play => vec![(
+                self.video_mode.id(),
+                ParamValue::Enum(VideoPlaybackMode::Playing.name().into()),
+            )],
+            VideoEdit::Pause | VideoEdit::Step { .. } => vec![(
+                self.video_mode.id(),
+                ParamValue::Enum(VideoPlaybackMode::Paused.name().into()),
+            )],
+            VideoEdit::Stop => vec![
+                (
+                    self.video_mode.id(),
+                    ParamValue::Enum(VideoPlaybackMode::Stopped.name().into()),
+                ),
+                (self.video_position_ms.id(), ParamValue::Float(0.0)),
+            ],
+            VideoEdit::Seek { position_ms } => vec![(self.video_position_ms.id(), ParamValue::Float(*position_ms))],
+            VideoEdit::Rate { rate } => vec![(self.video_rate.id(), ParamValue::Float(*rate))],
+            VideoEdit::Loop { looping } => vec![(self.video_looping.id(), ParamValue::Bool(*looping))],
+        }
+    }
+    fn video_parameter(&self, id: golden_core::node::NodeId) -> bool {
+        [
+            self.video_mode.id(),
+            self.video_position_ms.id(),
+            self.video_rate.id(),
+            self.video_looping.id(),
+        ]
+        .contains(&id)
+    }
+    fn publish_video(&self, ctx: &mut ProcessCtx, seek: bool) {
+        if self.video_ready
+            && let Some(control) = self.video_control()
+        {
+            match self
+                .video_settings()
+                .and_then(|settings| control.configure(settings, seek))
+            {
+                Ok(()) => ctx.clear_node_warning(self.id(), Some("video-transport")),
+                Err(error) => ctx.set_node_warning_with(self.id(), Some("video-transport"), error, None),
+            }
+        }
+    }
     pub(crate) fn stop_all_parameter(&self) -> Option<golden_core::node::NodeId> {
         (self.kind() == MediaKind::Matrix).then(|| self.stop_all.id())
     }
@@ -88,7 +160,10 @@ impl MediaNode {
         node
     }
     pub(crate) fn supports_fit_mode(&self) -> bool {
-        matches!(self.kind(), MediaKind::Picture | MediaKind::SharedTexture)
+        matches!(
+            self.kind(),
+            MediaKind::Picture | MediaKind::Video | MediaKind::SharedTexture
+        )
     }
     pub(crate) fn fit_mode_parameter(&self) -> Option<golden_core::node::NodeId> {
         self.supports_fit_mode().then(|| self.fit_mode.id())
@@ -227,8 +302,10 @@ impl Node for MediaNode {
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
         self.membership.advance();
     }
-    fn on_node_ready(&mut self, _: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
         self.pulses.ready();
+        self.video_ready = true;
+        self.publish_video(ctx, true);
     }
     fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
         if !enabled {
@@ -240,6 +317,10 @@ impl Node for MediaNode {
         self.pulses.result(ctx, id, &event);
     }
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: golden_core::node::NodeId, _: ParamValue) {
+        if self.video_parameter(parameter) {
+            self.publish_video(ctx, parameter == self.video_position_ms.id());
+            return;
+        }
         if parameter == self.stop_all.id() {
             if self.kind() == MediaKind::Matrix {
                 self.pulses
@@ -253,6 +334,9 @@ impl Node for MediaNode {
         crate::parameters::reject_opaque(data)
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
+        if self.kind() == MediaKind::Video {
+            self.video_settings()?;
+        }
         if self.kind() == super::protocol::MediaKind::SharedTexture {
             super::protocol::SenderSelectionMode::parse(self.sender_selection.get_ref().as_str())?;
         }
@@ -263,14 +347,34 @@ impl Node for MediaNode {
         if self.supports_fit_mode() {
             MediaFitMode::parse(self.fit_mode.get_ref().as_str())?;
         }
-        if !["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix"]
-            .contains(&self.media_kind.get_ref().as_str())
+        if ![
+            "Picture",
+            "Video",
+            "SolidColor",
+            "SharedTexture",
+            "Composition",
+            "Matrix",
+        ]
+        .contains(&self.media_kind.get_ref().as_str())
         {
             return Err("unknown media kind".into());
         }
         Ok(())
     }
     fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
+        if self.video_parameter(change.parameter) {
+            let mut settings = self.video_settings()?;
+            match (change.parameter, change.value) {
+                (id, ParamValue::Enum(value)) if id == self.video_mode.id() => {
+                    settings.mode = super::video::protocol::VideoPlaybackMode::parse(value)?
+                }
+                (id, ParamValue::Float(value)) if id == self.video_position_ms.id() => settings.position_ms = *value,
+                (id, ParamValue::Float(value)) if id == self.video_rate.id() => settings.rate = *value,
+                (id, ParamValue::Bool(value)) if id == self.video_looping.id() => settings.looping = *value,
+                _ => return Err("invalid Video transport Parameter type".into()),
+            }
+            settings.validate()?;
+        }
         if self.sender_selection_parameter() == Some(change.parameter) {
             let ParamValue::Enum(mode) = change.value else {
                 return Err("sender selection must be an Enum".into());
@@ -293,6 +397,18 @@ impl Node for MediaNode {
         &self,
         change: &ParameterValidationContext<'_>,
     ) -> Result<Vec<(golden_core::node::NodeId, ParamValue)>, String> {
+        if self.kind() == MediaKind::Video {
+            if change.parameter == self.video_mode.id() && change.value == &ParamValue::Enum("Stopped".into()) {
+                return Ok(vec![(self.video_position_ms.id(), ParamValue::Float(0.0))]);
+            }
+            if change.parameter == self.video_position_ms.id()
+                && self.video_mode.get_ref().as_str() == "Stopped"
+                && !change.is_proposed(self.video_mode.id())
+                && change.value != &ParamValue::Float(self.video_position_ms.get())
+            {
+                return Ok(vec![(self.video_mode.id(), ParamValue::Enum("Paused".into()))]);
+            }
+        }
         if self.sender_selection_parameter() != Some(change.parameter) {
             return Ok(Vec::new());
         }
@@ -339,6 +455,7 @@ pub(super) fn kind_name(kind: MediaKind) -> &'static str {
     match kind {
         MediaKind::Reference => "Reference",
         MediaKind::Picture => "Picture",
+        MediaKind::Video => "Video",
         MediaKind::SolidColor => "SolidColor",
         MediaKind::SharedTexture => "SharedTexture",
         MediaKind::Composition => "Composition",
@@ -348,6 +465,7 @@ pub(super) fn kind_name(kind: MediaKind) -> &'static str {
 pub(super) fn parse_kind(kind: &str) -> MediaKind {
     match kind {
         "Picture" => MediaKind::Picture,
+        "Video" => MediaKind::Video,
         "SharedTexture" => MediaKind::SharedTexture,
         "Composition" => MediaKind::Composition,
         "Matrix" => MediaKind::Matrix,

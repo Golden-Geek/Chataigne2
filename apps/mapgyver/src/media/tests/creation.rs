@@ -12,6 +12,7 @@ fn manager_catalog_and_api_share_defaults_unique_identity_and_atomic_history() {
     for (kind, label) in [
         (MediaKind::SolidColor, "Solid Color"),
         (MediaKind::Picture, "Picture"),
+        (MediaKind::Video, "Video"),
         (MediaKind::SharedTexture, "Shared Texture"),
         (MediaKind::Composition, "Composition"),
         (MediaKind::Matrix, "Matrix"),

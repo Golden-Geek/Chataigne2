@@ -11,9 +11,10 @@ use golden_core::{
     parameter::ParamValue,
 };
 
-const SOURCES: [(&str, MediaKind); 5] = [
+const SOURCES: [(&str, MediaKind); 6] = [
     ("mapgyver.media.solid_color", MediaKind::SolidColor),
     ("mapgyver.media.picture", MediaKind::Picture),
+    ("mapgyver.media.video", MediaKind::Video),
     ("mapgyver.media.shared_texture", MediaKind::SharedTexture),
     ("mapgyver.media.composition", MediaKind::Composition),
     ("mapgyver.media.matrix", MediaKind::Matrix),

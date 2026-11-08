@@ -283,7 +283,7 @@ fn shared_catalog_creation_builds_complete_typed_media_and_screen_forests() {
     let MediaEditResult::Manager { snapshot } = media(&mut engine, MediaEdit::InspectManager) else {
         panic!()
     };
-    assert_eq!(snapshot.media.len(), 5);
+    assert_eq!(snapshot.media.len(), 6);
     assert!(snapshot.media.iter().all(|media| media.channels.len() == 1));
     let screen_manager = engine
         .nodes

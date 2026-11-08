@@ -5,7 +5,11 @@
 //! nominal frame rate, counts render callbacks or performs file work. Node/Parameter and worker
 //! integration consume this boundary; this module does not persist authored settings in DTOs.
 
+pub(crate) mod authoring;
+mod control;
+pub mod protocol;
 mod transport;
+pub use control::{StepRequest, VideoControl};
 pub use transport::{MediaTransport, TransportError, TransportSample};
 
 #[cfg(test)]

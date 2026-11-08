@@ -4,6 +4,8 @@ function onAppOperationResult(reply) {
 	// Created/PictureImported results contain reply.value.reference.media/channel UUIDs.
 	// Composition creation returns InstancesCreated: reply.value.instances[0].instance is the owned media UUID.
 	// Reads and rejected operations do not add history. Undo/Redo does not replay requests.
+	// Video transport operations return reply.value.snapshot: settings, ready, playing and pending_step.
+	// An accepted playback intent is not proof that a file decoder is ready or a frame presented.
 	if (reply.status === 'rejected') log('Media request rejected', reply.request_id, reply.message);
 	// Example: if (reply.request_id === "create" && reply.status === "applied") {
 	//   const ref = reply.value.reference;

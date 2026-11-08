@@ -45,6 +45,7 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
     for kind in [
         MediaKind::SolidColor,
         MediaKind::Picture,
+        MediaKind::Video,
         MediaKind::SharedTexture,
         MediaKind::Composition,
         MediaKind::Matrix,
@@ -58,6 +59,7 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
             match kind {
                 MediaKind::SharedTexture => 5,
                 MediaKind::Picture => 4,
+                MediaKind::Video => 8,
                 MediaKind::Matrix => 4,
                 _ => 3,
             }
@@ -67,7 +69,7 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
         assert_eq!(
             fields.len(),
             match kind {
-                MediaKind::SharedTexture | MediaKind::Picture => 6,
+                MediaKind::SharedTexture | MediaKind::Picture | MediaKind::Video => 6,
                 _ => 5,
             },
             "{fields:?}"
@@ -591,6 +593,19 @@ fn malformed_parameter_records_are_rejected_before_a_project_can_run() {
     let owner = resolution_engine.node_id_by_uuid(picture.media.0).unwrap();
     let fit = parameters(&resolution_engine, owner)["parameters/fit_mode"];
     assert_invalid_record(&resolution_engine, fit, serde_json::json!("Unknown"));
+    let video = create(&mut resolution_engine, MediaKind::Video);
+    let owner = resolution_engine.node_id_by_uuid(video.media.0).unwrap();
+    let fields = parameters(&resolution_engine, owner);
+    for (name, value) in [
+        ("video_mode", serde_json::json!("Unknown")),
+        ("video_rate", serde_json::json!(17.0)),
+        ("video_position_ms", serde_json::json!(-1.0)),
+    ] {
+        assert_invalid_record(&resolution_engine, fields[&format!("parameters/{name}")], value);
+    }
+    let channel = resolution_engine.node_id_by_uuid(video.channel.0).unwrap();
+    let file = parameters(&resolution_engine, channel)["parameters/file"];
+    assert_invalid_record(&resolution_engine, file, serde_json::json!("../invalid.mp4"));
     {
         let (name, value) = ("parameters/source_kind", serde_json::json!("unknown"));
         let mut engine = fixture();

@@ -60,7 +60,7 @@ use std::sync::Arc;
         label: String = "" (label = "Label", description = "Empty uses the backend default when creating objects.");
         media_kind: Enum = "SolidColor" (
             label = "Media kind",
-            enum_options = crate::parameters::enum_options(&["Picture", "SolidColor", "SharedTexture", "Composition", "Matrix", "Reference"]),
+            enum_options = crate::parameters::enum_options(&["Picture", "Video", "SolidColor", "SharedTexture", "Composition", "Matrix", "Reference"]),
             constraint_policy = "reject"
         );
         resolution_enabled: bool = false (label = "Force resolution");
@@ -85,6 +85,11 @@ use std::sync::Arc;
         project_path: File = File::default() (label = "Project path");
         absolute_path: File = File::default() (label = "Absolute path");
         picture_file: File = File::default() (label = "File");
+        video_file: File = File::default() (label = "File");
+        video_position_ms: f64 = 0.0 [0.0..9000000000000.0] (label = "Seek to", widget = "time", unit = "ms", constraint_policy = "reject");
+        video_rate: f64 = 1.0 [-16.0..16.0] (label = "Rate", constraint_policy = "reject");
+        video_looping: bool = false (label = "Loop");
+        video_step_direction: Enum = "Next" (label = "Direction", enum_options = crate::parameters::enum_options(&["Previous", "Next"]), constraint_policy = "reject");
         direction: Enum = "Earlier" (
             label = "Direction",
             enum_options = crate::parameters::enum_options(&["Earlier", "Later"]),
@@ -139,6 +144,48 @@ impl MediaCommandNode {
         let asset = AssetId::from_uuid(self.asset.get_ref().uuid.0);
         let folder = optional(self.target_folder.get_ref());
         Ok(match self.kind()? {
+            MediaCommandKind::VideoPlay => MediaEdit::Video {
+                media,
+                edit: super::super::video::protocol::VideoEdit::Play,
+            },
+            MediaCommandKind::VideoPause => MediaEdit::Video {
+                media,
+                edit: super::super::video::protocol::VideoEdit::Pause,
+            },
+            MediaCommandKind::VideoStop => MediaEdit::Video {
+                media,
+                edit: super::super::video::protocol::VideoEdit::Stop,
+            },
+            MediaCommandKind::VideoSeek => MediaEdit::Video {
+                media,
+                edit: super::super::video::protocol::VideoEdit::Seek {
+                    position_ms: self.video_position_ms.get(),
+                },
+            },
+            MediaCommandKind::VideoRate => MediaEdit::Video {
+                media,
+                edit: super::super::video::protocol::VideoEdit::Rate {
+                    rate: self.video_rate.get(),
+                },
+            },
+            MediaCommandKind::VideoLoop => MediaEdit::Video {
+                media,
+                edit: super::super::video::protocol::VideoEdit::Loop {
+                    looping: self.video_looping.get(),
+                },
+            },
+            MediaCommandKind::VideoStep => MediaEdit::Video {
+                media,
+                edit: super::super::video::protocol::VideoEdit::Step {
+                    channel: reference.channel,
+                    direction: choice(self.video_step_direction.get_ref().as_str())?,
+                },
+            },
+            MediaCommandKind::VideoFile => MediaEdit::ConfigureVideoFile {
+                reference,
+                file: self.video_file.get_ref().as_str().into(),
+            },
+            MediaCommandKind::InspectVideo => MediaEdit::InspectVideo { media },
             MediaCommandKind::SetApplicationFile => MediaEdit::Applications {
                 edit: crate::applications::protocol::ApplicationEdit::SetFile {
                     application: crate::applications::protocol::ApplicationId(self.application_owner.get_ref().uuid),

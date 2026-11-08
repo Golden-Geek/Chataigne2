@@ -33,8 +33,30 @@ shared LGPL archive and establishes only process-local build/runtime paths. Pack
 admission is explicit; failures require reopening the owner. These limits do not claim a hard
 ceiling on every temporary allocation inside third-party demuxers.
 
-Current implementation stops at these transport and decoder boundaries. Video's typed media
-and per-channel File Parameters, commands/functions/callbacks/snippets, worker queues and actual
-preview/output integration remain to be wired. GPU-resident D3D11 frames, HAP compressed textures,
-device/file recovery and final redistribution/performance remain required by M10. Software
-fixtures do not establish actual-app playback or close a codec acceptance gate.
+Video now participates in the real media catalog. Each channel owns a typed File Parameter;
+Playback, Seek to (milliseconds), Rate and Loop are media-owned Parameters rendered by the
+generic Inspector. Commands, named script methods and `MediaEdit` all edit those same nodes.
+Generic edits enforce Stop's zero position and change a stopped media to Paused when seeking.
+Sparse projects and history contain Parameters, never a serialized transport DTO or clock.
+
+`VideoControl` is a shared runtime owner created per media incarnation. It projects the
+Parameters onto `MediaTransport`, retains pending seeks until duration is known and coalesces
+selected-channel step requests with revision fences. Playback intent and actual readiness are
+separate in `VideoTransportSnapshot`; `ready` means usable duration metadata and `playing`
+reports the transport clock. Neither proves that a frame was decoded or presented. `Playing`
+authored before metadata leaves the clock paused. Rates use a checked rational projection at
+millionth precision. The worker
+must resolve exact neighbouring timestamps and publish resolved seek Parameters through the
+engine before claiming complete frame stepping.
+
+Video operation adapters use Golden's public `settle_edit_notifications` inside the existing
+atomic application operation. This bounded fixed point refreshes Parameter handles and runs
+their callbacks before returning snapshots or issuing step requests. Draining queued edits
+alone leaves handles stale until notification dispatch. The shared API owns that ordering;
+the app does not duplicate the engine's stabilization loop.
+
+Worker queues and actual preview/output integration remain to be wired. Configured Video
+channels currently resolve Unavailable and render transparent, without claiming decoder
+readiness. GPU-resident D3D11 frames, HAP compressed textures, device/file recovery and final
+redistribution/performance remain required by M10. Software and authoring fixtures do not
+establish actual-app playback or close a codec acceptance gate.
