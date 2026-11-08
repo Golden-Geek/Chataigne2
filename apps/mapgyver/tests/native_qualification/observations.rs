@@ -59,20 +59,28 @@ fn displays() -> io::Result<Vec<mapgyver::screens::protocol::DisplayInfo>> {
 }
 
 pub fn pixels(args: Arguments) -> io::Result<()> {
-    capture_pixels(args, 4 * 1024 * 1024, false)
+    capture_pixels(args, 4 * 1024 * 1024, None)
 }
 
 /// M11/10 full-image acceptance: receiving, staging and CPU pixels for one 4K frame.
 /// The original small-output observer and every production budget remain unchanged.
 pub fn calibration_pixels(args: Arguments) -> io::Result<()> {
-    capture_pixels(args, 128 * 1024 * 1024, true)
+    capture_pixels(args, 128 * 1024 * 1024, Some("MapGyver-M1110-"))
 }
 
-fn capture_pixels(mut args: Arguments, capacity: usize, calibration: bool) -> io::Result<()> {
+/// Three full 800x600 receiving/staging/CPU images exceed the small observer's 4MiB pool.
+/// Admit only the owned surround fixture; production and existing observers stay unchanged.
+pub fn surround_pixels(args: Arguments) -> io::Result<()> {
+    capture_pixels(args, 8 * 1024 * 1024, Some("MapGyver-Surround-"))
+}
+
+fn capture_pixels(mut args: Arguments, capacity: usize, required_prefix: Option<&str>) -> io::Result<()> {
     let adapter = selected(args.number("adapter", "0")?)?;
     let sender = args.required("name")?;
-    if calibration && !sender.starts_with("MapGyver-M1110-") {
-        return Err(Error::other("calibration capture requires an owned M1110 sender"));
+    if let Some(prefix) = required_prefix
+        && !sender.starts_with(prefix)
+    {
+        return Err(Error::other("pixel capture requires its owned fixture sender"));
     }
     let directory = PathBuf::from(args.required("directory")?);
     args.done()?;

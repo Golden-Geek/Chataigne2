@@ -1,0 +1,68 @@
+{
+	"date": "2026-11-08",
+	"gate": "M13/13",
+	"status": "Partial desktop verification; gate remains Active",
+	"batch": { "started_utc": "15:11", "cutoff_utc": "15:56" },
+	"progress": {
+		"verified": 80,
+		"total": 92,
+		"percent": 87,
+		"m13_verified": 11,
+		"m13_total": 14,
+		"m13_percent": 79,
+		"completed_phases": 7,
+		"total_phases": 14
+	},
+	"scope": "Actual foreground MapGyver Screen Warping and Surface Source pixels compared with independently read DOM geometry and public native hit queries. Computer Use activates owned windows; the existing trusted WebView2 test driver supplies repeatable gestures. Theme and root-font changes are explicit test stimuli, not proof of a user theme chooser or physical DPI transition.",
+	"software": {
+		"reused": "M13/14 accepted software/native prerequisites in mapgyver-m13-targeting-acceptance-2026-11-08.json; no production code changed in this slice.",
+		"observer": "cargo test --locked -p MapGyver --features native-qualification --bin native_qualification --quiet: 12 passed; strict Clippy with -D warnings and explicit build both exited 0 before hardware use.",
+		"receipt": "target/m1313-surround-observer-software-20261108.log",
+		"capacity": "Separate surround-pixels role admits only MapGyver-Surround- names with an 8MiB qualification pool. Three 800x600 receiving/staging/CPU images exceed the original 4MiB observer. Original pixels 4MiB, calibration 128MiB and all production budgets remain unchanged."
+	},
+	"environment": {
+		"app_sha256": "b838d19a26573e1f8609913f7eac0233f70c14a9069be4a99dbb4cbb8fac76af",
+		"nvidia": "dxgi:00000000:90b3a15f",
+		"intel": "dxgi:00000000:00015b69",
+		"window_dpi": 120,
+		"device_pixel_ratio": 1.25,
+		"root_font_css_px": [16, 18],
+		"system_changes": "None; monitor arrangement, scaling and GPU devices unchanged."
+	},
+	"verified_captures": {
+		"nvidia_directory": "target/m1313-desktop-nvidia-20261108-c",
+		"nvidia_stage_filter": "retry-*-verified.json",
+		"nvidia_frames": 7,
+		"intel_directory": "target/m1313-desktop-intel-20261108-b",
+		"intel_stage_filter": "*-verified.json",
+		"intel_frames": 12,
+		"distinctness": "19 frames, not 19 distinct acceptance cases: Intel includes settled/resumed theme captures.",
+		"gray_samples": 2953,
+		"maximum_gray_error_255": 0,
+		"unoccluded_image_edge_checks": 14,
+		"image_edge_limit_physical_px": 1,
+		"physical_handle_centres": 68,
+		"maximum_handle_error_physical_px": 0.4531095027923584,
+		"handle_limit_physical_px": 1,
+		"native_hit_queries": 87,
+		"maximum_hit_rect_error_css_px": 0.00005227595147516695,
+		"hit_rect_limit_css_px": 0.05,
+		"cases": "Both adapters: bare/selected Screen, Screen pan/zoom, Source home/pan/zoom, grey theme and rem scale. Intel additionally: maximize/restore and dock resize for Source and Screen. Selected Screen blue strokes occlude red edges; those envelopes are explicitly excluded from image-edge acceptance."
+	},
+	"independent_output": {
+		"size": [800, 600],
+		"intel_before_after_rgba_sha256": "a98d60c7df105c0626e6ab1902e649ec497e4931015c91fdd763ae191cf46c86",
+		"intel_result": "Entire decoded output identical before/after pan/zoom/theme/rem/maximize/restore/docking; 360000 transparent pixels and 120000 red pixels at alpha 128 within 2/255.",
+		"nvidia_baseline_rgba_sha256": "c9bbfed7fa99351befd534e1a70b32d8d07f67bc02d1801ae79061591c296f3f",
+		"nvidia_limit": "Baseline full output passes; this cohort did not reach its after-viewport output comparison. No cross-adapter byte identity is claimed."
+	},
+	"preserved_failures": [
+		"NVIDIA a: original observer capacity/readiness failure; calibration observer correctly rejected the unrelated sender prefix. Dedicated bounded role added after software checks.",
+		"Intel a: startup context destroyed during navigation; wait for actual app URL/network-idle before adapter observation.",
+		"Intel b: first immediate theme capture retained old grey; settled capture in the same window passes. No theme latency acceptance. Controller's global fetch/process.exit combination later aborted Node26.5/libuv after opaque project load. Replaced with consumed node:http request and natural exit; project tail still unverified. Host eventually expired, so this is not a passing complete cohort.",
+		"NVIDIA c: blue desktop pointer highlight contaminated bare surround. Parking the native pointer on the owned header allowed the same scene to pass. After maximize the unchanged physical pointer lay inside the enlarged viewport; retry-source-maximized again failed grey probes. Capture contamination is the supported hypothesis, not a proven renderer defect. Failed frames remain retained; no pixel budget was relaxed.",
+		"NVIDIA c host-result reports no page errors or rejected intents after a finish marker. This checks host cleanup only, not matrix acceptance; the old PTY session was already unavailable when repolled after compaction."
+	],
+	"remaining": "Account explicitly for the OS pointer/highlight in physical captures and add negative controls rejecting shifted metadata without loosening alignment/color limits. Complete NVIDIA resize/docking, then both adapters' opaque/missing/recovered sources and New/Load transitions with unchanged independent outputs. Preserve existing standalone eight-preview/eight-output evidence; do not rerun unchanged kernel probes.",
+	"limits": "No gate closes. No M13/4 30+fps timing, p95/p99, physical latency, large-project, production timing or allocation acceptance. Permission to automate owned windows is valid; no missing desktop-tool blocker remains."
+}
