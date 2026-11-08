@@ -23,9 +23,23 @@ source availability status.
 `SelectReferenceChannel`, its typed command and `local.selectReferenceChannel` edit the same
 Channel Parameter. Catalog queries, source drops, preview selection, capture and project
 validation consume that single model. Reference v3 projects are rejected explicitly; this
-schema change does not provide backward compatibility. The bounded catalog-only Inspector
-picker is a separate, unfinished part of M13/14; backend integration alone does not accept
-that gate.
+schema change does not provide backward compatibility.
+
+The generic Inspector uses Golden UI's public `registerReferenceChoiceProvider` hook for
+Surface and Reference targeting. MapGyver's `media::target_picker` supplies the protocol,
+current-binding description, ordered catalog-folder/channel pages and validated selection
+intent. Each request reads at most64 choices and256 sibling records; UUID cursors validate
+against their owning scope, and folder ancestry admits only organizing folders under Medias.
+Current bindings are queried independently of browse choices, so an explicit nested Cell
+reference remains readable without exposing nested media as selectable catalog entries.
+
+`SelectTargetPickerChoice` validates current catalog ancestry or exposed Channel membership
+before writing the same real Parameter. Its ordinary backend companion proposal supplies the
+default Channel and one history item. Explicit Cell operations retain their separate nested
+source/cycle policy. Golden owns the reusable paged menu, loading/error presentation and read
+lifetime fencing; no app types or defaults enter Golden. Metadata-only reads avoid loading
+choices for closed controls. This UI implementation does not by itself accept M13/14's
+remaining interaction/native qualification.
 
 Playback qualification follows Golden's normal load lifecycle: activate a decoded engine with
 `prepare_engine_for_runtime` before launching or capturing it. A decoded candidate still has

@@ -14,6 +14,7 @@ pub const ASSET_NODE_TYPE: &str = "mapgyver.media.asset.v2";
 pub const SENDER_DISCOVERY_EVENT: &str = "mapgyver-sender-discovery";
 
 pub use super::commands::{MediaCommandCatalogItem, MediaCommandKind};
+pub use super::target_picker::protocol::*;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
@@ -246,6 +247,15 @@ impl MediaFitMode {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEdit {
+    InspectTargetPicker {
+        query: TargetPickerQuery,
+    },
+    SelectTargetPickerChoice {
+        #[ts(type = "string")]
+        parameter: NodeUuid,
+        #[ts(type = "string | null")]
+        target: Option<NodeUuid>,
+    },
     CreateReference {
         target: Option<MediaId>,
         label: Option<String>,
@@ -464,6 +474,9 @@ pub struct PictureFileBinding {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    TargetPicker {
+        page: TargetPickerPage,
+    },
     PictureFile {
         binding: Option<PictureFileBinding>,
     },

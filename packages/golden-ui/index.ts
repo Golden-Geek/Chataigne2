@@ -28,6 +28,12 @@ export type {
 	NodeWarningRecord
 } from './store/workbench.svelte';
 export type { NodePickerModalView } from './store/node-picker-modal.svelte';
+export {
+	registerReferenceChoiceProvider,
+	type ReferenceChoiceProvider,
+	type ReferenceChoicePage,
+	type ReferenceChoiceRequest
+} from './components/panels/inspector/reference-choice-provider';
 export type { NodeIconSet } from './store/node-types';
 
 export {

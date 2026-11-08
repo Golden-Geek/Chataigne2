@@ -11,6 +11,7 @@ mod composition;
 mod matrix;
 mod picture_file;
 mod reference_selection;
+mod target_picker;
 
 #[derive(Clone, Copy, Debug)]
 enum Caller {

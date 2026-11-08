@@ -1,0 +1,47 @@
+{
+	"date": "2026-11-08",
+	"gate": "M13/14",
+	"status": "Bounded targeting functionally verified; retained mixed native subrequirement passes; full gate remains Active",
+	"ownership": {
+		"backend": "apps/mapgyver/src/media/target_picker owns generated query DTOs, actual typed Parameter identity, catalog ancestry, exposed Channel membership and validated selection. Ordinary backend companion proposals own default Channel and atomic history.",
+		"ui": "Golden UI's public registerReferenceChoiceProvider owns the shared Inspector menu and EditorReadQueue lifetime. MapGyver maps its generated protocol to presentation models and registers exact Surface/Reference Parameter owners.",
+		"bounds": "At most64 returned choices and256 inspected siblings per request; UUID cursors must belong to the requested parent. Closed controls request metadata only. Catalog folder ancestry is bounded to64 and never traverses a Media. No full-document reference query or UI-owned default."
+	},
+	"software": {
+		"app": "cargo test --locked -p MapGyver --lib --quiet:578 passed,0 failed,2 ignored,44.03s. Includes145 generated contracts,10000-Reference picker catalog, bounded excluded sibling scans, metadata-only reads, forward/back paging, invalid/foreign cursor rejection, nested current bindings, backend defaults/clear/Undo/Redo and public caller parity.",
+		"app_receipt": "target/m1314-picker-software-final-20261108.log",
+		"strict": "cargo clippy --locked -p MapGyver --all-targets --features native-qualification -- -D warnings: exit0. The standalone channel_rendering target also compiled and passed strict lint before hardware execution.",
+		"strict_receipts": ["target/m1314-picker-strict-final-20261108.log", "target/m1314-picker-native-compile-20261108.log", "target/m1314-picker-native-strict-20261108.log"],
+		"ui": "MapGyver and Chataigne svelte-check:0 errors/0 warnings. Golden UI:60 files/320 tests pass, including provider replacement and stale disposal. Existing unregistered Reference editor moved unchanged behind the provider boundary.",
+		"format": "Root and golden_core cargo fmt complete; authored UI/browser files formatted with repository Prettier; staged diff checked."
+	},
+	"bundled_ui": {
+		"test": "apps/mapgyver/tests/browser/target-picker.mjs",
+		"result": "7 groups pass; owned headless app exits0; no page errors, rejected receipts or /api/ui/reference-targets full-tree requests.",
+		"coverage": [
+			"Catalog menu shows only catalog Media and organizing folders; nested media, scripts and Channel nodes excluded; folder navigation opens its own Media.",
+			"Selecting Media selects first Channel in backend; exact one-step Undo/Redo restores both Parameters.",
+			"71 Channel choices paginate; later-page selection, rename and reorder preserve UUID.",
+			"Deleting explicit Channel displays unavailable; Undo recovers the exact selection without rerouting.",
+			"Surface shares the control and selects Reference-owned Output, distinct from producer Channel; nil Surface Channel remains unconfigured while choices remain available.",
+			"Clearing Surface Media clears both Parameters atomically with exact Undo/Redo.",
+			"Save/New/Load retains authored Media and Channel identities."
+		],
+		"artifacts": "target/m1314-target-picker-ui-EU0gCf: result.json, catalog.png, channels.png and saved project. channels.png visually inspected: ordinary compact Golden Inspector rows/context menu.",
+		"receipt": "target/m1314-target-picker-ui-current-20261108.log",
+		"loader_reconciliation": "The first alias host failed before main with0xC0000139: its generated test executable lacked the actual app's Common Controls v6 manifest required by TaskDialogIndirect. Windows SDK mt.exe copied the existing MapGyver.exe manifest into only the owned generated alias executable. The subsequent bundled run passed. No product loader code or user executable was modified."
+	},
+	"mixed_native": {
+		"test": "shared_texture::reference::references_share_native_production_through_composition_matrix_and_owned_retirement",
+		"result": "1 passed,0 failed,24.58s; terminal exit0",
+		"binary": "target/debug/deps/channel_rendering-871bec26537fc9dc.exe",
+		"binary_sha256": "fef518e751aa877e0c9c910d4230a7226d5fd55229f429614810203a93f0b7c2",
+		"receipt": "target/m1314-picker-mixed-native-20261108.log",
+		"receipt_sha256": "167b134e8e3ce915b7297cd5364e691bfaf76506570ae00954d244590a6b2f5a",
+		"adapters": ["Intel(R) Graphics LUID88937:0", "NVIDIA GeForce RTX5080 Laptop GPU LUID2427691359:0"],
+		"coverage": "SolidColor, Picture and owned SharedTexture producer on both adapters;9 stages each,3 complete output images per stage =162 images. Original tolerance2/255 retained. Automatic and resampled References, mixed Composition/Matrix, runtime-activated project reload, missing/recovery, independent copy, owned retention and final-use release all pass. Source-entry count assertions pass, all six OwnedRenderer retirement waits complete and owned Spout senders exit successfully. No additional resource-counter assertion is inferred.",
+		"limits": "Functional sharing/pixel/lifetime evidence only. No throughput, physical desktop input or separate historical M09 timed-Matrix acceptance is inferred.",
+		"earlier_failures": "Preserved in mapgyver-m13-reference-output-2026-11-08.json and its receipts: default Layer geometry, unactivated decoded engine and natural-size Picture-copy mismatches. This single return run followed the picker software prerequisites and exercised the already compiled explicit Cell Size correction."
+	},
+	"remaining": "Reconcile and execute the existing unavailable-reference and matrix-output-exposure browser fixtures for Reference v4 and the new picker without weakening their exposure/missing/recovery/history assertions; audit all original M13/14 requirements. No full gate accepted:79/92 overall86%, M13 10/14. Stopped desktop input, M13/2,4,13 and all older timing/retirement gates remain unchanged."
+}

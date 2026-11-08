@@ -1,7 +1,7 @@
 {
 	"date": "2026-11-08",
 	"gate": "M13/14",
-	"status": "Reference v4 backend functionally verified; targeting UI and complete mixed native acceptance remain open",
+	"status": "Reference v4 backend functionally verified; subsequent picker milestone completes mixed native acceptance; full M13/14 remains open",
 	"batch": {
 		"started_utc": "2026-11-07 23:17",
 		"cutoff_utc": "2026-11-08 00:02",
@@ -127,6 +127,7 @@
 		],
 		"return_action": "After the bounded picker/browser slice passes its software prerequisites, run the corrected existing mixed fixture once with explicit Layer/Cell sizing and runtime activation; require every source kind on both GPUs, reuse and final retirement. Preserve this cumulative investigation and all earlier failed results."
 	},
-	"remaining": "Deliver the public bounded catalog-only Medias/folder picker and dependent Channel dropdown in the generic Inspector, backend ancestry/type validation and nested-Cell validity; reconcile existing unavailable-reference and matrix-output-exposure browser fixtures with the new selected-output contract and complete actual bundled UI/history/project coverage. Finish the retained mixed native check. M13/14 alone remains Active; stopped desktop input and M13/2,4,13 plus every older qualification gate remain unchanged.",
+	"subsequent_verification": "mapgyver-m13-target-picker-2026-11-08.json records the delivered bounded picker,578 app tests,320 Golden tests,145 contracts and seven bundled UI groups. Its single corrected native return passes all162 images across three source kinds/both GPUs, reuse and retirement. The mixed_native object above preserves this earlier checkpoint's failures and then-unexecuted correction; it is superseded by that passing result.",
+	"remaining": "Reconcile existing unavailable-reference and matrix-output-exposure browser fixtures with the new selected-output contract and complete the full M13/14 audit. M13/14 alone remains Active; stopped desktop input and M13/2,4,13 plus every older qualification gate remain unchanged.",
 	"delivery": "Checkpoint this coherent backend/schema/protocol/consumer milestone before beginning the bounded picker slice. A push does not accept the full gate."
 }
