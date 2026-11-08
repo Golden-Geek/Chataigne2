@@ -28,6 +28,8 @@ fn plan(engine: &AppEngine, references: &[ChannelReference]) -> super::super::pl
         super::super::plan::Sources {
             observations: &observations,
             pictures: None,
+            #[cfg(feature = "video-files")]
+            videos: None,
             calibration: &mut Default::default(),
         },
     )

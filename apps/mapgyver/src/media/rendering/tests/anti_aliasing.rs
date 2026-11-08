@@ -35,6 +35,8 @@ fn prepare(
         super::super::plan::Sources {
             observations: &renderer.source_observations(),
             pictures: None,
+            #[cfg(feature = "video-files")]
+            videos: None,
             calibration: &mut Default::default(),
         },
     );

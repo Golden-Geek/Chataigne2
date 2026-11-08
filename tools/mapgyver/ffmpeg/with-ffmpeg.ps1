@@ -19,7 +19,7 @@ if ($taskHash -ne $taskPin.sha256 -or (Get-Item -LiteralPath $taskArchive).Lengt
 if (!(Test-Path -LiteralPath $taskInstall)) {
     Expand-Archive -LiteralPath $taskArchive -DestinationPath $taskUnpack
 }
-foreach ($taskRequired in @('include/libavcodec/avcodec.h', 'lib/avcodec.lib', 'bin/avcodec-63.dll', 'LICENSE.txt')) {
+foreach ($taskRequired in @('include/libavcodec/avcodec.h', 'lib/avcodec.lib', 'bin/avcodec-63.dll', 'lib/swscale.lib', 'bin/swscale-10.dll', 'LICENSE.txt')) {
     if (!(Test-Path -LiteralPath (Join-Path $taskInstall $taskRequired))) {
         throw "Incomplete pinned FFmpeg install: $taskRequired"
     }
@@ -32,10 +32,19 @@ $taskOldDirectory = Get-Location
 $taskOldFfmpeg = $env:FFMPEG_DIR
 $taskOldPath = $env:PATH
 $taskOldClang = $env:LIBCLANG_PATH
+$taskOldRustflags = $env:RUSTFLAGS
+$taskOldEncodedRustflags = $env:CARGO_ENCODED_RUSTFLAGS
 try {
     Set-Location -LiteralPath $taskRoot
     $env:FFMPEG_DIR = $taskInstall
     $env:PATH = (Join-Path $taskInstall 'bin') + ';' + $env:PATH
+    # Bindgen's Windows SDK traversal can exhaust the MSVC executable's default main stack.
+    # Reserve virtual address space, without increasing committed stack or changing the system.
+    if ($taskOldEncodedRustflags) {
+        $env:CARGO_ENCODED_RUSTFLAGS = $taskOldEncodedRustflags + [char]31 + '-C' + [char]31 + 'link-arg=/STACK:16777216'
+    } else {
+        $env:RUSTFLAGS = (($taskOldRustflags + ' -C link-arg=/STACK:16777216').Trim())
+    }
     if (!$env:LIBCLANG_PATH -and (Test-Path -LiteralPath 'C:/Program Files/LLVM/bin/libclang.dll')) {
         $env:LIBCLANG_PATH = 'C:/Program Files/LLVM/bin'
     }
@@ -46,5 +55,7 @@ try {
     $env:FFMPEG_DIR = $taskOldFfmpeg
     $env:PATH = $taskOldPath
     $env:LIBCLANG_PATH = $taskOldClang
+    $env:RUSTFLAGS = $taskOldRustflags
+    $env:CARGO_ENCODED_RUSTFLAGS = $taskOldEncodedRustflags
 }
 exit $taskExit

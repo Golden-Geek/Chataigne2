@@ -124,6 +124,8 @@ fn nine_procedural_preview_sources_keep_every_clear_and_texture_binding() {
         super::super::plan::Sources {
             observations: &observations,
             pictures: None,
+            #[cfg(feature = "video-files")]
+            videos: None,
             calibration: &mut Default::default(),
         },
     )
@@ -243,6 +245,8 @@ fn source_swap_rejects_pending_preview_install_without_revoking_retained_view_pi
         super::super::plan::Sources {
             observations: &renderer.source_observations(),
             pictures: None,
+            #[cfg(feature = "video-files")]
+            videos: None,
             calibration: &mut Default::default(),
         },
     )

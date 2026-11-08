@@ -1,0 +1,39 @@
+{
+	"date": "2026-11-08",
+	"gate": "M10/1 Active; decoded software-frame integration verified, complete common-codec acceptance open",
+	"progress": { "accepted": 83, "total": 102, "percent": 81, "m10_accepted": 0, "m10_total": 4 },
+	"batch": { "started_utc": "19:15", "cutoff_utc": "20:00" },
+	"deliverable": "The video-files app feature binds channel-owned Files to bounded decode workers, the shared media clock and live textures in the existing preview/output graph. References share the canonical channel stream and target; frame publication updates installed native storage without per-frame plan construction.",
+	"architecture": "docs/architecture/mapgyver-video.md",
+	"ownership": {
+		"workers": "Eight lifetime slots include retiring workers. Cancellation wakes waits and interrupts FFmpeg open/demux. Missing files retry after one second; relink/project-root changes cancel and withdraw old sources.",
+		"storage": "A 768 MiB admission bounds known owned software storage using 40 bytes per pixel plus 16 MiB packet allowance per worker. The reservation follows each retained image through its final observer, including after worker exit. This is not a ceiling on all internal FFmpeg temporary allocations. FileRetirement proves worker-idle and retained-image storage separately.",
+		"transport": "Original timestamps, bounded eight-frame decode turns, EOF hold, forward/backward seeks, play/pause/Stop/rate/loop and stale epoch/cycle/source-owner rejection. Known duration survives consumer withdrawal and Reference re-entry. Source generations prevent retiring workers from publishing for their replacements.",
+		"native": "ImageStream retains one latest image, uses nonblocking render observation and a stable descriptor. D3D11 updates only new sequences on existing admitted textures, without GPU readback. Displaced pixel storage is freed outside the media control lock.",
+		"remaining_metadata": "The known-duration registry is bounded to 4096 channels. Complete discovery of unopened variants and synchronization of authored File clears/channel removals remain required; longest-all-variants acceptance is not claimed."
+	},
+	"software": {
+		"command": "powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 test --locked -p MapGyver -p golden_video --lib --features MapGyver/video-files,golden_video/ffmpeg,golden_video/qualification --quiet",
+		"app": { "passed": 596, "failed": 0, "ignored": 2, "exit": 0 },
+		"golden": { "passed": 254, "failed": 0, "ignored": 54, "exit": 0 },
+		"final_affected_app_check": "Both media::rendering::tests::videos cases pass after the final source-owner/consumer-lifetime correction, including exact epoch retention across last-consumer withdrawal/re-entry and zero retained bytes after the held image drops. Earlier full-suite results are reused for unchanged scope.",
+		"final_image_check": "Five image::tests cases pass after the native fixture oracle correction; native tests remain ignored in this software-only run.",
+		"strict": "Final combined MapGyver/golden_video --lib --tests Clippy with video-files/ffmpeg/qualification and -D warnings exits0. The feature-disabled default MapGyver strict check also passed during this slice.",
+		"coverage": "Real mixed-rate H.264/H.265/ProRes timestamp seeks across EOF; File-to-stream decode, Reference target sharing, no per-frame request publication, half-rate loop playback, paused publication stability, Stop, missing-file recovery, relink withdrawal, consumer re-entry and retained-image retirement. Existing generated-contract equality runs in the full app suite."
+	},
+	"native": {
+		"prerequisites": "Terminal software builds/tests and strict lint inspected before hardware. No desktop input, monitor changes or driver reset was used.",
+		"gpus": ["Intel(R) Graphics", "NVIDIA GeForce RTX 5080 Laptop GPU"],
+		"texture_test": "hardware_stream_frames_update_one_installed_texture_and_withdraw_on_both_gpus: pass. Both GPUs render red, straight-alpha half-green, blue and withdrawal correctly while created texture count stays fixed; tolerance2/255.",
+		"codec_test": "hardware_common_codec_sdr_frames_match_independent_linear_pixels_on_both_gpus: corrected run passes. Six original frames per codec per GPU, 36 total, are uploaded/sampled to independent native readbacks against the fixture generator's limited-range BT.709 ramp; tolerance4/255 stays unchanged.",
+		"formats": [
+			"H.264 yuv420p at24 FPS",
+			"H.265 yuv420p at30000/1001 FPS",
+			"ProRes yuv422p10le at25 FPS"
+		],
+		"oracle_correction": "The first combined hardware run passed the texture/alpha/withdrawal test but failed the codec test on Intel frame3: actual [42,44,44,255], expected52. The new test had assumed Y=16+32*N; the owning generator actually authors Y=32+24*N. Correcting that independent expected ramp, with no runtime or tolerance change, passes both GPUs. The failed attempt is retained here and is not relabeled as passing.",
+		"scope": "These are Golden native source/pixel proofs plus app file/graph integration tests, not a captured actual-app UI playback qualification or sustained 1080p/4K performance result."
+	},
+	"build": "Pinned libswscale is enabled and its import library/DLL are verified. The helper preserves/restores normal/encoded Rust flags and reserves a 16 MiB MSVC main stack. This resolves an optimized ffmpeg-sys binding-generator STATUS_STACK_OVERFLOW; ordinary feature-disabled builds remain available. Existing native test helpers require qualification, rather than d3d11 alone. No release/deployment was performed.",
+	"remaining": "Finish selected-channel exact frame-step commits through real Parameter/history/callback routes; complete all-variant metadata and authored clear/removal synchronization, source diagnostics and default feature wiring. Verify actual-app panels/Screen output and remaining color/profile/alpha cases. Implement supported GPU-resident D3D11 decode, then HAP and full first-pass recovery, DLL/license/source redistribution and sustained 1080p/4K/resource/seek performance. M14 follows gates M10/1,2,4; DXV/WebP remains required after M14. No M10 gate closes in this slice."
+}

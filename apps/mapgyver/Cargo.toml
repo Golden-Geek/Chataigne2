@@ -11,6 +11,7 @@ name = "mapgyver"
 [features]
 application-process-fixture = ["dep:windows"]
 default = ["native-video"]
+video-files = ["golden_video/ffmpeg"]
 native-video = ["golden_video/d3d11", "dep:windows"]
 native-presentation-smoke = ["dep:windows"]
 native-video-smoke = ["native-video", "dep:windows"]

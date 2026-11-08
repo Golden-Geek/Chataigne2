@@ -15,22 +15,95 @@ struct State {
     revision: u64,
     seek_pending: bool,
     step: Option<StepRequest>,
+    durations: std::collections::HashMap<super::super::protocol::ChannelId, Duration>,
+    sources: std::collections::HashMap<super::super::protocol::ChannelId, uuid::Uuid>,
 }
 
 /// Shared per-media runtime control, retained by demanded sources rather than per Reference.
-pub struct VideoControl(Mutex<State>);
+pub struct VideoControl(Mutex<State>, golden_io::RevisionSource);
 impl Default for VideoControl {
     fn default() -> Self {
-        Self(Mutex::new(State {
-            transport: MediaTransport::new(SystemClock::new()).expect("fresh monotonic clock is representable"),
-            settings: Default::default(),
-            revision: 0,
-            seek_pending: true,
-            step: None,
-        }))
+        Self(
+            Mutex::new(State {
+                transport: MediaTransport::new(SystemClock::new()).expect("fresh monotonic clock is representable"),
+                settings: Default::default(),
+                revision: 0,
+                seek_pending: true,
+                step: None,
+                durations: Default::default(),
+                sources: Default::default(),
+            }),
+            Default::default(),
+        )
     }
 }
 impl VideoControl {
+    pub fn claim_channel(&self, channel: super::super::protocol::ChannelId, owner: uuid::Uuid) -> Result<(), String> {
+        let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
+        if !state.durations.contains_key(&channel) && state.durations.len() >= 4096 {
+            return Err("Video metadata exceeds the 4096-channel runtime capture bound".into());
+        }
+        state.sources.insert(channel, owner);
+        Ok(())
+    }
+    pub fn revisions(&self) -> golden_io::RevisionReader {
+        self.1.reader()
+    }
+    pub fn sample(&self) -> Result<super::TransportSample, String> {
+        self.0
+            .lock()
+            .map_err(|_| "Video control poisoned")?
+            .transport
+            .sample()
+            .map_err(|e| e.to_string())
+    }
+    pub fn channel_duration(
+        &self,
+        channel: super::super::protocol::ChannelId,
+        owner: uuid::Uuid,
+        duration: Duration,
+    ) -> Result<(), String> {
+        let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
+        if state.sources.get(&channel) != Some(&owner) {
+            return Err("Video source owner was superseded".into());
+        }
+        state.durations.insert(channel, duration);
+        let duration = state.durations.values().copied().max().unwrap_or_default();
+        let first = state.transport.duration().is_zero();
+        let extended = duration > state.transport.duration();
+        state.transport.set_duration(duration).map_err(|e| e.to_string())?;
+        state.apply(first || extended)?;
+        drop(state);
+        self.1.advance();
+        Ok(())
+    }
+    pub fn release_channel(&self, channel: super::super::protocol::ChannelId, owner: uuid::Uuid) {
+        if let Ok(mut state) = self.0.lock()
+            && state.sources.get(&channel) == Some(&owner)
+        {
+            // Demand belongs to a consumer, not to media transport. Keep known metadata
+            // while previews/References are closed; resubscription must not reset time.
+            state.sources.remove(&channel);
+        }
+    }
+    pub fn publish_frame(
+        &self,
+        channel: super::super::protocol::ChannelId,
+        owner: uuid::Uuid,
+        expected: super::TransportSample,
+        stream: &golden_video::image::ImageStream,
+        image: golden_video::image::ImageData,
+    ) -> Result<bool, String> {
+        let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
+        let now = state.transport.sample().map_err(|e| e.to_string())?;
+        if state.sources.get(&channel) != Some(&owner) || (now.epoch, now.cycle) != (expected.epoch, expected.cycle) {
+            return Ok(false);
+        }
+        let retired = stream.replace(Some(image)).map_err(str::to_owned)?;
+        drop(state);
+        drop(retired);
+        Ok(true)
+    }
     pub fn configure(&self, settings: VideoTransportSettings, seek: bool) -> Result<(), String> {
         settings.validate()?;
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
@@ -46,7 +119,10 @@ impl VideoControl {
         state.settings = settings;
         state.revision = revision;
         state.step = None;
-        state.apply(play)
+        state.apply(play)?;
+        drop(state);
+        self.1.advance();
+        Ok(())
     }
     /// The file worker supplies aggregate metadata; transient source loss must retain known duration.
     pub fn prepare(&self, duration: Duration) -> Result<(), String> {
@@ -56,7 +132,9 @@ impl VideoControl {
         state.apply(first)
     }
     pub fn request_play(&self) -> Result<(), String> {
-        self.0.lock().map_err(|_| "Video control poisoned")?.apply(true)
+        self.0.lock().map_err(|_| "Video control poisoned")?.apply(true)?;
+        self.1.advance();
+        Ok(())
     }
     pub fn snapshot(&self, media: super::super::protocol::MediaId) -> Result<VideoTransportSnapshot, String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;

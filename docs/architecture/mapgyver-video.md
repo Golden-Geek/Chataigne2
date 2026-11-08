@@ -55,8 +55,38 @@ their callbacks before returning snapshots or issuing step requests. Draining qu
 alone leaves handles stale until notification dispatch. The shared API owns that ordering;
 the app does not duplicate the engine's stabilization loop.
 
-Worker queues and actual preview/output integration remain to be wired. Configured Video
-channels currently resolve Unavailable and render transparent, without claiming decoder
-readiness. GPU-resident D3D11 frames, HAP compressed textures, device/file recovery and final
-redistribution/performance remain required by M10. Software and authoring fixtures do not
-establish actual-app playback or close a codec acceptance gate.
+`video::Files` now owns demanded local-file workers. Captured channels carry the same media
+control through References and retained Matrix producer graphs. Eight lifetime slots include
+retiring workers; an explicit 768 MiB software storage admission follows every retained image
+through its last observer. This accounts for admitted worker/frame storage, rather than
+claiming a ceiling on all temporary allocations internal to FFmpeg. Cancellation interrupts
+demux/open and wakes waits without joining on the engine or UI. Missing files retry once per
+second. Relinking and project-root changes withdraw old sources before replacement.
+
+The reader decodes at most eight frames per turn before checking controls/cancellation. It
+samples original timestamps, holds the final frame at EOF, rewinds for backward seeks and
+uses coalesced latest-image publication. Paused workers wait for an explicit control wake.
+Known duration survives consumer withdrawal; a returning Reference continues the media clock.
+Per-channel owner tokens reject metadata/frames from superseded workers. Complete metadata
+discovery for unopened variants and authored clear/removal synchronization remain required;
+the current known-duration registry has a 4096-entry admission bound.
+
+Golden's `ImageStream` supplies fixed-descriptor software frames to an installed render plan.
+Native storage is updated only when its sequence changes. Frame delivery does not rebuild
+plans or create textures per frame. The render worker uses a nonblocking observation and keeps
+the previous upload during publication contention. Software conversion, upload and hardware
+decoding are distinct: the current converter explicitly handles supported SDR BT.709/sRGB/
+linear transfer, rejects other matrices/transfers, and never reads a hardware frame back.
+Displaced pixel buffers are freed outside the media control lock.
+
+During integration, enable `video-files` through the pinned dependency helper:
+
+```powershell
+powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 run --locked -p MapGyver --features video-files
+```
+
+The host binds these file sources to the existing Media Preview, Composition, Matrix and
+Screen render graph. Default feature/redistribution wiring, actual-app visual qualification,
+exact frame-step commits, all-variant metadata, complete profile/color/alpha coverage,
+GPU-resident D3D11 hardware frames, HAP and sustained recovery/resource/performance acceptance
+remain required by M10. The implemented software path does not close a codec acceptance gate.

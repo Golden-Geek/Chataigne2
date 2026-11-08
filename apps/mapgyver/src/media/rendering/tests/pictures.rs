@@ -206,13 +206,13 @@ fn relocating_the_picture_root_reprepares_relative_sources_without_reauthoring_c
         &mut renderer,
         [(ChannelAvailability::Ready, Some(Extent2D::new(2, 3).unwrap())); 2],
     );
-    assert!(renderer.set_picture_root(second.path()).unwrap());
+    assert!(renderer.set_file_root(second.path()).unwrap());
     publish(&mut renderer, &engine, [a, b]);
     settled(
         &mut renderer,
         [(ChannelAvailability::Ready, Some(Extent2D::new(5, 4).unwrap())); 2],
     );
-    assert!(!renderer.set_picture_root(second.path()).unwrap());
+    assert!(!renderer.set_file_root(second.path()).unwrap());
     close(renderer);
 }
 
@@ -387,7 +387,7 @@ fn automatic_picture_extent_is_shared_with_backend_and_rejects_stale_reload_clos
     });
     let moved = tempfile::tempdir().unwrap();
     png(moved.path(), "extent.png", 4, 4, [0, 255, 0, 255]);
-    assert!(renderer.set_picture_root(moved.path()).unwrap());
+    assert!(renderer.set_file_root(moved.path()).unwrap());
     assert!(crate::media::resolution::channel_extent(&engine, reference).is_err());
     renderer
         .publish(capture_channels(&engine, &[reference], 16).unwrap(), routes(reference))

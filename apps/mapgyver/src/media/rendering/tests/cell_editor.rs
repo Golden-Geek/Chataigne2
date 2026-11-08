@@ -118,6 +118,8 @@ fn inactive_cell_editor_preview_is_transient_placed_bounded_and_does_not_launch_
         super::super::plan::Sources {
             observations: &owner.source_observations(),
             pictures: None,
+            #[cfg(feature = "video-files")]
+            videos: None,
             calibration: &mut Default::default(),
         },
     )

@@ -6,6 +6,8 @@
 
 use ffmpeg_next as ffmpeg;
 use std::path::Path;
+mod image;
+pub use image::SoftwareImageConverter;
 
 /// Explicit admission limits, chosen by the owning runtime before opening a decoder.
 #[derive(Clone, Copy, Debug)]
@@ -114,6 +116,15 @@ enum DecodeState {
 impl SoftwareDecoder {
     /// Open one local file and its best video stream with exactly one codec thread.
     pub fn open(path: &Path, limits: DecodeLimits) -> Result<Self, DecodeError> {
+        Self::open_with_interrupt(path, limits, || false)
+    }
+
+    /// Open with an owning worker's cancellation callback, also used during demux reads.
+    pub fn open_with_interrupt(
+        path: &Path,
+        limits: DecodeLimits,
+        interrupt: impl FnMut() -> bool + Send + 'static,
+    ) -> Result<Self, DecodeError> {
         if limits.max_pixels == 0
             || limits.max_pixels > i64::MAX as u64
             || limits.max_packet_bytes == 0
@@ -125,7 +136,7 @@ impl SoftwareDecoder {
             return Err(DecodeError::NotAFile);
         }
         ffmpeg::init()?;
-        let input = ffmpeg::format::input(path)?;
+        let input = ffmpeg::format::input_with_interrupt(&path, interrupt)?;
         let stream = input
             .streams()
             .best(ffmpeg::media::Type::Video)

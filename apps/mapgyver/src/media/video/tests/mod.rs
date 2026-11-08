@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(feature = "video-files")]
+mod reader;
 use golden_time::{Clock, MonotonicTime, PlaybackRate, TimeError};
 use std::sync::{
     Arc,

@@ -171,6 +171,8 @@ pub enum ExternalSource {
     Spout(SpoutSource),
     /// Immutable decoder pixels and their preparation/resource lifetime lease.
     Image(golden_assets::PreparedAsset<crate::image::ImageData>),
+    /// Fixed-descriptor latest software frames; native storage is reused across publications.
+    Frames(crate::image::ImageStream),
 }
 
 impl ExternalSource {
@@ -178,7 +180,7 @@ impl ExternalSource {
     pub fn spout(&self) -> Option<&SpoutSource> {
         match self {
             Self::Spout(source) => Some(source),
-            Self::Image(_) => None,
+            Self::Image(_) | Self::Frames(_) => None,
         }
     }
 
@@ -186,6 +188,7 @@ impl ExternalSource {
         match self {
             Self::Spout(_) => true,
             Self::Image(image) => image.is_current(),
+            Self::Frames(_) => true,
         }
     }
 
@@ -193,6 +196,7 @@ impl ExternalSource {
         match self {
             Self::Spout(source) => source.sender.capacity(),
             Self::Image(image) => image.retained_bytes(),
+            Self::Frames(stream) => stream.retained_bytes(),
         }
     }
 }

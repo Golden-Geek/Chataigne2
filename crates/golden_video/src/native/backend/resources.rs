@@ -114,6 +114,7 @@ pub(super) fn prepare(
         outputs: Default::default(),
         presented_regions: Default::default(),
         input_sequences: Default::default(),
+        stream_sequences: Default::default(),
         canvas_images: Default::default(),
         _demands: None,
     };
@@ -121,6 +122,11 @@ pub(super) fn prepare(
     let device = &native.device.device;
     for external in plan.external_textures() {
         let role = Role::External(external.id);
+        if matches!(&external.source, Some(ExternalSource::Frames(_))) {
+            resources
+                .stream_sequences
+                .insert(external.id, std::cell::Cell::new(None));
+        }
         let texture = match &external.source {
             Some(ExternalSource::Image(image)) => {
                 // The texture retains this exact preparation lease. Its payload address cannot

@@ -287,6 +287,8 @@ pub(super) fn prepare(engine: &AppEngine, roots: &[ChannelReference]) -> super::
         super::super::plan::Sources {
             observations: &owner.source_observations(),
             pictures: None,
+            #[cfg(feature = "video-files")]
+            videos: None,
             calibration: &mut Default::default(),
         },
     )
@@ -441,6 +443,8 @@ fn selected_column_shares_layer_group_final_passes_and_group_opacity_is_post_com
         super::super::plan::Sources {
             observations: &owner.source_observations(),
             pictures: None,
+            #[cfg(feature = "video-files")]
+            videos: None,
             calibration: &mut Default::default(),
         },
     )

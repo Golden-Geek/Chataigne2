@@ -117,6 +117,8 @@ pub(super) fn prepared(
         super::super::plan::Sources {
             observations: &owner.source_observations(),
             pictures: None,
+            #[cfg(feature = "video-files")]
+            videos: None,
             calibration: &mut Default::default(),
         },
     )

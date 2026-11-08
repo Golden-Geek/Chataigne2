@@ -5,8 +5,10 @@ use thiserror::Error;
 use crate::TextureDescriptor;
 mod atlas;
 mod font;
+mod stream;
 pub use atlas::ImageAtlas;
 pub use font::FontAtlas;
+pub use stream::{ImageStream, StreamSample};
 
 /// A tightly packed, immutable image. Source storage/color/alpha is explicit;
 /// conversion into the renderer's linear premultiplied targets happens while sampling.
@@ -14,6 +16,15 @@ pub use font::FontAtlas;
 pub struct ImageData {
     descriptor: TextureDescriptor,
     pixels: Box<[u8]>,
+    _lifetime: Option<ImageLifetime>,
+}
+struct ImageLifetime {
+    _owner: std::sync::Arc<dyn Send + Sync>,
+}
+impl std::fmt::Debug for ImageLifetime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ImageLifetime")
+    }
 }
 
 /// CPU image validation failure before any native allocation.
@@ -47,7 +58,14 @@ impl ImageData {
         Ok(Self {
             descriptor,
             pixels: pixels.into_boxed_slice(),
+            _lifetime: None,
         })
+    }
+
+    /// Retain a producer's admitted storage reservation until the final image observer drops.
+    pub fn retain<T: Send + Sync + 'static>(mut self, owner: std::sync::Arc<T>) -> Self {
+        self._lifetime = Some(ImageLifetime { _owner: owner });
+        self
     }
 
     /// Declared storage, extent, color encoding and alpha convention.

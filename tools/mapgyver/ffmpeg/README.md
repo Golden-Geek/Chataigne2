@@ -18,6 +18,9 @@ powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 clippy --locke
 
 The helper restores process-local environment variables and never changes system settings.
 Without Cargo arguments it only prepares the pinned dependency and prints its location.
+It also reserves a 16 MiB MSVC main-thread stack for helper-built executables: optimized
+binding generation with the Windows headers exhausted the default reserve. Existing Rust
+flags are preserved, including Cargo's encoded form, and restored after Cargo exits.
 
 The initial public `decode::SoftwareDecoder` retains original presentation timestamps and
 reference-counted software planes, including pixel format and color metadata. It enforces
@@ -27,8 +30,11 @@ third-party temporary allocations; queue admission and cancellation belong to th
 
 The app-owned `MediaTransport` now provides the shared monotonic playback policy, and the
 decoder can seek in original stream timestamps with fresh codec state. Typed controls and
-public callers are wired; selected-channel step resolution, worker/recovery integration and GPU-resident D3D11 frames
-remain required. Do not label software decoding as hardware playback. See the
+public callers are wired. The `video-files` app feature now connects bounded local-file workers
+to timestamp sampling, explicit software SDR conversion through pinned libswscale and reusable
+native texture uploads. Missing-file retry and consumer/observer retirement are covered by
+app tests. Selected-channel step commits, complete authored-variant metadata, broader color/
+profile coverage and GPU-resident D3D11 frames remain required. See the
 [Video ownership](../../../docs/architecture/mapgyver-video.md) for the current integration boundary.
 M10/4 owns final DLL packaging, dependency notices, corresponding-source delivery and sustained
 actual-app qualification. No release or deployment is performed by the preparation helper.

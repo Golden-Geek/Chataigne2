@@ -13,7 +13,7 @@ d3d11 = ["dep:windows", "dep:spout2-sys", "dep:concurrent-queue"]
 qualification = ["d3d11", "windows/Win32_Graphics_Direct3D_Fxc", "spout2-sys/qualification"]
 
 [dependencies]
-ffmpeg-next = { version = "=9.0.0", default-features = false, features = ["format"], optional = true }
+ffmpeg-next = { version = "=9.0.0", default-features = false, features = ["format", "software-scaling"], optional = true }
 fontdue = "=0.9.4"
 golden_assets.workspace = true
 golden_io.workspace = true

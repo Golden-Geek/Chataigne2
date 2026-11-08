@@ -57,7 +57,10 @@ pub(super) fn compile(
             {
                 return Err(PlanError::InvalidSourceBinding(texture.id));
             }
-            Some(ExternalSource::Image(_)) | None => {}
+            Some(ExternalSource::Frames(stream)) if stream.descriptor() != texture.descriptor => {
+                return Err(PlanError::InvalidSourceBinding(texture.id));
+            }
+            Some(ExternalSource::Image(_) | ExternalSource::Frames(_)) | None => {}
         }
         insert_resource(&mut resources, texture.id, Writer::External, bytes)?;
     }

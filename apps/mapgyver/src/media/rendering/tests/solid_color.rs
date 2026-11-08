@@ -61,6 +61,8 @@ fn solid_color_channels_keep_backend_extents_linear_alpha_and_one_production_per
         super::super::plan::Sources {
             observations: &observations,
             pictures: None,
+            #[cfg(feature = "video-files")]
+            videos: None,
             calibration: &mut Default::default(),
         },
     )

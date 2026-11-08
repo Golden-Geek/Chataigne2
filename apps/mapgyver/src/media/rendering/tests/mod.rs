@@ -19,6 +19,8 @@ mod screens;
 mod solid_color;
 mod transitions;
 mod unavailable;
+#[cfg(feature = "video-files")]
+mod videos;
 
 use super::*;
 use crate::app::AppEngine;

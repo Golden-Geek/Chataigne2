@@ -140,6 +140,11 @@ fn create(
         .native_control()
         .ok_or_else(|| io::Error::other("native preview control missing"))?;
     native.set_output_notifier(notifier.clone());
+    #[cfg(feature = "video-files")]
+    owner
+        .renderer
+        .enable_videos(&std::env::current_dir()?, Some(notifier.clone()))
+        .map_err(io::Error::other)?;
     owner
         .renderer
         .enable_pictures(&std::env::current_dir()?, config.pictures, Some(notifier))
@@ -553,7 +558,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     .and_then(|path| std::path::Path::new(path).parent())
                     .map(std::path::Path::to_path_buf)
                     .unwrap_or(std::env::current_dir().map_err(|e| e.to_string())?);
-                changed |= renderer.set_picture_root(&root)?;
+                changed |= renderer.set_file_root(&root)?;
                 if changed {
                     let next = capture.as_ref().ok_or("presentation capture missing")?;
                     let project = next.channels.project;

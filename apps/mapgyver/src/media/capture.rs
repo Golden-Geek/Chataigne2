@@ -28,6 +28,7 @@ pub(super) struct CapturedAsset {
 
 #[derive(Clone)]
 pub(super) struct CapturedChannel {
+    pub video: Option<Arc<super::video::VideoControl>>,
     pub picture_reload: u64,
     pub public_output: bool,
     pub reference: ChannelReference,
@@ -463,6 +464,10 @@ pub(crate) fn capture_channels_with_time(
             ancestor = node.node_data().parent;
         }
         channels.push(CapturedChannel {
+            video: match media {
+                Some(AppNode::Media(node)) => node.video_control(),
+                _ => frozen.and_then(|channel| channel.video.clone()),
+            },
             picture_reload,
             public_output: publicly_exposed(reference),
             owned,
@@ -476,6 +481,7 @@ pub(crate) fn capture_channels_with_time(
     }
     for reference in hidden_roots.difference(&seen) {
         channels.push(CapturedChannel {
+            video: None,
             picture_reload: 0,
             reference: *reference,
             public_output: false,

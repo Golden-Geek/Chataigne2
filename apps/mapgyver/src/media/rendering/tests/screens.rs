@@ -171,6 +171,8 @@ fn composed_screen_consumers_share_one_channel_and_one_mapped_pass() {
         super::super::plan::Sources {
             observations: &renderer.source_observations(),
             pictures: None,
+            #[cfg(feature = "video-files")]
+            videos: None,
             calibration: &mut Default::default(),
         },
     )
@@ -361,6 +363,8 @@ fn calibration_needs_no_source_and_restores_the_authored_channel_crop_quad_and_o
             super::super::plan::Sources {
                 observations: &renderer.source_observations(),
                 pictures: None,
+                #[cfg(feature = "video-files")]
+                videos: None,
                 calibration: &mut Default::default(),
             },
         )

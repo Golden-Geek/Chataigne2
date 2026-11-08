@@ -63,6 +63,8 @@ pub struct ChannelRenderer {
     channels: Vec<PreparedChannel>,
     latest_request: Option<RequestId>,
     pictures: Option<super::picture::Pictures>,
+    #[cfg(feature = "video-files")]
+    videos: Option<super::video::files::Files>,
     calibration_assets: crate::screens::CalibrationAssets,
     resolution_owner: std::sync::Arc<()>,
 }
@@ -92,6 +94,8 @@ impl ChannelRenderer {
             channels: Vec::new(),
             latest_request: None,
             pictures: None,
+            #[cfg(feature = "video-files")]
+            videos: None,
             calibration_assets: Default::default(),
             resolution_owner: Default::default(),
         }
@@ -100,6 +104,24 @@ impl ChannelRenderer {
     /// Bind process final-use ownership to this renderer's actual queued/live/retiring plans.
     pub fn bind_applications(&mut self, retainer: crate::applications::runtime::PlanRetainer) {
         self.applications = Some(retainer);
+    }
+    /// Enable bounded local Video file workers on the host/preparation owner.
+    #[cfg(feature = "video-files")]
+    pub fn enable_videos(
+        &mut self,
+        root: &std::path::Path,
+        notifier: Option<golden_io::WorkerNotifier>,
+    ) -> Result<(), String> {
+        if self.videos.is_some() {
+            return Err("Video file preparation is already configured".into());
+        }
+        self.videos = Some(super::video::files::Files::new(root, notifier));
+        Ok(())
+    }
+    /// File workers and retained CPU frame storage have an independent retirement proof.
+    #[cfg(feature = "video-files")]
+    pub fn video_retirement(&self) -> Option<super::video::FileRetirement> {
+        self.videos.as_ref().map(|videos| videos.retirement())
     }
     /// Latest captured preparation/clip demand; installation and final-use proof remain separate.
     pub fn application_demand(&self) -> Vec<crate::applications::demand::ApplicationDemand> {
@@ -156,13 +178,18 @@ impl ChannelRenderer {
     }
 
     /// Rebase relative source preparation after save-as/project relocation on the owner worker.
-    pub fn set_picture_root(&mut self, root: &std::path::Path) -> Result<bool, String> {
+    pub fn set_file_root(&mut self, root: &std::path::Path) -> Result<bool, String> {
+        #[cfg(feature = "video-files")]
+        let videos_changed = self.videos.as_mut().is_some_and(|videos| videos.set_root(root));
+        #[cfg(not(feature = "video-files"))]
+        let videos_changed = false;
         let changed = self
             .pictures
             .as_mut()
             .map(|pictures| pictures.set_root(root))
             .transpose()
             .map(|changed| changed.unwrap_or(false))?;
+        let changed = changed || videos_changed;
         if changed {
             self.resolution_owner = Default::default();
         }
@@ -250,7 +277,11 @@ impl ChannelRenderer {
         {
             return Err("source observations belong to a stale renderer project/device".into());
         }
-        if let Some(pictures) = &mut self.pictures {
+        #[cfg(feature = "video-files")]
+        let prepares_video = self.videos.is_some();
+        #[cfg(not(feature = "video-files"))]
+        let prepares_video = false;
+        if self.pictures.is_some() || prepares_video {
             let mut demanded = routes.iter().map(|route| route.channel).collect::<Vec<_>>();
             if let Some(preview) = &preview {
                 demanded.extend(preview.references()?);
@@ -266,7 +297,13 @@ impl ChannelRenderer {
                 self.limits.max_passes.saturating_sub(derived::base_passes(&capture)),
             )?
             .0;
-            pictures.sync(&capture, &demanded, self.limits.max_external_textures)?;
+            if let Some(pictures) = &mut self.pictures {
+                pictures.sync(&capture, &demanded, self.limits.max_external_textures)?;
+            }
+            #[cfg(feature = "video-files")]
+            if let Some(videos) = &mut self.videos {
+                videos.sync(&capture, &demanded)?;
+            }
         }
         let mut prepared = plan::build(
             &capture,
@@ -284,6 +321,8 @@ impl ChannelRenderer {
             plan::Sources {
                 observations: &observations,
                 pictures: self.pictures.as_ref(),
+                #[cfg(feature = "video-files")]
+                videos: self.videos.as_ref(),
                 calibration: &mut self.calibration_assets,
             },
         )?;
@@ -371,7 +410,12 @@ impl ChannelRenderer {
             .transpose()?
             .unwrap_or(false);
         let observations = self.source_observations();
+        #[cfg(feature = "video-files")]
+        let videos_changed = self.videos.as_mut().is_some_and(|videos| videos.service());
+        #[cfg(not(feature = "video-files"))]
+        let videos_changed = false;
         if !pictures_changed
+            && !videos_changed
             && !transitions_finished
             && self
                 .observations
@@ -429,6 +473,8 @@ impl ChannelRenderer {
         if let Some(pictures) = self.pictures.take() {
             pictures.close();
         }
+        #[cfg(feature = "video-files")]
+        self.videos.take();
     }
 
     #[cfg(all(windows, feature = "native-video"))]

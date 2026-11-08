@@ -11,6 +11,12 @@ pub mod protocol;
 mod transport;
 pub use control::{StepRequest, VideoControl};
 pub use transport::{MediaTransport, TransportError, TransportSample};
+#[cfg(feature = "video-files")]
+pub(crate) mod files;
+#[cfg(feature = "video-files")]
+pub use files::FileRetirement;
+#[cfg(feature = "video-files")]
+mod reader;
 
 #[cfg(test)]
 mod tests;

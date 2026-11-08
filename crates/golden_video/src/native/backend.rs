@@ -79,6 +79,7 @@ pub(crate) struct D3d11Resources {
     outputs: BTreeMap<OutputId, Rc<Texture>>,
     presented_regions: BTreeMap<OutputId, Vec<crate::plan::RegionPlacement>>,
     input_sequences: BTreeMap<TextureId, Cell<Option<CopyFrame>>>,
+    stream_sequences: BTreeMap<TextureId, Cell<Option<u64>>>,
     canvas_images: BTreeMap<usize, Rc<Texture>>,
     _demands: Option<SourceDemands>,
 }
@@ -132,6 +133,7 @@ impl D3d11Backend {
                     || binding.descriptor.extent.height() > 16_384
             }
             Some(ExternalSource::Image(image)) => image.value().descriptor() != external.descriptor,
+            Some(ExternalSource::Frames(stream)) => stream.descriptor() != external.descriptor,
             None => true,
         }) {
             self.control
@@ -539,6 +541,40 @@ impl D3d11Backend {
         let pipeline = &native.pipeline;
         pipeline.begin_frame(time);
         for external in plan.external_textures().iter().filter(|_| !presentation_only) {
+            if let Some(ExternalSource::Frames(stream)) = &external.source {
+                let sequence = &resources.stream_sequences[&external.id];
+                let target = &resources.textures[&external.id];
+                if sequence.get().is_none() {
+                    unsafe {
+                        context.ClearRenderTargetView(&target.rtv, &[0.0; 4]);
+                    }
+                }
+                if let Some(sample) = stream.sample()
+                    && sequence.get() != Some(sample.sequence)
+                {
+                    if let Some(image) = sample.image {
+                        // SAFETY: ImageData validates tight storage; UpdateSubresource copies
+                        // the source bytes before returning. Immediate-context ordering protects
+                        // prior GPU reads of this same admitted texture, without CPU readback.
+                        unsafe {
+                            context.UpdateSubresource(
+                                &target.texture,
+                                0,
+                                None,
+                                image.pixels().as_ptr().cast(),
+                                image.descriptor().extent.width() * image.descriptor().format.bytes_per_pixel() as u32,
+                                0,
+                            );
+                        }
+                    } else {
+                        unsafe {
+                            context.ClearRenderTargetView(&target.rtv, &[0.0; 4]);
+                        }
+                    }
+                    sequence.set(Some(sample.sequence));
+                }
+                continue;
+            }
             if !matches!(external.source, Some(ExternalSource::Spout(_))) {
                 continue;
             }

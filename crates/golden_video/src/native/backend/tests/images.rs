@@ -1,4 +1,5 @@
 use std::time::{Duration, Instant};
+mod streams;
 
 use golden_time::{PlaybackRate, ShowPosition, SystemClock, TimeAuthority};
 use uuid::Uuid;

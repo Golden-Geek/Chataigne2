@@ -213,6 +213,8 @@ fn missing_and_unconfigured_channels_publish_explicit_transparent_placeholders()
         super::super::plan::Sources {
             observations: &observations,
             pictures: None,
+            #[cfg(feature = "video-files")]
+            videos: None,
             calibration: &mut Default::default(),
         },
     )
@@ -247,6 +249,8 @@ fn missing_and_unconfigured_channels_publish_explicit_transparent_placeholders()
         super::super::plan::Sources {
             observations: &observations,
             pictures: None,
+            #[cfg(feature = "video-files")]
+            videos: None,
             calibration: &mut Default::default(),
         },
     )

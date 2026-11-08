@@ -41,6 +41,8 @@ pub(super) struct Targets<'a> {
 pub(super) struct Sources<'a> {
     pub observations: &'a SourceObservations,
     pub pictures: Option<&'a crate::media::picture::Pictures>,
+    #[cfg(feature = "video-files")]
+    pub videos: Option<&'a crate::media::video::files::Files>,
     pub calibration: &'a mut crate::screens::CalibrationAssets,
 }
 
@@ -55,6 +57,8 @@ pub(super) fn build(
     let Sources {
         observations,
         pictures,
+        #[cfg(feature = "video-files")]
+        videos,
         calibration,
     } = sources;
     let Targets {
@@ -123,7 +127,9 @@ pub(super) fn build(
                 && channel.definition.as_ref().is_some_and(|definition| {
                     matches!(
                         definition.source,
-                        ChannelSource::Picture { file: Some(_) } | ChannelSource::Spout { sender: Some(_), .. }
+                        ChannelSource::Picture { file: Some(_) }
+                            | ChannelSource::Video { file: Some(_) }
+                            | ChannelSource::Spout { sender: Some(_), .. }
                     )
                 })
         })
@@ -186,10 +192,42 @@ pub(super) fn build(
                 .filter(|_| channel.enabled)
                 .map(|definition| &definition.source);
             match source {
-                Some(ChannelSource::Video { .. }) => {
+                Some(configured @ ChannelSource::Video { .. }) => {
                     entry.source = None;
-                    resolution =
-                        resolution::resolve(channel.definition.as_ref().unwrap(), SourceObservation::Unavailable)?;
+                    #[cfg(feature = "video-files")]
+                    let stream = videos.and_then(|videos| videos.stream(reference));
+                    #[cfg(not(feature = "video-files"))]
+                    let stream: Option<golden_video::image::ImageStream> = None;
+                    resolution = resolution::resolve(
+                        channel.definition.as_ref().unwrap(),
+                        stream.as_ref().map_or(SourceObservation::Unavailable, |stream| {
+                            SourceObservation::Available(stream.descriptor())
+                        }),
+                    )?;
+                    if let Some(stream) = stream {
+                        let id = match previous
+                            .channels
+                            .get(&reference)
+                            .and_then(|entry| entry.source.as_ref())
+                        {
+                            Some((id, old)) if old == configured => *id,
+                            _ => allocate(next)?,
+                        };
+                        let descriptor = stream.descriptor();
+                        submission.plan.external_textures.push(ExternalTexture {
+                            id,
+                            descriptor,
+                            source: Some(golden_video::plan::ExternalSource::Frames(stream)),
+                        });
+                        entry.source = Some((id, configured.clone()));
+                        let definition = channel.definition.as_ref().unwrap();
+                        operation = super::fit::operation(
+                            id,
+                            descriptor.extent,
+                            resolution.extent.expect("ready Video extent"),
+                            definition.fit_mode,
+                        )?;
+                    }
                 }
                 Some(ChannelSource::Reference { target }) => {
                     entry.source = None;
