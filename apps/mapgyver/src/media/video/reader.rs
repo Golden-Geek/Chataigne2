@@ -1,13 +1,13 @@
 //! Timestamp sampling and bounded decode turns on an owning file worker.
 use super::failure::Failure;
 use golden_video::{
-    decode::{DecodedFrame, SoftwareDecoder, SoftwareImageConverter, TimeBase},
+    decode::{DecodedFrame, Decoder, SoftwareImageConverter, TimeBase},
     image::ImageData,
 };
 use std::time::Duration;
 
 pub(super) struct Reader {
-    decoder: SoftwareDecoder,
+    decoder: Decoder,
     converter: SoftwareImageConverter,
     current: Option<DecodedFrame>,
     next: Option<DecodedFrame>,
@@ -37,7 +37,7 @@ impl Reader {
     pub fn invalidate_publication(&mut self) {
         self.published = None;
     }
-    pub fn new(decoder: SoftwareDecoder) -> Result<Self, Failure> {
+    pub fn new(decoder: Decoder) -> Result<Self, Failure> {
         let info = decoder.info();
         let duration = duration(
             info.duration

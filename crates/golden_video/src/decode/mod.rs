@@ -1,4 +1,4 @@
-//! File demux and software video decode for an owning worker, never an engine callback.
+//! File demux and explicitly selected video decode on an owning worker.
 //!
 //! Frames retain FFmpeg's reference-counted storage and original time base. They are not
 //! implicitly converted, uploaded or read back from a GPU. A media transport and the native
@@ -10,6 +10,10 @@ mod image;
 pub use image::{ConversionError, SoftwareImageConverter};
 mod timing;
 pub use timing::{StreamTiming, probe_timing_with_interrupt};
+#[cfg(all(windows, feature = "d3d11"))]
+mod d3d11;
+#[cfg(all(windows, feature = "d3d11"))]
+pub use d3d11::{D3d11Frame, D3d11Storage};
 
 /// Explicit admission limits, chosen by the owning runtime before opening a decoder.
 #[derive(Clone, Copy, Debug)]
@@ -51,7 +55,12 @@ pub struct StreamInfo {
 /// One owned decoded image. Retaining it does not retain a borrow of the decoder.
 pub struct DecodedFrame {
     timestamp: i64,
-    image: ffmpeg::frame::Video,
+    storage: FrameStorage,
+}
+enum FrameStorage {
+    Software(ffmpeg::frame::Video),
+    #[cfg(all(windows, feature = "d3d11"))]
+    D3d11(D3d11Frame),
 }
 
 impl DecodedFrame {
@@ -60,10 +69,22 @@ impl DecodedFrame {
         self.timestamp
     }
 
-    /// Reference-counted software planes, pixel format and color interpretation metadata.
-    /// A native importer must interpret these explicitly; this API performs no conversion.
-    pub fn image(&self) -> &ffmpeg::frame::Video {
-        &self.image
+    /// Software planes only. Hardware storage cannot be mistaken for CPU pixel pointers.
+    pub fn software_image(&self) -> Option<&ffmpeg::frame::Video> {
+        match &self.storage {
+            FrameStorage::Software(image) => Some(image),
+            #[cfg(all(windows, feature = "d3d11"))]
+            FrameStorage::D3d11(_) => None,
+        }
+    }
+
+    /// Worker-local hardware frame and its pool lease, without any CPU transfer.
+    #[cfg(all(windows, feature = "d3d11"))]
+    pub fn d3d11_frame(&self) -> Option<&D3d11Frame> {
+        match &self.storage {
+            FrameStorage::Software(_) => None,
+            FrameStorage::D3d11(frame) => Some(frame),
+        }
     }
 }
 
@@ -79,6 +100,12 @@ pub enum DecodeError {
     /// The selected stream's codec has no available decoder in this build.
     #[error("no decoder is available for this video codec")]
     UnsupportedCodec,
+    /// This codec does not advertise the requested hardware interface.
+    #[error("codec does not support the selected hardware decoder")]
+    UnsupportedHardware,
+    /// A hardware context, adapter identity or decoded surface failed validation.
+    #[error("hardware video decode: {0}")]
+    Hardware(String),
     /// A decoded stream, frame or packet exceeds an explicitly admitted bound.
     #[error("video decode admission limit exceeded")]
     LimitExceeded,
@@ -96,18 +123,54 @@ pub enum DecodeError {
     Ffmpeg(#[from] ffmpeg::Error),
 }
 
-/// Single-owner software decoder. Call it on the file/decode worker, never the main thread.
+/// Single-owner file decoder. The ordinary open methods explicitly select software.
 ///
 /// Admission bounds cover image dimensions, compressed packet acceptance and per-call packet
 /// work. They do not claim to cap every temporary allocation inside third-party demuxers.
-/// Worker queue admission, cancellation, seeking and native GPU frames are separate concerns.
-pub struct SoftwareDecoder {
+/// Worker queue admission and retained frame budgets remain the owning runtime's responsibility.
+pub struct Decoder {
     input: ffmpeg::format::context::Input,
     decoder: ffmpeg::decoder::Video,
     stream: usize,
     info: StreamInfo,
     limits: DecodeLimits,
     state: DecodeState,
+    kind: DecoderKind,
+}
+
+enum DecoderKind {
+    Software,
+    #[cfg(all(windows, feature = "d3d11"))]
+    D3d11(d3d11::HardwareDevice),
+}
+impl DecoderKind {
+    fn configure(&self, context: &mut ffmpeg::codec::context::Context) -> Result<(), DecodeError> {
+        match self {
+            Self::Software => {
+                let _ = context;
+                Ok(())
+            }
+            #[cfg(all(windows, feature = "d3d11"))]
+            Self::D3d11(device) => device.configure(context),
+        }
+    }
+    fn frame(&self, image: ffmpeg::frame::Video) -> Result<FrameStorage, DecodeError> {
+        match self {
+            Self::Software => {
+                // Validate the actual format before exposing CPU planes, independently of
+                // the requested backend. No unexpected hardware pointer reaches a scaler.
+                let descriptor = unsafe { ffmpeg::ffi::av_pix_fmt_desc_get(image.format().into()) };
+                if descriptor.is_null()
+                    || unsafe { (*descriptor).flags } & ffmpeg::ffi::AV_PIX_FMT_FLAG_HWACCEL as u64 != 0
+                {
+                    return Err(DecodeError::UnsupportedHardware);
+                }
+                Ok(FrameStorage::Software(image))
+            }
+            #[cfg(all(windows, feature = "d3d11"))]
+            Self::D3d11(device) => device.frame(image).map(FrameStorage::D3d11),
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -118,7 +181,7 @@ enum DecodeState {
     Failed,
 }
 
-impl SoftwareDecoder {
+impl Decoder {
     /// Open one local file and its best video stream with exactly one codec thread.
     pub fn open(path: &Path, limits: DecodeLimits) -> Result<Self, DecodeError> {
         Self::open_with_interrupt(path, limits, || false)
@@ -129,6 +192,15 @@ impl SoftwareDecoder {
         path: &Path,
         limits: DecodeLimits,
         interrupt: impl FnMut() -> bool + Send + 'static,
+    ) -> Result<Self, DecodeError> {
+        Self::open_configured(path, limits, interrupt, |_, _| Ok(DecoderKind::Software))
+    }
+
+    fn open_configured(
+        path: &Path,
+        limits: DecodeLimits,
+        interrupt: impl FnMut() -> bool + Send + 'static,
+        create_device: impl FnOnce(&ffmpeg::format::context::Input, usize) -> Result<DecoderKind, DecodeError>,
     ) -> Result<Self, DecodeError> {
         if limits.max_pixels == 0
             || limits.max_pixels > i64::MAX as u64
@@ -151,7 +223,8 @@ impl SoftwareDecoder {
         if base.numerator() <= 0 || base.denominator() <= 0 {
             return Err(ffmpeg::Error::InvalidData.into());
         }
-        let decoder = open_decoder(&input, index, limits)?;
+        let kind = create_device(&input, index)?;
+        let decoder = open_decoder(&input, index, limits, &kind)?;
         let timestamp = |value| (value != ffmpeg::ffi::AV_NOPTS_VALUE).then_some(value);
         let info = StreamInfo {
             codec: decoder.id().name().to_owned(),
@@ -171,6 +244,7 @@ impl SoftwareDecoder {
             info,
             limits,
             state: DecodeState::Reading,
+            kind,
         })
     }
 
@@ -201,7 +275,7 @@ impl SoftwareDecoder {
         // avcodec_flush_buffers to discard every delayed frame. The admitted HEVC fixture
         // emits an old drained frame after flush. Keep one demux/file owner; decoded images
         // already handed to consumers retain their independent reference-counted storage.
-        let decoder = match open_decoder(&self.input, self.stream, self.limits) {
+        let decoder = match open_decoder(&self.input, self.stream, self.limits, &self.kind) {
             Ok(decoder) => decoder,
             Err(error) => {
                 self.state = DecodeState::Failed;
@@ -253,7 +327,8 @@ impl SoftwareDecoder {
                 Ok(()) => {
                     admit_extent(image.width(), image.height(), self.limits.max_pixels)?;
                     let timestamp = image.timestamp().ok_or(DecodeError::MissingTimestamp)?;
-                    return Ok(Some(DecodedFrame { timestamp, image }));
+                    let storage = self.kind.frame(image)?;
+                    return Ok(Some(DecodedFrame { timestamp, storage }));
                 }
                 Err(ffmpeg::Error::Eof) => {
                     self.state = DecodeState::Ended;
@@ -299,6 +374,7 @@ fn open_decoder(
     input: &ffmpeg::format::context::Input,
     index: usize,
     limits: DecodeLimits,
+    kind: &DecoderKind,
 ) -> Result<ffmpeg::decoder::Video, DecodeError> {
     let stream = input.stream(index).ok_or(ffmpeg::Error::StreamNotFound)?;
     let mut context = ffmpeg::codec::context::Context::from_parameters(stream.parameters())?;
@@ -308,6 +384,7 @@ fn open_decoder(
         (*context.as_mut_ptr()).max_pixels = limits.max_pixels as i64;
     }
     context.set_threading(ffmpeg::codec::threading::Config::count(1));
+    kind.configure(&mut context)?;
     let mut decoder = context.decoder();
     decoder.set_packet_time_base(stream.time_base());
     let decoder = decoder.video().map_err(|error| {

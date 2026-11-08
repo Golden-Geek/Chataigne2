@@ -18,12 +18,9 @@ fn fixture(name: &str) -> std::path::PathBuf {
 fn invalid_admission_and_missing_paths_fail_before_opening_ffmpeg() {
     let directory = tempfile::tempdir().unwrap();
     let absent = directory.path().join("missing.mp4");
+    assert!(matches!(Decoder::open(&absent, limits()), Err(DecodeError::NotAFile)));
     assert!(matches!(
-        SoftwareDecoder::open(&absent, limits()),
-        Err(DecodeError::NotAFile)
-    ));
-    assert!(matches!(
-        SoftwareDecoder::open(
+        Decoder::open(
             &absent,
             DecodeLimits {
                 max_pixels: 0,
@@ -35,10 +32,26 @@ fn invalid_admission_and_missing_paths_fail_before_opening_ffmpeg() {
 }
 
 #[test]
+fn software_storage_cannot_expose_foreign_hardware_pixel_pointers() {
+    let mut frame = ffmpeg::frame::Video::empty();
+    frame.set_format(ffmpeg::format::Pixel::D3D11);
+    assert!(matches!(
+        DecoderKind::Software.frame(frame),
+        Err(DecodeError::UnsupportedHardware)
+    ));
+}
+
+#[test]
 fn demux_only_timing_matches_decoded_stream_units_for_all_common_fixtures() {
-    for name in ["h264.mp4", "hevc.mp4", "prores.mov", "h264-keyframes.mp4"] {
+    for name in [
+        "h264.mp4",
+        "hevc.mp4",
+        "hevc-main.mp4",
+        "prores.mov",
+        "h264-keyframes.mp4",
+    ] {
         let timing = probe_timing_with_interrupt(&fixture(name), || false).unwrap();
-        let decoder = SoftwareDecoder::open(&fixture(name), limits()).unwrap();
+        let decoder = Decoder::open(&fixture(name), limits()).unwrap();
         assert_eq!(timing.duration, decoder.info().duration);
         assert_eq!(timing.time_base, decoder.info().time_base);
         assert!(timing.duration.is_some_and(|duration| duration > 0));
@@ -52,7 +65,7 @@ fn demux_only_timing_matches_decoded_stream_units_for_all_common_fixtures() {
 #[test]
 fn unsupported_color_interpretation_reports_a_typed_conversion_failure() {
     for (name, matrix) in [("h264-bt2020.mp4", true), ("h264-pq.mp4", false)] {
-        let mut decoder = SoftwareDecoder::open(&fixture(name), limits()).unwrap();
+        let mut decoder = Decoder::open(&fixture(name), limits()).unwrap();
         let frame = decoder.next_frame().unwrap().unwrap();
         let result = SoftwareImageConverter::default().convert(&frame);
         assert!(if matrix {
@@ -70,7 +83,7 @@ fn common_codecs_preserve_exact_mixed_rate_timestamps_pixels_and_delayed_frames(
         ("hevc.mp4", "hevc", (30000, 1001), ffmpeg::format::Pixel::YUV420P),
         ("prores.mov", "prores", (25, 1), ffmpeg::format::Pixel::YUV422P10LE),
     ] {
-        let mut decoder = SoftwareDecoder::open(&fixture(name), limits()).unwrap();
+        let mut decoder = Decoder::open(&fixture(name), limits()).unwrap();
         let info = decoder.info().clone();
         assert_eq!(info.codec, codec);
         assert_eq!((info.width, info.height), (64, 48));
@@ -83,9 +96,12 @@ fn common_codecs_preserve_exact_mixed_rate_timestamps_pixels_and_delayed_frames(
                 index as i128 * i128::from(info.time_base.denominator) * rate.1,
                 "{name}: exact original presentation timestamp"
             );
-            assert_eq!(frame.image().format(), pixel);
-            assert_eq!(frame.image().color_space(), ffmpeg::color::Space::BT709);
-            let row = frame.image().data(0);
+            assert_eq!(frame.software_image().unwrap().format(), pixel);
+            assert_eq!(
+                frame.software_image().unwrap().color_space(),
+                ffmpeg::color::Space::BT709
+            );
+            let row = frame.software_image().unwrap().data(0);
             let level = if pixel == ffmpeg::format::Pixel::YUV422P10LE {
                 u16::from_le_bytes([row[0], row[1]]) / 4
             } else {
@@ -99,10 +115,10 @@ fn common_codecs_preserve_exact_mixed_rate_timestamps_pixels_and_delayed_frames(
         }
         assert_eq!(frames.len(), 6, "{name}: delayed frames must drain");
         assert!(decoder.next_frame().unwrap().is_none(), "stable clean EOF");
-        let first = frames[0].image().data(0).to_vec();
+        let first = frames[0].software_image().unwrap().data(0).to_vec();
         drop(decoder);
         assert_eq!(
-            frames[0].image().data(0),
+            frames[0].software_image().unwrap().data(0),
             first,
             "frame owns its storage after decoder retirement"
         );
@@ -113,7 +129,7 @@ fn common_codecs_preserve_exact_mixed_rate_timestamps_pixels_and_delayed_frames(
 fn extent_packet_and_per_call_work_limits_are_enforced() {
     let file = fixture("h264.mp4");
     assert!(
-        SoftwareDecoder::open(
+        Decoder::open(
             &file,
             DecodeLimits {
                 max_pixels: 16,
@@ -122,7 +138,7 @@ fn extent_packet_and_per_call_work_limits_are_enforced() {
         )
         .is_err()
     );
-    let mut decoder = SoftwareDecoder::open(
+    let mut decoder = Decoder::open(
         &file,
         DecodeLimits {
             max_packet_bytes: 1,
@@ -132,7 +148,7 @@ fn extent_packet_and_per_call_work_limits_are_enforced() {
     .unwrap();
     assert!(matches!(decoder.next_frame(), Err(DecodeError::LimitExceeded)));
     assert!(matches!(decoder.next_frame(), Err(DecodeError::ReopenRequired)));
-    let mut decoder = SoftwareDecoder::open(
+    let mut decoder = Decoder::open(
         &file,
         DecodeLimits {
             max_packets_per_frame: 1,
@@ -144,22 +160,39 @@ fn extent_packet_and_per_call_work_limits_are_enforced() {
 }
 
 #[test]
+fn standard_main_hevc_fixture_decodes_hd_ramp_with_exact_timestamps() {
+    let mut decoder = Decoder::open(&fixture("hevc-main.mp4"), limits()).unwrap();
+    let base = decoder.info().time_base;
+    assert_eq!((decoder.info().width, decoder.info().height), (1920, 1080));
+    let mut count = 0;
+    while let Some(frame) = decoder.next_frame().unwrap() {
+        assert!(count < 6);
+        assert_eq!(
+            i128::from(frame.timestamp()) * i128::from(base.numerator) * 30000,
+            count as i128 * i128::from(base.denominator) * 1001
+        );
+        let image = frame.software_image().unwrap();
+        assert_eq!(image.format(), ffmpeg::format::Pixel::YUV420P);
+        assert!(image.data(0)[0].abs_diff(32 + count * 24) <= 3);
+        count += 1;
+    }
+    assert_eq!(count, 6);
+}
+
+#[test]
 fn malformed_files_are_errors_and_replaced_files_can_be_reopened() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("relinked.mp4");
     std::fs::write(&path, b"not a movie").unwrap();
-    assert!(matches!(
-        SoftwareDecoder::open(&path, limits()),
-        Err(DecodeError::Ffmpeg(_))
-    ));
+    assert!(matches!(Decoder::open(&path, limits()), Err(DecodeError::Ffmpeg(_))));
     std::fs::copy(fixture("h264.mp4"), &path).unwrap();
-    let mut reopened = SoftwareDecoder::open(&path, limits()).unwrap();
+    let mut reopened = Decoder::open(&path, limits()).unwrap();
     assert_eq!(reopened.next_frame().unwrap().unwrap().timestamp(), 0);
 }
 
 #[test]
 fn untimed_streams_do_not_invent_timestamps_from_frame_rate() {
-    let mut decoder = SoftwareDecoder::open(&fixture("untimed.h264"), limits()).unwrap();
+    let mut decoder = Decoder::open(&fixture("untimed.h264"), limits()).unwrap();
     assert!(matches!(decoder.next_frame(), Err(DecodeError::MissingTimestamp)));
     assert!(matches!(decoder.next_frame(), Err(DecodeError::ReopenRequired)));
 }
@@ -167,7 +200,7 @@ fn untimed_streams_do_not_invent_timestamps_from_frame_rate() {
 #[test]
 fn original_timestamp_seeks_flush_old_frames_and_rewind_after_clean_eof() {
     for name in ["h264.mp4", "hevc.mp4", "prores.mov"] {
-        let mut decoder = SoftwareDecoder::open(&fixture(name), limits()).unwrap();
+        let mut decoder = Decoder::open(&fixture(name), limits()).unwrap();
         let mut timestamps = Vec::new();
         while let Some(frame) = decoder.next_frame().unwrap() {
             timestamps.push(frame.timestamp());
@@ -185,7 +218,7 @@ fn original_timestamp_seeks_flush_old_frames_and_rewind_after_clean_eof() {
                     frame.timestamp()
                 );
                 if frame.timestamp() == timestamps[index] {
-                    let data = frame.image().data(0);
+                    let data = frame.software_image().unwrap().data(0);
                     let level = if name == "prores.mov" {
                         u16::from_le_bytes([data[0], data[1]]) / 4
                     } else {
@@ -203,10 +236,10 @@ fn original_timestamp_seeks_flush_old_frames_and_rewind_after_clean_eof() {
 
 #[test]
 fn invalid_seek_is_atomic_and_poisoned_decoders_cannot_hide_errors_by_seeking() {
-    let mut decoder = SoftwareDecoder::open(&fixture("h264.mp4"), limits()).unwrap();
+    let mut decoder = Decoder::open(&fixture("h264.mp4"), limits()).unwrap();
     assert!(matches!(decoder.seek_before(i64::MAX), Err(DecodeError::OutsideStream)));
     assert_eq!(decoder.next_frame().unwrap().unwrap().timestamp(), 0);
-    let mut decoder = SoftwareDecoder::open(
+    let mut decoder = Decoder::open(
         &fixture("h264.mp4"),
         DecodeLimits {
             max_packet_bytes: 1,

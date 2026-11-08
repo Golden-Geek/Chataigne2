@@ -1,0 +1,37 @@
+{
+	"date": "2026-11-08",
+	"gate": "M10/1 Active; GPU decoder boundary delivered, complete hardware/app acceptance open",
+	"progress": { "accepted": 83, "total": 102, "percent": 81, "m10_accepted": 0, "m10_total": 4 },
+	"batch": { "started_utc": "22:04", "cutoff_utc": "22:49", "native_experiments": 2, "limit_reached": true },
+	"deliverable": "Golden Decoder explicitly selects software or exact-adapter D3D11. Returned storage separates CPU planes from worker-local GPU frames; the FFmpeg frame lease pins its array slice across seeks and decoder replacement/shutdown. The existing app software path is preserved.",
+	"architecture": "docs/architecture/mapgyver-video.md",
+	"ownership": {
+		"boundary": "SoftwareDecoder is replaced by Decoder throughout current Rust callers. No obsolete alias or duplicate demux/decode state machine remains. software_image returns None for hardware storage; SoftwareImageConverter returns typed HardwareStorage rather than transferring or dereferencing GPU pointers.",
+		"adapter": "Resolve the requested LUID to the current DXGI index for FFmpeg's public device creation API; each decoded frame rechecks its actual device LUID, storage, slice and visible/padded extent. No manually copied AVD3D11VADeviceContext ABI or new dependency is introduced.",
+		"pool": "get_format admits only D3D11 and initializes its fixed pool through public FFmpeg frame APIs, capped at32 surfaces and the admitted padded pixel count before allocation. Eight extra work surfaces are requested. The caller must still budget all retained old pools/generations; this is not full app GPU resource admission.",
+		"lifetime": "D3d11Frame retains the owned FFmpeg frame as well as its texture, so a COM AddRef alone cannot permit premature slice reuse. Hardware frames and devices are worker-local. Frame removal checks report native failure for withdrawal/reopen; an owning worker must implement recovery and explicit software fallback.",
+		"formats": "NV12 and P010 storage are represented with original matrix/range/transfer metadata. Only Intel H.264 NV12 is functionally hardware-verified in this slice; P010, NVIDIA and hardware HEVC are not accepted."
+	},
+	"software": {
+		"full_command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 test --locked -p MapGyver -p golden_video --lib --features MapGyver/video-files,golden_video/ffmpeg,golden_video/qualification --quiet",
+		"app": { "passed": 611, "failed": 0, "ignored": 2, "exit": 0 },
+		"golden": { "passed": 260, "failed": 0, "ignored": 55, "exit": 0 },
+		"final_affected": "The earlier decode:: selection passed12 tests with one ignored native test. Final review added actual software-format validation and its regression test; the final full app/Golden run above includes that guard and the HD fixture oracle.",
+		"strict": "Final combined app/Golden --lib --tests Clippy with video-files/ffmpeg/qualification and -D warnings exits0. Golden's ffmpeg-only strict configuration also passes. Root and golden_core Cargo formatting completed.",
+		"checks": "Original common-codec decode/timestamps/seek/cancellation behavior; real app File/clock/source-health/history tests and generated contract equality; per-pool admission; unsupported ProRes hardware request and absent adapter rejection; explicit software fallback. The new1920x1080 Main-level4 HEVC fixture decodes all six luma-ramp frames with exact30000/1001 timestamps in software."
+	},
+	"native": {
+		"command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 test --locked -p MapGyver -p golden_video --lib --features MapGyver/video-files,golden_video/ffmpeg,golden_video/qualification decode::d3d11::tests::hardware_frames_preserve_adapter_timestamps_seek_and_pool_leases_on_both_gpus -- --exact --ignored --nocapture --test-threads=1",
+		"overall": "FAILED; the full two-GPU/two-codec fixture remains unaccepted",
+		"prerequisites": "Terminal current software tests and strict checks inspected before each hardware attempt. No desktop input, driver reset, monitor change or production hardware readback was used.",
+		"verified": "Intel(R) Graphics8086:7d67 hardware-decodes six H.264 High64x48 NV12 frames at24 FPS. Exact adapter/timestamps/storage, five backward/forward seek timestamps, held original frame pixels during each replacement and all six retained frames after decoder shutdown pass. Hardware storage is rejected by the CPU converter. This case passes in both attempts; repeated runs are not additional coverage.",
+		"oracle": "Test-only GPU copy/Map reads luma while retaining the actual source frame through completion. Expected Y=32+24*N, tolerance3 code values. Production Decoder has no transfer/map/readback path.",
+		"attempts": [
+			"Attempt1: Intel H.264 passes. Intel fails creating the HEVC decoder for the original64x48 lossless fixture, reporting Operation not permitted. FFprobe identifies Main profile with unconstrained level255. Cause is unproven; this failure is not reclassified as a passing unsupported-profile test.",
+			"Attempt2: after successful software/strict prerequisites, Intel H.264 passes again. NVIDIA GeForce RTX5080 Laptop GPU10de:2c59 fails initializing D3D11 H.264 for the small fixture, reporting Invalid data found when processing input. The aggregate test stops there, so neither adapter's new standard HD HEVC case is exercised. No third unchanged native probe is authorized by this batch's experiment allowance."
+		],
+		"new_fixture": { "file": "crates/golden_video/src/decode/tests/fixtures/hevc-main.mp4", "bytes": 4790, "sha256": "e270e6737ae181b612a49446a606c7f705def7256414e26426fdb843d8adb4e4", "declared": "HEVC Main, level120 (level4),1920x1080,yuv420p,30000/1001; original level255 fixture preserved" }
+	},
+	"remaining": "Native GPU conversion with explicit file color interpretation, synchronized publication/import and full retained-generation budgets; actual app hardware selection/recovery/software fallback; supported NVIDIA/HEVC/P010/profile coverage. Existing app software playback and its earlier27 physical checkpoints remain valid, but no new app hardware/performance or full M10 gate credit is claimed.",
+	"next": "Integrate GPU conversion/publication into the current File-worker/native-renderer path while preserving the existing software path. Return to the retained hardware failures when HD native handoff and an explicit capability/fixture policy can exercise each adapter/codec independently; preserve these failures and verify fallback rather than rerunning unchanged probes. Then finish M10/1 and proceed to HAP/bundled first-pass qualification before M14."
+}

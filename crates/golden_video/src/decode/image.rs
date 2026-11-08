@@ -9,6 +9,9 @@ use ffmpeg::{
 /// Explicit conversion failure; callers need not parse display strings to report support.
 #[derive(Debug, thiserror::Error)]
 pub enum ConversionError {
+    /// Hardware frames require a GPU importer; software conversion never reads them back.
+    #[error("hardware Video storage requires a native importer")]
+    HardwareStorage,
     /// The stream declares a color matrix outside the implemented conversion contract.
     #[error("software Video color matrix is not yet supported")]
     UnsupportedMatrix,
@@ -29,7 +32,7 @@ impl SoftwareImageConverter {
     /// Convert supported SDR frames explicitly. HDR/wide-gamut metadata is rejected rather
     /// than silently interpreted as sRGB. Untagged SDR follows the documented BT.709 default.
     pub fn convert(&mut self, frame: &DecodedFrame) -> Result<ImageData, ConversionError> {
-        let input = frame.image();
+        let input = frame.software_image().ok_or(ConversionError::HardwareStorage)?;
         let space = input.color_space();
         if !matches!(space, Space::RGB | Space::BT709 | Space::Unspecified) {
             return Err(ConversionError::UnsupportedMatrix);

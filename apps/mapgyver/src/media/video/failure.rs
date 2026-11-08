@@ -17,7 +17,7 @@ impl From<DecodeError> for Failure {
     fn from(error: DecodeError) -> Self {
         let kind = match error {
             DecodeError::NotAFile => VideoSourceErrorKind::Missing,
-            DecodeError::UnsupportedCodec => VideoSourceErrorKind::Unsupported,
+            DecodeError::UnsupportedCodec | DecodeError::UnsupportedHardware => VideoSourceErrorKind::Unsupported,
             DecodeError::LimitExceeded => VideoSourceErrorKind::Capacity,
             _ => VideoSourceErrorKind::Decode,
         };
@@ -27,9 +27,9 @@ impl From<DecodeError> for Failure {
 impl From<ConversionError> for Failure {
     fn from(error: ConversionError) -> Self {
         let kind = match error {
-            ConversionError::UnsupportedMatrix | ConversionError::UnsupportedTransfer => {
-                VideoSourceErrorKind::Unsupported
-            }
+            ConversionError::HardwareStorage
+            | ConversionError::UnsupportedMatrix
+            | ConversionError::UnsupportedTransfer => VideoSourceErrorKind::Unsupported,
             ConversionError::Failed(_) => VideoSourceErrorKind::Decode,
         };
         Self(VideoSourceError::new(kind, error.to_string()))

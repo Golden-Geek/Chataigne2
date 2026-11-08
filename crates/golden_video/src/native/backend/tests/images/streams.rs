@@ -84,14 +84,14 @@ fn install(renderer: &mut Renderer, stream: ImageStream) {
 #[test]
 #[ignore = "requires explicitly available Windows hardware D3D11"]
 fn hardware_common_codec_sdr_frames_match_independent_linear_pixels_on_both_gpus() {
-    use crate::decode::{DecodeLimits, SoftwareDecoder, SoftwareImageConverter};
+    use crate::decode::{DecodeLimits, Decoder, SoftwareImageConverter};
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/decode/tests/fixtures");
     for adapter in adapters().unwrap().into_iter().filter(|adapter| !adapter.software) {
         eprintln!("common codec pixels GPU: {}", adapter.description);
         let dummy = prepared_image(descriptor(2, ColorEncoding::Srgb, AlphaMode::Straight), &[0; 8]);
         let mut renderer = Renderer::new(adapter.id, &dummy, 2);
         for name in ["h264.mp4", "hevc.mp4", "prores.mov"] {
-            let mut decoder = SoftwareDecoder::open(
+            let mut decoder = Decoder::open(
                 &root.join(name),
                 DecodeLimits {
                     max_pixels: 4096 * 2160,

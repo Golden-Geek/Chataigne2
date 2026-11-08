@@ -1,5 +1,5 @@
 use super::*;
-use golden_video::decode::{DecodeLimits, SoftwareDecoder, SoftwareImageConverter};
+use golden_video::decode::{DecodeLimits, Decoder, SoftwareImageConverter};
 
 #[test]
 fn real_common_codecs_sample_exact_timestamps_rewind_after_eof_and_hold_shorter_endpoints() {
@@ -7,7 +7,7 @@ fn real_common_codecs_sample_exact_timestamps_rewind_after_eof_and_hold_shorter_
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../crates/golden_video/src/decode/tests/fixtures");
     for name in ["h264.mp4", "hevc.mp4", "prores.mov"] {
         let open = || {
-            SoftwareDecoder::open(
+            Decoder::open(
                 &root.join(name),
                 DecodeLimits {
                     max_pixels: 4096 * 2160,

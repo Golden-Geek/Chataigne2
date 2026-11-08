@@ -45,8 +45,8 @@ fn step(engine: &mut AppEngine, reference: ChannelReference, direction: VideoSte
     snapshot.settings.position_ms
 }
 fn reference_pixels(name: &str) -> Vec<Vec<u8>> {
-    use golden_video::decode::{DecodeLimits, SoftwareDecoder, SoftwareImageConverter};
-    let mut decoder = SoftwareDecoder::open(
+    use golden_video::decode::{DecodeLimits, Decoder, SoftwareImageConverter};
+    let mut decoder = Decoder::open(
         &fixture_root().join(name),
         DecodeLimits {
             max_pixels: 4096 * 2160,

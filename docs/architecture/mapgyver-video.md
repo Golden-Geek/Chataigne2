@@ -22,12 +22,29 @@ position. Frame stepping pauses at an exact timestamp supplied by the selected c
 decoder. The worker prepares the current, previous and next presentation timestamps; neither
 the UI nor the operation adapter divides by a nominal frame rate.
 
-Golden's `SoftwareDecoder` retains original stream timestamps, planes and colour metadata.
+Golden's `Decoder` retains original stream timestamps and explicit software or hardware storage.
+Its ordinary open methods select software; `open_d3d11` explicitly requests an exact adapter.
 It performs no implicit colour conversion or GPU readback. Seeking uses the selected stream's
 native time base and replaces codec reorder/drain state while retaining the file demux owner.
 This prevents an old HEVC drain frame observed after buffer flushing in the pinned fixture.
 Already-returned frames retain independent reference-counted storage. Seek setup cost remains
 part of the later cold/warm seek and resource checks.
+
+The D3D11 decoder uses FFmpeg's public hardware-device and frame-pool APIs, not a hand-written
+copy of its platform ABI. A fresh DXGI lookup resolves the requested LUID, and every returned
+surface verifies its actual adapter, extent, format and array slice. Format selection admits
+only D3D11; unsupported codecs/profiles fail so the caller can explicitly reopen in software.
+Before allocation, the fixed pool is limited to32 surfaces and the admitted padded pixel count.
+These per-pool bounds do not replace the caller's budget across retained old pools/generations.
+
+`DecodedFrame` exposes CPU planes only for software storage. `D3d11Frame` stays on its worker
+and retains the actual FFmpeg frame, not just a COM texture reference: the frame lease prevents
+the decoder from reusing that pool slice. Old frames therefore remain independently owned
+across codec replacement and decoder shutdown. Software conversion rejects hardware storage;
+only qualification tests copy/map it for independent luma checks. Current-device failures are
+reported for withdrawal/reopen. The app still selects software until native GPU conversion,
+synchronized publication/import and generation/budget recovery are integrated. Hardware
+decoder tests alone do not establish hardware playback in MapGyver.
 
 The [pinned dependency helper](../../tools/mapgyver/ffmpeg/README.md) verifies the exact Windows
 shared LGPL archive and establishes only process-local build/runtime paths. Packet/image/work

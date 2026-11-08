@@ -10,7 +10,7 @@ use crate::media::{
 };
 use golden_io::{BoundedWorker, RetirementPool, WorkerContext, WorkerLimits, WorkerNotifier};
 use golden_video::{
-    decode::{DecodeLimits, SoftwareDecoder},
+    decode::{DecodeLimits, Decoder},
     image::ImageStream,
 };
 use std::{
@@ -261,7 +261,7 @@ impl Run {
     }
     fn play(&self, worker: &WorkerContext<(), ()>, owner: uuid::Uuid) -> Result<(), Failure> {
         let cancel = worker.cancellation().clone();
-        let decoder = SoftwareDecoder::open_with_interrupt(
+        let decoder = Decoder::open_with_interrupt(
             &self.file,
             DecodeLimits {
                 max_pixels: 16384 * 16384,
