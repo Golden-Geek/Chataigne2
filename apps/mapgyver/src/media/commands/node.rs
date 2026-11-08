@@ -186,6 +186,7 @@ impl MediaCommandNode {
                 file: self.video_file.get_ref().as_str().into(),
             },
             MediaCommandKind::InspectVideo => MediaEdit::InspectVideo { media },
+            MediaCommandKind::InspectVideoFrame => MediaEdit::InspectVideoFrame { reference },
             MediaCommandKind::SetApplicationFile => MediaEdit::Applications {
                 edit: crate::applications::protocol::ApplicationEdit::SetFile {
                     application: crate::applications::protocol::ApplicationId(self.application_owner.get_ref().uuid),

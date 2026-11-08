@@ -7,6 +7,8 @@
 	import { ASSET_NODE_TYPE, MEDIA_NAMESPACE } from './generated/constants';
 	import AssetLocatorForm from './AssetLocatorForm.svelte';
 	import reloadIcon from 'golden_ui/style/icons/reset.svg';
+	import stepPreviousIcon from '../icons/step-previous.svg';
+	import stepNextIcon from '../icons/step-next.svg';
 	import { useDocumentSelection } from '../selection.svelte';
 	import ChannelsSection from './ChannelsSection.svelte';
 	import ReferenceChannelsSection from './ReferenceChannelsSection.svelte';
@@ -151,6 +153,29 @@
 </script>
 
 {#snippet channelActions()}
+	{#if channel?.definition.source.kind === 'Video' && channel.definition.source.file}
+		{@const reference = channel.reference}
+		<IconButton
+			icon={stepPreviousIcon}
+			label="Previous Video frame"
+			disabled={busy}
+			onclick={() =>
+				edit({
+					kind: 'Video',
+					media: reference.media,
+					edit: { kind: 'Step', channel: reference.channel, direction: 'Previous' }
+				})} />
+		<IconButton
+			icon={stepNextIcon}
+			label="Next Video frame"
+			disabled={busy}
+			onclick={() =>
+				edit({
+					kind: 'Video',
+					media: reference.media,
+					edit: { kind: 'Step', channel: reference.channel, direction: 'Next' }
+				})} />
+	{/if}
 	{#if channel?.definition.source.kind === 'Picture' && channel.definition.source.file}
 		{@const reference = channel.reference}
 		<IconButton

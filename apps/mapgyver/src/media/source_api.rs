@@ -15,6 +15,7 @@ pub(super) const METHODS: &[&str] = &[
     "stepVideo",
     "configureVideoFile",
     "inspectVideo",
+    "inspectVideoFrame",
     "dropMatrixMedia",
     "transferMatrixCell",
     "dropCompositionMedia",
@@ -77,7 +78,7 @@ fn reference(args: &[ParamValue]) -> Result<ChannelReference, String> {
 pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<MediaEdit>, String> {
     let count = match method {
         "playVideo" | "pauseVideo" | "stopVideo" | "inspectVideo" => 1,
-        "seekVideo" | "setVideoRate" | "setVideoLoop" => 2,
+        "seekVideo" | "setVideoRate" | "setVideoLoop" | "inspectVideoFrame" => 2,
         "stepVideo" | "configureVideoFile" => 3,
         "createMedia"
         | "addChannel"
@@ -103,6 +104,9 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         return Err(format!("{method} expects a request id and {count} argument(s)"));
     }
     Ok(Some(match method {
+        "inspectVideoFrame" => MediaEdit::InspectVideoFrame {
+            reference: reference(args)?,
+        },
         "playVideo" => MediaEdit::Video {
             media: MediaId(uuid(args, 0)?),
             edit: super::video::protocol::VideoEdit::Play,

@@ -212,6 +212,44 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
         for field in kind.fields() {
             parameter(&engine, command, field);
         }
+        if *kind == MediaCommandKind::VideoStep {
+            use crate::media::video::Neighbours;
+            use std::time::Duration;
+            let file = AssetLocator::ProjectRelative {
+                path: "command-fixture.mp4".to_owned().try_into().unwrap(),
+            };
+            apply(
+                &mut engine,
+                MediaEdit::ConfigureChannel {
+                    reference: target,
+                    source: ChannelSource::Video {
+                        file: Some(file.clone()),
+                    },
+                },
+            );
+            let Some(AppNode::Media(node)) = engine.nodes.get(engine.node_id_by_uuid(target.media.0).unwrap()) else {
+                panic!()
+            };
+            let control = node.video_control().unwrap();
+            let owner = uuid::Uuid::new_v4();
+            control.claim_channel(target.channel, owner, file).unwrap();
+            control
+                .channel_duration(target.channel, owner, Duration::from_secs(1))
+                .unwrap();
+            control
+                .observe_neighbours(
+                    target.channel,
+                    owner,
+                    control.sample().unwrap(),
+                    Neighbours {
+                        position: Duration::ZERO,
+                        previous: None,
+                        previous_ready: true,
+                        next: Some(Duration::from_millis(40)),
+                    },
+                )
+                .unwrap();
+        }
         let before = to_sparse_project_json_pretty(&engine).unwrap();
         let history = engine.undo_len();
         let ack = invoke(&mut engine, MediaEdit::ExecuteCommand { command });

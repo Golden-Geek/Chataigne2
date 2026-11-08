@@ -91,5 +91,14 @@ pub struct VideoTransportSnapshot {
     pub ready: bool,
     pub position_ms: f64,
     pub playing: bool,
-    pub pending_step: bool,
+}
+
+/// Prepared selected-channel timestamps, read without opening or waiting for a file.
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct VideoFrameState {
+    pub reference: super::super::protocol::ChannelReference,
+    pub position_ms: f64,
+    pub previous_ms: Option<f64>,
+    pub previous_ready: bool,
+    pub next_ms: Option<f64>,
 }

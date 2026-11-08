@@ -1,4 +1,5 @@
 use super::*;
+mod steps;
 use crate::media::video::protocol::VideoEdit;
 
 fn fixture_root() -> std::path::PathBuf {

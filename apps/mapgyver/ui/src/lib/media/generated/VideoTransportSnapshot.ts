@@ -5,4 +5,4 @@ import type { VideoTransportSettings } from "./VideoTransportSettings";
 /**
  * Runtime readiness is separate from accepted authored playback intent.
  */
-export type VideoTransportSnapshot = { media: MediaId, settings: VideoTransportSettings, ready: boolean, position_ms: number, playing: boolean, pending_step: boolean, };
+export type VideoTransportSnapshot = { media: MediaId, settings: VideoTransportSettings, ready: boolean, position_ms: number, playing: boolean, };

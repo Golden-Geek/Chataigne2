@@ -1,0 +1,25 @@
+{
+	"date": "2026-11-08",
+	"gate": "M10/1 Active; exact selected-channel frame stepping delivered; complete common-codec acceptance open",
+	"progress": { "accepted": 83, "total": 102, "percent": 81, "m10_accepted": 0, "m10_total": 4 },
+	"batch": { "started_utc": "20:04", "cutoff_utc": "20:49" },
+	"deliverable": "Video channel Inspector previous/next actions, typed commands, named QuickJS methods and headless MediaEdit operations commit the selected channel's exact decoder timestamp to Playback and Seek Parameters in one atomic history operation. Unprepared timestamps reject without partial authored state. The non-completing pending-step prototype is removed.",
+	"ownership": {
+		"worker": "The existing file worker prepares bounded current/previous/next timestamp metadata. A paused seek that lands at a keyframe searches earlier timestamps and scans forward in cancellation-bounded turns to find its actual predecessor; it does not use nominal FPS or build a whole-file timestamp index. The requested published image remains visible during preparation.",
+		"engine": "A synchronous operation reads prepared metadata and settles the existing Parameter notifications before replying. It performs no file open, decode, seek or wait. There is no deferred authored step mutation after the committed callback.",
+		"fences": "Source incarnation, exact authored File binding, transport epoch and loop cycle fence observations. Relinking to another authored locator restarts the source even if both locators resolve to the same path. Retired owners cannot populate or remove replacement observations.",
+		"protocol": "Rust owns VideoFrameState and InspectVideoFrame generation. The bounded query returns null before preparation and actual timestamps afterward. Query-only operations remain background; the generic Inspector owns ordinary transport/File Parameters.",
+		"boundaries": "At an endpoint, Step holds the existing transport position and pauses. An already-paused endpoint is an exact authored/history no-op. Millisecond projection rounds toward a representable position at or after the actual nanosecond timestamp so rational frame times cannot fall into the preceding frame."
+	},
+	"software": {
+		"command": "powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 test --locked -p MapGyver --lib --features video-files --quiet",
+		"result": { "passed": 600, "failed": 0, "ignored": 2, "exit": 0 },
+		"coverage": "Real H.264 at24 FPS, H.265 at30000/1001 FPS, ProRes at25 FPS and a 12-frame H.264 GOP4/B-frame fixture. Forward/backward stepping traverses every timestamp, compares decoded pixels with a full-decode reference, crosses keyframe seeks, holds first/last boundaries, commits once and roundtrips exact sparse Undo/Redo. A typed VideoStep command and an actual local.stepVideo QuickJS invocation deliver one committed callback, correct Parameters and history. Existing generated-contract equality passes in the full app suite. Source/File/epoch retirement fences and unprepared-step rejection have focused tests.",
+		"strict_video_files": "MapGyver --lib --tests Clippy with video-files and -D warnings exits0.",
+		"strict_default": "MapGyver --lib --tests Clippy without video-files and with -D warnings exits0; feature-disabled observation code remains clean.",
+		"ui": "Final npm run check --workspace mapgyver-ui exits0, zero errors/warnings. Both operations.test.ts tests pass. Authored Svelte/TypeScript/templates use the repository formatter; root and golden_core cargo fmt complete. New SVG assets use existing compact code-native icon conventions.",
+		"fixtures": "Only the new test fixture was encoded. The production decoder still links the existing pinned LGPL FFmpeg build; the test encoder is not a runtime dependency. The -Only fixture filter preserves existing fixture binaries."
+	},
+	"native": "No new native experiment or desktop input. Prior both-GPU codec/upload/alpha/retirement results remain applicable to the unchanged native image path; this slice does not claim actual-app UI playback or sustained hardware qualification.",
+	"remaining": "Complete all-authored-variant metadata and File clear/channel removal synchronization, source diagnostics/default feature wiring, actual-app panel/Screen playback, remaining profile/color/alpha coverage and GPU-resident hardware decode. HAP and full first-pass recovery, redistribution and sustained 1080p/4K/resource/seek checks remain required before M14. DXV/WebP follows M14. No whole M10 gate closes in this slice."
+}

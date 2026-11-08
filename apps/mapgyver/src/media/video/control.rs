@@ -2,21 +2,12 @@ use super::{MediaTransport, protocol::*};
 use golden_time::{PlaybackRate, SystemClock};
 use std::{sync::Mutex, time::Duration};
 
-/// Coalesced selected-channel step. A worker must resolve its actual timestamp before applying it.
-#[derive(Clone, Copy)]
-pub struct StepRequest {
-    pub revision: u64,
-    pub channel: super::super::protocol::ChannelId,
-    pub direction: VideoStepDirection,
-}
 struct State {
     transport: MediaTransport<SystemClock>,
     settings: VideoTransportSettings,
-    revision: u64,
     seek_pending: bool,
-    step: Option<StepRequest>,
     durations: std::collections::HashMap<super::super::protocol::ChannelId, Duration>,
-    sources: std::collections::HashMap<super::super::protocol::ChannelId, uuid::Uuid>,
+    frames: super::frames::Frames,
 }
 
 /// Shared per-media runtime control, retained by demanded sources rather than per Reference.
@@ -27,23 +18,26 @@ impl Default for VideoControl {
             Mutex::new(State {
                 transport: MediaTransport::new(SystemClock::new()).expect("fresh monotonic clock is representable"),
                 settings: Default::default(),
-                revision: 0,
                 seek_pending: true,
-                step: None,
                 durations: Default::default(),
-                sources: Default::default(),
+                frames: Default::default(),
             }),
             Default::default(),
         )
     }
 }
 impl VideoControl {
-    pub fn claim_channel(&self, channel: super::super::protocol::ChannelId, owner: uuid::Uuid) -> Result<(), String> {
+    pub fn claim_channel(
+        &self,
+        channel: super::super::protocol::ChannelId,
+        owner: uuid::Uuid,
+        file: super::super::protocol::AssetLocator,
+    ) -> Result<(), String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
         if !state.durations.contains_key(&channel) && state.durations.len() >= 4096 {
             return Err("Video metadata exceeds the 4096-channel runtime capture bound".into());
         }
-        state.sources.insert(channel, owner);
+        state.frames.claim(channel, owner, file);
         Ok(())
     }
     pub fn revisions(&self) -> golden_io::RevisionReader {
@@ -64,7 +58,7 @@ impl VideoControl {
         duration: Duration,
     ) -> Result<(), String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
-        if state.sources.get(&channel) != Some(&owner) {
+        if !state.frames.owns(channel, owner) {
             return Err("Video source owner was superseded".into());
         }
         state.durations.insert(channel, duration);
@@ -78,12 +72,10 @@ impl VideoControl {
         Ok(())
     }
     pub fn release_channel(&self, channel: super::super::protocol::ChannelId, owner: uuid::Uuid) {
-        if let Ok(mut state) = self.0.lock()
-            && state.sources.get(&channel) == Some(&owner)
-        {
+        if let Ok(mut state) = self.0.lock() {
             // Demand belongs to a consumer, not to media transport. Keep known metadata
             // while previews/References are closed; resubscription must not reset time.
-            state.sources.remove(&channel);
+            state.frames.release(channel, owner);
         }
     }
     pub fn publish_frame(
@@ -96,7 +88,7 @@ impl VideoControl {
     ) -> Result<bool, String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
         let now = state.transport.sample().map_err(|e| e.to_string())?;
-        if state.sources.get(&channel) != Some(&owner) || (now.epoch, now.cycle) != (expected.epoch, expected.cycle) {
+        if !state.frames.owns(channel, owner) || (now.epoch, now.cycle) != (expected.epoch, expected.cycle) {
             return Ok(false);
         }
         let retired = stream.replace(Some(image)).map_err(str::to_owned)?;
@@ -110,15 +102,9 @@ impl VideoControl {
         if state.settings == settings && !seek {
             return Ok(());
         }
-        let revision = state
-            .revision
-            .checked_add(1)
-            .ok_or("Video control revision exhausted")?;
         let play = settings.mode == VideoPlaybackMode::Playing && (state.settings.mode != settings.mode || seek);
         state.seek_pending |= seek || state.settings.position_ms != settings.position_ms;
         state.settings = settings;
-        state.revision = revision;
-        state.step = None;
         state.apply(play)?;
         drop(state);
         self.1.advance();
@@ -145,41 +131,44 @@ impl VideoControl {
             ready: !state.transport.duration().is_zero(),
             position_ms: sample.position.as_secs_f64() * 1000.0,
             playing: sample.playing,
-            pending_step: state.step.is_some(),
         })
     }
-    pub fn request_step(
+    #[cfg(any(feature = "video-files", test))]
+    pub(crate) fn observe_neighbours(
         &self,
         channel: super::super::protocol::ChannelId,
-        direction: VideoStepDirection,
+        owner: uuid::Uuid,
+        expected: super::TransportSample,
+        frame: super::Neighbours,
     ) -> Result<(), String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
-        state.revision = state
-            .revision
-            .checked_add(1)
-            .ok_or("Video control revision exhausted")?;
-        state.step = Some(StepRequest {
-            revision: state.revision,
-            channel,
-            direction,
-        });
+        let now = state.transport.sample().map_err(|e| e.to_string())?;
+        if (now.epoch, now.cycle) == (expected.epoch, expected.cycle) {
+            state.frames.observe(channel, owner, expected, frame);
+        }
         Ok(())
     }
-    pub fn pending_step(&self) -> Result<Option<StepRequest>, String> {
-        Ok(self.0.lock().map_err(|_| "Video control poisoned")?.step)
-    }
-    /// Reject a superseded seek/step result before it can move the shared timeline.
-    pub fn resolve_step(&self, revision: u64, timestamp: Duration) -> Result<bool, String> {
+    pub(crate) fn frame(
+        &self,
+        reference: super::super::protocol::ChannelReference,
+        file: &super::super::protocol::AssetLocator,
+    ) -> Result<Option<VideoFrameState>, String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
-        if state.step.is_none_or(|step| step.revision != revision) {
-            return Ok(false);
-        }
+        let now = state.transport.sample().map_err(|e| e.to_string())?;
+        Ok(state.frames.inspect(reference.media, reference.channel, file, now))
+    }
+    pub(crate) fn step_position(
+        &self,
+        channel: super::super::protocol::ChannelId,
+        file: &super::super::protocol::AssetLocator,
+        direction: VideoStepDirection,
+    ) -> Result<f64, String> {
+        let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
+        let now = state.transport.sample().map_err(|e| e.to_string())?;
         state
-            .transport
-            .step_to_timestamp(timestamp)
-            .map_err(|e| e.to_string())?;
-        state.step = None;
-        Ok(true)
+            .frames
+            .step(channel, file, now, direction)
+            .map(super::frames::millis)
     }
 }
 impl State {

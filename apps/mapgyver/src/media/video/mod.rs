@@ -7,9 +7,12 @@
 
 pub(crate) mod authoring;
 mod control;
+mod frames;
 pub mod protocol;
 mod transport;
-pub use control::{StepRequest, VideoControl};
+pub use control::VideoControl;
+#[cfg(any(feature = "video-files", test))]
+pub(crate) use frames::Neighbours;
 pub use transport::{MediaTransport, TransportError, TransportSample};
 #[cfg(feature = "video-files")]
 pub(crate) mod files;

@@ -18,8 +18,8 @@ different operation from an unavailable endpoint. No whole-file timestamp index 
 Explicit controls issue a new Golden Time epoch. Loop cycles are separately fenced, including
 reverse boundaries, so an old seek result cannot publish into a later cycle at the same wrapped
 position. Frame stepping pauses at an exact timestamp supplied by the selected channel's
-decoder. The future operation adapter resolves that neighbour; it must not divide by a nominal
-frame rate in the UI or inspector.
+decoder. The worker prepares the current, previous and next presentation timestamps; neither
+the UI nor the operation adapter divides by a nominal frame rate.
 
 Golden's `SoftwareDecoder` retains original stream timestamps, planes and colour metadata.
 It performs no implicit colour conversion or GPU readback. Seeking uses the selected stream's
@@ -40,18 +40,26 @@ Generic edits enforce Stop's zero position and change a stopped media to Paused 
 Sparse projects and history contain Parameters, never a serialized transport DTO or clock.
 
 `VideoControl` is a shared runtime owner created per media incarnation. It projects the
-Parameters onto `MediaTransport`, retains pending seeks until duration is known and coalesces
-selected-channel step requests with revision fences. Playback intent and actual readiness are
+Parameters onto `MediaTransport` and retains pending seeks until duration is known. Playback
+intent and actual readiness are
 separate in `VideoTransportSnapshot`; `ready` means usable duration metadata and `playing`
 reports the transport clock. Neither proves that a frame was decoded or presented. `Playing`
 authored before metadata leaves the clock paused. Rates use a checked rational projection at
-millionth precision. The worker
-must resolve exact neighbouring timestamps and publish resolved seek Parameters through the
-engine before claiming complete frame stepping.
+millionth precision.
+
+The selected-channel Step operation reads prepared timestamps and commits Playback=Paused and
+Seek to together through the existing atomic Parameter/history path. An unavailable File or
+unprepared neighbour rejects without changing authored state. There is no pending authored
+step to complete later, and no engine-side file or decoder wait. Source incarnation, exact
+authored File binding and transport epoch/cycle fence every timestamp observation. The bounded
+`InspectVideoFrame` query exposes readiness and actual neighbouring timestamps; compact
+Inspector actions, typed commands, named scripts and headless operations use the same adapter.
+At either endpoint, stepping holds the existing position and pauses; an already-paused endpoint
+is a history no-op.
 
 Video operation adapters use Golden's public `settle_edit_notifications` inside the existing
 atomic application operation. This bounded fixed point refreshes Parameter handles and runs
-their callbacks before returning snapshots or issuing step requests. Draining queued edits
+their callbacks before returning snapshots. Draining queued edits
 alone leaves handles stale until notification dispatch. The shared API owns that ordering;
 the app does not duplicate the engine's stabilization loop.
 
@@ -65,7 +73,10 @@ second. Relinking and project-root changes withdraw old sources before replaceme
 
 The reader decodes at most eight frames per turn before checking controls/cancellation. It
 samples original timestamps, holds the final frame at EOF, rewinds for backward seeks and
-uses coalesced latest-image publication. Paused workers wait for an explicit control wake.
+uses coalesced latest-image publication. After a paused keyframe seek, its preceding frame may
+not yet be known. The worker searches earlier timestamps and decodes forward in bounded turns
+to determine that exact neighbour while retaining the requested published image. Once ready,
+paused workers wait for an explicit control wake.
 Known duration survives consumer withdrawal; a returning Reference continues the media clock.
 Per-channel owner tokens reject metadata/frames from superseded workers. Complete metadata
 discovery for unopened variants and authored clear/removal synchronization remain required;
@@ -87,6 +98,6 @@ powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 run --locked -
 
 The host binds these file sources to the existing Media Preview, Composition, Matrix and
 Screen render graph. Default feature/redistribution wiring, actual-app visual qualification,
-exact frame-step commits, all-variant metadata, complete profile/color/alpha coverage,
+all-variant metadata, complete profile/color/alpha coverage,
 GPU-resident D3D11 hardware frames, HAP and sustained recovery/resource/performance acceptance
 remain required by M10. The implemented software path does not close a codec acceptance gate.

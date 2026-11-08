@@ -148,6 +148,9 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         MediaEdit::InspectVideo { media } => MediaEditResult::Video {
             snapshot: super::video::authoring::inspect(engine, media)?,
         },
+        MediaEdit::InspectVideoFrame { reference } => MediaEditResult::VideoFrame {
+            frame: super::video::authoring::inspect_frame(engine, reference)?,
+        },
         MediaEdit::ConfigureVideoFile { reference, file } => {
             super::video::authoring::file(engine, reference, &file)?;
             MediaEditResult::Changed

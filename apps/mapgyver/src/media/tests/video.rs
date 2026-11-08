@@ -192,7 +192,7 @@ fn generic_parameter_edits_enforce_stop_companions_and_invalid_writes_are_atomic
 }
 
 #[test]
-fn script_projection_and_coalesced_step_requests_use_the_exact_owner_and_reject_stale_results() {
+fn script_projection_and_unprepared_steps_use_the_exact_owner_without_partial_history() {
     let mut engine = fixture();
     let reference = create(&mut engine, MediaKind::Video);
     let operation = crate::media::source_api::operation(
@@ -206,31 +206,25 @@ fn script_projection_and_coalesced_step_requests_use_the_exact_owner_and_reject_
     .unwrap();
     apply(&mut engine, operation);
     assert_eq!(state(&mut engine, reference.media).settings.position_ms, 750.25);
-    edit(
-        &mut engine,
-        reference.media,
-        VideoEdit::Step {
-            channel: reference.channel,
-            direction: VideoStepDirection::Next,
-        },
-    );
-    let id = engine.node_id_by_uuid(reference.media.0).unwrap();
-    let Some(AppNode::Media(node)) = engine.nodes.get(id) else {
-        panic!()
-    };
-    let control = node.video_control().unwrap();
-    let old = control.pending_step().unwrap().unwrap();
-    edit(
-        &mut engine,
-        reference.media,
-        VideoEdit::Step {
-            channel: reference.channel,
-            direction: VideoStepDirection::Previous,
-        },
-    );
-    assert!(!control.resolve_step(old.revision, Duration::ZERO).unwrap());
-    edit(&mut engine, reference.media, VideoEdit::Seek { position_ms: 100.0 });
-    assert!(control.pending_step().unwrap().is_none());
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    for direction in [VideoStepDirection::Next, VideoStepDirection::Previous] {
+        assert!(
+            !invoke(
+                &mut engine,
+                MediaEdit::Video {
+                    media: reference.media,
+                    edit: VideoEdit::Step {
+                        channel: reference.channel,
+                        direction
+                    }
+                }
+            )
+            .success
+        );
+        assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+        assert_eq!(engine.undo_len(), history);
+    }
     let wrong = create(&mut engine, MediaKind::Picture);
     let before = engine.undo_len();
     assert!(

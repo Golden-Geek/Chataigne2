@@ -262,6 +262,9 @@ pub enum MediaEdit {
     InspectVideo {
         media: MediaId,
     },
+    InspectVideoFrame {
+        reference: ChannelReference,
+    },
     ConfigureVideoFile {
         reference: ChannelReference,
         file: String,
@@ -495,6 +498,9 @@ pub struct PictureFileBinding {
 pub enum MediaEditResult {
     Video {
         snapshot: super::video::protocol::VideoTransportSnapshot,
+    },
+    VideoFrame {
+        frame: Option<super::video::protocol::VideoFrameState>,
     },
     TargetPicker {
         page: Option<TargetPickerPage>,

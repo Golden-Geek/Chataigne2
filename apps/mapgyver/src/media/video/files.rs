@@ -60,6 +60,7 @@ struct Output {
 }
 struct Entry {
     file: PathBuf,
+    binding: crate::media::protocol::AssetLocator,
     control: Arc<VideoControl>,
     output: Arc<Mutex<Output>>,
     _worker: BoundedWorker<(), ()>,
@@ -147,18 +148,18 @@ impl Files {
         {
             if let Some(ChannelSource::Video { file: Some(file) }) = channel.definition.as_ref().map(|d| &d.source) {
                 let control = channel.video.clone().ok_or("Video capture has no transport owner")?;
-                wanted.insert(channel.reference, (file.resolve(&self.root), control));
+                wanted.insert(channel.reference, (file.resolve(&self.root), control, file.clone()));
             }
         }
         if wanted.len() > MAX_SOURCES {
             return Err("Video demand exceeds eight admitted file workers".into());
         }
         self.entries.retain(|reference, entry| {
-            wanted
-                .get(reference)
-                .is_some_and(|(file, control)| *file == entry.file && Arc::ptr_eq(control, &entry.control))
+            wanted.get(reference).is_some_and(|(file, control, binding)| {
+                *file == entry.file && *binding == entry.binding && Arc::ptr_eq(control, &entry.control)
+            })
         });
-        for (reference, (file, control)) in wanted {
+        for (reference, (file, control, binding)) in wanted {
             if self.entries.contains_key(&reference) {
                 continue;
             }
@@ -174,7 +175,7 @@ impl Files {
                 notifier: self.notifier.clone(),
             };
             let owner = context.owner;
-            control.claim_channel(reference.channel, owner)?;
+            control.claim_channel(reference.channel, owner, binding.clone())?;
             let worker = BoundedWorker::spawn(
                 "mapgyver-video-file",
                 &self.pool,
@@ -194,6 +195,7 @@ impl Files {
                 reference,
                 Entry {
                     file,
+                    binding,
                     control,
                     output,
                     _worker: worker,
@@ -292,6 +294,13 @@ impl Run {
                 } else {
                     reader.invalidate_publication();
                 }
+            }
+            if let Some(frame) = reader.neighbours()? {
+                self.control
+                    .observe_neighbours(self.reference.channel, owner, sample, frame)?;
+            }
+            if !sample.playing {
+                reader.prepare_previous()?;
             }
             let delay = if reader.catching_up {
                 Duration::from_millis(1)

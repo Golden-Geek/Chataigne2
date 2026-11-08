@@ -24,6 +24,25 @@ pub(crate) fn inspect(engine: &AppEngine, media: MediaId) -> Result<VideoTranspo
     snapshot.settings = node.video_settings()?;
     Ok(snapshot)
 }
+fn channel_file(engine: &AppEngine, reference: ChannelReference) -> Result<AssetLocator, String> {
+    owner(engine, reference.media)?;
+    let channel = super::super::authoring::channel(engine, reference)?;
+    let ChannelSource::Video { file: Some(file) } = channel.definition.source else {
+        return Err("Selected Video channel has no File".into());
+    };
+    Ok(file)
+}
+pub(crate) fn inspect_frame(
+    engine: &AppEngine,
+    reference: ChannelReference,
+) -> Result<Option<VideoFrameState>, String> {
+    let node = owner(engine, reference.media)?;
+    let channel = super::super::authoring::channel(engine, reference)?;
+    let ChannelSource::Video { file: Some(file) } = channel.definition.source else {
+        return Ok(None);
+    };
+    node.video_control().unwrap().frame(reference, &file)
+}
 pub(crate) fn file(engine: &mut AppEngine, reference: ChannelReference, file: &str) -> Result<(), String> {
     super::super::assets::parse_file(file)?;
     owner(engine, reference.media)?;
@@ -47,11 +66,15 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: VideoEdit) -> 
         _ => {}
     }
     candidate.validate()?;
-    if let VideoEdit::Step { channel, .. } = edit {
-        super::super::authoring::channel_id(engine, ChannelReference { media, channel })?;
-    }
-    let values = node.video_parameter_values(&edit);
     let control = node.video_control().unwrap();
+    let mut values = node.video_parameter_values(&edit);
+    if let VideoEdit::Step { channel, direction } = edit {
+        let file = channel_file(engine, ChannelReference { media, channel })?;
+        let position_ms = control.step_position(channel, &file, direction)?;
+        candidate.position_ms = position_ms;
+        candidate.validate()?;
+        values.extend(node.video_parameter_values(&VideoEdit::Seek { position_ms }));
+    }
     engine.edits.push(Edit::SetParamsAtomic {
         values,
         behaviour: ParameterEventBehaviour::Append,
@@ -61,10 +84,8 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: VideoEdit) -> 
     engine
         .settle_edit_notifications(16)
         .map_err(|error| error.to_string())?;
-    match edit {
-        VideoEdit::Play => control.request_play()?,
-        VideoEdit::Step { channel, direction } => control.request_step(channel, direction)?,
-        _ => {}
+    if matches!(edit, VideoEdit::Play) {
+        control.request_play()?;
     }
     Ok(MediaEditResult::Video {
         snapshot: inspect(engine, media)?,

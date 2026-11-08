@@ -15,7 +15,8 @@ function sourceExamples(mediaId, channelId, assetId) {
 	// local.playVideo("play", mediaId); local.pauseVideo("pause", mediaId); local.stopVideo("stop", mediaId);
 	// local.seekVideo("seek", mediaId, 1250.5); // milliseconds; generic Inspector edits the same Parameter
 	// local.setVideoRate("rate", mediaId, 0.5); local.setVideoLoop("loop", mediaId, true);
-	// local.stepVideo("next", mediaId, channelId, "Next"); // worker resolves exact channel timestamps
+	// local.inspectVideoFrame("frame", mediaId, channelId); // null while timestamp preparation is pending
+	// local.stepVideo("next", mediaId, channelId, "Next"); // commits a prepared exact timestamp; no FPS estimate
 	// local.inspectVideo("state", mediaId); // readiness/actual state differs from authored intent
 	// local.editMedia("command", JSON.stringify({kind: "CreateCommand", command_kind: "ConfigureResolution", label: null}));
 	// Configure the command's typed Parameters in the Inspector, then:
