@@ -668,50 +668,57 @@ try {
 	}
 	if (populated)
 		await qualification?.grid({ phase: 'populated-before-gestures', snapshot, colors });
-	await grid.getByTitle('Select Layer 1', { exact: true }).click();
-	await page.locator('.gc-dv-tab[data-content-panel-id="composition"]').click();
-	const panel = page.locator(
-		'.workbench-editor[data-panel-id="composition"][data-spatial-kind="Matrix"]'
-	);
-	const layerSvg = panel.getByRole('group', { name: 'Matrix Layer layout controls', exact: true });
-	const layerRect = layerSvg.locator(`[data-layer-id="${layer}"]`);
-	await gesture(
-		'Matrix Layer translation',
-		layerSvg,
-		layerRect,
-		layerRect,
-		async () => (await matrixSnapshot()).items.find((i) => i.id.id === layer).layer,
-		1.01
-	);
-	if (liveSync) {
-		await liveInput('Matrix Layer live canvas', layerRect, layerRect);
-		await liveInspector('Matrix Layer live Inspector', layerRect);
-	}
-	await tab('Matrix').click();
-	const firstCell = grid.getByTitle(`${snapshot.items[0].label} / ${snapshot.columns[0].label}`, {
-		exact: true
-	});
-	const firstCellBounds = await firstCell.boundingBox();
-	assert(firstCellBounds);
-	// The accepted Matrix controls occupy the top-left; select its ordinary image area.
-	await firstCell.click({
-		position: { x: firstCellBounds.width * 0.72, y: firstCellBounds.height * 0.5 }
-	});
-	await page.locator('.gc-dv-tab[data-content-panel-id="composition"]').click();
-	await panel.getByRole('button', { name: 'Edit Layer Cells', exact: true }).click();
-	const cellSvg = panel.getByRole('group', { name: 'Matrix Cell layout controls', exact: true });
-	const cellRect = cellSvg.locator(`[data-layout-cell="${cell}"]`);
-	await gesture(
-		'Matrix Cell translation',
-		cellSvg,
-		cellRect,
-		cellRect,
-		async () => (await matrixSnapshot()).cells.find((c) => c.id === cell).definition.settings,
-		1.01
-	);
-	if (liveSync) {
-		await liveInput('Matrix Cell live canvas', cellRect, cellRect);
-		await liveInspector('Matrix Cell live Inspector', cellRect);
+	// The cadence cohort measures one Composition only. Keep the full Matrix gesture
+	// acceptance in the ordinary fixture rather than making it a hidden timing prerequisite.
+	if (!motionCadence) {
+		await grid.getByTitle('Select Layer 1', { exact: true }).click();
+		await page.locator('.gc-dv-tab[data-content-panel-id="composition"]').click();
+		const panel = page.locator(
+			'.workbench-editor[data-panel-id="composition"][data-spatial-kind="Matrix"]'
+		);
+		const layerSvg = panel.getByRole('group', {
+			name: 'Matrix Layer layout controls',
+			exact: true
+		});
+		const layerRect = layerSvg.locator(`[data-layer-id="${layer}"]`);
+		await gesture(
+			'Matrix Layer translation',
+			layerSvg,
+			layerRect,
+			layerRect,
+			async () => (await matrixSnapshot()).items.find((i) => i.id.id === layer).layer,
+			1.01
+		);
+		if (liveSync) {
+			await liveInput('Matrix Layer live canvas', layerRect, layerRect);
+			await liveInspector('Matrix Layer live Inspector', layerRect);
+		}
+		await tab('Matrix').click();
+		const firstCell = grid.getByTitle(`${snapshot.items[0].label} / ${snapshot.columns[0].label}`, {
+			exact: true
+		});
+		const firstCellBounds = await firstCell.boundingBox();
+		assert(firstCellBounds);
+		// The accepted Matrix controls occupy the top-left; select its ordinary image area.
+		await firstCell.click({
+			position: { x: firstCellBounds.width * 0.72, y: firstCellBounds.height * 0.5 }
+		});
+		await page.locator('.gc-dv-tab[data-content-panel-id="composition"]').click();
+		await panel.getByRole('button', { name: 'Edit Layer Cells', exact: true }).click();
+		const cellSvg = panel.getByRole('group', { name: 'Matrix Cell layout controls', exact: true });
+		const cellRect = cellSvg.locator(`[data-layout-cell="${cell}"]`);
+		await gesture(
+			'Matrix Cell translation',
+			cellSvg,
+			cellRect,
+			cellRect,
+			async () => (await matrixSnapshot()).cells.find((c) => c.id === cell).definition.settings,
+			1.01
+		);
+		if (liveSync) {
+			await liveInput('Matrix Cell live canvas', cellRect, cellRect);
+			await liveInspector('Matrix Cell live Inspector', cellRect);
+		}
 	}
 	await tab('Medias').click();
 	const manager = page.locator('section[aria-label="Medias"]');
@@ -735,6 +742,7 @@ try {
 	await parent.focus();
 	await page.keyboard.press('ArrowRight');
 	await page.keyboard.press('Enter');
+	if (motionCadence) await page.locator('.gc-dv-tab[data-content-panel-id="composition"]').click();
 	if (liveSync) {
 		await page.locator(`.gc-dv-tab[data-content-panel-id="${livePreviewId}"]`).click();
 	}
@@ -747,13 +755,14 @@ try {
 		.locator(`polygon[data-instance-drop-target="${instances[0].instance}"]`)
 		.first();
 	const transform = async () => (await compSnapshot()).instances[0].definition.transform;
-	await gesture(
-		'Composition translation',
-		compSvg,
-		compShape,
-		compPanel.locator('[data-instance-handle="Translate"]'),
-		transform
-	);
+	if (!motionCadence)
+		await gesture(
+			'Composition translation',
+			compSvg,
+			compShape,
+			compPanel.locator('[data-instance-handle="Translate"]'),
+			transform
+		);
 	if (motionCadence) {
 		stage = 'Composition native image/control cadence';
 		cadenceReport = await measureCompositionCadence({
@@ -771,70 +780,72 @@ try {
 		);
 		await liveInspector('Composition live Inspector', compShape);
 	}
-	await gesture(
-		'Composition rotated resize',
-		compSvg,
-		compShape,
-		compPanel.locator('[data-instance-resize="BottomRight"]'),
-		transform,
-		// Canvas-pixel f32 transforms at400px have an ULP above0.00001.
-		0.0001
-	);
-	await tab('Screens').click();
-	const tree = page.locator('section[aria-label="Screens"]');
-	const screenRow = tree.getByRole('treeitem', { name: 'Gesture Screen', exact: true });
-	await screenRow.getByRole('button', { name: 'Gesture Screen', exact: true }).click();
-	if ((await screenRow.getAttribute('aria-expanded')) === 'false') {
-		await screenRow.focus();
-		await screenRow.press('ArrowRight');
-	}
-	await tree.getByRole('button', { name: initialSurface.label, exact: true }).click();
-	await tab('Screen Warping').click();
-	const warp = page.locator('[data-panel-id="screen-warp"]');
-	await warp
-		.locator('.native-preview[data-preview-state="available"][data-preview-installed="true"]')
-		.waitFor();
-	await wait(
-		() => warp.getAttribute('aria-busy'),
-		(v) => v === 'false'
-	);
-	const warpSvg = warp.getByRole('group', { name: 'Surface mapping controls', exact: true });
-	await gesture(
-		'Screen warp corner',
-		warpSvg,
-		warpSvg.locator(`polygon[data-native-hit-id="${surface.surface}"]`),
-		warp.getByRole('button', { name: 'Warp corner 1', exact: true }),
-		async () => (await surfaceSnapshot()).definition.quad
-	);
-	await tab('Surface Source').click();
-	const cropPanel = page.locator('section[aria-label="Surface Source"]');
-	await cropPanel
-		.locator('.native-preview[data-preview-state="available"][data-preview-installed="true"]')
-		.waitFor();
-	await wait(
-		() => cropPanel.getAttribute('aria-busy'),
-		(v) => v === 'false'
-	);
-	const cropSvg = cropPanel.getByRole('group', { name: 'Source crop controls', exact: true });
-	await gesture(
-		'Surface Source crop',
-		cropSvg,
-		cropSvg.locator('rect'),
-		cropPanel.getByRole('button', { name: 'Crop corner 1', exact: true }),
-		async () => (await surfaceSnapshot()).definition.crop
-	);
-	if (populated) {
-		await tab('Medias').click();
-		await page
-			.locator('[data-panel-id="media-manager"]')
-			.getByRole('button', { name: 'Gesture Matrix', exact: true })
-			.click();
-		await tab('Matrix').click();
-		await qualification?.grid({ phase: 'populated-after-gestures', snapshot, colors });
-	}
-	if (workbench) {
-		stage = 'ordinary controls, shared scrolling and docking';
-		workbenchReport = await verifyWorkbenchControls({ page, edit, post, qualification });
+	if (!motionCadence) {
+		await gesture(
+			'Composition rotated resize',
+			compSvg,
+			compShape,
+			compPanel.locator('[data-instance-resize="BottomRight"]'),
+			transform,
+			// Canvas-pixel f32 transforms at400px have an ULP above0.00001.
+			0.0001
+		);
+		await tab('Screens').click();
+		const tree = page.locator('section[aria-label="Screens"]');
+		const screenRow = tree.getByRole('treeitem', { name: 'Gesture Screen', exact: true });
+		await screenRow.getByRole('button', { name: 'Gesture Screen', exact: true }).click();
+		if ((await screenRow.getAttribute('aria-expanded')) === 'false') {
+			await screenRow.focus();
+			await screenRow.press('ArrowRight');
+		}
+		await tree.getByRole('button', { name: initialSurface.label, exact: true }).click();
+		await tab('Screen Warping').click();
+		const warp = page.locator('[data-panel-id="screen-warp"]');
+		await warp
+			.locator('.native-preview[data-preview-state="available"][data-preview-installed="true"]')
+			.waitFor();
+		await wait(
+			() => warp.getAttribute('aria-busy'),
+			(v) => v === 'false'
+		);
+		const warpSvg = warp.getByRole('group', { name: 'Surface mapping controls', exact: true });
+		await gesture(
+			'Screen warp corner',
+			warpSvg,
+			warpSvg.locator(`polygon[data-native-hit-id="${surface.surface}"]`),
+			warp.getByRole('button', { name: 'Warp corner 1', exact: true }),
+			async () => (await surfaceSnapshot()).definition.quad
+		);
+		await tab('Surface Source').click();
+		const cropPanel = page.locator('section[aria-label="Surface Source"]');
+		await cropPanel
+			.locator('.native-preview[data-preview-state="available"][data-preview-installed="true"]')
+			.waitFor();
+		await wait(
+			() => cropPanel.getAttribute('aria-busy'),
+			(v) => v === 'false'
+		);
+		const cropSvg = cropPanel.getByRole('group', { name: 'Source crop controls', exact: true });
+		await gesture(
+			'Surface Source crop',
+			cropSvg,
+			cropSvg.locator('rect'),
+			cropPanel.getByRole('button', { name: 'Crop corner 1', exact: true }),
+			async () => (await surfaceSnapshot()).definition.crop
+		);
+		if (populated) {
+			await tab('Medias').click();
+			await page
+				.locator('[data-panel-id="media-manager"]')
+				.getByRole('button', { name: 'Gesture Matrix', exact: true })
+				.click();
+			await tab('Matrix').click();
+			await qualification?.grid({ phase: 'populated-after-gestures', snapshot, colors });
+		}
+		if (workbench) {
+			stage = 'ordinary controls, shared scrolling and docking';
+			workbenchReport = await verifyWorkbenchControls({ page, edit, post, qualification });
+		}
 	}
 	assert.deepEqual(errors, []);
 	assert(
