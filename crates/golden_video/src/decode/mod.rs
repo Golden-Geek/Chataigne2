@@ -8,6 +8,8 @@ use ffmpeg_next as ffmpeg;
 use std::path::Path;
 mod image;
 pub use image::SoftwareImageConverter;
+mod timing;
+pub use timing::{StreamTiming, probe_timing_with_interrupt};
 
 /// Explicit admission limits, chosen by the owning runtime before opening a decoder.
 #[derive(Clone, Copy, Debug)]

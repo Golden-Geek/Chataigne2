@@ -19,6 +19,8 @@ pub struct MediaManagerNode {
     membership: RevisionSource,
     operation_owner: Arc<()>,
     pub(crate) sender_catalog: super::sender_catalog::Inbox,
+    #[cfg(feature = "video-files")]
+    pub(crate) videos: Arc<super::video::registry::Registry>,
 }
 
 impl MediaManagerNode {
@@ -37,6 +39,8 @@ impl MediaManagerNode {
             membership: RevisionSource::default(),
             operation_owner: Arc::new(()),
             sender_catalog: Default::default(),
+            #[cfg(feature = "video-files")]
+            videos: Default::default(),
         }
     }
     pub(crate) fn project_guard(&self) -> RevisionGuard {
@@ -63,6 +67,10 @@ impl Node for MediaManagerNode {
     }
 
     fn destroy(&mut self, _: &mut ProcessCtx) {
+        #[cfg(feature = "video-files")]
+        {
+            self.videos = Default::default();
+        }
         self.sender_catalog = Default::default();
         self.project.advance();
         self.membership.advance();

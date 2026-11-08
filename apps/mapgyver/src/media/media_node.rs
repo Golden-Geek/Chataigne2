@@ -296,6 +296,9 @@ impl Node for MediaNode {
         }
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
+        if let Some(control) = self.video_control.get() {
+            control.retire_media();
+        }
         self.pulses.destroy();
         self.membership.advance();
     }
@@ -305,7 +308,22 @@ impl Node for MediaNode {
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
         self.pulses.ready();
         self.video_ready = true;
+        if let Some(control) = self.video_control() {
+            control.activate_media();
+        }
         self.publish_video(ctx, true);
+        #[cfg(feature = "video-files")]
+        if let Some(control) = self.video_control() {
+            let control = std::sync::Arc::downgrade(&control);
+            let media = super::protocol::MediaId(self.node_data().meta.uuid);
+            ctx.register_ancestor_runtime(self.id(), move |owner| {
+                let Some(manager) = owner.as_any().downcast_ref::<crate::media::MediaManagerNode>() else {
+                    return Ok(false);
+                };
+                manager.videos.register(media, control.clone())?;
+                Ok(true)
+            });
+        }
     }
     fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
         if !enabled {

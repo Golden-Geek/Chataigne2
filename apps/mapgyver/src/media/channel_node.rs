@@ -38,8 +38,25 @@ pub struct ChannelNode {
     picture_reload: u64,
     #[state(default = OnceLock::new())]
     matrix_playback: OnceLock<crate::matrix::playback::PlaybackControl>,
+    #[state(default = None)]
+    video_binding: Option<std::sync::Arc<super::video::bindings::Registration>>,
 }
 impl ChannelNode {
+    fn register_video(&mut self, ctx: &mut ProcessCtx) {
+        if let Some(binding) = self.video_binding.take() {
+            binding.release();
+        }
+        if self.kind() == super::protocol::MediaKind::Video {
+            let binding = super::video::bindings::Registration::new(
+                super::protocol::ChannelId(self.node_data().meta.uuid),
+                super::assets::parse_file(self.file.get_ref().as_str()).expect("validated Video File"),
+            );
+            if let Some(parent) = self.node_data().parent {
+                binding.announce(ctx, self.id(), parent);
+            }
+            self.video_binding = Some(binding);
+        }
+    }
     pub(super) fn initialize_sender_options(&mut self, options: golden_core::parameter::ParameterEnumOptions) {
         assert!(
             !self.sender_choice.is_bound(),
@@ -259,6 +276,14 @@ impl ChannelNode {
 }
 #[node("mapgyver.media.channel.v2", from_struct)]
 impl Node for ChannelNode {
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
+        self.register_video(ctx);
+    }
+    fn on_child_moved(&mut self, ctx: &mut ProcessCtx, child: NodeId, old_parent: NodeId, new_parent: NodeId) {
+        if child == self.id() && old_parent != new_parent {
+            self.register_video(ctx);
+        }
+    }
     fn needs_update(&self) -> bool {
         false
     }
@@ -284,7 +309,14 @@ impl Node for ChannelNode {
             self.invalidate();
         }
     }
-    fn on_param_change(&mut self, _: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
+        if parameter == self.file.id()
+            && let Some(binding) = &self.video_binding
+            && let Err(error) =
+                binding.set_file(super::assets::parse_file(self.file.get_ref().as_str()).expect("validated Video File"))
+        {
+            ctx.set_node_warning(self.id(), error);
+        }
         if [
             self.source_kind.id(),
             self.rgba.id(),
@@ -305,7 +337,14 @@ impl Node for ChannelNode {
     fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, _: bool) {
         self.invalidate();
     }
-    fn destroy(&mut self, _: &mut ProcessCtx) {
+    fn destroy(&mut self, ctx: &mut ProcessCtx) {
+        if let Some(binding) = self.video_binding.take() {
+            if self.node_data().parent.is_some_and(|parent| ctx.is_destroying(parent)) {
+                binding.retire_media();
+            }
+            // History may retain the node after destroy; release membership now.
+            binding.release();
+        }
         if let Some(control) = self.matrix_playback.get() {
             control.clear();
         }

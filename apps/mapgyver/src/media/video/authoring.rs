@@ -60,6 +60,7 @@ pub(crate) fn file(engine: &mut AppEngine, reference: ChannelReference, file: &s
 pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: VideoEdit) -> Result<MediaEditResult, String> {
     let node = owner(engine, media)?;
     let mut candidate = node.video_settings()?;
+    let repeated_seek = matches!(&edit, VideoEdit::Seek { position_ms } if *position_ms == candidate.position_ms);
     match &edit {
         VideoEdit::Seek { position_ms } => candidate.position_ms = *position_ms,
         VideoEdit::Rate { rate } => candidate.rate = *rate,
@@ -86,6 +87,9 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: VideoEdit) -> 
         .map_err(|error| error.to_string())?;
     if matches!(edit, VideoEdit::Play) {
         control.request_play()?;
+    }
+    if repeated_seek {
+        control.configure(inspect(engine, media)?.settings, true)?;
     }
     Ok(MediaEditResult::Video {
         snapshot: inspect(engine, media)?,

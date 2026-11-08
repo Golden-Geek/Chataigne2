@@ -6,6 +6,7 @@
 //! integration consume this boundary; this module does not persist authored settings in DTOs.
 
 pub(crate) mod authoring;
+pub(crate) mod bindings;
 mod control;
 mod frames;
 pub mod protocol;
@@ -19,7 +20,11 @@ pub(crate) mod files;
 #[cfg(feature = "video-files")]
 pub use files::FileRetirement;
 #[cfg(feature = "video-files")]
+pub(crate) mod metadata;
+#[cfg(feature = "video-files")]
 mod reader;
+#[cfg(feature = "video-files")]
+pub(crate) mod registry;
 
 #[cfg(test)]
 mod tests;

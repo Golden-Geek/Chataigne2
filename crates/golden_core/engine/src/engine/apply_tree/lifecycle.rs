@@ -329,6 +329,7 @@ impl<T: Node> Engine<T> {
     }
 
     pub(crate) fn absorb_history_callback_edits(&mut self, ctx: &mut ProcessCtx) -> Result<(), EngineEditError> {
+        self.apply_runtime_bindings(ctx)?;
         self.prepare_script_app_operation_fences(ctx);
         // Restored node payloads already contain the authoritative authored state.
         // Subscriptions are runtime registrations; authored callback edits would
@@ -360,9 +361,11 @@ impl<T: Node> Engine<T> {
         &mut self,
         node_id: NodeId,
         tree_snapshot: Option<&Arc<crate::process_ctx::ProcessTreeSnapshot>>,
+        destroy_scope: &Arc<std::collections::HashSet<NodeId>>,
     ) -> Result<(), EngineEditError> {
         let mut destroy_ctx = ProcessCtx::new(ExecutionPhase::EngineTick, self.time);
         destroy_ctx.runtime_elapsed = self.runtime_elapsed;
+        destroy_ctx.set_destroy_scope(destroy_scope.clone());
         if let Some(tree_snapshot) = tree_snapshot {
             destroy_ctx.set_tree_snapshot(Arc::clone(tree_snapshot));
         }
@@ -391,8 +394,9 @@ impl<T: Node> Engine<T> {
         });
         let tree_snapshot =
             needs_tree_snapshot.then(|| self.build_lifecycle_tree_snapshot("destroy-batch", node_ids.len()));
+        let destroy_scope = Arc::new(node_ids.iter().copied().collect());
         for node_id in node_ids.iter().rev().copied() {
-            self.run_node_destroy(node_id, tree_snapshot.as_ref())?;
+            self.run_node_destroy(node_id, tree_snapshot.as_ref(), &destroy_scope)?;
         }
         Ok(())
     }

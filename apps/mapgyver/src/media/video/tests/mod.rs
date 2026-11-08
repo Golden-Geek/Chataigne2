@@ -1,5 +1,8 @@
 use super::*;
 mod frames;
+mod membership;
+#[cfg(feature = "video-files")]
+mod metadata;
 #[cfg(feature = "video-files")]
 mod reader;
 use golden_time::{Clock, MonotonicTime, PlaybackRate, TimeError};

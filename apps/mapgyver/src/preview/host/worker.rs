@@ -170,6 +170,8 @@ pub(super) struct Input {
 
 pub(super) fn run(input: Input) -> io::Result<()> {
     let _session = SessionOwner(input.controller.clone());
+    #[cfg(feature = "video-files")]
+    let _videos = crate::media::video::metadata::Service::start(input.runtime.clone())?;
     let mut owner: Option<Owner> = None;
     // Pin even automatic selection for this presentation task. Recreating outputs must not
     // silently reconnect existing shared textures on a different GPU.

@@ -18,6 +18,10 @@ struct Source {
 #[derive(Default)]
 pub(super) struct Frames(HashMap<ChannelId, Source>);
 impl Frames {
+    #[cfg(feature = "video-files")]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
     pub fn claim(&mut self, channel: ChannelId, owner: uuid::Uuid, file: AssetLocator) {
         self.0.insert(
             channel,
@@ -30,6 +34,15 @@ impl Frames {
     }
     pub fn owns(&self, channel: ChannelId, owner: uuid::Uuid) -> bool {
         self.0.get(&channel).is_some_and(|source| source.owner == owner)
+    }
+    pub fn file(&self, channel: ChannelId, owner: uuid::Uuid) -> Option<&AssetLocator> {
+        self.0
+            .get(&channel)
+            .filter(|source| source.owner == owner)
+            .map(|source| &source.file)
+    }
+    pub fn remove(&mut self, channel: ChannelId) {
+        self.0.remove(&channel);
     }
     pub fn release(&mut self, channel: ChannelId, owner: uuid::Uuid) {
         if self.owns(channel, owner) {

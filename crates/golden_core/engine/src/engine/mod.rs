@@ -563,11 +563,40 @@ impl<T: Node> Engine<T> {
     ///
     /// Node-bearing edits are validated to ensure node types match `T`.
     pub fn absorb_edits(&mut self, ctx: &mut ProcessCtx) -> Result<(), EngineEditError> {
+        self.apply_runtime_bindings(ctx)?;
         self.prepare_script_app_operation_fences(ctx);
         if self.history_replay {
             return self.absorb_history_callback_edits(ctx);
         }
         self.absorb_edit_requests(ctx.edits.drain())
+    }
+
+    pub(crate) fn apply_runtime_bindings(&self, ctx: &mut ProcessCtx) -> Result<(), EngineEditError> {
+        for mut binding in ctx.take_runtime_bindings() {
+            let Some(source) = self.nodes.get(binding.source) else {
+                continue;
+            };
+            let reject = |message| EngineEditError::NodeMutationRejected {
+                edit_index: 0,
+                operation: "RegisterAncestorRuntime",
+                node: binding.source,
+                node_type: source.get_type().to_owned(),
+                message,
+            };
+            let mut parent = source.node_data().parent;
+            let mut accepted = false;
+            while let Some(node) = parent.and_then(|id| self.nodes.get(id)) {
+                if (binding.callback)(node).map_err(&reject)? {
+                    accepted = true;
+                    break;
+                }
+                parent = node.node_data().parent;
+            }
+            if !accepted {
+                return Err(reject("no ancestor accepted the runtime registration".into()));
+            }
+        }
+        Ok(())
     }
 
     /// Returns per-tick counters accumulated during the most recent `run_tick`.

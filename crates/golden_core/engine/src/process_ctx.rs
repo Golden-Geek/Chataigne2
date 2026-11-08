@@ -22,6 +22,8 @@ mod child_indexes;
 mod lease;
 pub(crate) mod memory;
 mod refresh;
+mod runtime_bindings;
+pub(crate) use runtime_bindings::RuntimeBinding;
 pub(crate) mod snapshot_map;
 use snapshot_map::SnapshotMap;
 #[cfg(test)]
@@ -481,6 +483,8 @@ pub struct ProcessCtx {
     node_wake_source: Option<(NodeWakeSource, NodeId)>,
     script_args: Option<crate::script::ScriptArguments>,
     current_event: Option<usize>,
+    destroy_scope: Option<Arc<std::collections::HashSet<NodeId>>>,
+    runtime_bindings: Vec<RuntimeBinding>,
 }
 
 impl ProcessCtx {
@@ -498,7 +502,20 @@ impl ProcessCtx {
             node_wake_source: None,
             script_args: None,
             current_event: None,
+            destroy_scope: None,
+            runtime_bindings: Vec::new(),
         }
+    }
+
+    /// Whether this node belongs to the current destroy batch. False outside destroy callbacks.
+    /// This uses the already-collected removal scope and requires no tree snapshot. A child can
+    /// distinguish its own removal from teardown of an owning ancestor, including Undo/Redo.
+    pub fn is_destroying(&self, node: NodeId) -> bool {
+        self.destroy_scope.as_ref().is_some_and(|scope| scope.contains(&node))
+    }
+
+    pub(crate) fn set_destroy_scope(&mut self, scope: Arc<std::collections::HashSet<NodeId>>) {
+        self.destroy_scope = Some(scope);
     }
 
     /// Attaches a wake reservation source scoped to the current ready callback's node.

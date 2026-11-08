@@ -18,6 +18,9 @@ fn prepared_steps_are_fenced_by_file_epoch_and_source_incarnation() {
     let other = AssetLocator::ProjectRelative {
         path: "other.mp4".to_owned().try_into().unwrap(),
     };
+    control
+        .bind_file(reference.channel, uuid::Uuid::new_v4(), Some(file.clone()))
+        .unwrap();
     control.claim_channel(reference.channel, first, file.clone()).unwrap();
     control
         .channel_duration(reference.channel, first, Duration::from_secs(1))

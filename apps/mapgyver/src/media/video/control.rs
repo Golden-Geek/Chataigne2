@@ -6,7 +6,10 @@ struct State {
     transport: MediaTransport<SystemClock>,
     settings: VideoTransportSettings,
     seek_pending: bool,
-    durations: std::collections::HashMap<super::super::protocol::ChannelId, Duration>,
+    seek_waiting_for_duration: bool,
+    retired: bool,
+    files: std::collections::HashMap<super::super::protocol::ChannelId, super::bindings::File>,
+    durations: std::collections::BTreeMap<Duration, usize>,
     frames: super::frames::Frames,
 }
 
@@ -19,6 +22,9 @@ impl Default for VideoControl {
                 transport: MediaTransport::new(SystemClock::new()).expect("fresh monotonic clock is representable"),
                 settings: Default::default(),
                 seek_pending: true,
+                seek_waiting_for_duration: false,
+                retired: false,
+                files: Default::default(),
                 durations: Default::default(),
                 frames: Default::default(),
             }),
@@ -27,6 +33,125 @@ impl Default for VideoControl {
     }
 }
 impl VideoControl {
+    pub(crate) fn retire_media(&self) {
+        if let Ok(mut state) = self.0.lock() {
+            state.retired = true;
+        }
+    }
+    pub(crate) fn activate_media(&self) {
+        if let Ok(mut state) = self.0.lock() {
+            state.retired = false;
+        }
+    }
+    #[cfg(feature = "video-files")]
+    pub(super) fn needs_metadata(&self) -> bool {
+        self.0
+            .lock()
+            .is_ok_and(|state| !state.retired || !state.frames.is_empty())
+    }
+    pub(crate) fn bind_file(
+        &self,
+        channel: super::super::protocol::ChannelId,
+        owner: uuid::Uuid,
+        locator: Option<super::super::protocol::AssetLocator>,
+    ) -> Result<(), String> {
+        let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
+        if state
+            .files
+            .get(&channel)
+            .is_some_and(|file| file.owner == owner && file.locator == locator)
+        {
+            return Ok(());
+        }
+        if !state.files.contains_key(&channel) && state.files.len() >= 4096 {
+            return Err("Video metadata exceeds 4096 authored channels".into());
+        }
+        state.frames.remove(channel);
+        let old = state
+            .files
+            .insert(
+                channel,
+                super::bindings::File {
+                    owner,
+                    #[cfg(any(feature = "video-files", test))]
+                    generation: uuid::Uuid::new_v4(),
+                    locator,
+                    duration: None,
+                },
+            )
+            .and_then(|file| file.duration);
+        state.duration_changed(old, None)?;
+        drop(state);
+        self.1.advance();
+        Ok(())
+    }
+    pub(crate) fn unbind_file(&self, channel: super::super::protocol::ChannelId, owner: uuid::Uuid) {
+        if let Ok(mut state) = self.0.lock()
+            && !state.retired
+            && state.files.get(&channel).is_some_and(|file| file.owner == owner)
+        {
+            let old = state.files.remove(&channel).and_then(|file| file.duration);
+            state.frames.remove(channel);
+            let _ = state.duration_changed(old, None);
+            drop(state);
+            self.1.advance();
+        }
+    }
+    #[cfg(any(feature = "video-files", test))]
+    pub(super) fn metadata_files(
+        &self,
+    ) -> Result<
+        Vec<(
+            super::super::protocol::ChannelId,
+            uuid::Uuid,
+            super::super::protocol::AssetLocator,
+        )>,
+        String,
+    > {
+        let state = self.0.lock().map_err(|_| "Video control poisoned")?;
+        Ok(state
+            .files
+            .iter()
+            .filter_map(|(channel, file)| file.locator.clone().map(|locator| (*channel, file.generation, locator)))
+            .collect())
+    }
+    #[cfg(any(feature = "video-files", test))]
+    pub(super) fn metadata_duration(
+        &self,
+        channel: super::super::protocol::ChannelId,
+        generation: uuid::Uuid,
+        duration: Duration,
+    ) -> Result<bool, String> {
+        let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
+        let Some(file) = state
+            .files
+            .get_mut(&channel)
+            .filter(|file| file.generation == generation)
+        else {
+            return Ok(false);
+        };
+        if file.duration == Some(duration) {
+            return Ok(true);
+        }
+        let old = file.duration.replace(duration);
+        state.duration_changed(old, Some(duration))?;
+        drop(state);
+        self.1.advance();
+        Ok(true)
+    }
+    #[cfg(feature = "video-files")]
+    pub(super) fn metadata_is_current(
+        &self,
+        channel: super::super::protocol::ChannelId,
+        generation: uuid::Uuid,
+    ) -> bool {
+        self.0.lock().is_ok_and(|state| {
+            state
+                .files
+                .get(&channel)
+                .is_some_and(|file| file.generation == generation)
+        })
+    }
     pub fn claim_channel(
         &self,
         channel: super::super::protocol::ChannelId,
@@ -34,8 +159,8 @@ impl VideoControl {
         file: super::super::protocol::AssetLocator,
     ) -> Result<(), String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
-        if !state.durations.contains_key(&channel) && state.durations.len() >= 4096 {
-            return Err("Video metadata exceeds the 4096-channel runtime capture bound".into());
+        if state.files.get(&channel).and_then(|binding| binding.locator.as_ref()) != Some(&file) {
+            return Err("Video source no longer matches its authored File".into());
         }
         state.frames.claim(channel, owner, file);
         Ok(())
@@ -58,15 +183,20 @@ impl VideoControl {
         duration: Duration,
     ) -> Result<(), String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
-        if !state.frames.owns(channel, owner) {
-            return Err("Video source owner was superseded".into());
+        let file = state
+            .frames
+            .file(channel, owner)
+            .ok_or("Video source owner was superseded")?
+            .clone();
+        let binding = state.files.get_mut(&channel).ok_or("Video channel was removed")?;
+        if binding.locator.as_ref() != Some(&file) {
+            return Err("Video File was relinked".into());
         }
-        state.durations.insert(channel, duration);
-        let duration = state.durations.values().copied().max().unwrap_or_default();
-        let first = state.transport.duration().is_zero();
-        let extended = duration > state.transport.duration();
-        state.transport.set_duration(duration).map_err(|e| e.to_string())?;
-        state.apply(first || extended)?;
+        if binding.duration == Some(duration) {
+            return Ok(());
+        }
+        let old = binding.duration.replace(duration);
+        state.duration_changed(old, Some(duration))?;
         drop(state);
         self.1.advance();
         Ok(())
@@ -110,7 +240,8 @@ impl VideoControl {
         self.1.advance();
         Ok(())
     }
-    /// The file worker supplies aggregate metadata; transient source loss must retain known duration.
+    /// Explicit timing fixture injection; product metadata comes from authored channel bindings.
+    #[cfg(test)]
     pub fn prepare(&self, duration: Duration) -> Result<(), String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
         let first = state.transport.duration().is_zero();
@@ -172,6 +303,34 @@ impl VideoControl {
     }
 }
 impl State {
+    fn duration_changed(&mut self, old: Option<Duration>, new: Option<Duration>) -> Result<(), String> {
+        if old == new {
+            return Ok(());
+        }
+        if let Some(old) = old {
+            let count = self.durations.get_mut(&old).expect("every bound duration has a count");
+            *count -= 1;
+            if *count == 0 {
+                self.durations.remove(&old);
+            }
+        }
+        if let Some(new) = new {
+            *self.durations.entry(new).or_default() += 1;
+        }
+        let duration = self
+            .durations
+            .last_key_value()
+            .map_or(Duration::ZERO, |(duration, _)| *duration);
+        if duration == self.transport.duration() {
+            return Ok(());
+        }
+        let first = self.transport.duration().is_zero();
+        let extended = duration > self.transport.duration();
+        self.seek_pending |= duration.is_zero();
+        self.seek_pending |= extended && self.seek_waiting_for_duration;
+        self.transport.set_duration(duration).map_err(|e| e.to_string())?;
+        self.apply(first || extended)
+    }
     fn apply(&mut self, play_requested: bool) -> Result<(), String> {
         let rate = PlaybackRate::new((self.settings.rate * 1_000_000.0).round() as i32, 1_000_000)
             .map_err(|e| e.to_string())?;
@@ -182,6 +341,7 @@ impl State {
         if self.settings.mode == VideoPlaybackMode::Stopped {
             self.transport.stop().map_err(|e| e.to_string())?;
             self.seek_pending = false;
+            self.seek_waiting_for_duration = false;
             return Ok(());
         }
         if self.transport.duration().is_zero() {
@@ -189,9 +349,11 @@ impl State {
         }
         if self.seek_pending {
             // Metadata clamps a saved seek only at the runtime boundary; authored values remain intact.
-            let position = Duration::from_secs_f64(self.settings.position_ms / 1000.0).min(self.transport.duration());
+            let requested = Duration::from_secs_f64(self.settings.position_ms / 1000.0);
+            let position = requested.min(self.transport.duration());
             self.transport.seek(position).map_err(|e| e.to_string())?;
             self.seek_pending = false;
+            self.seek_waiting_for_duration = requested > self.transport.duration();
         }
         match self.settings.mode {
             VideoPlaybackMode::Playing if play_requested => self.transport.play(),

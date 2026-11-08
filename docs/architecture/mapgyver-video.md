@@ -10,7 +10,8 @@ does not advance time or accumulate rounded frame periods. Rate changes preserve
 position. Stop returns to zero. Completed non-looping playback restarts at the appropriate
 endpoint when played again, including reverse playback.
 
-The file worker supplies the longest channel duration. Each channel samples at the lesser of
+Background metadata probing supplies the longest authored channel duration, including variants
+without render consumers. Each channel samples at the lesser of
 that shared position and its own duration, holding its final frame while longer channels run.
 Temporary file loss must retain last-known metadata; clearing a channel's authored File is a
 different operation from an unavailable endpoint. No whole-file timestamp index is required.
@@ -40,8 +41,10 @@ Generic edits enforce Stop's zero position and change a stopped media to Paused 
 Sparse projects and history contain Parameters, never a serialized transport DTO or clock.
 
 `VideoControl` is a shared runtime owner created per media incarnation. It projects the
-Parameters onto `MediaTransport` and retains pending seeks until duration is known. Playback
-intent and actual readiness are
+Parameters onto `MediaTransport` and retains pending seeks until duration is known. A seek
+clamped by partial duration discovery remains eligible for its requested position when a longer
+variant becomes known. Repeating the same explicit seek reapplies the runtime action even when
+its authored Parameter already has that value. Playback intent and actual readiness are
 separate in `VideoTransportSnapshot`; `ready` means usable duration metadata and `playing`
 reports the transport clock. Neither proves that a frame was decoded or presented. `Playing`
 authored before metadata leaves the clock paused. Rates use a checked rational projection at
@@ -78,9 +81,31 @@ not yet be known. The worker searches earlier timestamps and decodes forward in 
 to determine that exact neighbour while retaining the requested published image. Once ready,
 paused workers wait for an explicit control wake.
 Known duration survives consumer withdrawal; a returning Reference continues the media clock.
-Per-channel owner tokens reject metadata/frames from superseded workers. Complete metadata
-discovery for unopened variants and authored clear/removal synchronization remain required;
-the current known-duration registry has a 4096-entry admission bound.
+Per-channel owner tokens reject frames from superseded workers.
+
+Channel lifecycle registrations bind each real File to its media control. File edits and actual
+channel removal revoke the old generation and duration; consumer withdrawal does not. A counted
+ordered duration set updates the longest duration in logarithmic time, avoiding whole-channel
+rescans in lifecycle callbacks. A retired media control retains its bindings for already-admitted
+Matrix clip producers until their final runtime owner disappears. Golden's snapshot-free
+`ProcessCtx::is_destroying` identifies the owning media in the known destroy batch. The channel
+releases membership during destroy, independently of nodes retained for Undo, and distinguishes
+whole-media retirement from removing one channel.
+Reparenting a channel registers it with its new media owner.
+
+Golden's read-only `register_ancestor_runtime` callbacks bind shared runtime handles synchronously
+before live activation/history restoration returns. This avoids inbox events that bootstrap
+cleanup deliberately discards. The manager receives weak control registrations, including nested
+owned media, without a deep event subscription or broader membership invalidation. A project-fenced registry lets one bounded
+metadata service discover configured Files without scanning the document or starting renderers.
+Desktop and headless host composition each retain this service independently of device creation.
+Golden's demux-only timing probe retains no frame decoder. File generation and project fences
+cancel obsolete probes and reject late results. Healthy metadata checks file fingerprints at a
+coarse one-second interval; missing endpoints retry while retaining known timing. Relinking clears
+old metadata, and root relocation reprobes the resolved path. All probing, filesystem checks and
+waits run on the IO owner. The registry admits4096 media owners, each media admits4096 authored
+channels, and metadata service work admits4096 configured Files across the project. Decode/image
+worker and storage budgets remain separate and unchanged.
 
 Golden's `ImageStream` supplies fixed-descriptor software frames to an installed render plan.
 Native storage is updated only when its sequence changes. Frame delivery does not rebuild
@@ -98,6 +123,6 @@ powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 run --locked -
 
 The host binds these file sources to the existing Media Preview, Composition, Matrix and
 Screen render graph. Default feature/redistribution wiring, actual-app visual qualification,
-all-variant metadata, complete profile/color/alpha coverage,
+complete profile/color/alpha coverage,
 GPU-resident D3D11 hardware frames, HAP and sustained recovery/resource/performance acceptance
 remain required by M10. The implemented software path does not close a codec acceptance gate.

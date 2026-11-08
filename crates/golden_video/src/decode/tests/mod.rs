@@ -35,6 +35,21 @@ fn invalid_admission_and_missing_paths_fail_before_opening_ffmpeg() {
 }
 
 #[test]
+fn demux_only_timing_matches_decoded_stream_units_for_all_common_fixtures() {
+    for name in ["h264.mp4", "hevc.mp4", "prores.mov", "h264-keyframes.mp4"] {
+        let timing = probe_timing_with_interrupt(&fixture(name), || false).unwrap();
+        let decoder = SoftwareDecoder::open(&fixture(name), limits()).unwrap();
+        assert_eq!(timing.duration, decoder.info().duration);
+        assert_eq!(timing.time_base, decoder.info().time_base);
+        assert!(timing.duration.is_some_and(|duration| duration > 0));
+    }
+    assert!(matches!(
+        probe_timing_with_interrupt(&fixture("missing.mp4"), || false),
+        Err(DecodeError::NotAFile)
+    ));
+}
+
+#[test]
 fn common_codecs_preserve_exact_mixed_rate_timestamps_pixels_and_delayed_frames() {
     for (name, codec, rate, pixel) in [
         ("h264.mp4", "h264", (24, 1), ffmpeg::format::Pixel::YUV420P),
