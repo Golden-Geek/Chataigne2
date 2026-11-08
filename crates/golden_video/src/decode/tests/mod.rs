@@ -134,3 +134,57 @@ fn untimed_streams_do_not_invent_timestamps_from_frame_rate() {
     assert!(matches!(decoder.next_frame(), Err(DecodeError::MissingTimestamp)));
     assert!(matches!(decoder.next_frame(), Err(DecodeError::ReopenRequired)));
 }
+
+#[test]
+fn original_timestamp_seeks_flush_old_frames_and_rewind_after_clean_eof() {
+    for name in ["h264.mp4", "hevc.mp4", "prores.mov"] {
+        let mut decoder = SoftwareDecoder::open(&fixture(name), limits()).unwrap();
+        let mut timestamps = Vec::new();
+        while let Some(frame) = decoder.next_frame().unwrap() {
+            timestamps.push(frame.timestamp());
+        }
+        assert_eq!(timestamps.len(), 6);
+        for index in [5, 0, 4, 2, 1] {
+            decoder.seek_before(timestamps[index]).unwrap();
+            let mut found = false;
+            for _ in 0..6 {
+                let frame = decoder.next_frame().unwrap().unwrap();
+                assert!(
+                    frame.timestamp() <= timestamps[index],
+                    "seek skipped exact frame: {name}, target index {index}, wanted {}, got {}",
+                    timestamps[index],
+                    frame.timestamp()
+                );
+                if frame.timestamp() == timestamps[index] {
+                    let data = frame.image().data(0);
+                    let level = if name == "prores.mov" {
+                        u16::from_le_bytes([data[0], data[1]]) / 4
+                    } else {
+                        u16::from(data[0])
+                    };
+                    assert!(level.abs_diff(32 + 24 * index as u16) <= 3, "stale seek pixels: {name}");
+                    found = true;
+                    break;
+                }
+            }
+            assert!(found, "exact timestamp not reached: {name}");
+        }
+    }
+}
+
+#[test]
+fn invalid_seek_is_atomic_and_poisoned_decoders_cannot_hide_errors_by_seeking() {
+    let mut decoder = SoftwareDecoder::open(&fixture("h264.mp4"), limits()).unwrap();
+    assert!(matches!(decoder.seek_before(i64::MAX), Err(DecodeError::OutsideStream)));
+    assert_eq!(decoder.next_frame().unwrap().unwrap().timestamp(), 0);
+    let mut decoder = SoftwareDecoder::open(
+        &fixture("h264.mp4"),
+        DecodeLimits {
+            max_packet_bytes: 1,
+            ..limits()
+        },
+    )
+    .unwrap();
+    assert!(matches!(decoder.next_frame(), Err(DecodeError::LimitExceeded)));
+    assert!(matches!(decoder.seek_before(0), Err(DecodeError::ReopenRequired)));
+}

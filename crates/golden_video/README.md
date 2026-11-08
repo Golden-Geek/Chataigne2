@@ -19,8 +19,9 @@ The implemented foundations are:
 - `color/` validates finite SDR premultiplied clear colors and unit-range opacity.
 - `decode/` (optional `ffmpeg` feature) demuxes local files and owns software decoder/frame
   lifetimes on a caller's worker. Original timestamps, planes and colour metadata survive;
-  explicit admission limits and poisoned-error state prevent unbounded packet work or false
-  clean completion. It does not own app transport, GPU readback or implicit colour conversion.
+  exact stream-timestamp seeking replaces codec reorder state. Explicit admission limits and
+  poisoned-error state prevent unbounded packet work or false clean completion. It does not
+  own app transport, GPU readback or implicit colour conversion.
   [Pinned Windows dependency and checks](../../tools/mapgyver/ffmpeg/README.md) describe the
   current boundary and remaining hardware/worker/package integration.
 - `plan/` validates the complete submitted dependency graph and caller-supplied limits, then

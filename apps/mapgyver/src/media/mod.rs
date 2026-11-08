@@ -34,6 +34,7 @@ pub mod spatial;
 pub(crate) mod structure;
 mod target_picker;
 pub(crate) mod targeting;
+pub mod video;
 mod visibility;
 
 pub use assets::{AssetNode, asset};

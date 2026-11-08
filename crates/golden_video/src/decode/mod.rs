@@ -81,6 +81,9 @@ pub enum DecodeError {
     /// A failed decoder must be reopened rather than reused after partial input consumption.
     #[error("video decoder failed; reopen the file")]
     ReopenRequired,
+    /// A seek is outside the container's declared stream interval.
+    #[error("video seek timestamp is outside the declared stream")]
+    OutsideStream,
     /// FFmpeg open, demux or decode failure; never silently rewritten to clean EOF.
     #[error("FFmpeg: {0}")]
     Ffmpeg(#[from] ffmpeg::Error),
@@ -132,15 +135,7 @@ impl SoftwareDecoder {
         if base.numerator() <= 0 || base.denominator() <= 0 {
             return Err(ffmpeg::Error::InvalidData.into());
         }
-        let mut context = ffmpeg::codec::context::Context::from_parameters(stream.parameters())?;
-        // SAFETY: this is our uniquely owned, unopened AVCodecContext. libavcodec enforces
-        // max_pixels before allocating decoded images, including later resolution changes.
-        unsafe {
-            (*context.as_mut_ptr()).max_pixels = limits.max_pixels as i64;
-        }
-        context.set_threading(ffmpeg::codec::threading::Config::count(1));
-        let decoder = context.decoder().video()?;
-        admit_extent(decoder.width(), decoder.height(), limits.max_pixels)?;
+        let decoder = open_decoder(&input, index, limits)?;
         let timestamp = |value| (value != ffmpeg::ffi::AV_NOPTS_VALUE).then_some(value);
         let info = StreamInfo {
             codec: decoder.id().name().to_owned(),
@@ -166,6 +161,56 @@ impl SoftwareDecoder {
     /// Metadata for this decoder's selected stream.
     pub fn info(&self) -> &StreamInfo {
         &self.info
+    }
+
+    /// Seek to a keyframe at/before an original stream timestamp with a fresh codec owner.
+    /// The worker then decodes forward to its exact timestamp. This never estimates a frame
+    /// index from FPS. A failed demux seek poisons the owner; an out-of-range timestamp does
+    /// not disturb its current state. Clean EOF can be rewound without reopening the file.
+    pub fn seek_before(&mut self, timestamp: i64) -> Result<(), DecodeError> {
+        if self.state == DecodeState::Failed {
+            return Err(DecodeError::ReopenRequired);
+        }
+        if let Some(start) = self.info.start {
+            let after_end = self
+                .info
+                .duration
+                .filter(|duration| *duration > 0)
+                .is_some_and(|duration| i128::from(timestamp) > i128::from(start) + i128::from(duration));
+            if timestamp < start || after_end {
+                return Err(DecodeError::OutsideStream);
+            }
+        }
+        // A discontinuity replaces codec-owned reorder/drain state rather than depending on
+        // avcodec_flush_buffers to discard every delayed frame. The admitted HEVC fixture
+        // emits an old drained frame after flush. Keep one demux/file owner; decoded images
+        // already handed to consumers retain their independent reference-counted storage.
+        let decoder = match open_decoder(&self.input, self.stream, self.limits) {
+            Ok(decoder) => decoder,
+            Err(error) => {
+                self.state = DecodeState::Failed;
+                return Err(error);
+            }
+        };
+        // Keep the selected stream's exact time base, rather than converting through the
+        // high-level Input::seek API's global microsecond coordinate.
+        // SAFETY: the uniquely owned live input retains the validated stream index. FFmpeg
+        // performs its own demux-buffer flush; no borrowed packet/frame refers to that input.
+        let result = unsafe {
+            ffmpeg::ffi::av_seek_frame(
+                self.input.as_mut_ptr(),
+                self.stream as i32,
+                timestamp,
+                ffmpeg::ffi::AVSEEK_FLAG_BACKWARD,
+            )
+        };
+        if result < 0 {
+            self.state = DecodeState::Failed;
+            return Err(ffmpeg::Error::from(result).into());
+        }
+        self.decoder = decoder;
+        self.state = DecodeState::Reading;
+        Ok(())
     }
 
     /// Decode one presentation-ordered frame, including delayed frames at end of stream.
@@ -232,6 +277,26 @@ impl SoftwareDecoder {
             }
         }
     }
+}
+
+fn open_decoder(
+    input: &ffmpeg::format::context::Input,
+    index: usize,
+    limits: DecodeLimits,
+) -> Result<ffmpeg::decoder::Video, DecodeError> {
+    let stream = input.stream(index).ok_or(ffmpeg::Error::StreamNotFound)?;
+    let mut context = ffmpeg::codec::context::Context::from_parameters(stream.parameters())?;
+    // SAFETY: uniquely owned, unopened context; libavcodec enforces this bound before
+    // allocating decoded images, including later in-stream resolution changes.
+    unsafe {
+        (*context.as_mut_ptr()).max_pixels = limits.max_pixels as i64;
+    }
+    context.set_threading(ffmpeg::codec::threading::Config::count(1));
+    let mut decoder = context.decoder();
+    decoder.set_packet_time_base(stream.time_base());
+    let decoder = decoder.video()?;
+    admit_extent(decoder.width(), decoder.height(), limits.max_pixels)?;
+    Ok(decoder)
 }
 
 fn admit_extent(width: u32, height: u32, max_pixels: u64) -> Result<(), DecodeError> {

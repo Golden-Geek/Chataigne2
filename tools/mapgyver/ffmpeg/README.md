@@ -25,8 +25,11 @@ explicit image/packet/work bounds, drains delayed codec frames and propagates de
 It makes no implicit color conversion or GPU readback. Its limits do not claim to cap all
 third-party temporary allocations; queue admission and cancellation belong to the owning worker.
 
-This is the first M10/1 boundary. App transport, seek/step, worker/recovery integration and
-GPU-resident D3D11 frames remain required. Do not label software decoding as hardware playback.
+The app-owned `MediaTransport` now provides the shared monotonic playback policy, and the
+decoder can seek in original stream timestamps with fresh codec state. Authored controls,
+selected-channel step resolution, worker/recovery integration and GPU-resident D3D11 frames
+remain required. Do not label software decoding as hardware playback. See the
+[Video ownership](../../../docs/architecture/mapgyver-video.md) for the current integration boundary.
 M10/4 owns final DLL packaging, dependency notices, corresponding-source delivery and sustained
 actual-app qualification. No release or deployment is performed by the preparation helper.
 

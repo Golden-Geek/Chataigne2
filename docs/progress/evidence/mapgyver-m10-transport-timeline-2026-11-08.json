@@ -1,0 +1,42 @@
+{
+	"date": "2026-11-08",
+	"gate": "M10/1 Active; transport/seek foundation verified, app integration remains open",
+	"progress": { "accepted": 83, "total": 102, "percent": 81, "m10_accepted": 0, "m10_total": 4 },
+	"batch": { "started_utc": "18:20", "cutoff_utc": "19:07" },
+	"deliverable": "MapGyver now owns reusable per-media transport policy on Golden Time; Golden Video can seek in exact original stream timestamps across EOF without retaining old codec output. No Video media/Parameter/preview wiring or complete codec-gate acceptance is claimed.",
+	"architecture": "docs/architecture/mapgyver-video.md",
+	"transport": {
+		"owner": "apps/mapgyver/src/media/video; one non-Clone MediaTransport owner, immutable TransportSample observations for future channel/Reference consumers",
+		"behavior": "Paused-at-zero/rate1/loop-off defaults; play/pause/stop/seek; continuous positive/zero/reverse rational rates; non-looping endpoint hold/restart; loop cycles and explicit-control epochs; longest-file timeline and shorter-channel hold; exact supplied decoder timestamp steps pause playback; duration-change and clock/overflow validation.",
+		"clock": "Golden Time maps from one monotonic anchor. Readers and repeated consumer samples do not advance or accumulate rounded frame periods. Explicit controls change epochs; loop cycles distinguish equal wrapped positions from different source lifetimes.",
+		"limits": "The selected-channel neighbour resolver and actual shared Reference wiring are not implemented by these pure policy tests. Runtime fields are not persisted authored settings; the pending typed Parameter adapter must supply configuration and all public callers."
+	},
+	"decode_seek": {
+		"api": "SoftwareDecoder::seek_before(original_stream_timestamp); direct public FFmpeg av_seek_frame binding with the validated selected-stream index and backward-keyframe policy",
+		"ownership": "Keep one file/demux owner; prepare a fresh bounded codec context per discontinuity and explicitly set packet time base. Codec thread count and image admission limits are retained. Previously returned frames retain independent reference-counted storage. Failed seeks poison the decoder; out-of-declared-range control validation preserves its current state.",
+		"proof": "All three real common-codec fixtures seek to presentation indices5,0,4,2,1 after a full linear drain. Each decodes forward to the exact original timestamp and independently checks its encoded luma level, rejecting stale frames. Clean EOF rewinds; poisoned decoders cannot hide errors by seeking."
+	},
+	"software": {
+		"golden_video": {
+			"command": "powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 test --locked -p golden_video --lib --no-default-features --features ffmpeg --quiet",
+			"passed": 169,
+			"failed": 0,
+			"ignored": 0,
+			"exit": 0
+		},
+		"mapgyver": {
+			"command": "cargo test --locked -p MapGyver --lib --quiet",
+			"passed": 588,
+			"failed": 0,
+			"ignored": 2,
+			"exit": 0
+		},
+		"policy_cases": 9,
+		"initial_filtered_check": "Eight earlier transport cases pass under --no-default-features; the complete default-feature suite additionally covers the later duration/cycle-overflow case. Existing sender-catalog dead-code warnings under no-default-features are retained; this configuration is not claimed strict-clean.",
+		"golden_video_strict": "Feature-enabled --lib --tests Clippy -D warnings exited0.",
+		"mapgyver_strict": "cargo clippy --locked -p MapGyver --lib --tests -- -D warnings: exit0.",
+		"protocol_ui": "No wire DTO, authored settings or UI source changed. Current generated-contract regressions run in the full app suite; no hand-maintained TypeScript declaration is added."
+	},
+	"corrected_failure": "The first seek implementation using global microseconds plus codec flush failed on HEVC. A direct original-stream seek with the same flush also failed: after seeking from index4 back to index2, receive_frame returned the old PTS5005 frame before any newly read packet. Replacing codec-owned reorder/drain state and setting the packet time base resolves the retained regression across all three codecs. This is evidence from the pinned binding/build fixture, not a general claim about every FFmpeg decoder or upstream version.",
+	"remaining": "Expose Video through typed media/File/transport Parameters and the generic Inspector; complete commands/functions/callbacks/snippets/history/project parity, selected-channel frame-step resolution and shared Reference integration. Add bounded/coalesced decode workers, upload/hardware-frame paths, file/device recovery, HAP and full first-pass packaging/performance. Seek codec-initialization cost must be measured in M10/4; these software fixtures do not prove actual-app playback, GPU residency or sustained cadence."
+}
