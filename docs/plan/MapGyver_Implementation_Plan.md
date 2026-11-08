@@ -37,6 +37,16 @@ actual dependency path must be fixed before building on it. M14 supersedes confl
 editor selection/navigation, Composition ordering/enabled, Screen defaults/targets and Matrix
 enabled/stop contracts. Earlier evidence retains only its tested scope. Planning accepts no gate.
 
+**User acceptance revision, 2026-11-08:** existing smoothness (M13/4) and existing
+Raw/Smooth anti-aliasing qualification (M12/8) are accepted for now. Preserve the failed
+numerical measurements as historical limits, without representing them as passing tests.
+Do not schedule further qualification of those accepted scopes unless new user feedback or a
+reproduced dependency defect warrants it. This supersedes their older return requirements and
+closes two fixed gates by explicit user decision. M14/8's new 4x AA implementation and functional
+checks remain required; this acceptance does not implement that feature. Continue M10 first
+pass, M14 and extended codecs in the order above. Other ownership, recovery, correctness,
+memory and final-product requirements remain unchanged.
+
 ## Entry, order and delivery
 
 1. Read AGENTS.md, this plan and the compact status page. Reconcile the checkout, current
@@ -764,7 +774,9 @@ The later 2026-11-08 amendment prioritizes first-pass Video before unrelated qua
    a bounded visible page plus an independent selected object, including offscreen selections.
    Verify both domains, selection/lock modes, active/inactive Cells, native pixels, nested Layer
    Groups, aspect/alpha/blend, source resizing, history/copy/reload and large sparse projects.
-8. **Raw or smoothed final rendering: proposal and acceptance.** Recommended initial contract:
+8. **Raw or smoothed final rendering: proposal and acceptance.** Existing qualification is
+   accepted for now by the user's 2026-11-08 decision above; retained failed measurements are
+   historical limits, not a passing numerical claim. Recommended initial contract:
    a typed per-Screen **Anti-aliasing: Raw / Smooth (2×)** in the standard Inspector. **Raw is
    default** and preserves current rendering without a smoothing pass; it does not change
    media sampling to nearest-neighbor. Smooth supersamples final Screen composition/warp at
@@ -861,7 +873,9 @@ independent selected-object inspection, endpoint recovery and completion-safe re
    empty grids, repeated threshold crossings, keyboard input, inline controls, offscreen
    selection, nested groups, history/reload, native overlapping pixels and sparse 1000×1000
    lifetime; no oscillating scrollbars, jitter, selection loss or whole-grid materialization.
-4. **Smooth, immediate interaction throughout the app.** Owners: Golden input/viewport,
+4. **Smooth, immediate interaction throughout the app.** Accepted for now by the user's
+   2026-11-08 decision above; no further timing/alignment qualification is scheduled for this
+   existing scope without new feedback or a reproduced dependency defect. Owners: Golden input/viewport,
    workbench/native-preview scheduling and pending-operation UI; MapGyver editor adapters.
    Cover Surface Editor, Screen Editor, Composition transforms and Matrix gestures, then
    shared scrolling, docking and ordinary controls. A **simple populated 3×3 Matrix** is a

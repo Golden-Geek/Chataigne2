@@ -1,0 +1,24 @@
+{
+	"date": "2026-11-08",
+	"authority": "User: you can mark smoothness and AA qualification completed for now; further feedback will identify improvements. Continue with M10, M14, etc.",
+	"accepted_gates": ["M13/4", "M12/8"],
+	"basis": "Explicit user acceptance of the existing behavior for now, not a claim that the retained quantitative failures passed. No further qualification of those existing scopes is queued absent new feedback or a reproduced dependency defect.",
+	"retained_measurements": [
+		"mapgyver-m13-composition-current-cadence-2026-11-08.json",
+		"mapgyver-m12-screen-sustained-2026-11-06.json"
+	],
+	"progress": {
+		"accepted": 83,
+		"total": 102,
+		"percent": 81,
+		"m12_accepted": 11,
+		"m12_total": 11,
+		"m13_accepted": 13,
+		"m13_total": 14,
+		"completed_phases": 8,
+		"total_phases": 15
+	},
+	"calculation": "81 previously accepted gates plus two user-accepted gates gives83/102, rounded81%. M12 completes11/11; M13 becomes13/14, rounded93%. Completed phases rise7 to8 of15, rounded53%. Denominators remain unchanged from M14's ten-gate addition.",
+	"limits": "M14/8's new4x AA path remains unimplemented and required with functional pixel/capability/caller/history checks. This decision does not waive Video correctness, decoder ownership/recovery or other retained memory/resource/format/final-product gates.",
+	"execution": "M10/1 remains the sole Active gate. Common codecs, HAP and first-pass integration precede M14, then extended codecs and remaining acceptance. Goal runner reports active."
+}
