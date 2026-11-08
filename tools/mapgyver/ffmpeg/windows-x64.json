@@ -1,0 +1,13 @@
+{
+	"binding": { "crate": "ffmpeg-next", "version": "9.0.0", "features": ["format"] },
+	"version": "n9.0.2-48-gd4070a14ce-20261108",
+	"root": "ffmpeg-n9.0.2-48-gd4070a14ce-win64-lgpl-shared-9.0",
+	"url": "https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-11-08-12-35/ffmpeg-n9.0.2-48-gd4070a14ce-win64-lgpl-shared-9.0.zip",
+	"sha256": "642ac7acf4060503cfdf8dfb5791900f8fd768d5a54c27f3efef78293f5f3bbf",
+	"bytes": 76530110,
+	"linkage": "Shared DLLs with supplied MSVC import libraries; no static FFmpeg linkage",
+	"license": "LGPL-3.0-or-later; archive LICENSE.txt and dependency notices must accompany the final bundled redistribution",
+	"source": "https://github.com/FFmpeg/FFmpeg/commit/d4070a14ce",
+	"build_source": "https://github.com/FFmpeg-Builds/FFmpeg-Builds/tree/autobuild-2026-11-08-12-35",
+	"release_scope": "Development pin only. Full source/notices/package integration and hardware-frame import remain M10/4 acceptance."
+}

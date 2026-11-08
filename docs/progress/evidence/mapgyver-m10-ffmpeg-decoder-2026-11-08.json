@@ -1,0 +1,38 @@
+{
+	"date": "2026-11-08",
+	"gate": "M10/1 Active; reusable decoder slice, no full-gate acceptance",
+	"progress": { "accepted": 83, "total": 102, "percent": 81, "m10_accepted": 0, "m10_total": 4 },
+	"deliverable": "Golden Video can demux local files and decode H.264/H.265/ProRes through pinned FFmpeg libraries while retaining original presentation timestamps, software planes and color metadata. Delayed frames drain at clean EOF; errors poison the owner until reopen. MapGyver Video is not yet wired or playable.",
+	"ownership": "golden_video::decode owns reusable file/codec/frame lifetime for a caller's worker. The future app-owned Video transport, typed Files and commands project requests into this boundary. No FFmpeg calls on the engine thread, new polling or GPU-to-CPU readback is introduced.",
+	"dependencies": {
+		"binding": "ffmpeg-next =9.0.0, optional feature ffmpeg, format only; ffmpeg-sys-next9.0.1 pinned by Cargo.lock",
+		"redistribution_pin": "tools/mapgyver/ffmpeg/windows-x64.json",
+		"ffmpeg": "n9.0.2-48-gd4070a14ce-20261108, shared Windows x64 LGPL3 build with supplied MSVC import libraries",
+		"archive_sha256": "642ac7acf4060503cfdf8dfb5791900f8fd768d5a54c27f3efef78293f5f3bbf",
+		"archive_bytes": 76530110,
+		"preparation": "with-ffmpeg.ps1 checks the exact archive digest/size, prepares only target/ffmpeg-pinned and restores process-local environment after Cargo. Production decode does not invoke ffmpeg.exe. Final DLL/notices/corresponding-source packaging remains M10/4.",
+		"lock_updates": "The new FFI dependency requires cc>=1.6 and bindgen0.73; lock updates cc/find-msvc-tools and adds the exact FFI, binding, bindgen, num_cpus and vcpkg packages. Existing bindgen0.72 remains separately resolved."
+	},
+	"software": {
+		"binding_prerequisite": "Explicit feature compile/no-run passed before decode execution, resolving Windows import-library/header/libclang/FFmpeg9 ABI uncertainty.",
+		"tests": "powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 test --locked -p golden_video --lib --no-default-features --features ffmpeg --quiet",
+		"passed": 167,
+		"failed": 0,
+		"ignored": 0,
+		"exit": 0,
+		"strict": "Same helper: clippy --locked -p golden_video --lib --tests --no-default-features --features ffmpeg -- -D warnings; exit0.",
+		"feature_disabled": "cargo test --locked -p golden_video --lib --no-default-features --quiet:162 passed,0 failed, exit0; FFmpeg remains optional.",
+		"contracts": "Five decoder cases cover invalid limits/missing file; eighteen common-codec frames with exact24/25/30000-over1001 timing, independent grey pixel levels, explicit BT709, real B-frame drain and retained frames after decoder destruction; dimension/packet/work admission; malformed-to-replaced file reopen; untimed elementary streams rejected without invented frame-rate timestamps. Failed owners consistently require reopen.",
+		"unchanged_scope": "No wire protocol, app UI, authored product policy or native runtime code changes. Existing app checks retain their earlier scope; no native experiment is required for this CPU/library slice."
+	},
+	"fixtures": {
+		"directory": "crates/golden_video/src/decode/tests/fixtures",
+		"recipe": "Adjacent generate-fixtures.ps1; synthetic64x48 six-frame luma sequence32+24*N. Encoder used for fixture generation only: Gyan FFmpeg9.0.1 Essentials. H.264 and HEVC contain actual B frames; ProRes is yuv422p10le. Decoder uses the independently pinned library build.",
+		"h264_mp4_sha256": "3609e90d2d136d028ef20f5d398cb7c531305511895cf291a7c40f60d7a2a127",
+		"hevc_mp4_sha256": "30e0983ebb548787c0a44646e1048dadea36601563950c981f4042fca00212e9",
+		"prores_mov_sha256": "a09215356e051f214b7ec01575611a2eba1869c91beef0e35de76d5368d67986",
+		"untimed_h264_sha256": "341b3e4f9beb59c381bea546aeabb16268cd3cc6d5fefab83e18abf51b180d53"
+	},
+	"corrected_validation": "The first preparation helper declared advanced PowerShell remaining arguments, causing Cargo -p to be consumed as -PipelineVariable. Replaced that parser with verbatim $args; the documented command now runs the named package and its complete167-test suite. No app/runtime workaround or test skip was added.",
+	"remaining": "M10/1 still needs real per-media transport/per-channel File Parameters, exact seek/step/rate/loop/shorter-channel hold, shared References, worker integration and all UI/script/command/callback/snippet/history/project parity. GPU-resident D3D11 hardware frames, HAP compressed texture playback, file/device recovery, bounded queues and full packaging/performance remain required in the owning first-pass gates. Do not count software decode as hardware playback or common-codec app acceptance."
+}

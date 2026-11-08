@@ -8,10 +8,12 @@ repository.workspace = true
 description = "App-neutral video render plans and worker-owned resource foundations"
 
 [features]
+ffmpeg = ["dep:ffmpeg-next"]
 d3d11 = ["dep:windows", "dep:spout2-sys", "dep:concurrent-queue"]
 qualification = ["d3d11", "windows/Win32_Graphics_Direct3D_Fxc", "spout2-sys/qualification"]
 
 [dependencies]
+ffmpeg-next = { version = "=9.0.0", default-features = false, features = ["format"], optional = true }
 fontdue = "=0.9.4"
 golden_assets.workspace = true
 golden_io.workspace = true

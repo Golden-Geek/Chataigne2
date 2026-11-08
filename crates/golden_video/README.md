@@ -17,6 +17,12 @@ The implemented foundations are:
   These data-only descriptors and the sampling filter derive Serde/TypeScript contracts, so app
   authoring DTOs reuse their canonical definitions. Deserializing an empty extent is rejected.
 - `color/` validates finite SDR premultiplied clear colors and unit-range opacity.
+- `decode/` (optional `ffmpeg` feature) demuxes local files and owns software decoder/frame
+  lifetimes on a caller's worker. Original timestamps, planes and colour metadata survive;
+  explicit admission limits and poisoned-error state prevent unbounded packet work or false
+  clean completion. It does not own app transport, GPU readback or implicit colour conversion.
+  [Pinned Windows dependency and checks](../../tools/mapgyver/ffmpeg/README.md) describe the
+  current boundary and remaining hardware/worker/package integration.
 - `plan/` validates the complete submitted dependency graph and caller-supplied limits, then
   compiles only demanded sources/passes in deterministic dependency order. Multiple output
   bindings can share one texture without duplicating its producer or logical storage charge.

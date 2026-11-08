@@ -7,6 +7,8 @@
 #![warn(missing_docs)]
 
 mod color;
+#[cfg(feature = "ffmpeg")]
+pub mod decode;
 mod identity;
 pub mod image;
 pub mod plan;

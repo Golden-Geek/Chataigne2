@@ -1,0 +1,136 @@
+use super::*;
+
+fn limits() -> DecodeLimits {
+    DecodeLimits {
+        max_pixels: 4096 * 2160,
+        max_packet_bytes: 8 * 1024 * 1024,
+        max_packets_per_frame: 128,
+    }
+}
+
+fn fixture(name: &str) -> std::path::PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src/decode/tests/fixtures")
+        .join(name)
+}
+
+#[test]
+fn invalid_admission_and_missing_paths_fail_before_opening_ffmpeg() {
+    let directory = tempfile::tempdir().unwrap();
+    let absent = directory.path().join("missing.mp4");
+    assert!(matches!(
+        SoftwareDecoder::open(&absent, limits()),
+        Err(DecodeError::NotAFile)
+    ));
+    assert!(matches!(
+        SoftwareDecoder::open(
+            &absent,
+            DecodeLimits {
+                max_pixels: 0,
+                ..limits()
+            }
+        ),
+        Err(DecodeError::InvalidLimits)
+    ));
+}
+
+#[test]
+fn common_codecs_preserve_exact_mixed_rate_timestamps_pixels_and_delayed_frames() {
+    for (name, codec, rate, pixel) in [
+        ("h264.mp4", "h264", (24, 1), ffmpeg::format::Pixel::YUV420P),
+        ("hevc.mp4", "hevc", (30000, 1001), ffmpeg::format::Pixel::YUV420P),
+        ("prores.mov", "prores", (25, 1), ffmpeg::format::Pixel::YUV422P10LE),
+    ] {
+        let mut decoder = SoftwareDecoder::open(&fixture(name), limits()).unwrap();
+        let info = decoder.info().clone();
+        assert_eq!(info.codec, codec);
+        assert_eq!((info.width, info.height), (64, 48));
+        let mut frames = Vec::new();
+        while let Some(frame) = decoder.next_frame().unwrap() {
+            assert!(frames.len() < 6, "unexpected duplicate frame: {name}");
+            let index = frames.len();
+            assert_eq!(
+                i128::from(frame.timestamp()) * i128::from(info.time_base.numerator) * rate.0,
+                index as i128 * i128::from(info.time_base.denominator) * rate.1,
+                "{name}: exact original presentation timestamp"
+            );
+            assert_eq!(frame.image().format(), pixel);
+            assert_eq!(frame.image().color_space(), ffmpeg::color::Space::BT709);
+            let row = frame.image().data(0);
+            let level = if pixel == ffmpeg::format::Pixel::YUV422P10LE {
+                u16::from_le_bytes([row[0], row[1]]) / 4
+            } else {
+                u16::from(row[0])
+            };
+            assert!(
+                level.abs_diff(32 + 24 * index as u16) <= 3,
+                "{name}: wrong frame pixels {index}: {level}"
+            );
+            frames.push(frame);
+        }
+        assert_eq!(frames.len(), 6, "{name}: delayed frames must drain");
+        assert!(decoder.next_frame().unwrap().is_none(), "stable clean EOF");
+        let first = frames[0].image().data(0).to_vec();
+        drop(decoder);
+        assert_eq!(
+            frames[0].image().data(0),
+            first,
+            "frame owns its storage after decoder retirement"
+        );
+    }
+}
+
+#[test]
+fn extent_packet_and_per_call_work_limits_are_enforced() {
+    let file = fixture("h264.mp4");
+    assert!(
+        SoftwareDecoder::open(
+            &file,
+            DecodeLimits {
+                max_pixels: 16,
+                ..limits()
+            }
+        )
+        .is_err()
+    );
+    let mut decoder = SoftwareDecoder::open(
+        &file,
+        DecodeLimits {
+            max_packet_bytes: 1,
+            ..limits()
+        },
+    )
+    .unwrap();
+    assert!(matches!(decoder.next_frame(), Err(DecodeError::LimitExceeded)));
+    assert!(matches!(decoder.next_frame(), Err(DecodeError::ReopenRequired)));
+    let mut decoder = SoftwareDecoder::open(
+        &file,
+        DecodeLimits {
+            max_packets_per_frame: 1,
+            ..limits()
+        },
+    )
+    .unwrap();
+    assert!(matches!(decoder.next_frame(), Err(DecodeError::LimitExceeded)));
+}
+
+#[test]
+fn malformed_files_are_errors_and_replaced_files_can_be_reopened() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("relinked.mp4");
+    std::fs::write(&path, b"not a movie").unwrap();
+    assert!(matches!(
+        SoftwareDecoder::open(&path, limits()),
+        Err(DecodeError::Ffmpeg(_))
+    ));
+    std::fs::copy(fixture("h264.mp4"), &path).unwrap();
+    let mut reopened = SoftwareDecoder::open(&path, limits()).unwrap();
+    assert_eq!(reopened.next_frame().unwrap().unwrap().timestamp(), 0);
+}
+
+#[test]
+fn untimed_streams_do_not_invent_timestamps_from_frame_rate() {
+    let mut decoder = SoftwareDecoder::open(&fixture("untimed.h264"), limits()).unwrap();
+    assert!(matches!(decoder.next_frame(), Err(DecodeError::MissingTimestamp)));
+    assert!(matches!(decoder.next_frame(), Err(DecodeError::ReopenRequired)));
+}
