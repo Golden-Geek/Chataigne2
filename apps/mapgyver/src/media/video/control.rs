@@ -33,6 +33,96 @@ impl Default for VideoControl {
     }
 }
 impl VideoControl {
+    pub(crate) fn source_status(
+        &self,
+        reference: super::super::protocol::ChannelReference,
+        locator: &Option<super::super::protocol::AssetLocator>,
+    ) -> Result<VideoSourceStatus, String> {
+        #[cfg(not(feature = "video-files"))]
+        if locator.is_some() {
+            return Ok(VideoSourceStatus {
+                reference,
+                state: VideoSourceState::Unavailable,
+                duration_ms: None,
+                retrying: false,
+                error: Some(VideoSourceError::new(
+                    VideoSourceErrorKind::Unsupported,
+                    "This build does not support Video playback",
+                )),
+            });
+        }
+        let state = self.0.lock().map_err(|_| "Video control poisoned")?;
+        let binding = state.files.get(&reference.channel);
+        if binding.is_some_and(|binding| &binding.locator != locator) {
+            return Err("Video File binding changed before inspection".into());
+        }
+        let duration_ms = binding.and_then(|binding| binding.duration).map(super::frames::millis);
+        let metadata_error = binding.and_then(|binding| binding.metadata_error.clone());
+        let (phase, error) = if let Some(locator) = locator {
+            match state.frames.status(reference.channel, locator) {
+                Some((ready, Some(error))) => (
+                    if ready {
+                        VideoSourceState::Recovering
+                    } else {
+                        VideoSourceState::Unavailable
+                    },
+                    Some(error),
+                ),
+                Some((true, None)) => (VideoSourceState::Ready, None),
+                _ if metadata_error.is_some() => (VideoSourceState::Unavailable, metadata_error),
+                Some((false, None)) => (VideoSourceState::Loading, None),
+                None if duration_ms.is_some() => (VideoSourceState::Prepared, None),
+                None => (VideoSourceState::Loading, None),
+            }
+        } else {
+            (VideoSourceState::Unconfigured, None)
+        };
+        Ok(VideoSourceStatus {
+            reference,
+            state: phase,
+            duration_ms,
+            retrying: error.is_some(),
+            error,
+        })
+    }
+    #[cfg(feature = "video-files")]
+    pub(super) fn metadata_failure(
+        &self,
+        channel: super::super::protocol::ChannelId,
+        generation: uuid::Uuid,
+        error: VideoSourceError,
+    ) -> Result<(), String> {
+        let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
+        let Some(file) = state
+            .files
+            .get_mut(&channel)
+            .filter(|file| file.generation == generation)
+        else {
+            return Ok(());
+        };
+        if file.metadata_error.as_ref() == Some(&error) {
+            return Ok(());
+        }
+        file.metadata_error = Some(error);
+        drop(state);
+        self.1.advance();
+        Ok(())
+    }
+    #[cfg(feature = "video-files")]
+    pub(super) fn source_failure(
+        &self,
+        channel: super::super::protocol::ChannelId,
+        owner: uuid::Uuid,
+        error: VideoSourceError,
+    ) -> Result<(), String> {
+        let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
+        let changed = state.frames.failure(channel, owner, error);
+        drop(state);
+        if changed {
+            self.1.advance();
+        }
+        Ok(())
+    }
     pub(crate) fn retire_media(&self) {
         if let Ok(mut state) = self.0.lock() {
             state.retired = true;
@@ -77,6 +167,7 @@ impl VideoControl {
                     generation: uuid::Uuid::new_v4(),
                     locator,
                     duration: None,
+                    metadata_error: None,
                 },
             )
             .and_then(|file| file.duration);
@@ -130,7 +221,12 @@ impl VideoControl {
         else {
             return Ok(false);
         };
+        let recovered = file.metadata_error.take().is_some();
         if file.duration == Some(duration) {
+            if recovered {
+                drop(state);
+                self.1.advance();
+            }
             return Ok(true);
         }
         let old = file.duration.replace(duration);
@@ -222,6 +318,7 @@ impl VideoControl {
             return Ok(false);
         }
         let retired = stream.replace(Some(image)).map_err(str::to_owned)?;
+        state.frames.ready(channel, owner);
         drop(state);
         drop(retired);
         Ok(true)

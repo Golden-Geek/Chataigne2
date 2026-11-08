@@ -102,3 +102,60 @@ pub struct VideoFrameState {
     pub previous_ready: bool,
     pub next_ms: Option<f64>,
 }
+
+/// Source readiness is independent of transport intent and renderer/device readiness.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum VideoSourceState {
+    Unconfigured,
+    Loading,
+    Prepared,
+    Ready,
+    Unavailable,
+    Recovering,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum VideoSourceErrorKind {
+    Missing,
+    Unsupported,
+    Decode,
+    Capacity,
+    Io,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct VideoSourceError {
+    pub kind: VideoSourceErrorKind,
+    pub message: String,
+}
+impl VideoSourceError {
+    pub(crate) fn new(kind: VideoSourceErrorKind, message: impl Into<String>) -> Self {
+        Self {
+            kind,
+            message: message.into().chars().take(256).collect(),
+        }
+    }
+}
+
+/// A bounded read of one actual channel. Prepared means timing only, not decoded pixels.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct VideoSourceStatus {
+    pub reference: super::super::protocol::ChannelReference,
+    pub state: VideoSourceState,
+    pub duration_ms: Option<f64>,
+    pub error: Option<VideoSourceError>,
+    pub retrying: bool,
+}
+impl VideoSourceStatus {
+    pub(crate) fn preview_message(&self) -> Option<String> {
+        if let Some(error) = &self.error {
+            let retry = if self.retrying { " Retrying automatically." } else { "" };
+            return Some(format!("{}{retry}", error.message));
+        }
+        match self.state {
+            VideoSourceState::Unconfigured => Some("No Video File assigned".into()),
+            VideoSourceState::Loading => Some("Loading Video source".into()),
+            _ => None,
+        }
+    }
+}

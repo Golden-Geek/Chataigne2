@@ -1,4 +1,5 @@
 use super::*;
+mod diagnostics;
 mod retention;
 mod steps;
 use crate::media::video::protocol::VideoEdit;

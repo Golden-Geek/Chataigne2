@@ -89,4 +89,5 @@ pub(super) struct File {
     pub generation: uuid::Uuid,
     pub locator: Option<AssetLocator>,
     pub duration: Option<std::time::Duration>,
+    pub metadata_error: Option<super::protocol::VideoSourceError>,
 }

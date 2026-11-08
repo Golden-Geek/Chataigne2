@@ -40,6 +40,13 @@ test('viewport and application inspections stay background while group authoring
 	assert.equal(mediaOperationActivity({ kind: 'InspectVideo', media: 'video' }), 'background');
 	assert.equal(
 		mediaOperationActivity({
+			kind: 'InspectVideoSource',
+			reference: { media: 'video', channel: 'channel' }
+		}),
+		'background'
+	);
+	assert.equal(
+		mediaOperationActivity({
 			kind: 'InspectVideoFrame',
 			reference: { media: 'video', channel: 'channel' }
 		}),

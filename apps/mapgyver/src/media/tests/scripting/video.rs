@@ -23,6 +23,7 @@ fn hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection() 
                 local.stopVideo('stop', media);
                 local.inspectVideo('inspect', media);
                 local.inspectVideoFrame('frame', media, channel);
+                local.inspectVideoSource('source', media, channel);
                 local.setVideoRate('reject', media, 17);
             }}
             function onAppOperationResult(reply) {{ gc.emit('media-method-reply', reply); }}
@@ -33,9 +34,9 @@ fn hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection() 
     service_script_app_operations(&mut engine).unwrap();
     service_script_app_operations(&mut engine).unwrap();
     let results = replies(&engine);
-    assert_eq!(results.len(), 11, "each actual QuickJS call has one callback");
+    assert_eq!(results.len(), 12, "each actual QuickJS call has one callback");
     for request in [
-        "file", "seek", "rate", "loop", "play", "pause", "stop", "inspect", "frame",
+        "file", "seek", "rate", "loop", "play", "pause", "stop", "inspect", "frame", "source",
     ] {
         let reply = results.iter().find(|reply| reply["request_id"] == request).unwrap();
         assert_eq!(reply["status"], "applied", "{reply}");
@@ -53,13 +54,23 @@ fn hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection() 
     assert_eq!(result("inspect")["settings"]["rate"], -0.5);
     assert_eq!(result("inspect")["settings"]["looping"], true);
     assert!(results.iter().find(|reply| reply["request_id"] == "frame").unwrap()["value"]["frame"].is_null());
+    let source = &results.iter().find(|reply| reply["request_id"] == "source").unwrap()["value"]["status"];
+    assert_eq!(
+        source["state"],
+        if cfg!(feature = "video-files") {
+            "Loading"
+        } else {
+            "Unavailable"
+        }
+    );
+    assert_eq!(source["retrying"], false);
     let rejection = results.iter().find(|reply| reply["request_id"] == "reject").unwrap();
     assert_eq!(rejection["status"], "rejected");
     assert!(rejection.get("value").is_none());
     let after = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     service_script_app_operations(&mut engine).unwrap();
-    assert_eq!(replies(&engine).len(), 11);
+    assert_eq!(replies(&engine).len(), 12);
     assert_eq!(
         engine.undo_len(),
         history,
@@ -69,5 +80,5 @@ fn hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection() 
     assert!(engine.redo().unwrap());
     service_script_app_operations(&mut engine).unwrap();
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), after);
-    assert_eq!(replies(&engine).len(), 11, "history does not replay requests");
+    assert_eq!(replies(&engine).len(), 12, "history does not replay requests");
 }

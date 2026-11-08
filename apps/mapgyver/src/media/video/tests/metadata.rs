@@ -221,6 +221,14 @@ fn relative_root_changes_missing_file_retry_and_relink_preserve_only_the_matchin
     std::fs::remove_file(second.path().join("clip.mp4")).unwrap();
     std::thread::sleep(Duration::from_millis(1050));
     probe.run_due(&source, || false).unwrap();
+    let unavailable = super::super::authoring::inspect_source(&engine, reference).unwrap();
+    assert_eq!(unavailable.state, protocol::VideoSourceState::Unavailable);
+    assert_eq!(unavailable.error.unwrap().kind, protocol::VideoSourceErrorKind::Missing);
+    assert!(unavailable.retrying);
+    assert!(
+        unavailable.duration_ms.is_some(),
+        "endpoint loss reports its problem without forgetting known timing"
+    );
     assert_eq!(
         control.sample().unwrap().position,
         Duration::from_millis(400),
@@ -238,6 +246,10 @@ fn relative_root_changes_missing_file_retry_and_relink_preserve_only_the_matchin
     probe.run_due(&source, || false).unwrap();
     assert!(control.snapshot(reference.media).unwrap().ready);
     assert_eq!(control.sample().unwrap().position, Duration::from_millis(250));
+    let recovered = super::super::authoring::inspect_source(&engine, reference).unwrap();
+    assert_eq!(recovered.state, protocol::VideoSourceState::Prepared);
+    assert!(recovered.error.is_none());
+    assert!(!recovered.retrying);
 }
 
 #[test]

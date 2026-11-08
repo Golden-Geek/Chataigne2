@@ -1,4 +1,5 @@
 //! Timestamp sampling and bounded decode turns on an owning file worker.
+use super::failure::Failure;
 use golden_video::{
     decode::{DecodedFrame, SoftwareDecoder, SoftwareImageConverter, TimeBase},
     image::ImageData,
@@ -36,7 +37,7 @@ impl Reader {
     pub fn invalidate_publication(&mut self) {
         self.published = None;
     }
-    pub fn new(decoder: SoftwareDecoder) -> Result<Self, String> {
+    pub fn new(decoder: SoftwareDecoder) -> Result<Self, Failure> {
         let info = decoder.info();
         let duration = duration(
             info.duration
@@ -62,7 +63,7 @@ impl Reader {
     }
     /// At most eight frames per turn, then return to cancellation/control inspection.
     /// Samples the last presentation timestamp at/before the shared position; EOF holds it.
-    pub fn poll(&mut self, position: Duration) -> Result<Option<ImageData>, String> {
+    pub fn poll(&mut self, position: Duration) -> Result<Option<ImageData>, Failure> {
         self.catching_up = true;
         let base = self.decoder.info().time_base;
         let ticks = position.min(self.duration).as_nanos() * u128::from(base.denominator)
@@ -73,7 +74,7 @@ impl Reader {
             i128::from(target) - i128::from(old) > i128::from(base.denominator) / i128::from(base.numerator) / 2
         });
         if self.current.as_ref().is_some_and(|frame| frame.timestamp() > target) || (jump && target > self.origin) {
-            self.decoder.seek_before(target).map_err(|e| e.to_string())?;
+            self.decoder.seek_before(target)?;
             self.current = None;
             self.next = None;
             self.previous = None;
@@ -85,7 +86,7 @@ impl Reader {
         let mut decoded = 0;
         while decoded < 8 {
             if self.current.is_none() {
-                self.current = self.decoder.next_frame().map_err(|e| e.to_string())?;
+                self.current = self.decoder.next_frame()?;
                 decoded += 1;
                 if self.current.is_none() {
                     return Err("Video contains no timestamped frame".into());
@@ -95,7 +96,7 @@ impl Reader {
                 if decoded == 8 {
                     return Ok(None);
                 }
-                self.next = self.decoder.next_frame().map_err(|e| e.to_string())?;
+                self.next = self.decoder.next_frame()?;
                 decoded += 1;
                 self.eof = self.next.is_none();
             }

@@ -34,6 +34,8 @@ pub(crate) fn query_operation(engine: &AppEngine, operation: &str, payload: &Val
     };
     let result =
         match edit {
+            MediaEdit::InspectVideoSource { reference } => super::video::authoring::inspect_source(engine, reference)
+                .map(|status| MediaEditResult::VideoSource { status }),
             MediaEdit::InspectVideoFrame { reference } => super::video::authoring::inspect_frame(engine, reference)
                 .map(|frame| MediaEditResult::VideoFrame { frame }),
             MediaEdit::InspectVideo { media } => {

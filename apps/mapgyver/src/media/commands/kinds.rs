@@ -25,6 +25,7 @@ command_kinds! {
     VideoFile => "Set Video File", "Video", ["media", "channel", "video_file"];
     InspectVideo => "Inspect Video Transport", "Video", ["media"];
     InspectVideoFrame => "Inspect Video Frame", "Video", ["media", "channel"];
+    InspectVideoSource => "Inspect Video Source", "Video", ["media", "channel"];
     SetApplicationFile => "Set App File", "App control", ["application_owner", "application_file"];
     LaunchMatrixColumn => "Launch Matrix Column", "App control", ["media", "matrix_column", "launch_mode"];
     LaunchMatrixCell => "Launch Matrix Cell", "App control", ["media", "matrix_layer", "matrix_column", "launch_mode"];

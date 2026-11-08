@@ -69,6 +69,24 @@ impl CapturedChannel {
 }
 
 impl CapturedChannels {
+    /// Bounded source diagnostics follow canonical References and editor dependencies.
+    pub(crate) fn video_source_status(
+        &self,
+        mut reference: ChannelReference,
+    ) -> Option<super::video::protocol::VideoSourceStatus> {
+        for _ in 0..self.channels.len() {
+            let channel = self.channels.iter().find(|channel| channel.reference == reference)?;
+            if !channel.enabled {
+                return None;
+            }
+            match &channel.definition.as_ref()?.source {
+                ChannelSource::Reference { target: Some(target) } => reference = *target,
+                ChannelSource::Video { file } => return channel.video.as_ref()?.source_status(reference, file).ok(),
+                _ => return None,
+            }
+        }
+        None
+    }
     /// Whole captured Matrix preparation/active/outgoing demand, including clamped neighbors.
     /// This reads immutable metadata only; reconcile it on a live application runtime explicitly.
     pub fn application_demand(&self) -> Vec<crate::applications::demand::ApplicationDemand> {

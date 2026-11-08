@@ -43,6 +43,14 @@ pub(crate) fn inspect_frame(
     };
     node.video_control().unwrap().frame(reference, &file)
 }
+pub(crate) fn inspect_source(engine: &AppEngine, reference: ChannelReference) -> Result<VideoSourceStatus, String> {
+    let node = owner(engine, reference.media)?;
+    let channel = super::super::authoring::channel(engine, reference)?;
+    let ChannelSource::Video { file } = channel.definition.source else {
+        return Err("Selected channel is not Video".into());
+    };
+    node.video_control().unwrap().source_status(reference, &file)
+}
 pub(crate) fn file(engine: &mut AppEngine, reference: ChannelReference, file: &str) -> Result<(), String> {
     super::super::assets::parse_file(file)?;
     owner(engine, reference.media)?;

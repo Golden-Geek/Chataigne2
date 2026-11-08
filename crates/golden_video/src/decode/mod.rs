@@ -7,7 +7,7 @@
 use ffmpeg_next as ffmpeg;
 use std::path::Path;
 mod image;
-pub use image::SoftwareImageConverter;
+pub use image::{ConversionError, SoftwareImageConverter};
 mod timing;
 pub use timing::{StreamTiming, probe_timing_with_interrupt};
 
@@ -76,6 +76,9 @@ pub enum DecodeError {
     /// Network endpoints and missing/non-regular paths are not local decode inputs.
     #[error("video path is not an existing regular file")]
     NotAFile,
+    /// The selected stream's codec has no available decoder in this build.
+    #[error("no decoder is available for this video codec")]
+    UnsupportedCodec,
     /// A decoded stream, frame or packet exceeds an explicitly admitted bound.
     #[error("video decode admission limit exceeded")]
     LimitExceeded,
@@ -307,7 +310,13 @@ fn open_decoder(
     context.set_threading(ffmpeg::codec::threading::Config::count(1));
     let mut decoder = context.decoder();
     decoder.set_packet_time_base(stream.time_base());
-    let decoder = decoder.video()?;
+    let decoder = decoder.video().map_err(|error| {
+        if error == ffmpeg::Error::DecoderNotFound {
+            DecodeError::UnsupportedCodec
+        } else {
+            error.into()
+        }
+    })?;
     admit_extent(decoder.width(), decoder.height(), limits.max_pixels)?;
     Ok(decoder)
 }

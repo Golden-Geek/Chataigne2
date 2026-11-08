@@ -1,5 +1,9 @@
 //! One bounded IO owner probes authored variants independently of renderer demand.
 use super::{VideoControl, registry::Source};
+use super::{
+    failure::Failure,
+    protocol::{VideoSourceError, VideoSourceErrorKind},
+};
 use crate::{
     app::AppNode,
     media::protocol::{AssetLocator, ChannelId},
@@ -70,12 +74,33 @@ impl Probe {
                 continue;
             }
             job.retry = now + Duration::from_secs(1);
-            let fingerprint = std::fs::metadata(&job.path)
-                .ok()
-                .and_then(|meta| Some((meta.len(), meta.modified().ok()?)));
-            // Temporary disappearance retains the last-known duration. Authored changes remove jobs.
-            let Some(fingerprint) = fingerprint else {
-                continue;
+            let fingerprint = std::fs::metadata(&job.path).and_then(|meta| {
+                if !meta.is_file() {
+                    return Err(io::Error::other("Video source is not a regular file"));
+                }
+                Ok((meta.len(), meta.modified()?))
+            });
+            // Endpoint loss retains known duration, but reports its current availability.
+            let fingerprint = match fingerprint {
+                Ok(fingerprint) => fingerprint,
+                Err(error) => {
+                    job.fingerprint = None;
+                    let kind = if error.kind() == io::ErrorKind::NotFound {
+                        VideoSourceErrorKind::Missing
+                    } else {
+                        VideoSourceErrorKind::Io
+                    };
+                    if source.guard.is_current()
+                        && let Some(control) = job.control.upgrade()
+                    {
+                        control.metadata_failure(
+                            *channel,
+                            *generation,
+                            VideoSourceError::new(kind, error.to_string()),
+                        )?;
+                    }
+                    continue;
+                }
             };
             if job.fingerprint == Some(fingerprint) {
                 continue;
@@ -92,13 +117,29 @@ impl Probe {
                         .upgrade()
                         .is_none_or(|control| !control.metadata_is_current(channel_id, generation_id))
             });
-            let Ok(timing) = timing else {
-                continue;
+            let duration = timing.map_err(|error| Failure::from(error).0).and_then(|timing| {
+                let ticks = timing.duration.filter(|duration| *duration > 0).ok_or_else(|| {
+                    VideoSourceError::new(
+                        VideoSourceErrorKind::Unsupported,
+                        "Video stream duration is unavailable",
+                    )
+                })?;
+                super::reader::duration(ticks, timing.time_base)
+                    .map_err(|error| VideoSourceError::new(VideoSourceErrorKind::Unsupported, error))
+            });
+            let duration = match duration {
+                Ok(duration) => duration,
+                Err(error) => {
+                    job.fingerprint = None;
+                    if !cancelled()
+                        && source.guard.is_current()
+                        && let Some(control) = job.control.upgrade()
+                    {
+                        control.metadata_failure(*channel, *generation, error)?;
+                    }
+                    continue;
+                }
             };
-            let Some(ticks) = timing.duration.filter(|duration| *duration > 0) else {
-                continue;
-            };
-            let duration = super::reader::duration(ticks, timing.time_base)?;
             if !cancelled()
                 && source.guard.is_current()
                 && let Some(control) = job.control.upgrade()

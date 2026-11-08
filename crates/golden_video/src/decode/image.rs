@@ -6,6 +6,20 @@ use ffmpeg::{
     util::color::{Range, Space, TransferCharacteristic as Transfer},
 };
 
+/// Explicit conversion failure; callers need not parse display strings to report support.
+#[derive(Debug, thiserror::Error)]
+pub enum ConversionError {
+    /// The stream declares a color matrix outside the implemented conversion contract.
+    #[error("software Video color matrix is not yet supported")]
+    UnsupportedMatrix,
+    /// The stream declares a transfer function outside the implemented conversion contract.
+    #[error("software Video transfer is not yet supported")]
+    UnsupportedTransfer,
+    /// Scaler setup, conversion or output admission failed.
+    #[error("{0}")]
+    Failed(String),
+}
+
 /// Worker-local reusable software scaler. Output is straight-alpha sRGB RGBA8.
 #[derive(Default)]
 pub struct SoftwareImageConverter {
@@ -14,20 +28,21 @@ pub struct SoftwareImageConverter {
 impl SoftwareImageConverter {
     /// Convert supported SDR frames explicitly. HDR/wide-gamut metadata is rejected rather
     /// than silently interpreted as sRGB. Untagged SDR follows the documented BT.709 default.
-    pub fn convert(&mut self, frame: &DecodedFrame) -> Result<ImageData, String> {
+    pub fn convert(&mut self, frame: &DecodedFrame) -> Result<ImageData, ConversionError> {
         let input = frame.image();
         let space = input.color_space();
         if !matches!(space, Space::RGB | Space::BT709 | Space::Unspecified) {
-            return Err("software Video color matrix is not yet supported".into());
+            return Err(ConversionError::UnsupportedMatrix);
         }
         let transfer = input.color_transfer_characteristic();
         if !matches!(
             transfer,
             Transfer::BT709 | Transfer::SMPTE170M | Transfer::Unspecified | Transfer::IEC61966_2_1 | Transfer::Linear
         ) {
-            return Err("software Video transfer is not yet supported".into());
+            return Err(ConversionError::UnsupportedTransfer);
         }
-        let extent = Extent2D::new(input.width(), input.height()).map_err(|e| e.to_string())?;
+        let failed = ConversionError::Failed;
+        let extent = Extent2D::new(input.width(), input.height()).map_err(|e| failed(e.to_string()))?;
         if self.scaler.as_ref().is_none_or(|s| {
             let d = s.input();
             d.format != input.format() || d.width != input.width() || d.height != input.height()
@@ -42,7 +57,7 @@ impl SoftwareImageConverter {
                     input.height(),
                     Flags::BILINEAR,
                 )
-                .map_err(|e| e.to_string())?,
+                .map_err(|e| failed(e.to_string()))?,
             );
         }
         let scaler = self.scaler.as_mut().unwrap();
@@ -62,10 +77,10 @@ impl SoftwareImageConverter {
             )
         };
         if color < 0 {
-            return Err("software Video colorspace setup failed".into());
+            return Err(failed("software Video colorspace setup failed".into()));
         }
         let mut output = ffmpeg::frame::Video::empty();
-        scaler.run(input, &mut output).map_err(|e| e.to_string())?;
+        scaler.run(input, &mut output).map_err(|e| failed(e.to_string()))?;
         let row = input.width() as usize * 4;
         let mut pixels = Vec::with_capacity(row * input.height() as usize);
         let table = match transfer {
@@ -90,7 +105,7 @@ impl SoftwareImageConverter {
             },
             pixels,
         )
-        .map_err(|e| e.to_string())
+        .map_err(|e| failed(e.to_string()))
     }
 }
 fn encoded(linear: f64) -> u8 {

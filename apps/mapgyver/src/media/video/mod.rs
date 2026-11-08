@@ -20,6 +20,8 @@ pub(crate) mod files;
 #[cfg(feature = "video-files")]
 pub use files::FileRetirement;
 #[cfg(feature = "video-files")]
+mod failure;
+#[cfg(feature = "video-files")]
 pub(crate) mod metadata;
 #[cfg(feature = "video-files")]
 mod reader;

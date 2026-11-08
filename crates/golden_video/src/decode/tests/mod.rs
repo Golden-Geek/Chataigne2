@@ -50,6 +50,20 @@ fn demux_only_timing_matches_decoded_stream_units_for_all_common_fixtures() {
 }
 
 #[test]
+fn unsupported_color_interpretation_reports_a_typed_conversion_failure() {
+    for (name, matrix) in [("h264-bt2020.mp4", true), ("h264-pq.mp4", false)] {
+        let mut decoder = SoftwareDecoder::open(&fixture(name), limits()).unwrap();
+        let frame = decoder.next_frame().unwrap().unwrap();
+        let result = SoftwareImageConverter::default().convert(&frame);
+        assert!(if matrix {
+            matches!(result, Err(ConversionError::UnsupportedMatrix))
+        } else {
+            matches!(result, Err(ConversionError::UnsupportedTransfer))
+        });
+    }
+}
+
+#[test]
 fn common_codecs_preserve_exact_mixed_rate_timestamps_pixels_and_delayed_frames() {
     for (name, codec, rate, pixel) in [
         ("h264.mp4", "h264", (24, 1), ffmpeg::format::Pixel::YUV420P),

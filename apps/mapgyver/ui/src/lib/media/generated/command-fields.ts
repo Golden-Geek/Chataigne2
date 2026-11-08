@@ -108,6 +108,10 @@ export const COMMAND_PARAMETER_FIELDS = {
     "media",
     "channel"
   ],
+  "InspectVideoSource": [
+    "media",
+    "channel"
+  ],
   "LaunchMatrixCell": [
     "media",
     "matrix_layer",

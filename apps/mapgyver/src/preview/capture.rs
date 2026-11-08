@@ -56,6 +56,11 @@ impl CapturedPreview {
                 .map_or(channel.resolution.availability, |channel| {
                     channel.resolution.availability
                 });
+            let source_reference = editor
+                .and_then(|_| self.channels.editor_dependency(channel.reference))
+                .unwrap_or(channel.reference);
+            let video = self.channels.video_source_status(source_reference);
+            let video_message = video.as_ref().and_then(|status| status.preview_message());
             statuses.push(PreviewStatus {
                 source: editor.unwrap_or(PreviewSource::Channel {
                     reference: channel.reference,
@@ -63,7 +68,9 @@ impl CapturedPreview {
                 extent: channel.resolution.extent,
                 error: None,
                 matrix: None,
-                message: if availability != ChannelAvailability::Ready {
+                message: if video_message.is_some() {
+                    video_message
+                } else if availability != ChannelAvailability::Ready {
                     Some(format!("Source {availability:?}"))
                 } else if editor.is_some() && self.channels.editor_dependency(channel.reference).is_none() {
                     Some("No source assigned".into())

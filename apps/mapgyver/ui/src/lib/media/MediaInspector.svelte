@@ -14,6 +14,7 @@
 	import ReferenceChannelsSection from './ReferenceChannelsSection.svelte';
 	import MediaScriptsSection from './MediaScriptsSection.svelte';
 	import MediaCommandsSection from './MediaCommandsSection.svelte';
+	import VideoSourceStatus from './VideoSourceStatus.svelte';
 	let {
 		node,
 		defaultHeader,
@@ -194,6 +195,9 @@
 		{#key node.uuid}<ReferenceChannelsSection {node} />{/key}
 	{/if}
 	<div class="properties" class:channel-properties={node.node_type === 'mapgyver.media.channel.v2'}>
+		{#if channel?.definition.source.kind === 'Video'}
+			<VideoSourceStatus reference={channel.reference} file={channel.definition.source.file} />
+		{/if}
 		{#if error}<p role="alert">{error}</p>{/if}
 		{#if node.node_type === 'mapgyver.media.manager'}
 			<MediaCommandsSection {node} {defaultChildren} disabled={busy} />

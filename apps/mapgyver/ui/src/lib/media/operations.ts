@@ -20,6 +20,7 @@ export function mediaOperationActivity(edit: MediaEdit): 'background' | 'user' {
 	return [
 		'InspectVideo',
 		'InspectVideoFrame',
+		'InspectVideoSource',
 		'InspectTargetPicker',
 		'InspectManager',
 		'InspectChannel',

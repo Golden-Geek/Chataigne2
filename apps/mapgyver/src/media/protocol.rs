@@ -265,6 +265,9 @@ pub enum MediaEdit {
     InspectVideoFrame {
         reference: ChannelReference,
     },
+    InspectVideoSource {
+        reference: ChannelReference,
+    },
     ConfigureVideoFile {
         reference: ChannelReference,
         file: String,
@@ -501,6 +504,9 @@ pub enum MediaEditResult {
     },
     VideoFrame {
         frame: Option<super::video::protocol::VideoFrameState>,
+    },
+    VideoSource {
+        status: super::video::protocol::VideoSourceStatus,
     },
     TargetPicker {
         page: Option<TargetPickerPage>,

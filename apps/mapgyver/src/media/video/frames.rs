@@ -14,6 +14,8 @@ struct Source {
     owner: uuid::Uuid,
     file: AssetLocator,
     frame: Option<(TransportSample, Neighbours)>,
+    ready: bool,
+    error: Option<VideoSourceError>,
 }
 #[derive(Default)]
 pub(super) struct Frames(HashMap<ChannelId, Source>);
@@ -29,6 +31,8 @@ impl Frames {
                 owner,
                 file,
                 frame: None,
+                ready: false,
+                error: None,
             },
         );
     }
@@ -48,6 +52,30 @@ impl Frames {
         if self.owns(channel, owner) {
             self.0.remove(&channel);
         }
+    }
+    pub fn status(&self, channel: ChannelId, file: &AssetLocator) -> Option<(bool, Option<VideoSourceError>)> {
+        self.0
+            .get(&channel)
+            .filter(|source| source.file == *file)
+            .map(|source| (source.ready, source.error.clone()))
+    }
+    pub fn ready(&mut self, channel: ChannelId, owner: uuid::Uuid) {
+        if let Some(source) = self.0.get_mut(&channel).filter(|source| source.owner == owner) {
+            source.ready = true;
+            source.error = None;
+        }
+    }
+    #[cfg(feature = "video-files")]
+    pub fn failure(&mut self, channel: ChannelId, owner: uuid::Uuid, error: VideoSourceError) -> bool {
+        let Some(source) = self.0.get_mut(&channel).filter(|source| source.owner == owner) else {
+            return false;
+        };
+        source.frame = None;
+        if source.error.as_ref() == Some(&error) {
+            return false;
+        }
+        source.error = Some(error);
+        true
     }
     #[cfg(any(feature = "video-files", test))]
     pub fn observe(&mut self, channel: ChannelId, owner: uuid::Uuid, sample: TransportSample, frame: Neighbours) {

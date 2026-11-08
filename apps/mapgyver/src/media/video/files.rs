@@ -1,5 +1,9 @@
 //! Demand-owned local file workers. Decode, conversion and waits never run on the engine/UI.
 use super::{VideoControl, reader::Reader};
+use super::{
+    failure::Failure,
+    protocol::{VideoSourceError, VideoSourceErrorKind},
+};
 use crate::media::{
     capture::CapturedChannels,
     protocol::{ChannelReference, ChannelSource},
@@ -246,13 +250,16 @@ impl Run {
     fn run(self, worker: WorkerContext<(), ()>) {
         while !worker.cancellation().is_cancelled() {
             if let Err(error) = self.play(&worker, self.owner) {
-                self.withdraw(Some(error.chars().take(256).collect()));
+                let _ = self
+                    .control
+                    .source_failure(self.reference.channel, self.owner, error.0.clone());
+                self.withdraw(Some(error.0.message));
                 let checkpoint = worker.wake_checkpoint();
                 worker.wait_until(checkpoint, Instant::now() + Duration::from_secs(1));
             }
         }
     }
-    fn play(&self, worker: &WorkerContext<(), ()>, owner: uuid::Uuid) -> Result<(), String> {
+    fn play(&self, worker: &WorkerContext<(), ()>, owner: uuid::Uuid) -> Result<(), Failure> {
         let cancel = worker.cancellation().clone();
         let decoder = SoftwareDecoder::open_with_interrupt(
             &self.file,
@@ -262,11 +269,11 @@ impl Run {
                 max_packets_per_frame: 256,
             },
             move || cancel.is_cancelled(),
-        )
-        .map_err(|e| e.to_string())?;
+        )?;
         let lease = Arc::new(
             self.budget
-                .reserve(u64::from(decoder.info().width) * u64::from(decoder.info().height))?,
+                .reserve(u64::from(decoder.info().width) * u64::from(decoder.info().height))
+                .map_err(|error| Failure(VideoSourceError::new(VideoSourceErrorKind::Capacity, error)))?,
         );
         let mut reader = Reader::new(decoder)?;
         self.control

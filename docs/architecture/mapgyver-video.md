@@ -60,6 +60,21 @@ Inspector actions, typed commands, named scripts and headless operations use the
 At either endpoint, stepping holds the existing position and pauses; an already-paused endpoint
 is a history no-op.
 
+`InspectVideoSource`, its typed command and `inspectVideoSource` script method read one channel's
+runtime health without opening a File. `Prepared` means known timing with no active decoder;
+`Ready` means a decoded image stream exists, not that an exact seek or display presentation has
+completed. Missing, unsupported, decode, capacity and filesystem failures carry typed kinds and
+bounded256-character messages. A failed live decoder enters `Recovering`; initial failures are
+`Unavailable`. Retry state is explicit. Builds without the Video file feature report unsupported
+playback without promising a retry. Ordinary authored settings remain real Inspector Parameters.
+
+The compact channel Inspector status uses a background read, at most one in flight and one
+one-second retry timer. Active edit sessions defer its reads. Selection, File, connection and
+project changes fence late replies and dispose timers. Native preview messages follow canonical
+References and explicit Cell-editor dependencies, while disabled sources retain their normal
+presentation. A failed Video never becomes a renderer/device failure or masks healthy sources.
+The shared Footer continues to report renderer health separately.
+
 Video operation adapters use Golden's public `settle_edit_notifications` inside the existing
 atomic application operation. This bounded fixed point refreshes Parameter handles and runs
 their callbacks before returning snapshots. Draining queued edits
@@ -114,6 +129,11 @@ the previous upload during publication contention. Software conversion, upload a
 decoding are distinct: the current converter explicitly handles supported SDR BT.709/sRGB/
 linear transfer, rejects other matrices/transfers, and never reads a hardware frame back.
 Displaced pixel buffers are freed outside the media control lock.
+Software conversion failures use Golden's typed `ConversionError`; app status never classifies
+support by parsing human-readable decoder/scaler messages. Failure revokes prepared frame-step
+timestamps. Healthy recovery clears the current source error without authored history. Metadata
+errors retain known duration during endpoint loss and clear after successful re-probing, including
+when the restored File has the same fingerprint as before its disappearance.
 
 During integration, enable `video-files` through the pinned dependency helper:
 

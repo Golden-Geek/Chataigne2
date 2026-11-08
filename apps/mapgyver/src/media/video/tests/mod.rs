@@ -5,6 +5,7 @@ mod membership;
 mod metadata;
 #[cfg(feature = "video-files")]
 mod reader;
+mod status;
 use golden_time::{Clock, MonotonicTime, PlaybackRate, TimeError};
 use std::sync::{
     Arc,
