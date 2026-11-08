@@ -195,16 +195,18 @@ pub(super) fn build(
                 Some(configured @ ChannelSource::Video { .. }) => {
                     entry.source = None;
                     #[cfg(feature = "video-files")]
-                    let stream = videos.and_then(|videos| videos.stream(reference));
+                    let stream = videos.and_then(|videos| videos.source(reference));
                     #[cfg(not(feature = "video-files"))]
-                    let stream: Option<golden_video::image::ImageStream> = None;
+                    let stream: Option<(TextureDescriptor, golden_video::plan::ExternalSource)> = None;
                     resolution = resolution::resolve(
                         channel.definition.as_ref().unwrap(),
-                        stream.as_ref().map_or(SourceObservation::Unavailable, |stream| {
-                            SourceObservation::Available(stream.descriptor())
-                        }),
+                        stream
+                            .as_ref()
+                            .map_or(SourceObservation::Unavailable, |(descriptor, _)| {
+                                SourceObservation::Available(*descriptor)
+                            }),
                     )?;
-                    if let Some(stream) = stream {
+                    if let Some((descriptor, source)) = stream {
                         let id = match previous
                             .channels
                             .get(&reference)
@@ -213,11 +215,10 @@ pub(super) fn build(
                             Some((id, old)) if old == configured => *id,
                             _ => allocate(next)?,
                         };
-                        let descriptor = stream.descriptor();
                         submission.plan.external_textures.push(ExternalTexture {
                             id,
                             descriptor,
-                            source: Some(golden_video::plan::ExternalSource::Frames(stream)),
+                            source: Some(source),
                         });
                         entry.source = Some((id, configured.clone()));
                         let definition = channel.definition.as_ref().unwrap();

@@ -15,11 +15,15 @@ mod producer;
 #[cfg(feature = "ffmpeg")]
 pub use producer::{GpuFrameError, GpuFramePublisher};
 
-/// Shared admission for conversion images and bridge slots, including retired observers.
-/// Decoder pools and renderer-owned targets require their own admission.
+/// Shared admission for decoder pools, conversion images and retained bridge slots.
+/// Renderer-owned targets require separate admission from the same adapter allowance.
 #[derive(Clone)]
 pub struct GpuFrameBudget(budget::Budget);
 impl GpuFrameBudget {
+    #[cfg(feature = "ffmpeg")]
+    pub(crate) fn reserve(&self, bytes: u64) -> Option<Arc<dyn Send + Sync>> {
+        self.0.claim(bytes).map(|lease| Arc::new(lease) as Arc<dyn Send + Sync>)
+    }
     /// A zero limit deliberately rejects every allocation.
     pub fn new(max_bytes: u64) -> Self {
         Self(budget::Budget::new(max_bytes))

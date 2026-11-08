@@ -23,6 +23,46 @@ use std::{
 
 const MAX_SOURCES: usize = 8;
 const MAX_BYTES: u64 = 768 * 1024 * 1024;
+#[cfg(all(windows, feature = "native-video"))]
+mod hardware;
+#[cfg(all(windows, feature = "native-video"))]
+#[derive(Clone)]
+pub(crate) struct Hardware {
+    pub adapter: golden_video::native::AdapterId,
+    pub budget: golden_video::native::GpuFrameBudget,
+}
+#[derive(Clone)]
+enum Stream {
+    Software(ImageStream),
+    #[cfg(all(windows, feature = "native-video"))]
+    Hardware(golden_video::native::GpuFrameStream),
+}
+impl Stream {
+    fn source(&self) -> (golden_video::TextureDescriptor, golden_video::plan::ExternalSource) {
+        match self {
+            Self::Software(stream) => (
+                stream.descriptor(),
+                golden_video::plan::ExternalSource::Frames(stream.clone()),
+            ),
+            #[cfg(all(windows, feature = "native-video"))]
+            Self::Hardware(stream) => (
+                stream.descriptor(),
+                golden_video::plan::ExternalSource::GpuFrames(stream.clone()),
+            ),
+        }
+    }
+    fn withdraw(&self) {
+        match self {
+            Self::Software(stream) => {
+                let _ = stream.publish(None);
+            }
+            #[cfg(all(windows, feature = "native-video"))]
+            Self::Hardware(stream) => {
+                let _ = stream.publish(None);
+            }
+        }
+    }
+}
 #[derive(Default)]
 struct Budget {
     used: Mutex<u64>,
@@ -59,7 +99,7 @@ impl Budget {
 }
 #[derive(Default)]
 struct Output {
-    stream: Option<ImageStream>,
+    stream: Option<Stream>,
     error: Option<String>,
 }
 struct Entry {
@@ -70,6 +110,8 @@ struct Entry {
     _worker: BoundedWorker<(), ()>,
 }
 pub(crate) struct Files {
+    #[cfg(all(windows, feature = "native-video"))]
+    hardware: Option<Hardware>,
     root: PathBuf,
     project: Option<uuid::Uuid>,
     entries: HashMap<ChannelReference, Entry>,
@@ -82,6 +124,8 @@ pub(crate) struct Files {
 /// Completion of file-worker cancellation and all retained decoded-image storage.
 #[derive(Clone)]
 pub struct FileRetirement {
+    #[cfg(all(windows, feature = "native-video"))]
+    hardware: Option<Hardware>,
     pool: RetirementPool,
     budget: Arc<Budget>,
 }
@@ -90,9 +134,16 @@ impl FileRetirement {
     pub fn active_workers(&self) -> usize {
         self.pool.metrics().active
     }
-    /// Admitted software storage, including images retained by old render observers.
+    /// Admitted CPU/GPU source storage, including old pools and render observers.
     pub fn retained_bytes(&self) -> u64 {
-        *self.budget.used.lock().unwrap()
+        let bytes = *self.budget.used.lock().unwrap();
+        #[cfg(all(windows, feature = "native-video"))]
+        let bytes = bytes
+            + self
+                .hardware
+                .as_ref()
+                .map_or(0, |hardware| hardware.budget.retained_bytes());
+        bytes
     }
     /// Wait on a shutdown/test owner, never an engine or UI callback.
     pub fn wait(&self, timeout: Duration) -> bool {
@@ -108,18 +159,32 @@ impl FileRetirement {
                 *used != 0
             })
             .unwrap();
-        *used == 0
+        if *used != 0 {
+            return false;
+        }
+        drop(used);
+        while self.retained_bytes() != 0 {
+            if Instant::now() >= deadline {
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        true
     }
 }
 impl Files {
     pub fn retirement(&self) -> FileRetirement {
         FileRetirement {
+            #[cfg(all(windows, feature = "native-video"))]
+            hardware: self.hardware.clone(),
             pool: self.pool.clone(),
             budget: self.budget.clone(),
         }
     }
     pub fn new(root: &Path, notifier: Option<WorkerNotifier>) -> Self {
         Self {
+            #[cfg(all(windows, feature = "native-video"))]
+            hardware: None,
             root: root.into(),
             project: None,
             entries: Default::default(),
@@ -129,6 +194,10 @@ impl Files {
             observed: 0,
             notifier,
         }
+    }
+    #[cfg(all(windows, feature = "native-video"))]
+    pub fn set_hardware(&mut self, hardware: Hardware) {
+        self.hardware = Some(hardware);
     }
     pub fn set_root(&mut self, root: &Path) -> bool {
         if self.root == root {
@@ -169,6 +238,8 @@ impl Files {
             }
             let output = Arc::new(Mutex::new(Output::default()));
             let context = Run {
+                #[cfg(all(windows, feature = "native-video"))]
+                hardware: self.hardware.clone(),
                 owner: uuid::Uuid::new_v4(),
                 file: file.clone(),
                 reference,
@@ -208,8 +279,28 @@ impl Files {
         }
         Ok(())
     }
+    pub fn source(
+        &self,
+        reference: ChannelReference,
+    ) -> Option<(golden_video::TextureDescriptor, golden_video::plan::ExternalSource)> {
+        Some(
+            self.entries
+                .get(&reference)?
+                .output
+                .lock()
+                .ok()?
+                .stream
+                .as_ref()?
+                .source(),
+        )
+    }
+    #[cfg(test)]
     pub fn stream(&self, reference: ChannelReference) -> Option<ImageStream> {
-        self.entries.get(&reference)?.output.lock().ok()?.stream.clone()
+        match self.entries.get(&reference)?.output.lock().ok()?.stream.as_ref()? {
+            Stream::Software(stream) => Some(stream.clone()),
+            #[cfg(all(windows, feature = "native-video"))]
+            Stream::Hardware(_) => None,
+        }
     }
     pub fn service(&mut self) -> bool {
         let revision = self.changes.reader().current();
@@ -219,6 +310,8 @@ impl Files {
     }
 }
 struct Run {
+    #[cfg(all(windows, feature = "native-video"))]
+    hardware: Option<Hardware>,
     owner: uuid::Uuid,
     file: PathBuf,
     reference: ChannelReference,
@@ -238,11 +331,12 @@ impl Run {
     fn withdraw(&self, error: Option<String>) {
         let mut output = self.output.lock().unwrap();
         let changed = output.error != error || output.stream.is_some();
-        if let Some(stream) = output.stream.take() {
-            let _ = stream.publish(None);
-        }
+        let stream = output.stream.take();
         output.error = error;
         drop(output);
+        if let Some(stream) = stream {
+            stream.withdraw();
+        }
         if changed {
             self.changed();
         }
@@ -260,6 +354,26 @@ impl Run {
         }
     }
     fn play(&self, worker: &WorkerContext<(), ()>, owner: uuid::Uuid) -> Result<(), Failure> {
+        #[cfg(all(windows, feature = "native-video"))]
+        if let Some(hardware) = &self.hardware {
+            match self.play_hardware(worker, owner, hardware) {
+                Ok(()) => return Ok(()),
+                Err(error) => {
+                    let _ = self
+                        .control
+                        .source_failure(self.reference.channel, owner, error.0.clone());
+                    self.withdraw(None);
+                    eprintln!(
+                        "[mapgyver-video] software fallback for {}: {}",
+                        self.file.display(),
+                        error.0.message
+                    );
+                }
+            }
+        }
+        self.play_software(worker, owner)
+    }
+    fn play_software(&self, worker: &WorkerContext<(), ()>, owner: uuid::Uuid) -> Result<(), Failure> {
         let cancel = worker.cancellation().clone();
         let decoder = Decoder::open_with_interrupt(
             &self.file,
@@ -293,7 +407,7 @@ impl Run {
                 {
                     let mut output = self.output.lock().unwrap();
                     if output.stream.is_none() {
-                        output.stream = Some(next.clone());
+                        output.stream = Some(Stream::Software(next.clone()));
                         output.error = None;
                         drop(output);
                         self.changed();

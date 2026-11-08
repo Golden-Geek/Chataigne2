@@ -1,0 +1,42 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/1 Active; app GPU file playback delivered; complete common-codec acceptance remains open",
+	"progress": { "accepted": 83, "total": 102, "percent": 81, "m10_accepted": 0, "m10_total": 4 },
+	"batch": { "started_utc": "2026-11-08 23:13", "cutoff_utc": "2026-11-08 23:58", "native_experiments": 2 },
+	"deliverable": "Native MapGyver File workers select the renderer's exact adapter, decode supported files into D3D11 frames and asynchronously publish resident GPU images. Unsupported hardware, source admission and native failures explicitly reopen software playback on the same media clock.",
+	"ownership": {
+		"pool_admission": "Decoder open now requires GpuFrameBudget. Padded dimensions, native NV12/P010 storage and fixed surface count are reserved before av_hwframe_ctx_init. FFmpeg's public pool destructor owns the reservation; old frame/pool references retain it across codec replacement and shutdown. Existing 32-surface and padded-pixel limits remain.",
+		"aggregate_gpu_cap": "The host reserves one quarter of measured selected-adapter admission, capped at768 MiB, for shared decoder/conversion/bridge storage and subtracts it from renderer target admission. The cap survives native session recreation. Retained old allocations still compete for capacity. This accounts known storage, not all driver-private or third-party allocation overhead.",
+		"clock": "Software and hardware use the same timestamp sampler. At most one hardware conversion is pending. Its original epoch/cycle is checked under the common VideoControl publication fence before either completed pixels or step neighbours become visible. Busy slots retry while paused; displaced storage is disposed outside outer control/output locks.",
+		"recovery": "Source-local fallback withdraws the old stream, reports its typed failure and reopens software without changing transport settings. Demand/native owner recreation attempts hardware again. Existing bounded missing/corrupt-file retry remains. Session shutdown waits for file workers and retained GPU pools/imports before replacement.",
+		"protocol": "No protocol or TypeScript declarations change. File/Playback/Seek/Rate/Loop remain existing typed Parameters and public operation adapters. Existing full-suite generated-contract checks pass. No frontend product source changes."
+	},
+	"software": {
+		"full_serial": { "app_passed": 611, "app_ignored": 3, "golden_passed": 263, "golden_ignored": 57, "failed": 0, "exit": 0 },
+		"command": "with-ffmpeg.ps1 test --locked -p MapGyver -p golden_video --lib --features MapGyver/video-files,golden_video/ffmpeg,golden_video/qualification --quiet -- --test-threads=1",
+		"initial_failure_retained": "The first parallel app run had610 passes, one failure and two ignored: existing source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers hit Script app-operation lifetime capacity exhausted. No capacity was raised or unrelated script implementation changed. The complete serial rerun passed.",
+		"final_affected_tests": "After final source withdrawal/fallback changes: seven File rendering tests pass, one hardware test ignored, exit0. Exact mixed-rate steps, caller/callback/history parity, Reference stream sharing, retained Matrix ownership and missing/unsupported/relink recovery remain verified.",
+		"strict": "Combined app/Golden video-files/ffmpeg/qualification --lib --tests Clippy, default app Clippy and software-only Golden ffmpeg Clippy all pass with -D warnings. A cfg-only identity-map lint in the software-only configuration was corrected before native execution.",
+		"format": "Root and golden_core Cargo formatting complete. Browser fixture syntax and Prettier checks pass. Existing ts-rs serde-attribute parsing notices remain unchanged."
+	},
+	"native_worker": {
+		"filter": "hardware_file_worker_steps_exactly_and_falls_back_without_losing_its_clock -- --ignored --nocapture --test-threads=1",
+		"result": { "passed": 1, "failed": 0, "exit": 0, "seconds": 0.43 },
+		"coverage": "Actual app File preparation/clock workers with a Null presentation backend: Intel H.264 publishes ExternalSource::GpuFrames. Forward/backward stepping traverses all six actual timestamps, then125ms seek and Stop succeed. Zero GPU capacity explicitly falls back to software H.264; ProRes also falls back. Each case returns all admitted GPU storage and file workers to zero.",
+		"timestamps_ms": { "h264": [0, 41.666667, 83.333334, 125, 166.666667, 208.333334], "prores": [0, 40, 80, 120, 160, 200] },
+		"limits": "This worker fixture does not claim native presentation pixels. Prior Golden both-GPU conversion/import/completion tests retain their original scope."
+	},
+	"actual_app": {
+		"command": "MAPGYVER_TEST_BINARY=target/debug/deps/MapGyver-m10-playback.exe node apps/mapgyver/tests/browser/native-video-playback.mjs target/mapgyver-m10-file-gpu-app-2026-11-09",
+		"build": "with-ffmpeg.ps1 rustc --locked -p MapGyver --features video-files --bin MapGyver -- -C extra-filename=-m10-playback: exit0",
+		"binary_sha256": "bdaaef1ec36fd43f883949869871374e0a1a0d81ba289bc6f69864d4b7e33ff9",
+		"raw_report_sha256": "32bee43b40d9e2e6e9150942dbdc1f7daf40f67d1c5ea9cfb43c642835712904",
+		"result": "pass; PID36224; NVIDIA GeForce RTX5080 Laptop GPU; dxgi:00000000:90b3a15f; normal shutdown; exit0",
+		"codecs": "H.26424fps, original tiny HEVC30000/1001fps, standard1920x1080 HEVC Main30000/1001fps and ProRes25fps. Native worker events prove resident D3D11 publication for HEVC Main. Tiny NVIDIA H.264/HEVC initialization failures remain visible and explicitly use software; ProRes has no advertised D3D11 decoder and uses software.",
+		"controls": "Each file passes real Inspector File/defaults, Play/EOF hold, Stop,125ms seek, Undo/Redo and exact Next/Previous actions. Media Preview reports installed/available. Reference shared seek, half-rate looping physical motion, Pause, Save/New/Load and automatic File reopening pass.",
+		"pixels": { "physical_checkpoints": 35, "max_linear_component_error": 0.0144539170139545, "linear_budget": 0.01568627450980392, "observer": "Existing read-only owned-PID native_output/window_state.py; physical5x5 Screen center; external rectangle [2640,120,320,240]. Independent limited-range BT.709 to display-linear oracle unchanged." },
+		"ui": { "requests": 809, "receipts": 809, "rejections": 0, "page_errors": 0 },
+		"limits": "Short SDR fixtures and one physical app GPU; not sustained playback/cadence, all profile/10-bit/alpha cases, physical Media Preview/Composition/Matrix pixels, combined file/device recovery or default redistribution. No desktop input, monitor changes or driver resets."
+	},
+	"remaining": "Finish M10/1 representative chromatic/alpha/10-bit profiles and the remaining actual-app routing/copy/project/caller acceptance audit using existing proofs. Preserve original tiny-file failures; new HD HEVC success does not turn them into hardware passes. Then M10/2 HAP and M10/4 full first-pass recovery/license/seek/sustained1080p/4K/resource qualification precede M14. No full gate closes in this milestone."
+}

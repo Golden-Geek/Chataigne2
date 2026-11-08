@@ -118,10 +118,26 @@ impl ChannelRenderer {
         self.videos = Some(super::video::files::Files::new(root, notifier));
         Ok(())
     }
-    /// File workers and retained CPU frame storage have an independent retirement proof.
+    /// File workers and retained CPU/GPU source storage have an independent retirement proof.
     #[cfg(feature = "video-files")]
     pub fn video_retirement(&self) -> Option<super::video::FileRetirement> {
         self.videos.as_ref().map(|videos| videos.retirement())
+    }
+    /// Bind file decoding to the renderer's exact adapter and a shared retained-storage cap.
+    #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+    pub fn enable_hardware_videos(
+        &mut self,
+        root: &std::path::Path,
+        notifier: Option<golden_io::WorkerNotifier>,
+        adapter: golden_video::native::AdapterId,
+        budget: golden_video::native::GpuFrameBudget,
+    ) -> Result<(), String> {
+        self.enable_videos(root, notifier)?;
+        self.videos
+            .as_mut()
+            .unwrap()
+            .set_hardware(super::video::files::Hardware { adapter, budget });
+        Ok(())
     }
     /// Latest captured preparation/clip demand; installation and final-use proof remain separate.
     pub fn application_demand(&self) -> Vec<crate::applications::demand::ApplicationDemand> {

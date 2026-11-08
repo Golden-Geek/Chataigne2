@@ -1,6 +1,11 @@
 //! FFmpeg-owned D3D11 devices and frame-pool leases. No hardware-to-CPU transfer.
 use super::{DecodeError, DecodeLimits, Decoder, DecoderKind, ffmpeg};
+use crate::native::GpuFrameBudget;
 use crate::{Extent2D, native::AdapterId};
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 use std::{ffi::CString, marker::PhantomData, path::Path, ptr, rc::Rc};
 use windows::Win32::Graphics::{
     Direct3D11::{D3D11_TEXTURE2D_DESC, ID3D11Texture2D},
@@ -89,6 +94,7 @@ impl D3d11Frame {
 pub(super) struct HardwareDevice {
     buffer: *mut ffmpeg::ffi::AVBufferRef,
     adapter: AdapterId,
+    admission: Arc<Admission>,
     _local: PhantomData<Rc<()>>,
 }
 impl Drop for HardwareDevice {
@@ -98,7 +104,7 @@ impl Drop for HardwareDevice {
     }
 }
 impl HardwareDevice {
-    fn new(adapter: AdapterId, codec: ffmpeg::codec::Id) -> Result<Self, DecodeError> {
+    fn new(adapter: AdapterId, codec: ffmpeg::codec::Id, budget: GpuFrameBudget) -> Result<Self, DecodeError> {
         let hardware = ffmpeg::ffi::AVHWDeviceType::AV_HWDEVICE_TYPE_D3D11VA;
         // SAFETY: static codec/config descriptors remain valid throughout FFmpeg's lifetime.
         let supported = unsafe {
@@ -136,10 +142,15 @@ impl HardwareDevice {
         Ok(Self {
             buffer,
             adapter,
+            admission: Arc::new(Admission {
+                budget,
+                exhausted: AtomicBool::new(false),
+            }),
             _local: PhantomData,
         })
     }
     pub(super) fn configure(&self, context: &mut ffmpeg::codec::context::Context) -> Result<(), DecodeError> {
+        self.admission.exhausted.store(false, Ordering::Release);
         // SAFETY: unopened uniquely owned codec context; FFmpeg releases its acquired ref.
         unsafe {
             let reference = ffmpeg::ffi::av_buffer_ref(self.buffer);
@@ -151,11 +162,19 @@ impl HardwareDevice {
             }
             (*context.as_mut_ptr()).hw_device_ctx = reference;
             (*context.as_mut_ptr()).get_format = Some(select_hardware);
+            (*context.as_mut_ptr()).opaque = Arc::as_ptr(&self.admission).cast_mut().cast();
             // Reader keeps current/next, publication may retain a frame, and exact seeks
             // create a new codec/pool. Retention remains explicitly bounded by the owner.
             (*context.as_mut_ptr()).extra_hw_frames = 8;
         }
         Ok(())
+    }
+    pub(super) fn failure(&self, error: DecodeError) -> DecodeError {
+        if self.admission.exhausted.load(Ordering::Acquire) {
+            DecodeError::LimitExceeded
+        } else {
+            error
+        }
     }
     pub(super) fn frame(&self, frame: ffmpeg::frame::Video) -> Result<D3d11Frame, DecodeError> {
         if frame.format() != ffmpeg::format::Pixel::D3D11 {
@@ -221,19 +240,26 @@ impl HardwareDevice {
 impl Decoder {
     /// Select hardware explicitly on one exact adapter. No software/adapter fallback is hidden.
     /// Unsupported codecs/profiles fail; an owning caller can reopen with `open` instead.
-    pub fn open_d3d11(path: &Path, limits: DecodeLimits, adapter: AdapterId) -> Result<Self, DecodeError> {
-        Self::open_d3d11_with_interrupt(path, limits, adapter, || false)
+    /// Pool reservations precede allocation and follow FFmpeg pool ownership across seeks.
+    pub fn open_d3d11(
+        path: &Path,
+        limits: DecodeLimits,
+        adapter: AdapterId,
+        budget: GpuFrameBudget,
+    ) -> Result<Self, DecodeError> {
+        Self::open_d3d11_with_interrupt(path, limits, adapter, budget, || false)
     }
     /// Hardware open with the same cancellation/demux boundary as software decode.
     pub fn open_d3d11_with_interrupt(
         path: &Path,
         limits: DecodeLimits,
         adapter: AdapterId,
+        budget: GpuFrameBudget,
         interrupt: impl FnMut() -> bool + Send + 'static,
     ) -> Result<Self, DecodeError> {
         Self::open_configured(path, limits, interrupt, move |input, index| {
             let stream = input.stream(index).ok_or(ffmpeg::Error::StreamNotFound)?;
-            HardwareDevice::new(adapter, stream.parameters().id()).map(DecoderKind::D3d11)
+            HardwareDevice::new(adapter, stream.parameters().id(), budget).map(DecoderKind::D3d11)
         })
     }
 }
@@ -296,6 +322,37 @@ unsafe extern "C" fn select_hardware(
 fn admitted_pool(width: i32, height: i32, surfaces: i32, max_pixels: i64) -> bool {
     width > 0 && height > 0 && (1..=32).contains(&surfaces) && i64::from(width) * i64::from(height) <= max_pixels
 }
+struct Admission {
+    budget: GpuFrameBudget,
+    exhausted: AtomicBool,
+}
+struct PoolLease {
+    previous_free: Option<unsafe extern "C" fn(*mut ffmpeg::ffi::AVHWFramesContext)>,
+    previous_opaque: *mut std::ffi::c_void,
+    _reservation: Arc<dyn Send + Sync>,
+}
+unsafe extern "C" fn release_pool(context: *mut ffmpeg::ffi::AVHWFramesContext) {
+    // FFmpeg calls this only after its pool/storage cleanup; preserve any earlier owner.
+    let lease = unsafe { Box::from_raw((*context).user_opaque.cast::<PoolLease>()) };
+    unsafe {
+        (*context).user_opaque = lease.previous_opaque;
+        (*context).free = lease.previous_free;
+        if let Some(free) = lease.previous_free {
+            free(context);
+        }
+    }
+    drop(lease);
+}
+fn pool_bytes(width: i32, height: i32, surfaces: i32, format: ffmpeg::ffi::AVPixelFormat) -> Option<u64> {
+    use ffmpeg::ffi::AVPixelFormat::{AV_PIX_FMT_NV12, AV_PIX_FMT_P010LE};
+    let pixels = u64::try_from(width).ok()?.checked_mul(u64::try_from(height).ok()?)?;
+    let bytes = match format {
+        AV_PIX_FMT_NV12 => pixels.checked_mul(3)?.div_ceil(2),
+        AV_PIX_FMT_P010LE => pixels.checked_mul(3)?,
+        _ => return None,
+    };
+    bytes.checked_mul(u64::try_from(surfaces).ok()?)
+}
 // SAFETY: called only by the codec's format callback on its uniquely owned live context.
 // Ask FFmpeg for API-specific parameters, then admit the fixed pool before allocation.
 unsafe fn initialize_frames(context: *mut ffmpeg::ffi::AVCodecContext) -> bool {
@@ -314,14 +371,36 @@ unsafe fn initialize_frames(context: *mut ffmpeg::ffi::AVCodecContext) -> bool {
     if result < 0 || frames.is_null() {
         return false;
     }
-    let parameters = unsafe { &*(*frames).data.cast::<ffmpeg::ffi::AVHWFramesContext>() };
+    let parameters = unsafe { &mut *(*frames).data.cast::<ffmpeg::ffi::AVHWFramesContext>() };
     if !admitted_pool(
         parameters.width,
         parameters.height,
         parameters.initial_pool_size,
         unsafe { (*context).max_pixels },
-    ) || unsafe { ffmpeg::ffi::av_hwframe_ctx_init(frames) } < 0
-    {
+    ) {
+        unsafe { ffmpeg::ffi::av_buffer_unref(&mut frames) };
+        return false;
+    }
+    let admission = unsafe { &*(*context).opaque.cast::<Admission>() };
+    let Some(reservation) = pool_bytes(
+        parameters.width,
+        parameters.height,
+        parameters.initial_pool_size,
+        parameters.sw_format,
+    )
+    .and_then(|bytes| admission.budget.reserve(bytes)) else {
+        admission.exhausted.store(true, Ordering::Release);
+        unsafe { ffmpeg::ffi::av_buffer_unref(&mut frames) };
+        return false;
+    };
+    let lease = Box::new(PoolLease {
+        previous_free: parameters.free,
+        previous_opaque: parameters.user_opaque,
+        _reservation: reservation,
+    });
+    parameters.free = Some(release_pool);
+    parameters.user_opaque = Box::into_raw(lease).cast();
+    if unsafe { ffmpeg::ffi::av_hwframe_ctx_init(frames) } < 0 {
         unsafe { ffmpeg::ffi::av_buffer_unref(&mut frames) };
         return false;
     }

@@ -310,6 +310,13 @@ impl Decoder {
             return Err(DecodeError::ReopenRequired);
         }
         let result = self.receive_next();
+        #[cfg(all(windows, feature = "d3d11"))]
+        let result = result.map_err(|error| {
+            if let DecoderKind::D3d11(device) = &self.kind {
+                return device.failure(error);
+            }
+            error
+        });
         if result.is_err() {
             self.state = DecodeState::Failed;
         }

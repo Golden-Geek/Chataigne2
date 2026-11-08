@@ -1,5 +1,7 @@
 use super::*;
 mod diagnostics;
+#[cfg(all(windows, feature = "native-video"))]
+mod hardware;
 mod retention;
 mod steps;
 use crate::media::video::protocol::VideoEdit;

@@ -210,10 +210,10 @@ fn hardware_gpu_frames_import_actual_intel_decoder_without_cpu_conversion() {
         max_packet_bytes: 1024 * 1024,
         max_packets_per_frame: 128,
     };
-    let mut decoder = Decoder::open_d3d11(&root.join("h264.mp4"), limits, adapter.id).unwrap();
+    let budget = GpuFrameBudget::new(1024 * 1024);
+    let mut decoder = Decoder::open_d3d11(&root.join("h264.mp4"), limits, adapter.id, budget.clone()).unwrap();
     let dummy = prepared_image(descriptor(2, ColorEncoding::Srgb, AlphaMode::Straight), &[0; 8]);
     let mut renderer = Renderer::new(adapter.id, &dummy, 2);
-    let budget = GpuFrameBudget::new(1024 * 1024);
     let mut publisher = None;
     let mut count = 0;
     while let Some(frame) = decoder.next_frame().unwrap() {
@@ -237,12 +237,15 @@ fn hardware_gpu_frames_import_actual_intel_decoder_without_cpu_conversion() {
     assert!(renderer.pixel_frame().iter().all(|rgba| *rgba == [0; 4]));
     assert_eq!(budget.retained_bytes(), 0);
     for name in ["h264-bt2020.mp4", "h264-pq.mp4"] {
-        let mut decoder = Decoder::open_d3d11(&root.join(name), limits, adapter.id).unwrap();
+        let mut decoder = Decoder::open_d3d11(&root.join(name), limits, adapter.id, budget.clone()).unwrap();
         let frame = decoder.next_frame().unwrap().unwrap();
         assert!(matches!(
             GpuFramePublisher::new(frame.d3d11_frame().unwrap(), &budget, None),
             Err(GpuFrameError::Unsupported)
         ));
+        assert!(budget.retained_bytes() > 0, "live decoder pool remains admitted");
+        drop(frame);
+        drop(decoder);
         assert_eq!(budget.retained_bytes(), 0);
     }
 }

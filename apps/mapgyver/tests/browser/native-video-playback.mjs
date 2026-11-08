@@ -12,6 +12,12 @@ const directory = path.resolve(process.argv[2] ?? `target/mapgyver-video-app-${D
 await mkdir(directory, { recursive: true });
 const native = await openNativeEditor();
 const { page } = native;
+let playbackLog = '';
+for (const stream of [native.app.stdout, native.app.stderr]) {
+	stream.on('data', (data) => {
+		playbackLog = (playbackLog + data).slice(-131072);
+	});
+}
 const errors = [];
 page.on('pageerror', (error) => errors.push(String(error)));
 const { rejected, observed } = await observeNativeRejectedRequests(page, () => 'Video playback');
@@ -175,6 +181,7 @@ try {
 	for (const [name, rate] of [
 		['h264.mp4', 24],
 		['hevc.mp4', 30000 / 1001],
+		['hevc-main.mp4', 30000 / 1001],
 		['prores.mov', 25]
 	]) {
 		const label = `Video integration ${name}`;
@@ -345,9 +352,10 @@ try {
 		rejected,
 		uiReceipts: observed,
 		projectReload: true,
+		backendEvents: playbackLog.split(/\r?\n/).filter((line) => line.includes('[mapgyver-video]')),
 		normalShutdown: false,
 		scope:
-			'Tiny SDR common-codec clips through actual app controls and physical Screen pixels; not sustained performance, hardware decode or all profile/color/alpha qualification'
+			'SDR common-codec clips including 1080p HEVC Main through actual app controls and physical Screen pixels; backend events distinguish hardware publication from explicit software fallback. Not sustained performance or all profile/color/alpha qualification'
 	};
 } catch (error) {
 	await writeFile(

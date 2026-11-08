@@ -31,10 +31,16 @@ struct Owner {
 impl Drop for Owner {
     fn drop(&mut self) {
         let pictures = self.renderer.picture_retirement();
+        #[cfg(feature = "video-files")]
+        let videos = self.renderer.video_retirement();
         self.renderer.close();
         while !self.renderer.retirement().wait(Duration::from_millis(20)) {}
         if let Some(pictures) = pictures {
             while !pictures.wait(Duration::from_millis(20)) {}
+        }
+        #[cfg(feature = "video-files")]
+        if let Some(videos) = videos {
+            while !videos.wait(Duration::from_millis(20)) {}
         }
         self.windows.clear();
     }
@@ -85,6 +91,7 @@ fn create(
     targets: &[super::targets::Target],
     output_windows: &mut super::output_windows::OutputWindows,
     notifier: WorkerNotifier,
+    #[cfg(feature = "video-files")] file_budget: &mut Option<(u64, golden_video::native::GpuFrameBudget)>,
 ) -> io::Result<(Owner, D3d11Control)> {
     // A renderer recreation follows complete old-owner retirement. Query this process on
     // the selected adapter; unknown/zero budgets fail truthfully and retry on this worker.
@@ -92,6 +99,19 @@ fn create(
         .map_err(io::Error::other)?
         .admission_limit(u64::MAX)
         .map_err(io::Error::other)?;
+    #[cfg(feature = "video-files")]
+    let admission = {
+        // One cap survives renderer/device recreation, including retained old source pools.
+        // Carve out source storage instead of adding it to renderer target admission.
+        let (reserved, _) = file_budget.get_or_insert_with(|| {
+            let reserved = (admission / 4).min(768 * 1024 * 1024);
+            (reserved, golden_video::native::GpuFrameBudget::new(reserved))
+        });
+        admission
+            .checked_sub(*reserved)
+            .filter(|remaining| *remaining > 0)
+            .ok_or_else(|| io::Error::other("adapter memory cannot cover retained Video source admission"))?
+    };
     let config = crate::preview::config::configuration(admission, Some(notifier.clone()));
     let limits = config.video.plan_limits;
     let mut outputs = vec![OutputBinding::Window {
@@ -143,7 +163,12 @@ fn create(
     #[cfg(feature = "video-files")]
     owner
         .renderer
-        .enable_videos(&std::env::current_dir()?, Some(notifier.clone()))
+        .enable_hardware_videos(
+            &std::env::current_dir()?,
+            Some(notifier.clone()),
+            adapter.id,
+            file_budget.as_ref().unwrap().1.clone(),
+        )
         .map_err(io::Error::other)?;
     owner
         .renderer
@@ -173,6 +198,8 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     #[cfg(feature = "video-files")]
     let _videos = crate::media::video::metadata::Service::start(input.runtime.clone())?;
     let mut owner: Option<Owner> = None;
+    #[cfg(feature = "video-files")]
+    let mut file_budget = None;
     // Pin even automatic selection for this presentation task. Recreating outputs must not
     // silently reconnect existing shared textures on a different GPU.
     let mut adapter = super::adapters::Selection::default();
@@ -517,6 +544,8 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         &topology,
                         &mut output_windows,
                         input.notifier.clone(),
+                        #[cfg(feature = "video-files")]
+                        &mut file_budget,
                     )
                     .map_err(|e| e.to_string())?;
                     native = Some(control);

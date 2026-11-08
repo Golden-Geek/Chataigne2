@@ -30,17 +30,36 @@ fn hardware_pool_admission_bounds_surface_count_and_padded_extent() {
 }
 
 #[test]
+fn pool_storage_admission_accounts_format_count_overflow_and_retained_owners() {
+    use ffmpeg::ffi::AVPixelFormat::*;
+    assert_eq!(pool_bytes(1920, 1088, 24, AV_PIX_FMT_NV12), Some(1920 * 1088 * 36));
+    assert_eq!(pool_bytes(1920, 1088, 24, AV_PIX_FMT_P010LE), Some(1920 * 1088 * 72));
+    assert_eq!(pool_bytes(1920, 1088, 24, AV_PIX_FMT_RGBA), None);
+    assert_eq!(pool_bytes(-1, 1088, 24, AV_PIX_FMT_NV12), None);
+    assert_eq!(pool_bytes(i32::MAX, i32::MAX, i32::MAX, AV_PIX_FMT_P010LE), None);
+    let budget = GpuFrameBudget::new(20);
+    let pool = budget.reserve(20).unwrap();
+    let retained_frame = pool.clone();
+    assert!(budget.reserve(1).is_none());
+    drop(pool);
+    assert_eq!(budget.retained_bytes(), 20);
+    drop(retained_frame);
+    assert_eq!(budget.retained_bytes(), 0);
+    assert!(budget.reserve(20).is_some());
+}
+
+#[test]
 fn unsupported_codec_and_absent_adapter_never_silently_select_software() {
     let absent = AdapterId {
         low: u32::MAX,
         high: i32::MAX,
     };
     assert!(matches!(
-        Decoder::open_d3d11(&fixture("prores.mov"), limits(), absent),
+        Decoder::open_d3d11(&fixture("prores.mov"), limits(), absent, GpuFrameBudget::new(0)),
         Err(DecodeError::UnsupportedHardware)
     ));
     assert!(matches!(
-        Decoder::open_d3d11(&fixture("h264.mp4"), limits(), absent),
+        Decoder::open_d3d11(&fixture("h264.mp4"), limits(), absent, GpuFrameBudget::new(0)),
         Err(DecodeError::Hardware(_))
     ));
     let mut software = Decoder::open(&fixture("prores.mov"), limits()).unwrap();
@@ -91,7 +110,13 @@ fn hardware_frames_preserve_adapter_timestamps_seek_and_pool_leases_on_both_gpus
     ] {
         for adapter in &adapters {
             eprintln!("hardware decode GPU: {}, file: {name}", adapter.description);
-            let mut decoder = Decoder::open_d3d11(&fixture(name), limits(), adapter.id).unwrap();
+            let mut decoder = Decoder::open_d3d11(
+                &fixture(name),
+                limits(),
+                adapter.id,
+                GpuFrameBudget::new(512 * 1024 * 1024),
+            )
+            .unwrap();
             let base = decoder.info().time_base;
             let mut held = Vec::new();
             while let Some(frame) = decoder.next_frame().unwrap() {

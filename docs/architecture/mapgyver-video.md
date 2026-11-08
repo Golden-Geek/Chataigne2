@@ -35,7 +35,10 @@ copy of its platform ABI. A fresh DXGI lookup resolves the requested LUID, and e
 surface verifies its actual adapter, extent, format and array slice. Format selection admits
 only D3D11; unsupported codecs/profiles fail so the caller can explicitly reopen in software.
 Before allocation, the fixed pool is limited to32 surfaces and the admitted padded pixel count.
-These per-pool bounds do not replace the caller's budget across retained old pools/generations.
+The caller supplies `GpuFrameBudget`; a reservation for the pool's padded extent, native
+format and surface count is acquired before allocation. FFmpeg's public pool destructor owns
+that reservation, so old frames retain it across seeks and decoder shutdown. Replacement pools
+must compete with those retained owners instead of receiving returned capacity early.
 
 `DecodedFrame` exposes CPU planes only for software storage. `D3d11Frame` stays on its worker
 and retains the actual FFmpeg frame, not just a COM texture reference: the frame lease prevents
@@ -62,13 +65,28 @@ The renderer acquires a nonblocking import lease before queuing the copy and ret
 the matching render completion. Shared image and imported-view lifetimes both retain admission,
 so closing a producer/NT handle cannot return its budget while another worker still owns the
 allocation. Unused imports are pruned, and plan generations reuse their admitted target texture.
-`GpuFrameBudget` bounds conversion/bridge storage across producers and retained observers;
-the decoder's separate frame pools and renderer targets still need their own admission.
+`GpuFrameBudget` bounds decoder pools and conversion/bridge storage across producers and retained
+observers. Renderer targets have separate admission from the same measured adapter allowance.
 
-The app remains on software until File workers bind this native path with complete decoder-pool
-and generation budgets, shared-clock publication fencing, selected-adapter recovery and explicit
-software fallback. The common renderer mechanism is ready; app hardware playback and sustained
-performance remain unqualified.
+Native File workers now request the renderer's exact adapter. The host carves out one quarter
+of measured admission, capped at768 MiB, for their shared GPU budget and subtracts it from the
+renderer allowance. That source cap survives renderer recreation; retained old allocations keep
+their reservations. CPU fallback retains its separate existing768 MiB known-storage cap.
+Returned-frame and driver-private allocation overhead is not claimed as measured VRAM usage.
+
+The timestamp sampler is shared by software and hardware playback. A hardware worker permits
+one conversion in flight, retains its original transport epoch/cycle, and checks that fence
+again before publishing a completed image or its frame-step neighbours. A seek cannot install
+late pixels. Held conversion slots preserve the previous image and retry even while paused.
+No conversion completion is waited on by the engine, Inspector or render worker.
+
+Unsupported hardware/profile/color, exhausted source admission and native source errors explicitly
+withdraw that stream and reopen in software, preserving the same media clock and source binding.
+Hardware is attempted again when demand is recreated or the native host recreates its selected
+device. Existing software-file failure retry remains bounded and independent per channel.
+Native session shutdown waits for file workers, decoder pools, published images and render imports
+to retire before replacement. App hardware correctness and sustained performance still require
+their owning acceptance evidence; selecting this path alone does not close M10.
 
 The [pinned dependency helper](../../tools/mapgyver/ffmpeg/README.md) verifies the exact Windows
 shared LGPL archive and establishes only process-local build/runtime paths. Packet/image/work

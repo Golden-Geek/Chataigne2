@@ -64,6 +64,21 @@ impl Reader {
     /// At most eight frames per turn, then return to cancellation/control inspection.
     /// Samples the last presentation timestamp at/before the shared position; EOF holds it.
     pub fn poll(&mut self, position: Duration) -> Result<Option<ImageData>, Failure> {
+        if !self.advance(position)? {
+            return Ok(None);
+        }
+        let image = self.converter.convert(self.current.as_ref().unwrap())?;
+        self.mark_published();
+        Ok(Some(image))
+    }
+    #[cfg(all(windows, feature = "native-video"))]
+    pub fn frame(&self) -> &DecodedFrame {
+        self.current.as_ref().expect("advance selected a frame")
+    }
+    pub fn mark_published(&mut self) {
+        self.published = self.current.as_ref().map(DecodedFrame::timestamp);
+    }
+    pub fn advance(&mut self, position: Duration) -> Result<bool, Failure> {
         self.catching_up = true;
         let base = self.decoder.info().time_base;
         let ticks = position.min(self.duration).as_nanos() * u128::from(base.denominator)
@@ -94,7 +109,7 @@ impl Reader {
             }
             if self.next.is_none() && !self.eof {
                 if decoded == 8 {
-                    return Ok(None);
+                    return Ok(false);
                 }
                 self.next = self.decoder.next_frame()?;
                 decoded += 1;
@@ -108,13 +123,11 @@ impl Reader {
             let frame = self.current.as_ref().unwrap();
             self.catching_up = false;
             if self.published == Some(frame.timestamp()) {
-                return Ok(None);
+                return Ok(false);
             }
-            let image = self.converter.convert(frame)?;
-            self.published = Some(frame.timestamp());
-            return Ok(Some(image));
+            return Ok(true);
         }
-        Ok(None)
+        Ok(false)
     }
     fn position(&self, timestamp: i64) -> Result<Duration, String> {
         let ticks = u128::try_from(i128::from(timestamp) - i128::from(self.origin))

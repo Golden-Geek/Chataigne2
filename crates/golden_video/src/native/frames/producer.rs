@@ -73,7 +73,7 @@ pub struct GpuFramePublisher {
 }
 impl GpuFramePublisher {
     /// Admit conversion/bridge storage on the decoded frame's exact device.
-    /// The decoder's separate pool budget must already cover the retained input frame.
+    /// The decoder's pool reservation already covers the retained input frame.
     pub fn new(
         frame: &D3d11Frame,
         budget: &GpuFrameBudget,

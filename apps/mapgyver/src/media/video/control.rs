@@ -312,12 +312,32 @@ impl VideoControl {
         stream: &golden_video::image::ImageStream,
         image: golden_video::image::ImageData,
     ) -> Result<bool, String> {
+        self.publish_with(channel, owner, expected, || stream.replace(Some(image)))
+    }
+    #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+    pub(super) fn publish_gpu_frame(
+        &self,
+        channel: super::super::protocol::ChannelId,
+        owner: uuid::Uuid,
+        expected: super::TransportSample,
+        stream: &golden_video::native::GpuFrameStream,
+        image: golden_video::native::GpuImage,
+    ) -> Result<bool, String> {
+        self.publish_with(channel, owner, expected, || stream.replace(Some(image)))
+    }
+    fn publish_with<T>(
+        &self,
+        channel: super::super::protocol::ChannelId,
+        owner: uuid::Uuid,
+        expected: super::TransportSample,
+        publish: impl FnOnce() -> Result<T, &'static str>,
+    ) -> Result<bool, String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
         let now = state.transport.sample().map_err(|e| e.to_string())?;
         if !state.frames.owns(channel, owner) || (now.epoch, now.cycle) != (expected.epoch, expected.cycle) {
             return Ok(false);
         }
-        let retired = stream.replace(Some(image)).map_err(str::to_owned)?;
+        let retired = publish().map_err(str::to_owned)?;
         state.frames.ready(channel, owner);
         drop(state);
         drop(retired);

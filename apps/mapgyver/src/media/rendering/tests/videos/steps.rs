@@ -15,7 +15,7 @@ fn frame(engine: &mut AppEngine, reference: ChannelReference) -> Option<VideoFra
     };
     frame
 }
-fn at(engine: &mut AppEngine, reference: ChannelReference, position: f64) -> VideoFrameState {
+pub(super) fn at(engine: &mut AppEngine, reference: ChannelReference, position: f64) -> VideoFrameState {
     let mut result = None;
     wait(|| {
         result = frame(engine, reference);
@@ -25,7 +25,7 @@ fn at(engine: &mut AppEngine, reference: ChannelReference, position: f64) -> Vid
     });
     result.unwrap()
 }
-fn step(engine: &mut AppEngine, reference: ChannelReference, direction: VideoStepDirection) -> f64 {
+pub(super) fn step(engine: &mut AppEngine, reference: ChannelReference, direction: VideoStepDirection) -> f64 {
     let MediaEditResult::Video { snapshot } = edit(
         engine,
         MediaEdit::Video {
