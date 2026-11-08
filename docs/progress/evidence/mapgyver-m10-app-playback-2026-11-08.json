@@ -1,0 +1,55 @@
+{
+	"date": "2026-11-08",
+	"gate": "M10/1 Active; actual-app software playback slice verified, complete gate open",
+	"progress": { "accepted": 83, "total": 102, "percent": 81, "m10_accepted": 0, "m10_total": 4 },
+	"batch": { "started_utc": "21:57", "cutoff_utc": "22:42" },
+	"deliverable": "A repeatable bundled-app scenario verifies common-codec File/transport/step controls, native Media Preview installation, independent composited Screen pixels, shared Reference playback and project replacement/reload through the ordinary host.",
+	"fixture": "apps/mapgyver/tests/browser/native-video-playback.mjs",
+	"build": {
+		"command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 rustc --locked -p MapGyver --features video-files --bin MapGyver -- -C extra-filename=-m10-playback",
+		"exit": 0,
+		"source_base": "f5f607b52aacf493098189dadf36eca0ed3ffab9",
+		"binary": "target/debug/deps/MapGyver-m10-playback.exe",
+		"binary_sha256": "827fbe847ed078de183feacfd56de7c897d6387317ea015af35ffdc016d0f527",
+		"configuration": "Pinned FFmpeg DLL directory supplied on PATH; isolated temporary app-data/WebView profile. Existing concurrent user build/style changes were preserved. No runtime source change in this slice.",
+		"prerequisites": "Current-feature app build terminal success inspected before the native scenario. Prior source-status milestone software/strict/generated-contract results remain valid for unchanged Rust/UI sources. New JavaScript passes syntax and repository Prettier checks; root and golden_core Cargo formatting completed."
+	},
+	"native": {
+		"command": "node apps/mapgyver/tests/browser/native-video-playback.mjs target/mapgyver-m10-app-playback-final-20261108",
+		"exit": 0,
+		"pid": 23960,
+		"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+		"adapter": "dxgi:00000000:90b3a15f",
+		"normal_shutdown": true,
+		"page_errors": 0,
+		"ui_requests": 608,
+		"ui_receipts": 608,
+		"rejected_ui_receipts": 0,
+		"codecs": [
+			{ "file": "h264.mp4", "format": "H.264 yuv420p BT.709 SDR, 24 FPS", "next_frame_ms": 41.666667 },
+			{ "file": "hevc.mp4", "format": "H.265 yuv420p BT.709 SDR, 30000/1001 FPS", "next_frame_ms": 33.366667 },
+			{ "file": "prores.mov", "format": "ProRes yuv422p10le BT.709 SDR, 25 FPS", "next_frame_ms": 40 }
+		],
+		"per_codec": "Real generic Inspector File write; default Paused/zero/rate1/Loop-off; UI Play to EOF; final-frame hold; UI Stop to frame0; UI time-field seek125ms; Undo and Redo; UI Next/Previous exact timestamp stepping; native Media Preview available/installed. Eight physical Screen checkpoints per codec,24 total.",
+		"reference": "Resolve the Reference's own published channel with InspectChannels and verify its canonical target. Its Screen mirrors a shared125ms seek; half-rate looping changes physical output pixels, Pause freezes the timeline, and the repeated125ms seek is exact. No independent Reference transport is created.",
+		"project": "Save Paused/125ms/rate0.5/Loop-on, New retires the old native output, Load restores exact authored settings and decodes the File automatically. The Reference Screen again shows frame3. Three more physical checkpoints,27 total.",
+		"pixels": {
+			"observer": "Existing read-only native_output/window_state.py observes only the owned PID's native output HWND, physical client bounds and composited5x5 center pixels; no window activation or system manipulation.",
+			"bounds": { "left": 2640, "top": 120, "width": 320, "height": 240 },
+			"oracle": "Fixture generator authors limited-range Y=32+24*N. Decode actual display sRGB values to linear and compare with the independent BT.709 inverse-transfer reference, using the existing4/255 linear component budget.",
+			"linear_tolerance": 0.01568627450980392,
+			"max_observed_linear_error": 0.014453917013954043,
+			"h264_hevc_rgb": { "frame0": [28, 34, 34], "frame1": [59, 61, 61], "frame3": [113, 115, 115], "frame5": [165, 167, 167] },
+			"prores_rgb": { "frame0": [28, 28, 28], "frame1": [61, 61, 61], "frame3": [114, 114, 114], "frame5": [165, 165, 165] }
+		},
+		"raw_report": "target/mapgyver-m10-app-playback-final-20261108/video-playback.json",
+		"raw_report_sha256": "71b3c798a5047b2abb6e56ddf8309faeb36f8c4e04638bcc435ceadd87d1ede1"
+	},
+	"retained_failed_attempts": [
+		"Initial fixture startup called native control during WebView navigation and failed before playback. Wait for the owned app URL and Medias tab now fences that precondition.",
+		"First playback run rejected frame0 RGB[28,34,34] against a new5/255 display-encoded tolerance. That metric was inconsistent with the existing linear4/255 contract. The fixture now compares in linear space; runtime, original budget and codec fixtures are unchanged. Original failure retained under target/mapgyver-m10-app-playback-run1-20261108.",
+		"The corrected pixel run passed all24 codec/UI checkpoints, then the fixture incorrectly combined a Reference media ID with its source channel ID. The backend truthfully rejected channel belongs to another media. The fixture now reads the Reference's own published channel through the existing public API. Original failure retained under target/mapgyver-m10-app-playback-run2-20261108."
+	],
+	"limits": "Tiny six-frame SDR clips on one actual-app GPU, with separate earlier both-GPU Golden frame proofs. Media Preview installation is observed through its real DOM/native status; its physical panel pixels and continuous scanout/cadence are not claimed. This is neither full caller/history/copy parity nor full profile/color/alpha, hardware decode, default redistribution, sustained1080p/4K/resource, device recovery or complete M10 acceptance.",
+	"next": "Implement supported GPU-resident D3D11 hardware frames at the Golden decode/native boundary and retain explicit software fallback. Finish remaining M10/1 profile/color/alpha and full caller/history/project/copy coverage, then HAP and bundled first-pass qualification before M14. Exactly M10/1 remains Active."
+}

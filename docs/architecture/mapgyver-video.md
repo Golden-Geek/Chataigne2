@@ -142,7 +142,14 @@ powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 run --locked -
 ```
 
 The host binds these file sources to the existing Media Preview, Composition, Matrix and
-Screen render graph. Default feature/redistribution wiring, actual-app visual qualification,
-complete profile/color/alpha coverage,
+Screen render graph. `tests/browser/native-video-playback.mjs` verifies the bundled app's real
+File/Playback/Seek and frame-step controls, Undo/Redo, native preview installation, Reference
+transport and save/New/load recovery. The existing read-only Screen observer compares physical
+pixels with the fixture's independent BT.709 reference in linear space. It runs with an isolated
+profile, `MAPGYVER_TEST_BINARY` pointing to the current `video-files` app, and the pinned FFmpeg
+DLL directory on `PATH`. Tiny clips establish functional checkpoints, not sustained playback or
+physical panel/cadence qualification.
+
+Default feature/redistribution wiring, broader actual-app visual qualification, complete profile/color/alpha coverage,
 GPU-resident D3D11 hardware frames, HAP and sustained recovery/resource/performance acceptance
 remain required by M10. The implemented software path does not close a codec acceptance gate.
