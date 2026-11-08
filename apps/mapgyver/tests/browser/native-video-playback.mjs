@@ -10,7 +10,28 @@ import { observeNativeRejectedRequests } from './intent-observer.mjs';
 
 const directory = path.resolve(process.argv[2] ?? `target/mapgyver-video-app-${Date.now()}`);
 await mkdir(directory, { recursive: true });
-const native = await openNativeEditor();
+const selectedAdapter = process.env.MAPGYVER_VIDEO_ADAPTER;
+if (selectedAdapter) assert(/^dxgi:[0-9a-f]{8}:[0-9a-f]{8}$/.test(selectedAdapter));
+const native = await openNativeEditor({
+	prepareProfile: selectedAdapter
+		? async (root) => {
+				const preferences = path.join(root, 'MapGyver');
+				await mkdir(preferences, { recursive: true });
+				execFileSync(
+					path.resolve('target/debug/native_qualification-m1110.exe'),
+					[
+						'--role',
+						'gpu-preferences',
+						'--file',
+						path.join(preferences, 'preferences.json'),
+						'--selected',
+						selectedAdapter
+					],
+					{ windowsHide: true }
+				);
+			}
+		: undefined
+});
 const { page } = native;
 let playbackLog = '';
 for (const stream of [native.app.stdout, native.app.stderr]) {
@@ -104,17 +125,23 @@ function windows() {
 		)
 	);
 }
-function expectedLinearGray(index) {
-	// Independent oracle: generator Y=32+24*N, limited-range BT.709, SDR display sRGB.
-	const encoded = (16 + index * 24) / 219;
-	return encoded < 0.081 ? encoded / 4.5 : ((encoded + 0.099) / 1.099) ** (1 / 0.45);
+function expectedLinear(index, profile = 'gray') {
+	// Independent generator YUV/matrix/transfer/straight-alpha oracle, over black.
+	const y = (16 + index * 24) / 219;
+	const cb = profile === 'gray' ? 0 : -32 / 224;
+	const cr = profile === 'gray' ? 0 : 32 / 224;
+	const alpha = profile === 'alpha' ? Math.min(1, (index * 256) / 1023) : 1;
+	return [y + 1.5748 * cr, y - 0.187324 * cb - 0.468124 * cr, y + 1.8556 * cb].map((value) => {
+		const encoded = Math.max(0, Math.min(1, value));
+		return alpha * (encoded < 0.081 ? encoded / 4.5 : ((encoded + 0.099) / 1.099) ** (1 / 0.45));
+	});
 }
 function displayLinear(value) {
 	const encoded = value / 255;
 	return encoded <= 0.04045 ? encoded / 12.92 : ((encoded + 0.055) / 1.055) ** 2.4;
 }
-async function pixels(phase, index) {
-	const expected = expectedLinearGray(index);
+async function pixels(phase, index, profile = 'gray') {
+	const expected = expectedLinear(index, profile);
 	const found = await wait(
 		async () => windows(),
 		(all) =>
@@ -123,7 +150,7 @@ async function pixels(phase, index) {
 			!all[0].minimized &&
 			all[0].center_rgb.length &&
 			all[0].center_rgb.every((rgb) =>
-				rgb.every((v) => Math.abs(displayLinear(v) - expected) <= 4 / 255)
+				rgb.every((v, component) => Math.abs(displayLinear(v) - expected[component]) <= 4 / 255)
 			),
 		phase
 	);
@@ -155,6 +182,7 @@ try {
 		'native renderer'
 	);
 	const displays = await control({ kind: 'mapgyverDisplays', refresh: true });
+	if (selectedAdapter) assert.equal(runtime.gpu_adapter, selectedAdapter);
 	assert(displays.displays.length >= 2, 'Physical Screen check uses the external display');
 	const display = displays.displays.find((display) => !display.primary) ?? displays.displays[1];
 	const created = await edit(
@@ -178,12 +206,16 @@ try {
 		'screens'
 	);
 	const codecs = [];
-	for (const [name, rate] of [
+	for (const [name, rate, profile = 'gray'] of [
 		['h264.mp4', 24],
 		['hevc.mp4', 30000 / 1001],
 		['hevc-main.mp4', 30000 / 1001],
-		['prores.mov', 25]
+		['prores.mov', 25],
+		['h264-color.mp4', 24, 'color'],
+		['hevc-main10.mp4', 30000 / 1001, 'color'],
+		['prores-alpha.mov', 25, 'alpha']
 	]) {
+		const checkPixels = (phase, index) => pixels(phase, index, profile);
 		const label = `Video integration ${name}`;
 		const { reference } = await edit({ kind: 'CreateMedia', media_kind: 'Video', label });
 		await select(label);
@@ -207,7 +239,7 @@ try {
 			(value) => value.state === 'Ready',
 			`${name} decoded`
 		);
-		await pixels(`${name} initial`, 0);
+		await checkPixels(`${name} initial`, 0);
 		await parameter('Playback').locator('select').selectOption('Playing');
 		await wait(
 			() => state(reference.media),
@@ -219,14 +251,14 @@ try {
 			(value) => !value.playing,
 			`${name} EOF`
 		);
-		await pixels(`${name} EOF hold`, 5);
+		await checkPixels(`${name} EOF hold`, 5);
 		await parameter('Playback').locator('select').selectOption('Stopped');
 		await wait(
 			() => state(reference.media),
 			(value) => value.settings.mode === 'Stopped' && value.position_ms === 0,
 			`${name} UI Stop`
 		);
-		await pixels(`${name} Stop`, 0);
+		await checkPixels(`${name} Stop`, 0);
 		const seekInput = parameter('Seek to').locator('input.time-field');
 		await seekInput.fill('00:00:00.125');
 		await seekInput.press('Enter');
@@ -235,21 +267,21 @@ try {
 			(value) => value.settings.position_ms === 125 && value.settings.mode === 'Paused',
 			`${name} UI seek`
 		);
-		await pixels(`${name} UI seek`, Math.floor(0.125 * rate));
+		await checkPixels(`${name} UI seek`, Math.floor(0.125 * rate));
 		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 		await wait(
 			() => state(reference.media),
 			(value) => value.settings.position_ms === 0,
 			`${name} Undo seek`
 		);
-		await pixels(`${name} Undo seek`, 0);
+		await checkPixels(`${name} Undo seek`, 0);
 		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 		await wait(
 			() => state(reference.media),
 			(value) => value.settings.position_ms === 125,
 			`${name} Redo seek`
 		);
-		await pixels(`${name} Redo seek`, Math.floor(0.125 * rate));
+		await checkPixels(`${name} Redo seek`, Math.floor(0.125 * rate));
 		await transport(reference.media, { kind: 'Stop' });
 		await wait(
 			() => frame(reference),
@@ -263,7 +295,7 @@ try {
 			`${name} UI Next`
 		);
 		assert(Math.abs(stepped.settings.position_ms - 1000 / rate) < 0.002);
-		await pixels(`${name} UI Next`, 1);
+		await checkPixels(`${name} UI Next`, 1);
 		await wait(
 			() => frame(reference),
 			(value) => value?.previous_ready,
@@ -275,7 +307,7 @@ try {
 			(value) => value.settings.position_ms === 0,
 			`${name} UI Previous`
 		);
-		await pixels(`${name} UI Previous`, 0);
+		await checkPixels(`${name} UI Previous`, 0);
 		await tab('Media Preview').click();
 		await page
 			.locator(
@@ -283,8 +315,73 @@ try {
 					'[data-preview-installed="true"]'
 			)
 			.waitFor();
-		codecs.push({ name, rate, reference, steppedTimestampMs: stepped.settings.position_ms });
+		codecs.push({
+			name,
+			rate,
+			profile,
+			reference,
+			steppedTimestampMs: stepped.settings.position_ms
+		});
 	}
+	const alpha = codecs.find((codec) => codec.profile === 'alpha').reference;
+	const { reference: composition } = await edit({
+		kind: 'CreateMedia',
+		media_kind: 'Composition',
+		label: 'Video alpha composition'
+	});
+	const dropped = await edit({
+		kind: 'Composition',
+		reference: composition,
+		edit: {
+			kind: 'DropSource',
+			source: alpha.media,
+			instance: null,
+			copy: true,
+			position: { x: 960, y: 540 }
+		}
+	});
+	const copied = (
+		await edit({
+			kind: 'InspectChannels',
+			query: { media: dropped.instances[0].instance, start: 0, count: 1 }
+		})
+	).page.channels[0].reference;
+	assert.notEqual(copied.media, alpha.media);
+	assert.equal((await state(copied.media)).settings.position_ms, 0);
+	await route(composition);
+	await wait(
+		() => sourceState(copied),
+		(value) => value.state === 'Ready',
+		'copied alpha File'
+	);
+	await transport(copied.media, { kind: 'Seek', position_ms: 40 });
+	await pixels('Composition independent alpha copy', 1, 'alpha');
+	assert.equal((await state(alpha.media)).position_ms, 0, 'copy owns an independent clock');
+	const matrix = (
+		await edit({ kind: 'CreateMedia', media_kind: 'Matrix', label: 'Video matrix route' })
+	).reference;
+	const matrixEdit = (operation) => edit({ kind: 'Matrix', media: matrix.media, edit: operation });
+	const matrixState = (await matrixEdit({ kind: 'Inspect' })).snapshot;
+	const row = matrixState.items.find((item) => item.id.kind === 'Layer').id.id;
+	const column = matrixState.columns[0].id;
+	await matrixEdit({ kind: 'DropSource', layer: row, column, source: alpha.media, copy: false });
+	await matrixEdit({
+		kind: 'ConfigureCell',
+		layer: row,
+		column,
+		settings: {
+			position: [0, 0],
+			size: { width: 1920, height: 1080 },
+			fit_mode: 'Fit',
+			opacity: 1,
+			enabled: true
+		}
+	});
+	await matrixEdit({ kind: 'LaunchColumn', column, mode: 'Cut' });
+	await transport(alpha.media, { kind: 'Seek', position_ms: 120 });
+	await route(matrix);
+	await pixels('Matrix shared alpha source', 3, 'alpha');
+	const routing = { composition, copied, matrix, alpha };
 	const first = codecs[0].reference;
 	const { media: mirror } = await edit({
 		kind: 'CreateReference',
@@ -317,6 +414,25 @@ try {
 	await delay(100);
 	assert.equal((await state(first.media)).position_ms, paused.position_ms);
 	await seek(first, 125, 3, 'Reference paused exact seek');
+	const variant = (
+		await edit({ kind: 'AddChannel', media: first.media, label: 'Shorter mixed-rate HEVC10' })
+	).reference;
+	await edit({
+		kind: 'ConfigureVideoFile',
+		reference: variant,
+		file: path.join(fixtures, 'hevc-main10.mp4')
+	});
+	await route(variant);
+	await wait(
+		() => sourceState(variant),
+		(value) => value.state === 'Ready',
+		'shorter mixed-rate variant'
+	);
+	await transport(first.media, { kind: 'Seek', position_ms: 230 });
+	await pixels('Shorter mixed-rate variant holds final frame', 5, 'color');
+	assert.equal((await state(first.media)).position_ms, 230);
+	await route(mirrored[0].reference);
+	await seek(first, 125, 3, 'Longer shared-clock Reference after variant hold');
 	const project = path.join(native.directory, 'video-playback.mapgyver');
 	assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
 	assert.equal((await post('/api/ui/project-new', {})).ok, true);
@@ -338,6 +454,12 @@ try {
 		looping: true
 	});
 	await pixels('Loaded Reference output', 3);
+	assert.equal((await state(copied.media)).settings.position_ms, 40);
+	await route(composition);
+	await pixels('Loaded Composition independent alpha copy', 1, 'alpha');
+	await matrixEdit({ kind: 'LaunchColumn', column, mode: 'Cut' });
+	await route(matrix);
+	await pixels('Loaded Matrix shared alpha source', 3, 'alpha');
 	assert.deepEqual(errors, []);
 	assert.deepEqual(rejected, []);
 	report = {
@@ -346,6 +468,8 @@ try {
 		adapter: runtime.gpu_adapter,
 		gpu: runtime.gpu,
 		codecs,
+		routing,
+		mixedRateVariant: variant,
 		observations,
 		moving,
 		pageErrors: errors,
@@ -355,7 +479,7 @@ try {
 		backendEvents: playbackLog.split(/\r?\n/).filter((line) => line.includes('[mapgyver-video]')),
 		normalShutdown: false,
 		scope:
-			'SDR common-codec clips including 1080p HEVC Main through actual app controls and physical Screen pixels; backend events distinguish hardware publication from explicit software fallback. Not sustained performance or all profile/color/alpha qualification'
+			'Seven SDR common-codec profiles, chromatic 8/10-bit and ProRes4444 alpha, exact controls, independent Composition copy and shared Matrix/Reference routing with project reload. Backend events distinguish hardware from software fallback. Not sustained performance, arbitrary HDR/profile support or combined device recovery'
 	};
 } catch (error) {
 	await writeFile(

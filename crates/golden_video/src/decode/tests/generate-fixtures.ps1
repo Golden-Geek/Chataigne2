@@ -7,6 +7,11 @@ foreach ($taskCase in @(
     @{ Name = 'h264.mp4'; Rate = '24'; Codec = 'libx264'; Options = @('-crf', '12', '-bf', '2', '-g', '12'); Pixel = 'yuv420p' },
     @{ Name = 'h264-keyframes.mp4'; Rate = '24'; Codec = 'libx264'; Options = @('-crf', '12', '-bf', '2', '-g', '4', '-keyint_min', '4', '-sc_threshold', '0'); Pixel = 'yuv420p'; Frames = 12; Luma = '32+16*N' },
     @{
+        Name = 'h264-color.mp4'; Rate = '24'; Size = '1920x1080'; Codec = 'libx264'
+        Options = @('-profile:v', 'high', '-level:v', '4.0', '-crf', '12', '-bf', '2', '-g', '12')
+        Pixel = 'yuv420p'; Cb = 96; Cr = 160; Tagged = $true
+    },
+    @{
         Name = 'h264-bt2020.mp4'; Rate = '24'; Codec = 'libx264'
         Options = @('-crf', '12'); Pixel = 'yuv420p'
         Space = 'bt2020nc'; Transfer = 'bt2020-10'; Primaries = 'bt2020'
@@ -23,7 +28,17 @@ foreach ($taskCase in @(
         Options = @('-x265-params', 'crf=12:bframes=2:level-idc=4:high-tier=0:log-level=error:pools=none:frame-threads=1')
         Pixel = 'yuv420p'
     },
-    @{ Name = 'prores.mov'; Rate = '25'; Codec = 'prores_ks'; Options = @('-profile:v', '3'); Pixel = 'yuv422p10le' }
+    @{
+        Name = 'hevc-main10.mp4'; Rate = '30000/1001'; Size = '1920x1080'; Codec = 'libx265'
+        Options = @('-profile:v', 'main10', '-x265-params', 'crf=12:bframes=2:level-idc=4:high-tier=0:log-level=error:pools=none:frame-threads=1')
+        Pixel = 'yuv420p10le'; Cb = 96; Cr = 160; Tagged = $true
+    },
+    @{ Name = 'prores.mov'; Rate = '25'; Codec = 'prores_ks'; Options = @('-profile:v', '3'); Pixel = 'yuv422p10le' },
+    @{
+        Name = 'prores-alpha.mov'; Rate = '25'; Codec = 'prores_ks'
+        Options = @('-profile:v', '4', '-alpha_bits', '16'); Pixel = 'yuva444p10le'; Tagged = $true
+        Filter = "nullsrc=s=64x48:r=25,format=yuva444p10le,geq=lum='128+96*N':cb=384:cr=640:a='min(1023,256*N)'"
+    }
 )) {
     if ($Only.Count -and $Only -notcontains $taskCase.Name) { continue }
     $taskOptions = $taskCase.Options
@@ -34,9 +49,18 @@ foreach ($taskCase in @(
     $taskTransfer = if ($taskCase.ContainsKey('Transfer')) { $taskCase.Transfer } else { 'bt709' }
     $taskPrimaries = if ($taskCase.ContainsKey('Primaries')) { $taskCase.Primaries } else { 'bt709' }
     $taskMetadata = if ($taskCase.ContainsKey('Bitstream')) { @('-bsf:v', $taskCase.Bitstream) } else { @() }
+    $taskCb = if ($taskCase.ContainsKey('Cb')) { $taskCase.Cb } else { 128 }
+    $taskCr = if ($taskCase.ContainsKey('Cr')) { $taskCase.Cr } else { 128 }
+    $taskFilter = if ($taskCase.ContainsKey('Filter')) { $taskCase.Filter } else {
+        "nullsrc=s=${taskSize}:r=$($taskCase.Rate),geq=lum='$taskLuma':cb=${taskCb}:cr=${taskCr}"
+    }
+    if ($taskCase.Tagged) {
+        # Declare generated YUV before encoder negotiation; avoid an implicit 601-to-709 conversion.
+        $taskFilter += ",setparams=range=limited:color_primaries=${taskPrimaries}:color_trc=${taskTransfer}:colorspace=${taskSpace}"
+    }
     $taskArguments = @(
         '-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i',
-        "nullsrc=s=${taskSize}:r=$($taskCase.Rate),geq=lum='$taskLuma':cb=128:cr=128",
+        $taskFilter,
         '-frames:v', $taskFrames, '-an', '-c:v', $taskCase.Codec
     ) + $taskOptions + @(
         '-pix_fmt', $taskCase.Pixel, '-color_range', 'tv', '-colorspace', $taskSpace,

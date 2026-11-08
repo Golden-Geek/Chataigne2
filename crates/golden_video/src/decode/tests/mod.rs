@@ -1,4 +1,5 @@
 use super::*;
+mod profiles;
 
 fn limits() -> DecodeLimits {
     DecodeLimits {

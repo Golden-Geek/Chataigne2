@@ -22,8 +22,8 @@ It also reserves a 16 MiB MSVC main-thread stack for helper-built executables: o
 binding generation with the Windows headers exhausted the default reserve. Existing Rust
 flags are preserved, including Cargo's encoded form, and restored after Cargo exits.
 
-The initial public `decode::SoftwareDecoder` retains original presentation timestamps and
-reference-counted software planes, including pixel format and color metadata. It enforces
+The public `decode::Decoder` retains original presentation timestamps and explicit software
+or D3D11 frame storage, including pixel format and color metadata. It enforces
 explicit image/packet/work bounds, drains delayed codec frames and propagates demux failures.
 It makes no implicit color conversion or GPU readback. Its limits do not claim to cap all
 third-party temporary allocations; queue admission and cancellation belong to the owning worker.
@@ -33,8 +33,9 @@ decoder can seek in original stream timestamps with fresh codec state. Typed con
 public callers are wired. The `video-files` app feature now connects bounded local-file workers
 to timestamp sampling, explicit software SDR conversion through pinned libswscale and reusable
 native texture uploads. Missing-file retry and consumer/observer retirement are covered by
-app tests. Selected-channel step commits, complete authored-variant metadata, broader color/
-profile coverage and GPU-resident D3D11 frames remain required. See the
+app tests. Selected-channel step commits, complete authored-variant metadata and GPU-resident
+D3D11 frames are implemented. The native host selects its exact adapter and retains pool/bridge
+admission across seeks and observers, with explicit software fallback. See the
 [Video ownership](../../../docs/architecture/mapgyver-video.md) for the current integration boundary.
 M10/4 owns final DLL packaging, dependency notices, corresponding-source delivery and sustained
 actual-app qualification. No release or deployment is performed by the preparation helper.
