@@ -38,8 +38,14 @@ before writing the same real Parameter. Its ordinary backend companion proposal 
 default Channel and one history item. Explicit Cell operations retain their separate nested
 source/cycle policy. Golden owns the reusable paged menu, loading/error presentation and read
 lifetime fencing; no app types or defaults enter Golden. Metadata-only reads avoid loading
-choices for closed controls. This UI implementation does not by itself accept M13/14's
-remaining interaction/native qualification.
+choices for closed controls. The [M13/14 acceptance audit](../progress/evidence/mapgyver-m13-targeting-acceptance-2026-11-08.json)
+owns the complete caller/browser/history/project, large-catalog and both-GPU routing/sharing
+proof. Other desktop, timing and production qualification remains separate.
+
+Picker reads return an absent page when history or Cell replacement has removed the queried
+Parameter. Reads may already be in flight before the Inspector receives that removal; this
+ordinary absence must not produce a rejected mutation receipt. Selection still requires a
+live, eligible Parameter and target. Rust generates the nullable result for every UI consumer.
 
 Playback qualification follows Golden's normal load lifecycle: activate a decoded engine with
 `prepare_engine_for_runtime` before launching or capturing it. A decoded candidate still has

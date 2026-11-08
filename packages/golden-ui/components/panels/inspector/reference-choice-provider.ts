@@ -24,7 +24,7 @@ export interface ReferenceChoiceProvider {
 		session: WorkbenchSession,
 		node: UiNodeDto,
 		request: ReferenceChoiceRequest
-	): Promise<ReferenceChoicePage>;
+	): Promise<ReferenceChoicePage | null>;
 	select(session: WorkbenchSession, node: UiNodeDto, key: string | null): Promise<void>;
 	revision?(session: WorkbenchSession): unknown;
 }

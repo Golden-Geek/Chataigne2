@@ -1,7 +1,8 @@
 {
 	"date": "2026-11-08",
 	"gate": "M13/14",
-	"status": "Reference v4 backend functionally verified; subsequent picker milestone completes mixed native acceptance; full M13/14 remains open",
+	"status": "Backend checkpoint; subsequent complete targeting audit accepts M13/14",
+	"subsequent_acceptance": "mapgyver-m13-targeting-acceptance-2026-11-08.json accepts the complete original gate. The backend, scale and earlier failed native receipts below preserve their original scope; the picker milestone records the subsequent passing162-image mixed native run.",
 	"batch": {
 		"started_utc": "2026-11-07 23:17",
 		"cutoff_utc": "2026-11-08 00:02",

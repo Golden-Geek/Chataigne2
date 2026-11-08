@@ -32,6 +32,7 @@ export function registerMediaTargetPicker() {
 			});
 			if (result.kind !== 'TargetPicker') throw new Error('Unexpected target picker result');
 			const page = result.page;
+			if (!page) return null;
 			return {
 				name: page.location,
 				location: page.folder,

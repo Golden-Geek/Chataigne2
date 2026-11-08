@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 import { observeNativeRejectedRequests } from './intent-observer.mjs';
+import { screenParameterControls } from './screen-parameters.mjs';
 
 export async function verifyMatrixOutputExposure({ page, edit, post }) {
 	const errors = [];
@@ -55,6 +56,15 @@ export async function verifyMatrixOutputExposure({ page, edit, post }) {
 		target: reference.media,
 		label: 'Exposed Reference'
 	});
+	const controls = screenParameterControls(page);
+	const output = (await channels(alias)).channels[0].reference;
+	assert.notEqual(output.channel, reference.channel, 'Reference owns its independent output');
+	async function selected() {
+		const result = await channels(alias);
+		assert.equal(result.total, 1, 'Reference never mirrors producer channels');
+		assert.deepEqual(result.channels[0].reference, output);
+		return result.channels[0].definition.source.target;
+	}
 	const parameter = (label) =>
 		page.locator('.parameter-inspector').filter({ has: page.getByText(label, { exact: true }) });
 	for (const item of [
@@ -91,16 +101,20 @@ export async function verifyMatrixOutputExposure({ page, edit, post }) {
 				(channel) => channel.reference.channel === item.channel.channel
 			)
 		);
-		assert.equal((await channels(alias)).total, 2);
 		await selectMedia('Exposed Reference');
 		await wait(
 			() => page.locator('.reference-channels').getAttribute('data-channel-count'),
-			(count) => count === '2'
+			(count) => count === '1'
 		);
 		assert.equal(
-			await page.getByRole('list', { name: 'Mirrored channels' }).getByRole('listitem').count(),
-			2
+			await page.getByRole('list', { name: 'Reference output' }).getByRole('listitem').count(),
+			1
 		);
+		const producerChannel = (await channels()).channels.find(
+			(channel) => channel.reference.channel === item.channel.channel
+		);
+		await controls.reference('Channel', producerChannel.label, producerChannel.label);
+		await wait(selected, (source) => source?.channel === item.channel.channel);
 		await selectMedia('Exposed Matrix');
 		await page
 			.getByRole('tab')
@@ -110,16 +124,39 @@ export async function verifyMatrixOutputExposure({ page, edit, post }) {
 		await expose.uncheck();
 		await wait(channels, (value) => value.total === 1);
 		assert.equal((await channels(alias)).total, 1);
+		assert.equal(
+			(await selected()).channel,
+			item.channel.channel,
+			'Hiding preserves explicit choice'
+		);
+		await selectMedia('Exposed Reference');
+		await controls
+			.parameter('Channel')
+			.getByText(/unavailable/)
+			.waitFor();
+		await controls.parameter('Channel').locator('button.choice-trigger').click();
+		await page
+			.getByRole('menuitem', { name: (await channels()).channels[0].label, exact: true })
+			.waitFor();
+		assert.equal(
+			await page.getByRole('menuitem', { name: producerChannel.label, exact: true }).count(),
+			0
+		);
+		await page.keyboard.press('Escape');
 		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 		await wait(channels, (value) => value.total === 2);
-		assert.equal(
-			(await channels(alias)).channels.some(
-				(channel) => channel.reference.channel === item.channel.channel
-			),
-			true
+		await wait(
+			() => channels(alias),
+			(value) => value.status === 'Ready'
 		);
+		assert.equal((await selected()).channel, item.channel.channel);
 		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 		await wait(channels, (value) => value.total === 1);
+		await controls
+			.parameter('Channel')
+			.getByText(/unavailable/)
+			.waitFor();
+		await page.getByRole('list', { name: 'Reference output' }).getByRole('listitem').waitFor();
 		assert.equal(
 			(await inspect()).items.find((row) => row.id.id === item.id.id).channel.channel,
 			item.channel.channel
@@ -131,7 +168,7 @@ export async function verifyMatrixOutputExposure({ page, edit, post }) {
 		JSON.stringify({
 			result: 'pass',
 			scope:
-				'Actual generic Inspector default/toggled Layer and Group exposure, Blend Mode, backend and Reference discovery, stable output identities and Undo/Redo'
+				'Actual generic Inspector default/toggled Layer and Group exposure, Blend Mode, bounded Channel discovery, stable Reference output identity, explicit hidden/recovered selection and Undo/Redo'
 		})
 	);
 }

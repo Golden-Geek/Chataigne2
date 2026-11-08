@@ -42,6 +42,43 @@ fn choose(engine: &mut AppEngine, parameter: NodeUuid, target: Option<NodeUuid>)
 }
 
 #[test]
+fn removed_parameter_reads_are_absent_while_selection_writes_still_reject() {
+    let mut engine = fixture();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    let (media, parameter, _) = reference(&mut engine, Some(source.media));
+    apply(&mut engine, MediaEdit::RemoveMedia { media });
+    let history = engine.ui_history_state();
+    let operation = MediaEdit::InspectTargetPicker {
+        query: query(parameter),
+    };
+    let result = AppNode::query_app_operation(
+        &engine,
+        MEDIA_NAMESPACE,
+        MEDIA_OPERATION,
+        &serde_json::to_value(&operation).unwrap(),
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(result, serde_json::json!({ "kind": "TargetPicker", "page": null }));
+    let ack = invoke(&mut engine, operation);
+    assert!(ack.success);
+    assert_eq!(ack.result.unwrap().value, result);
+    assert!(
+        !invoke(
+            &mut engine,
+            MediaEdit::SelectTargetPickerChoice {
+                parameter,
+                target: Some(source.media.0),
+            }
+        )
+        .success
+    );
+    assert_eq!(engine.ui_history_state(), history);
+    assert!(engine.undo().unwrap());
+    assert!(read(&engine, query(parameter)).unwrap().is_some());
+}
+
+#[test]
 fn media_browse_is_catalog_only_and_current_nested_binding_does_not_open_its_hierarchy() {
     let mut engine = fixture();
     let source = create(&mut engine, MediaKind::SolidColor);

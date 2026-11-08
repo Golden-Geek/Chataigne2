@@ -26,6 +26,17 @@ export function screenParameterControls(page) {
 		await input.press('Enter');
 	}
 	async function reference(label, search, target) {
+		const bounded = parameter(label).locator('button.choice-trigger');
+		if (await bounded.count()) {
+			await bounded.click();
+			await page
+				.getByRole('menuitem', {
+					name: new RegExp(`^${RegExp.escape(target)}(?:\\s|$)`)
+				})
+				.click();
+			await bounded.waitFor({ state: 'visible' });
+			return;
+		}
 		await parameter(label).locator('button.picker-trigger').click();
 		const picker = page.getByRole('dialog', { name: 'Select reference target', exact: true });
 		await picker.locator('input.picker-search').fill(search);

@@ -475,7 +475,7 @@ pub struct PictureFileBinding {
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
     TargetPicker {
-        page: TargetPickerPage,
+        page: Option<TargetPickerPage>,
     },
     PictureFile {
         binding: Option<PictureFileBinding>,

@@ -745,6 +745,8 @@
 {#if renderedOpen && anchor && rootItems.length > 0}
 	<div
 		class={`gc-context-menu-layer ${closing ? 'is-closing' : ''} ${className}`}
+		aria-hidden={closing}
+		inert={closing}
 		style={`--gc-context-menu-z:${zIndex};`}
 		{@attach captureMenuLayerNode}
 		{@attach portalMenuLayer}>

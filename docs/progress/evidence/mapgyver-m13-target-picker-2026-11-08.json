@@ -1,7 +1,8 @@
 {
 	"date": "2026-11-08",
 	"gate": "M13/14",
-	"status": "Bounded targeting functionally verified; retained mixed native subrequirement passes; full gate remains Active",
+	"status": "Functional checkpoint; subsequent complete audit accepts M13/14",
+	"subsequent_acceptance": "mapgyver-m13-targeting-acceptance-2026-11-08.json closes the retained browser scopes, fixes absent-Parameter reads and shared closing-menu accessibility, and verifies all original M13/14 requirements. Results below preserve this milestone's original scope and then-open requirements.",
 	"ownership": {
 		"backend": "apps/mapgyver/src/media/target_picker owns generated query DTOs, actual typed Parameter identity, catalog ancestry, exposed Channel membership and validated selection. Ordinary backend companion proposals own default Channel and atomic history.",
 		"ui": "Golden UI's public registerReferenceChoiceProvider owns the shared Inspector menu and EditorReadQueue lifetime. MapGyver maps its generated protocol to presentation models and registers exact Surface/Reference Parameter owners.",

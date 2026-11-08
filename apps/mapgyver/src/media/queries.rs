@@ -34,7 +34,7 @@ pub(crate) fn query_operation(engine: &AppEngine, operation: &str, payload: &Val
     };
     let result = match edit {
         MediaEdit::InspectTargetPicker { query } => {
-            super::target_picker::inspect(engine, query).map(|page| MediaEditResult::TargetPicker { page })
+            super::target_picker::read(engine, query).map(|page| MediaEditResult::TargetPicker { page })
         }
         MediaEdit::InspectPictureFile { reference } => {
             super::picture_file::inspect(engine, reference).map(|binding| MediaEditResult::PictureFile { binding })

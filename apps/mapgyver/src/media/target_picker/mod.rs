@@ -120,6 +120,15 @@ fn current(engine: &AppEngine, binding: &Binding) -> Option<TargetPickerCurrent>
     })
 }
 
+/// Inspector reads may arrive after history/project replacement removed their Parameter.
+/// A missing read target is ordinary absence; selection writes still require a live binding.
+pub(super) fn read(engine: &AppEngine, query: TargetPickerQuery) -> Result<Option<TargetPickerPage>, String> {
+    if engine.node_id_by_uuid(query.parameter).is_none() {
+        return Ok(None);
+    }
+    inspect(engine, query).map(Some)
+}
+
 pub(super) fn inspect(engine: &AppEngine, query: TargetPickerQuery) -> Result<TargetPickerPage, String> {
     if query.limit > 64 {
         return Err("Target picker pages admit at most64 choices".into());

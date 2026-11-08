@@ -1,0 +1,53 @@
+{
+	"date": "2026-11-08",
+	"gate": "M13/14",
+	"status": "Accepted",
+	"progress": {
+		"verified": 80,
+		"total": 92,
+		"overall_percent": 87,
+		"m13_verified": 11,
+		"m13_total": 14,
+		"m13_percent": 79,
+		"completed_phases": 7,
+		"total_phases": 14
+	},
+	"calculation": "One fixed gate closes:79 to80 of92, rounded87%; M13 10 to11 of14, rounded79%. Phase completion remains7/14(50%). No denominator or budget change.",
+	"capability": "Surface and Reference use the same generic Golden Inspector Media catalog menu followed by a dependent Channel dropdown. Backend policy chooses the first Channel atomically; explicit selections retain identity through rename/reorder and missing/recovery. Reference has one stable identity-only output without another renderer/decoder.",
+	"requirement_audit": {
+		"typed_targeting_and_defaults": "Surface53546e56 and Reference b4ed4164 own real typed Media/Channel Parameters; cf5e1db6 adds the public Golden provider. Query and selection check actual Parameter handles. Same Media preserves Channel, changed Media chooses first, explicit atomic pair wins, clear clears both in one history item. Surface nil Channel stays unconfigured; Reference nil explicitly follows first available.",
+		"one_multiple_empty": "Rust and bundled UI cover empty/unconfigured/missing bindings, a single Reference-owned Output and71 producer Channels with paging. Empty Surface Media has no Channel choices; clearing only its Channel preserves the selected Media and available choices. Unconfigured References retain their identity-only Output with separate source availability.",
+		"catalog_folders_and_exclusions": "Queries root at Medias and only traverse organizing folders. Actual browser excludes scripts, Channel nodes and Composition-owned media, then enters a catalog folder. Backend tests additionally cover an explicit nested current binding, foreign scopes/types and256 excluded siblings without opening nested objects to browsing. Only actual organizing folders may bridge catalog ancestry; Matrix/Composition and all other Media cannot become browse ancestors.",
+		"identity_and_recovery": "Explicit Channel UUID survives rename/reorder; deletion/hiding remains authored and unavailable, with no automatic fallback. Undo recovers it. Bundled Matrix Layer/Group exposure checks preserve the same independent Reference output across exposure, hide and Undo/Redo. Explicit First available selection is verified independently of the default pinned choice.",
+		"chains_cycles_callers": "Reference backend571-test checkpoint covers4096-depth forest, selected-edge Reference/Composition/Matrix cycles, copied internal remapping/external bindings and36 selection cases across UI, transport, named and hosted scripts. Picker parity adds its seven read/selection operations across four public callers, including rejection. The final579-test suite includes all these cases.",
+		"copy_history_reload": "Bundled default/Alt-copy drops for both missing and unconfigured catalog References into Composition and Matrix recover independently; exact Undo/Redo snapshots and resolved leaf sources survive Save/New/Load. Generic Reference creation, Resolution17x9, stable Output inspection and ordinary controls pass. Native copy/reload/retention images and source-count assertions pass.",
+		"bounded_large_catalog": "At most64 choices/256 sibling inspections per request, UUID cursors scoped to actual parent, metadata-only closed controls, no full-tree reference requests.10000-Reference catalog tests cover first/middle/last pages and payload under16KiB. Earlier isolated10000-Reference query/edit p95 remains0.0416/42.6381ms against50ms; the recorded concurrent51.735ms failure is retained and does not imply production qualification.",
+		"native_routing_and_reuse": "Reference-output audit owns42 exact complete routing images on both GPUs, including retarget/Undo/reload/delete/recovery and zero-resource retirement. Picker audit owns162 mixed-source images (three sources, nine stages, three outputs, both GPUs) at the original2/255 tolerance, sharing/resampling/Composition/Matrix/copy/reload and completed owner retirement. Runtime source/feedback retention tests remain passing. Query-null and closing-menu fixes change no capture, renderer or native ownership code."
+	},
+	"defects_fixed_during_closure": [
+		"Replacing or undoing a Cell can remove its Parameters while a previous Inspector read is in flight. InspectTargetPicker now returns a generated nullable page for an absent Parameter; selection writes still reject missing/invalid targets. A regression covers immutable and ordinary operation replies, unchanged history and Undo recovery.",
+		"A closing shared ContextMenu remained in the accessibility tree for its180ms exit animation, briefly exposing two None choices when opening an adjacent dropdown. The shared Golden menu is now aria-hidden and inert while closing; animation remains. Final bundled adjacent-control switching passes without duplicate accessible items."
+	],
+	"validation": {
+		"rust": "cargo test --locked -p MapGyver --lib --quiet:579 passed,0 failed,2 ignored,41.90s;145 generated media contracts match.",
+		"rust_receipt": "target/m1314-picker-read-software-20261108.log",
+		"strict": "cargo clippy --locked -p MapGyver --all-targets --features native-qualification -- -D warnings:exit0; receipt target/m1314-picker-read-strict-20261108.log.",
+		"ui": "Final MapGyver and Chataigne svelte-check each0errors/0warnings; Golden UI60files/320tests pass after the closing-menu fix.",
+		"browser": "Final isolated bundled host runs reference-acceptance.mjs (three complete retained scopes) and target-picker.mjs (seven groups), both terminal exit0 and normal owned host shutdown. No page errors, rejected receipts or full-tree Reference requests. Final exposure screenshot visually verifies explicit unavailable Channel and the stable Output list.",
+		"browser_receipts": [
+			{ "path": "target/m1314-reference-browser-menu-final-20261108.log", "sha256": "9fdac1d7d0478ed11648d2517ee98a6c91a9a7251ee5300124615206b978887e", "artifacts": "target/m1314-reference-acceptance-YOlYry" },
+			{ "path": "target/m1314-picker-browser-menu-final-20261108.log", "sha256": "741220abbe3c7dcc62670248e94ee062d836546c44393742d11bdc80780f67d6", "artifacts": "target/m1314-target-picker-ui-VnkbHg" }
+		],
+		"app_binary_sha256": "b838d19a26573e1f8609913f7eac0233f70c14a9069be4a99dbb4cbb8fac76af",
+		"build": "Owned alias of the unchanged app main/library, isolated profile/port and bundled frontend; existing app Common Controls manifest attached to generated alias with Windows SDK mt.exe. No user executable changed.",
+		"format": "Root and golden_core cargo fmt, touched authored UI/browser Prettier, generated contract equality and staged diff checks."
+	},
+	"retained_failed_receipts": {
+		"fixture_reconciliation": "target/m1314-reference-browser-current-20261108.log counts empty Matrix slots; corrected counts only populated Cell IDs. target/m1314-reference-browser-corrected-20261108.log uses a superseded fixed Composition tab title. target/m1314-reference-browser-titles-20261108.log samples before a stable-output retarget settles; corrected wait observes the actual authored input.",
+		"stale_read_defect": "target/m1314-reference-browser-settled-20261108.log passes behavioral assertions but catches rejected reads of removed Parameters; fixed at the backend query boundary.",
+		"closing_menu_defect": "target/m1314-picker-browser-final-20261108.log catches two accessible None choices during the existing close animation; fixed in shared Golden ContextMenu. The preceding three-scope browser run passed.",
+		"earlier_native_and_scale": "Original source geometry/runtime-activation/Cell-size failures, initial alias-loader failure and concurrent scale failure remain in the linked owning milestone receipts. No failed run is relabeled passing."
+	},
+	"owning_evidence": ["mapgyver-m13-reference-output-2026-11-08.json", "mapgyver-m13-target-picker-2026-11-08.json"],
+	"limits": "Accepts M13/14 only. M13/2 format/device prerequisites, M13/4 physical timing/alignment, M13/13 actual desktop transitions and all older GPU/memory/retirement gates remain required. No desktop input, new cadence/throughput claim, separate historical M09 timed-Matrix pass or release readiness is inferred."
+}

@@ -13,6 +13,10 @@ can remain visible without becoming a choice. Metadata-only reads describe close
 expanded reads request one page. Providers own scope, eligibility, labels and empty semantics;
 the widget never chooses domain defaults or derives authored companion values.
 
+A read returns `null` when its Parameter disappeared during a concurrent history/project
+change. This is ordinary absence, not a rejected edit; providers still reject invalid
+selection writes and malformed scope requests at their backend boundary.
+
 The shared `EditorReadQueue` keeps one active read and one latest replacement, fencing replies
 across session, project, history and edit-group changes. The ordinary Inspector's enabled,
 read-only and control-mode handling also applies. A provider's selection operation must edit

@@ -53,6 +53,26 @@ export async function verifyUnavailableReferenceUi({ base, edit, post, directory
 	const inspectComposition = async () =>
 		(await edit({ kind: 'Composition', reference: composition, edit: { kind: 'Inspect' } }))
 			.snapshot;
+	const channels = async (media) =>
+		(await edit({ kind: 'InspectChannels', query: { media, start: 0, count: 32 } })).page;
+	async function leaf(reference) {
+		const seen = new Set();
+		while (reference) {
+			assert(!seen.has(reference.channel), 'Reference chain must remain acyclic');
+			seen.add(reference.channel);
+			const page = await channels(reference.media);
+			if (page.status !== 'Ready') return null;
+			const channel = page.channels.find((item) => item.reference.channel === reference.channel);
+			assert(channel, JSON.stringify({ reference, page }));
+			if (channel.definition.source.kind !== 'Reference') return reference;
+			reference = channel.definition.source.target;
+		}
+		return null;
+	}
+	const compositionSources = async () =>
+		Promise.all((await inspectComposition()).instances.map((item) => leaf(item.definition.source)));
+	const matrixSources = async () =>
+		Promise.all((await inspectMatrix()).cells.map((item) => leaf(item.definition.source)));
 	const browser = await chromium.launch({ headless: true });
 	const page = await browser.newPage({ viewport: { width: 1600, height: 1100 } });
 	page.setDefaultTimeout(6000);
@@ -72,7 +92,7 @@ export async function verifyUnavailableReferenceUi({ base, edit, post, directory
 	const tab = (name) =>
 		page
 			.getByRole('tab')
-			.filter({ hasText: new RegExp(`^${name}$`) })
+			.filter({ hasText: new RegExp(`^${RegExp.escape(name)}(?::|$)`) })
 			.click();
 	const manager = page.locator('section[aria-label="Medias"]');
 	const select = (label) =>
@@ -128,7 +148,8 @@ export async function verifyUnavailableReferenceUi({ base, edit, post, directory
 				(value) => value.instances.length === index * 2 + 1
 			);
 			defaults.push(added.instances.at(-1).reference.instance);
-			assert.equal(added.instances.at(-1).definition.source, null);
+			assert(added.instances.at(-1).definition.source, 'Unavailable media still owns an output');
+			assert.equal(await leaf(added.instances.at(-1).definition.source), null);
 			await drop(source.label, canvas, true, 0.65 + index * 0.1);
 			const copied = await wait(
 				inspectComposition,
@@ -139,82 +160,93 @@ export async function verifyUnavailableReferenceUi({ base, edit, post, directory
 				.locator('.inspector-header .title-text')
 				.filter({ hasText: new RegExp('^' + RegExp.escape(source.label) + '$') })
 				.waitFor();
-			await controls.reference('Target', 'Reference recovery target', 'Reference recovery target');
-			await wait(
-				inspectComposition,
-				(value) => value.instances.at(-1).definition.source?.channel === target.channel
-			);
-			await controls.reference('Output', 'First recovery output', 'First recovery output');
-			assert.equal((await inspectComposition()).instances[index * 2].definition.source, null);
+			await controls.reference('Media', 'Reference recovery target', 'Reference recovery target');
+			await wait(compositionSources, (value) => value.at(-1)?.channel === target.channel);
+			await controls.reference('Channel', 'First recovery output', 'First recovery output');
+			assert.equal((await compositionSources())[index * 2], null);
 			assert.equal(
 				(await inspectMedia()).media.find((entry) => entry.id === source.media).channels.length,
-				0
+				1
 			);
 			await select('Unavailable grid');
 			await tab('Matrix');
 			const grid = page.locator('section[aria-label="Matrix"]');
 			await grid.getByRole('gridcell').first().waitFor();
 			await drop(source.label, grid.getByRole('gridcell').nth(0).locator('..'), false);
+			// Retargeting preserves the Cell's output UUID. Wait on its authored input,
+			// rather than mistaking the unchanged outer Matrix snapshot for completion.
+			await wait(
+				async () => {
+					const cell = (await inspectMatrix()).cells[0];
+					return cell && (await channels(cell.media)).channels[0].definition.source.target;
+				},
+				(value) => value?.media === source.media
+			);
 			const before = await inspectMatrix();
 			await drop(source.label, grid.getByRole('gridcell').nth(1).locator('..'), true);
 			const after = await wait(
 				inspectMatrix,
 				(value) => value.cells.length === 2 && !isDeepStrictEqual(value, before)
 			);
-			assert(after.cells.every((cell) => cell.media && cell.definition.source === null));
+			assert(after.cells.every((cell) => cell.media && cell.definition.source));
+			assert.deepEqual(await matrixSources(), [null, null]);
 			await wait(
-				() => grid.getByRole('gridcell').allTextContents(),
+				() => grid.locator('[role="gridcell"][data-cell-id]').allTextContents(),
 				(labels) =>
 					labels.length === 2 && labels.every((label) => label.trim() === 'Missing source')
 			);
-			await controls.parameter('Output').waitFor();
+			await controls.parameter('Channel').waitFor();
 			await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 			await wait(inspectMatrix, (value) => isDeepStrictEqual(value, before));
 			await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 			await wait(inspectMatrix, (value) => isDeepStrictEqual(value, after));
 			await select(source.label);
-			await controls.reference('Target', 'Reference recovery target', 'Reference recovery target');
-			await wait(
-				inspectComposition,
-				(value) => value.instances[index * 2].definition.source?.channel === target.channel
+			await controls.reference('Media', 'Reference recovery target', 'Reference recovery target');
+			// Media selection pins its first channel. Automatic follow is an explicit choice.
+			await controls.reference('Channel', 'First available', 'First available');
+			await wait(compositionSources, (value) => value[index * 2]?.channel === target.channel);
+			await wait(matrixSources, (value) =>
+				value.some((source) => source?.channel === target.channel)
 			);
-			const automatic = await wait(inspectMatrix, (value) =>
-				value.cells.some((cell) => cell.definition.source?.channel === target.channel)
-			);
-			const copiedCell = automatic.cells.find((cell) => cell.definition.source === null);
+			const automatic = await inspectMatrix();
+			const sources = await matrixSources();
+			const copiedCell = automatic.cells.find((_, index) => sources[index] === null);
 			assert(copiedCell);
 			await edit({ kind: 'ConfigureReference', media: copiedCell.media, target: target.media });
-			await wait(inspectMatrix, (value) =>
-				value.cells.every((cell) => cell.definition.source?.channel === target.channel)
+			await wait(matrixSources, (value) =>
+				value.every((source) => source?.channel === target.channel)
 			);
 		}
 		await edit({ kind: 'ReorderChannel', reference: peer, after: null });
-		await wait(inspectComposition, (value) =>
-			value.instances
-				.filter((item) => defaults.includes(item.reference.instance))
-				.every((item) => item.definition.source?.channel === peer.channel)
+		await wait(compositionSources, (value) =>
+			value.every(
+				(source, index) => source?.channel === (index % 2 === 0 ? peer.channel : target.channel)
+			)
 		);
-		assert(
-			(await inspectComposition()).instances
-				.filter((item) => pins.includes(item.reference.instance))
-				.every((item) => item.definition.source?.channel === target.channel)
+		const stable = await inspectComposition();
+		assert.deepEqual(
+			stable.instances.map((item) => item.reference.instance),
+			[defaults[0], pins[0], defaults[1], pins[1]]
 		);
-		await wait(inspectMatrix, (value) =>
-			value.cells.every((cell) => cell.definition.source?.channel === peer.channel)
+		await wait(
+			matrixSources,
+			(value) => value[0]?.channel === peer.channel && value[1]?.channel === target.channel
 		);
 		const saved = [await inspectComposition(), await inspectMatrix()];
+		const savedSources = [await compositionSources(), await matrixSources()];
 		const project = path.join(directory, 'UnavailableReference.mapgyver');
 		await post('/api/ui/project-save', { path: project });
 		await post('/api/ui/project-new', {});
 		await post('/api/ui/project-load', { path: project });
 		assert.deepEqual([await inspectComposition(), await inspectMatrix()], saved);
+		assert.deepEqual([await compositionSources(), await matrixSources()], savedSources);
 		assert.deepEqual(errors, []);
 		assert.deepEqual(rejected, []);
 		console.log(
 			JSON.stringify({
 				result: 'pass',
 				scope:
-					'missing/unconfigured Reference and Alt-copy drops in Composition/Matrix, generic Target/Output recovery, independent copies, auto/pinned outputs, history and project roundtrip'
+					'missing/unconfigured Reference and Alt-copy drops in Composition/Matrix, generic Media/Channel recovery, stable owned outputs, independent copies, explicit automatic/pinned choices, history and project roundtrip'
 			})
 		);
 	} finally {

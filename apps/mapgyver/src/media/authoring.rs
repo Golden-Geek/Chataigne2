@@ -145,7 +145,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
     );
     let result = match edit {
         MediaEdit::InspectTargetPicker { query } => MediaEditResult::TargetPicker {
-            page: super::target_picker::inspect(engine, query)?,
+            page: super::target_picker::read(engine, query)?,
         },
         MediaEdit::SelectTargetPickerChoice { parameter, target } => {
             super::target_picker::select(engine, parameter, target)?;
