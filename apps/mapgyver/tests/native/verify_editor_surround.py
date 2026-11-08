@@ -24,6 +24,13 @@ def verify(directory, stage):
 
     view, active = metadata.get("view"), metadata.get("active")
     assert view and active, "Expected a visible content rectangle"
+    if "cursor_desktop_position" in capture:
+        assert capture.get("cursor_stable", True), "physical pointer moved during capture"
+        cursor = [(capture["cursor_desktop_position"][i] - capture["client_desktop_origin"][i]) / scale
+                  for i in range(2)]
+        # Keep the complete sampled viewport clear of the external pointer/highlight.
+        # Do not mask pixels or weaken the colour/alignment oracle.
+        assert not inside(view, *cursor, -64 / scale), "Park physical pointer outside viewport and highlight halo"
     gray = metadata["theme"]["rgba"][:3]
     assert max(gray) - min(gray) < 40 and min(gray) > 0, gray
     probes = []
@@ -39,18 +46,32 @@ def verify(directory, stage):
             error = max(abs(a - b) for a, b in zip(actual, gray))
             assert error <= 2, {"probe": [x, y], "actual": actual, "gray": gray}
             probes.append(error)
-    hits, handle_errors = [], []
+    black = []
+    if metadata["label"] == "Screen view":
+        for u in [0.1, 0.9]:
+            for v in [0.1, 0.9]:
+                x, y = active["x"] + active["width"] * u, active["y"] + active["height"] * v
+                if not inside(view, x, y, 4) or y < view["y"] + 60:
+                    continue
+                error = max(image.getpixel(pixel(x, y)))
+                assert error <= 2, {"black_backing": [x, y], "error": error}
+                black.append(error)
+    hits, dom_hits, handle_errors = [], [], []
     for hit in metadata["hits"]:
         sample = hit["native"].get("sample")
         x, y = hit["point"]
         if not inside(view, x, y, 2):
             continue
-        if not sample and 'missing' in stage:
-            continue
-        assert sample and sample["hit"] == hit["id"], hit
-        error = max(abs(sample["rect"][key] - active[key]) for key in ["x", "y", "width", "height"])
-        assert error <= 0.05, error
-        hits.append(error)
+        fallback = metadata.get("preview", {}).get("dataset", {}).get("nativeOverlays") == "false"
+        if fallback:
+            assert 'missing' in stage and hit.get("domHit") == hit["id"], hit
+            assert not sample or sample["hit"] is None, "Missing source retained native hit authority"
+            dom_hits.append(hit["id"])
+        else:
+            assert sample and sample["hit"] == hit["id"], hit
+            error = max(abs(sample["rect"][key] - active[key]) for key in ["x", "y", "width", "height"])
+            assert error <= 0.05, error
+            hits.append(error)
         if hit["id"].rsplit(":", 1)[-1] not in ["0", "1", "2", "3"]:
             continue
         radius = math.ceil(max(hit["bounds"]["width"], hit["bounds"]["height"]) * scale / 2 + 3)
@@ -95,7 +116,8 @@ def verify(directory, stage):
             assert bounds_error <= 1, {"actual": actual_bounds, "expected": expected_bounds}
             image_edges_verified = True
     result = {"stage": stage, "gray_samples": len(probes), "maximum_gray_error_255": max(probes, default=0),
-              "native_hits": len(hits), "maximum_hit_rect_error_css": max(hits, default=0),
+              "black_backing_samples": len(black), "maximum_black_backing_error_255": max(black, default=0),
+              "native_hits": len(hits), "dom_fallback_hits": len(dom_hits), "maximum_hit_rect_error_css": max(hits, default=0),
               "red_pixels": len(red), "red_bounds_error_px": bounds_error, "image_edges_verified": image_edges_verified,
               "physical_handles": len(handle_errors), "maximum_handle_error_px": max(handle_errors, default=0),
               "dpi": capture["window_dpi"]}

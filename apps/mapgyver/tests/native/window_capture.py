@@ -54,6 +54,13 @@ def visible_owned_window(hwnd, pid, foreground_hwnd=None):
     return image, bounds
 
 
+def cursor_position():
+    """Read physical pointer position so callers can reject desktop-overlay contamination."""
+    point = wintypes.POINT()
+    assert ctypes.windll.user32.GetCursorPos(ctypes.byref(point))
+    return [point.x, point.y]
+
+
 def client_geometry(hwnd):
     """Physical client placement for the same capture, independent of caller DPI virtualization."""
     user = ctypes.windll.user32
@@ -115,8 +122,11 @@ def main():
         "--image", type=Path, help="Analyze an existing capture without capturing again"
     )
     parser.add_argument("--geometry-only", action="store_true")
+    parser.add_argument("--stationary-cursor", action="store_true", help="Require unchanged physical pointer during visible capture")
     parser.add_argument("output", type=Path, nargs="?")
     args = parser.parse_args()
+    if args.stationary_cursor and not args.visible:
+        parser.error("--stationary-cursor requires --visible")
     if not 0 <= args.wait_foreground_seconds <= 60 or (args.wait_foreground_seconds and not args.visible):
         parser.error("foreground wait requires --visible and a duration between 0 and 60 seconds")
     if args.foreground_hwnd is not None and not args.visible:
@@ -147,7 +157,11 @@ def main():
                     assert time.monotonic() < deadline, "owned foreground activation timed out"
                     time.sleep(.05)
             geometry = client_geometry(args.hwnd)
+            pointer = cursor_position()
             image, bounds = visible_owned_window(args.hwnd, args.pid, args.foreground_hwnd)
+            pointer_stable = pointer == cursor_position()
+            if args.stationary_cursor:
+                assert pointer_stable, "physical pointer moved during capture"
             assert geometry == client_geometry(args.hwnd), "client placement/DPI changed during capture"
         else:
             image = ImageGrab.grab(window=args.hwnd)
@@ -157,6 +171,8 @@ def main():
     result = summarize(image)
     if args.visible:
         result.update(capture_mode="visible owned foreground window", desktop_bounds=list(bounds), **geometry)
+        result["cursor_desktop_position"] = pointer
+        result["cursor_stable"] = pointer_stable
         if args.foreground_hwnd is not None:
             result.update(capture_mode="visible owned fixture with exact owned foreground dialog", foreground_dialog=args.foreground_hwnd)
             result["foreground_dialog_bounds"] = list(owned_window_bounds(args.foreground_hwnd, args.pid))

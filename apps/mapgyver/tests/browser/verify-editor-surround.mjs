@@ -19,10 +19,17 @@ page.setDefaultTimeout(6000);
 const stages = [],
 	outputs = [],
 	actions = [];
-const prefix = process.argv.includes('--retry') ? 'retry-' : '';
-const resume = process.argv.includes('--resume-theme');
+const resumeMissing = process.argv.includes('--resume-missing');
+const prefix = resumeMissing ? 'recovered-' : process.argv.includes('--retry') ? 'retry-' : '';
+const resumeMaximized = process.argv.includes('--resume-maximized');
+const resume = process.argv.includes('--resume-theme') || resumeMaximized || resumeMissing;
 if (resume) {
-	const prior = JSON.parse(await readFile(path.join(directory, 'matrix-failure.json'), 'utf8'));
+	const prior = JSON.parse(
+		await readFile(
+			path.join(directory, resumeMissing ? 'retry-matrix-failure.json' : 'matrix-failure.json'),
+			'utf8'
+		)
+	);
 	stages.push(...prior.stages);
 	outputs.push(...prior.outputs);
 	actions.push(...prior.actions);
@@ -113,8 +120,12 @@ async function output(stage, alpha) {
 	return data.sha256;
 }
 try {
+	// Computer Use can park the physical pointer on the maximized titlebar first.
+	// Restore through the existing test path so that pointer stays outside every viewport.
+	if (process.argv.includes('--start-maximized'))
+		await page.getByRole('button', { name: 'Maximize app', exact: true }).click();
 	await page.evaluate(() => {
-		window.__surroundTrusted = [];
+		window.__surroundTrusted ??= [];
 		for (const type of ['pointerdown', 'pointerup', 'click'])
 			document.addEventListener(
 				type,
@@ -145,56 +156,63 @@ try {
 		run('control-editor-surround.mjs', ['pan']);
 		await capture('source-pan-zoom');
 	}
-	if (!resume) run('control-editor-surround.mjs', ['theme']);
-	await capture(resume ? 'source-theme-resumed' : 'source-theme');
-	assert(stages.at(-1).gray_samples > 0);
-	run('control-editor-surround.mjs', ['scale']);
-	await capture('source-scale');
-	await page.getByRole('button', { name: 'Maximize app', exact: true }).click();
-	await capture('source-maximized');
-	assert(
-		JSON.parse(await readFile(path.join(directory, `${prefix}source-maximized/capture.json`), 'utf8'))
-			.window_maximized
-	);
-	await page.getByRole('button', { name: 'Maximize app', exact: true }).click();
-	await capture('source-restored');
-	const box = await view().boundingBox();
-	const sashes = await page
-		.locator('.dv-sash.dv-enabled')
-		.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().toJSON()));
-	const candidates = sashes.filter(
-		(rect) => rect.height > 100 && Math.abs(rect.x + rect.width / 2 - box.x - box.width) < 12
-	);
-	assert.equal(candidates.length, 1);
-	const sash = candidates[0],
-		x = sash.x + sash.width / 2,
-		y = sash.y + sash.height / 2;
-	await page.mouse.move(x, y);
-	await page.mouse.down();
-	await page.mouse.move(x - 80, y, { steps: 12 });
-	await page.mouse.up();
-	const after = await view().boundingBox();
-	assert(Math.abs(after.width - box.width) > 50);
-	actions.push({ kind: 'dock-resize', before: box, after });
-	await capture('source-docked');
-	await tab('Screen Warping').click();
-	await capture('screen-docked');
-	assert.equal(
-		await output('after-viewport', 128),
-		baseline,
-		'UI navigation/theme/scale/docking must not change output pixels'
-	);
-	run('control-editor-surround.mjs', ['opaque']);
-	await select('Surround surface');
-	await tab('Surface Source').click();
-	await capture('source-opaque');
-	await output('opaque', 255);
-	run('control-editor-surround.mjs', ['missing']);
-	await select('Surround surface');
-	await tab('Screen Warping').click();
-	await capture('screen-missing', false);
-	await output('missing', 0);
-	await tab('Surface Source').click();
+	if (!resumeMissing) {
+		if (!resumeMaximized) {
+			if (!resume) run('control-editor-surround.mjs', ['theme']);
+			await capture(resume ? 'source-theme-resumed' : 'source-theme');
+			assert(stages.at(-1).gray_samples > 0);
+			run('control-editor-surround.mjs', ['scale']);
+			await capture('source-scale');
+			await page.getByRole('button', { name: 'Maximize app', exact: true }).click();
+		}
+		await capture('source-maximized');
+		assert(
+			JSON.parse(
+				await readFile(path.join(directory, `${prefix}source-maximized/capture.json`), 'utf8')
+			).window_maximized
+		);
+		await page.getByRole('button', { name: 'Maximize app', exact: true }).click();
+		await capture('source-restored');
+		const box = await view().boundingBox();
+		const sashes = await page
+			.locator('.dv-sash.dv-enabled')
+			.evaluateAll((elements) =>
+				elements.map((element) => element.getBoundingClientRect().toJSON())
+			);
+		const candidates = sashes.filter(
+			(rect) => rect.height > 100 && Math.abs(rect.x + rect.width / 2 - box.x - box.width) < 12
+		);
+		assert.equal(candidates.length, 1);
+		const sash = candidates[0],
+			x = sash.x + sash.width / 2,
+			y = sash.y + sash.height / 2;
+		await page.mouse.move(x, y);
+		await page.mouse.down();
+		await page.mouse.move(x - 80, y, { steps: 12 });
+		await page.mouse.up();
+		const after = await view().boundingBox();
+		assert(Math.abs(after.width - box.width) > 50);
+		actions.push({ kind: 'dock-resize', before: box, after });
+		await capture('source-docked');
+		await tab('Screen Warping').click();
+		await capture('screen-docked');
+		assert.equal(
+			await output('after-viewport', 128),
+			baseline,
+			'UI navigation/theme/scale/docking must not change output pixels'
+		);
+		run('control-editor-surround.mjs', ['opaque']);
+		await select('Surround surface');
+		await tab('Surface Source').click();
+		await capture('source-opaque');
+		await output('opaque', 255);
+		run('control-editor-surround.mjs', ['missing']);
+		await select('Surround surface');
+		await tab('Screen Warping').click();
+		await capture('screen-missing', false);
+		await output('missing', 0);
+		await tab('Surface Source').click();
+	}
 	await capture('source-missing', false);
 	run('control-editor-surround.mjs', ['half-alpha']);
 	await select('Surround surface');

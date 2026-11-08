@@ -1,7 +1,7 @@
 {
 	"date": "2026-11-07",
 	"gate": "M13/13",
-	"latest_desktop_checkpoint": "mapgyver-m13-editor-surround-desktop-2026-11-08.json (owned-window input resumed; this report preserves the earlier slice and its limits)",
+	"latest_desktop_checkpoint": "mapgyver-m13-surround-acceptance-2026-11-08.json closes M13/13; mapgyver-m13-editor-surround-desktop-2026-11-08.json retains the partial attempt. This report preserves the earlier slice and its limits.",
 	"status": "Functionally verified; full acceptance remains open",
 	"batch": { "started_utc": "21:43", "cutoff_utc": "22:28", "verified_utc": "22:04" },
 	"progress": { "verified": 79, "total": 92, "overall_percent": 86, "m13_verified": 10, "m13_total": 14, "m13_percent": 71, "completed_phases": 7, "total_phases": 14 },

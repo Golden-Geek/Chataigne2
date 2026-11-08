@@ -1,0 +1,89 @@
+{
+	"date": "2026-11-08",
+	"gate": "M13/13",
+	"status": "Accepted",
+	"progress": {
+		"verified": 81,
+		"total": 92,
+		"overall_percent": 88,
+		"m13_verified": 12,
+		"m13_total": 14,
+		"m13_percent": 86,
+		"completed_phases": 7,
+		"total_phases": 14
+	},
+	"calculation": "One fixed gate closes:80 to81 of92, rounded88%. M13 11 to12 of14, rounded86%. No denominator or budget changed; phase completion remains7/14.",
+	"capability": "Screen Warping and Surface Source retain grey workbench surroundings, content-only black backing, aligned native imagery/controls and truthful HTML fallback across source and project lifetime changes.",
+	"implementation_and_prior_evidence": [
+		"mapgyver-m13-editor-surround-2026-11-07.json: owning implementation, generated preview v7, software checks, eight complete both-GPU native images and eight unchanged authored outputs.",
+		"mapgyver-m13-editor-surround-desktop-2026-11-08.json: partial desktop checkpoint, bounded observer checks, failed attempts and limits retained.",
+		"mapgyver-m13-targeting-acceptance-2026-11-08.json: unchanged current app prerequisites,579 tests,320 Golden tests,145 contracts, strict lint and both UI checks. No product/runtime code changed during desktop qualification."
+	],
+	"qualification_boundary": "Physical pointer position is read before/after capture and must remain stable. The verifier rejects a pointer or its64-physical-pixel exclusion halo anywhere inside the measured viewport; no sampled pixels are masked and no colour/alignment budget is relaxed. Computer Use parks the pointer on the maximized owned titlebar; existing trusted WebView2 test gestures preserve it there during viewport changes. Foreground PID/HWND, stable DOM geometry and actual DPI guards remain required.",
+	"software": {
+		"oracle_tests": "python apps/mapgyver/tests/native/tests/test_editor_surround.py:7 passed, exit0. Negative controls reject3px image shift even with a matching native rectangle,3px handle shift, wrong DPI, wrong grey, wrong content backing, pointer contamination and wrong missing-source HTML hits.",
+		"observer_prerequisites": "Dedicated surround-pixels role:12 tests, strict Clippy and build passed before desktop use;8MiB qualification pool admits only owned MapGyver-Surround- senders. Production limits and prior observers unchanged.",
+		"scripts": "Node syntax checks, Python compilation, touched JavaScript/JSON formatting, root/golden_core cargo fmt and owning diff checks pass."
+	},
+	"desktop": {
+		"app_sha256": "b838d19a26573e1f8609913f7eac0233f70c14a9069be4a99dbb4cbb8fac76af",
+		"window_dpi": 120,
+		"device_pixel_ratio": 1.25,
+		"root_font_css_px": [16, 18],
+		"theme_rgb": [
+			[31, 32, 33],
+			[69, 69, 69]
+		],
+		"system_changes": "None; physical monitor settings unchanged. Theme/rem scale are scoped test stimuli, not a claimed physical-monitor DPI transition.",
+		"cases_per_adapter": 16,
+		"cases": "Screen bare/selected/pan-zoom; Source home/pan-zoom/theme/rem-scale/maximize/restore; Source and Screen after dock-sash resize; opaque Source; missing Screen/Source; recovered Source; New withdrawing old bindings then loaded Screen.",
+		"nvidia": {
+			"key": "dxgi:00000000:90b3a15f",
+			"directory": "target/m1313-desktop-nvidia-20261108-d",
+			"matrix_sha256": "d017155128e114988a1c9b6c95994f718d866631718191c57cfd819d641d1339",
+			"host_sha256": "1278d08bcd26601318254aeb65fc3ac8b7002171b34361b2adc6399d4c0a7c7d",
+			"driver_exit": 0,
+			"host_exit": 0,
+			"continuity": "Original window/PID retained through two bounded resumptions. Initial bad pointer park was rejected at maximize. After correct parking, resize/docking/opaque/missing output pass. Missing Source correctly retires native hit authority and exposes HTML controls; the original oracle wrongly required native hits. Corrected verifier checks actual DOM elementFromPoint identity and physical handles; same live cohort then passes recovery/New/Load. Original failures retained."
+		},
+		"intel": {
+			"key": "dxgi:00000000:00015b69",
+			"directory": "target/m1313-desktop-intel-20261108-c",
+			"matrix_sha256": "88f6c2f6ee4db88b0cb5cf9ebcc71c815a790965201816d8f6955023f0ccceb4",
+			"host_sha256": "0a5c23a66581ecf599002c640961bbdb08d084be9f57750b1f2c1478a5accd0d",
+			"driver_exit": 0,
+			"host_exit": 0,
+			"continuity": "Complete canonical cohort passes without a driver restart."
+		},
+		"page_errors": 0,
+		"rejected_intents": 0
+	},
+	"physical_pixel_audit": {
+		"method": "Replayed all32 named matrix-result stages against their original physical foreground PNG and independently read metadata after adding content-backing assertions. Stage-verified.json files contain the final audit; original matrix receipts retain their hashes.",
+		"frames": 32,
+		"grey_samples": 7286,
+		"maximum_grey_error_255": 0,
+		"content_black_samples": 40,
+		"maximum_black_error_255": 0,
+		"unoccluded_image_edge_checks": 20,
+		"image_edge_limit_physical_px": 1,
+		"physical_handle_centres": 120,
+		"maximum_handle_error_physical_px": 0.5312498807907104,
+		"handle_limit_physical_px": 1,
+		"native_hit_queries": 142,
+		"maximum_hit_rect_error_css_px": 0.00005227595147516695,
+		"hit_limit_css_px": 0.05,
+		"missing_source_dom_fallback_hits": 10,
+		"selection_occlusion": "Selected Screen strokes occlude red edges; those envelopes do not count as image-edge acceptance. Separate bare Screen and Source images establish unoccluded alignment."
+	},
+	"independent_outputs": {
+		"images": 12,
+		"extent": [800, 600],
+		"half_alpha_nvidia_rgba_sha256": "c9bbfed7fa99351befd534e1a70b32d8d07f67bc02d1801ae79061591c296f3f",
+		"half_alpha_intel_rgba_sha256": "a98d60c7df105c0626e6ab1902e649ec497e4931015c91fdd763ae191cf46c86",
+		"opaque_rgba_sha256": "fc203f884d5ca950bb7821ecabe827284ee9faf6e139dd8a278d65c5f8e3ea07",
+		"missing_rgba_sha256": "124617c1f65e92d3bc895fbd869e4bb16a30754b198f59e6e973949b9aaa1b01",
+		"assertions": "Entire decoded RGBA output is byte-identical within each adapter before/after navigation/theme/rem/window/dock changes, recovery and New/Load. Alpha differs by one byte across adapters within declared2/255 quantization; no cross-adapter half-alpha identity claimed. Half-alpha/opaque output contains120000 red and360000 transparent pixels; missing output is entirely transparent."
+	},
+	"limits": "M13/13 closes only its stated functional surround contract. Docking coverage here is actual dock-sash layout resizing. No app release, physical latency, sustained30+fps/p95/p99, large-project or production-memory acceptance is inferred. M13/4 becomes the sole Active gate; all named external-format, WOW64, Intel4K timing and lifecycle-peak failures remain open."
+}

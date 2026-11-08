@@ -63,7 +63,11 @@ const metadata = await page.evaluate(async () => {
 					request: JSON.stringify({ kind: 'Pointer', ...identity, point })
 				})
 			);
-			hits.push({ id: element.dataset.nativeHitId, bounds, point, native });
+			const domHit = document
+				.elementFromPoint(...point)
+				?.closest('[data-native-hit-id]')
+				?.getAttribute('data-native-hit-id');
+			hits.push({ id: element.dataset.nativeHitId, bounds, point, native, domHit });
 		}
 	}
 	const token =
@@ -97,6 +101,7 @@ try {
 		[
 			'apps/mapgyver/tests/native/window_capture.py',
 			'--visible',
+			'--stationary-cursor',
 			'--hwnd',
 			ready.hwnd,
 			'--pid',
