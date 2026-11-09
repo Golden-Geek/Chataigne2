@@ -1,0 +1,30 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4 alone Active; one existing HD cohort's publication/copy age witnessed, not complete Q06 qualification",
+	"implementation": "Existing Q06 auditor joins exact accepted Spout output versions to independent consumer capture completion and the actual imported File publication tag. Source aliases must agree on producer, publication and frame metadata. Equal-sized independent sources, duplicate output versions, missing clocks/publication/completion and unassignable phase remain unknown. Unknown ages occupy unbounded percentile endpoints; exact rational ranks and outward floating conversion are shared with PresentMon through age_bounds.py. Native Rust declarations remain authoritative; no runtime/schema/budget change.",
+	"scope": "The controlled Q06 fixture has distinct-extent single-source outputs. This bounds successful GPU File publication pre-commit through independent SDK GPU-copy completion, including polling delay and two QPC ticks of outward endpoint uncertainty. It is not decoded Video pixel/PTS validation, scanout age, arbitrary-graph dependency inference, source CPU/decode age or complete cross-context critical-path proof.",
+	"validation": "39 Video/PresentMon endpoint/lineage regressions pass;27 production qualification tests pass;13 production cohort tests pass,79 total. Initial namespace invocation of the cohort suite failed its sibling import; corrected discovery invocation passes all13. Root and Golden Core cargo fmt/scoped whitespace checks complete. No Rust changes or hardware experiment; earlier625 app/314 Golden software and native-retry build/strict evidence applies only to unchanged runtime code.",
+	"inputs": { "directory": "target/q06-frame-window-nvidia", "pid": 44500, "app_sha256": "6d207e35616229b5d7c67cb78becca7ac4cda69f2b689c681f92979623be11a2", "report_sha256": "c67be052cab10e8409ecb35967abc7cd9830c20742e640dedf183bedb9c9c05f", "original_audit_sha256": "8a135946fe5a049bd802a7aceab8a37deaefc832ffb3284ad8adf6263af1c067", "new_audit": "target/q06-frame-window-nvidia/publication-age-audit.json", "new_audit_sha256": "0416b22c36dd788bf8f3e7c4178565666ab34b39d4773c46b06f20bfe01c58fa", "provenance": "Same completed ordinary-app cohort in mapgyver-m10-frame-window-cohorts-2026-11-09.json; raw capture/report and original audit unchanged. No replay or favorable sample selection." },
+	"hd": {
+		"visible": { "accepted_images": 7203, "finite_upper_bounds": 7203, "p95_upper_ms": 17.1275, "p99_upper_ms": 30.0318, "maximum_upper_ms": 60.8796, "p95_target_ms": 50, "p95_within_target": true },
+		"minimized": { "accepted_images": 3602, "finite_upper_bounds": 3600, "unbounded": 2, "p95_upper_exact_ms": { "numerator": "161117", "denominator": "10000" }, "p99_upper_ms": 36.2286, "maximum_upper_ms": null, "p95_within_target": true },
+		"disconnected": "3591 accepted images; no receiver completion after intentional disconnect. All age endpoints unbounded; no age pass."
+	},
+	"uhd": "CPU-only4K File publication has no matching File pre-publication tag: visible7203,minimized3601,disconnected3591 accepted images all retain unknown age. Unmapped outputs, Intel, other formats, repeated samples, continuous Video pixel/PTS, complete decoder/pool/path/soak and recovery remain required. Existing NVIDIA deadline failure is unchanged.",
+	"genuine_reset": {
+		"directory": "target/m034-removal-ff5652b7e7f0461291fe481d7ef75a90",
+		"pid": 14792,
+		"binary_sha256": "3bdd5c33084b21635bd2b4125f48a950640ecb8bde5d836ac10995d7a4bf2c6f",
+		"result_sha256": "6f87c6df78aa0c4d3a514910fb36682880fc71f1a683967fba3f363b287add64",
+		"stderr_sha256": "391e40a095c2804689e6e68616399326f99ed75c8d1953dc82551088b87be0fd",
+		"started_utc": "2026-11-09T12:55:06.5724710Z",
+		"ready_utc": "2026-11-09T12:55:14.7931325Z",
+		"finished_utc": "2026-11-09T12:55:39.2390581Z",
+		"dxcap_exit_code": 0,
+		"qualification_exit_code": 101,
+		"result": "Matched corrected binary/live PID; driver trigger succeeds, Intel renderer returns Running at generation2. H.264/HEVC reopen as resident D3D11, so the prior software-downgrade defect is repaired. Original recovery pixels still fail: first H.264 output[92,22,0,255] versus frame4 baseline[195,133,77,255], while frame-neighbour state reports166.666667ms/frame4. Color is consistent with an earlier frame but its exact index is not independently established by this failure log. No fresh-pixel/complete-retirement or full recovery pass.",
+		"next_decision": "Distinguish source/publisher pixels from the recovered renderer/output. Reuse the same current File stream in one fresh independent Golden renderer, retain original eight-source output comparisons and unchanged deadlines/tolerance. First prove that replay path in no-reset preflight; then one bounded original-reset comparison can identify the owning boundary. No additional bare reset, broad profiler, codec/shader tuning or unsupported source-identity fix is justified from the current log."
+	},
+	"effort": "Original reset classification failure began12:15 UTC; native-retry correctionfd3d12b2 now functionally/physically preserves the native route. Corrected reset12:55 supplies new evidence of a different stale-content boundary, not a recovery pass. Code inspection has not proved that boundary. Preserve cumulative effort and both failed resets; the source-vs-delivery comparison is a specific next decision, not a renewed open-ended probe chain.",
+	"progress": "No full gate closed:85/102=83%,M10 2/4=50%,8/15 phases. Existing smoothness/AA user acceptance unchanged. M14 remains after first-pass M10."
+}

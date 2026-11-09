@@ -10,7 +10,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[3]
 PRESENTMON = runpy.run_path(str(ROOT/'tools/mapgyver/production_presentmon.py'))
 ANALYZE = PRESENTMON['analyze_presentmon']
-AGE_BOUNDS = PRESENTMON['_age_upper_bounds']
+AGE_BOUNDS = runpy.run_path(str(ROOT/'tools/mapgyver/age_bounds.py'))['age_upper_bounds']
 
 
 def fixture():

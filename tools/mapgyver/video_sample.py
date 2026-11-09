@@ -6,6 +6,7 @@ import runpy
 import sys
 
 METRICS = runpy.run_path(str(Path(__file__).with_name("production_qualification.py")))
+VIDEO_AGE = runpy.run_path(str(Path(__file__).with_name("video_age.py")))
 
 
 def key(value):
@@ -62,15 +63,19 @@ def analyze(directory):
     for use in events["SourceUse"]:
         if use["stream"] is not None and use["sequence"]:
             uses[key(use["token"])].append(use)
-    output_sources, receiver_summaries = {}, []
+    output_sources, receiver_summaries, receiver_frames, receiver_clocks = {}, [], {}, {}
     for index, root in enumerate(report["consumerDirectories"]):
         handles = set()
         final = None
+        copied, clock = [], None
         with open(Path(root) / "consumer.jsonl", encoding="utf-8") as source:
             for line in source:
                 row = json.loads(line)
                 if row["kind"] == "consumer_frame" and row["frame"]["spout_image"]:
                     handles.add(row["frame"]["spout_image"]["shared_handle"])
+                    copied.append(row['frame'])
+                elif row['kind'] == 'consumer_config' and row['consumer']['frame_count'] == 'VersionedV1':
+                    clock = row.get('qpc_frequency')
                 elif row["kind"] == "consumer_final":
                     final = row
         assert final is not None and handles, "missing independent receiver completion/images"
@@ -78,7 +83,9 @@ def analyze(directory):
                and row["spout_image"]["shared_handle"] in handles}
         assert len(ids) == 1, "ambiguous shared-image owner"
         fixture = report["fixtures"]["cases"][index]
-        output_sources[next(iter(ids))] = (fixture["width"], fixture["height"])
+        identity = next(iter(ids))
+        output_sources[identity] = (fixture["width"], fixture["height"])
+        receiver_frames[identity], receiver_clocks[identity] = copied, clock
         receiver_summaries.append({"directory": root, "outputs": list(ids), "final": final,
                                    "scope": "SDK image lineage/copy completion; legacy CardStamp words are not Video frame-code validation"})
     output_ids = sorted({row["output"] for row in events["Output"] if row["spout_image"]})
@@ -140,13 +147,16 @@ def analyze(directory):
                         "software_output_deadlines": deadlines, "sources": source_stats,
                         "source_to_output_age_lower_bound_ms": {str(output): METRICS["distribution"](values) for output, values in age.items()},
                         "unknown_age_rows_zeroed_only_for_failure_bound": dict(age_unknown),
+                        "file_publication_age": VIDEO_AGE['analyze_video_age'](
+                            events['Output'], events['SourceUse'], layouts, output_sources,
+                            receiver_frames, receiver_clocks, window, frames),
                         "process_private_peak": max(private, default=None),
                         "known_native_texel_peak": max(known, default=None),
                         "known_native_scope": "plan/Spout/window inventory, excludes unknown Video decoder/pool accounting",
                         "dxgi": [row["adapter_memory"] for row in native if row["adapter_memory"]]})
     return {"adapter": report["adapter"], "pid": report["pid"], "samples": results,
             "independent_receivers": receiver_summaries,
-            "scope": "One warmed sample, not the required three independent samples. Renderer GPU is one context. Only render-thread upload end can bound an already-published CPU image inward against matching output API begin. Source-worker upload ends before GPU publication and its publication age remains unknown. No invented timestamp or passing full-age proof. Incomplete decoder/pool/PTS/visible-frame and unsampled-upload coverage remains required."}
+            "scope": "One warmed sample, not the required three independent samples. Renderer GPU is one context. CPU upload end supplies only an inward failure bound. Timestamped GPU File publication can enclose age outward through an exact independent SDK-copy completion; unmeasured images remain unbounded. This is not continuous decoded Video pixel/PTS or display proof. Unmapped outputs, CPU-only publications, complete decoder/pool and unsampled-upload coverage remain required."}
 
 
 if __name__ == "__main__":

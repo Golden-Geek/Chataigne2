@@ -1,7 +1,7 @@
 {
 	"date": "2026-11-09",
 	"gate": "M10/4",
-	"state": "Active; user-elevated trigger succeeded but recovery pixels failed; native-retry correction preflight verified and fresh genuine reset required",
+	"state": "Active; corrected native retry survives genuine reset on the native path, but original recovery pixels still fail; source-versus-delivery boundary remains unresolved",
 	"progress": {
 		"accepted": 85,
 		"total": 102,
@@ -94,7 +94,7 @@
 		"result": "Windows permission prerequisite failed; no reset/device recovery pass. The controller retains the fixture process handle through its bounded deadline and cleanup. No UAC prompt, security setting change, persistent disable, system reboot or privileged workaround was attempted."
 	},
 	"return_action": "Run the prepared controller from an elevated Windows PowerShell at the repository root: ./apps/mapgyver/tests/native/invoke-device-removal.ps1 -TestExecutable ./target/mapgyver-m10-device-ready/MapGyverTests.exe -SourceKind Video -AllowDriverReset -UseCurrentToken. It starts fresh owned fixtures and refuses stale/wrong-PID readiness. Inspect each actual affected adapter, new device generation, hardware/BC routes, fresh output pixels and zero retirement before credit. An unaffected GPU remains a healthy control, not an affected-device pass.",
-	"remaining": "Genuine Video device recovery awaits elevated execution. Continue the specified bundled-app sustained1080p/4K/resource performance within M10/4 meanwhile. M14 remains after M10/4; all original gate counts/budgets remain.",
+	"remaining": "Corrected genuine reset14792 is terminal101 with successful trigger0; native decoders reopen but original frame4 output pixels mismatch. Full latest result and next source-versus-delivery decision are in mapgyver-m10-publication-age-2026-11-09.json. Do not repeat a bare reset against the unchanged prepared fixture. Sustained1080p/4K/resource performance and all original gates/budgets remain; M14 follows M10/4.",
 	"current_prepared_fixture": {
 		"path": "target/mapgyver-m10-device-ready/MapGyverTests.exe",
 		"sha256": "3bdd5c33084b21635bd2b4125f48a950640ecb8bde5d836ac10995d7a4bf2c6f",

@@ -4,11 +4,11 @@ from bisect import bisect_right
 from collections import defaultdict
 from fractions import Fraction
 import json
-import math
 from pathlib import Path
 import runpy
 
 DATA = runpy.run_path(str(Path(__file__).with_name('presentmon_data.py')))
+AGE = runpy.run_path(str(Path(__file__).with_name('age_bounds.py')))
 
 
 def _key(value):
@@ -17,35 +17,6 @@ def _key(value):
 
 def _unavailable(reason):
     return {'captured': False, 'coverage_complete': False, 'reason': reason, 'outputs': []}
-
-
-def _age_upper_bounds(values, total):
-    """Retain the accepted cohort; each unmeasured age has an unbounded upper endpoint."""
-    if type(total) is not int or total < 0 or len(values) > total \
-            or any(not isinstance(value, Fraction) or value < 0 for value in values):
-        raise ValueError('invalid whole-cohort age observations')
-    ordered = sorted(values)
-    ranks = {name: (total * percentile + 99) // 100
-             for name, percentile in (('median', 50), ('p95', 95), ('p99', 99), ('maximum', 100))}
-    bounds = {name: ordered[rank-1] if 0 < rank <= len(ordered) else None
-              for name, rank in ranks.items()}
-    p95 = bounds['p95']
-    def upper_float(value):
-        if value is None:
-            return None
-        approximate = float(value)
-        return math.nextafter(approximate, math.inf) if Fraction(approximate) < value else approximate
-    return {
-        'accepted_images': total, 'finite_age_images': len(ordered),
-        'unbounded_age_images': total-len(ordered), 'ranks': ranks,
-        **{name+'_upper_ms': upper_float(value) for name, value in bounds.items()},
-        'unbounded_statistics': [name for name, value in bounds.items() if value is None],
-        'p95_upper_exact_ms': {'numerator': str(p95.numerator), 'denominator': str(p95.denominator)}
-                              if p95 is not None else None,
-        'p95_within_target': p95 <= 50 if p95 is not None else None,
-        'p95_target_ms': 50,
-        'scope': 'all accepted images; dropped/unknown ages contribute an unbounded endpoint, never a guessed display time',
-    }
 
 
 def analyze_presentmon(report, native, sources, window, pid, frequency, distribution):
@@ -236,7 +207,7 @@ def analyze_presentmon(report, native, sources, window, pid, frequency, distribu
                         'missing_plans': missing_plans,
                         'coverage_complete': complete,
                         'observed_source_to_software_display_age': [distribution([float(age) for age in v]) for v in source_age],
-                        'source_to_software_display_age_upper_bounds': [_age_upper_bounds(v, len(accepted)) for v in source_age],
+                        'source_to_software_display_age_upper_bounds': [AGE['age_upper_bounds'](v, len(accepted)) for v in source_age],
                         'observed_distributions_scope': 'finite displayed/identity-joined observations; whole accepted-cohort source-age upper bounds are separate',
                         'publication_to_software_display_age': [distribution(v) for v in publication_age],
                         'plan_publication_to_software_display_age': distribution(plan_age),

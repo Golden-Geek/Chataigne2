@@ -333,6 +333,12 @@ selection; MapGyver owns media duration/loop/rate policy. Advancing-source diagn
 normalized PTS/windows, successful-publication QPC and requested versus imported sequences.
 Missing clock/acquisition witnesses stay unknown. Diagnostics remain opt-in; the new mechanism
 does not by itself qualify sustained cadence, full source age or complete decoder/pool costs.
+`tools/mapgyver/video_age.py` consumes those actual imported publication tags with exact SDK
+output versions and independent consumer GPU-completion observations. The controlled Q06
+distinct-extent source mapping rejects ambiguity. Every accepted image contributes to the
+percentile rank, with missing endpoints unbounded; `age_bounds.py` shares the exact outward
+arithmetic with PresentMon. This proves only publication-to-copy bounds for witnessed outputs,
+not decoded Video pixel/PTS identity, display scanout or unknown CPU File publications.
 Hardware/HAP File publishers use the timeline completion correction now; all original resource,
 recovery and performance qualification remains required.
 File workers fall back only for an explicit unsupported native codec/interface or conversion.
