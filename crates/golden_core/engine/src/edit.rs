@@ -166,6 +166,14 @@ pub enum Edit {
         /// Requested authored control state.
         state: ParameterControlState,
     },
+    /// Publish scalar runtime feedback without changing authored state or undo/redo.
+    /// Async producers must deliver through their lifetime-fenced node wake callback.
+    SetParamFeedback {
+        /// Target read-only built-in bool, int or float Parameter.
+        node: NodeId,
+        /// Runtime value, or `None` to expose the authored value again.
+        value: Option<ParamValue>,
+    },
     /// Replace the live constraints on an existing parameter node.
     SetParamConstraints {
         /// Target node id.

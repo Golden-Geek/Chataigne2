@@ -27,8 +27,9 @@ fn is_legacy_vec2_display_decl_id(decl_id: &str) -> bool {
 /// Built-in node type that stores a [`ParamValue`].
 pub struct Parameter {
     node_data: NodeData,
-    /// Current parameter value.
+    /// Authored parameter value; runtime feedback is excluded from persistence and history.
     pub value: ParamValue,
+    runtime_value: Option<Box<ParamValue>>,
     /// Declared default value.
     pub default_value: ParamValue,
     /// Change-detection policy for `set`.
@@ -60,6 +61,7 @@ impl Parameter {
         Self {
             node_data,
             value,
+            runtime_value: None,
             default_value,
             change_check,
             event_behaviour: ParameterEventBehaviour::Coalesce,
@@ -86,7 +88,7 @@ impl Parameter {
         };
 
         let is_trigger = matches!(&normalized, ParamValue::Trigger());
-        let value_changed = self.value != normalized;
+        let value_changed = self.value != normalized || self.get() != &normalized;
         if is_trigger || self.change_check == ParameterChangeCheck::None || value_changed {
             ctx.set_param_with_behaviour(self.node_data().id, normalized, self.event_behaviour);
         }
@@ -106,13 +108,20 @@ impl Parameter {
 
     /// Returns the current parameter value.
     pub fn get(&self) -> &ParamValue {
-        &self.value
+        self.runtime_value.as_deref().unwrap_or(&self.value)
+    }
+
+    pub(crate) fn set_runtime_value(&mut self, value: Option<ParamValue>) {
+        match (self.runtime_value.as_mut(), value) {
+            (Some(current), Some(value)) => **current = value,
+            (_, value) => self.runtime_value = value.map(Box::new),
+        }
     }
 
     /// Returns a UI snapshot view of this parameter.
     pub fn snapshot(&self) -> ParameterSnapshot {
         ParameterSnapshot {
-            value: self.value.clone(),
+            value: self.get().clone(),
             default_value: self.default_value.clone(),
             change_check: self.change_check.clone(),
             event_behaviour: self.event_behaviour,
@@ -217,6 +226,7 @@ fn current_parameter_project_data(parameter: &Parameter) -> ParameterAuthoredSta
         ui_hints,
         control,
         control_modes_enabled,
+        runtime_value: _,
     } = parameter;
     ParameterAuthoredState {
         value: value.clone(),
@@ -245,6 +255,9 @@ fn restore_parameter_state(parameter: &mut Parameter, state: ParameterAuthoredSt
         control,
         control_modes_enabled,
     } = state;
+    if parameter.value != value || !read_only {
+        parameter.runtime_value = None;
+    }
     parameter.value = value;
     parameter.default_value = default_value;
     parameter.change_check = change_check;
@@ -252,6 +265,11 @@ fn restore_parameter_state(parameter: &mut Parameter, state: ParameterAuthoredSt
     parameter.read_only = read_only;
     parameter.persist_read_only_value = persist_read_only_value;
     parameter.constraints = constraints;
+    parameter.runtime_value = parameter
+        .runtime_value
+        .take()
+        .and_then(|value| parameter.constraints.normalize(*value).ok())
+        .map(Box::new);
     parameter.ui_hints = ui_hints;
     parameter.control = control;
     parameter.control_modes_enabled = control_modes_enabled;
@@ -618,6 +636,7 @@ impl Node for Parameter {
     }
 
     fn engine_set_param_value(&mut self, value: ParamValue) -> Option<ParamValue> {
+        self.runtime_value = None;
         let old = std::mem::replace(&mut self.value, value);
         Some(old)
     }
@@ -633,7 +652,7 @@ impl Node for Parameter {
 
     fn engine_process_tree_parameter_state(&self) -> Option<ProcessTreeParameterState> {
         Some(ProcessTreeParameterState {
-            value: self.value.clone(),
+            value: self.get().clone(),
             constraints: self.constraints.clone(),
             control: self.control.clone(),
         })
@@ -718,6 +737,11 @@ impl Node for Parameter {
         if let std::borrow::Cow::Owned(value) = constraints.normalize_ref(&self.value)? {
             self.value = value;
         }
+        self.runtime_value = self
+            .runtime_value
+            .take()
+            .and_then(|value| constraints.normalize(*value).ok())
+            .map(Box::new);
         self.constraints = constraints;
         Ok(())
     }
@@ -728,7 +752,16 @@ impl Node for Parameter {
         constraints: ParameterConstraints,
     ) -> Result<(), String> {
         let value = self.coerce_for_current_value_kind(value)?;
-        self.value = constraints.normalize(value)?;
+        let value = constraints.normalize(value)?;
+        if self.value != value {
+            self.runtime_value = None;
+        }
+        self.value = value;
+        self.runtime_value = self
+            .runtime_value
+            .take()
+            .and_then(|value| constraints.normalize(*value).ok())
+            .map(Box::new);
         self.constraints = constraints;
         Ok(())
     }

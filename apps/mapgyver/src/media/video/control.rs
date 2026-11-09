@@ -15,6 +15,7 @@ struct State {
     files: std::collections::HashMap<super::super::protocol::ChannelId, super::bindings::File>,
     durations: std::collections::BTreeMap<Duration, usize>,
     frames: super::frames::Frames,
+    feedback: Option<super::feedback::Publisher>,
 }
 
 /// Shared per-media runtime control, retained by demanded sources rather than per Reference.
@@ -34,12 +35,34 @@ impl Default for VideoControl {
                 files: Default::default(),
                 durations: Default::default(),
                 frames: Default::default(),
+                feedback: None,
             }),
             Default::default(),
         )
     }
 }
 impl VideoControl {
+    pub(crate) fn set_feedback(&self, publisher: super::feedback::Publisher) -> Result<(), String> {
+        self.0.lock().map_err(|_| "Video control poisoned")?.feedback = Some(publisher);
+        self.publish_feedback()
+    }
+    pub(crate) fn publish_feedback(&self) -> Result<(), String> {
+        let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
+        if state.retired {
+            return Ok(());
+        }
+        let Some(publisher) = state.feedback.clone() else {
+            return Ok(());
+        };
+        let sample = state.transport.sample().map_err(|error| error.to_string())?;
+        let status = super::feedback::Status {
+            playing: sample.playing,
+            length_ms: super::frames::millis(sample.duration),
+        };
+        drop(state);
+        publisher.publish(status);
+        Ok(())
+    }
     pub(crate) fn source_status(
         &self,
         reference: super::super::protocol::ChannelReference,
@@ -133,6 +156,7 @@ impl VideoControl {
     pub(crate) fn retire_media(&self) {
         if let Ok(mut state) = self.0.lock() {
             state.retired = true;
+            state.feedback = None;
         }
     }
     pub(crate) fn activate_media(&self) {
@@ -353,7 +377,7 @@ impl VideoControl {
         state.apply(play)?;
         drop(state);
         self.1.advance();
-        Ok(())
+        self.publish_feedback()
     }
     /// Explicit timing fixture injection; product metadata comes from authored channel bindings.
     #[cfg(test)]

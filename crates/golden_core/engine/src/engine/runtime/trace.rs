@@ -67,6 +67,7 @@ impl<T: Node> Engine<T> {
                 format!("EndEditSession client_edit_id={client_edit_id}")
             }
             Edit::SetParam { node, .. } => format!("SetParam target={}", self.describe_node(*node)),
+            Edit::SetParamFeedback { node, .. } => format!("SetParamFeedback target={}", self.describe_node(*node)),
             Edit::SetParamComponent { node, component, .. } => format!(
                 "SetParamComponent target={} component={component}",
                 self.describe_node(*node)

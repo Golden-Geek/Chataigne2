@@ -17,6 +17,21 @@ TypeScript. Golden Time's internal `PlaybackRate` remains the rational clock map
 The changed authored keys use Media schema v9 and Media Command schema v7; previous schemas
 are rejected rather than silently dropping their old Speed setting.
 
+Playing and Length are read-only typed Parameters. The existing background metadata owner
+samples changed status at its coarse checkpoint; transport edits also publish immediately.
+One latest-only inbox per media delivers through a lifetime-fenced Golden `NodeWaker`, including
+while disabled. Restoring a media registers a new inbox; old producers cannot reach it.
+The engine and UI do not poll for these values. Length follows the longest known variant,
+independently of render demand; source availability remains a separate runtime status.
+
+Golden's public `SetParamFeedback` / `ProcessCtx::set_param_feedback_from` accepts read-only
+bool/int/float telemetry. `Parameter::get`, process snapshots and ordinary parameter events
+expose the live value; its authored `value` remains the persistence/history baseline. Feedback
+does not clear redo or mark authored edits, and constraint/history restoration cannot turn a
+live status into authored data. A node wake must fence asynchronous producers. Writable
+Current Position authority/seek arbitration, its duration bounds and unknown-duration editing
+policy remain separate M10/5 work; this status API does not claim that support.
+
 Background metadata probing supplies the longest authored channel duration, including variants
 without render consumers. Each channel samples at the lesser of
 that shared position and its own duration, holding its final frame while longer channels run.

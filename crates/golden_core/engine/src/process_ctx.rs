@@ -629,6 +629,12 @@ impl ProcessCtx {
         self.edits.push_from(source, Edit::SetParam { node, value, behaviour });
     }
 
+    /// Publish read-only scalar telemetry through the ordinary Parameter snapshot/event path.
+    /// This leaves the authored value and undo/redo unchanged. `None` clears feedback.
+    pub fn set_param_feedback_from(&mut self, source: NodeId, node: NodeId, value: Option<ParamValue>) {
+        self.edits.push_from(source, Edit::SetParamFeedback { node, value });
+    }
+
     /// The exact event being dispatched by the standard node inbox callbacks.
     /// Its value may differ from the latest tree snapshot after appended edits.
     pub fn current_event(&self) -> Option<&crate::events::Event> {

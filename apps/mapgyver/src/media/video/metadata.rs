@@ -34,6 +34,7 @@ impl Probe {
     pub fn reconcile(&mut self, source: &Source, root: &Path) -> Result<(), String> {
         let mut desired = Vec::<(Key, Arc<VideoControl>, AssetLocator)>::new();
         for control in source.registry.controls() {
+            control.publish_feedback()?;
             for (channel, generation, locator) in control.metadata_files()? {
                 if desired.len() == 4096 {
                     return Err("Video metadata exceeds 4096 configured Files".into());

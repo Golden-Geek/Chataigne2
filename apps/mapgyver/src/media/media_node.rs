@@ -42,6 +42,10 @@ use std::sync::OnceLock;
         video_speed: f64 = 1.0 [-16.0..16.0] (label = "Speed", step = 0.01,
             dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video, constraint_policy = "reject");
         video_looping: bool = false (label = "Loop", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
+        video_playing: bool = false (label = "Playing", read_only = true,
+            dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
+        video_length_ms: f64 = 0.0 [0.0..9000000000000.0] (label = "Length", read_only = true, widget = "time", unit = "ms",
+            dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
     }
 )]
 pub struct MediaNode {
@@ -55,6 +59,8 @@ pub struct MediaNode {
     video_control: OnceLock<std::sync::Arc<super::video::VideoControl>>,
     #[state(default = false)]
     video_ready: bool,
+    #[state(default = super::video::feedback::Inbox::default())]
+    video_feedback: super::video::feedback::Inbox,
 }
 impl MediaNode {
     pub(crate) fn video_control(&self) -> Option<std::sync::Arc<super::video::VideoControl>> {
@@ -296,6 +302,7 @@ impl Node for MediaNode {
         }
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
+        self.video_feedback.close();
         if let Some(control) = self.video_control.get() {
             control.retire_media();
         }
@@ -310,6 +317,14 @@ impl Node for MediaNode {
         self.video_ready = true;
         if let Some(control) = self.video_control() {
             control.activate_media();
+            match self
+                .video_feedback
+                .register(ctx)
+                .and_then(|publisher| control.set_feedback(publisher))
+            {
+                Ok(()) => ctx.clear_node_warning(self.id(), Some("video-feedback")),
+                Err(error) => ctx.set_node_warning_with(self.id(), Some("video-feedback"), error, None),
+            }
         }
         self.publish_video(ctx, true);
         #[cfg(feature = "video-files")]
@@ -330,11 +345,31 @@ impl Node for MediaNode {
             self.pulses.revoke();
         }
     }
+    fn worker_wake_when_disabled(&self) -> bool {
+        true
+    }
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        if let Some(status) = self.video_feedback.take() {
+            ctx.set_param_feedback_from(
+                self.id(),
+                self.video_playing.id(),
+                Some(ParamValue::Bool(status.playing)),
+            );
+            ctx.set_param_feedback_from(
+                self.id(),
+                self.video_length_ms.id(),
+                Some(ParamValue::Float(status.length_ms)),
+            );
+        }
+    }
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
         let id = self.id();
         self.pulses.result(ctx, id, &event);
     }
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: golden_core::node::NodeId, _: ParamValue) {
+        if parameter == self.video_playing.id() || parameter == self.video_length_ms.id() {
+            return;
+        }
         if self.video_parameter(parameter) {
             self.publish_video(ctx, parameter == self.video_position_ms.id());
             return;

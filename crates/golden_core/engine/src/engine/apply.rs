@@ -266,6 +266,10 @@ impl<T: Node> Engine<T> {
                             effects.set_policy(behaviour, self.time.tick);
                             (Ok(effects.history()), changed)
                         }
+                        Edit::SetParamFeedback { node, value } => {
+                            self.apply_param_feedback(edit_index, node, value, request.param_source)?;
+                            (Ok(None), false)
+                        }
                         Edit::SetParamControlState { node, state } => {
                             let effect = self
                                 .apply_set_param_control_state(edit_index, node, state)?
@@ -740,6 +744,7 @@ fn edit_kind_name(edit: &Edit) -> &'static str {
         Edit::BeginEditSession { .. } => "BeginEditSession",
         Edit::EndEditSession { .. } => "EndEditSession",
         Edit::SetParam { .. } => "SetParam",
+        Edit::SetParamFeedback { .. } => "SetParamFeedback",
         Edit::SetParamComponent { .. } => "SetParamComponent",
         Edit::SetParamsAtomic { .. } => "SetParamsAtomic",
         Edit::SetParamConstraints { .. } => "SetParamConstraints",

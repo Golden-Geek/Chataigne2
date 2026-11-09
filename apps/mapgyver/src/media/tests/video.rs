@@ -101,6 +101,82 @@ fn video_creation_has_one_transport_real_file_variants_and_independent_project_c
 }
 
 #[test]
+fn runtime_playing_and_length_are_read_only_and_never_authored_history() {
+    let mut engine = fixture();
+    let reference = create(&mut engine, MediaKind::Video);
+    let owner = engine.node_id_by_uuid(reference.media.0).unwrap();
+    let AppNode::Media(node) = engine.nodes.get(owner).unwrap() else {
+        panic!()
+    };
+    let control = node.video_control().unwrap();
+    let length = parameter(&engine, reference.media.0, "video_length_ms");
+    let playing = parameter(&engine, reference.media.0, "video_playing");
+    let value = |engine: &AppEngine, id| engine.nodes.get(id).unwrap().engine_param_snapshot().unwrap().value;
+    engine.run_tick(Duration::from_millis(1)).unwrap();
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    control.prepare(Duration::from_secs(60)).unwrap();
+    control.publish_feedback().unwrap();
+    engine.run_tick(Duration::from_millis(1)).unwrap();
+    assert_eq!(value(&engine, length), ParamValue::Float(60000.0));
+    assert_eq!(value(&engine, playing), ParamValue::Bool(false));
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+    assert_eq!(engine.undo_len(), history);
+    for (node, value) in [(length, ParamValue::Float(123.0)), (playing, ParamValue::Bool(true))] {
+        let ack = apply_project_intent(
+            &mut engine,
+            UiEditIntent::SetParam {
+                node,
+                value,
+                behaviour: ParameterEventBehaviour::Append,
+            },
+        );
+        assert!(!ack.success, "{ack:?}");
+    }
+    assert_eq!(value(&engine, length), ParamValue::Float(60000.0));
+    assert_eq!(engine.undo_len(), history);
+    edit(&mut engine, reference.media, VideoEdit::Play);
+    let after_play = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    engine.run_tick(Duration::from_millis(1)).unwrap();
+    assert_eq!(value(&engine, playing), ParamValue::Bool(true));
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), after_play);
+    assert_eq!(engine.undo_len(), history);
+    edit(&mut engine, reference.media, VideoEdit::Pause);
+    engine.run_tick(Duration::from_millis(1)).unwrap();
+    assert_eq!(value(&engine, playing), ParamValue::Bool(false));
+    assert_eq!(value(&engine, length), ParamValue::Float(60000.0));
+}
+
+#[test]
+fn restored_project_does_not_inherit_old_runtime_feedback() {
+    let mut engine = fixture();
+    let reference = create(&mut engine, MediaKind::Video);
+    let owner = engine.node_id_by_uuid(reference.media.0).unwrap();
+    let AppNode::Media(node) = engine.nodes.get(owner).unwrap() else {
+        panic!()
+    };
+    let control = node.video_control().unwrap();
+    control.prepare(Duration::from_secs(60)).unwrap();
+    control.publish_feedback().unwrap();
+    engine.run_tick(Duration::from_millis(1)).unwrap();
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+    loaded.apply_edits().unwrap();
+    crate::media::validate_project(&loaded).unwrap();
+    let loaded_before = to_sparse_project_json_pretty(&loaded).unwrap();
+    control.prepare(Duration::from_secs(120)).unwrap();
+    control.publish_feedback().unwrap();
+    loaded.run_tick(Duration::from_millis(1)).unwrap();
+    let length = parameter(&loaded, reference.media.0, "video_length_ms");
+    assert_eq!(
+        loaded.nodes.get(length).unwrap().engine_param_snapshot().unwrap().value,
+        ParamValue::Float(0.0)
+    );
+    assert_eq!(to_sparse_project_json_pretty(&loaded).unwrap(), loaded_before);
+}
+
+#[test]
 fn inspector_speed_uses_the_same_transport_and_rejects_invalid_values_atomically() {
     let mut engine = fixture();
     let reference = create(&mut engine, MediaKind::Video);

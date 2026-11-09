@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-09",
+  "gate": "M10/5",
+  "gate_state": "Active",
+  "scope": "Live read-only Playing and Length; partial transport delivery, no gate acceptance",
+  "ownership": {
+    "golden_engine": "Read-only bool/int/float Parameter feedback overlay through SetParamFeedback and ProcessCtx::set_param_feedback_from",
+    "mapgyver": "Typed Playing/Length Parameters, existing 100ms background metadata owner and immediate transport publication, latest-only generation-fenced node wake",
+    "golden_ui": "Read-only checkbox/button editors disable native input including keyboard toggles",
+    "history": "Live reads/events/cache expose feedback; authored value, persistence, undo/redo and opaque state retain the authored baseline",
+    "lifetime": "Only Video allocates an inbox; retired media closes delivery and drops its wake-holding publisher"
+  },
+  "verification": {
+    "engine_tests": { "passed": 680, "failed": 0, "ignored": 3, "seconds": 0.66, "profile": "dev", "log": "target/m10-status-engine-tests.log" },
+    "app_tests": { "passed": 628, "failed": 0, "ignored": 7, "seconds": 58.56, "profile": "dev", "log": "target/m10-status-app-tests-retry.log" },
+    "behavior": ["Live snapshots, process-tree reads and parameter events agree", "Feedback leaves serialization/history unchanged and preserves redo", "Constraint history cannot promote runtime values into authored values", "Internal authored writes clear feedback with correct authored history", "Inspector intents cannot write Playing or Length", "Playing follows transport, Length receives duration, and a restored project rejects old runtime delivery"],
+    "strict_lint": { "result": "pass", "scope": "golden_engine and MapGyver all targets, native-qualification", "seconds": 43.17, "log": "target/m10-status-clippy.log" },
+    "shared_ui_tests": { "passed": 320, "files": 60 },
+    "ui_check": { "svelte_errors": 0, "svelte_warnings": 0, "prettier": "pass", "native_fixture_syntax": "pass" },
+    "contract": "Existing generated Parameter snapshot/event DTOs carry the values; no wire shape or hand-maintained TypeScript declaration was added",
+    "validation_notes": ["Early compile failures in test fixture type/lifecycle and sampler mutability were corrected", "Failed optimized build's stale compiler was stopped; functional suites ran in the incremental dev profile, without changing performance qualification budgets", "Initial app run found an old exact field-count assertion and a new reload JSON assertion sensitive to declared-child ordering; node records excluding child order matched exactly, and the test now compares the restored document before/after obsolete publication"],
+    "native": {
+      "result": "pass for status scope only",
+      "binary": "target/m10-status-app/MapGyver.exe",
+      "sha256": "b46f089417b01c32807ee85b6d3a328a5020701d43e4996e72ebe1ba863b4097",
+      "build_seconds": 73,
+      "pid": 32764,
+      "artifact": "target/m10-status-native/video-status.json",
+      "length_ms": [250, 500, 250],
+      "playing": [false, true, false],
+      "read_only": { "length": true, "playing": true },
+      "page_errors": 0,
+      "normal_shutdown": true,
+      "source": "Unavailable, retrying: FFmpeg Invalid data found when processing input",
+      "limits": "Metadata/transport status is verified independently of decoded pixels; no native playback, seek, recovery or full gate acceptance",
+      "final_callback_check": "Current strict build and native fixture cover the final status-warning clear on successful registration"
+    }
+  },
+  "remaining": ["Play/Pause/Stop trigger Parameters", "Play at Load false and readiness/cancellation fencing", "Writable Current Position feedback/intent arbitration, unknown-duration policy and dynamic bounds", "Resolve retained native H.264 invalid-data failure before full current playback acceptance", "Full M10/5 caller, history, reload and native acceptance"],
+  "progress": { "accepted": 85, "total": 106, "overall_percent": 80, "M10_accepted": 2, "M10_total": 8, "gate_changes": "None" }
+}

@@ -21,6 +21,7 @@ mod opaque_edits;
 mod param_constraints;
 mod param_provenance;
 mod parameter_cache_recovery;
+mod parameter_feedback;
 mod parameter_value_store;
 mod prepared_runtime_snapshot;
 mod process_tree_snapshot;

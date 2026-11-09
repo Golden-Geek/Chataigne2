@@ -49,7 +49,7 @@
 		class="editor-checkbox-shell widget-layout widget-checkbox-button"
 		class:with-inline-label={showsInlineLabel}
 		class:checked={draftValue}
-		disabled={!enabled}
+		disabled={!enabled || readOnly}
 		class:readonly={readOnly}
 		aria-pressed={draftValue}
 		onclick={() => {
@@ -71,7 +71,7 @@
 		<input
 			type="checkbox"
 			class="editor-checkbox"
-			disabled={!enabled}
+			disabled={!enabled || readOnly}
 			class:readonly={readOnly}
 			checked={draftValue}
 			onchange={(event) => {

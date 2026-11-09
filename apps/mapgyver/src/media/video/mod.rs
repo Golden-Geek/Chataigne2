@@ -8,6 +8,7 @@
 pub(crate) mod authoring;
 pub(crate) mod bindings;
 mod control;
+pub(crate) mod feedback;
 mod frames;
 pub mod protocol;
 mod transport;
