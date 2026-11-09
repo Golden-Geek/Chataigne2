@@ -47,6 +47,14 @@ checks remain required; this acceptance does not implement that feature. Continu
 pass, M14 and extended codecs in the order above. Other ownership, recovery, correctness,
 memory and final-product requirements remain unchanged.
 
+The user's **2026-11-09 Video feedback** is incorporated in **M10/5–8** below.
+**High priority: transport Parameters (5), smooth paused/playing seek (6) and Matrix transport
+policy (7), all required before first-pass Video acceptance. Low priority: subtitles (8), after
+M14 and extended codecs, before M09.** Keep M10/4 as the sole active gate and checkpoint its
+current work before selecting the new high-priority gates at the next product boundary.
+Earlier M10/1–2 evidence retains its tested scope; it does not verify the changed controls or
+reported seek regression. This planning amendment adds four pending gates and implements nothing.
+
 ## Entry, order and delivery
 
 1. Read AGENTS.md, this plan and the compact status page. Reconcile the checkout, current
@@ -61,14 +69,17 @@ memory and final-product requirements remain unchanged.
 4. Execute the revision in this order: **M04 ownership/Resolution/Reference → M04 Media Preview
    and M05 navigation/Screen interaction → M06 Composition → M08 reusable app-control boundary
    and M07 Matrix redesign together → delivered M11/M12/M13 functional contracts →
-   M10 first-pass Video (1 → 2 → 4) → M14 feedback (1–10) → M10/3 DXV/WebP →
+   M10 first-pass Video (1 → 2 → 5 → 6 → 7 → 4 acceptance) → M14 feedback (1–10) →
+   M10/3 DXV/WebP → M10/8 subtitles →
    remaining acceptance closure → M09 final qualification**.
    M08's shared configuration/runtime contract precedes dependent Matrix app controls; this
    dependency does not authorize two active gates. Deliver their coherent slices sequentially.
-   Next product delivery is **M10/1 common-codec Video**, followed by HAP and complete first-pass
-   bundled recovery/performance. Checkpoint M13/4's existing failed correspondence evidence and
-   return to it after M14 (or sooner for a reproduced Video-path blocker). Retain every unfinished
-   M12/M13 and qualification gate; this priority change awards no acceptance.
+   M10/1 common-codec Video and M10/2 HAP are accepted for their tested scopes. Retain the
+   current M10/4 batch, then select **M10/5 transport Parameters** at the next product boundary,
+   followed by smooth seek and Matrix policy before complete first-pass recovery/performance.
+   M13/4's existing failed numerical evidence remains historical under the user's acceptance
+   above; do not requalify that scope without new feedback or a reproduced dependency defect.
+   Retain every unfinished M12/M13 and qualification gate; this priority change awards no acceptance.
    M08/4 retains its [blocked complete-retirement qualification](../progress/mapgyver-m08-retirement.md),
    alongside the named M03/M05 return lanes. M08's functional boundary and ordinary-app integration
    are verified; independent M11 stability/editor work does not depend on unverified external-target
@@ -188,15 +199,17 @@ Historical batches, pauses and execution instructions in the
   cancellation, project/device fencing and completion-based final-use retirement.
 - No compatibility layer is planned. Version changed document structures explicitly and reject
   unsupported old records clearly; never reinterpret old records silently.
-- M14 owns the latest feedback contract; M13's unchanged requirements remain binding.
+- M10/5–8 own the latest Video feedback; M14 owns the latest other feedback contract;
+  M13's unchanged requirements remain binding.
   Authored/playback controls are real Golden nodes and
   Parameters, including triggers and optional-Parameter metadata. Interaction feedback must
   remain smooth at the display refresh rate independently of media/output frame cadence.
 
 ## Milestones and dependencies
 
-IDs remain stable; **M10 first pass precedes M14, extended codecs and remaining qualification**.
-M04–M13 retain earlier evidence within its tested scope; M14 owns the latest changed contracts.
+IDs remain stable; **M10 first pass, including high-priority gates 5–7, precedes M14, extended
+codecs, low-priority subtitles and remaining qualification**. M04–M13 retain earlier evidence
+within its tested scope; M10/5–8 and M14 own their latest changed contracts.
 Counts refer to the numbered acceptance gates below, not commits or elapsed work.
 
 | ID  | Outcome                                                       | Functional dependency                                       | Gates |
@@ -213,8 +226,8 @@ Counts refer to the numbered acceptance gates below, not commits or elapsed work
 | M11 | Feedback: stable rendering, simpler authoring, shared UX      | Existing M04–M08 product contracts; one gate at a time      | 10    |
 | M12 | Feedback: stable panels, Matrix groups/layout, polish         | Existing M04–M11 contracts; one gate at a time              | 11    |
 | M13 | Latest feedback: smooth interaction, Matrix controls, media UX | Existing M04–M12 functional contracts; one gate at a time   | 14    |
-| M10 | Tiered Video playback                                         | Existing functional media/runtime contracts; gates 1,2,4 first; gate 3 after M14 | 4     |
-| M14 | Shared 2D interaction, Composition, Screen and Matrix feedback | M10 first-pass gates 1,2,4; one gate at a time                | 10    |
+| M10 | Tiered Video playback, transport, seeking and subtitles       | Existing media/runtime; first pass 1,2,5,6,7,4; gate 3 after M14, then gate 8 | 8     |
+| M14 | Shared 2D interaction, Composition, Screen and Matrix feedback | M10 first-pass gates 1,2,4–7; one gate at a time              | 10    |
 | M09 | Actual-app qualification and Windows artifact                 | All retained feature/qualification gates, including M10–M14 | 1     |
 
 ### M00 — Reconcile and define evidence
@@ -1029,15 +1042,20 @@ one phase, preserving every older unfinished acceptance requirement and numeric 
 **2026-11-08 priority:** deliver **gates 1 → 2 → 4** as the first pass before M14; defer
 **gate 3 (DXV/WebP)** until after M14. Gate 4 qualifies the complete first-pass codec set and
 does not depend on gate 3. Gate 3 subsequently includes bundled integration/recovery/performance
-for its added codecs under the same gate-4 contracts. This changes execution order and that
-codec coverage boundary, not the four-gate count or any acceptance budget. Use existing verified
-functional contracts; retain unrelated open qualification in its explicit return queue.
+for its added codecs under the same gate-4 contracts. **2026-11-09 amendment:** add high-priority
+gates **5 → 6 → 7** before gate-4 acceptance; complete low-priority gate **8** after M14 and
+gate 3, before M09. Preserve the current M10/4 checkpoint and sole-active-gate discipline;
+select gate 5 at the next product boundary, retaining gate 4's exact return requirements.
+M10 now has eight gates, with no acceptance awarded or existing budget relaxed. Use existing
+verified functional contracts; retain unrelated open qualification in its explicit return queue.
 Video has **one transport per media and one file per channel**; References only mirror outputs.
 Reuse M11's simplified Channels, shared Fit Mode,
 draggable time-style Parameters, icons and stable-preview contracts, with M13's self-contained
 File ownership and simplified media/channel targeting rather than restoring obsolete controls.
-Use a shared monotonic media timeline and timestamp-based sampling. Defaults: paused at zero,
-rate 1 and looping off. Shorter channels hold their final frame until the shared timeline ends.
+Use a shared monotonic media timeline and timestamp-based sampling. Defaults: paused at zero
+unless **Play at Load** is enabled, **Speed** 1 and looping off. Shorter channels hold their
+final frame until the shared timeline ends. M10/5 replaces the older editable Playing, Seek To
+and Rate controls; Matrix activation follows M10/7 rather than a UI-owned transport policy.
 Frame stepping uses the selected channel's timestamps; References never independently reset transport.
 
 Use FFmpeg libraries through reliable Rust bindings for demuxing/broad decode and D3D11 hardware
@@ -1049,7 +1067,7 @@ decoder's compressed-texture route. Primary integration sources:
 and [HAP developer guidance](https://hap.video/developers).
 Library capability is not acceptance of any codec/profile in MapGyver.
 
-1. **Transport/common codecs:** H.264, H.265 and ProRes; play/pause/stop/seek/frame-step/rate/loop;
+1. **Transport/common codecs:** H.264, H.265 and ProRes; play/pause/stop/seek/frame-step/speed/loop;
    mixed-rate timestamp sampling, shorter-file hold and shared Reference transport. Complete
    Parameters, commands/functions/callbacks/snippets and UI/script/headless/history/project parity.
 2. **Performance playback:** HAP, HAP Alpha, HAP Q, concurrent high-resolution files and shared
@@ -1061,6 +1079,65 @@ Library capability is not acceptance of any codec/profile in MapGyver.
    coalesced superseding seeks/stale-result rejection,
    missing-file relink/retry, device recovery and actual-app sustained 1080p/4K/resource performance
    for all common and HAP codecs. A playable prototype alone does not close the first pass.
+   Acceptance also requires the changed transport, seek and Matrix behavior in gates 5–7.
+5. **High priority — typed transport controls and timeline feedback.** Owners: MapGyver Video
+   Parameters/transport projection on Golden's public Parameter and generic Inspector APIs.
+   Expose **Playing** as read-only status and **Play**, **Pause**, **Stop** as trigger Parameters.
+   Add authored boolean **Play at Load**, default false; enabling it starts playback on project/
+   media load when the file is ready, respecting cancellation and current transport intents.
+   Expose video **Length** as a read-only time Parameter, reflecting the longest loaded channel.
+   Remove **Seek To**. Replace it with one editable time Parameter, **Current Position**, which
+   also receives actual transport feedback. Backend-owned bounds are **0 to the longest video
+   duration across channels**, updated when files/channels change, so the generic Inspector
+   automatically presents a ranged slider and no caller can seek outside that interval.
+   Suspend incoming position feedback while the user is seeking so it cannot fight the edit;
+   resume authoritative feedback after the latest seek settles, without a stale-position jump.
+   Unknown/unavailable duration must have truthful feedback and bounded edit behavior.
+   Rename **Rate** to **Speed** everywhere. Runtime feedback remains distinct from authored
+   state/history; every authored control uses real typed Parameters, never opaque node data.
+   Verify read-only rejection, triggers, startup/load policy, empty/mixed-duration channels,
+   changed duration/clamping, seek feedback arbitration, Inspector slider and UI/script/
+   transport/headless parity, callbacks/snippets, independent copy, history and project reload.
+6. **High priority — smooth instant seeking, paused and playing.** Owners: Golden Video's
+   reusable decode/seek/GPU handoff and MapGyver's shared transport integration. User-reported
+   reproducer: all-intraframe file `D:\Documents\MapGyver\test videos\ball_turn.mp4`.
+   Paused seeking currently reports **"application made a call that is invalid > Enable D3D
+   debug layer (0x887A0001)"**; playing seeks are choppy. This is reported evidence, not a
+   confirmed root cause. Reproduce and fix the invalid-call path; enabling diagnostics alone
+   does not satisfy acceptance. A paused seek must present the requested frame while remaining
+   paused; playing seeks must remain responsive and continue from the latest requested position.
+   Support continuous scrubbing with an immediate, smooth **25–30 fps feel** in both states,
+   at least on this intraframe fixture. Measure input-to-present latency and distinct presented
+   seek updates (target at least 25/s under continuous input), alongside native visual review;
+   a slider moving smoothly without fresh video pixels is insufficient. Preserve frame/timestamp
+   accuracy, latest-request coalescing, stale-frame rejection, shared channel/Reference ownership,
+   bounded queues and completion-safe D3D resource reuse. Verify rapid forward/backward seeks,
+   endpoints, pause/play during scrubbing, repeated use and file/project/device recovery on both
+   GPUs after software prerequisites. Retain cold/warm and codec-specific limits explicitly.
+7. **High priority — Matrix Video transport policy.** Owner: MapGyver's Video transport and
+   Matrix activation/transition/demand backend, consuming public Golden runtime contracts.
+   Add typed enum Parameters for Video in Matrix: **On Activate = Play from Start (default),
+   Resume, Nothing**; **On Deactivate = Stop (default), Pause, Nothing**. Play from Start
+   restarts at zero; Resume continues from the retained position; Nothing sends no transport
+   action. Default Stop waits until the outgoing transition ends before stopping the video;
+   the transition must retain moving frames and demand until then. Specify Pause/Nothing timing
+   explicitly with implementation and preserve the same transition-safe ownership boundary.
+   Fence deferred actions on reactivation/interruption, deletion and project replacement; a stale
+   outgoing completion must never stop a newly active or still-shared transport. References
+   mirror their owner rather than create independent clocks or duplicate activation actions.
+   Verify all enum combinations, zero/nonzero/interrupted transitions, same-video reactivation,
+   shared consumers, manual transport interaction, Matrix enabled/Layer Stop contracts, and
+   UI/script/headless parity, history/copy/reload with actual native playback observations.
+8. **Low priority — disableable subtitles container.** Owners: MapGyver Video's typed subtitle
+   authoring and source-selection policy; reusable parsing/rendering mechanisms belong in Golden.
+   Add a container that can be disabled, an enum listing available subtitles, typed subtitle
+   **Size**, **Font** and **Positioning** settings, and a **File** Parameter for local subtitles.
+   Use generic Inspector controls over those same Parameters. Define supported subtitle formats
+   and track/local-file selection semantics before implementation, using a reliable library
+   where available. Verify available/absent tracks, local-file selection and missing-file recovery,
+   enable/disable, font/size/position rendering, timing during pause/seek/speed/loop, native output/
+   preview parity, shared consumers and all callers/history/copy/project roundtrip. Low priority
+   changes delivery order only; this gate remains required before M09 unless the user revises it.
 
 Use frame-numbered fixtures for exact seeks, mixed frame rates and stale-seek rejection.
 Record cold/warm seek latency, timestamp accuracy, sustained throughput and per-format software
@@ -1071,8 +1148,8 @@ remain outside this plan.
 ### M14 — Apply the 2026-11-08 feedback after first-pass Video
 
 Source: the user's editor, Composition, Screen and Matrix feedback in this chat.
-Execute **after M10/1,2,4**, before M10/3 DXV/WebP and final qualification. The ten gates
-below cover every requested behavior; incorporation implements nothing and accepts no gate.
+Execute **after M10/1,2,4–7**, before M10/3 DXV/WebP, M10/8 subtitles and final qualification.
+The ten gates below cover every requested behavior; incorporation implements nothing and accepts no gate.
 
 Golden owns reusable 2D selection/input, viewport animation, workbench context menus and
 enabled/optional-Parameter mechanisms. MapGyver owns editor target resolution, Composition
