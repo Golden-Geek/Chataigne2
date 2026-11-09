@@ -265,6 +265,12 @@ the visible sequence (zero after withdrawal), plus an `ImageUpload` only at a re
 That event reports tightly packed input row pitch, rows, bytes and API wall time. It does not
 describe the original decoder planes, GPU execution, HAP block uploads or end-to-end source age;
 software publication timing remains unknown. GPU-frame copy/import accounting is separate.
+Software packing copies complete stride-trimmed RGBA rows, then applies the existing transfer
+lookup in place. Alpha is untouched. This avoids four growing-vector pushes per pixel without
+changing decoded pixels, thread admission or published-frame ownership. Q06's fixed ProRes
+scenario and inward upload-end/output-API-begin age bounds live in `video_fixtures.py`,
+`native-video-sustained.mjs` and `video_sample.py`; an age lower bound can prove failure, never
+passing full source age. Each invocation is one independent warmed sample, not a three-run series.
 For an explicit actual-app qualification run, set `MAPGYVER_NATIVE_DIAGNOSTICS` to an owned
 capture directory before launch. The host creates a fresh PID/UUID file per renderer lifetime,
 enables a16384-row ring and delegates writing to Golden's separate `DiagnosticCapture` I/O owner.

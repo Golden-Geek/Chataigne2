@@ -1,0 +1,34 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4 Active; no acceptance credit",
+	"batch": "05:15 UTC start,06:00 UTC cutoff; two timed experiments: original NVIDIA cohort and identical cohort after row-packing optimization. No Intel or additional profiler variant. Initial bootstrap/reference-count fixture failures are retained separately and contain no timing claim.",
+	"fixture": "Frame-numbered ProRes HQ/yuv422p10le/BT709:1920x1080 at60 and3840x2160 at30; four-second looping files. Independent decoder checks frames0,1,31,last. One Video transport, two channels and a separate Reference output; two continuous independent SDK consumers. Actual default blank Screen also renders. Full-resolution held output codes60/30/60 pass. Each run:30s warmup,120s sample,60s minimized,60s receivers disconnected, normal shutdown and zero-loss captures.",
+	"fixture_manifest": "target/q06-prores-numbered-2026-11-09/fixtures.json",
+	"fixture_manifest_sha256": "dccf9ae52d1ce574497dfc8c1295752173695d944152c142266257954caa5d15",
+	"original": {
+		"pid": 31068,
+		"binary_sha256": "4ba4cc4b8f7809f04f9b7be77c594b292500b7d6468d9ffec1d74663ee0297ab",
+		"report": "target/q06-prores-nvidia-live/sample.json",
+		"report_sha256": "5f0d60659c239071c6de32caf767b134467bb163cb8c32004a208af4ea8d4292",
+		"audit": "target/q06-prores-nvidia-live/audit.json",
+		"audit_sha256": "1b3ef585524168e7063c1a63dd5307412f925f7333a707bc09d9446af1b0aef2",
+		"sample": "120.0531112s; HD38.0498 and4K10.3621 visible publication changes/s. CPU wall upper bound p95=2.6709ms,p99=3.0411ms; renderer GPU p95=2.585184ms,p99=2.806688ms. Source4K publication-age lower bound p95=82.1802ms exceeds50ms. Native API cadence is within0.1% observed misses; zero repeated uploads within one resource generation. Host private peak693641216B; recorded native texel peak317126408B excludes decoder/pool unknowns."
+	},
+	"change": "Golden software conversion now copies complete stride-trimmed rows and applies its existing RGB transfer lookup in place, preserving alpha. No decode/thread/memory cap or acceptance budget change.",
+	"verification": {
+		"software": "276 Golden Video tests pass,62 ignored,2.57s; new independent all-byte-value/padded-row/alpha/changing-SDR-transfer regression passes. Existing615 app tests from1298d8d0 are retained for unchanged app semantics, not rerun. Four Python inward-clock-bound tests pass. Script syntax/Prettier, root/Golden Core cargo fmt and all-target Golden Video/MapGyver strict clippy pass (27.18s). New owned video-pixels role reuses the existing finite128MiB external observer; original4MiB observer/production budgets unchanged. Probe build111s and targeted strict1.66s pass before native use.",
+		"golden_binary_sha256": "0c88d0676997a4832e7ff3cd91dddeac64a6efed9b7de87a6d789449827fe54e",
+		"software_log_sha256": "3e073f218431fe78a8fb951a6853d042d9ba89b82120cc62417dd1c9d8190898",
+		"probe_sha256": "94601c11ebe4805f8b8fcff5a8be607ca78257d773a1f40e63c9ac605c41b15c",
+		"app_build": "Ordinary source-SDK Tauri debug/no-bundle,exit0,19.89s. Same pinned DLLs/notices; actual loaded module paths/hashes verified.",
+		"app_binary_sha256": "991ea756fac9be4e63a25e4c71395f2e8b683e91ba54672eb3b6a75afb066b39",
+		"pid": 17492,
+		"report": "target/q06-prores-nvidia-row-copy/sample.json",
+		"report_sha256": "c68f39842c2a30337508628d19564f78727759ac0ab29d75a21601dc7dec42b2",
+		"audit": "target/q06-prores-nvidia-row-copy/audit.json",
+		"audit_sha256": "63f76e03279bfe51008982af702bb02ea67b9e38e31108c282e088587421dc66",
+		"sample": "HD46.5462 and4K14.6519 visible publication changes/s, versus requested60/30. Zero duplicate uploads within one resource generation. Source4K age lower bound p95=49.1784ms,p99=98.334ms; this is not a passing full-age proof. CPU wall upper bound p95=2.7545ms,p99=3.2056ms; renderer GPU p95=2.989216ms,p99=3.097632ms. Minimized/disconnected4K improves to16.8812/16.9509 changes/s. Required source throughput remains unmet."
+	},
+	"method_limits": "Inward QPC bound uses exact software stream/sequence/texture/device and independently copied Spout image-handle lineage: source publication precedes actual upload end; output publication cannot precede its API begin. Unknown rows contribute zero only to a failure lower bound and remain explicitly counted. No SDK receive timestamp is invented; no GPU clocks compared. Legacy receiver CardStamp checksums do not decode the Video bit pattern, so continuous pixel/PTS lineage remains unqualified. Debug-profile baseline, not production-ready or a three-independent-sample series. Complete environment/decoder-plane/pool/critical-path accounting remains required.",
+	"remaining": "ProRes source delivery still misses1080p60/4K30. Stop further qualification repetitions against that known failure. Next product slice: bounded software-decoder throughput, reviewing the existing one-codec-thread boundary and preserving frame-pool/worker admission and pixel/timestamp semantics; validate with the same cohort. Intel and the full three-sample series, H.264/H.265/HAP cohorts, all original budgets and genuine elevated Video reset remain required.85/102 gates (83%),M10 2/4 (50%),8/15 phases unchanged."
+}

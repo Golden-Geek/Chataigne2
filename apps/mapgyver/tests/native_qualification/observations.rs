@@ -68,6 +68,11 @@ pub fn calibration_pixels(args: Arguments) -> io::Result<()> {
     capture_pixels(args, 128 * 1024 * 1024, Some("MapGyver-M1110-"))
 }
 
+/// Finite Q06 full-resolution oracle; its receiver/staging pool is separate from app budgets.
+pub fn video_pixels(args: Arguments) -> io::Result<()> {
+    capture_pixels(args, 128 * 1024 * 1024, Some("MapGyver-Video-"))
+}
+
 /// Three full 800x600 receiving/staging/CPU images exceed the small observer's 4MiB pool.
 /// Admit only the owned surround fixture; production and existing observers stay unchanged.
 pub fn surround_pixels(args: Arguments) -> io::Result<()> {

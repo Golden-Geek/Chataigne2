@@ -30,6 +30,7 @@ fn main() -> std::process::ExitCode {
             "hardware" => observations::hardware(args),
             "pixels" => observations::pixels(args),
             "calibration-pixels" => observations::calibration_pixels(args),
+            "video-pixels" => observations::video_pixels(args),
             "surround-pixels" => observations::surround_pixels(args),
             "gpu-preferences" => preferences::write(args),
             "desktop-capture" => desktop_capture::run(args),

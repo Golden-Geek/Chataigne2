@@ -19,6 +19,51 @@ fn srgb_linear(byte: u8) -> f64 {
 }
 
 #[test]
+fn padded_rgba_rows_preserve_all_byte_values_alpha_and_changing_sdr_transfers() {
+    use ffmpeg::color::{Range, Space, TransferCharacteristic as Transfer};
+    let mut converter = SoftwareImageConverter::default();
+    for transfer in [Transfer::IEC61966_2_1, Transfer::BT709, Transfer::Linear] {
+        let mut input = ffmpeg::frame::Video::new(ffmpeg::format::Pixel::RGBA, 65, 4);
+        let stride = input.stride(0);
+        assert!(stride > 65 * 4, "fixture must exercise padding");
+        input.data_mut(0).fill(0xed);
+        let mut expected = Vec::new();
+        for y in 0..4 {
+            for x in 0..65 {
+                let value = (y * 65 + x) as u8;
+                let rgba = [value, 255 - value, value / 2, value.wrapping_mul(37)];
+                let offset = y * stride + x * 4;
+                input.data_mut(0)[offset..offset + 4].copy_from_slice(&rgba);
+                expected.push(rgba);
+            }
+        }
+        // SAFETY: this test uniquely owns the fully allocated AVFrame and its metadata.
+        unsafe {
+            (*input.as_mut_ptr()).colorspace = Space::RGB.into();
+            (*input.as_mut_ptr()).color_range = Range::JPEG.into();
+            (*input.as_mut_ptr()).color_trc = transfer.into();
+        }
+        let frame = DecodedFrame {
+            timestamp: 0,
+            storage: FrameStorage::Software(input),
+        };
+        let image = converter.convert(&frame).unwrap();
+        assert_eq!(image.pixels().len(), 65 * 4 * 4);
+        for (actual, expected) in image.pixels().chunks_exact(4).zip(expected) {
+            assert_eq!(actual[3], expected[3]);
+            for component in 0..3 {
+                let reference = match transfer {
+                    Transfer::IEC61966_2_1 => srgb_linear(expected[component]),
+                    Transfer::Linear => f64::from(expected[component]) / 255.0,
+                    _ => linear(f64::from(expected[component]) / 255.0),
+                };
+                assert!((srgb_linear(actual[component]) - reference).abs() <= 2.0 / 255.0);
+            }
+        }
+    }
+}
+
+#[test]
 fn chromatic_high_main10_and_prores4444_preserve_color_alpha_and_exact_timestamps() {
     for (name, pixel, rate, alpha) in [
         ("h264-color.mp4", ffmpeg::format::Pixel::YUV420P, (24, 1), false),

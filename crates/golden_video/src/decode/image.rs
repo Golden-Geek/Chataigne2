@@ -98,11 +98,14 @@ impl SoftwareImageConverter {
             _ => Some(bt709_table()),
         };
         for bytes in output.data(0).chunks(output.stride(0)).take(input.height() as usize) {
-            for rgba in bytes[..row].chunks_exact(4) {
-                for &value in &rgba[..3] {
-                    pixels.push(table.map_or(value, |table| table[value as usize]));
+            let start = pixels.len();
+            pixels.extend_from_slice(&bytes[..row]);
+            if let Some(table) = table {
+                for rgba in pixels[start..].chunks_exact_mut(4) {
+                    rgba[0] = table[rgba[0] as usize];
+                    rgba[1] = table[rgba[1] as usize];
+                    rgba[2] = table[rgba[2] as usize];
                 }
-                pixels.push(rgba[3]);
             }
         }
         ImageData::new(
