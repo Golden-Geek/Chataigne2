@@ -78,6 +78,7 @@ impl Run {
         let mut pending = None;
         let mut installed = false;
         while !worker.cancellation().is_cancelled() {
+            let turn_started = Instant::now();
             let checkpoint = worker.wake_checkpoint();
             let revision = self.control.revisions();
             let _subscription = revision.guard_at(revision.current()).subscribe(worker.wake_notifier());
@@ -162,14 +163,10 @@ impl Run {
                     }
                 }
             }
-            let delay = if waiting || reader.catching_up {
-                Duration::from_millis(1)
-            } else if sample.playing {
-                Duration::from_millis(8)
-            } else {
-                Duration::from_secs(3600)
-            };
-            worker.wait_until(checkpoint, Instant::now() + delay);
+            worker.wait_until(
+                checkpoint,
+                pacing::deadline(turn_started, sample.playing, waiting || reader.catching_up),
+            );
         }
         Ok(())
     }

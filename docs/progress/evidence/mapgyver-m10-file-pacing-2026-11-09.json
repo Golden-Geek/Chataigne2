@@ -1,0 +1,31 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4 Active; no acceptance credit",
+	"batch": "06:57 UTC start,07:42 UTC cutoff. Deliver precise turn-anchored File production, then at most two unchanged fixed ProRes cohorts. Existing baseline and all acceptance budgets retained.",
+	"implementation": "App-owned software and GPU File loops share the same pacing policy and enable Golden IO's existing worker-owned high-resolution Windows deadlines. Deadlines are anchored before decode/conversion; overdue turns check control/cancellation without an additional post-work sleep. Pending1ms, playing8ms, paused one-hour fallback with immediate notifications. Timer creation reports typed IO failure and uses existing one-second retry. No process-wide timer-resolution request, callback state, extra frames, queues or admission change. Native demand callbacks proposed in the prior handoff are unnecessary because the existing precise wait already provides cancellation and notifications.",
+	"software": {
+		"golden_io": "74 passed,1 ignored;0.69s, including precise deadline rearm/wake/command/cancellation races. target/q06-pacing-tests/io.log SHA25679d3000ecbc27d899acd4467865d4cccd81c2120f7dd9d88a8442f370831df89.",
+		"app": "616 passed,7 ignored;95.09s. New app pacing integration proves overdue decode/conversion turns do not add a wait and paused notification/cancellation stays responsive. target/q06-pacing-tests/app.log SHA256445b75ca1ee3f02d9798da0d585957e44ecd60db716eaff24bd3ae70b873cda3. Test binary8e6ebaeee03e1ed022db5e8bf62b2a5339984a0e3055ed3f4c9acb7169d04947.",
+		"strict": "Golden IO/Golden Video/MapGyver all-targets with native-qualification and -D warnings passes,9.57s. Root and Golden Core cargo fmt pass. Existing ts-rs notices unchanged. Golden decoder bodies/configuration are unchanged; prior278-test codec evidence retained.",
+		"build": "Ordinary source-SDK Tauri debug/no-bundle passes,46.57s. Staged exact five DLLs/notices at target/q06-prores-pacing-app; app SHA256886dfb6cbbf689805d86a3dc0ca444b877edb44aa7521273b7cbdcd6d3ff14b5."
+	},
+	"native_preservation": "Two existing paired recovery/relink preflights pass,26.08s, genuine removal skipped. All eight common/HAP sources on both GPUs retain exact pixels/routes; zero CPU/GPU retirement in174.7286ms paired,74.1711ms Intel and85.4175ms NVIDIA. target/q06-pacing-tests/device.log SHA256dcaa15d7268991a146a4877648ce85d33b8f4cb40e9503a65c7cdbabe30cf09c. Prepared elevated test executable updated only after terminal success and confirming no live test owner.",
+	"nvidia": {
+		"pid": 29612,
+		"report": "target/q06-prores-nvidia-pacing/sample.json",
+		"report_sha256": "5e4ab04cea4c96125e0dd544c2937570fbfb1bcb45b987c2474b282dd3192b73",
+		"audit_sha256": "5e9512cdbc6dda665dbaa13faf7fa44539be527bc3008611a8bb5bcdc00d9393",
+		"sample": "HD55.23387/4K28.10831 publication changes/s, versus slice-only55.88898/22.00576. The4K path improves; visible60/30 still unmet. CPU wall upper bound p95=3.2961ms,p99=3.8059ms; renderer-context GPU elapsed p95=2.976608ms,p99=3.146176ms. Native output observed misses at most2/7204 slots,0.0278%, but this is not full source freshness or end-to-end latency acceptance.",
+		"minimized_disconnected": "HD59.73904/59.77746 and4K29.98607/30.02194 changes/s. CPU wall upper bound p95=4.2156/4.3734ms exceeds the4ms comparison; actual CPU work excluding waits remains inconclusive. GPU-context p95=2.736448/2.807616ms.4K age inward lower bound p95=32.0557/32.1831ms cannot prove passing full age. No duplicate software uploads within one resource generation."
+	},
+	"intel": {
+		"pid": 43172,
+		"report": "target/q06-prores-intel-pacing/sample.json",
+		"report_sha256": "a54d24e736a35c567aa86d3eb5d472034a4009d5214b19938b1f9b44146bc481",
+		"audit_sha256": "2d7fe8449b1baaf65059399b3cd4c6699feee88a0169d6f64a91423d6ccddcd1",
+		"sample": "HD42.45975/4K24.82788 publication changes/s versus slice-only44.40926/20.23903.4K improves but HD does not.1396/7204 slots unsubmitted plus one other definite miss:19.3920% definite misses versus0.1% allowed. Renderer-context GPU elapsed p95=22.954479ms,p99=24.216719ms, still above comparison budgets; these spans include feed gaps and are not active shader/full-path timing. CPU wall upper bound p95=7.2185ms,p99=8.1506ms cannot establish passing CPU work excluding waits.4K age lower bound p95=29.7586ms cannot prove passing full age.",
+		"minimized_disconnected": "HD50.83063/45.51877 and4K29.20305/29.73538 changes/s. Definite native deadline misses9.8807/19.2286%, retaining the failure. No duplicate software uploads within one resource generation."
+	},
+	"shared_method": "Both fresh ordinary app runs finish30s warmup,120s sample,60s minimized and60s receiver-disconnected, exact held full-size bitcodes, normal shutdown and complete zero-loss captures with zero recorded native allocations. Same fixtures/probe/workload as the linked baseline; no concurrent builds/tests/cohorts during timed work. One independent sample per GPU, not the required three. A separate read-only summary command initially lost its quotes in PowerShell; the audit itself succeeded and the corrected summary read the same saved file, with no native run repeated.",
+	"remaining": "M10/4 alone Active. Next product deliverable: software File images use a bounded Golden GPU-frame upload owner off the renderer thread, reusing native frame publication/clock fencing and keeping software/headless fallback. Current backend streams.rs calls synchronous UpdateSubresource on the render thread; removing that known boundary cost is a product change, not a proven diagnosis of Intel GPU spans. Verify exact transfer/alpha, one shared upload, admission, retirement and unchanged fixed workload before any performance claim. All original common/HAP cohorts, three independent samples per GPU, complete decoder/pool/plane accounting, continuous Video pixel/PTS lineage, full source age/critical path and elevated genuine recovery remain required.85/102 gates (83%),M10 2/4 (50%),8/15 phases; no gate closed. M14 remains after M10/4."
+}

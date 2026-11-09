@@ -28,6 +28,7 @@ const MAX_SOURCES: usize = 8;
 const MAX_BYTES: u64 = 768 * 1024 * 1024;
 #[cfg(all(windows, feature = "native-video"))]
 mod hardware;
+mod pacing;
 #[cfg(all(windows, feature = "native-video"))]
 #[derive(Clone)]
 pub(crate) struct Hardware {
@@ -378,9 +379,13 @@ impl Run {
             self.changed();
         }
     }
-    fn run(self, worker: WorkerContext<(), ()>) {
+    fn run(self, mut worker: WorkerContext<(), ()>) {
         while !worker.cancellation().is_cancelled() {
-            if let Err(error) = self.play(&worker, self.owner) {
+            let result = worker
+                .enable_precise_deadlines()
+                .map_err(|error| Failure(VideoSourceError::new(VideoSourceErrorKind::Io, error.to_string())))
+                .and_then(|()| self.play(&worker, self.owner));
+            if let Err(error) = result {
                 let _ = self
                     .control
                     .source_failure(self.reference.channel, self.owner, error.0.clone());
@@ -442,6 +447,7 @@ impl Run {
             .channel_duration(self.reference.channel, owner, reader.duration)?;
         let mut stream: Option<ImageStream> = None;
         while !worker.cancellation().is_cancelled() {
+            let turn_started = Instant::now();
             let checkpoint = worker.wake_checkpoint();
             let revision = self.control.revisions();
             let _subscription = revision.guard_at(revision.current()).subscribe(worker.wake_notifier());
@@ -471,14 +477,10 @@ impl Run {
             if !sample.playing {
                 reader.prepare_previous()?;
             }
-            let delay = if reader.catching_up {
-                Duration::from_millis(1)
-            } else if sample.playing {
-                Duration::from_millis(8)
-            } else {
-                Duration::from_secs(3600)
-            };
-            worker.wait_until(checkpoint, Instant::now() + delay);
+            worker.wait_until(
+                checkpoint,
+                pacing::deadline(turn_started, sample.playing, reader.catching_up),
+            );
         }
         Ok(())
     }

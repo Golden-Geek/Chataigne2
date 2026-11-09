@@ -279,6 +279,13 @@ decoded frame, so this adds no frame-threading queue or delayed-frame policy. Ma
 four for software File owners and one for native attempts; its eight-owner limit, CPU/frame pools
 and GPU admission remain unchanged. Third-party codec scratch/stack costs still require measured
 process accounting. Requested compute parallelism is operational admission, not authored state.
+Both software and GPU File owners enable Golden IO's cancellable high-resolution deadlines.
+Their shared pacing policy anchors each deadline before decoding/conversion: an overrun checks
+controls and cancellation without adding another sleep. Pending work retains a1ms interval,
+playing retains8ms and idle/paused playback waits for control notifications (with a one-hour
+fallback). Timer creation errors surface as typed IO failures and retry through the existing
+one-second recovery path. This changes neither authored clocks nor source/frame queue bounds;
+it does not change process-wide Windows timer resolution or add stream callback state.
 For an explicit actual-app qualification run, set `MAPGYVER_NATIVE_DIAGNOSTICS` to an owned
 capture directory before launch. The host creates a fresh PID/UUID file per renderer lifetime,
 enables a16384-row ring and delegates writing to Golden's separate `DiagnosticCapture` I/O owner.
