@@ -12,6 +12,9 @@ pub enum ConversionError {
     /// Hardware frames require a GPU importer; software conversion never reads them back.
     #[error("hardware Video storage requires a native importer")]
     HardwareStorage,
+    /// HAP remains compressed and must use its GPU block importer.
+    #[error("compressed Video storage requires a native importer")]
+    CompressedStorage,
     /// The stream declares a color matrix outside the implemented conversion contract.
     #[error("software Video color matrix is not yet supported")]
     UnsupportedMatrix,
@@ -32,6 +35,9 @@ impl SoftwareImageConverter {
     /// Convert supported SDR frames explicitly. HDR/wide-gamut metadata is rejected rather
     /// than silently interpreted as sRGB. Untagged SDR follows the documented BT.709 default.
     pub fn convert(&mut self, frame: &DecodedFrame) -> Result<ImageData, ConversionError> {
+        if frame.hap_frame().is_some() {
+            return Err(ConversionError::CompressedStorage);
+        }
         let input = frame.software_image().ok_or(ConversionError::HardwareStorage)?;
         let space = input.color_space();
         if !matches!(space, Space::RGB | Space::BT709 | Space::Unspecified) {

@@ -3177,6 +3177,8 @@ dependencies = [
 name = "golden_video"
 version = "0.1.0"
 dependencies = [
+ "bindgen 0.72.1",
+ "cc",
  "concurrent-queue",
  "ffmpeg-next",
  "font8x8",
@@ -3186,6 +3188,7 @@ dependencies = [
  "golden_time",
  "serde",
  "serde_json",
+ "snap",
  "spout2-sys",
  "tempfile",
  "thiserror 2.0.18",
@@ -6610,6 +6613,12 @@ dependencies = [
  "borsh",
  "serde_core",
 ]
+
+[[package]]
+name = "snap"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b6b67fb9a61334225b5b790716f609cd58395f895b3fe8b328786812a40bc3b"
 
 [[package]]
 name = "socket2"

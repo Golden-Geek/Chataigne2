@@ -1,0 +1,36 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/2 Active; compressed reference-codec boundary delivered; GPU/app/concurrency acceptance remains open",
+	"progress": { "accepted": 84, "total": 102, "percent": 82, "m10_accepted": 1, "m10_total": 4 },
+	"batch": { "started_utc": "2026-11-08 23:51", "cutoff_utc": "2026-11-09 00:36", "native_gpu_experiments": 0 },
+	"deliverable": "Golden Decoder demuxes real HAP MOV files through pinned FFmpeg and uses the public HAP reference API to preserve BC1 RGB, BC3 straight RGBA and scaled-YCoCg BC3 blocks, original timestamps, exact seeks and independently retained frames. No libavcodec HAP pixel decoder is opened and no software RGBA expansion is substituted.",
+	"dependency_selection": {
+		"primary_guidance": "https://hap.video/developers: general-purpose demux plus reference decode into compressed texture formats; HAP Q needs GPU YCoCg conversion.",
+		"crate_audit": "cargo search/info found hap-parser0.2.0 and hap-qt0.3.1 at BlueJayLouche/hap-rs. They reimplement parsing rather than binding the required reference decoder. The project instead pins the minimal Vidvox reference source and generated public C ABI, with established Rust Snappy underneath; no bespoke HAP decompressor or container parser is added.",
+		"reference": "Vidvox/hap commit d847f6bbd3be88575dd4ef33a877243780e3be76; vendor/hap/hap.c and hap.h retain BSD-2-Clause notices",
+		"snappy": "Google snappy-c.h tag1.2.2 retains its BSD-3-Clause notice. Private-prefixed C entry points use snap=1.1.1, pinned in Cargo.lock. cc=1.11.1 and bindgen=0.72.1 generate/build from local headers; no build-time network source fetch.",
+		"local_source_sha256": { "hap.c": "2e534f9cff53f482595d96b770c29d89a630a6ff35ab01d3e50970f80afd4ce3", "hap.h": "fe6743cbecb17af90613f5620b121706d504ca055caf14903494841e75cccbcd", "snappy-c.h": "205e85257ab386f547b024bfec7ab57fcdac95c34874c787c72b50a3d95debf4" },
+		"safety_patch": "Reference-source checks cover unsigned integer shifts, overflow-safe section lengths, nonempty complete chunk tables, bounded two-plane traversal, compressed chunk ranges and output admission before pointer arithmetic. Rust admits one supported texture, at most1024 synchronous chunks, exact padded4x4 block size and fallible output allocation. Trailing whitespace is normalized; codec algorithms and upstream license notices remain."
+	},
+	"ownership": {
+		"decoder": "HAP has no libavcodec pixel context. Packet PTS uses the same StreamInfo/TimeBase and seek API as common codecs. Errors poison the owner for reopen; clean EOF is distinct. Returned HapFrame holds an immutable Arc<Vec<u8>>, retaining block bytes without an extra Vec-to-Arc-slice pixel-size copy.",
+		"typed_storage": "DecodedFrame::hap_frame exposes compressed blocks separately from software_image and d3d11_frame. HapFormat distinguishes opaque BC1 RGB, straight-alpha BC3 and scaled-YCoCg BC3; odd visible dimensions retain complete padded blocks. SoftwareImageConverter reports CompressedStorage, mapped by the app to typed Unsupported rather than decoding HAP into software RGBA.",
+		"app_limit": "The new boundary is not app HAP playback. GPU BC sampling, YCoCg/alpha conversion, shared GpuFramePublisher binding, source/retiring CPU/GPU budgets and selected-device recovery still need integration. Current app File workers truthfully reject compressed conversion while that work is pending. M10/1 common-codec behavior remains verified by the full regression suite."
+	},
+	"fixtures": {
+		"generation": "Explicit ignored generate_reference_hap_mov_fixtures: one passing test, exit0. It encodes deterministic BC blocks through HapEncode with Snappy/chunks and writes proper MOV streams through pinned libavformat. The installed CLI FFmpeg reports no HAP encoder; this did not block fixture generation. Ordinary tests only read checked-in files.",
+		"files": [
+			{ "file": "hap.mov", "tag": "Hap1", "extent": [64,48], "rate": [24,1], "frames": 6, "bytes": 1627, "sha256": "0fc95b4f84c025612e55f53bc2bb3ab4d026f82ec40e3ddca78211dced34c470" },
+			{ "file": "hap-alpha.mov", "tag": "Hap5", "extent": [17,9], "rate": [25,1], "frames": 6, "bytes": 1207, "sha256": "78bf8da571c8250c2ae1eba51f8f32043d6b997854ca98dcf6c90eaf6c6036d1" },
+			{ "file": "hap-q.mov", "tag": "HapY", "extent": [1920,1080], "rate": [30000,1001], "frames": 6, "bytes": 586507, "sha256": "11bb289668ee0d6c5903522bcdcead387dfb68245fc34effbf424d1fb36b0ad9" }
+		]
+	},
+	"software": {
+		"command": "with-ffmpeg.ps1 test --locked -p MapGyver -p golden_video --lib --features MapGyver/video-files,golden_video/ffmpeg,golden_video/qualification --quiet -- --test-threads=1",
+		"result": { "app_passed": 611, "app_ignored": 3, "golden_passed": 269, "golden_ignored": 58, "failed": 0, "exit": 0 },
+		"focused": "Five HAP tests pass, one explicit generator ignored, exit0. Real fixtures check all18 frames, exact original rational timestamps, end drain/rewind, four seek positions per format, retained blocks after decoder drop and no pixel decoder/converter. Raw/Snappy and odd storage match byte-for-byte. Malformed extended headers, tables, offsets, chunk sizes, expansion, unsupported formats and excessive work reject.",
+		"strict": "Combined app/Golden video-files/ffmpeg/qualification, default app and software-only Golden ffmpeg --lib --tests Clippy all pass with -D warnings. Initial generated-enum signedness compile errors and a fixture type-complexity lint were repaired before acceptance. Final test-only fixture struct and whitespace-only vendor normalization receive focused compilation/tests; unchanged broad passing behavior is reused.",
+		"ui_generated_format": "MapGyver Svelte check exits0 with zero errors/warnings; embedded UI build succeeds. Existing generated TypeScript equality remains in the passing app suite; no wire DTO changes. Root and golden_core Cargo formatting and owned whitespace checks complete. Existing ts-rs serde-attribute notices remain unchanged."
+	},
+	"remaining": "Next deliver HAP BC1/BC3 GPU upload/sample and YCoCg conversion through the existing bounded shared publication mechanism, then bind File workers with correct compressed-source CPU/GPU admission, clock fences and recovery. Verify actual color/alpha, odd dimensions, other-encoder interoperability, concurrent high-resolution files and shared consumers. No full M10/2 gate credit. M10/4 bundled/license/seek/sustained qualification and all later gates remain required."
+}

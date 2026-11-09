@@ -23,7 +23,8 @@ decoder. The worker prepares the current, previous and next presentation timesta
 the UI nor the operation adapter divides by a nominal frame rate.
 
 Golden's `Decoder` retains original stream timestamps and explicit software or hardware storage.
-Its ordinary open methods select software; `open_d3d11` explicitly requests an exact adapter.
+Its ordinary open methods preserve HAP blocks and otherwise select software;
+`open_d3d11` explicitly requests an exact adapter.
 It performs no implicit colour conversion or GPU readback. Seeking uses the selected stream's
 native time base and replaces codec reorder/drain state while retaining the file demux owner.
 This prevents an old HEVC drain frame observed after buffer flushing in the pinned fixture.
@@ -87,6 +88,21 @@ device. Existing software-file failure retry remains bounded and independent per
 Native session shutdown waits for file workers, decoder pools, published images and render imports
 to retire before replacement. App hardware correctness and sustained performance still require
 their owning acceptance evidence; selecting this path alone does not close M10.
+
+HAP packets use pinned libavformat demux and the [HAP reference dependency](../../crates/golden_video/vendor/hap/README.md).
+`HapFrame` holds immutable BC1 RGB, BC3 straight RGBA or scaled-YCoCg BC3 blocks with the visible
+extent. Storage accounts padded4x4 blocks, including odd dimensions. HAP opens no libavcodec
+pixel decoder; packet PTS and stream time base drive the same original-timestamp seek contract.
+Returned block frames survive decoder shutdown. The software image converter reports typed
+compressed storage instead of expanding HAP to RGBA.
+
+The public reference header generates the FFI ABI. A private-prefixed C bridge uses pinned
+Rust Snappy; local reference-source safety changes bound section/table/chunk/input/output access
+before native pointer arithmetic. Exact block length and at most1024 synchronous chunks are
+admitted on the owning file worker. This is a codec boundary, not app HAP playback acceptance:
+GPU BC sampling/YCoCg conversion, existing shared publication binding, complete retained storage
+admission and concurrent/shared high-resolution app acceptance remain M10/2 work. Existing
+NV12/P010 publication stays unchanged.
 
 The [pinned dependency helper](../../tools/mapgyver/ffmpeg/README.md) verifies the exact Windows
 shared LGPL archive and establishes only process-local build/runtime paths. Packet/image/work

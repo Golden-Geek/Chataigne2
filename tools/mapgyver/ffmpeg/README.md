@@ -22,8 +22,8 @@ It also reserves a 16 MiB MSVC main-thread stack for helper-built executables: o
 binding generation with the Windows headers exhausted the default reserve. Existing Rust
 flags are preserved, including Cargo's encoded form, and restored after Cargo exits.
 
-The public `decode::Decoder` retains original presentation timestamps and explicit software
-or D3D11 frame storage, including pixel format and color metadata. It enforces
+The public `decode::Decoder` retains original presentation timestamps and explicit software,
+D3D11 or compressed HAP frame storage, including pixel format and color metadata. It enforces
 explicit image/packet/work bounds, drains delayed codec frames and propagates demux failures.
 It makes no implicit color conversion or GPU readback. Its limits do not claim to cap all
 third-party temporary allocations; queue admission and cancellation belong to the owning worker.
@@ -39,6 +39,13 @@ admission across seeks and observers, with explicit software fallback. See the
 [Video ownership](../../../docs/architecture/mapgyver-video.md) for the current integration boundary.
 M10/4 owns final DLL packaging, dependency notices, corresponding-source delivery and sustained
 actual-app qualification. No release or deployment is performed by the preparation helper.
+
+HAP demux uses these same libraries. The [pinned reference dependency](../../../crates/golden_video/vendor/hap/README.md)
+returns compressed GPU blocks through generated public C bindings, backed by Rust Snappy.
+This boundary is implemented; HAP GPU/app playback and concurrency acceptance remain required.
+The explicit ignored `generate_reference_hap_mov_fixtures` test encodes known BC blocks through
+the reference encoder and muxes only its three checked-in MOV fixtures with pinned libavformat;
+it needs no CLI HAP encoder. Ordinary tests only read those files.
 
 Primary sources: [Rust bindings](https://github.com/zmwangx/rust-ffmpeg),
 [FFmpeg send/receive API](https://ffmpeg.org/doxygen/9.0/group__lavc__encdec.html),

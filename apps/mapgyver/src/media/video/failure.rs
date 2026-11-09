@@ -28,6 +28,7 @@ impl From<ConversionError> for Failure {
     fn from(error: ConversionError) -> Self {
         let kind = match error {
             ConversionError::HardwareStorage
+            | ConversionError::CompressedStorage
             | ConversionError::UnsupportedMatrix
             | ConversionError::UnsupportedTransfer => VideoSourceErrorKind::Unsupported,
             ConversionError::Failed(_) => VideoSourceErrorKind::Decode,

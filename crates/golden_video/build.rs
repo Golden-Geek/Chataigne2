@@ -1,5 +1,7 @@
 //! Fixed native programs are compiler inputs at build time, never per-device runtime work.
 fn main() {
+    #[cfg(feature = "ffmpeg")]
+    compile_hap();
     println!("cargo:rerun-if-changed=src/native/shader.hlsl");
     if std::env::var_os("CARGO_FEATURE_D3D11").is_none()
         || std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows")
@@ -7,6 +9,30 @@ fn main() {
         return;
     }
     compile_native_shaders();
+}
+
+#[cfg(feature = "ffmpeg")]
+fn compile_hap() {
+    let root = "vendor/hap";
+    println!("cargo:rerun-if-changed={root}");
+    let mut builder = cc::Build::new();
+    builder.file(format!("{root}/hap.c")).include(root).std("c11");
+    // Keep the dependency's C ABI private to this library; Snappy is implemented by snap.
+    for name in ["compress", "uncompress", "max_compressed_length", "uncompressed_length"] {
+        builder.define(&format!("snappy_{name}"), format!("golden_hap_snappy_{name}").as_str());
+    }
+    builder.compile("golden_hap_reference");
+    let bindings = bindgen::Builder::default()
+        .header(format!("{root}/hap.h"))
+        .allowlist_function("Hap.*")
+        .allowlist_type("Hap.*")
+        .layout_tests(false)
+        .generate_comments(false)
+        .generate()
+        .expect("generate public HAP reference ABI");
+    bindings
+        .write_to_file(std::path::PathBuf::from(std::env::var_os("OUT_DIR").unwrap()).join("hap_bindings.rs"))
+        .expect("write generated HAP ABI");
 }
 
 #[cfg(all(windows, feature = "d3d11"))]

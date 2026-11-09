@@ -6,7 +6,9 @@
 
 use ffmpeg_next as ffmpeg;
 use std::path::Path;
+mod hap;
 mod image;
+pub use hap::{HapFormat, HapFrame};
 pub use image::{ConversionError, SoftwareImageConverter};
 mod timing;
 pub use timing::{StreamTiming, probe_timing_with_interrupt};
@@ -59,6 +61,7 @@ pub struct DecodedFrame {
 }
 enum FrameStorage {
     Software(ffmpeg::frame::Video),
+    Hap(HapFrame),
     #[cfg(all(windows, feature = "d3d11"))]
     D3d11(D3d11Frame),
 }
@@ -73,6 +76,7 @@ impl DecodedFrame {
     pub fn software_image(&self) -> Option<&ffmpeg::frame::Video> {
         match &self.storage {
             FrameStorage::Software(image) => Some(image),
+            FrameStorage::Hap(_) => None,
             #[cfg(all(windows, feature = "d3d11"))]
             FrameStorage::D3d11(_) => None,
         }
@@ -83,7 +87,15 @@ impl DecodedFrame {
     pub fn d3d11_frame(&self) -> Option<&D3d11Frame> {
         match &self.storage {
             FrameStorage::Software(_) => None,
+            FrameStorage::Hap(_) => None,
             FrameStorage::D3d11(frame) => Some(frame),
+        }
+    }
+    /// HAP's reference-decoded GPU blocks, without software pixel expansion.
+    pub fn hap_frame(&self) -> Option<&HapFrame> {
+        match &self.storage {
+            FrameStorage::Hap(frame) => Some(frame),
+            _ => None,
         }
     }
 }
@@ -100,6 +112,9 @@ pub enum DecodeError {
     /// The selected stream's codec has no available decoder in this build.
     #[error("no decoder is available for this video codec")]
     UnsupportedCodec,
+    /// Invalid reference-coded HAP payload, distinct from unsupported texture variants.
+    #[error("HAP: {0}")]
+    Hap(String),
     /// This codec does not advertise the requested hardware interface.
     #[error("codec does not support the selected hardware decoder")]
     UnsupportedHardware,
@@ -123,14 +138,14 @@ pub enum DecodeError {
     Ffmpeg(#[from] ffmpeg::Error),
 }
 
-/// Single-owner file decoder. The ordinary open methods explicitly select software.
+/// Single-owner file decoder. Ordinary open preserves HAP blocks and otherwise selects software.
 ///
 /// Admission bounds cover image dimensions, compressed packet acceptance and per-call packet
 /// work. They do not claim to cap every temporary allocation inside third-party demuxers.
 /// Worker queue admission and retained frame budgets remain the owning runtime's responsibility.
 pub struct Decoder {
     input: ffmpeg::format::context::Input,
-    decoder: ffmpeg::decoder::Video,
+    decoder: Option<ffmpeg::decoder::Video>,
     stream: usize,
     info: StreamInfo,
     limits: DecodeLimits,
@@ -140,13 +155,14 @@ pub struct Decoder {
 
 enum DecoderKind {
     Software,
+    Hap,
     #[cfg(all(windows, feature = "d3d11"))]
     D3d11(d3d11::HardwareDevice),
 }
 impl DecoderKind {
     fn configure(&self, context: &mut ffmpeg::codec::context::Context) -> Result<(), DecodeError> {
         match self {
-            Self::Software => {
+            Self::Software | Self::Hap => {
                 let _ = context;
                 Ok(())
             }
@@ -156,6 +172,7 @@ impl DecoderKind {
     }
     fn frame(&self, image: ffmpeg::frame::Video) -> Result<FrameStorage, DecodeError> {
         match self {
+            Self::Hap => Err(DecodeError::UnsupportedCodec),
             Self::Software => {
                 // Validate the actual format before exposing CPU planes, independently of
                 // the requested backend. No unexpected hardware pointer reaches a scaler.
@@ -182,7 +199,7 @@ enum DecodeState {
 }
 
 impl Decoder {
-    /// Open one local file and its best video stream with exactly one codec thread.
+    /// Open local video with one codec thread, preserving HAP's GPU block compression.
     pub fn open(path: &Path, limits: DecodeLimits) -> Result<Self, DecodeError> {
         Self::open_with_interrupt(path, limits, || false)
     }
@@ -193,7 +210,21 @@ impl Decoder {
         limits: DecodeLimits,
         interrupt: impl FnMut() -> bool + Send + 'static,
     ) -> Result<Self, DecodeError> {
-        Self::open_configured(path, limits, interrupt, |_, _| Ok(DecoderKind::Software))
+        Self::open_configured(path, limits, interrupt, |input, index| {
+            Ok(
+                if input
+                    .stream(index)
+                    .ok_or(ffmpeg::Error::StreamNotFound)?
+                    .parameters()
+                    .id()
+                    == ffmpeg::codec::Id::HAP
+                {
+                    DecoderKind::Hap
+                } else {
+                    DecoderKind::Software
+                },
+            )
+        })
     }
 
     fn open_configured(
@@ -224,12 +255,29 @@ impl Decoder {
             return Err(ffmpeg::Error::InvalidData.into());
         }
         let kind = create_device(&input, index)?;
-        let decoder = open_decoder(&input, index, limits, &kind)?;
+        let decoder = if matches!(kind, DecoderKind::Hap) {
+            None
+        } else {
+            Some(open_decoder(&input, index, limits, &kind)?)
+        };
+        // HAP demux needs no libavcodec pixel decoder or software texture expansion.
+        let parameters = stream.parameters();
+        let (width, height) = if let Some(decoder) = &decoder {
+            (decoder.width(), decoder.height())
+        } else {
+            unsafe {
+                (
+                    u32::try_from((*parameters.as_ptr()).width).unwrap_or(0),
+                    u32::try_from((*parameters.as_ptr()).height).unwrap_or(0),
+                )
+            }
+        };
+        admit_extent(width, height, limits.max_pixels)?;
         let timestamp = |value| (value != ffmpeg::ffi::AV_NOPTS_VALUE).then_some(value);
         let info = StreamInfo {
-            codec: decoder.id().name().to_owned(),
-            width: decoder.width(),
-            height: decoder.height(),
+            codec: parameters.id().name().to_owned(),
+            width,
+            height,
             time_base: TimeBase {
                 numerator: base.numerator() as u32,
                 denominator: base.denominator() as u32,
@@ -275,7 +323,11 @@ impl Decoder {
         // avcodec_flush_buffers to discard every delayed frame. The admitted HEVC fixture
         // emits an old drained frame after flush. Keep one demux/file owner; decoded images
         // already handed to consumers retain their independent reference-counted storage.
-        let decoder = match open_decoder(&self.input, self.stream, self.limits, &self.kind) {
+        let decoder = match if matches!(self.kind, DecoderKind::Hap) {
+            Ok(None)
+        } else {
+            open_decoder(&self.input, self.stream, self.limits, &self.kind).map(Some)
+        } {
             Ok(decoder) => decoder,
             Err(error) => {
                 self.state = DecodeState::Failed;
@@ -324,13 +376,16 @@ impl Decoder {
     }
 
     fn receive_next(&mut self) -> Result<Option<DecodedFrame>, DecodeError> {
+        if matches!(self.kind, DecoderKind::Hap) {
+            return self.receive_hap();
+        }
         if self.state == DecodeState::Ended {
             return Ok(None);
         }
         let mut packets = 0;
         loop {
             let mut image = ffmpeg::frame::Video::empty();
-            match self.decoder.receive_frame(&mut image) {
+            match self.decoder.as_mut().unwrap().receive_frame(&mut image) {
                 Ok(()) => {
                     admit_extent(image.width(), image.height(), self.limits.max_pixels)?;
                     let timestamp = image.timestamp().ok_or(DecodeError::MissingTimestamp)?;
@@ -361,12 +416,12 @@ impl Decoder {
                             return Err(DecodeError::LimitExceeded);
                         }
                         if packet.stream() == self.stream {
-                            self.decoder.send_packet(&packet)?;
+                            self.decoder.as_mut().unwrap().send_packet(&packet)?;
                             break;
                         }
                     }
                     Err(ffmpeg::Error::Eof) => {
-                        self.decoder.send_eof()?;
+                        self.decoder.as_mut().unwrap().send_eof()?;
                         self.state = DecodeState::Draining;
                         break;
                     }
