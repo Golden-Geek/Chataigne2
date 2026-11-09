@@ -1,6 +1,6 @@
 {
 	"date": "2026-11-09",
-	"gate": "M10/4 alone Active; original recovery observation repaired, genuine acceptance still pending",
+	"gate": "M10/4 alone Active; genuine Intel Video device recovery accepted, NVIDIA healthy control verified; full performance qualification remains open",
 	"finding": "SpoutProbe::capture_pixels explicitly returns one immutable received image; its documentation requires a fresh probe for a fresh observation. Session::poll keeps copied=true, and the readback retains that first image. Owner::pixels incorrectly retried the same completed snapshot while expecting later frame4/0 output. Therefore the12:55 failure proves the first copy mismatched, not that the live output stayed stale throughout the8s wait. Earlier native-downgrade evidence remains a real separate policy defect, corrected in fd3d12b2.",
 	"authoritative_contract": "crates/golden_video/src/native/probe/pixels.rs: SpoutProbe::capture_pixels; crates/golden_video/src/native/probe.rs: Session::poll",
 	"change": "After a completed image mismatches the expected pixel, drop that CPU image and replace its probe. Each retry then captures the current endpoint. Preserve the exact original eight-source/two-GPU fixture, frame0/frame4 baselines, pixel tolerance2/255,8s deadline,5s retirement, source caps and native/software/compressed paths. Only four lines in the original ignored fixture change; no production runtime or controller change.",
@@ -20,6 +20,24 @@
 		"scope": "Opt-in fresh-renderer/current-File replay, controller selector and tests, including its later three-reservation/fresh-probe correction. Preserved unpromoted; do not apply automatically. The independent replay is unnecessary for the now-proved probe API misuse and is absent from the active change.",
 		"limits": "Initial compile import was corrected to Golden Video's public runtime API. First native comparison preflight failed because the new probe admitted only2 items, while receiving/staging/CPU images require3; original preflight passed. Corrected comparison variant compiles/strict passes but was shelved before native revalidation. Its initial failed log target/q06-source-replay-tests/preflight.log and binary hashEFD575A69C68687B878008C62CE6E01D922CCF038EC995ABAB1C5EC954D5F1A1 are not acceptance."
 	},
-	"effort": "Cumulative failed resets12:15/12:55 remain retained. The narrower investigation ended by13:55 with an authoritative static API/caller mismatch. Subsequent work completed the original corrected fixture's planned validation; no further diagnostic reset/profiler/variant was run. One fresh original genuine acceptance remains required, with no observer replay or relaxed conditions.",
-	"remaining": "Actual affected device generations, fresh original output pixels/native routes and complete retirement still require the prepared elevated run. Existing NVIDIA sustained deadline failure,4K/other-output age, Intel/format/repeated/resource/path/soak scope remain open. No full gate closed:85/102=83%,M10 2/4=50%,8/15 phases."
+	"effort": "Cumulative failed resets12:15/12:55 remain retained. The narrower investigation ended by13:55 with an authoritative static API/caller mismatch. Subsequent work completed the original corrected fixture's planned validation, then the operator's14:10 same-scope genuine acceptance below. No extra diagnostic reset/profiler/variant, observer replay or relaxed conditions were needed.",
+	"genuine_acceptance": {
+		"outcome": "PASSED_NATIVE for the actual affected Intel device and healthy NVIDIA control; no NVIDIA device-recreation claim",
+		"directory": "target/m034-removal-d1879be63d1c4199aac1a1797aeb6de3",
+		"result_sha256": "dd8bb464b32c2f5e37d6eeb99373fd6206633786512e0a6d75f27a4991b73615",
+		"stdout_sha256": "2ceca76f1732e1372a4a968680956d00c8753e5b66f2c0cc177b0ff85da7550c",
+		"stderr_sha256": "0723b0485033bf836c3e94a439928589bedbe10d52e69755207ba2ec9247dcb3",
+		"binary_sha256": "194d12fa335d4ac37d573e67fc932dde5f92b6e73be29616b66c8e6a3a20bab6",
+		"pid": 23208,
+		"started_utc": "2026-11-09T14:10:35.4369181Z",
+		"ready_utc": "2026-11-09T14:10:43.3606742Z",
+		"finished_utc": "2026-11-09T14:11:05.3220322Z",
+		"controller": "Exact PID23208 readiness, matching prepared binary, DXCap exit0, qualification exit0 and fixture_terminal=true. Original ignored native test passes1/1 in29.73s. User executed the same controller using an elevated current token; no timed cohort overlapped.",
+		"intel": { "adapter": "dxgi:00000000:00015b69", "affected": true, "runtime": "4ea98687-3df6-4c26-87f9-254f6c3b10a9", "old_generation": 1, "recovered_generation": 2, "gpu_admission_bytes": 441330300 },
+		"nvidia": { "adapter": "dxgi:00000000:90b3a15f", "affected": false, "runtime": "502acce4-b4f3-47cf-8f71-d58291b131d0", "old_generation": 1, "recovered_generation": 1, "gpu_admission_bytes": 441330300 },
+		"assertions": "Both owners return Running with eight Ready channels and eight current-generation accepted outputs. Authored sparse project/history and Playing/Loop settings survive. Explicit paused frame4/frame0 seeks match the original independent Spout center-pixel baselines within2/255 on all eight outputs per GPU. All eight GPU-frame routes and eight active workers remain; stderr confirms Intel resident H.264/HEVC, compressed HAP/Alpha/Q and software-upload ProRes/alpha reopen. Zero retiring render generations. No full-image or production-throughput inference from16x16 center checks.",
+		"retirement": { "both_renderer_and_file_owners": true, "active_workers": 0, "cpu_and_gpu_admission_bytes": 0, "shutdown_ms": 199.6078, "limit_ms": 5000 },
+		"limits": "Only Intel actually changed device generation. NVIDIA verifies unaffected isolation, output pixels and retirement. Sustained capture, full production memory/path accounting, additional device targets and repeated qualification are not established by this test. Both earlier operator-triggered failures remain retained."
+	},
+	"remaining": "The genuine Intel recovery/healthy-NVIDIA case is accepted; no repeat of that unchanged case is queued. Existing NVIDIA sustained deadline failure,4K/other-output age, Intel/format/repeated/resource/path/soak scope and any still-required affected-NVIDIA case remain open. No full gate closed:85/102=83%,M10 2/4=50%,8/15 phases."
 }

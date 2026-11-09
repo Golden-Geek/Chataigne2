@@ -1,7 +1,7 @@
 {
 	"date": "2026-11-09",
 	"gate": "M10/4",
-	"state": "Active; native retry preserves residency; stale recovery observation was a frozen-probe fixture mistake, now repaired/no-reset verified; fresh original genuine acceptance required",
+	"state": "Active; original corrected fixture passes genuine Intel device recovery, exact fresh output centers/routes and zero retirement; NVIDIA healthy control remains generation1",
 	"progress": {
 		"accepted": 85,
 		"total": 102,
@@ -10,7 +10,7 @@
 		"gates_closed": 0
 	},
 	"deliverable": "A production app-engine/File-worker/native-renderer fixture covers eight concurrent common/HAP sources and independent Spout output pixels on each local GPU. The existing reset controller selects this fixture, verifies readiness against its exact PID, retains process handles through failure/cleanup and supports a non-elevating current-token trigger.",
-	"scope": "Native integration, not a Tauri/WebView host or sustained-throughput run. No production runtime/decoder behavior or acceptance budget changed. Actual genuine Video device recovery remains unverified.",
+	"scope": "Native integration, not a Tauri/WebView host or sustained-throughput run. This receipt preserves original preflight and denied-trigger evidence. The linked corrected-fixture receipt now establishes genuine Intel recovery with NVIDIA as an unaffected control; budgets are unchanged.",
 	"inputs": {
 		"base_commit": "a3a373eceeb8f53fbb055dea3c61f96063dc4389",
 		"fixture": "apps/mapgyver/src/media/rendering/tests/videos/device.rs",
@@ -93,12 +93,12 @@
 		"qualification_reason": "no genuine renderer device-generation change",
 		"result": "Windows permission prerequisite failed; no reset/device recovery pass. The controller retains the fixture process handle through its bounded deadline and cleanup. No UAC prompt, security setting change, persistent disable, system reboot or privileged workaround was attempted."
 	},
-	"return_action": "Run the prepared controller from an elevated Windows PowerShell at the repository root: ./apps/mapgyver/tests/native/invoke-device-removal.ps1 -TestExecutable ./target/mapgyver-m10-device-ready/MapGyverTests.exe -SourceKind Video -AllowDriverReset -UseCurrentToken. It starts fresh owned fixtures and refuses stale/wrong-PID readiness. Inspect each actual affected adapter, new device generation, hardware/BC routes, fresh output pixels and zero retirement before credit. An unaffected GPU remains a healthy control, not an affected-device pass.",
-	"remaining": "Reset14792 is retained failed: its original fixture kept reading one frozen first image, so that log does not prove sustained output staleness. The now-corrected original fixture needs fresh genuine acceptance; see mapgyver-m10-fresh-recovery-observations-2026-11-09.json. Native retry, sustained1080p/4K/resource performance and all original gates/budgets remain; M14 follows M10/4.",
+	"return_action": "No repeat of the unchanged Intel recovery case: terminal PID23208 passes against the exact prepared binary. Return to any still-required affected-NVIDIA case only with its explicit target, original software prerequisites and bounded acceptance fixture. Continue M10/4 sustained1080p/4K/resource performance; retain all original gates/budgets.",
+	"remaining": "Reset14792 remains a failed frozen-first-image observation, not proof of sustained staleness. Fresh genuine PID23208 is accepted for affected Intel and healthy NVIDIA; see mapgyver-m10-fresh-recovery-observations-2026-11-09.json. Sustained/repeated/age/path/pool/soak and affected-NVIDIA scope remain; M14 follows M10/4.",
 	"current_prepared_fixture": {
 		"path": "target/mapgyver-m10-device-ready/MapGyverTests.exe",
 		"sha256": "194d12fa335d4ac37d573e67fc932dde5f92b6e73be29616b66c8e6a3a20bab6",
 		"evidence": "mapgyver-m10-fresh-recovery-observations-2026-11-09.json",
-		"scope": "Original fixture now recreates each immutable SpoutProbe after a mismatched completed readback, retaining original scope/deadlines/tolerance. Native retryfd3d12b2 remains production behavior. Strict/original native2/2 passes29.79s; paired zero-admission retirement235.1337ms, relink Intel91.4832ms/NVIDIA116.4384ms. No direct-source comparison variant is active. Historical failed resets remain retained; fresh original genuine acceptance required with the same command/target path."
+		"scope": "Original fixture recreates each immutable SpoutProbe after a mismatched completed readback, retaining original scope/deadlines/tolerance. Native retryfd3d12b2 remains production behavior. Strict/original native2/2 passes29.79s; paired zero-admission retirement235.1337ms, relink Intel91.4832ms/NVIDIA116.4384ms. Fresh genuine PID23208 passes1/1 in29.73s: Intel generation1->2, NVIDIA healthy1->1, all eight fresh output centers/routes each and paired zero-admission retirement199.6078ms. No direct-source comparison variant is active. Historical failed resets remain retained."
 	}
 }
