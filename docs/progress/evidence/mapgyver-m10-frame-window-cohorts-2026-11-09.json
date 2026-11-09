@@ -1,0 +1,48 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4 alone Active; no gate closed",
+	"batch": "12:09 UTC start,12:54 cutoff; ended early after the two planned cohorts. No extra probe or timing replay. Current implementation4216e024 remains functionally verified, not production-qualified.",
+	"inputs": {
+		"app": "target/q06-frame-window-app/MapGyver.exe",
+		"app_sha256": "6d207e35616229b5d7c67cb78becca7ac4cda69f2b689c681f92979623be11a2",
+		"probe_sha256": "94601c11ebe4805f8b8fcff5a8be607ca78257d773a1f40e63c9ac605c41b15c",
+		"fixtures": "target/q06-prores-numbered-2026-11-09/fixtures.json",
+		"fixtures_sha256": "dccf9ae52d1ce574497dfc8c1295752173695d944152c142266257954caa5d15",
+		"workload": "Unchanged ordinary private-profile app: ProResHQ1080p60 plus4K30, HD Reference and three60Hz Spout outputs plus existing Screen/preview.30s warmup,120s visible,60s minimized,60s receivers disconnected. No simultaneous builds or agent GPU tests; an asynchronous user-authorized reset subsequently overlapped Intel."
+	},
+	"nvidia": {
+		"directory": "target/q06-frame-window-nvidia",
+		"pid": 44500,
+		"exit_code": 0,
+		"report_sha256": "c67be052cab10e8409ecb35967abc7cd9830c20742e640dedf183bedb9c9c05f",
+		"audit_sha256": "8a135946fe5a049bd802a7aceab8a37deaefc832ffb3284ad8adf6263af1c067",
+		"functional": "All three held full-resolution frame codes60/30/60 pass; independent receivers retire normally, no page errors, source states/playback remain Ready/Playing throughout, capture integrity/loss checks and normal app shutdown pass. Recorded native retirement is not complete decoder/pool accounting.",
+		"visible": { "hd_observed_publications_per_second": 57.804093758716505, "uhd_observed_publications_per_second": 28.010831024576888, "expected_slots": 7204, "maximum_observed_output_misses": 1, "maximum_definite_misses": 0, "cpu_wall_upper_p95_ms": 3.2779, "cpu_wall_upper_p99_ms": 3.7001, "renderer_context_p95_ms": 5.659648, "renderer_context_p99_ms": 8.861792, "private_bytes_peak": 753123328, "known_native_texels_peak": 317126408 },
+		"minimized": { "hd_observed_publications_per_second": 58.882189308053206, "uhd_observed_publications_per_second": 28.36733123577118, "expected_slots": 3604, "maximum_observed_output_misses": 5, "maximum_definite_misses": 2, "cpu_wall_upper_p95_ms": 4.9835, "renderer_context_p95_ms": 6.763264, "renderer_context_p99_ms": 8.86288 },
+		"disconnected": { "hd_observed_publications_per_second": 58.74787241168357, "uhd_observed_publications_per_second": 28.808092675530954, "expected_slots": 3606, "maximum_observed_output_misses": 20, "maximum_definite_misses": 19, "maximum_definite_miss_fraction": 0.005268996117581808, "unsubmitted": 15, "cpu_wall_upper_p95_ms": 4.659, "renderer_context_p95_ms": 6.63808, "renderer_context_p99_ms": 9.831872, "private_bytes_peak": 939347968, "known_native_texels_peak": 395283208 },
+		"verdict": "Not qualified. Disconnected19/3606 definite misses exceeds0.1%. Visible cadence is below source rate; observed identities alone are not exact delivered Video frames. Visible renderer spans are slower than the8153854c baseline, especially input spans; no whole-path gain is claimed. CPU wall above4ms is an inconclusive upper bound, not proof of active CPU failure. Source publication age, continuous PTS/pixels, unsampled uploads, full cross-context path and decoder/pool storage remain unknown. One sample is not a three-run series."
+	},
+	"intel": {
+		"directory": "target/q06-frame-window-intel",
+		"pid": 44256,
+		"exit_code": 1,
+		"failure_sha256": "2f2bef76b4d34ca1544bb1e1e1ba12be7f5d108e103edb81d4e061c1c976df7a",
+		"result": "Invalid timing cohort: independently launched user-authorized DXCap reset overlapped the visible sample. Receiver exited with0x887A0007 after warmup; sample end was never recorded. No Intel cadence, resource distribution or spontaneous playback-reset failure is inferred. Do not audit the partial capture as a completed sample or silently rerun it beyond the two-experiment batch."
+	},
+	"user_reset": {
+		"directory": "target/m034-removal-4c2aac0e77d24361b6c46eed132786ae",
+		"pid": 50240,
+		"binary_sha256": "7cd60a9ed751444edc56f699683bdd0e44319b8a5bba548fb5981a603cd3f331",
+		"result_sha256": "9addfe1951d728006f8eed39d452268ccb0ec12561f22a457c4c488d1c9fe12d",
+		"stderr_sha256": "6ffe79c25f3f9966c3bf61f3ac6c5fc9334e6e346f27e9ae178509818f129427",
+		"started_utc": "2026-11-09T12:14:49.0746645Z",
+		"ready_utc": "2026-11-09T12:14:56.9852934Z",
+		"finished_utc": "2026-11-09T12:15:21.5951204Z",
+		"dxcap_exit_code": 0,
+		"qualification_exit_code": 101,
+		"result": "Elevation prerequisite resolved for this user-run trigger. Exact current PID readiness and hash match; Intel renderer genuinely recreates generation1→2 and returns Running. Recovery fails original pixel tolerance: H.264 frame4 center[194,130,77,255] versus prior resident[195,133,77,255], green error3>2. Before that, H.264/HEVC workers report device-reset error then switch to software GPU upload. Full recovered routes/pixels and complete zero retirement are not accepted from this failed fixture.",
+		"product_decision": "Native open currently maps every error to software fallback; after a successful open, every non-HAP drive failure also falls back. Runtime device failure must recreate the supported native decoder/publisher with bounded existing retry, rather than permanently downgrade the source for that worker. Reserve fallback for an explicit unsupported capability. Keep pixel tolerance/deadlines and all budgets unchanged. No new reset until software/native prerequisites pass for this correction."
+	},
+	"next": "Checkpoint these results, then repair typed native retry/fallback policy as the reproduced M10/4 recovery prerequisite. Prove unsupported fallback and runtime-error retry in software, strict/build and original no-reset native tests; refresh the prepared fixture only afterward. No unrelated profiler, shader candidate or M14 scope. Cumulative cadence work remains open and has not been reset by this batch.",
+	"progress": "85/102=83%,8/15 phases,M10 2/4=50%; M10/4 alone Active. All common/HAP sustained/repeated/resource/age/path/soak/recovery requirements remain. Existing user smoothness/AA acceptance unchanged."
+}
