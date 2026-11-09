@@ -46,15 +46,19 @@ export async function openNativeEditor({ appDataDirectory, windowState, prepareP
 	const cdp = `http://127.0.0.1:${cdpPort}`;
 	const app = spawn(
 		path.resolve(process.env.MAPGYVER_TEST_BINARY ?? 'target/debug/MapGyver.exe'),
-		['--no-remote', '--automation-shutdown-file', shutdown],
+		[
+			'--no-remote',
+			'--automation-shutdown-file',
+			shutdown,
+			'--automation-webview-debug-port',
+			String(cdpPort)
+		],
 		{
 			windowsHide: true,
 			env: {
 				...process.env,
 				APPDATA: appDataDirectory ?? path.join(directory, 'data'),
-				GC_UI_BIND: `127.0.0.1:${hostPort}`,
-				WEBVIEW2_USER_DATA_FOLDER: path.join(directory, 'webview'),
-				WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${cdpPort} --remote-debugging-address=127.0.0.1`
+				GC_UI_BIND: `127.0.0.1:${hostPort}`
 			},
 			stdio: ['ignore', 'pipe', 'pipe']
 		}

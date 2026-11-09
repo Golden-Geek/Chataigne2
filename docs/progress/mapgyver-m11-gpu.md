@@ -5,10 +5,13 @@
 **2026-11-09 physical-identity correction:** [M10 recovery evidence](evidence/mapgyver-m10-physical-recovery-2026-11-09.json)
 replaces authored LUID preference tokens with exact persistent PnP keys, while runtime observations
 retain current LUIDs. Native NVIDIA stop/start recovery now passes with a changed LUID and the
-same physical device. The five-process GUI audit below is historical LUID-token coverage;
-its updated physical-key replay is a required M10 integration return item after an owned CDP
-startup failure. No updated five-process Inspector/cold-start pass is claimed. Generic typed
-Inspector/persistence coverage remains retained; see the active ledger for this explicit debt.
+same physical device. The [updated physical-key replay](evidence/mapgyver-m10-physical-preferences-2026-11-09.json)
+now passes all five actual Inspector/cold starts, both explicit GPUs, restart-required renderer
+recreation, missing choice without fallback and recovery. Eight full96x64 exact images and412
+clean independent copies pass; all five apps and six receivers retire normally. Elevated WebView2
+ignores environment debug overrides; the shared host now supplies explicit owned debug-window
+configuration through its public Tauri builder. Earlier CDP startup failures remain retained.
+The older audit below remains historical LUID-token coverage; production Video budgets stay M10/4.
 
 Golden Video owns read-only DXGI enumeration and preference resolution in
 `crates/golden_video/src/native/{device,identity,selection}.rs`. MapGyver's presentation worker

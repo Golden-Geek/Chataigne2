@@ -1,6 +1,7 @@
 use std::env;
 use std::io::{Error, ErrorKind};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, TcpStream};
+use std::num::NonZeroU16;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{self, RecvTimeoutError};
@@ -38,6 +39,8 @@ pub struct LaunchArgs {
     pub no_remote: bool,
     /// Stops the headless or Windows desktop host when this automation sentinel appears.
     pub automation_shutdown_file: Option<PathBuf>,
+    /// Debug Windows builds only: loopback CDP port, requiring an owned shutdown sentinel.
+    pub automation_webview_debug_port: Option<NonZeroU16>,
     /// Prints default launch usage instead of starting the app.
     pub show_help: bool,
 }
@@ -192,6 +195,18 @@ where
                     .ok_or_else(|| Error::new(ErrorKind::InvalidInput, "--automation-shutdown-file requires a path"))?;
                 parsed.automation_shutdown_file = Some(PathBuf::from(path.as_ref()));
             }
+            "--automation-webview-debug-port" => {
+                let port = args.next().ok_or_else(|| {
+                    Error::new(
+                        ErrorKind::InvalidInput,
+                        "--automation-webview-debug-port requires a port",
+                    )
+                })?;
+                parsed.automation_webview_debug_port =
+                    Some(port.as_ref().parse().map_err(|_| {
+                        Error::new(ErrorKind::InvalidInput, "automation WebView port must be 1..=65535")
+                    })?);
+            }
             "--help" | "-h" => parsed.show_help = true,
             other => {
                 return Err(Error::new(
@@ -204,7 +219,28 @@ where
         }
     }
 
+    parsed.validate_webview_automation()?;
     Ok(parsed)
+}
+
+impl LaunchArgs {
+    fn validate_webview_automation(&self) -> std::io::Result<()> {
+        if self.automation_webview_debug_port.is_some()
+            && (!cfg!(all(target_os = "windows", debug_assertions))
+                || self.headless
+                || !self.no_remote
+                || !self
+                    .automation_shutdown_file
+                    .as_ref()
+                    .is_some_and(|path| path.is_absolute() && path.parent().is_some()))
+        {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                "WebView automation requires a debug Windows desktop build, --no-remote and an absolute --automation-shutdown-file",
+            ));
+        }
+        Ok(())
+    }
 }
 
 /// Creates the app's default new-project engine and launches it through the default host runtime.
@@ -374,6 +410,7 @@ where
     R: Runtime,
 {
     let HostServices { presentation, headless } = services;
+    args.validate_webview_automation()?;
     validate_platform(presentation.is_some(), args.headless)?;
     if !cfg!(target_os = "windows") && !args.headless && args.automation_shutdown_file.is_some() {
         return Err(Error::new(
@@ -491,6 +528,7 @@ where
         tauri_context,
         app_data_dir.join("window-state.json"),
         args.automation_shutdown_file,
+        args.automation_webview_debug_port,
         presentation,
     );
     drop(dev_server_process);
@@ -537,6 +575,11 @@ fn print_usage() {
     println!("  --show-output  Attach or create a console window for stdout/stderr logs.");
     println!("  --no-remote  Bind UI API to loopback only (blocks non-local browser access).");
     println!("  --automation-shutdown-file PATH  Stop the host when PATH appears.");
+    if cfg!(all(target_os = "windows", debug_assertions)) {
+        println!(
+            "  --automation-webview-debug-port PORT  Owned loopback WebView debugging; requires --no-remote and an absolute shutdown sentinel."
+        );
+    }
 }
 
 #[cfg(target_os = "windows")]

@@ -1,4 +1,5 @@
 use std::io::{self, Error, ErrorKind};
+use std::num::NonZeroU16;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
@@ -21,6 +22,7 @@ pub(super) fn run_tauri<R: Runtime>(
     tauri_context: tauri::Context<R>,
     window_state_path: PathBuf,
     automation_shutdown_file: Option<PathBuf>,
+    automation_webview_debug_port: Option<NonZeroU16>,
     native_presentation: Option<NativePresentation<R>>,
 ) -> io::Result<()> {
     let external_url: Url = ui_base_url.parse().map_err(|err| {
@@ -82,6 +84,7 @@ pub(super) fn run_tauri<R: Runtime>(
                 application_display_name,
                 &window_state,
                 native_presentation.is_some(),
+                automation_webview_debug_port.zip(automation_shutdown_file.as_deref()),
             )
             .and_then(|window| {
                 if let Some(presentation) = native_presentation {
@@ -169,6 +172,7 @@ fn create_main_window<R: Runtime>(
     title: String,
     window_state: &WindowStatePersistence,
     native_underlay: bool,
+    automation_webview: Option<(NonZeroU16, &std::path::Path)>,
 ) -> io::Result<tauri::WebviewWindow<R>> {
     let mut builder = tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
         .title(title)
@@ -184,6 +188,23 @@ fn create_main_window<R: Runtime>(
             builder.background_color(Color(20, 20, 20, 255))
         };
     }
+    #[cfg(all(target_os = "windows", debug_assertions))]
+    if let Some((port, sentinel)) = automation_webview {
+        // Elevated WebView2 ignores environment overrides. Configure only this owned debug
+        // window through its public API; never change machine policy or accept arbitrary flags.
+        builder = builder
+            .additional_browser_args(&format!(
+                "--remote-debugging-port={port} --remote-debugging-address=127.0.0.1"
+            ))
+            .data_directory(
+                sentinel
+                    .parent()
+                    .expect("validated automation sentinel")
+                    .join("webview"),
+            );
+    }
+    #[cfg(not(all(target_os = "windows", debug_assertions)))]
+    let _ = automation_webview;
     let window = builder
         .build()
         .map_err(|err| Error::other(format!("failed creating Tauri window: {err}")))?;

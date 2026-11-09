@@ -35,6 +35,15 @@ transport cancellation and a normal process return; observation failures stop wi
 Windows desktop mode retains its Tauri shutdown path. Normal host exit is separate from an
 app target's graceful-close protocol and proof of every native descendant's retirement.
 
+Debug Windows desktop builds additionally accept `--automation-webview-debug-port PORT`
+with `--no-remote` and an absolute shutdown sentinel. The shared host configures that owned
+window's loopback CDP endpoint through Tauri's public WebView builder and uses a private
+`webview` directory beside the sentinel. Ordinary startup leaves debugging disabled; release,
+headless, missing-sentinel and invalid-port requests fail. The native editor harness uses this
+explicit option because elevated WebView2 hosts ignore environment debugging overrides
+([Microsoft's supported override rules](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/security#for-an-elevated-host-app-use-appropriate-override-flags)).
+No machine/browser policy changes or arbitrary browser arguments are exposed.
+
 - `crates/golden_core/hosts/desktop/src/lib.rs` is the public desktop-host entry point used through the `golden_core::app` facade.
 - `crates/golden_core/hosts/desktop/src/desktop.rs` launches the built-in UI server and the Tauri window.
 - By default the desktop runtime points Tauri at the built-in Rust host and serves the shipped frontend bundle from `/`; no separate Vite server is required.

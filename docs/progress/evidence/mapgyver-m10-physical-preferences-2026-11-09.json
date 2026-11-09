@@ -1,0 +1,55 @@
+{
+  "date": "2026-11-09",
+  "gate": "M10/4 Active; physical-key Preferences integration return item accepted; full performance/resource/soak gate remains open",
+  "result": "PASS: original five-process real Inspector/cold-start replay, eight complete independent 96x64 pixel images and six normally retired receivers",
+  "ownership": "Golden desktop host owns explicit debug-window startup; MapGyver owns typed physical GPU Preferences and restart policy; Golden Video owns physical identity/current LUID selection. No GPU policy moved into the UI or engine loop.",
+  "startup_correction": {
+    "baseline": "The earlier target/q06-physical-preferences.log failure remains retained in mapgyver-m10-physical-recovery-2026-11-09.json.",
+    "bounded_comparison": "Fresh owned app PID11988/browser36076 started with a private WebView directory but its actual browser command line omitted the requested CDP flags and no listening endpoint appeared. The helper failed before Inspector input and retired the app normally. target/q06-physical-preferences-live.stderr.log SHA256 d6b228c0754a44fc2ccc5ab52bdf3dd3872240424d45ee45e4bb0969011caa70.",
+    "cause": "Microsoft documents that elevated WebView2 hosts ignore environment debugging overrides. This executing terminal is elevated; actual owned browser arguments match that behavior.",
+    "source": "https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/security#for-an-elevated-host-app-use-appropriate-override-flags",
+    "fix": "Debug Windows desktop builds accept a typed nonzero --automation-webview-debug-port, requiring --no-remote and an absolute shutdown sentinel. Tauri's public builder supplies only the explicit loopback debug flags and a private WebView directory beside that sentinel. Programmatic launch arguments receive the same validation. Release/headless/missing-ownership/invalid-port requests fail; ordinary launch does not opt in. No machine policy, arbitrary browser flag or sandbox change.",
+    "native_observation": "Corrected owned app PID37284/browser34208 exposes --remote-debugging-address=127.0.0.1 --remote-debugging-port=51675 and the exact private WebView folder. The original CDP-driven five-stage suite then completes. A later TCP snapshot occurred after that stage exited and is not claimed as a captured listener inventory."
+  },
+  "checks": {
+    "host_software": "cargo test --locked -p golden_host_desktop --lib:39 passed,0 failed,3 existing interactive/helper ignores;0.16s tests,44.81s compilation. Two new tests cover valid platform/build ownership and invalid ports/incomplete ownership.",
+    "strict": "FFmpeg wrapper with literal argument array: clippy --locked -p golden_host_desktop -p golden_video -p MapGyver --all-targets --features MapGyver/native-qualification -- -D warnings:exit0,2m20s including concurrent-build lock wait. Earlier malformed shell argument invocation failed before strict checking and receives no passing credit.",
+    "app_build": "cargo rustc --locked -p MapGyver --bin MapGyver -- -C extra-filename=-qualification:exit0,2.26s. Default native-video/video-files features; only final executable output name differs. This compiles current shared host and final physical-selection cache guard. An ordinary build first failed to replace target/debug/MapGyver.exe because the separately launched user's --dev process25820 owns it; that window was preserved. Owned qualification uses the separate copied executable and five hash-verified pinned FFmpeg DLLs.",
+    "app": "target/q06-physical-preferences-app/MapGyver.exe",
+    "app_sha256": "6fd347783f6045dadb3f0812a6799729221f08d07566c44104ae9122793f3f70",
+    "native_helper": "target/debug/native_qualification.exe",
+    "native_helper_sha256": "cb7927f41d3fac6288d8e25f6ad8e62535aacb24fcb9abca7f638821f9558af8",
+    "retained_software": "Unchanged physical-selection/runtime behavior retains625 MapGyver and286 Golden Video passing library tests from the preceding recovery milestone. This slice reruns the changed host suite and strict checks; no new full911-test run is claimed.",
+    "format": "Root and golden_core cargo fmt, touched JavaScript Prettier, node --check and scoped git diff --check pass.",
+    "native_command": "MAPGYVER_TEST_BINARY=target/q06-physical-preferences-app/MapGyver.exe node apps/mapgyver/tests/browser/native-gpu-preferences.mjs target/q06-physical-preferences-elevated",
+    "native_exit": 0,
+    "native_receipt": "target/q06-physical-preferences-elevated/gpu-preferences.json",
+    "native_receipt_sha256": "92567ceeb1e6d5cb37e1cf3516d80b1c142a6be320505731d535689009f59931",
+    "native_log": "target/q06-physical-preferences-elevated.log",
+    "native_log_sha256": "f2c6c3d128c15b20061074c660378c80dd5dbe4e492fc294e7a2c2df5d9b1885"
+  },
+  "physical_choices": {
+    "nvidia": "pnp:PCI\\VEN_10DE&DEV_2C59&SUBSYS_800F17AA&REV_A1\\813FD165DA2DB04800",
+    "intel": "pnp:PCI\\VEN_8086&DEV_7D67&SUBSYS_800F17AA&REV_06\\3&11583659&0&10",
+    "missing": "pnp:PCI\\MISSING\\UNAVAILABLE",
+    "current_nvidia": "dxgi:00000001:4ffc79d4",
+    "current_intel": "dxgi:00000000:00015b69"
+  },
+  "stages": [
+    {"name": "automatic", "result": "Automatic chooses NVIDIA. Real Inspector changes to Intel; footer reports restart required. Current NVIDIA and its exact independent output persist through renderer recreation."},
+    {"name": "explicit-other", "result": "Fresh app reads saved physical Intel choice and renders on Intel. Changing to physical NVIDIA reports restart required and keeps Intel through renderer recreation."},
+    {"name": "explicit-preferred", "result": "Fresh app reads saved physical NVIDIA choice, renders on current NVIDIA LUID and reports no pending restart."},
+    {"name": "missing", "result": "Existing typed Preferences codec writes the exact missing physical key. Fresh app shows unavailable choice and Faulted with no GPU/resources/fallback. Inspector change to Automatic preserves fault until restart and truthfully requests restart."},
+    {"name": "recovered", "result": "Fresh app reads Automatic, renders on NVIDIA and clears restart requirement."}
+  ],
+  "independent_outputs": [
+    {"stage": "automatic", "copies": 67, "images": 2, "gpu": "NVIDIA"},
+    {"stage": "automatic-recreated", "copies": 61, "images": 1, "gpu": "NVIDIA"},
+    {"stage": "explicit-other", "copies": 101, "images": 2, "gpu": "Intel"},
+    {"stage": "explicit-other-recreated", "copies": 61, "images": 1, "gpu": "Intel"},
+    {"stage": "explicit-preferred", "copies": 61, "images": 1, "gpu": "NVIDIA"},
+    {"stage": "recovered", "copies": 61, "images": 1, "gpu": "NVIDIA"}
+  ],
+  "output_assertions": "All eight complete96x64 images are exactly red RGBA[255,0,0,255], tolerance0. All412 independent copies have zero absent/failed-receive/descriptor mismatch; each receiver retains its shared handle and advances frame versions. Six receivers and all five owned apps exit0 normally. Private temporary WebView directories are removed by the existing bounded cleanup. One private persistent Preferences file is retained as evidence. No owned test app remains; separate user --dev app is untouched.",
+  "limits": "Functional selection/persistence/integration proof only. Default automatic1920x1080 output rows are Recovering in these observations; this receipt qualifies only the fixture's explicit96x64 independent outputs, not physical display output or full rendering throughput. Another app is running, so no production timing, memory peak, age, sustained cadence or new driver-reset qualification is inferred. Historical failed observations remain retained. M10 stays2/4, overall85/102,8/15 phases. Next scope is the original fresh4K age and sustained/resource/path/pool/soak requirements."
+}

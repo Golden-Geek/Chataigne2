@@ -1,6 +1,6 @@
 {
 	"date": "2026-11-09",
-	"gate": "M10/4 Active; affected-NVIDIA physical-device recovery accepted, native Preferences replay still pending",
+	"gate": "M10/4 Active; affected-NVIDIA physical-device recovery accepted; subsequent physical-key Preferences replay passes in mapgyver-m10-physical-preferences-2026-11-09.json",
 	"implementation": "Golden separates validated persistent PhysicalAdapterId/PnP keys from current AdapterId/LUID coordinates. Read-only DisplayConfig/Configuration Manager mapping preserves exact device identity and explicit query errors. Automatic selection follows Windows' first hardware choice and fails if its identity is unknown; explicit physical selection rejects missing/software/ambiguous matches without substituting another GPU. The backend pins the physical device before allocation and resolves its new LUID during recreation. MapGyver's coarse host catalog uses the same selector; File workers retire/rebind on the recovered runtime adapter while retaining the existing admission pools. Old images are never retagged across device instances.",
 	"persistence": "Preferences now author pnp: keys in the existing typed Golden Enum Parameter. Runtime-status GPU IDs remain dxgi: coordinates. Historical LUID-only saved choices remain unavailable; no name/vendor-based migration or recovery alias is added. Qualification writers can target a currently observed runtime coordinate, but resolve it before writing the physical preference; absent runtime IDs are rejected.",
 	"validation": {
