@@ -1,0 +1,56 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/2",
+	"state": "Accepted",
+	"scope": "HAP, HAP Alpha and HAP Q functional acceptance: compressed GPU textures, color/alpha, concurrent high-resolution files, canonical shared consumers, independent copies and project routing/reload. Sustained production performance, bundling and combined recovery remain M10/4.",
+	"reused": [
+		"mapgyver-m10-hap-codec-2026-11-09.json: pinned reference/Snappy bridge, admission, malformed packets, actual MOV timestamps/seeks and retained immutable blocks",
+		"mapgyver-m10-hap-gpu-2026-11-09.json: BC upload/conversion, shared native publication/File binding, zero-admission rejection and common-codec native regressions",
+		"mapgyver-m10-common-acceptance-2026-11-09.json: shared typed transport/Parameter/command/script/callback/snippet/history contracts; no HAP-specific parallel transport was added"
+	],
+	"external_material": {
+		"index": "https://github.com/Vidvox/hap#test-materials",
+		"url": "https://d3omao0uy1rjjh.cloudfront.net/hap/Hap_Test_FFmpeg.zip",
+		"archive_sha256": "90c8ff88db3f2a02597f8a7fdca27b0ca739b3d00f9a2226b8c2c90aab23ade8",
+		"archive_bytes": 24089293,
+		"local": "target/hap-external-ffmpeg/FFmpeg",
+		"coverage": "Twelve externally FFmpeg-encoded 4096x2160 MOV files: Hap, Hap_Alpha and Hap_Q with1,2,6,64 chunks each. Downloaded material stays in ignored target, not the repository. Native test reads MAPGYVER_HAP_EXTERNAL pointing to the extracted FFmpeg directory."
+	},
+	"software": {
+		"command": "with-ffmpeg.ps1 test --locked -p MapGyver -p golden_video --lib --features MapGyver/video-files,golden_video/ffmpeg,golden_video/qualification --quiet -- --test-threads=1",
+		"app": { "passed": 611, "failed": 0, "ignored": 4, "seconds": 84.73 },
+		"golden": { "passed": 270, "failed": 0, "ignored": 61, "seconds": 5.59 },
+		"exit": 0,
+		"strict": "Matching combined --lib --tests Clippy with -D warnings exits0 before native checks; all added native tests compile. Existing ts-rs serde-attribute notices remain unchanged.",
+		"ui": "MapGyver Svelte check exits0: zero errors and warnings. Browser syntax and Prettier checks pass, including after correcting the copy fixture. No runtime/frontend/protocol implementation changed in this acceptance slice.",
+		"format": "Root and golden_core Cargo fmt, complete owned diff review and staged whitespace checks pass."
+	},
+	"native_cohort_1": {
+		"golden_filter": "native::backend::tests::images::gpu_streams::hap -- --ignored --nocapture --test-threads=1",
+		"golden_result": { "passed": 3, "failed": 0, "seconds": 37.10, "exit": 0 },
+		"native_pixels": "Both GPUs pass original36 actual-file images plus two BC1 opaque-palette checks;36 new known-block images cover saturated RGB, BC3 alpha0/64/128/255 and chromatic HAP Q scales1/2/4;24 external-file images compare with FFmpeg's separate CPU HAP pixel decoder. Each image checks two rendered output pixels in linear premultiplied space. Unchanged RGB4/255 and alpha1/255 limits. Every publisher withdrawal releases its admitted GPU storage to zero.",
+		"external_oracle_limit": "External pack comparisons use each clip's first frame. Original deterministic files cover all six frames, original timestamps and seeks. Independent CPU decoding is test-only; production HAP never expands or uploads RGBA pixels on CPU.",
+		"app_filter": "hardware_hap_three_4k_files_share_six_consumers_without_duplicate_workers_and_retire -- --ignored --nocapture --test-threads=1",
+		"app_result": { "passed": 1, "failed": 0, "seconds": 1.33, "exit": 0 },
+		"concurrent_files": [
+			{ "name": "Hap_ffmpeg_64.mov", "sha256": "210f6427287b99c3e348898833aa1a8efad9f6d1dd5119662af4ec77ad958a6b" },
+			{ "name": "Hap_Alpha_ffmpeg_6.mov", "sha256": "6614053efa6e7ddef2e78f37b3090bef49d84475e95ec11d3199b53e9bc7ae0b" },
+			{ "name": "Hap_Q_ffmpeg_2.mov", "sha256": "7ca900b349090b9330b856c61fa93429a80a7f108f2478e0d95dcd6d1c8fbf2e" }
+		],
+		"concurrency": "On each GPU, three4096x2160/24fps files play concurrently through six canonical/Reference consumers. Exactly three live file workers and pairwise identical render targets prove one decoder/render owner per canonical source. Each publishes at least12 distinct frame timestamps. GPU admission stays exactly340623408 bytes; per-frame publication rebuilds no plans. All workers, CPU reservations and native storage retire to zero on close. Native producers are real; this worker/ownership fixture uses a null render host, while separate native pixels and actual-app routes establish rendering.",
+		"capacity": "Test source cap512MiB is below the existing production768MiB cap. Three4K external descriptors require a test plan limit256MiB instead of ordinary unit fixtures'64MiB. Production admission and limits are unchanged. This short functional run does not establish sustained throughput or total driver-private memory."
+	},
+	"native_cohort_2": {
+		"script": "apps/mapgyver/tests/browser/native-video-playback.mjs",
+		"binary": "target/debug/deps/MapGyver-m10-hap.exe",
+		"binary_sha256": "0dea8b86c411006c3349c9d7b521b40b233cfe861fdf84bab6933c4ab4daf342",
+		"binary_provenance": "Previously built/strict-verified cf15dec6 product implementation, unchanged by this tests/docs-only slice; all new Rust tests compile and pass prerequisite software/strict validation.",
+		"nvidia": { "pid": 31608, "adapter": "dxgi:00000000:90b3a15f", "physical_checkpoints": 89, "requests": 2046, "receipts": 2046, "rejections": 0, "page_errors": 0, "max_linear_error": 0.014453917013954043, "hap_max_linear_error": 0.0029325233130135797, "normal_shutdown": true, "exit": 0, "report": "target/mapgyver-m10-hap-final-nvidia-2026-11-09/video-playback.json", "sha256": "efa38561e3254c09c48825cdff4d3aab57529be9d0677719136451092c4af44d" },
+		"intel": { "pid": 44416, "adapter": "dxgi:00000000:00015b69", "physical_checkpoints": 89, "requests": 2084, "receipts": 2084, "rejections": 0, "page_errors": 0, "max_linear_error": 0.014453917013954043, "hap_max_linear_error": 0.0028987956395372105, "normal_shutdown": true, "exit": 0, "report": "target/mapgyver-m10-hap-final-intel-2026-11-09/video-playback.json", "sha256": "edc522b9f48b5c0ad860e31bce0b014322bc3319dc1e30ef0b6f587210c7a6f3" },
+		"coverage": "Ten profiles retain the common/HAP direct File/defaults/Play/EOF/Stop/seek/Undo/Redo/exact frame-step/native-preview-installation checks. New route coverage uses HAP Alpha for independent Composition copy and shared Matrix, and HAP RGB for canonical Reference/rate/loop/pause/shared seek. A HEVC10 variant still proves shorter-file hold against the HAP clock. Save/New/load preserves copied120ms versus original160ms, paused Reference125ms/rate0.5/Loop and actual native Screen pixels. Backend events explicitly confirm HAP compressed GPU playback on each exact adapter.",
+		"copy_oracle": "The17x9 HAP Alpha copy is scaled64x through ordinary public instance Parameters and sampled at120ms/frame3. All25 desktop sample pixels have one expected bright color: NVIDIA85/83/85, Intel83/83/83, before and after reload. Black fails the unchanged4/255 linear tolerance. Matrix independently shows frame4 at160ms.",
+		"unaccepted_baseline": "Initial reports under target/mapgyver-m10-hap-acceptance-{nvidia,intel}-2026-11-09 returned green but used an unscaled17x9 alpha copy at40ms/frame1. Its expected linear0.008 was below tolerance0.0157, admitting surrounding black; these runs do not establish copy-pixel acceptance. They are retained, not counted. NVIDIA PID45796 report SHAe787effa87b593544cd30b4e52298deb4fe59df08b8f0f4177c41607c78e2df9; Intel PID41652 SHAbceaf796f61c59bbedb9a827747abb3ac53d9dc8caecee7614e829cb8c575896. The corrected pair above supplies final acceptance.",
+		"limits": "Physical Screen desktop pixels, not DOM screenshots, establish output correctness. Native Media Preview installation is observed, not physical panel cadence. No desktop activation/input, monitor manipulation or driver reset. Short clips do not establish sustained production performance or combined device recovery."
+	},
+	"result": "M10/2 Accepted:84 to85/102 gates (83%); M10 becomes2/4 (50%). Phase completion remains8/15 (53%). Exactly M10/4 becomes Active for first-pass bundled dependencies/license/build, coalesced stale seeks, file/device recovery and sustained1080p/4K/resource qualification. M14 follows that gate; DXV/WebP return after M14. User-accepted smoothness/old AA scopes remain closed for now."
+}

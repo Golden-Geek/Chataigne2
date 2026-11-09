@@ -1,5 +1,6 @@
 use super::*;
 mod hap;
+mod hap_external;
 use crate::native::frames::tests::{completed, prepared, submit};
 use crate::{
     decode::{D3d11Storage, DecodeLimits, Decoder},
@@ -10,6 +11,7 @@ fn install(renderer: &mut Renderer, stream: GpuFrameStream) {
     install_admitted(renderer, stream, 65536);
 }
 fn install_admitted(renderer: &mut Renderer, stream: GpuFrameStream, max_texture_bytes: u64) {
+    let extent = stream.descriptor().extent;
     renderer.plan = RenderPlan {
         external_textures: vec![ExternalTexture {
             id: TextureId::new(1).unwrap(),
@@ -35,7 +37,7 @@ fn install_admitted(renderer: &mut Renderer, stream: GpuFrameStream, max_texture
         max_external_textures: 4,
         max_outputs: 4,
         max_dependencies: 16,
-        max_texture_dimension: 2048,
+        max_texture_dimension: extent.width().max(extent.height()).max(2048),
         max_texture_bytes,
     })
     .unwrap();

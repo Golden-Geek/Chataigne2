@@ -116,8 +116,12 @@ maximum BC frames plus one16 MiB compressed packet allowance; ordinary native de
 the packet allowance. Those reservations share the existing768 MiB source cap with software
 playback. A failed HAP native path retries natively after withdrawal, preserving the media clock;
 it cannot fall through to software RGBA. Native GPU/worker retirement retains its normal actual
-completion requirements. Full color/alpha, external-encoder and high-resolution/shared-consumer
-acceptance remains required before M10/2 closes.
+completion requirements. [M10/2 acceptance](../progress/evidence/mapgyver-m10-hap-acceptance-2026-11-09.json)
+covers known chromatic/alpha/YCoCg-scale blocks, independently decoded external4K files,
+three concurrent4K producers with six shared consumers, and actual HAP copy/Composition/Matrix/
+Reference/reload pixels on both GPUs. The external test material stays in ignored `target`;
+`MAPGYVER_HAP_EXTERNAL` selects its extracted `FFmpeg` directory for the owning native tests.
+These short functional checks leave sustained performance and complete recovery to M10/4.
 
 The [pinned dependency helper](../../tools/mapgyver/ffmpeg/README.md) verifies the exact Windows
 shared LGPL archive and establishes only process-local build/runtime paths. Packet/image/work
@@ -235,11 +239,12 @@ The host binds these file sources to the existing Media Preview, Composition, Ma
 Screen render graph. `tests/browser/native-video-playback.mjs` verifies the bundled app's real
 File/Playback/Seek and frame-step controls, Undo/Redo, native preview installation, Reference
 transport and save/New/load recovery. The existing read-only Screen observer compares physical
-pixels with the fixture's independent BT.709 reference in linear space. It runs with an isolated
+pixels with independent BT.709 or BC/sRGB/alpha/YCoCg references in linear space. It runs with an isolated
 profile, `MAPGYVER_TEST_BINARY` pointing to the current `video-files` app, and the pinned FFmpeg
 DLL directory on `PATH`. Tiny clips establish functional checkpoints, not sustained playback or
 physical panel/cadence qualification.
 
-Default feature/redistribution wiring, broader actual-app visual qualification, complete profile/color/alpha coverage,
-complete app integration/qualification of GPU-resident D3D11 frames, HAP and sustained recovery/resource/performance acceptance
-remain required by M10. The implemented software path does not close a codec acceptance gate.
+M10/1 common-codec and M10/2 HAP functional gates are accepted in their linked audits.
+Default feature/redistribution wiring, complete seek/relink/device recovery and sustained
+1080p/4K/resource/performance acceptance remain M10/4 before M14. DXV/WebP remains M10/3
+after M14. Functional acceptance does not close those retained requirements.

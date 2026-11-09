@@ -175,14 +175,14 @@ async function pixels(phase, index, profile = 'gray') {
 		...found[0]
 	});
 }
-async function seek(reference, position_ms, index, phase) {
+async function seek(reference, position_ms, index, phase, profile = 'gray') {
 	await transport(reference.media, { kind: 'Seek', position_ms });
 	await wait(
 		() => frame(reference),
 		(value) => value && Math.abs(value.position_ms - position_ms) < 0.0001,
 		`${phase} decoder timeline`
 	);
-	await pixels(phase, index);
+	await pixels(phase, index, profile);
 }
 let report;
 try {
@@ -339,7 +339,7 @@ try {
 			steppedTimestampMs: stepped.settings.position_ms
 		});
 	}
-	const alpha = codecs.find((codec) => codec.profile === 'alpha').reference;
+	const alpha = codecs.find((codec) => codec.profile === 'hap-alpha').reference;
 	const { reference: composition } = await edit({
 		kind: 'CreateMedia',
 		media_kind: 'Composition',
@@ -362,6 +362,23 @@ try {
 			query: { media: dropped.instances[0].instance, start: 0, count: 1 }
 		})
 	).page.channels[0].reference;
+	const owned = (
+		await edit({ kind: 'Composition', reference: composition, edit: { kind: 'Inspect' } })
+	).snapshot.instances.find((instance) => instance.reference.instance === copied.media);
+	assert(owned);
+	// The odd 17x9 fixture must cover the physical sample area; dark alpha cannot prove pixels.
+	await edit({
+		kind: 'Composition',
+		reference: composition,
+		edit: {
+			kind: 'ConfigureInstance',
+			instance: owned.reference.instance,
+			definition: {
+				...owned.definition,
+				transform: { ...owned.definition.transform, scale: [64, 64] }
+			}
+		}
+	});
 	assert.notEqual(copied.media, alpha.media);
 	assert.equal((await state(copied.media)).settings.position_ms, 0);
 	await route(composition);
@@ -370,8 +387,8 @@ try {
 		(value) => value.state === 'Ready',
 		'copied alpha File'
 	);
-	await transport(copied.media, { kind: 'Seek', position_ms: 40 });
-	await pixels('Composition independent alpha copy', 1, 'alpha');
+	await transport(copied.media, { kind: 'Seek', position_ms: 120 });
+	await pixels('Composition independent HAP alpha copy', 3, 'hap-alpha');
 	assert.equal((await state(alpha.media)).position_ms, 0, 'copy owns an independent clock');
 	const matrix = (
 		await edit({ kind: 'CreateMedia', media_kind: 'Matrix', label: 'Video matrix route' })
@@ -394,11 +411,11 @@ try {
 		}
 	});
 	await matrixEdit({ kind: 'LaunchColumn', column, mode: 'Cut' });
-	await transport(alpha.media, { kind: 'Seek', position_ms: 120 });
+	await transport(alpha.media, { kind: 'Seek', position_ms: 160 });
 	await route(matrix);
-	await pixels('Matrix shared alpha source', 3, 'alpha');
+	await pixels('Matrix shared HAP alpha source', 4, 'hap-alpha');
 	const routing = { composition, copied, matrix, alpha };
-	const first = codecs[0].reference;
+	const first = codecs.find((codec) => codec.profile === 'hap').reference;
 	const { media: mirror } = await edit({
 		kind: 'CreateReference',
 		target: first.media,
@@ -410,7 +427,7 @@ try {
 	assert.equal(mirrored.length, 1);
 	assert.deepEqual(mirrored[0].definition.source, { kind: 'Reference', target: first });
 	await route(mirrored[0].reference);
-	await seek(first, 125, 3, 'Reference mirrors shared seek');
+	await seek(first, 125, 3, 'HAP Reference mirrors shared seek', 'hap');
 	await transport(first.media, { kind: 'Rate', rate: 0.5 });
 	await transport(first.media, { kind: 'Loop', looping: true });
 	await transport(first.media, { kind: 'Play' });
@@ -429,7 +446,7 @@ try {
 	const paused = await state(first.media);
 	await delay(100);
 	assert.equal((await state(first.media)).position_ms, paused.position_ms);
-	await seek(first, 125, 3, 'Reference paused exact seek');
+	await seek(first, 125, 3, 'HAP Reference paused exact seek', 'hap');
 	const variant = (
 		await edit({ kind: 'AddChannel', media: first.media, label: 'Shorter mixed-rate HEVC10' })
 	).reference;
@@ -448,7 +465,7 @@ try {
 	await pixels('Shorter mixed-rate variant holds final frame', 5, 'color');
 	assert.equal((await state(first.media)).position_ms, 230);
 	await route(mirrored[0].reference);
-	await seek(first, 125, 3, 'Longer shared-clock Reference after variant hold');
+	await seek(first, 125, 3, 'Longer HAP shared-clock Reference after variant hold', 'hap');
 	const project = path.join(native.directory, 'video-playback.mapgyver');
 	assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
 	assert.equal((await post('/api/ui/project-new', {})).ok, true);
@@ -469,13 +486,13 @@ try {
 		rate: 0.5,
 		looping: true
 	});
-	await pixels('Loaded Reference output', 3);
-	assert.equal((await state(copied.media)).settings.position_ms, 40);
+	await pixels('Loaded HAP Reference output', 3, 'hap');
+	assert.equal((await state(copied.media)).settings.position_ms, 120);
 	await route(composition);
-	await pixels('Loaded Composition independent alpha copy', 1, 'alpha');
+	await pixels('Loaded Composition independent HAP alpha copy', 3, 'hap-alpha');
 	await matrixEdit({ kind: 'LaunchColumn', column, mode: 'Cut' });
 	await route(matrix);
-	await pixels('Loaded Matrix shared alpha source', 3, 'alpha');
+	await pixels('Loaded Matrix shared HAP alpha source', 4, 'hap-alpha');
 	assert.deepEqual(errors, []);
 	assert.deepEqual(rejected, []);
 	report = {
@@ -495,7 +512,7 @@ try {
 		backendEvents: playbackLog.split(/\r?\n/).filter((line) => line.includes('[mapgyver-video]')),
 		normalShutdown: false,
 		scope:
-			'Ten common/HAP profiles, chromatic 8/10-bit, ProRes4444/HAP alpha and YCoCg, exact controls, independent Composition copy and shared Matrix/Reference routing with project reload. Backend events distinguish hardware/BC upload from software fallback. Not sustained performance, HAP shared/high-resolution concurrency or combined device recovery'
+			'Ten common/HAP profiles, chromatic 8/10-bit, ProRes4444/HAP alpha and YCoCg, exact controls, independent HAP Composition copy and shared HAP Matrix/Reference routing with project reload. Backend events distinguish hardware/BC upload from software fallback. Not sustained performance, high-resolution concurrency or combined device recovery'
 	};
 } catch (error) {
 	await writeFile(
