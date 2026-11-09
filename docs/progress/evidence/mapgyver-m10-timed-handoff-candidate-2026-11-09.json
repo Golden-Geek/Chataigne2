@@ -1,0 +1,37 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4 alone Active; no acceptance credit",
+	"batch": "10:38 UTC start,11:23 UTC cutoff. The last corrected native validation started before cutoff and finished11:23:16; no throughput cohort ran. Candidate is preserved unpromoted and the runtime checkout is restored to the prior baseline.",
+	"candidate": {
+		"base_commit": "dae40928cb4ac6d79d730e4f97ddf954406fda09",
+		"stash": "7d3d036b2559a5bc309ac2ca3637322a2d68fc44",
+		"stash_name": "mapgyver-m10-timed-handoff-paused-seek-2026-11-09",
+		"scope": "Golden Time immutable mapping/Instant projection; Golden Video two-window typed FrameBuffer, nonblocking source-clock hook, scheduled GPU stream and PTS/publication/requested-versus-imported diagnostics; app File forward prefetch, clock-fenced publication, cached-image retagging, full-ring retry and matching frame-neighbour windows. Three native slots, one conversion pending, two completed windows; no source/memory/output-rate cap changes. All source, tests and architecture note are in the scoped stash, excluding user work. Do not restore automatically.",
+		"final_test_binary": "target/q06-timed-handoff-tests/MapGyverTests.exe",
+		"final_test_sha256": "2bafb123507d6fd8b73262771badb953b628f02a1b6d092726dcfcbade41b9e1",
+		"earlier_test_sha256": "6b1f0c97659aeee6b2d8578c2e26914cd52dcd6ab5718da820d1c884daefd2a9",
+		"earlier_host": "target/q06-timed-handoff-app/MapGyver.exe",
+		"earlier_host_sha256": "7c508350d9c8205a53dad10cbac814a97d7e888efec5a2efc81071631aeb524b",
+		"host_limit": "Ordinary no-bundle app build passed98s before the final removal of the metadata-retirement clock guard. It was not launched for sustained testing and does not validate the final source revision. Prepared elevated-reset fixture remains the prior promoted binary."
+	},
+	"software": {
+		"result": "Golden Time33 passed; Golden Video281 passed/63 ignored in2.03s; MapGyver620 passed/7 ignored in54.74s, then620 passed/7 ignored in43.09s after the final clock-guard correction. Total934 software tests. FrameBuffer covers17 phases over100 windows, no early selection, full rejection, reverse, epoch replacement and final holds; app policies cover one-ahead preparation, short-channel shared-loop hold, pause/seek/rate/reverse/endpoints.",
+		"compile_lint": "Final native-qualification test compile exited0 in82s. Full Golden Time/Video/MapGyver all-target clippy -D warnings exited0 in43.57s including compile-lock waiting. Earlier final runtime revision also passed8.42s strict; targeted Golden Time strict1.61s validates the test-only clock correction. Existing ts-rs notices retained. Root and Golden Core cargo fmt completed.",
+		"corrections": "Initial compile found a test helper shadowed by a local transport variable; renamed. Initial clock test assumed a1ns Instant subtraction was representable on Windows; it rounded to the origin. The test now uses1ms and all33 tests pass. Full-ring retries retain the same prepared target/image; cache retagging avoids an upload for unchanged pixels across clock controls or a single-image loop.",
+		"app_log_sha256": "fa7826136db1334471b874991d6c05f184cbe55daac39c654ba2bebaad46b62d",
+		"golden_log_sha256": "61a677446386ae5add1afc0ea047572e1e55aa3d1678e8ccbd2d86c265a5dd7b",
+		"time_log_sha256": "7ad3f800e3f3d1cc476a2a870b0effc488e7461f0a3a6b7f8091764bae5d14fc"
+	},
+	"native": {
+		"first": "target/q06-timed-handoff-tests/device.log:0/2 pass, exit101,18.74s. Initial paused setup and distinct frame0/frame4 output centers complete, including both GPUs before READY. After playback, the recovery preflight fails the generic channel runtime deadline; the relink fixture fails the same deadline. No genuine reset requested.",
+		"first_log_sha256": "8874ecea9c57a041603ad1b31f9d55d0902bff8cb6beb1aa0a052184b6157dc6",
+		"targeted_replay": "device-backtrace.log: one recovery preflight, exit101,10.79s. RUST_BACKTRACE=1 adds no usable frames to the staged binary's generic deadline. It does not distinguish steps::at frame-neighbour readiness from Owner::seek's subsequent frame-progress wait. The two diagnostic configurations are exhausted; no broad profiler, benchmark variant or further diagnostic replay was added.",
+		"replay_log_sha256": "a33f5efc342862ab3ab6f561a3f7cdaec4fcbe3adecf9ff9db2f08df03119194",
+		"boundary_correction": "Code review found the new clock callback incorrectly coupled transport projection to metadata-discovery retirement. Remove that extra retired guard, preserving existing VideoControl.sample semantics. Recompile, rerun all620 app tests and strict lint before mandatory corrected native acceptance. This is not a proved diagnosis.",
+		"corrected_acceptance": "device-transport-clock.log:0/2 pass, exit101,18.68s. The same generic wait still fails, so metadata-retirement gating did not repair this prerequisite. Initial setup/pixel readiness does not accept the playback-to-paused-seek transition, complete recovery or relink. No sustained-performance experiment is permitted against this result.",
+		"corrected_log_sha256": "7fa5923345b0ed1f9af533e2d85598cf0604195a2048414ca7e7357f8de342ea"
+	},
+	"next_product_deliverable": "Preserve exact paused seeking after forward prefetch before qualifying continuous playback. The next smaller implementation decision is an explicit static-versus-moving publication policy: a paused/zero-rate/final-held image needs immediate epoch-fenced publication and the already-verified static frame-neighbour path; advancing playback needs timed windows. Clear/dispose old scheduled and immediate ownership atomically on mode changes, without new uploads for unchanged cached pixels. Do not leave the paused Inspector dependent on a future presentation queue. This is a proposed correction, not a proved cause. Make the existing Owner::seek/steps::at assertion report its exact last frame/runtime state as part of that correction, retain the original deadline, software-reproduce transitions and then rerun the original native acceptance; no new measurement framework or workload. Resume stash7d3d036b only for this reproduced correctness blocker on M10/4, not automatic restoration or an extra optimization batch.",
+	"effort_and_limits": "Third unpromoted batch after the sRGB and identity candidates; no usable app capability, gate closure or production qualification is claimed from code or934 passing software tests. The source handoff investigation remains the same issue across continuations; the11:11 UTC native failure and two diagnostic configurations do not reset. Narrow to the static/moving clock transition, preserve original scope and all failing results, and do not open shader/output tuning or M14 while this correctness prerequisite remains.",
+	"remaining": "85/102=83%,M10 2/4=50%,8/15 phases. M10/4 alone Active. Native paused seek/relink correctness now precedes timed-handoff promotion. All common/HAP sustained profiles, source cadence/PTS, three-run series, full source age/critical path, decoder/pool/plane/inflight accounting and elevated genuine reset remain required before M14. Smoothness/AA user acceptance stays unchanged."
+}
