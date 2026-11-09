@@ -8,7 +8,7 @@ function onAppOperationResult(reply) {
 	// inspectVideoFrame returns reply.value.frame with exact previous/next timestamps, or null.
 	// inspectVideoSource returns reply.value.status with readiness, typed failure and automatic retry state.
 	// Prepared means timing only; Ready means a decoded stream is available. Source failures do not fault the renderer.
-	// A step commits Playback/Seek to together; unavailable timestamps reject without a partial edit.
+	// A step pauses and changes runtime Current Position atomically; unavailable timestamps reject without a partial edit.
 	// An accepted playback intent is not proof that a file decoder is ready or a frame presented.
 	if (reply.status === 'rejected') log('Media request rejected', reply.request_id, reply.message);
 	// Example: if (reply.request_id === "create" && reply.status === "applied") {

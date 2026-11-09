@@ -61,15 +61,6 @@ try {
 	const label = 'Video runtime status';
 	const { reference } = await edit({ kind: 'CreateMedia', media_kind: 'Video', label });
 	const fixture = (name) => path.resolve('crates/golden_video/src/decode/tests/fixtures', name);
-	await edit({ kind: 'ConfigureVideoFile', reference, file: fixture('h264.mp4') });
-	assert.equal(
-		await wait(
-			() => duration(reference),
-			(value) => value != null,
-			'short metadata'
-		),
-		250
-	);
 	await page
 		.getByRole('tab')
 		.filter({ hasText: /^Medias(?::|$)/ })
@@ -81,7 +72,50 @@ try {
 	const length = parameter('Length').locator('input.time-field');
 	const playing = parameter('Playing').locator('input[type=checkbox]');
 	const lengthValue = async () => clockMilliseconds(await length.inputValue());
+	const position = parameter('Current Position').locator('input.time-field');
+	const slider = parameter('Current Position').getByRole('slider');
+	const positionValue = async () => clockMilliseconds(await position.inputValue());
+	await wait(
+		() => slider.getAttribute('aria-valuemax'),
+		(value) => value === '0',
+		'unknown duration range'
+	);
+	assert.equal(await positionValue(), 0);
+	assert.equal(await position.isEditable(), true);
+	assert.equal(await parameter('Seek to').count(), 0);
+	const unknown = await edit({
+		kind: 'Video',
+		media: reference.media,
+		edit: { kind: 'Seek', position_ms: 999 }
+	});
+	assert.equal(unknown.snapshot.position_ms, 0);
+	await edit({ kind: 'ConfigureVideoFile', reference, file: fixture('h264.mp4') });
+	assert.equal(
+		await wait(
+			() => duration(reference),
+			(value) => value != null,
+			'short metadata'
+		),
+		250
+	);
+
 	await wait(lengthValue, (value) => value === 250, 'short Inspector Length');
+	await wait(
+		() => slider.getAttribute('aria-valuemax'),
+		(value) => Number(value) === 250,
+		'short position range'
+	);
+	await position.fill('00:00:00.125');
+	await position.press('Enter');
+	await wait(
+		async () => (await edit({ kind: 'InspectVideo', media: reference.media })).snapshot.position_ms,
+		(value) => value === 125,
+		'Inspector position seek'
+	);
+	await position.fill('00:00:01.000');
+	await position.press('Enter');
+	await wait(positionValue, (value) => value === 250, 'Inspector seek clamps to duration');
+
 	assert.equal(await length.isEditable(), false);
 	assert.equal(await playing.isDisabled(), true);
 	assert.equal(await playing.isChecked(), false);
@@ -101,8 +135,27 @@ try {
 		'longest metadata'
 	);
 	await wait(lengthValue, (value) => Math.abs(value - longest) < 0.001, 'longest Inspector Length');
+	await wait(
+		() => slider.getAttribute('aria-valuemax'),
+		(value) => Number(value) === longest,
+		'longest position range'
+	);
+	await edit({ kind: 'Video', media: reference.media, edit: { kind: 'Seek', position_ms: 400 } });
+	await wait(positionValue, (value) => value === 400, 'seek within longest variant');
+
 	await edit({ kind: 'ConfigureVideoFile', reference: longer, file: '' });
 	await wait(lengthValue, (value) => value === 250, 'cleared longest Inspector Length');
+	await wait(
+		() => slider.getAttribute('aria-valuemax'),
+		(value) => Number(value) === 250,
+		'shrinking position range'
+	);
+	await wait(positionValue, (value) => value === 250, 'shrinking duration clamps position');
+	assert.equal(
+		(await edit({ kind: 'InspectVideo', media: reference.media })).snapshot.position_ms,
+		250
+	);
+
 	await edit({ kind: 'Video', media: reference.media, edit: { kind: 'Loop', looping: true } });
 	await parameter('Play').getByRole('button', { name: 'Trigger', exact: true }).click();
 	await wait(() => playing.isChecked(), Boolean, 'live Playing');
@@ -168,6 +221,14 @@ try {
 		playing: [false, true, false],
 		read_only: { length: true, playing: true },
 		transport_triggers: ['Play', 'Pause', 'Stop', 'Play', 'Pause'],
+		position: {
+			widget: 'time_slider',
+			editable: true,
+			ranges_ms: [0, 250, longest, 250],
+			manual_seek_ms: 125,
+			clamped_seek_ms: 250,
+			longest_seek_ms: 400
+		},
 		play_at_load: {
 			default: false,
 			ready_change_does_not_play: true,
@@ -175,7 +236,7 @@ try {
 		},
 		source,
 		scope:
-			'Generic Inspector status, transport triggers and authored Play at Load with project reload/metadata readiness; no codec pixels, seek, recovery or full M10/5 acceptance',
+			'Generic Inspector status, bounded Current Position, transport triggers and authored Play at Load with project reload/metadata readiness; no continuous clock feedback, active-seek arbitration, codec pixels, recovery or full M10/5 acceptance',
 		normalShutdown: false
 	};
 } catch (error) {

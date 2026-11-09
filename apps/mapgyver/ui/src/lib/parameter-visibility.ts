@@ -17,7 +17,7 @@ function visible(child: UiNodeDto) {
 	const field = child.decl_id.split('/').at(-1);
 	if (
 		field === 'fit_mode' &&
-		(owner.node_type === 'mapgyver.media.v10' || owner.node_type === 'mapgyver.media.reference.v4')
+		(owner.node_type === 'mapgyver.media.v11' || owner.node_type === 'mapgyver.media.reference.v4')
 	) {
 		return folder.children.some((id) => {
 			const parameter = session.getNodeData(id);
@@ -72,7 +72,7 @@ function visible(child: UiNodeDto) {
 		if (target === 'Shared Texture') return ['sender', 'width', 'height'].includes(field ?? '');
 		return false;
 	}
-	if (owner.node_type === 'mapgyver.media.v10') {
+	if (owner.node_type === 'mapgyver.media.v11') {
 		if (field?.startsWith('video_')) return choice('media_kind') === 'Video';
 		if (field === 'media_kind') return false;
 		return (

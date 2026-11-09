@@ -177,6 +177,167 @@ fn restored_project_does_not_inherit_old_runtime_feedback() {
 }
 
 #[test]
+fn current_position_is_bounded_transient_and_shared_by_generic_and_script_seeks() {
+    use golden_core::parameter::RangeConstraint;
+    let mut engine = fixture();
+    let reference = create(&mut engine, MediaKind::Video);
+    let owner = engine.node_id_by_uuid(reference.media.0).unwrap();
+    let AppNode::Media(node) = engine.nodes.get(owner).unwrap() else {
+        panic!()
+    };
+    let control = node.video_control().unwrap();
+    let position = parameter(&engine, reference.media.0, "video_current_position_ms");
+    engine.run_tick(Duration::from_millis(1)).unwrap();
+    let snapshot = engine.nodes.get(position).unwrap().engine_param_snapshot().unwrap();
+    assert_eq!(snapshot.ui_hints.widget.as_deref(), Some("time_slider"));
+    assert_eq!(
+        snapshot.constraints.range,
+        RangeConstraint::uniform(Some(0.0), Some(0.0))
+    );
+    assert_eq!(
+        engine.nodes.get(position).unwrap().node_data().meta.label,
+        "Current Position"
+    );
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    assert_eq!(
+        edit(&mut engine, reference.media, VideoEdit::Seek { position_ms: 999.0 }).position_ms,
+        0.0
+    );
+    control.prepare(Duration::from_millis(500)).unwrap();
+    control.publish_feedback().unwrap();
+    engine.run_tick(Duration::from_millis(1)).unwrap();
+    for (requested, expected) in [(-10.0, 0.0), (125.0, 125.0), (999.0, 500.0)] {
+        let ack = apply_project_intent(
+            &mut engine,
+            UiEditIntent::SetParam {
+                node: position,
+                value: ParamValue::Float(requested),
+                behaviour: ParameterEventBehaviour::Append,
+            },
+        );
+        assert!(ack.success, "{ack:?}");
+        engine.settle_edit_notifications(16).unwrap();
+        assert_eq!(
+            control.sample().unwrap().position,
+            Duration::from_secs_f64(expected / 1000.0)
+        );
+        assert_eq!(
+            engine
+                .nodes
+                .get(position)
+                .unwrap()
+                .engine_param_snapshot()
+                .unwrap()
+                .value,
+            ParamValue::Float(expected)
+        );
+    }
+    let script = crate::media::source_api::operation(
+        "seekVideo",
+        &[
+            ParamValue::Str(reference.media.0.0.to_string()),
+            ParamValue::Float(125.0),
+        ],
+    )
+    .unwrap()
+    .unwrap();
+    apply(&mut engine, script);
+    let before = control.sample().unwrap().epoch;
+    edit(&mut engine, reference.media, VideoEdit::Seek { position_ms: 125.0 });
+    assert_ne!(
+        control.sample().unwrap().epoch,
+        before,
+        "an identical seek remains a real intent"
+    );
+    control.prepare(Duration::from_millis(100)).unwrap();
+    control.publish_feedback().unwrap();
+    engine.run_tick(Duration::from_millis(1)).unwrap();
+    assert_eq!(control.sample().unwrap().position, Duration::from_millis(100));
+    let snapshot = engine.nodes.get(position).unwrap().engine_param_snapshot().unwrap();
+    assert_eq!(snapshot.value, ParamValue::Float(100.0));
+    assert_eq!(
+        snapshot.constraints.range,
+        RangeConstraint::uniform(Some(0.0), Some(100.0))
+    );
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+    assert_eq!(engine.undo_len(), history);
+    let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+    loaded.apply_edits().unwrap();
+    assert_eq!(state(&mut loaded, reference.media).position_ms, 0.0);
+    let loaded_position = parameter(&loaded, reference.media.0, "video_current_position_ms");
+    assert_eq!(
+        loaded
+            .nodes
+            .get(loaded_position)
+            .unwrap()
+            .engine_param_snapshot()
+            .unwrap()
+            .value,
+        ParamValue::Float(0.0)
+    );
+}
+
+#[test]
+fn seek_command_keeps_its_authored_argument_and_clamps_runtime_execution() {
+    let mut engine = fixture();
+    let reference = create(&mut engine, MediaKind::Video);
+    let AppNode::Media(node) = engine
+        .nodes
+        .get(engine.node_id_by_uuid(reference.media.0).unwrap())
+        .unwrap()
+    else {
+        panic!()
+    };
+    let control = node.video_control().unwrap();
+    control.prepare(Duration::from_millis(500)).unwrap();
+    let MediaEditResult::CommandCreated { command } = apply(
+        &mut engine,
+        MediaEdit::CreateCommand {
+            command_kind: crate::media::commands::MediaCommandKind::VideoSeek,
+            label: None,
+        },
+    ) else {
+        panic!()
+    };
+    for (field, value) in [
+        (
+            "media",
+            ParamValue::Reference(golden_core::node::NodeReference::new(reference.media.0)),
+        ),
+        ("video_position_ms", ParamValue::Float(999.0)),
+    ] {
+        let node = parameter(&engine, command, field);
+        let ack = apply_project_intent(
+            &mut engine,
+            UiEditIntent::SetParam {
+                node,
+                value,
+                behaviour: ParameterEventBehaviour::Append,
+            },
+        );
+        assert!(ack.success, "{ack:?}");
+    }
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    apply(&mut engine, MediaEdit::ExecuteCommand { command });
+    assert_eq!(control.sample().unwrap().position, Duration::from_millis(500));
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+    let argument = parameter(&engine, command, "video_position_ms");
+    assert_eq!(
+        engine
+            .nodes
+            .get(argument)
+            .unwrap()
+            .engine_param_snapshot()
+            .unwrap()
+            .value,
+        ParamValue::Float(999.0)
+    );
+}
+
+#[test]
 fn inspector_transport_triggers_do_not_author_or_replay_playback_mode() {
     let mut engine = fixture();
     let reference = create(&mut engine, MediaKind::Video);
@@ -286,7 +447,11 @@ fn typed_transport_intents_share_parameters_history_and_truthful_runtime_readine
     let reference = create(&mut engine, MediaKind::Video);
     edit(&mut engine, reference.media, VideoEdit::Speed { speed: 0.5 });
     edit(&mut engine, reference.media, VideoEdit::Loop { looping: true });
-    edit(&mut engine, reference.media, VideoEdit::Seek { position_ms: 1250.25 });
+    let unknown = edit(&mut engine, reference.media, VideoEdit::Seek { position_ms: 1250.25 });
+    assert_eq!(
+        unknown.position_ms, 0.0,
+        "unknown duration has a zero-length seek range"
+    );
     let playing = edit(&mut engine, reference.media, VideoEdit::Play);
     assert_eq!(playing.settings.mode, VideoPlaybackMode::Playing);
     assert!(
@@ -301,7 +466,8 @@ fn typed_transport_intents_share_parameters_history_and_truthful_runtime_readine
     control.prepare(Duration::from_secs(3600)).unwrap();
     let ready = state(&mut engine, reference.media);
     assert!(ready.ready && ready.playing);
-    assert!(ready.position_ms >= 1250.25);
+    let sought = edit(&mut engine, reference.media, VideoEdit::Seek { position_ms: 1250.25 });
+    assert!(sought.position_ms >= 1250.25);
     let before = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     let stopped = edit(&mut engine, reference.media, VideoEdit::Stop);
@@ -351,16 +517,8 @@ fn generic_stop_trigger_and_invalid_writes_use_the_same_backend() {
         )
         .success
     );
-    assert!(
-        !invoke(
-            &mut engine,
-            MediaEdit::Video {
-                media: reference.media,
-                edit: VideoEdit::Seek { position_ms: -1.0 }
-            }
-        )
-        .success
-    );
+    let clamped = edit(&mut engine, reference.media, VideoEdit::Seek { position_ms: -1.0 });
+    assert_eq!(clamped.position_ms, 0.0);
     let file = parameter(&engine, reference.channel.0, "file");
     let ack = apply_project_intent(
         &mut engine,
@@ -389,7 +547,11 @@ fn script_projection_and_unprepared_steps_use_the_exact_owner_without_partial_hi
     .unwrap()
     .unwrap();
     apply(&mut engine, operation);
-    assert_eq!(state(&mut engine, reference.media).settings.position_ms, 750.25);
+    assert_eq!(
+        state(&mut engine, reference.media).settings.position_ms,
+        0.0,
+        "script seeks use the same bounded unknown-duration policy"
+    );
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     for direction in [VideoStepDirection::Next, VideoStepDirection::Previous] {

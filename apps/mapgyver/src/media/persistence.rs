@@ -4,6 +4,21 @@ use golden_core::engine::ProjectFile;
 pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String> {
     let mut pending = vec![(&project.root, None)];
     while let Some((record, parent_type)) = pending.pop() {
+        if record.node_type == "mapgyver.media.v11"
+            && record
+                .children
+                .iter()
+                .flat_map(|folder| &folder.children)
+                .any(|parameter| {
+                    parameter
+                        .meta
+                        .decl_id
+                        .as_ref()
+                        .is_some_and(|id| id.0 == "parameters/video_position_ms")
+                })
+        {
+            return Err("Video position requires runtime Current Position; saved Seek To is unsupported".into());
+        }
         if [
             crate::matrix::column_node::COLUMN_TYPE,
             crate::matrix::cell_node::CELL_TYPE,
@@ -47,7 +62,7 @@ pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String>
         }
         if matches!(
             record.node_type.as_str(),
-            "mapgyver.media.v10" | "mapgyver.media.reference.v4" | super::commands::NODE_TYPE
+            "mapgyver.media.v11" | "mapgyver.media.reference.v4" | super::commands::NODE_TYPE
         ) && record.children.iter().any(|folder| {
             folder.children.iter().any(|parameter| {
                 parameter
@@ -155,10 +170,10 @@ pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String>
             ));
         }
         if record.node_type == "mapgyver.media"
-            || (record.node_type.starts_with("mapgyver.media.v") && record.node_type != "mapgyver.media.v10")
+            || (record.node_type.starts_with("mapgyver.media.v") && record.node_type != "mapgyver.media.v11")
         {
             return Err(format!(
-                "Unsupported MapGyver media schema '{}': media-owned settings require mapgyver.media.v10",
+                "Unsupported MapGyver media schema '{}': media-owned settings require mapgyver.media.v11",
                 record.node_type
             ));
         }

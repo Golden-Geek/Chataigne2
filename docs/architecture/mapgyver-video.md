@@ -14,8 +14,9 @@ Speed is a real typed `video_speed` Parameter, bounded to finite values in -16..
 generic Inspector, `VideoEdit::Speed`, Set Video Speed command and `setVideoSpeed` script
 method share that backend value. Rust generates the transport DTOs and command catalog for
 TypeScript. Golden Time's internal `PlaybackRate` remains the rational clock mapping.
-The changed authored keys use Media schema v10 and Media Command schema v8; previous schemas
-are rejected rather than silently dropping their old Speed setting.
+Media schema v11 replaces saved seek settings with transient Current Position; Media Command
+schema v8 keeps its authored Position argument for a Seek command. Previous media schemas and
+retired Seek To fields are rejected rather than silently dropping saved transport settings.
 
 Play, Pause and Stop are trigger Parameters consumed by `VideoControl`, not an authored
 Playback enum. Runtime mode is shared by all consumers and exposed by the transport snapshot;
@@ -33,8 +34,8 @@ availability remains separate from metadata/clock readiness; unavailable pixels 
 as native playback qualification.
 Golden's project decoder preserves the declared Parameter kind for values and defaults,
 using the same compatible conversions as ordinary writes. Incompatible saved Boolean data
-cannot retag Play at Load as a String. App candidate validation checks the authored seek
-independently of runtime position before activation.
+cannot retag Play at Load as a String. App candidate validation rejects a saved nonzero
+Current Position before activation; manual transport position is not a project setting.
 
 Playing and Length are read-only typed Parameters. The existing background metadata owner
 samples changed status at its coarse checkpoint; transport edits also publish immediately.
@@ -58,8 +59,16 @@ as authored constraints and enforce subsequent writes; shrinking availability cl
 value even if manual edits use Reject. Runtime bounds never enter project data or constraint
 history. A new project lifetime starts from the declared value and authored constraints.
 These primitives do not provide gesture arbitration or stale-producer fencing themselves.
-Connecting Current Position to Video duration, unknown-duration policy and seek-safe live
-feedback remains M10/5 work; the shared API alone does not close that gate.
+Current Position uses this transient storage with the generic `time_slider` Inspector. The
+Video owner normalizes every actual seek to the currently known longest-channel timeline,
+including zero while duration is unknown. Duration feedback updates the same Parameter's
+availability range; shrinking it clamps the visible value. Requests beyond a shorter duration
+are not remembered and revived when metadata later extends the timeline. A new media/project
+lifetime starts at zero. Repeated seeks are normal Parameter intents, with no separate
+operation-adapter replay path. Feedback publication order is fenced by an owner sequence,
+while unchanged status still coalesces without a wake. Continuous actual-position feedback,
+active-seek arbitration and complete native acceptance remain M10/5 work; this bounded control
+checkpoint alone does not close that gate.
 
 Background metadata probing supplies the longest authored channel duration, including variants
 without render consumers. Each channel samples at the lesser of

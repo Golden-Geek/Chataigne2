@@ -71,7 +71,7 @@
 		if (current.hasActiveEditSession) return;
 		const parentId = current.graph.state.parentById.get(node.node_id);
 		const parent = parentId == null ? null : current.getNodeData(parentId);
-		if (parent?.node_type !== 'mapgyver.media.v10') return;
+		if (parent?.node_type !== 'mapgyver.media.v11') return;
 		const reference = { media: parent.uuid, channel: node.uuid };
 		const generation = current.snapshotGeneration;
 		try {
@@ -189,7 +189,7 @@
 {@render defaultHeader?.(channelActions)}
 {#snippet content()}
 	{@render defaultChildren?.('', parametersOnly)}
-	{#if node.node_type === 'mapgyver.media.v10'}
+	{#if node.node_type === 'mapgyver.media.v11'}
 		{#key node.uuid}<ChannelsSection {node} {defaultChildren} />{/key}
 	{:else if node.node_type === 'mapgyver.media.reference.v4' && !collapsed}
 		{#key node.uuid}<ReferenceChannelsSection {node} />{/key}

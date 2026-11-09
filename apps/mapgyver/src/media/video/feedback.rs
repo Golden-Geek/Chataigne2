@@ -13,6 +13,7 @@ struct State {
     pending: Option<Status>,
     last: Option<Status>,
     closed: bool,
+    sequence: u64,
 }
 
 #[derive(Default)]
@@ -53,10 +54,14 @@ pub(crate) struct Publisher {
     waker: NodeWaker,
 }
 impl Publisher {
-    pub fn publish(&self, value: Status) {
+    pub fn publish(&self, sequence: u64, value: Status) {
         let Some(inbox) = self.state.upgrade() else { return };
         let Ok(mut state) = inbox.lock() else { return };
-        if state.closed || self.waker.is_closed() || state.last == Some(value) {
+        if state.closed || self.waker.is_closed() || sequence <= state.sequence {
+            return;
+        }
+        state.sequence = sequence;
+        if state.last == Some(value) {
             return;
         }
         state.pending = Some(value);
@@ -64,6 +69,7 @@ impl Publisher {
         drop(state);
         if self.waker.wake().is_err()
             && let Ok(mut state) = inbox.lock()
+            && state.sequence == sequence
         {
             state.last = None;
         }

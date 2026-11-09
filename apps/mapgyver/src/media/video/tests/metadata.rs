@@ -112,7 +112,11 @@ fn unopened_variants_define_the_longest_timeline_and_authored_clear_removal_hist
     probe(&loaded);
     let loaded_control = self::control(&loaded, first);
     assert!(!Arc::ptr_eq(&control, &loaded_control));
-    assert_eq!(loaded_control.sample().unwrap().position, Duration::from_millis(250));
+    assert_eq!(
+        loaded_control.sample().unwrap().position,
+        Duration::ZERO,
+        "manual position is not project data"
+    );
     edit(&mut engine, MediaEdit::RemoveMedia { media: first.media });
     assert!(
         Source::capture(&engine).unwrap().registry.controls().is_empty(),
@@ -189,7 +193,11 @@ fn authoritative_headless_metadata_service_prepares_unrendered_files_and_retires
     assert_eq!(control.sample().unwrap().position, Duration::from_millis(200));
     drop(service);
     assert!(pool.wait_for_idle(seconds(5)));
-    assert_eq!(runtime.capture_app(|engine| engine.undo_len()).unwrap(), history + 1);
+    assert_eq!(
+        runtime.capture_app(|engine| engine.undo_len()).unwrap(),
+        history,
+        "seeking is runtime state"
+    );
 }
 
 #[test]
@@ -217,7 +225,7 @@ fn relative_root_changes_missing_file_retry_and_relink_preserve_only_the_matchin
     assert_eq!(control.sample().unwrap().position, Duration::from_millis(250));
     probe.reconcile(&source, second.path()).unwrap();
     probe.run_due(&source, || false).unwrap();
-    assert_eq!(control.sample().unwrap().position, Duration::from_millis(400));
+    assert_eq!(control.sample().unwrap().position, Duration::from_millis(250));
     std::fs::remove_file(second.path().join("clip.mp4")).unwrap();
     std::thread::sleep(Duration::from_millis(1050));
     probe.run_due(&source, || false).unwrap();
@@ -231,7 +239,7 @@ fn relative_root_changes_missing_file_retry_and_relink_preserve_only_the_matchin
     );
     assert_eq!(
         control.sample().unwrap().position,
-        Duration::from_millis(400),
+        Duration::from_millis(250),
         "temporary endpoint loss preserves known timing"
     );
     file(&mut engine, reference, "replacement.mp4");
@@ -245,7 +253,11 @@ fn relative_root_changes_missing_file_retry_and_relink_preserve_only_the_matchin
     std::thread::sleep(Duration::from_millis(1050));
     probe.run_due(&source, || false).unwrap();
     assert!(control.snapshot(reference.media).unwrap().ready);
-    assert_eq!(control.sample().unwrap().position, Duration::from_millis(250));
+    assert_eq!(
+        control.sample().unwrap().position,
+        Duration::ZERO,
+        "a replacement file does not revive a seek from the previous file"
+    );
     let recovered = super::super::authoring::inspect_source(&engine, reference).unwrap();
     assert_eq!(recovered.state, protocol::VideoSourceState::Prepared);
     assert!(recovered.error.is_none());

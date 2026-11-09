@@ -72,7 +72,7 @@ fn reference_pixels(name: &str) -> Vec<Vec<u8>> {
 }
 
 #[test]
-fn exact_mixed_rate_steps_commit_once_roundtrip_history_and_cross_keyframe_seeks() {
+fn exact_mixed_rate_steps_preserve_authored_history_and_cross_keyframe_seeks() {
     for name in ["h264.mp4", "hevc.mp4", "prores.mov", "h264-keyframes.mp4"] {
         let pixels = reference_pixels(name);
         let mut engine = engine();
@@ -89,12 +89,31 @@ fn exact_mixed_rate_steps_commit_once_roundtrip_history_and_cross_keyframe_seeks
             assert!(timestamps.len() < 20);
             let before = to_sparse_project_json_pretty(&engine).unwrap();
             let history = engine.undo_len();
+            edit(
+                &mut engine,
+                MediaEdit::Video {
+                    media: reference.media,
+                    edit: VideoEdit::Speed {
+                        speed: if timestamps.len() % 2 == 0 { 1.0 } else { 0.5 },
+                    },
+                },
+            );
+            let authored_history = engine.undo_len();
             let actual = step(&mut engine, reference, VideoStepDirection::Next);
             assert_eq!(actual, next);
-            assert_eq!(engine.undo_len(), history + 1);
+            assert_eq!(engine.undo_len(), authored_history, "stepping adds no authored history");
+            assert_eq!(authored_history, history + 1);
             let after = to_sparse_project_json_pretty(&engine).unwrap();
             assert!(engine.undo().unwrap());
             assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+            assert_eq!(
+                crate::media::video::authoring::inspect(&engine, reference.media)
+                    .unwrap()
+                    .settings
+                    .position_ms,
+                next,
+                "undoing Speed must not rewind the runtime step"
+            );
             assert!(engine.redo().unwrap());
             assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), after);
             current = at(&mut engine, reference, next);
@@ -147,7 +166,7 @@ fn command_parameter(engine: &AppEngine, command: golden_core::node::NodeUuid, f
         .unwrap()
 }
 #[test]
-fn prepared_steps_match_named_quickjs_commands_headless_parameters_and_committed_callbacks() {
+fn prepared_steps_match_named_quickjs_commands_headless_parameters_and_once_only_callbacks() {
     use crate::media::commands::MediaCommandKind;
     let mut engine = engine();
     let reference = source(&mut engine, "hevc.mp4");
@@ -186,7 +205,7 @@ fn prepared_steps_match_named_quickjs_commands_headless_parameters_and_committed
     engine.apply_edits().unwrap();
     let history = engine.undo_len();
     edit(&mut engine, MediaEdit::ExecuteCommand { command });
-    assert_eq!(engine.undo_len(), history + 1);
+    assert_eq!(engine.undo_len(), history, "command stepping is runtime state");
     at(&mut engine, reference, next);
     let parent = crate::media::authoring::manager(&engine).unwrap();
     let mut script = ScriptNode::new(
@@ -206,8 +225,17 @@ fn prepared_steps_match_named_quickjs_commands_headless_parameters_and_committed
     engine.apply_edits().unwrap();
     let before = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
+    edit(
+        &mut engine,
+        MediaEdit::Video {
+            media: reference.media,
+            edit: VideoEdit::Speed { speed: 0.5 },
+        },
+    );
+    let authored_history = engine.undo_len();
     golden_core::application::service_script_app_operations(&mut engine).unwrap();
-    assert_eq!(engine.undo_len(), history + 1);
+    assert_eq!(engine.undo_len(), authored_history, "script stepping is runtime state");
+    assert_eq!(authored_history, history + 1);
     let replies = engine
         .ui_event_log()
         .iter()

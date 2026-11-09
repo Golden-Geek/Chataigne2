@@ -28,10 +28,20 @@ fn authored_bindings_fence_metadata_and_removed_channels_while_retired_media_kee
     control.metadata_duration(short, short_generation, seconds(1)).unwrap();
     assert_eq!(
         control.sample().unwrap().position,
-        seconds(1),
-        "partial metadata clamps the saved seek"
+        Duration::ZERO,
+        "unknown-duration requests are not saved for later metadata"
     );
     control.metadata_duration(long, long_generation, seconds(2)).unwrap();
+    assert_eq!(control.sample().unwrap().position, Duration::ZERO);
+    control
+        .configure(
+            protocol::VideoTransportSettings {
+                position_ms: 1500.0,
+                ..Default::default()
+            },
+            true,
+        )
+        .unwrap();
     assert_eq!(control.sample().unwrap().position, Duration::from_millis(1500));
     let epoch = control.sample().unwrap().epoch;
     let old = files.iter().find(|(channel, _, _)| *channel == long).unwrap().1;

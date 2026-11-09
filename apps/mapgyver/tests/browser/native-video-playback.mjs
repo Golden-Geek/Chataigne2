@@ -311,7 +311,14 @@ try {
 			`${name} UI Stop`
 		);
 		await checkPixels(`${name} Stop`, 0);
-		const seekInput = parameter('Seek to').locator('input.time-field');
+		await speedInput.fill('0.5');
+		await speedInput.press('Enter');
+		await wait(
+			() => state(reference.media),
+			(value) => value.settings.speed === 0.5,
+			`${name} authored Speed before seek`
+		);
+		const seekInput = parameter('Current Position').locator('input.time-field');
 		await seekInput.fill('00:00:00.125');
 		await seekInput.press('Enter');
 		await wait(
@@ -323,17 +330,24 @@ try {
 		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 		await wait(
 			() => state(reference.media),
-			(value) => value.settings.position_ms === 0,
-			`${name} Undo seek`
+			(value) => value.settings.speed === 1 && value.settings.position_ms === 125,
+			`${name} Undo Speed preserves runtime position`
 		);
-		await checkPixels(`${name} Undo seek`, 0);
+		await checkPixels(`${name} Undo Speed preserves seek`, Math.floor(0.125 * rate));
 		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 		await wait(
 			() => state(reference.media),
-			(value) => value.settings.position_ms === 125,
-			`${name} Redo seek`
+			(value) => value.settings.speed === 0.5 && value.settings.position_ms === 125,
+			`${name} Redo Speed preserves runtime position`
 		);
-		await checkPixels(`${name} Redo seek`, Math.floor(0.125 * rate));
+		await checkPixels(`${name} Redo Speed preserves seek`, Math.floor(0.125 * rate));
+		await speedInput.fill('1');
+		await speedInput.press('Enter');
+		await wait(
+			() => state(reference.media),
+			(value) => value.settings.speed === 1,
+			`${name} restore Speed`
+		);
 		await transport(reference.media, { kind: 'Stop' });
 		await wait(
 			() => frame(reference),

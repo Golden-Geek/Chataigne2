@@ -55,7 +55,7 @@ impl Node for MediaFolderNode {
     }
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[
-            "mapgyver.media.v10",
+            "mapgyver.media.v11",
             "mapgyver.media.folder",
             super::reference::NODE_TYPE,
         ]))

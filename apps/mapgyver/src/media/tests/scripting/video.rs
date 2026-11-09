@@ -44,7 +44,11 @@ fn hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection() 
     }
     let result =
         |request: &str| &results.iter().find(|reply| reply["request_id"] == request).unwrap()["value"]["snapshot"];
-    assert_eq!(result("seek")["settings"]["position_ms"], 1250.5);
+    assert_eq!(
+        result("seek")["settings"]["position_ms"],
+        0.0,
+        "unprepared script seeks clamp to zero"
+    );
     assert_eq!(result("play")["settings"]["mode"], "Playing");
     assert_eq!(result("play")["ready"], false);
     assert_eq!(result("play")["playing"], false);

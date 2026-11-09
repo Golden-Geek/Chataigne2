@@ -14,7 +14,7 @@ use golden_io::{RevisionGuard, RevisionSource};
 use std::sync::OnceLock;
 
 #[node(
-    "mapgyver.media.v10",
+    "mapgyver.media.v11",
     label = "Media",
     user_permissions = golden_core::node::NodeUserPermissions {
         can_edit_name: true,
@@ -39,8 +39,8 @@ use std::sync::OnceLock;
         video_pause: ParamValue = ParamValue::Trigger() (label = "Pause", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
         video_stop: ParamValue = ParamValue::Trigger() (label = "Stop", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
         video_play_at_load: bool = false (label = "Play at Load", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
-        video_position_ms: f64 = 0.0 [0.0..9000000000000.0] (label = "Seek to", widget = "time", unit = "ms",
-            dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video, constraint_policy = "reject");
+        video_current_position_ms: f64 = 0.0 [0.0..9000000000000.0] (label = "Current Position", widget = "time_slider", unit = "ms", transient_value = true,
+            dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video, constraint_policy = "clamp_adapt");
         video_speed: f64 = 1.0 [-16.0..16.0] (label = "Speed", step = 0.01,
             dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video, constraint_policy = "reject");
         video_looping: bool = false (label = "Loop", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
@@ -85,14 +85,13 @@ impl MediaNode {
             VideoEdit::Play => vec![(self.video_play.id(), ParamValue::Trigger())],
             VideoEdit::Pause | VideoEdit::Step { .. } => vec![(self.video_pause.id(), ParamValue::Trigger())],
             VideoEdit::Stop => vec![(self.video_stop.id(), ParamValue::Trigger())],
-            VideoEdit::Seek { position_ms } => vec![(self.video_position_ms.id(), ParamValue::Float(*position_ms))],
+            VideoEdit::Seek { position_ms } => {
+                vec![(self.video_current_position_ms.id(), ParamValue::Float(*position_ms))]
+            }
             VideoEdit::Speed { speed } => vec![(self.video_speed.id(), ParamValue::Float(*speed))],
             VideoEdit::Loop { looping } => vec![(self.video_looping.id(), ParamValue::Bool(*looping))],
             VideoEdit::PlayAtLoad { enabled } => vec![(self.video_play_at_load.id(), ParamValue::Bool(*enabled))],
         }
-    }
-    pub(crate) fn video_seek_matches(&self, position_ms: f64) -> bool {
-        self.video_position_ms.get() == position_ms
     }
     fn video_parameter(&self, id: golden_core::node::NodeId) -> bool {
         [
@@ -100,7 +99,7 @@ impl MediaNode {
             self.video_pause.id(),
             self.video_stop.id(),
             self.video_play_at_load.id(),
-            self.video_position_ms.id(),
+            self.video_current_position_ms.id(),
             self.video_speed.id(),
             self.video_looping.id(),
         ]
@@ -114,14 +113,19 @@ impl MediaNode {
                 use super::video::protocol::VideoPlaybackMode;
                 match parameter {
                     None => {
-                        settings.position_ms = self.video_position_ms.get();
+                        settings.position_ms = 0.0;
+                        ctx.set_param_feedback_from(
+                            self.id(),
+                            self.video_current_position_ms.id(),
+                            Some(ParamValue::Float(0.0)),
+                        );
                         control.initialize(settings)
                     }
                     Some(id) if id == self.video_play.id() => control.command(VideoPlaybackMode::Playing),
                     Some(id) if id == self.video_pause.id() => control.command(VideoPlaybackMode::Paused),
                     Some(id) if id == self.video_stop.id() => control.command(VideoPlaybackMode::Stopped),
-                    Some(id) if id == self.video_position_ms.id() => {
-                        settings.position_ms = self.video_position_ms.get();
+                    Some(id) if id == self.video_current_position_ms.id() => {
+                        settings.position_ms = self.video_current_position_ms.get();
                         if settings.mode == VideoPlaybackMode::Stopped {
                             settings.mode = VideoPlaybackMode::Paused;
                         }
@@ -247,7 +251,7 @@ impl MediaNode {
         let _ = self.matrix_root.set(root);
     }
 }
-#[node("mapgyver.media.v10", from_struct)]
+#[node("mapgyver.media.v11", from_struct)]
 impl Node for MediaNode {
     fn inbox_requires_tree_snapshot(&self, _: &golden_core::events::EventFrame) -> bool {
         false
@@ -276,7 +280,7 @@ impl Node for MediaNode {
         // Catalog creation and app admission apply the source-specific policy.
         Some(UserContainerRules::new(&[
             "mapgyver.media.channel.v2",
-            "mapgyver.media.v10",
+            "mapgyver.media.v11",
             super::reference::NODE_TYPE,
             super::composition::PLACEMENT_TYPE,
         ]))
@@ -361,6 +365,13 @@ impl Node for MediaNode {
     }
     fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
         if let Some(status) = self.video_feedback.take() {
+            ctx.edits.push_from(
+                self.id(),
+                golden_core::edit::Edit::SetParamRuntimeRange {
+                    node: self.video_current_position_ms.id(),
+                    range: golden_core::parameter::RangeConstraint::uniform(Some(0.0), Some(status.length_ms)),
+                },
+            );
             ctx.set_param_feedback_from(
                 self.id(),
                 self.video_playing.id(),
@@ -378,6 +389,14 @@ impl Node for MediaNode {
         self.pulses.result(ctx, id, &event);
     }
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: golden_core::node::NodeId, _: ParamValue) {
+        if parameter == self.video_current_position_ms.id()
+            && ctx.current_event().is_some_and(|event| {
+                matches!(&event.kind,
+                golden_core::events::EventKind::ParamChanged { source: Some(owner), .. } if *owner == self.id())
+            })
+        {
+            return;
+        }
         if parameter == self.video_playing.id() || parameter == self.video_length_ms.id() {
             return;
         }
@@ -399,9 +418,10 @@ impl Node for MediaNode {
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
         if self.kind() == MediaKind::Video {
-            let mut authored = self.video_settings()?;
-            authored.position_ms = self.video_position_ms.get();
-            authored.validate()?;
+            self.video_settings()?.validate()?;
+            if self.video_current_position_ms.get() != 0.0 {
+                return Err("Current Position is runtime state and must start at zero".into());
+            }
         }
         if self.kind() == super::protocol::MediaKind::SharedTexture {
             super::protocol::SenderSelectionMode::parse(self.sender_selection.get_ref().as_str())?;
@@ -427,13 +447,30 @@ impl Node for MediaNode {
         }
         Ok(())
     }
+    fn normalize_parameter_change(
+        &self,
+        change: &ParameterValidationContext<'_>,
+    ) -> Result<Option<ParamValue>, String> {
+        if change.parameter != self.video_current_position_ms.id() {
+            return Ok(None);
+        }
+        let ParamValue::Float(value) = change.value else {
+            return Err("Current Position requires a time value".into());
+        };
+        let control = self.video_control().ok_or("Current Position belongs to Video media")?;
+        control
+            .bounded_position(*value)
+            .map(|value| Some(ParamValue::Float(value)))
+    }
     fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
         if self.video_parameter(change.parameter) {
             let mut settings = self.video_settings()?;
             match (change.parameter, change.value) {
                 (id, ParamValue::Trigger())
                     if [self.video_play.id(), self.video_pause.id(), self.video_stop.id()].contains(&id) => {}
-                (id, ParamValue::Float(value)) if id == self.video_position_ms.id() => settings.position_ms = *value,
+                (id, ParamValue::Float(value)) if id == self.video_current_position_ms.id() => {
+                    settings.position_ms = *value
+                }
                 (id, ParamValue::Float(value)) if id == self.video_speed.id() => settings.speed = *value,
                 (id, ParamValue::Bool(value)) if id == self.video_looping.id() => settings.looping = *value,
                 (id, ParamValue::Bool(value)) if id == self.video_play_at_load.id() => settings.play_at_load = *value,

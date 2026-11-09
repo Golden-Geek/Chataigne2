@@ -5,7 +5,7 @@ import { isMediaTreeNode, canRenderMediaTreeChildren } from '../tree.ts';
 
 test('media manager admits real domain hierarchy and hides parameter/channel presentation', () => {
 	for (const type of [
-		'mapgyver.media.v10',
+		'mapgyver.media.v11',
 		'mapgyver.media.reference.v4',
 		'mapgyver.media.folder',
 		'mapgyver.matrix.layer.v3',

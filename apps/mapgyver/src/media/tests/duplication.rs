@@ -67,6 +67,14 @@ fn source_media_and_variant_copies_preserve_settings_owned_files_and_independent
                 );
             }
             if kind == MediaKind::Video {
+                let id = engine.node_id_by_uuid(first.media.0).unwrap();
+                let crate::app::AppNode::Media(node) = engine.nodes.get(id).unwrap() else {
+                    panic!()
+                };
+                node.video_control()
+                    .unwrap()
+                    .prepare(std::time::Duration::from_secs(60))
+                    .unwrap();
                 apply(
                     &mut engine,
                     MediaEdit::Video {
@@ -128,11 +136,17 @@ fn source_media_and_variant_copies_preserve_settings_owned_files_and_independent
                     let Some(crate::app::AppNode::Media(node)) = engine.nodes.get(id) else {
                         panic!()
                     };
-                    assert_eq!(node.video_settings().unwrap().position_ms, 1250.5);
                     node.video_control().unwrap()
                 };
+                let original = control(first);
+                let duplicate = control(copy);
+                assert_eq!(original.settings().unwrap().position_ms, 1250.5);
                 assert_eq!(
-                    std::sync::Arc::ptr_eq(&control(first), &control(copy)),
+                    duplicate.settings().unwrap().position_ms,
+                    if copy_media { 0.0 } else { 1250.5 }
+                );
+                assert_eq!(
+                    std::sync::Arc::ptr_eq(&original, &duplicate),
                     !copy_media,
                     "channel copies share transport; media copies own a fresh runtime"
                 );
