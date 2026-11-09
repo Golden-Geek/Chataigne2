@@ -21,7 +21,7 @@ const native = await openNativeEditor({
 				const preferences = path.join(root, 'MapGyver');
 				await mkdir(preferences, { recursive: true });
 				execFileSync(
-					path.resolve('target/debug/native_qualification-m1110.exe'),
+					path.resolve('target/debug/native_qualification.exe'),
 					[
 						'--role',
 						'gpu-preferences',
@@ -435,7 +435,18 @@ try {
 			(value) => value.state === 'Ready' && !value.error,
 			`${name} authored relink`
 		);
-		await pixels(`${name} relink preserves transport`, 3, profile);
+		assert.equal(
+			(await state(reference.media)).position_ms,
+			0,
+			'a replacement File resets unknown duration'
+		);
+		await seek(
+			reference,
+			(3 * 1000) / rate,
+			3,
+			`${name} authored relink accepts a fresh seek`,
+			profile
+		);
 		await transport(reference.media, { kind: 'Stop' });
 		fileRecovery.push({ name, missing: missing.state, retryRecovered: true, relinked: true });
 	}
@@ -587,16 +598,24 @@ try {
 	);
 	assert.deepEqual((await state(first.media)).settings, {
 		mode: 'Paused',
-		position_ms: 125,
+		position_ms: 0,
 		speed: 0.5,
 		looping: true,
 		play_at_load: false
 	});
-	await pixels('Loaded HAP Reference output', 3, 'hap');
-	assert.equal((await state(copied.media)).settings.position_ms, 120);
+	await pixels('Loaded HAP Reference resets runtime position', 0, 'hap');
+	assert.equal((await state(copied.media)).settings.position_ms, 0);
+	assert.equal((await state(alpha.media)).settings.position_ms, 0);
+	await transport(copied.media, { kind: 'Seek', position_ms: 120 });
 	await route(composition);
 	await pixels('Loaded Composition independent HAP alpha copy', 3, 'hap-alpha');
+	assert.equal(
+		(await state(alpha.media)).position_ms,
+		0,
+		'reloaded copy keeps an independent clock'
+	);
 	await matrixEdit({ kind: 'LaunchColumn', column, mode: 'Cut' });
+	await transport(alpha.media, { kind: 'Seek', position_ms: 160 });
 	await route(matrix);
 	await pixels('Loaded Matrix shared HAP alpha source', 4, 'hap-alpha');
 	assert.deepEqual(errors, []);
@@ -626,6 +645,7 @@ try {
 		rejected,
 		uiReceipts: observed,
 		projectReload: true,
+		projectRuntimePositionReset: true,
 		backendEvents: playbackEvents,
 		normalShutdown: false,
 		scope:

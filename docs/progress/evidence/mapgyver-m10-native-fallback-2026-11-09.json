@@ -1,0 +1,47 @@
+{
+  "date": "2026-11-09",
+  "gate": "M10/5",
+  "gate_state": "Active",
+  "scope": "Restore native playback of streams rejected by hardware format negotiation; full native transport acceptance remains open",
+  "product": {
+    "failure": "The native format callback rejected software-only offers without preserving unsupported capability. FFmpeg removes a rejected hardware format and retries the callback without it, then reports a generic decode error when no format is accepted. The worker retried that error indefinitely instead of its existing explicit software fallback.",
+    "fix": "Record an explicit unsupported format offer. Before classifying it, check the actual FFmpeg D3D11 device removal reason through its public SDK headers. Removed devices and exhausted budgets retain native retry; generic corrupt-input failures retain their error. Apply the same classification during codec open and frame decode.",
+    "boundary": "Golden Video owns decoding and the small SDK-header C device-status bridge. MapGyver's existing fallback/retirement policy is unchanged. Supported H.264/HEVC profiles retain resident D3D11 storage; HAP stays compressed.",
+    "fixture": "Use the current qualification helper to translate an observed runtime LUID into its persistent physical preference. Reloaded transient position now asserts zero; independent bright copy/Matrix pixel checks explicitly seek after reload. Replacement-File unknown-duration reset is asserted before a fresh seek. No pixel tolerance or deadline changed."
+  },
+  "validation": {
+    "app": { "passed": 639, "failed": 0, "ignored": 7, "seconds": 55.06, "log": "target/m10-native-fallback-tests.log" },
+    "golden_video": { "passed": 287, "failed": 0, "ignored": 65, "seconds": 2.93, "features": "App native-qualification feature unification", "log": "target/m10-native-fallback-tests.log" },
+    "regression": "Software-only callback offers classify as unsupported on a healthy device. Device loss wins over unsupported/capacity; capacity wins over unsupported; ordinary InvalidData remains an error. Existing native-failure retry policy tests pass.",
+    "strict_lint": { "result": "pass", "packages": ["golden_video", "MapGyver"], "targets": "all", "warnings_denied": true, "log": "target/m10-native-fallback-clippy.log" },
+    "contracts": "App suite's fresh Rust export matches all155 checked-in TypeScript media contracts",
+    "format": "Root and golden_core cargo fmt --all; native fixture Prettier and node --check passed",
+    "build": { "result": "pass", "log": "target/m10-native-fallback-build.log", "seconds": 56.45, "binary": "target/m10-native-fallback-app/MapGyver.exe", "sha256": "49bc61affae992b7e6c6031266d246e68aeb9f84da89dbb47e8a20e13fbca997" },
+    "retained_engine_ui": "Unchanged engine code retains691 tests; unchanged UI retains0 Svelte errors/warnings and two Node tests from mapgyver-m10-live-position-2026-11-09.json"
+  },
+  "native": {
+    "result": "Partial: first-frame failure repaired and ten profiles pass; complete fixture fails later at fresh seek after HEVC relink",
+    "report": "target/m10-native-fallback-nvidia-current/failure.json",
+    "hardware_inventory": "target/m10-native-fallback-hardware.json",
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "runtime_adapter": "dxgi:00000001:4ffc79d4",
+    "pid": 22748,
+    "physical_checkpoints_passed": 103,
+    "linear_component_tolerance": "4/255, unchanged",
+    "profiles": ["h264.mp4", "hevc.mp4", "hevc-main.mp4", "prores.mov", "h264-color.mp4", "hevc-main10.mp4", "prores-alpha.mov", "hap.mov", "hap-alpha.mov", "hap-q.mov"],
+    "completed_behavior": "For all ten profiles: initial/EOF/Stop pixels, Inspector Speed and seek, Speed undo/redo preserving runtime seek, exact Next/Previous frames, nine-request superseding seek burst and held final pixels. Media Preview installs. H.264-color completes missing/corrupt-file recovery and relink; HEVC10 passes missing/corrupt recovery before its relink seek fails.",
+    "storage": "Backend events explicitly show small H.264/HEVC software fallback and resident D3D11 H.264-color, HEVC-main and HEVC-main10. Original h264.mp4 now produces correct pixels instead of InvalidData retry.",
+    "seek_bursts": { "profiles": 10, "requests_each": 9, "final_position_ms": 125 },
+    "page_errors": 0,
+    "rejected_requests": 0,
+    "exit_code": 1,
+    "owned_app_closed": true,
+    "failure": "hevc-main10.mp4 authored relink accepts a fresh seek decoder timeline: expected100.1ms, observed frame0ms with next33.366667ms. Source already reported Ready. No complete copy/Matrix/Reference/project-reload or Intel validation is claimed for this binary.",
+    "next_decision": "Reproduce the relink range-publication race headlessly. Leaf validation currently applies its cached runtime range before owner normalization; a queued zero range can clamp a valid seek before the owner sees it. Fix the shared transient write boundary, preserving atomic proposal semantics, then rerun the same complete native scope on both GPUs.",
+    "setup_failure": "target/m10-native-fallback-nvidia/failure.json: stale m1110 helper persisted an obsolete runtime preference and renderer faulted before decode. Corrected to the current helper and freshly enumerated LUID; this is not decoder evidence.",
+    "limits": "Private profile/executable with five verified pinned local FFmpeg DLLs. Per-command TAURI_CONFIG bundle.resources=[] avoids locked development resource copies; this is not packaging, sustained performance or device-reset qualification."
+  },
+  "remaining": ["Fix fresh-seek acceptance while duration/range feedback is queued, without caller-specific retries or UI policy", "Complete original native playback fixture on both GPUs, including independent copies, shared routing and project reload", "Then close M10/5 only after its complete requirement audit; continue6 and7 before returning to4 and M14"],
+  "accepted_gate_changes": [],
+  "progress": { "accepted": 85, "total": 106, "overall_percent": 80, "m10_accepted": 2, "m10_total": 8 }
+}

@@ -8,7 +8,22 @@ fn main() {
     {
         return;
     }
+    #[cfg(feature = "ffmpeg")]
+    compile_decoder_device_status();
     compile_native_shaders();
+}
+
+#[cfg(feature = "ffmpeg")]
+fn compile_decoder_device_status() {
+    let source = "src/decode/d3d11/device_status.c";
+    println!("cargo:rerun-if-changed={source}");
+    println!("cargo:rerun-if-env-changed=FFMPEG_DIR");
+    let sdk = std::path::PathBuf::from(std::env::var_os("FFMPEG_DIR").expect("Windows FFmpeg SDK directory"));
+    // Compile against the same public SDK as ffmpeg-sys, without mirroring its D3D11 ABI.
+    cc::Build::new()
+        .file(source)
+        .include(sdk.join("include"))
+        .compile("golden_video_decoder_device_status");
 }
 
 #[cfg(feature = "ffmpeg")]

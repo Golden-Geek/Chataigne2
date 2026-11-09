@@ -16,6 +16,38 @@ fn fixture(name: &str) -> std::path::PathBuf {
 }
 
 #[test]
+fn software_only_format_offer_falls_back_but_device_loss_and_capacity_take_precedence() {
+    use ffmpeg::ffi::AVPixelFormat::{AV_PIX_FMT_NONE, AV_PIX_FMT_YUV420P};
+    let admission = Admission {
+        budget: GpuFrameBudget::new(0),
+        exhausted: AtomicBool::new(false),
+        unsupported: AtomicBool::new(false),
+    };
+    let mut context = ffmpeg::codec::context::Context::new();
+    let formats = [AV_PIX_FMT_YUV420P, AV_PIX_FMT_NONE];
+    // SAFETY: the live context borrows this admission for this synchronous callback only.
+    unsafe {
+        (*context.as_mut_ptr()).opaque = (&admission as *const Admission).cast_mut().cast();
+        assert_eq!(select_hardware(context.as_mut_ptr(), formats.as_ptr()), AV_PIX_FMT_NONE);
+    }
+    assert!(admission.unsupported.load(Ordering::Acquire));
+    let invalid = || DecodeError::Ffmpeg(ffmpeg::Error::InvalidData);
+    assert!(matches!(
+        admission.failure(invalid(), 0),
+        DecodeError::UnsupportedHardware
+    ));
+    admission.exhausted.store(true, Ordering::Release);
+    assert!(matches!(admission.failure(invalid(), 0), DecodeError::LimitExceeded));
+    assert!(matches!(
+        admission.failure(invalid(), 0x887A0007u32 as i32),
+        DecodeError::Hardware(_)
+    ));
+    admission.exhausted.store(false, Ordering::Release);
+    admission.unsupported.store(false, Ordering::Release);
+    assert!(matches!(admission.failure(invalid(), 0), DecodeError::Ffmpeg(_)));
+}
+
+#[test]
 fn hardware_pool_admission_bounds_surface_count_and_padded_extent() {
     assert!(admitted_pool(64, 64, 32, 4096));
     for (width, height, count, pixels) in [

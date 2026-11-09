@@ -108,6 +108,11 @@ copy of its platform ABI. A fresh DXGI lookup resolves the requested LUID, and e
 surface verifies its actual adapter, extent, format and array slice. Format selection admits
 only D3D11; unsupported codecs/profiles fail so the caller can explicitly reopen in software.
 Before allocation, the fixed pool is limited to32 surfaces and the admitted padded pixel count.
+If FFmpeg's format callback offers no D3D11 format, Golden reports unsupported hardware so
+the file owner can reopen in software. A small SDK-header C bridge reads the actual FFmpeg
+device's removal reason first; a removed device and an exhausted admission budget remain
+retryable native failures, never capability fallback. Generic corrupt-input errors keep their
+original classification. This applies during codec opening and first-frame format negotiation.
 The caller supplies `GpuFrameBudget`; a reservation for the pool's padded extent, native
 format and surface count is acquired before allocation. FFmpeg's public pool destructor owns
 that reservation, so old frames retain it across seeks and decoder shutdown. Replacement pools

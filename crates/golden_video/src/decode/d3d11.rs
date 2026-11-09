@@ -13,6 +13,10 @@ use windows::Win32::Graphics::{
 };
 use windows::core::Interface;
 
+unsafe extern "C" {
+    fn golden_video_decoder_device_status(device: *const ffmpeg::ffi::AVBufferRef) -> i32;
+}
+
 /// GPU storage layout, separate from sampled RGB/color interpretation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum D3d11Storage {
@@ -145,12 +149,14 @@ impl HardwareDevice {
             admission: Arc::new(Admission {
                 budget,
                 exhausted: AtomicBool::new(false),
+                unsupported: AtomicBool::new(false),
             }),
             _local: PhantomData,
         })
     }
     pub(super) fn configure(&self, context: &mut ffmpeg::codec::context::Context) -> Result<(), DecodeError> {
         self.admission.exhausted.store(false, Ordering::Release);
+        self.admission.unsupported.store(false, Ordering::Release);
         // SAFETY: unopened uniquely owned codec context; FFmpeg releases its acquired ref.
         unsafe {
             let reference = ffmpeg::ffi::av_buffer_ref(self.buffer);
@@ -170,11 +176,9 @@ impl HardwareDevice {
         Ok(())
     }
     pub(super) fn failure(&self, error: DecodeError) -> DecodeError {
-        if self.admission.exhausted.load(Ordering::Acquire) {
-            DecodeError::LimitExceeded
-        } else {
-            error
-        }
+        // SAFETY: this owner retains the initialized FFmpeg D3D11 device buffer.
+        let status = unsafe { golden_video_decoder_device_status(self.buffer) };
+        self.admission.failure(error, status)
     }
     pub(super) fn frame(&self, frame: ffmpeg::frame::Video) -> Result<D3d11Frame, DecodeError> {
         if frame.format() != ffmpeg::format::Pixel::D3D11 {
@@ -316,6 +320,12 @@ unsafe extern "C" fn select_hardware(
             };
         }
         if format == AV_PIX_FMT_NONE {
+            // FFmpeg removes a hardware format after failed hardware setup and calls us
+            // again. An explicit software-only offer is unsupported, not corrupt input.
+            if !context.is_null() && !unsafe { (*context).opaque }.is_null() {
+                let admission = unsafe { &*(*context).opaque.cast::<Admission>() };
+                admission.unsupported.store(true, Ordering::Release);
+            }
             return format;
         }
         formats = unsafe { formats.add(1) };
@@ -329,6 +339,21 @@ fn admitted_pool(width: i32, height: i32, surfaces: i32, max_pixels: i64) -> boo
 struct Admission {
     budget: GpuFrameBudget,
     exhausted: AtomicBool,
+    unsupported: AtomicBool,
+}
+impl Admission {
+    fn failure(&self, error: DecodeError, device_status: i32) -> DecodeError {
+        if let Err(error) = windows::core::HRESULT(device_status).ok() {
+            return native_error(error);
+        }
+        if self.exhausted.load(Ordering::Acquire) {
+            DecodeError::LimitExceeded
+        } else if self.unsupported.load(Ordering::Acquire) {
+            DecodeError::UnsupportedHardware
+        } else {
+            error
+        }
+    }
 }
 struct PoolLease {
     previous_free: Option<unsafe extern "C" fn(*mut ffmpeg::ffi::AVHWFramesContext)>,

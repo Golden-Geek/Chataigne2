@@ -131,7 +131,7 @@ pub enum DecodeError {
     /// Invalid reference-coded HAP payload, distinct from unsupported texture variants.
     #[error("HAP: {0}")]
     Hap(String),
-    /// This codec does not advertise the requested hardware interface.
+    /// The codec, stream format or healthy device cannot provide the requested hardware storage.
     #[error("codec does not support the selected hardware decoder")]
     UnsupportedHardware,
     /// A hardware context, adapter identity or decoded surface failed validation.
@@ -486,11 +486,16 @@ fn open_decoder(
     let mut decoder = context.decoder();
     decoder.set_packet_time_base(stream.time_base());
     let decoder = decoder.video().map_err(|error| {
-        if error == ffmpeg::Error::DecoderNotFound {
+        let error = if error == ffmpeg::Error::DecoderNotFound {
             DecodeError::UnsupportedCodec
         } else {
             error.into()
+        };
+        #[cfg(all(windows, feature = "d3d11"))]
+        if let DecoderKind::D3d11(device) = kind {
+            return device.failure(error);
         }
+        error
     })?;
     // SAFETY: immutable metadata on this live opened context. The wrapper's enum collapses
     // unknown bit combinations, so inspect the frame-thread flag before admitting the owner.
