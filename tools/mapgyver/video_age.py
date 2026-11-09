@@ -102,6 +102,6 @@ def analyze_video_age(outputs, uses, layouts, output_sources, receivers, receive
         'scope': ('Q06 distinct-extent, single-source SDK outputs; publication pre-commit through '
                   'independent GPU capture completion, including polling delay. Unassignable '
                   'accepted rows contribute an unbounded endpoint in every phase.'),
-        'limits': ('unmapped outputs, CPU-only File publication, decoded Video pixel/PTS validation, '
+        'limits': ('unmapped outputs, File publications without valid timestamp tags, decoded Video pixel/PTS validation, '
                    'display scanout and the complete Q06 format/repeated series remain unqualified'),
     }

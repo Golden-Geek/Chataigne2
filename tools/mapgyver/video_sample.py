@@ -156,7 +156,7 @@ def analyze(directory):
                         "dxgi": [row["adapter_memory"] for row in native if row["adapter_memory"]]})
     return {"adapter": report["adapter"], "pid": report["pid"], "samples": results,
             "independent_receivers": receiver_summaries,
-            "scope": "One warmed sample, not the required three independent samples. Renderer GPU is one context. CPU upload end supplies only an inward failure bound. Timestamped GPU File publication can enclose age outward through an exact independent SDK-copy completion; unmeasured images remain unbounded. This is not continuous decoded Video pixel/PTS or display proof. Unmapped outputs, CPU-only publications, complete decoder/pool and unsampled-upload coverage remain required."}
+            "scope": "One warmed sample, not the required three independent samples. Renderer GPU is one context. CPU upload end supplies only an inward failure bound. Timestamped CPU/GPU File publication can enclose age outward through an exact independent SDK-copy completion; unmeasured images remain unbounded. This is not continuous decoded Video pixel/PTS or display proof. Unmapped outputs, untagged publications, complete decoder/pool and unsampled-upload coverage remain required."}
 
 
 if __name__ == "__main__":

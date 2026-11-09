@@ -1,0 +1,111 @@
+{
+  "date": "2026-11-09",
+  "gate": "M10/4 Active; first current NVIDIA4K publication-to-copy age requirement verified for one cohort; Intel fails; no full gate closed",
+  "batch": "16:36 UTC start,17:21 cutoff. Two original mixed-profile experiments, NVIDIA then Intel, complete normally. No third experiment, new workload, decoder policy or budget revision.",
+  "deliverable": "The previously delivered CPU File publication metadata now supplies real4K age witnesses in the ordinary bundled app. The existing auditor includes every accepted output image, retaining missing receiver observations as unbounded endpoints. Only stale scope descriptions change in this slice; measurement algorithms and thresholds are unchanged.",
+  "inputs": {
+    "app": "target/q06-physical-preferences-app/MapGyver.exe",
+    "app_sha256": "6fd347783f6045dadb3f0812a6799729221f08d07566c44104ae9122793f3f70",
+    "probe": "target/debug/native_qualification.exe",
+    "probe_sha256": "cb7927f41d3fac6288d8e25f6ad8e62535aacb24fcb9abca7f638821f9558af8",
+    "fixture_manifest": "target/q06-prores-numbered-2026-11-09/fixtures.json",
+    "fixture_manifest_sha256": "dccf9ae52d1ce574497dfc8c1295752173695d944152c142266257954caa5d15",
+    "workload": "Unchanged numbered four-second ProResHQ1080p60 plus4K30 files, HD Reference, three60Hz Spout outputs and existing Screen/preview.30s warmup,120s visible,60s minimized,60s receivers disconnected. Each file hash and all five actual loaded pinned FFmpeg DLLs are verified.",
+    "prerequisites": "Current app compilation,39 changed-host tests and strict host/Video/MapGyver all-target lint pass in the preceding cb8a6721 milestone.625 app/286 Golden software tests are retained for unchanged runtime bodies. Existing age16 and cohort7 Python tests pass,23 total. No Rust/UI/runtime change or repeated full911-test claim in this slice.",
+    "environment": "No build, reset or other agent GPU experiment overlaps either cohort. A separate --dev MapGyver app was observed before the timing batch and is absent at final inventory; its exit time was not continuously tracked. No agent input/termination targeted that app. No isolated-desktop or causal before/after optimization claim is made. Original native phase deadlines are unchanged."
+  },
+  "nvidia": {
+    "directory": "target/q06-publication-current-nvidia",
+    "pid": 38876,
+    "controller_pid": 5772,
+    "exit_code": 0,
+    "report_sha256": "472f6c093db4b99285c72b3fb23427b72220c0c72ee93e1088830eb29692dfa0",
+    "audit_sha256": "e4d353ca3cd87781a69f350f9bbeeded628f7f6ad676e2bfdd52db4f6436225c",
+    "log_sha256": "3c52e7fdbd849bb915b9d74728995208aeee66e33381dc399ed8b515c538db03",
+    "visible": {
+      "hd_age": {"accepted": 7199, "finite": 7199, "p95_upper_ms": 23.7526, "p99_upper_ms": 28.4949},
+      "uhd_age": {"accepted": 7202, "finite": 7202, "p95_upper_ms": 36.9016, "p99_upper_ms": 53.4504, "p95_within_50ms": true},
+      "observed_publications_per_second": [59.91109313717237, 28.677032346904557],
+      "maximum_observed_native_output_miss_fraction": 0.000694058856191005,
+      "maximum_definite_native_output_miss_fraction": 0,
+      "cpu_wall_upper_p95_ms": 3.1728,
+      "cpu_wall_upper_p99_ms": 3.5776,
+      "renderer_context_p95_ms": 5.895808,
+      "renderer_context_p99_ms": 10.511744,
+      "private_bytes_peak": 1059688448,
+      "known_native_texels_peak": 337350416
+    },
+    "minimized": {
+      "hd_age": {"accepted": 3604, "finite": 3604, "p95_upper_ms": 25.3135},
+      "uhd_age": {"accepted": 3604, "finite": 3604, "p95_upper_ms": 35.6758, "p95_within_50ms": true},
+      "observed_publications_per_second": [59.878306007665024, 29.94747637136207],
+      "maximum_observed_native_output_miss_fraction": 0.0002774694783573807,
+      "maximum_definite_native_output_miss_fraction": 0,
+      "cpu_wall_upper_p95_ms": 3.5698,
+      "renderer_context_p95_ms": 6.193504,
+      "renderer_context_p99_ms": 10.493824
+    },
+    "disconnected": {
+      "accepted_per_measured_output": 3603,
+      "finite_age_images": 0,
+      "reason": "Receivers intentionally disconnected; no copy-age pass inferred",
+      "observed_publications_per_second": [59.82596282744021, 29.98790956087387],
+      "maximum_observed_native_output_miss_fraction": 0,
+      "maximum_definite_native_output_miss_fraction": 0,
+      "cpu_wall_upper_p95_ms": 3.442,
+      "renderer_context_p95_ms": 8.954368,
+      "renderer_context_p99_ms": 10.44864,
+      "private_bytes_peak": 910585856,
+      "known_native_texels_peak": 395283216
+    },
+    "verdict": "Whole-phase p95 publication-to-copy bounds pass50ms for HD and4K in visible/minimized phases. Native output deadlines pass0.1% for this one run; earlier disconnected19/3606 failure remains retained, with no causal explanation inferred from a later pass. Visible4K source publication rate remains below30. This is not full Video frame-age/PTS/pixel or production-series acceptance."
+  },
+  "intel": {
+    "directory": "target/q06-publication-current-intel",
+    "pid": 6436,
+    "controller_pid": 4012,
+    "exit_code": 0,
+    "report_sha256": "812c31a961aa1775548739d27c2583ea4635e72e811324469b4e1a12099a36fe",
+    "audit_sha256": "8f51c0b0341e8f9cd797dc155e16b8a82fb5633da9e207803083214a0ade3da4",
+    "log_sha256": "4bccf9f978ca3a7cdb2b89bcbda9ab3c2c650496cfa38c38e71a434552e8f900",
+    "visible": {
+      "hd_age": {"accepted": 5475, "finite": 5329, "missing_receiver_completion": 146, "p95_upper_ms": 149.573, "p95_within_50ms": false},
+      "uhd_age": {"accepted": 5463, "finite": 5048, "missing_receiver_completion": 415, "p95_upper_ms": null, "reason": "More than5% unbounded receiver endpoints; no favorable-subset percentile"},
+      "observed_publications_per_second": [20.14725571735412, 28.8341460493923],
+      "definite_native_output_misses": 1726,
+      "expected_native_output_slots": 7204,
+      "definite_native_output_miss_fraction": 0.23958911715713493,
+      "cpu_wall_upper_p95_ms": 6.8571,
+      "renderer_context_p95_ms": 24.24859375,
+      "renderer_context_p99_ms": 28.135364583333335,
+      "private_bytes_peak": 676704256,
+      "known_native_texels_peak": 317126408
+    },
+    "minimized": {
+      "hd_age": {"accepted": 3058, "finite": 2952, "p95_upper_ms": 117.9958},
+      "uhd_age": {"accepted": 3053, "finite": 2753, "p95_upper_ms": null},
+      "observed_publications_per_second": [31.134678223674968, 28.85368842867846],
+      "definite_native_output_misses": 543,
+      "expected_native_output_slots": 3603,
+      "definite_native_output_miss_fraction": 0.15070774354704414,
+      "renderer_context_p95_ms": 22.128854166666667,
+      "renderer_context_p99_ms": 25.65125
+    },
+    "disconnected": {
+      "accepted_per_measured_output": 2681,
+      "finite_age_images": 0,
+      "observed_publications_per_second": [19.413389957829654, 28.970238873605144],
+      "definite_native_output_misses": 922,
+      "expected_native_output_slots": 3604,
+      "definite_native_output_miss_fraction": 0.255826859045505,
+      "renderer_context_p95_ms": 25.015208333333334,
+      "renderer_context_p99_ms": 28.68796875,
+      "private_bytes_peak": 943792128,
+      "known_native_texels_peak": 395283208
+    },
+    "verdict": "Valid completed observation, failed qualification. Existing CPU tags now join5048/5463 actual visible4K outputs; remaining missing witnesses are receiver completions, not absent File metadata. HD p95 fails50ms;4K remains unbounded. Native deadlines exceed0.1% in every phase. Renderer spans exceed12/16.667ms; those include GPU waits/command-feed gaps and are not isolated active shader costs. The prior reset-overlapped Intel run stays invalid and is not relabeled."
+  },
+  "functional_and_retirement": "Both fresh apps retain Ready/error-free sources and Playing transport through every phase, zero page errors, unchanged full-resolution held frame codes60/30/60 and normally retired independent receivers/apps. Each has five complete capture files with checked ring/loss/terminal native inventory. No concurrent owned qualification app remains. Recorded native inventory retirement is not complete decoder/pool accounting.",
+  "decision": "Two experiments complete; no further timing rerun in this batch. Do not expand the4K GPU bridge or decoder thread count speculatively. Current Intel renderer spans provide a reproduced blocker on the selected Video path: next review Golden's existing sampling/pass implementation and retained candidate findings, keeping original color/alpha/ownership contracts. Prior candidates remain unpromoted; do not automatically restore a stash. Any correction must pass software/strict/native preservation prerequisites before the same original workload comparison.",
+  "remaining": "Intel age/deadlines and source cadence; NVIDIA visible4K source cadence and required repeated series; all other codec cohorts, continuous decoded pixel/PTS lineage, complete cross-context GPU/active CPU, per-format upload/plane/decoder/pool accounting, pending resources and soak. Receiver-disconnected copy age is inherently unwitnessed and never treated as passing. Physical recovery/Preferences remain accepted.85/102=83%,M10 2/4=50%,8/15 phases unchanged."
+}
