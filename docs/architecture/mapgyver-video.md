@@ -123,6 +123,13 @@ Reference/reload pixels on both GPUs. The external test material stays in ignore
 `MAPGYVER_HAP_EXTERNAL` selects its extracted `FFmpeg` directory for the owning native tests.
 These short functional checks leave sustained performance and complete recovery to M10/4.
 
+The isolated [source SDK build](../../tools/mapgyver/ffmpeg/source-build.json) pins the same
+FFmpeg source with a complete reconstruction/source kit. It keeps built-in decoders, SIMD,
+software scaling and D3D11/DXVA2 without optional external codec/filter/device/network libraries.
+This makes the source/notices boundary independently reviewable and reduces its five DLLs to
+22,422,528 bytes. The candidate passes Golden software and native GPU integration checks; it
+does not replace the default SDK until app qualification and explicit build-pin promotion.
+
 The [pinned dependency helper](../../tools/mapgyver/ffmpeg/README.md) verifies the exact Windows
 shared LGPL archive and establishes only process-local build/runtime paths. Packet/image/work
 admission is explicit; failures require reopening the owner. These limits do not claim a hard

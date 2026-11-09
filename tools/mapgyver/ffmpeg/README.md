@@ -76,3 +76,23 @@ it needs no CLI HAP encoder. Ordinary tests only read those files.
 Primary sources: [Rust bindings](https://github.com/zmwangx/rust-ffmpeg),
 [FFmpeg send/receive API](https://ffmpeg.org/doxygen/9.0/group__lavc__encdec.html),
 [build source](https://github.com/FFmpeg-Builds/FFmpeg-Builds/tree/autobuild-2026-11-08-12-35).
+
+The source-built SDK candidate addresses the earlier binary's external-library source closure.
+`source-build.json` pins the same complete FFmpeg commit plus a portable GCC/MinGW toolchain
+and NASM. `build-source.ps1` compiles shared libraries with built-in decoders, software scaling,
+SIMD and D3D11/DXVA2, excluding optional external libraries, encoding/devices/filters/network.
+Its Windows archive reader extracts the toolchain as data; no downloaded SFX or installer runs.
+Builds need no symlink privileges, and the release-version override prevents parent Git metadata
+from entering the libraries. MSVC consumers use ordinary generated import libraries.
+
+```powershell
+powershell -NoProfile -File tools/mapgyver/ffmpeg/build-source.ps1
+powershell -NoProfile -File tools/mapgyver/ffmpeg/prepare-source-kit.ps1
+```
+
+The candidate and [complete source kit](SOURCE-KIT.md) stay under
+`target/mapgyver-ffmpeg-candidate`. Public DLL/header/configuration/license/codec checks associate
+the kit with actual library hashes. Exact FFmpeg/compiler sources, notices and reconstruction
+recipes are included. The current SDK remains selected by `with-ffmpeg.ps1` until full default-app
+qualification and explicit promotion; candidate Golden tests do not silently replace that pin.
+No byte-for-byte second-machine reproduction, full M10/4 acceptance or release is claimed.

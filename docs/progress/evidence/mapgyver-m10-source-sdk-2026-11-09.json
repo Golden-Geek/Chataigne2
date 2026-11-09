@@ -1,0 +1,55 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4",
+	"state": "Active; source SDK and corresponding-source kit delivered, candidate not promoted",
+	"deliverable": "A hash-pinned source build of the same FFmpeg commit, complete source/compiler source/notices/reconstruction kit, MSVC import libraries and verified native GPU handoff. The working default SDK is unchanged until full app qualification.",
+	"baseline_decision": "The exact earlier binary release has49 assets and no source/notice asset. Its frozen build recipe is commitc9fe5114060e507409f7ee07edfd82efaf25d767, but the general-purpose DLL includes a large unrelated external-library closure. Choose a source-built shared SDK retaining built-in playback decoders, scaling, SIMD and D3D11/DXVA2, excluding optional external codecs/filters/devices, encoding and network. All original requested codec/profile requirements remain required; decoder presence does not accept DXV/WebP or unverified variants.",
+	"inputs": {
+		"manifest": "tools/mapgyver/ffmpeg/source-build.json",
+		"ffmpeg_commit": "d4070a14cecc7e29eb278f9b6036c2284255f70d",
+		"ffmpeg_archive": { "bytes": 17332063, "sha256": "d5cd1dbfc7959c09b8af96640b4596ba333b6895f533ddb688aa0f13e00341f8" },
+		"w64devkit": "2.11.0; binary/tool-source archives are independently SHA256/size pinned; GCC16.2.0, MinGW-w6414.0.0 and native GNU Make",
+		"compiler_source": { "bytes": 237045760, "sha256": "50ee43ca02b9ca49e0e16da7eaf9701c9a396a019ebb2416a93d16769d53e5ff" },
+		"nasm": "2.16.03; pinned official Windows zip; CPU assembly remains enabled",
+		"build": "build-source.ps1 builds entirely under target/mapgyver-ffmpeg-candidate, retains the five public libraries and generates MSVC import libraries through dlltool. Fixed source epoch1793971242, logical prefix, release VERSION override and PE timestamp policy are recorded in the recipe. It restores the caller environment and directory. No FFmpeg C source patch or system setting change."
+	},
+	"kit": {
+		"command": "powershell -NoProfile -File tools/mapgyver/ffmpeg/prepare-source-kit.ps1",
+		"path": "target/mapgyver-ffmpeg-candidate/source-kit",
+		"contents": "Complete pristine FFmpeg source archive; exact compiler source bundle including GCC/MinGW runtime sources; full compiler Dockerfile/custom sources/version/readme; independent reconstruction recipe; FFmpeg LGPL/GPL, MinGW runtime notices, GCC Runtime Exception/GPL; runtime.json ties the generated libraries to source identity and flags.",
+		"runtime_manifest_sha256": "1034ee35898409d681dbc5c92955fd3576a8886d6ad5befa52ad65ae788c8ad0",
+		"integrity_recovery": "Shared source-inputs.ps1 verifies bytes/hash, commits downloads atomically, retries transient transfers at most three times, reuses valid cache and preserves/replaces corrupt cache inputs. Its owned test passes two simulated partial-transfer failures, recovery on the third attempt, zero-request valid reuse and preserved corrupt-cache recovery. Native SDK/header/export/codec identity checks and final kit generation exit0.",
+		"runtime_exports": "Each actual DLL loads from its exact SDK path. Public header major, DLL version, full configure arguments and LGPL3 license agree. av_version_info is9.0.2-d4070a14cecc-mapgyver-d4070a14ce. H.264/HEVC/ProRes/HAP/DXV/WebP decoder names are present. No variant qualification is inferred from registration alone."
+	},
+	"candidate": {
+		"path": "target/mapgyver-ffmpeg-candidate/stage/mapgyver-video-sdk",
+		"dll_bytes": 22422528,
+		"previous_dll_bytes": 117679616,
+		"size_scope": "About81% smaller DLL files. This is disk/package size, not a performance or driver-private memory result.",
+		"runtime": [
+			{ "name": "avcodec-63.dll", "bytes": 16493056, "sha256": "8a4064e5c1f148490d5b7fb1faaf75b91a8c5ace5cb67cef4c9056b085f62b24" },
+			{ "name": "avformat-63.dll", "bytes": 2511360, "sha256": "2749fafbe6a890cf870a1a74e2697b3978b92549763ac30d0c2f16e461d9df4a" },
+			{ "name": "avutil-61.dll", "bytes": 1115648, "sha256": "72701ec9b3e2bae8997e85ff9713aac53942c2774620bbf4fa28df47129abdac" },
+			{ "name": "swresample-7.dll", "bytes": 180224, "sha256": "f2acf457ce329eb47c9978ef2cbb6be81567c2a92bd90c5f4d00b3006b340800" },
+			{ "name": "swscale-10.dll", "bytes": 2122240, "sha256": "0b543620503c6099039f822bd75efe5f3359d90eaeb60dfc40d96b7500e2aa01" }
+		],
+		"imports": "LLVM PE inspection resolves FFmpeg imports within these five DLLs; remaining observed imports are Windows/MSVCRT system libraries. No optional external library DLL is required. SIMD, w32threads and both H.264/HEVC D3D11 hardware configurations remain enabled."
+	},
+	"verification": {
+		"compile": "Golden ffmpeg/qualification --lib --no-run succeeds against the candidate SDK and its generated MSVC import libraries in43.25s, resolving the concrete compiler/import ABI uncertainty.",
+		"isolation": "Compiled GoldenVideo.exe is copied beside the five candidate DLLs in target/mapgyver-ffmpeg-candidate/verify; direct execution avoids accidentally loading the working SDK from Cargo's profile search path.",
+		"test_binary_sha256": "8027f8378423fc3f1716053bd017a4d8c16a8d47122ac2be7bc1c8262cfca9ec",
+		"software": { "passed": 270, "failed": 0, "ignored": 61, "seconds": 5.61, "exit": 0 },
+		"strict": "Golden Video --lib --tests --features ffmpeg,qualification Clippy -D warnings succeeds in28.91s. Final SDK VERSION correction changes metadata only; final libraries rerun all270 software tests before native execution.",
+		"native": { "filter": "native::backend::tests::images::gpu_streams --ignored --nocapture --test-threads=1", "passed": 5, "failed": 0, "seconds": 97.66, "exit": 0 },
+		"native_scope": "Both GPUs pass HAP/Alpha/Q all fixture frames, odd extents, BC1 opaque palette, saturated RGB/alpha and YCoCg scales1/2/4, all12 external4K/chunk variants, NV12/P010 range/transfer/luma and held-slot/import retirement; actual Intel H.264 decoder frames feed the renderer without CPU conversion. Source admission returns to zero. No production-budget, sustained timing, app or device-reset acceptance is claimed.",
+		"format": "Source manifest Prettier, Python compilation, PowerShell parser checks, root/golden_core Cargo formatting and owned staged whitespace checks pass. No product Rust/DTO/UI implementation changed."
+	},
+	"retained_failures_and_corrections": [
+		"Automatic execution policy rejected launching the downloaded toolchain SFX. Windows' installed archive reader extracted it as data instead; the SFX/installer was never executed. The safe path completed without permission or system configuration changes.",
+		"First native build compiled but failed creating an unversioned DLL symlink without Windows symlink privileges. The recipe now copies build-only aliases with LN_S=cp -f. Native GNU Make quiet-tag incompatibility uses V=1 with silent command echo; no FFmpeg C patch or runtime behavior relaxation.",
+		"Initial metadata inherited the parent workspace Git tag. The supported VERSION override now pins the actual source release/commit; final live export checks and software/native tests use the corrected libraries.",
+		"Windows libarchive rejected a later unrelated GCC archive filename while selecting license entries. The bounded streaming reader now selects only the two expected root license files from the independently hash-verified source bundle; no error status is ignored."
+	],
+	"remaining": "Default-app source-SDK build/worker integration, both-GPU actual-app profile/routing/reload validation and explicit runtime/source/notice pin promotion precede replacing the current SDK. Then finish M10/4 coalesced exact seeks/stale rejection, relink/retry/device recovery and sustained1080p/4K/resource qualification. Full M09 Windows/source publication and existing tool-contract debt stay required. No second-machine byte-for-byte reproducibility or release claim.85/102 gates (83%); M10 2/4 (50%);8/15 phases (53%). Exactly M10/4 remains Active; no gate closed in this slice."
+}

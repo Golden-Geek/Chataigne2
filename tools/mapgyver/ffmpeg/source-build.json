@@ -1,0 +1,54 @@
+{
+	"revision": "mapgyver-video-sdk-1",
+	"source_date_epoch": 1793971242,
+	"ffmpeg": {
+		"version": "9.0.2",
+		"commit": "d4070a14cecc7e29eb278f9b6036c2284255f70d",
+		"url": "https://codeload.github.com/FFmpeg/FFmpeg/tar.gz/d4070a14cecc7e29eb278f9b6036c2284255f70d",
+		"sha256": "d5cd1dbfc7959c09b8af96640b4596ba333b6895f533ddb688aa0f13e00341f8",
+		"bytes": 17332063,
+		"root": "FFmpeg-d4070a14cecc7e29eb278f9b6036c2284255f70d"
+	},
+	"toolchain": {
+		"version": "w64devkit-2.11.0",
+		"url": "https://github.com/skeeto/w64devkit/releases/download/v2.11.0/w64devkit-x64-2.11.0.7z.exe",
+		"sha256": "54c2bb9962e8a30c8270e34c5efc3d5fee579f53087fa7d435b95fbba2af7b2b",
+		"bytes": 68801240,
+		"root": "w64devkit",
+		"source_url": "https://github.com/skeeto/w64devkit/releases/download/v2.11.0/source.tar",
+		"source_sha256": "50ee43ca02b9ca49e0e16da7eaf9701c9a396a019ebb2416a93d16769d53e5ff",
+		"source_bytes": 237045760
+	},
+	"assembler": {
+		"version": "nasm-2.16.03",
+		"url": "https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/win64/nasm-2.16.03-win64.zip",
+		"sha256": "3ee4782247bcb874378d02f7eab4e294a84d3d15f3f6ee2de2f47a46aa7226e6",
+		"bytes": 513543,
+		"root": "nasm-2.16.03"
+	},
+	"configure": [
+		"--prefix=/mapgyver-video-sdk",
+		"--target-os=mingw32",
+		"--arch=x86_64",
+		"--disable-autodetect",
+		"--disable-gpl",
+		"--disable-nonfree",
+		"--enable-version3",
+		"--enable-shared",
+		"--disable-static",
+		"--disable-debug",
+		"--disable-doc",
+		"--disable-programs",
+		"--disable-encoders",
+		"--disable-avdevice",
+		"--disable-avfilter",
+		"--disable-network",
+		"--enable-x86asm",
+		"--enable-d3d11va",
+		"--enable-dxva2",
+		"--disable-d3d12va",
+		"--extra-version=mapgyver-d4070a14ce",
+		"--extra-cflags=-D_WIN32_WINNT=0x0A00",
+		"--extra-ldflags=-static-libgcc -Wl,--no-insert-timestamp"
+	]
+}
