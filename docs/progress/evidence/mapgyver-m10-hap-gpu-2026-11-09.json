@@ -1,0 +1,38 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/2 Active; HAP GPU/app playback delivered; complete concurrency/shared/interoperability acceptance remains open",
+	"progress": { "accepted": 84, "total": 102, "percent": 82, "m10_accepted": 1, "m10_total": 4 },
+	"batch": { "started_utc": "00:20", "cutoff_utc": "01:05", "native_cohorts": 2 },
+	"deliverable": "HAP, HAP Alpha and HAP Q now play through MapGyver's native File workers and actual previews/Screen output, preserving compressed BC blocks through GPU upload. The existing publisher owns the same three slots, pending query, immutable stream, import and retirement path for HAP and decoder-pool frames.",
+	"ownership": {
+		"gpu": "GpuFramePublisher.new_hap admits one padded BC input texture, three visible RGBA bridge images and16 uniform bytes before source allocation. HapImage uploads BC1/BC3 blocks with the exact block-row pitch; GPU loads address visible texels, excluding padded odd edges. BC1 RGB forces alpha1 even in the three-color palette mode. BC3 RGBA preserves straight alpha; scaled-YCoCg BC3 reconstructs encoded RGB using the reference128/255 offset and encoded scale. Output remains the existing sRGB/straight-alpha GPU image contract.",
+		"reference": "https://hap.video/developers and its linked reference YCoCg shader https://gist.github.com/dlublin/90f879cfe027ebf5792bdadf2c911bb5; no CPU BC/YCoCg pixel expansion or production readback is used.",
+		"decode_api": "Decoder.open_native replaces the narrower open_d3d11 name without an alias: select D3D11 decoder frames or preserve HAP blocks for the selected GPU. DecodeStorage exposes the stable typed contract; callers do not parse codec labels. Existing explicit software open remains available for common-codec fallback.",
+		"file_worker": "The same Reader, one in-flight conversion, transport epoch/cycle publication fence, exact step observations, revision wakes and cancellation lifecycle are reused. HAP source CPU admission covers current/next/upload block leases using conservative BC3 size plus16 MiB packet allowance, within the existing768 MiB shared CPU cap. Ordinary native decoding reserves the packet allowance. Existing measured GPU admission/carveout is unchanged.",
+		"recovery": "A failed HAP native path withdraws and retries natively on the same authored binding/clock; it cannot silently use software RGBA. Common-codec native failures retain their explicit software fallback. Source GPU faults and slot releases keep the same wake/retirement semantics; publisher teardown drains actual completion or confirmed device removal. Combined driver-reset qualification remains required separately."
+	},
+	"software": {
+		"app": { "passed": 611, "failed": 0, "ignored": 3, "exit": 0 },
+		"golden_final": { "passed": 270, "failed": 0, "ignored": 59, "exit": 0 },
+		"coverage": "Full app/common/HAP codec regression, generated-contract equality and exact transport/history/caller tests pass. Final Golden suite includes new HAP zero-admission-before-device-work test and compilation of the ignored native color/alpha/retirement fixture.",
+		"strict": "Combined app/Golden video-files/ffmpeg/qualification --lib --tests, default app and software-only Golden ffmpeg Clippy all pass with -D warnings. Default build initially exposed an unused HAP shader constant; shader emission is now correctly gated by ffmpeg before native execution.",
+		"ui_format": "Embedded UI build succeeds; MapGyver Svelte check exits0 with zero errors/warnings. Browser syntax/Prettier pass. No product frontend/protocol DTO changes. Root and golden_core Cargo formatting and owned whitespace checks complete. Existing ts-rs serde-attribute notices remain unchanged."
+	},
+	"native_gpu": {
+		"filter": "native::backend::tests::images::gpu_streams -- --ignored --nocapture --test-threads=1",
+		"result": { "passed": 3, "failed": 0, "exit": 0, "seconds": 70.25 },
+		"hap": "Both local GPUs pass all six actual frames of HAP/HAP Alpha/HAP Q through BC upload, GPU sampling/conversion, shared publication and renderer readback:36 images plus two BC1 opaque-palette checks. Independent sRGB/BC endpoint/YCoCg/straight-alpha oracle uses unchanged4/255 linear RGB and1/255 alpha budgets. Odd17x9 alpha storage, dropping caller frame before completion, withdrawal and admitted storage returning to zero pass.",
+		"regression": "Existing both-GPU72 NV12/P010 range/transfer/luma cases, fixed-slot backpressure/held-completion retirement and six actual Intel H.264 GPU frames pass after the publisher refactor. Source-only format-interpretation rejections remain intact."
+	},
+	"actual_app": {
+		"script": "apps/mapgyver/tests/browser/native-video-playback.mjs; exact selected adapter in an owned temporary profile; ten common/HAP profiles",
+		"build": "with-ffmpeg.ps1 rustc --locked -p MapGyver --features video-files --bin MapGyver -- -C extra-filename=-m10-hap: exit0",
+		"binary": "target/debug/deps/MapGyver-m10-hap.exe",
+		"binary_sha256": "0dea8b86c411006c3349c9d7b521b40b233cfe861fdf84bab6933c4ab4daf342",
+		"nvidia": { "pid": 22472, "adapter": "dxgi:00000000:90b3a15f", "physical_checkpoints": 89, "requests": 2056, "receipts": 2056, "rejections": 0, "page_errors": 0, "max_linear_error": 0.014453917013954541, "hap_max_linear_error": 0.00293252331301402, "exit": 0, "normal_shutdown": true, "raw_report_sha256": "4ca7a769ec2587e749f2382c0e40c911b1160ee6fac1942bcda1b8c1c86c99e2" },
+		"intel": { "pid": 38340, "adapter": "dxgi:00000000:00015b69", "physical_checkpoints": 89, "requests": 2047, "receipts": 2047, "rejections": 0, "page_errors": 0, "max_linear_error": 0.014453917013954541, "hap_max_linear_error": 0.00289879563953698, "exit": 0, "normal_shutdown": true, "raw_report_sha256": "0222d6faea34f27fe5d77e90f2cb479994652bfaa9f581f41dbc8144553090fb" },
+		"coverage": "Each HAP file passes actual Inspector File/defaults, Play/EOF hold, Stop,125ms seek, Undo/Redo, exact Next/Previous and Media Preview installed/available. Physical Screen output uses an independent BC/sRGB/alpha/YCoCg oracle with the unchanged4/255 linear budget. Backend events explicitly confirm HAP compressed GPU playback for each file on each GPU. Existing common-codec Reference/rate/loop/pause, mixed-rate hold, independent ProRes Composition copy, Matrix route and project reload regressions pass.",
+		"limits": "Short deterministic clips: not HAP multi-consumer/copy/project qualification, concurrent high-resolution playback, full chromatic/scale/external-encoder coverage, sustained performance or combined reset qualification. Media Preview installed/available is observed; physical panel scanout/cadence is not claimed. No desktop activation/input, monitor changes or driver reset."
+	},
+	"remaining": "Finish M10/2 with external-encoder/full-color/YCoCg-scale interoperability, concurrent high-resolution files, shared consumers and HAP-specific copy/routing/reload/retirement acceptance. Keep exactly M10/2 Active; no whole gate closes here. M10/4 bundled dependencies/license, superseding seek/relink/device recovery and sustained1080p/4K/resource qualification remain required before M14."
+}

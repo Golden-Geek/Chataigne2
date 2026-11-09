@@ -10,7 +10,7 @@ use crate::native::{
 };
 use crate::{
     AlphaMode, ColorEncoding, PixelFormat, TextureDescriptor,
-    decode::{D3d11Frame, D3d11Storage, DecodeError},
+    decode::{D3d11Frame, D3d11Storage, DecodeError, HapFrame},
 };
 use std::{
     sync::{
@@ -48,6 +48,9 @@ struct Pending {
     _input: Input,
 }
 pub(super) enum Input {
+    Hap {
+        _frame: HapFrame,
+    },
     Decoded {
         _frame: D3d11Frame,
     },
@@ -56,17 +59,23 @@ pub(super) enum Input {
         _texture: ID3D11Texture2D,
     },
 }
+enum Conversion {
+    Video {
+        interpretation: u32,
+        storage: D3d11Storage,
+        input: Image,
+        shader: Decoder,
+    },
+    Hap(super::hap::HapImage),
+}
 /// Fixed three-slot GPU converter. No pixel transfer/readback or growing frame queue.
 /// Call submit/poll and drop only on the file worker; Drop drains real GPU completion.
 pub struct GpuFramePublisher {
     stream: GpuFrameStream,
     fault: Arc<Fault>,
-    interpretation: u32,
-    storage: D3d11Storage,
+    conversion: Conversion,
     pending: Option<Pending>,
     slots: Vec<Slot>,
-    input: Image,
-    shader: Decoder,
     query: ID3D11Query,
     device: Device,
     _lease: Arc<Lease>,
@@ -113,6 +122,51 @@ impl GpuFramePublisher {
         let lease = Arc::new(budget.0.claim(bytes).ok_or(GpuFrameError::Capacity)?);
         let input = Image::new(&device, descriptor, format)?;
         let shader = Decoder::with_interpretation(&device.device, format, descriptor, interpretation)?;
+        Self::assemble(
+            device,
+            descriptor,
+            Conversion::Video {
+                interpretation,
+                storage,
+                input,
+                shader,
+            },
+            lease,
+            wake,
+        )
+    }
+    /// Upload/sample reference-decoded HAP blocks on one exact adapter. No CPU pixel decode.
+    pub fn new_hap(
+        frame: &HapFrame,
+        adapter: crate::native::AdapterId,
+        budget: &GpuFrameBudget,
+        wake: Option<golden_io::WorkerNotifier>,
+    ) -> Result<Self, GpuFrameError> {
+        let descriptor = TextureDescriptor {
+            extent: frame.extent(),
+            format: PixelFormat::Rgba8Unorm,
+            color_encoding: ColorEncoding::Srgb,
+            alpha_mode: AlphaMode::Straight,
+        };
+        let bytes = descriptor
+            .byte_len()
+            .ok()
+            .and_then(|rgba| rgba.checked_mul(3))
+            .and_then(|rgba| rgba.checked_add(frame.blocks().len() as u64))
+            .and_then(|bytes| bytes.checked_add(16))
+            .ok_or(GpuFrameError::Capacity)?;
+        let lease = Arc::new(budget.0.claim(bytes).ok_or(GpuFrameError::Capacity)?);
+        let device = Device::new(adapter)?;
+        let input = super::hap::HapImage::new(&device, frame)?;
+        Self::assemble(device, descriptor, Conversion::Hap(input), lease, wake)
+    }
+    fn assemble(
+        device: Device,
+        descriptor: TextureDescriptor,
+        conversion: Conversion,
+        lease: Arc<Lease>,
+        wake: Option<golden_io::WorkerNotifier>,
+    ) -> Result<Self, GpuFrameError> {
         let slots = (0..3)
             .map(|index| Slot::new_leased(&device, descriptor, index, Some(lease.clone())))
             .collect::<windows::core::Result<Vec<_>>>()?;
@@ -132,12 +186,9 @@ impl GpuFramePublisher {
                 code: AtomicI32::new(0),
                 wake,
             }),
-            interpretation,
-            storage,
+            conversion,
             pending: None,
             slots,
-            input,
-            shader,
             query: query.ok_or_else(missing)?,
             device,
             _lease: lease,
@@ -162,6 +213,14 @@ impl GpuFramePublisher {
     /// Submit one copy/conversion. False means busy/retained slots; keep the previous image.
     pub fn submit(&mut self, frame: &D3d11Frame) -> Result<bool, GpuFrameError> {
         self.healthy()?;
+        let Conversion::Video {
+            storage,
+            interpretation: flags,
+            ..
+        } = &self.conversion
+        else {
+            return Err(GpuFrameError::Layout);
+        };
         // Same adapter is insufficient for an immediate-context copy. A reopened decoder
         // on another device needs a new publisher, even if its LUID/format are unchanged.
         let owner = unsafe { frame.texture.GetDevice()? };
@@ -170,8 +229,8 @@ impl GpuFramePublisher {
         }
         if frame.adapter() != self.device.adapter
             || frame.extent() != self.stream.descriptor().extent
-            || frame.storage() != self.storage
-            || interpretation(frame)? != self.interpretation
+            || frame.storage() != *storage
+            || interpretation(frame)? != *flags
         {
             return Err(GpuFrameError::Layout);
         }
@@ -189,25 +248,15 @@ impl GpuFramePublisher {
         slice: u32,
         input: Input,
     ) -> Result<bool, GpuFrameError> {
-        self.healthy()?;
-        if self.pending.is_some() {
-            return Ok(false);
+        if !matches!(self.conversion, Conversion::Video { .. }) {
+            return Err(GpuFrameError::Layout);
         }
-        let mut free = None;
-        for (index, slot) in self.slots.iter().enumerate() {
-            if slot.acquire_free()? {
-                free = Some(index);
-                break;
-            }
-        }
-        let Some(index) = free else {
+        let Some(index) = self.begin(input)? else {
             return Ok(false);
         };
-        self.pending = Some(Pending {
-            slot: index,
-            _input: input,
-        });
-        // Mark even if a draw panics after queuing work. Pending pins all source storage.
+        let Conversion::Video { input, shader, .. } = &self.conversion else {
+            unreachable!()
+        };
         let _mark = Mark {
             device: &self.device,
             query: &self.query,
@@ -215,7 +264,7 @@ impl GpuFramePublisher {
         let extent = self.stream.descriptor().extent;
         unsafe {
             self.device.context.CopySubresourceRegion(
-                &self.input.texture,
+                &input.texture,
                 0,
                 0,
                 0,
@@ -232,9 +281,50 @@ impl GpuFramePublisher {
                 }),
             )
         };
-        self.shader
-            .draw(&self.device.context, &self.input, &self.slots[index].texture);
+        shader.draw(&self.device.context, input, &self.slots[index].texture);
         Ok(true)
+    }
+    /// At most one HAP upload/conversion; held GPU consumers keep the previous image.
+    pub fn submit_hap(&mut self, frame: &HapFrame) -> Result<bool, GpuFrameError> {
+        let Conversion::Hap(input) = &self.conversion else {
+            return Err(GpuFrameError::Layout);
+        };
+        if input.format != frame.format() || frame.extent() != self.stream.descriptor().extent {
+            return Err(GpuFrameError::Layout);
+        }
+        let Some(index) = self.begin(Input::Hap { _frame: frame.clone() })? else {
+            return Ok(false);
+        };
+        let Conversion::Hap(input) = &self.conversion else {
+            unreachable!()
+        };
+        let _mark = Mark {
+            device: &self.device,
+            query: &self.query,
+        };
+        input.upload_draw(&self.device, frame, &self.slots[index].texture)?;
+        Ok(true)
+    }
+    fn begin(&mut self, input: Input) -> Result<Option<usize>, GpuFrameError> {
+        self.healthy()?;
+        if self.pending.is_some() {
+            return Ok(None);
+        }
+        let mut free = None;
+        for (index, slot) in self.slots.iter().enumerate() {
+            if slot.acquire_free()? {
+                free = Some(index);
+                break;
+            }
+        }
+        let Some(index) = free else {
+            return Ok(None);
+        };
+        self.pending = Some(Pending {
+            slot: index,
+            _input: input,
+        });
+        Ok(Some(index))
     }
     fn completed(&self) -> windows::core::Result<bool> {
         let mut done = BOOL(0);

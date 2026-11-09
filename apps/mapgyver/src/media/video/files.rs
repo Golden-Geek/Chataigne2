@@ -86,6 +86,9 @@ impl Budget {
             .checked_mul(40)
             .and_then(|bytes| bytes.checked_add(16 * 1024 * 1024))
             .ok_or("Video storage overflow")?;
+        self.reserve_bytes(bytes)
+    }
+    fn reserve_bytes(self: &Arc<Self>, bytes: u64) -> Result<Lease, String> {
         let mut used = self.used.lock().map_err(|_| "Video storage budget poisoned")?;
         if bytes > MAX_BYTES.saturating_sub(*used) {
             return Err("Video file storage capacity retained".into());
@@ -358,7 +361,8 @@ impl Run {
         if let Some(hardware) = &self.hardware {
             match self.play_hardware(worker, owner, hardware) {
                 Ok(()) => return Ok(()),
-                Err(error) => {
+                Err(hardware::NativeFailure::Retry(error)) => return Err(error),
+                Err(hardware::NativeFailure::Fallback(error)) => {
                     let _ = self
                         .control
                         .source_failure(self.reference.channel, owner, error.0.clone());

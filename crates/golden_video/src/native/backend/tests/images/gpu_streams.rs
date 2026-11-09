@@ -1,4 +1,5 @@
 use super::*;
+mod hap;
 use crate::native::frames::tests::{completed, prepared, submit};
 use crate::{
     decode::{D3d11Storage, DecodeLimits, Decoder},
@@ -6,6 +7,9 @@ use crate::{
 };
 
 fn install(renderer: &mut Renderer, stream: GpuFrameStream) {
+    install_admitted(renderer, stream, 65536);
+}
+fn install_admitted(renderer: &mut Renderer, stream: GpuFrameStream, max_texture_bytes: u64) {
     renderer.plan = RenderPlan {
         external_textures: vec![ExternalTexture {
             id: TextureId::new(1).unwrap(),
@@ -32,7 +36,7 @@ fn install(renderer: &mut Renderer, stream: GpuFrameStream) {
         max_outputs: 4,
         max_dependencies: 16,
         max_texture_dimension: 2048,
-        max_texture_bytes: 65536,
+        max_texture_bytes,
     })
     .unwrap();
     renderer.resources = Some(
@@ -211,7 +215,7 @@ fn hardware_gpu_frames_import_actual_intel_decoder_without_cpu_conversion() {
         max_packets_per_frame: 128,
     };
     let budget = GpuFrameBudget::new(1024 * 1024);
-    let mut decoder = Decoder::open_d3d11(&root.join("h264.mp4"), limits, adapter.id, budget.clone()).unwrap();
+    let mut decoder = Decoder::open_native(&root.join("h264.mp4"), limits, adapter.id, budget.clone()).unwrap();
     let dummy = prepared_image(descriptor(2, ColorEncoding::Srgb, AlphaMode::Straight), &[0; 8]);
     let mut renderer = Renderer::new(adapter.id, &dummy, 2);
     let mut publisher = None;
@@ -237,7 +241,7 @@ fn hardware_gpu_frames_import_actual_intel_decoder_without_cpu_conversion() {
     assert!(renderer.pixel_frame().iter().all(|rgba| *rgba == [0; 4]));
     assert_eq!(budget.retained_bytes(), 0);
     for name in ["h264-bt2020.mp4", "h264-pq.mp4"] {
-        let mut decoder = Decoder::open_d3d11(&root.join(name), limits, adapter.id, budget.clone()).unwrap();
+        let mut decoder = Decoder::open_native(&root.join(name), limits, adapter.id, budget.clone()).unwrap();
         let frame = decoder.next_frame().unwrap().unwrap();
         assert!(matches!(
             GpuFramePublisher::new(frame.d3d11_frame().unwrap(), &budget, None),

@@ -42,7 +42,9 @@ actual-app qualification. No release or deployment is performed by the preparati
 
 HAP demux uses these same libraries. The [pinned reference dependency](../../../crates/golden_video/vendor/hap/README.md)
 returns compressed GPU blocks through generated public C bindings, backed by Rust Snappy.
-This boundary is implemented; HAP GPU/app playback and concurrency acceptance remain required.
+Native File playback now uses BC upload/GPU sampling and the shared three-slot publisher;
+HAP Q conversion and alpha stay on the GPU. Complete concurrency/interoperability and bundled
+acceptance remain required.
 The explicit ignored `generate_reference_hap_mov_fixtures` test encodes known BC blocks through
 the reference encoder and muxes only its three checked-in MOV fixtures with pinned libavformat;
 it needs no CLI HAP encoder. Ordinary tests only read those files.

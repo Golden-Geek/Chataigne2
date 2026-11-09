@@ -24,7 +24,8 @@ the UI nor the operation adapter divides by a nominal frame rate.
 
 Golden's `Decoder` retains original stream timestamps and explicit software or hardware storage.
 Its ordinary open methods preserve HAP blocks and otherwise select software;
-`open_d3d11` explicitly requests an exact adapter.
+`open_native` requests D3D11 decode on an exact adapter while preserving HAP blocks for
+GPU upload on that same selected adapter.
 It performs no implicit colour conversion or GPU readback. Seeking uses the selected stream's
 native time base and replaces codec reorder/drain state while retaining the file demux owner.
 This prevents an old HEVC drain frame observed after buffer flushing in the pinned fixture.
@@ -99,10 +100,24 @@ compressed storage instead of expanding HAP to RGBA.
 The public reference header generates the FFI ABI. A private-prefixed C bridge uses pinned
 Rust Snappy; local reference-source safety changes bound section/table/chunk/input/output access
 before native pointer arithmetic. Exact block length and at most1024 synchronous chunks are
-admitted on the owning file worker. This is a codec boundary, not app HAP playback acceptance:
-GPU BC sampling/YCoCg conversion, existing shared publication binding, complete retained storage
-admission and concurrent/shared high-resolution app acceptance remain M10/2 work. Existing
-NV12/P010 publication stays unchanged.
+admitted on the owning file worker.
+
+`GpuFramePublisher` now accepts HAP through the same three-slot ring, pending completion,
+immutable image, import and retirement mechanism as decoded D3D11 frames. Its source texture
+stores BC1/BC3 blocks directly; the GPU reconstructs pixels. Visible RGBA targets exclude padded
+edge texels. BC1 RGB forces opaque alpha, BC3 RGBA preserves straight alpha, and HAP Q applies
+the [reference YCoCg conversion](https://hap.video/developers) before publishing encoded sRGB
+RGBA. Source storage, three bridge slots and the constant buffer are admitted before allocation.
+No HAP CPU pixel expansion, pixel upload or readback is used by production playback.
+
+The existing File native loop branches on typed `DecodeStorage` and shares the same reader,
+clock/step fences, publication and cancellation lifecycle. Its CPU reservation covers three
+maximum BC frames plus one16 MiB compressed packet allowance; ordinary native decoding reserves
+the packet allowance. Those reservations share the existing768 MiB source cap with software
+playback. A failed HAP native path retries natively after withdrawal, preserving the media clock;
+it cannot fall through to software RGBA. Native GPU/worker retirement retains its normal actual
+completion requirements. Full color/alpha, external-encoder and high-resolution/shared-consumer
+acceptance remains required before M10/2 closes.
 
 The [pinned dependency helper](../../tools/mapgyver/ffmpeg/README.md) verifies the exact Windows
 shared LGPL archive and establishes only process-local build/runtime paths. Packet/image/work

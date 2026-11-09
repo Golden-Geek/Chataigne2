@@ -54,6 +54,18 @@ pub struct StreamInfo {
     pub duration: Option<i64>,
 }
 
+/// Storage selected before decoding, so owners can admit resources without parsing codec names.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DecodeStorage {
+    /// CPU pixel planes, explicitly converted by a software consumer.
+    Software,
+    /// Compressed HAP blocks, requiring native texture sampling.
+    Hap,
+    /// Worker-local D3D11 decoder pool surfaces.
+    #[cfg(all(windows, feature = "d3d11"))]
+    D3d11,
+}
+
 /// One owned decoded image. Retaining it does not retain a borrow of the decoder.
 pub struct DecodedFrame {
     timestamp: i64,
@@ -299,6 +311,15 @@ impl Decoder {
     /// Metadata for this decoder's selected stream.
     pub fn info(&self) -> &StreamInfo {
         &self.info
+    }
+    /// Stable storage contract chosen at open, without decoding a frame or parsing a label.
+    pub fn storage(&self) -> DecodeStorage {
+        match self.kind {
+            DecoderKind::Software => DecodeStorage::Software,
+            DecoderKind::Hap => DecodeStorage::Hap,
+            #[cfg(all(windows, feature = "d3d11"))]
+            DecoderKind::D3d11(_) => DecodeStorage::D3d11,
+        }
     }
 
     /// Seek to a keyframe at/before an original stream timestamp with a fresh codec owner.

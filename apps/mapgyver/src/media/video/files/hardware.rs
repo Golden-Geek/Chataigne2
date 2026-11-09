@@ -1,6 +1,12 @@
 //! Exact-adapter file decode and asynchronous, clock-fenced GPU publication.
 use super::*;
+use golden_video::decode::{DecodeStorage, HapFormat};
 use golden_video::native::{GpuFrameError, GpuFramePublisher};
+
+pub(super) enum NativeFailure {
+    Fallback(Failure),
+    Retry(Failure),
+}
 
 impl From<GpuFrameError> for Failure {
     fn from(error: GpuFrameError) -> Self {
@@ -19,9 +25,9 @@ impl Run {
         worker: &WorkerContext<(), ()>,
         owner: uuid::Uuid,
         hardware: &Hardware,
-    ) -> Result<(), Failure> {
+    ) -> Result<(), NativeFailure> {
         let cancel = worker.cancellation().clone();
-        let decoder = Decoder::open_d3d11_with_interrupt(
+        let decoder = Decoder::open_native_with_interrupt(
             &self.file,
             DecodeLimits {
                 max_pixels: 16384 * 16384,
@@ -31,7 +37,39 @@ impl Run {
             hardware.adapter,
             hardware.budget.clone(),
             move || cancel.is_cancelled(),
-        )?;
+        )
+        .map_err(|error| NativeFailure::Fallback(error.into()))?;
+        let compressed = decoder.storage() == DecodeStorage::Hap;
+        self.drive_native(worker, owner, hardware, decoder).map_err(|error| {
+            if compressed {
+                NativeFailure::Retry(error)
+            } else {
+                NativeFailure::Fallback(error)
+            }
+        })
+    }
+    fn drive_native(
+        &self,
+        worker: &WorkerContext<(), ()>,
+        owner: uuid::Uuid,
+        hardware: &Hardware,
+        decoder: Decoder,
+    ) -> Result<(), Failure> {
+        let compressed = decoder.storage() == DecodeStorage::Hap;
+        let mut bytes = 16 * 1024 * 1024;
+        if compressed {
+            let info = decoder.info();
+            let extent = golden_video::Extent2D::new(info.width, info.height).map_err(|e| e.to_string())?;
+            // Current/next and the one GPU upload lease; HAP's largest admitted block format.
+            bytes = (HapFormat::Bc3Rgba.byte_len(extent).ok_or("HAP storage overflow")? as u64)
+                .checked_mul(3)
+                .and_then(|frames| frames.checked_add(bytes))
+                .ok_or("HAP storage overflow")?;
+        }
+        let _cpu_lease = self
+            .budget
+            .reserve_bytes(bytes)
+            .map_err(|error| Failure(VideoSourceError::new(VideoSourceErrorKind::Capacity, error)))?;
         let mut reader = Reader::new(decoder)?;
         self.control
             .channel_duration(self.reference.channel, owner, reader.duration)?;
@@ -59,7 +97,12 @@ impl Run {
                             drop(output);
                             installed = true;
                             eprintln!(
-                                "[mapgyver-video] D3D11 resident playback: {} on {:?}",
+                                "[mapgyver-video] {} playback: {} on {:?}",
+                                if compressed {
+                                    "HAP compressed GPU"
+                                } else {
+                                    "D3D11 resident"
+                                },
                                 self.file.display(),
                                 hardware.adapter
                             );
@@ -77,18 +120,32 @@ impl Run {
             }
             if !waiting {
                 if reader.advance(sample.channel_position(reader.duration))? {
-                    let frame = reader
-                        .frame()
-                        .d3d11_frame()
-                        .ok_or("hardware decoder returned software storage")?;
+                    let frame = reader.frame();
                     if publisher.is_none() {
-                        publisher = Some(GpuFramePublisher::new(
-                            frame,
-                            &hardware.budget,
-                            Some(worker.wake_notifier()),
-                        )?);
+                        publisher = Some(if let Some(frame) = frame.hap_frame() {
+                            GpuFramePublisher::new_hap(
+                                frame,
+                                hardware.adapter,
+                                &hardware.budget,
+                                Some(worker.wake_notifier()),
+                            )?
+                        } else {
+                            GpuFramePublisher::new(
+                                frame.d3d11_frame().ok_or("native decoder returned software storage")?,
+                                &hardware.budget,
+                                Some(worker.wake_notifier()),
+                            )?
+                        });
                     }
-                    if publisher.as_mut().unwrap().submit(frame)? {
+                    let submitted = if let Some(frame) = frame.hap_frame() {
+                        publisher.as_mut().unwrap().submit_hap(frame)?
+                    } else {
+                        publisher
+                            .as_mut()
+                            .unwrap()
+                            .submit(frame.d3d11_frame().ok_or("native decoder returned software storage")?)?
+                    };
+                    if submitted {
                         pending = Some(sample);
                         reader.mark_published();
                     }

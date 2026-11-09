@@ -238,19 +238,20 @@ impl HardwareDevice {
 }
 
 impl Decoder {
-    /// Select hardware explicitly on one exact adapter. No software/adapter fallback is hidden.
+    /// Preserve native storage: HAP blocks or D3D11 decode on one exact adapter.
+    /// HAP's selected adapter is applied when its GPU publisher is constructed.
     /// Unsupported codecs/profiles fail; an owning caller can reopen with `open` instead.
     /// Pool reservations precede allocation and follow FFmpeg pool ownership across seeks.
-    pub fn open_d3d11(
+    pub fn open_native(
         path: &Path,
         limits: DecodeLimits,
         adapter: AdapterId,
         budget: GpuFrameBudget,
     ) -> Result<Self, DecodeError> {
-        Self::open_d3d11_with_interrupt(path, limits, adapter, budget, || false)
+        Self::open_native_with_interrupt(path, limits, adapter, budget, || false)
     }
     /// Hardware open with the same cancellation/demux boundary as software decode.
-    pub fn open_d3d11_with_interrupt(
+    pub fn open_native_with_interrupt(
         path: &Path,
         limits: DecodeLimits,
         adapter: AdapterId,
@@ -259,6 +260,9 @@ impl Decoder {
     ) -> Result<Self, DecodeError> {
         Self::open_configured(path, limits, interrupt, move |input, index| {
             let stream = input.stream(index).ok_or(ffmpeg::Error::StreamNotFound)?;
+            if stream.parameters().id() == ffmpeg::codec::Id::HAP {
+                return Ok(DecoderKind::Hap);
+            }
             HardwareDevice::new(adapter, stream.parameters().id(), budget).map(DecoderKind::D3d11)
         })
     }

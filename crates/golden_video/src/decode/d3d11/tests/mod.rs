@@ -55,11 +55,11 @@ fn unsupported_codec_and_absent_adapter_never_silently_select_software() {
         high: i32::MAX,
     };
     assert!(matches!(
-        Decoder::open_d3d11(&fixture("prores.mov"), limits(), absent, GpuFrameBudget::new(0)),
+        Decoder::open_native(&fixture("prores.mov"), limits(), absent, GpuFrameBudget::new(0)),
         Err(DecodeError::UnsupportedHardware)
     ));
     assert!(matches!(
-        Decoder::open_d3d11(&fixture("h264.mp4"), limits(), absent, GpuFrameBudget::new(0)),
+        Decoder::open_native(&fixture("h264.mp4"), limits(), absent, GpuFrameBudget::new(0)),
         Err(DecodeError::Hardware(_))
     ));
     let mut software = Decoder::open(&fixture("prores.mov"), limits()).unwrap();
@@ -110,7 +110,7 @@ fn hardware_frames_preserve_adapter_timestamps_seek_and_pool_leases_on_both_gpus
     ] {
         for adapter in &adapters {
             eprintln!("hardware decode GPU: {}, file: {name}", adapter.description);
-            let mut decoder = Decoder::open_d3d11(
+            let mut decoder = Decoder::open_native(
                 &fixture(name),
                 limits(),
                 adapter.id,

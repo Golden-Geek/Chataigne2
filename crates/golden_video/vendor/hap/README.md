@@ -25,6 +25,8 @@ ABI. Runtime uses reference decode with synchronous bounded chunk work on the ow
 worker. The installed command-line encoder is not needed to build or play these fixtures.
 
 The supported boundary is HAP BC1 RGB, HAP Alpha BC3 RGBA and HAP Q scaled-YCoCg BC3.
-GPU sampling/conversion and app binding are subsequent M10/2 work. Unsupported texture variants
-reject explicitly; they cannot enter the software RGBA converter as a performance fallback.
+Golden's native publisher now uploads/samples these blocks on the selected GPU and applies
+YCoCg conversion through its shared completion/retirement path. App File binding uses that same
+clock-fenced loop. Complete M10/2 app/concurrency/interoperability acceptance remains required.
+Unsupported texture variants reject explicitly; there is no software RGBA performance fallback.
 Final bundled notices/source distribution and sustained qualification remain M10/4 requirements.

@@ -127,6 +127,18 @@ float decode_bt709(float value) {
 
 // Interpretation zero preserves Spout's studio-range BT.709 default, because its native
 // metadata contains no colorimetry/range. File conversion passes explicit supported flags.
+// HAP reference YCoCg conversion uses a128/255 chroma offset and encoded scale in B.
+// BC texture storage is padded; SV_Position addresses only the visible RGBA target extent.
+float4 ps_hap(Vertex input) : SV_Target {
+    float4 value = source_image.Load(int3(int2(input.position.xy), 0));
+    if (video_format == 0) return float4(value.rgb, 1.0);
+    if (video_format == 1) return value;
+    float scale = value.b * (255.0 / 8.0) + 1.0;
+    float2 chroma = (value.rg - (128.0 / 255.0)) / scale;
+    return float4(saturate(float3(value.a + chroma.x - chroma.y,
+        value.a + chroma.y, value.a - chroma.x - chroma.y)), 1.0);
+}
+
 float4 ps_video(Vertex input) : SV_Target {
     uint2 pixel = uint2(input.position.xy);
     bool paired = video_format >= 107;

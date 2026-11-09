@@ -49,7 +49,7 @@ impl HapFrame {
     pub fn blocks(&self) -> &[u8] {
         &self.blocks
     }
-    pub(super) fn decode(packet: &[u8], extent: Extent2D) -> Result<Self, DecodeError> {
+    pub(crate) fn decode(packet: &[u8], extent: Extent2D) -> Result<Self, DecodeError> {
         let length = c_ulong::try_from(packet.len()).map_err(|_| DecodeError::LimitExceeded)?;
         let mut count = 0;
         let mut format = 0;

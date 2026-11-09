@@ -74,6 +74,7 @@ fn compile_native_shaders() {
         ("OVERLAY_PIXEL", s!("ps_overlay"), s!("ps_5_0"), "ps_overlay.dxbc"),
         ("IMPORT_PIXEL", s!("ps_import"), s!("ps_5_0"), "ps_import.dxbc"),
         ("VIDEO_PIXEL", s!("ps_video"), s!("ps_5_0"), "ps_video.dxbc"),
+        ("HAP_PIXEL", s!("ps_hap"), s!("ps_5_0"), "ps_hap.dxbc"),
         (
             "IMPORT_UINT_PIXEL",
             s!("ps_import_uint"),
@@ -87,6 +88,9 @@ fn compile_native_shaders() {
             "ps_import_sint.dxbc",
         ),
     ] {
+        if name == "HAP_PIXEL" && std::env::var_os("CARGO_FEATURE_FFMPEG").is_none() {
+            continue;
+        }
         let mut code = None;
         let mut diagnostics = None;
         // SAFETY: immutable UTF-8 HLSL, exact retained length, fixed entry/profile and no

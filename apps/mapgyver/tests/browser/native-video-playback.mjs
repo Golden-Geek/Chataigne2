@@ -126,6 +126,19 @@ function windows() {
 	);
 }
 function expectedLinear(index, profile = 'gray') {
+	if (profile.startsWith('hap')) {
+		const alpha = profile === 'hap-alpha' ? index / 5 : 1;
+		let rgb;
+		if (profile === 'hap-q') {
+			const y = (32 + index * 24) / 255;
+			rgb = [y + 2 / 255, y + 2 / 255, y - 6 / 255];
+		} else {
+			const r = 4 + index * 3,
+				g = 8 + index * 6;
+			rgb = [((r << 3) | (r >> 2)) / 255, ((g << 2) | (g >> 4)) / 255, ((r << 3) | (r >> 2)) / 255];
+		}
+		return rgb.map((v) => alpha * (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+	}
 	// Independent generator YUV/matrix/transfer/straight-alpha oracle, over black.
 	const y = (16 + index * 24) / 219;
 	const cb = profile === 'gray' ? 0 : -32 / 224;
@@ -213,7 +226,10 @@ try {
 		['prores.mov', 25],
 		['h264-color.mp4', 24, 'color'],
 		['hevc-main10.mp4', 30000 / 1001, 'color'],
-		['prores-alpha.mov', 25, 'alpha']
+		['prores-alpha.mov', 25, 'alpha'],
+		['hap.mov', 24, 'hap'],
+		['hap-alpha.mov', 25, 'hap-alpha'],
+		['hap-q.mov', 30000 / 1001, 'hap-q']
 	]) {
 		const checkPixels = (phase, index) => pixels(phase, index, profile);
 		const label = `Video integration ${name}`;
@@ -479,7 +495,7 @@ try {
 		backendEvents: playbackLog.split(/\r?\n/).filter((line) => line.includes('[mapgyver-video]')),
 		normalShutdown: false,
 		scope:
-			'Seven SDR common-codec profiles, chromatic 8/10-bit and ProRes4444 alpha, exact controls, independent Composition copy and shared Matrix/Reference routing with project reload. Backend events distinguish hardware from software fallback. Not sustained performance, arbitrary HDR/profile support or combined device recovery'
+			'Ten common/HAP profiles, chromatic 8/10-bit, ProRes4444/HAP alpha and YCoCg, exact controls, independent Composition copy and shared Matrix/Reference routing with project reload. Backend events distinguish hardware/BC upload from software fallback. Not sustained performance, HAP shared/high-resolution concurrency or combined device recovery'
 	};
 } catch (error) {
 	await writeFile(

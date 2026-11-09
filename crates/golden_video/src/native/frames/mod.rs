@@ -11,6 +11,8 @@ use std::sync::{
 mod reader;
 pub(super) use reader::{Imports, ReadLease};
 #[cfg(feature = "ffmpeg")]
+mod hap;
+#[cfg(feature = "ffmpeg")]
 mod producer;
 #[cfg(feature = "ffmpeg")]
 pub use producer::{GpuFrameError, GpuFramePublisher};
