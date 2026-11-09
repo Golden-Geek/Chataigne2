@@ -217,6 +217,10 @@ export const COMMAND_PARAMETER_FIELDS = {
   "VideoPlay": [
     "media"
   ],
+  "VideoPlayAtLoad": [
+    "media",
+    "video_play_at_load"
+  ],
   "VideoSeek": [
     "media",
     "video_position_ms"

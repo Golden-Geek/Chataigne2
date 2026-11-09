@@ -59,7 +59,7 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
             match kind {
                 MediaKind::SharedTexture => 5,
                 MediaKind::Picture => 4,
-                MediaKind::Video => 10,
+                MediaKind::Video => 13,
                 MediaKind::Matrix => 4,
                 _ => 3,
             }
@@ -597,7 +597,7 @@ fn malformed_parameter_records_are_rejected_before_a_project_can_run() {
     let owner = resolution_engine.node_id_by_uuid(video.media.0).unwrap();
     let fields = parameters(&resolution_engine, owner);
     for (name, value) in [
-        ("video_mode", serde_json::json!("Unknown")),
+        ("video_play_at_load", serde_json::json!("Unknown")),
         ("video_speed", serde_json::json!(17.0)),
         ("video_position_ms", serde_json::json!(-1.0)),
     ] {

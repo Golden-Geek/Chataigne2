@@ -14,7 +14,7 @@ use golden_video::Extent2D;
 #[children(folder(parameters, label = "Parameters") {
     target: NodeReference = NodeReference::empty() (
         label = "Media", reference_target_kind = ReferenceTargetKind::AnyNode,
-        reference_allowed_node_types = vec!["mapgyver.media.v9".into(), "mapgyver.media.reference.v4".into()]
+        reference_allowed_node_types = vec!["mapgyver.media.v10".into(), "mapgyver.media.reference.v4".into()]
     );
     channel: NodeReference = NodeReference::empty() (
         label = "Channel", description = "Empty follows the first available output; an explicit missing identity never reroutes.",

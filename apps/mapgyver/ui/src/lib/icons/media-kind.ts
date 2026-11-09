@@ -7,7 +7,7 @@ export function mediaIconKind(
 	read: (id: number) => UiNodeDto | null | undefined
 ): MediaKind | null {
 	if (node.node_type === 'mapgyver.media.reference.v4') return 'Reference';
-	if (node.node_type !== 'mapgyver.media.v9') return null;
+	if (node.node_type !== 'mapgyver.media.v10') return null;
 	const parameters = node.children.find((id) => read(id)?.decl_id === 'parameters');
 	if (parameters === undefined) return null;
 	const folder = read(parameters);

@@ -104,13 +104,59 @@ try {
 	await edit({ kind: 'ConfigureVideoFile', reference: longer, file: '' });
 	await wait(lengthValue, (value) => value === 250, 'cleared longest Inspector Length');
 	await edit({ kind: 'Video', media: reference.media, edit: { kind: 'Loop', looping: true } });
-	await parameter('Playback').locator('select').selectOption('Playing');
+	await parameter('Play').getByRole('button', { name: 'Trigger', exact: true }).click();
 	await wait(() => playing.isChecked(), Boolean, 'live Playing');
-	await parameter('Playback').locator('select').selectOption('Paused');
+	await parameter('Pause').getByRole('button', { name: 'Trigger', exact: true }).click();
 	await wait(
 		() => playing.isChecked(),
 		(value) => !value,
 		'live Paused'
+	);
+	const loadPolicy = parameter('Play at Load').locator('input[type=checkbox]');
+	assert.equal(await loadPolicy.isChecked(), false);
+	await loadPolicy.check();
+	await wait(
+		async () =>
+			(await edit({ kind: 'InspectVideo', media: reference.media })).snapshot.settings.play_at_load,
+		Boolean,
+		'authored load policy'
+	);
+	assert.equal(
+		await playing.isChecked(),
+		false,
+		'changing ready media policy does not play immediately'
+	);
+	const project = path.join(native.directory, 'video-load-policy.mapgyver');
+	assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
+	assert.equal((await post('/api/ui/project-new', {})).ok, true);
+	await post('/api/ui/project-load', { path: project });
+	await wait(
+		async () => (await edit({ kind: 'InspectVideo', media: reference.media })).snapshot,
+		(value) => value.ready && value.playing && value.settings.play_at_load,
+		'load policy starts at file readiness'
+	);
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Medias(?::|$)/ })
+		.click();
+	await page
+		.getByRole('region', { name: 'Medias', exact: true })
+		.getByRole('button', { name: label, exact: true })
+		.click();
+	await wait(() => playing.isChecked(), Boolean, 'reloaded live Playing');
+	await parameter('Stop').getByRole('button', { name: 'Trigger', exact: true }).click();
+	await wait(
+		async () => (await edit({ kind: 'InspectVideo', media: reference.media })).snapshot,
+		(value) => value.settings.mode === 'Stopped' && value.position_ms === 0,
+		'UI Stop trigger'
+	);
+	await parameter('Play').getByRole('button', { name: 'Trigger', exact: true }).click();
+	await wait(() => playing.isChecked(), Boolean, 'repeat UI Play trigger');
+	await parameter('Pause').getByRole('button', { name: 'Trigger', exact: true }).click();
+	await wait(
+		() => playing.isChecked(),
+		(value) => !value,
+		'UI Pause after reload'
 	);
 	assert.deepEqual(pageErrors, []);
 	const source = (await edit({ kind: 'InspectVideoSource', reference })).status;
@@ -121,9 +167,15 @@ try {
 		length_ms: [250, longest, 250],
 		playing: [false, true, false],
 		read_only: { length: true, playing: true },
+		transport_triggers: ['Play', 'Pause', 'Stop', 'Play', 'Pause'],
+		play_at_load: {
+			default: false,
+			ready_change_does_not_play: true,
+			saved_reload_starts_at_ready: true
+		},
 		source,
 		scope:
-			'Generic Inspector live read-only Playing/Length, longest authored variant and clear, ordinary playback intents; no codec pixels, seek, recovery or full M10/5 acceptance',
+			'Generic Inspector status, transport triggers and authored Play at Load with project reload/metadata readiness; no codec pixels, seek, recovery or full M10/5 acceptance',
 		normalShutdown: false
 	};
 } catch (error) {

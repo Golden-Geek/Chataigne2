@@ -68,10 +68,15 @@ pub(crate) fn file(engine: &mut AppEngine, reference: ChannelReference, file: &s
 pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: VideoEdit) -> Result<MediaEditResult, String> {
     let node = owner(engine, media)?;
     let mut candidate = node.video_settings()?;
-    let repeated_seek = matches!(&edit, VideoEdit::Seek { position_ms } if *position_ms == candidate.position_ms);
+    let mut seek_target = match &edit {
+        VideoEdit::Seek { position_ms } => Some(*position_ms),
+        _ => None,
+    };
+    let mut repeated_seek = seek_target.is_some_and(|position| node.video_seek_matches(position));
     match &edit {
         VideoEdit::Seek { position_ms } => candidate.position_ms = *position_ms,
         VideoEdit::Speed { speed } => candidate.speed = *speed,
+        VideoEdit::PlayAtLoad { enabled } => candidate.play_at_load = *enabled,
         _ => {}
     }
     candidate.validate()?;
@@ -80,6 +85,8 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: VideoEdit) -> 
     if let VideoEdit::Step { channel, direction } = edit {
         let file = channel_file(engine, ChannelReference { media, channel })?;
         let position_ms = control.step_position(channel, &file, direction)?;
+        seek_target = Some(position_ms);
+        repeated_seek = node.video_seek_matches(position_ms);
         candidate.position_ms = position_ms;
         candidate.validate()?;
         values.extend(node.video_parameter_values(&VideoEdit::Seek { position_ms }));
@@ -93,11 +100,13 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: VideoEdit) -> 
     engine
         .settle_edit_notifications(16)
         .map_err(|error| error.to_string())?;
-    if matches!(edit, VideoEdit::Play) {
-        control.request_play()?;
-    }
     if repeated_seek {
-        control.configure(inspect(engine, media)?.settings, true)?;
+        let mut settings = inspect(engine, media)?.settings;
+        settings.position_ms = seek_target.unwrap();
+        if settings.mode == VideoPlaybackMode::Stopped {
+            settings.mode = VideoPlaybackMode::Paused;
+        }
+        control.configure(settings, true)?;
     }
     Ok(MediaEditResult::Video {
         snapshot: inspect(engine, media)?,

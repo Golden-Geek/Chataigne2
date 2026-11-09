@@ -13,7 +13,7 @@ export const isMediaTreeNode = (node: UiNodeDto | null): node is UiNodeDto =>
 	!!node &&
 	[
 		'mapgyver.media.reference.v4',
-		'mapgyver.media.v9',
+		'mapgyver.media.v10',
 		'mapgyver.media.folder',
 		ASSET_NODE_TYPE,
 		...structuralTypes
@@ -23,7 +23,7 @@ export const isMediaTreeNode = (node: UiNodeDto | null): node is UiNodeDto =>
 export const canRenderMediaTreeChildren = (node: UiNodeDto): boolean =>
 	[
 		'mapgyver.media.folder',
-		'mapgyver.media.v9',
+		'mapgyver.media.v10',
 		'mapgyver.media.channel.v2',
 		'mapgyver.media.reference.output',
 		...structuralTypes

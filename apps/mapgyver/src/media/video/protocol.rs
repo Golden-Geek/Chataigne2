@@ -8,31 +8,14 @@ pub enum VideoPlaybackMode {
     Paused,
     Stopped,
 }
-impl VideoPlaybackMode {
-    pub fn name(self) -> &'static str {
-        match self {
-            Self::Playing => "Playing",
-            Self::Paused => "Paused",
-            Self::Stopped => "Stopped",
-        }
-    }
-    pub fn parse(value: &str) -> Result<Self, String> {
-        match value {
-            "Playing" => Ok(Self::Playing),
-            "Paused" => Ok(Self::Paused),
-            "Stopped" => Ok(Self::Stopped),
-            _ => Err("unknown Video playback mode".into()),
-        }
-    }
-}
-
-/// Read projection of real Media Parameters; never an opaque persistence record.
+/// Authored transport options and current runtime intent; never an opaque persistence record.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct VideoTransportSettings {
     pub mode: VideoPlaybackMode,
     pub position_ms: f64,
     pub speed: f64,
     pub looping: bool,
+    pub play_at_load: bool,
 }
 impl Default for VideoTransportSettings {
     fn default() -> Self {
@@ -41,6 +24,7 @@ impl Default for VideoTransportSettings {
             position_ms: 0.0,
             speed: 1.0,
             looping: false,
+            play_at_load: false,
         }
     }
 }
@@ -76,6 +60,9 @@ pub enum VideoEdit {
     },
     Loop {
         looping: bool,
+    },
+    PlayAtLoad {
+        enabled: bool,
     },
     Step {
         channel: super::super::protocol::ChannelId,

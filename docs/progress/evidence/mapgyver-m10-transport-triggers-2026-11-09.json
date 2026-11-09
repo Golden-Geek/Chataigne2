@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-09",
+  "gate": "M10/5",
+  "gate_state": "Active",
+  "scope": "Typed runtime transport triggers and authored Play at Load; Current Position and full gate acceptance remain open",
+  "product": {
+    "triggers": ["Play", "Pause", "Stop"],
+    "runtime_mode": "VideoControl owns accepted mode; no authored Playback Parameter, trigger history or load replay",
+    "play_at_load": { "default": false, "parameter": "video_play_at_load", "edit": "PlayAtLoad", "command": "VideoPlayAtLoad", "script": "setVideoPlayAtLoad" },
+    "load_policy": "On project/media lifecycle load, start when duration is ready. Before first readiness, policy changes can arm/cancel pending load unless an explicit mode command intervened. Pause/Stop cancel pending start; explicit Play wins policy cancellation. After readiness a policy change affects the next lifecycle load.",
+    "schemas": { "media": "mapgyver.media.v10", "command": "mapgyver.media.command.v8" },
+    "core_boundary_fix": "Project values/defaults normalize against their declared Parameter kind; incompatible Boolean data cannot retag it as a String. Compatible ordinary-write conversions remain supported.",
+    "candidate_validation": "Checks authored seek independently of runtime position; detached engines activate through the supported runtime preparation API"
+  },
+  "verification": {
+    "engine_tests": { "passed": 681, "failed": 0, "ignored": 3, "profile": "dev", "seconds": 0.67, "log": "target/m10-triggers-engine-tests.log" },
+    "app_tests": { "passed": 634, "failed": 0, "ignored": 7, "profile": "dev", "seconds": 58.68, "log": "target/m10-triggers-final-app-tests.log" },
+    "behavior": ["Generic Inspector triggers and repeated Play share runtime control without authored history", "EOF repeat Play and retired-command rejection", "False/true load defaults, readiness waiting, pending Pause/Stop and policy cancellation", "Explicit Play precedence and policy changes after readiness", "Saved policy and new-lifetime activation", "Commands, QuickJS callbacks/snippet, atomic invalid writes and complete app regressions"],
+    "generated_contracts": { "result": "pass", "files": 155, "method": "Byte comparison with a fresh Rust export" },
+    "ui": { "svelte_errors": 0, "svelte_warnings": 0, "focused_tests_passed": 24, "prettier": "pass" },
+    "strict_lint": { "result": "pass", "scope": "golden_engine and MapGyver all targets, native-qualification", "seconds": 39.21, "log": "target/m10-triggers-clippy.log" },
+    "native": {
+      "result": "pass for Inspector/transport/load scope",
+      "binary": "target/m10-triggers-app/MapGyver.exe",
+      "sha256": "56d82fb4c974b4bb66c1a4db2defeb31edb2b77a9c36c1f91845c3cd3e6175ad",
+      "build_seconds": 81,
+      "pid": 9084,
+      "artifact": "target/m10-triggers-native-retry/video-status.json",
+      "triggers": ["Play", "Pause", "Stop", "Play", "Pause"],
+      "play_at_load": { "default": false, "ready_change_does_not_play": true, "saved_reload_starts_at_ready": true },
+      "length_ms": [250, 500, 250],
+      "page_errors": 0,
+      "normal_shutdown": true,
+      "initial_controller_failure": "target/m10-triggers-native/failure.json: fixture incorrectly required project-load response.ok; endpoint returns a different successful payload. Corrected fixture retains HTTP success plus actual loaded-state/Inspector assertions; same binary passes.",
+      "limits": "Source was Loading at final inspection, no decoded-pixel assertion. Retained earlier H.264 invalid-data failures are not resolved or waived by this check."
+    },
+    "initial_failures": "Preserved test logs identify malformed Boolean retagging, hidden authored negative seek and test activation errors. These were corrected without changing requirements or performance budgets."
+  },
+  "remaining": ["Remove Seek To and implement bounded writable Current Position with authoritative feedback", "Suspend/resume feedback around latest seek without stale jumps and handle unknown duration", "Complete all-caller/copy/history/native M10/5 acceptance", "Retained native H.264 invalid-data failure before full current playback acceptance", "M10/6-7 and retained M10/4 qualification before M14"],
+  "progress": { "accepted": 85, "total": 106, "overall_percent": 80, "M10_accepted": 2, "M10_total": 8, "gate_changes": "None" }
+}

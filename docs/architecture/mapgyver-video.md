@@ -14,8 +14,27 @@ Speed is a real typed `video_speed` Parameter, bounded to finite values in -16..
 generic Inspector, `VideoEdit::Speed`, Set Video Speed command and `setVideoSpeed` script
 method share that backend value. Rust generates the transport DTOs and command catalog for
 TypeScript. Golden Time's internal `PlaybackRate` remains the rational clock mapping.
-The changed authored keys use Media schema v9 and Media Command schema v7; previous schemas
+The changed authored keys use Media schema v10 and Media Command schema v8; previous schemas
 are rejected rather than silently dropping their old Speed setting.
+
+Play, Pause and Stop are trigger Parameters consumed by `VideoControl`, not an authored
+Playback enum. Runtime mode is shared by all consumers and exposed by the transport snapshot;
+trigger actions add no undo entry and are not replayed when a document loads. Repeating Play
+restarts a completed non-looping timeline. Stop resets runtime position without writing a
+second authored transport setting.
+
+Play at Load is an authored boolean, default false, also available through
+`VideoEdit::PlayAtLoad`, Set Play at Load and `setVideoPlayAtLoad`. On a project/media lifecycle
+load, the policy waits for duration readiness. Pause or Stop cancels that pending start;
+an explicit Play remains authoritative even if the policy is disabled while waiting. Before
+first readiness, changing the policy can arm/cancel the initial load if no explicit mode
+command has intervened. After readiness it applies to the next lifecycle load. Source decode
+availability remains separate from metadata/clock readiness; unavailable pixels never count
+as native playback qualification.
+Golden's project decoder preserves the declared Parameter kind for values and defaults,
+using the same compatible conversions as ordinary writes. Incompatible saved Boolean data
+cannot retag Play at Load as a String. App candidate validation checks the authored seek
+independently of runtime position before activation.
 
 Playing and Length are read-only typed Parameters. The existing background metadata owner
 samples changed status at its coarse checkpoint; transport edits also publish immediately.

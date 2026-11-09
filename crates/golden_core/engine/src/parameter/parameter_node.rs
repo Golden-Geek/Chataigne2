@@ -313,11 +313,15 @@ fn decode_parameter_project_data_with_baseline(
 
     let value_followed_default = parsed.value == parsed.default_value;
     if let Some(value) = object.get("value") {
-        parsed.value = decode_project_param_value(value).map_err(|err| format!("invalid parameter payload: {err}"))?;
+        let value = decode_project_param_value(value).map_err(|err| format!("invalid parameter payload: {err}"))?;
+        parsed.value = coerce_param_value_for_target_owned(value, &parsed.value, None)
+            .ok_or("invalid parameter payload: value does not match the declared kind")?;
     }
     if let Some(default_value) = object.get("default_value") {
-        parsed.default_value =
+        let default_value =
             decode_project_param_value(default_value).map_err(|err| format!("invalid parameter payload: {err}"))?;
+        parsed.default_value = coerce_param_value_for_target_owned(default_value, &parsed.default_value, None)
+            .ok_or("invalid parameter payload: default does not match the declared kind")?;
         if object.get("value").is_none() && value_followed_default {
             // Older sparse records for read-only, dynamically constructed
             // parameters persisted only their changed default. Such parameters

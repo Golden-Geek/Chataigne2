@@ -177,6 +177,72 @@ fn restored_project_does_not_inherit_old_runtime_feedback() {
 }
 
 #[test]
+fn inspector_transport_triggers_do_not_author_or_replay_playback_mode() {
+    let mut engine = fixture();
+    let reference = create(&mut engine, MediaKind::Video);
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    for (name, expected) in [
+        ("video_play", VideoPlaybackMode::Playing),
+        ("video_pause", VideoPlaybackMode::Paused),
+        ("video_stop", VideoPlaybackMode::Stopped),
+        ("video_play", VideoPlaybackMode::Playing),
+        ("video_play", VideoPlaybackMode::Playing),
+    ] {
+        let target = parameter(&engine, reference.media.0, name);
+        let ack = apply_project_intent(
+            &mut engine,
+            UiEditIntent::SetParam {
+                node: target,
+                value: ParamValue::Trigger(),
+                behaviour: ParameterEventBehaviour::Append,
+            },
+        );
+        assert!(ack.success, "{ack:?}");
+        assert_eq!(state(&mut engine, reference.media).settings.mode, expected);
+        assert_eq!(engine.undo_len(), history);
+        assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+    }
+    assert!(!before.contains("video_mode"));
+    let mut loaded = from_sparse_project_json::<AppNode>(&before).unwrap();
+    loaded.apply_edits().unwrap();
+    assert_eq!(
+        state(&mut loaded, reference.media).settings.mode,
+        VideoPlaybackMode::Paused
+    );
+}
+
+#[test]
+fn load_policy_roundtrips_but_old_pause_does_not_override_a_new_media_lifetime() {
+    for enabled in [false, true] {
+        let mut engine = fixture();
+        let reference = create(&mut engine, MediaKind::Video);
+        assert!(!state(&mut engine, reference.media).settings.play_at_load);
+        edit(&mut engine, reference.media, VideoEdit::PlayAtLoad { enabled });
+        edit(&mut engine, reference.media, VideoEdit::Pause);
+        assert_eq!(
+            state(&mut engine, reference.media).settings.mode,
+            VideoPlaybackMode::Paused
+        );
+        let saved = to_sparse_project_json_pretty(&engine).unwrap();
+        let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+        loaded.apply_edits().unwrap();
+        assert_eq!(state(&mut loaded, reference.media).settings.play_at_load, enabled);
+        golden_core::app::prepare_engine_for_runtime(&mut loaded).unwrap();
+        let owner = loaded.node_id_by_uuid(reference.media.0).unwrap();
+        let AppNode::Media(node) = loaded.nodes.get(owner).unwrap() else {
+            panic!()
+        };
+        let control = node.video_control().unwrap();
+        assert!(!control.sample().unwrap().playing);
+        control.prepare(Duration::from_secs(60)).unwrap();
+        assert_eq!(control.sample().unwrap().playing, enabled);
+        edit(&mut loaded, reference.media, VideoEdit::Pause);
+        assert!(!control.sample().unwrap().playing);
+    }
+}
+
+#[test]
 fn inspector_speed_uses_the_same_transport_and_rejects_invalid_values_atomically() {
     let mut engine = fixture();
     let reference = create(&mut engine, MediaKind::Video);
@@ -237,13 +303,17 @@ fn typed_transport_intents_share_parameters_history_and_truthful_runtime_readine
     assert!(ready.ready && ready.playing);
     assert!(ready.position_ms >= 1250.25);
     let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
     let stopped = edit(&mut engine, reference.media, VideoEdit::Stop);
     assert_eq!(stopped.settings.position_ms, 0.0);
     assert_eq!(stopped.position_ms, 0.0);
     assert!(!stopped.playing);
-    assert!(engine.undo().unwrap());
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
-    assert!(engine.redo().unwrap());
+    assert_eq!(
+        engine.undo_len(),
+        history,
+        "Stop is a runtime trigger, not an authored edit"
+    );
     assert_eq!(
         state(&mut engine, reference.media).settings.mode,
         VideoPlaybackMode::Stopped
@@ -254,16 +324,16 @@ fn typed_transport_intents_share_parameters_history_and_truthful_runtime_readine
 }
 
 #[test]
-fn generic_parameter_edits_enforce_stop_companions_and_invalid_writes_are_atomic() {
+fn generic_stop_trigger_and_invalid_writes_use_the_same_backend() {
     let mut engine = fixture();
     let reference = create(&mut engine, MediaKind::Video);
     edit(&mut engine, reference.media, VideoEdit::Seek { position_ms: 5000.0 });
-    let mode = parameter(&engine, reference.media.0, "video_mode");
+    let stop = parameter(&engine, reference.media.0, "video_stop");
     let ack = apply_project_intent(
         &mut engine,
         UiEditIntent::SetParam {
-            node: mode,
-            value: ParamValue::Enum("Stopped".into()),
+            node: stop,
+            value: ParamValue::Trigger(),
             behaviour: ParameterEventBehaviour::Append,
         },
     );

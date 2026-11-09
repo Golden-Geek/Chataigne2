@@ -250,6 +250,9 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
                 )
                 .unwrap();
         }
+        if *kind == MediaCommandKind::VideoPlayAtLoad {
+            set(&mut engine, command, "video_play_at_load", ParamValue::Bool(true));
+        }
         let before = to_sparse_project_json_pretty(&engine).unwrap();
         let history = engine.undo_len();
         let ack = invoke(&mut engine, MediaEdit::ExecuteCommand { command });

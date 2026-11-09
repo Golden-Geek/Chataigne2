@@ -6,6 +6,32 @@ mod bytes;
 mod coercion;
 
 #[test]
+fn project_overlays_preserve_declared_value_kinds_and_reject_incompatible_data() {
+    let mut boolean = Parameter::new("Load", ParamValue::Bool(false), ParameterChangeCheck::ValueChange);
+    assert!(
+        boolean
+            .project_decode_data(&serde_json::json!({ "value": "Unknown" }))
+            .is_err()
+    );
+    assert_eq!(boolean.value, ParamValue::Bool(false));
+    boolean
+        .project_decode_data(&serde_json::json!({ "value": "true" }))
+        .unwrap();
+    assert_eq!(boolean.value, ParamValue::Bool(true));
+    assert_eq!(boolean.get_type(), "bool");
+    let mut number = Parameter::new("Speed", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange);
+    number.project_decode_data(&serde_json::json!({ "value": 1 })).unwrap();
+    assert_eq!(number.value, ParamValue::Float(1.0));
+    assert!(
+        number
+            .project_decode_data(&serde_json::json!({ "default_value": "Unknown" }))
+            .is_err()
+    );
+    assert_eq!(number.default_value, ParamValue::Float(0.0));
+    assert_eq!(number.value, ParamValue::Float(1.0));
+}
+
+#[test]
 fn parameter_nodes_are_not_disableable_by_default() {
     let parameter = Parameter::new("Amount", ParamValue::Float(0.5), ParameterChangeCheck::ValueChange);
 

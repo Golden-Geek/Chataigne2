@@ -3,6 +3,8 @@ use golden_time::{PlaybackRate, SystemClock};
 use std::{sync::Mutex, time::Duration};
 #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
 pub(super) mod scheduling;
+#[cfg(test)]
+mod tests;
 
 struct State {
     transport: MediaTransport<SystemClock>,
@@ -16,6 +18,9 @@ struct State {
     durations: std::collections::BTreeMap<Duration, usize>,
     frames: super::frames::Frames,
     feedback: Option<super::feedback::Publisher>,
+    load_pending: bool,
+    ready_once: bool,
+    explicit_mode: bool,
 }
 
 /// Shared per-media runtime control, retained by demanded sources rather than per Reference.
@@ -36,12 +41,53 @@ impl Default for VideoControl {
                 durations: Default::default(),
                 frames: Default::default(),
                 feedback: None,
+                load_pending: false,
+                ready_once: false,
+                explicit_mode: false,
             }),
             Default::default(),
         )
     }
 }
 impl VideoControl {
+    pub(crate) fn settings(&self) -> Result<VideoTransportSettings, String> {
+        Ok(self.0.lock().map_err(|_| "Video control poisoned")?.settings.clone())
+    }
+    pub(crate) fn initialize(&self, mut settings: VideoTransportSettings) -> Result<(), String> {
+        settings.validate()?;
+        let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
+        settings.mode = if settings.play_at_load {
+            VideoPlaybackMode::Playing
+        } else {
+            VideoPlaybackMode::Paused
+        };
+        state.ready_once = !state.transport.duration().is_zero();
+        state.load_pending = settings.play_at_load && !state.ready_once;
+        state.explicit_mode = false;
+        state.seek_pending = true;
+        state.seek_waiting_for_duration = false;
+        state.settings = settings;
+        state.apply(true)?;
+        drop(state);
+        self.1.advance();
+        self.publish_feedback()
+    }
+    pub(crate) fn command(&self, mode: VideoPlaybackMode) -> Result<(), String> {
+        let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
+        if state.retired {
+            return Err("Video media is retired".into());
+        }
+        state.explicit_mode = true;
+        state.load_pending = false;
+        state.settings.mode = mode;
+        if mode == VideoPlaybackMode::Stopped {
+            state.settings.position_ms = 0.0;
+        }
+        state.apply(mode == VideoPlaybackMode::Playing)?;
+        drop(state);
+        self.1.advance();
+        self.publish_feedback()
+    }
     pub(crate) fn set_feedback(&self, publisher: super::feedback::Publisher) -> Result<(), String> {
         self.0.lock().map_err(|_| "Video control poisoned")?.feedback = Some(publisher);
         self.publish_feedback()
@@ -365,11 +411,24 @@ impl VideoControl {
         drop(retired);
         Ok(true)
     }
-    pub fn configure(&self, settings: VideoTransportSettings, seek: bool) -> Result<(), String> {
+    pub fn configure(&self, mut settings: VideoTransportSettings, seek: bool) -> Result<(), String> {
         settings.validate()?;
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
         if state.settings == settings && !seek {
             return Ok(());
+        }
+        let explicit = state.settings.mode != settings.mode;
+        if explicit {
+            state.explicit_mode = true;
+            state.load_pending = false;
+        } else if settings.play_at_load != state.settings.play_at_load {
+            if !settings.play_at_load && state.load_pending {
+                state.load_pending = false;
+                settings.mode = VideoPlaybackMode::Paused;
+            } else if settings.play_at_load && !state.ready_once && !state.explicit_mode {
+                state.load_pending = true;
+                settings.mode = VideoPlaybackMode::Playing;
+            }
         }
         let play = settings.mode == VideoPlaybackMode::Playing && (state.settings.mode != settings.mode || seek);
         state.seek_pending |= seek || state.settings.position_ms != settings.position_ms;
@@ -385,12 +444,9 @@ impl VideoControl {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
         let first = state.transport.duration().is_zero();
         state.transport.set_duration(duration).map_err(|e| e.to_string())?;
+        state.ready_once |= !duration.is_zero();
+        state.load_pending = false;
         state.apply(first)
-    }
-    pub fn request_play(&self) -> Result<(), String> {
-        self.0.lock().map_err(|_| "Video control poisoned")?.apply(true)?;
-        self.1.advance();
-        Ok(())
     }
     pub fn snapshot(&self, media: super::super::protocol::MediaId) -> Result<VideoTransportSnapshot, String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
@@ -468,6 +524,10 @@ impl State {
         self.seek_pending |= duration.is_zero();
         self.seek_pending |= extended && self.seek_waiting_for_duration;
         self.transport.set_duration(duration).map_err(|e| e.to_string())?;
+        if !duration.is_zero() {
+            self.ready_once = true;
+            self.load_pending = false;
+        }
         self.apply(first || extended)
     }
     fn apply(&mut self, play_requested: bool) -> Result<(), String> {

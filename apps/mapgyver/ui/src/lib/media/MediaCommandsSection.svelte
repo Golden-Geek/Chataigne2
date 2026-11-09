@@ -31,7 +31,7 @@
 		request = 0;
 	const commands = $derived(
 		node.children.filter(
-			(id) => session?.getNodeData(id)?.node_type === 'mapgyver.media.command.v7'
+			(id) => session?.getNodeData(id)?.node_type === 'mapgyver.media.command.v8'
 		)
 	);
 	const pages = $derived(Math.max(1, Math.ceil(commands.length / 32)));
@@ -40,7 +40,7 @@
 	const items = $derived<UiCreatableUserItem[]>(
 		catalog.map((item) => ({
 			node_type: item.kind,
-			item_kind: 'mapgyver.media.command.v7',
+			item_kind: 'mapgyver.media.command.v8',
 			label: item.label,
 			menu_path: [item.group],
 			initial_params: [],

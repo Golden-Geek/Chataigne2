@@ -44,7 +44,7 @@
 	onMount(() => preview.mount());
 	for (const type of [
 		'mapgyver.media.manager',
-		'mapgyver.media.v9',
+		'mapgyver.media.v10',
 		'mapgyver.media.reference.v4',
 		'mapgyver.media.channel.v2',
 		ASSET_NODE_TYPE,

@@ -17,6 +17,7 @@ fn hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection() 
                 local.seekVideo('seek', media, 1250.5);
                 local.setVideoSpeed('speed', media, -0.5);
                 local.setVideoLoop('loop', media, true);
+                local.setVideoPlayAtLoad('load', media, true);
                 local.playVideo('play', media);
                 local.pauseVideo('pause', media);
                 local.stepVideo('step', media, channel, 'Next');
@@ -34,9 +35,9 @@ fn hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection() 
     service_script_app_operations(&mut engine).unwrap();
     service_script_app_operations(&mut engine).unwrap();
     let results = replies(&engine);
-    assert_eq!(results.len(), 12, "each actual QuickJS call has one callback");
+    assert_eq!(results.len(), 13, "each actual QuickJS call has one callback");
     for request in [
-        "file", "seek", "speed", "loop", "play", "pause", "stop", "inspect", "frame", "source",
+        "file", "seek", "speed", "loop", "load", "play", "pause", "stop", "inspect", "frame", "source",
     ] {
         let reply = results.iter().find(|reply| reply["request_id"] == request).unwrap();
         assert_eq!(reply["status"], "applied", "{reply}");
@@ -53,6 +54,7 @@ fn hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection() 
     assert_eq!(result("stop")["position_ms"], 0.0);
     assert_eq!(result("inspect")["settings"]["speed"], -0.5);
     assert_eq!(result("inspect")["settings"]["looping"], true);
+    assert_eq!(result("inspect")["settings"]["play_at_load"], true);
     assert!(results.iter().find(|reply| reply["request_id"] == "frame").unwrap()["value"]["frame"].is_null());
     let source = &results.iter().find(|reply| reply["request_id"] == "source").unwrap()["value"]["status"];
     assert_eq!(
@@ -70,7 +72,7 @@ fn hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection() 
     let after = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     service_script_app_operations(&mut engine).unwrap();
-    assert_eq!(replies(&engine).len(), 12);
+    assert_eq!(replies(&engine).len(), 13);
     assert_eq!(
         engine.undo_len(),
         history,
@@ -80,5 +82,5 @@ fn hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection() 
     assert!(engine.redo().unwrap());
     service_script_app_operations(&mut engine).unwrap();
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), after);
-    assert_eq!(replies(&engine).len(), 12, "history does not replay requests");
+    assert_eq!(replies(&engine).len(), 13, "history does not replay requests");
 }

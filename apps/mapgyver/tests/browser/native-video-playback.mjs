@@ -272,7 +272,8 @@ try {
 			mode: 'Paused',
 			position_ms: 0,
 			speed: 1,
-			looping: false
+			looping: false,
+			play_at_load: false
 		});
 		const speedInput = parameter('Speed').locator('input.number-field');
 		for (const speed of [0.5, 1]) {
@@ -291,7 +292,7 @@ try {
 			`${name} decoded`
 		);
 		await checkPixels(`${name} initial`, 0);
-		await parameter('Playback').locator('select').selectOption('Playing');
+		await parameter('Play').getByRole('button', { name: 'Trigger', exact: true }).click();
 		await wait(
 			() => state(reference.media),
 			(value) => value.settings.mode === 'Playing',
@@ -303,7 +304,7 @@ try {
 			`${name} EOF`
 		);
 		await checkPixels(`${name} EOF hold`, 5);
-		await parameter('Playback').locator('select').selectOption('Stopped');
+		await parameter('Stop').getByRole('button', { name: 'Trigger', exact: true }).click();
 		await wait(
 			() => state(reference.media),
 			(value) => value.settings.mode === 'Stopped' && value.position_ms === 0,
@@ -574,7 +575,8 @@ try {
 		mode: 'Paused',
 		position_ms: 125,
 		speed: 0.5,
-		looping: true
+		looping: true,
+		play_at_load: false
 	});
 	await pixels('Loaded HAP Reference output', 3, 'hap');
 	assert.equal((await state(copied.media)).settings.position_ms, 120);

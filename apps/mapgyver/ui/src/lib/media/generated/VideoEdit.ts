@@ -2,4 +2,4 @@
 import type { ChannelId } from "./ChannelId";
 import type { VideoStepDirection } from "./VideoStepDirection";
 
-export type VideoEdit = { "kind": "Play" } | { "kind": "Pause" } | { "kind": "Stop" } | { "kind": "Seek", position_ms: number, } | { "kind": "Speed", speed: number, } | { "kind": "Loop", looping: boolean, } | { "kind": "Step", channel: ChannelId, direction: VideoStepDirection, };
+export type VideoEdit = { "kind": "Play" } | { "kind": "Pause" } | { "kind": "Stop" } | { "kind": "Seek", position_ms: number, } | { "kind": "Speed", speed: number, } | { "kind": "Loop", looping: boolean, } | { "kind": "PlayAtLoad", enabled: boolean, } | { "kind": "Step", channel: ChannelId, direction: VideoStepDirection, };

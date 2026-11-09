@@ -12,6 +12,7 @@ pub(super) const METHODS: &[&str] = &[
     "seekVideo",
     "setVideoSpeed",
     "setVideoLoop",
+    "setVideoPlayAtLoad",
     "stepVideo",
     "configureVideoFile",
     "inspectVideo",
@@ -79,7 +80,8 @@ fn reference(args: &[ParamValue]) -> Result<ChannelReference, String> {
 pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<MediaEdit>, String> {
     let count = match method {
         "playVideo" | "pauseVideo" | "stopVideo" | "inspectVideo" => 1,
-        "seekVideo" | "setVideoSpeed" | "setVideoLoop" | "inspectVideoFrame" | "inspectVideoSource" => 2,
+        "seekVideo" | "setVideoSpeed" | "setVideoLoop" | "setVideoPlayAtLoad" | "inspectVideoFrame"
+        | "inspectVideoSource" => 2,
         "stepVideo" | "configureVideoFile" => 3,
         "createMedia"
         | "addChannel"
@@ -135,13 +137,17 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
                 speed: number(args, 1)?,
             },
         },
-        "setVideoLoop" => {
+        "setVideoLoop" | "setVideoPlayAtLoad" => {
             let Some(ParamValue::Bool(looping)) = args.get(1) else {
-                return Err("Video loop must be boolean".into());
+                return Err("Video option must be boolean".into());
             };
             MediaEdit::Video {
                 media: MediaId(uuid(args, 0)?),
-                edit: super::video::protocol::VideoEdit::Loop { looping: *looping },
+                edit: if method == "setVideoLoop" {
+                    super::video::protocol::VideoEdit::Loop { looping: *looping }
+                } else {
+                    super::video::protocol::VideoEdit::PlayAtLoad { enabled: *looping }
+                },
             }
         }
         "stepVideo" => MediaEdit::Video {
