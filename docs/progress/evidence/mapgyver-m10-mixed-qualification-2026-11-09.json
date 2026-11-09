@@ -1,0 +1,36 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4 alone Active; no acceptance credit",
+	"batch": "09:03 UTC start,09:48 UTC cutoff. One bounded acceptance batch after17c34a8d, two unchanged mixed-profile cohorts sequentially, no new optimization or third experiment. Previous turn delivered the HD pipeline. This batch checks its final HD-GPU/4K-direct combination and chooses the next product action from the measured failure.",
+	"inputs": {
+		"commit": "17c34a8d2100f1144dd373ba52f47d2e80c0a5aa",
+		"app": "target/q06-pipelined-promoted-app/MapGyver.exe",
+		"app_sha256": "1a6d5f450f83ac863649026c458dfdee0de3fb09d9905ce3d9401d31951e7d36",
+		"probe": "target/q06-prores-tools/native_qualification.exe",
+		"probe_sha256": "94601c11ebe4805f8b8fcff5a8be607ca78257d773a1f40e63c9ac605c41b15c",
+		"fixtures": "Same four-second frame-numbered ProRes HQ1920x1080@60 and3840x2160@30 manifest target/q06-prores-numbered-2026-11-09/fixtures.json SHA256dccf9ae52d1ce574497dfc8c1295752173695d944152c142266257954caa5d15. Same shared Reference, independent SDK receivers,60Hz outputs and retained default Screen/preview workload. No resolution/rate/AA/queue/memory-budget change.",
+		"prerequisites": "Reuse terminal617-test, strict, ordinary app build, exact both-GPU native preflight/relink/color/retirement and final cfg-only lint evidence from mapgyver-m10-pipelined-file-2026-11-09.json. Native body/configuration is unchanged. Verify staged hashes and no owned process before launch; no builds, GPU tests or concurrent cohorts during timed work. Golden279 software/six native preservation checks remain unchanged."
+	},
+	"nvidia": {
+		"pid": 43188,
+		"directory": "target/q06-prores-nvidia-mixed",
+		"report_sha256": "cb0bf29db5146fd11334191113d8bd7b60973be0dd6dbdd7b8ceda3e26540e33",
+		"audit_sha256": "765d3c1519fe79ab0a1890109a555c65b801783d3ddd4d3ec79d19fe5550ceab",
+		"sample": "Visible HD59.67038/4K28.18601 publication changes/s, preserving direct4K28.10831 and improving priorHD55.23387. CPU render wall upper bound p95=3.2238ms,p99=3.5762ms. One renderer GPU-context span p95=2.701088ms,p99=2.903072ms. Worst observed native output miss2/7203=0.0278%, but no full-path/age/three-run acceptance is inferred.",
+		"background": "Minimized HD59.73653/4K30.00146; disconnected59.76304/30.01470 changes/s. CPU wall upper bound p95=4.1452/4.2471ms exceeds the4ms comparison, so actual CPU work excluding waits remains inconclusive. Minimized4K output has5/3604 observed misses=0.1387%, above0.1%; definite-miss lower bound remains0, retaining ambiguity rather than claiming a passing observation.",
+		"age_memory": "4K source-age inward lower p95=30.7841ms, not a passing full-age proof. HD GPU publication age remains unknown. Sparse private peak745627648 bytes and known native texel peak317126408 bytes in the sample exclude unknown Video decoder/pool accounting and cannot establish complete peak compliance."
+	},
+	"intel": {
+		"pid": 33308,
+		"directory": "target/q06-prores-intel-mixed",
+		"report_sha256": "48d7e0573f853a571bbd5fa3545d6307890b31b27e07754e436900fc30cfd89c",
+		"audit_sha256": "3c7a7391cca6ff78ea2063112f402db6d554951b7c108db5ad51c17cc076cc67",
+		"sample": "Visible HD40.15266/4K25.61075 changes/s.1439/7204 native slots unsubmitted=19.9750% definite misses, versus0.1% allowed; the prior deadline failure remains reproduced. CPU render wall upper bound p95=4.5059ms,p99=5.1383ms does not prove passing CPU work excluding waits. Renderer-context GPU span p95=22.872292ms,p99=23.858281ms, above comparison budgets and not a full cross-context critical path.5764 GPU rows cover5765 selected CPU batches: one unmeasured batch remains explicit.",
+		"stage_scope": "Per-context stage spans: input p95=2.485208ms, render10.920260ms, outputs11.635938ms. These are separate marginal percentiles, not numbers to add or proof of active-shader-only time; spans can include feed/scheduling gaps. Render/output work dominates the retained context observations, so more decoder/CPU-upload tuning is not the selected next action.",
+		"background": "Minimized HD45.28568/4K28.82572, definite misses391/3605=10.8460%. Disconnected41.81783/27.48457, definite misses689/3604=19.1176%. The failure persists in all phases.",
+		"age_memory": "4K source-age inward lower p95=31.0793ms cannot prove passing full age. HD GPU publication age stays unknown. Sparse private peak634494976 bytes/known texels317126408 bytes in sample, excluding unknown decoder/pool costs."
+	},
+	"shared_result": "Both ordinary app runs finish30s warmup,120s sample,60s minimized,60s receiver-disconnected, full-size held bitcodes, normal shutdown and complete zero-loss diagnostic captures with zero recorded native allocations. Independent consumer GPU/SDK version lineage is retained; legacy CardStamp words are not Video PTS/pixel validation. Each adapter contributes one independent mixed-profile sample, not the required three. Observed uploads are deduplicated by producer identity; unsampled/PTS/final-counter coverage remains unknown. No whole gate closes.",
+	"next_product_deliverable": "Extend the existing fixed-function sRGB output mechanism to supported owned texture render-target views in Golden's native texture/RenderTarget boundary. Window outputs already provide an sRGB RTV with shader_encoding Linear; owned textures currently expose a raw RTV and shader encoding. Actual MapGyver output bindings are BGRA8 sRGB Straight/Opaque. Preserve raw encoded views for upload/import, alpha semantics, unsupported formats and shader fallback; encoded-premultiplied layouts must keep shader transfer because hardware cannot apply the required unpremultiply/encode/premultiply order. Validate exact color/alpha, scaling/crop, both GPUs, resource retirement and the unchanged workload. This is an evidence-driven product change to test, not a proved diagnosis or promised performance pass.",
+	"remaining": "M10/4 remains alone Active;85/102 gates (83%),M10 2/4 (50%),8/15 phases. Intel native cadence failure, NVIDIA background observations, all common/HAP cohorts, three independent series, complete source age/critical path, decoder/pool/plane/conversion/inflight accounting, continuous Video pixel/PTS lineage and elevated genuine reset remain required before M14. Stop unchanged repetitions against the reproduced failure."
+}
