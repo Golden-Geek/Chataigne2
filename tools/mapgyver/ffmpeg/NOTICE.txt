@@ -7,13 +7,18 @@ GNU Lesser General Public License, version 3 or later. See FFmpeg-LGPL-3.0.txt
 and GPL-3.0.txt. DLL names and replacement remain unobfuscated.
 Exact binary/source/build provenance: ffmpeg-pin.json.
 Project: https://ffmpeg.org/
-Source: https://github.com/FFmpeg/FFmpeg/commit/d4070a14ce
-Build: https://github.com/FFmpeg-Builds/FFmpeg-Builds/tree/autobuild-2026-11-08-12-35
+Source: https://github.com/FFmpeg/FFmpeg/commit/d4070a14cecc7e29eb278f9b6036c2284255f70d
+Build recipe: ffmpeg-source-build.json; reconstruction/source kit: VIDEO-SOURCES.md.
 
 The pinned build is shared LGPL with version3 enabled and GPL/nonfree disabled.
-Its enabled external libraries retain their own licenses. Complete corresponding
-source and the upstream build's incorporated third-party notices remain a required
-release input; these development notices do not substitute for those materials.
+It uses built-in decoders and Windows hardware acceleration without optional external
+codec/filter libraries. The matching source kit includes complete FFmpeg/compiler
+sources and reconstruction recipes, with identity hashes in ffmpeg-pin.json.
+
+Compiler/runtime components
+Built with the pinned GCC/MinGW-w64 toolchain. MinGW-runtime.txt preserves the complete
+runtime notices. GCC-GPL-3.0.txt and GCC-Runtime-Exception.txt accompany compiler-runtime
+components. Corresponding compiler/runtime sources are included in the source kit.
 
 HAP reference codec
 Copyright (c) 2011-2013, Tom Butterworth and Vidvox LLC. All rights reserved.

@@ -3,27 +3,43 @@ $CargoArguments = $args
 $ErrorActionPreference = 'Stop'
 $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 $taskPin = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'windows-x64.json') -Raw | ConvertFrom-Json
-if ($taskPin.root -notmatch '^[a-zA-Z0-9._-]+$') { throw 'Invalid FFmpeg root name' }
-$taskTarget = Join-Path $taskRoot 'target'
-$taskArchive = Join-Path $taskTarget ($taskPin.root + '.zip')
-$taskUnpack = Join-Path $taskTarget 'ffmpeg-pinned'
-$taskInstall = Join-Path $taskUnpack $taskPin.root
-New-Item -ItemType Directory -Path $taskTarget -Force | Out-Null
-if (!(Test-Path -LiteralPath $taskArchive)) {
-    Invoke-WebRequest -Uri $taskPin.url -OutFile $taskArchive
+if ($taskPin.source_build -ne 'source-build.json') { throw 'Invalid FFmpeg source manifest' }
+$taskSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot $taskPin.source_build) -Raw | ConvertFrom-Json
+if ($taskSource.build_directory -notmatch '^[a-z0-9-]+$' -or $taskSource.install_name -notmatch '^[a-z0-9-]+$') {
+    throw 'Invalid FFmpeg source directory'
 }
-$taskHash = (Get-FileHash -LiteralPath $taskArchive -Algorithm SHA256).Hash.ToLowerInvariant()
-if ($taskHash -ne $taskPin.sha256 -or (Get-Item -LiteralPath $taskArchive).Length -ne $taskPin.bytes) {
-    throw 'Pinned FFmpeg archive mismatch; retain it for inspection and fetch the named artifact again'
+$taskInstall = Join-Path (Join-Path $taskRoot ('target/' + $taskSource.build_directory + '/stage')) $taskSource.install_name
+$taskReady = $true
+$taskRequired = @(
+    'include/libavcodec/avcodec.h', 'include/libavformat/avformat.h', 'include/libavutil/frame.h',
+    'include/libswresample/swresample.h', 'include/libswscale/swscale.h',
+    'lib/avcodec.lib', 'lib/avformat.lib', 'lib/avutil.lib', 'lib/swresample.lib', 'lib/swscale.lib', 'LICENSE.txt'
+)
+foreach ($taskRelative in $taskRequired) {
+    if (!(Test-Path -LiteralPath (Join-Path $taskInstall $taskRelative) -PathType Leaf)) { $taskReady = $false }
 }
-if (!(Test-Path -LiteralPath $taskInstall)) {
-    Expand-Archive -LiteralPath $taskArchive -DestinationPath $taskUnpack
+$taskLicense = Join-Path $taskInstall 'LICENSE.txt'
+if ((Test-Path -LiteralPath $taskLicense -PathType Leaf) -and
+    (Get-FileHash -LiteralPath $taskLicense -Algorithm SHA256).Hash.ToLowerInvariant() -ne $taskPin.license_sha256) {
+    $taskReady = $false
 }
-foreach ($taskRequired in @('include/libavcodec/avcodec.h', 'lib/avcodec.lib', 'bin/avcodec-63.dll', 'lib/swscale.lib', 'bin/swscale-10.dll', 'LICENSE.txt')) {
-    if (!(Test-Path -LiteralPath (Join-Path $taskInstall $taskRequired))) {
-        throw "Incomplete pinned FFmpeg install: $taskRequired"
+$taskCompilerNotice = Join-Path $taskRoot ('target/' + $taskSource.build_directory + '/tools/' + $taskSource.toolchain.root + '/COPYING.MinGW-w64-runtime.txt')
+if (!(Test-Path -LiteralPath $taskCompilerNotice -PathType Leaf)) { $taskReady = $false }
+foreach ($taskDll in $taskPin.runtime) {
+    $taskPath = Join-Path $taskInstall ('bin/' + $taskDll.name)
+    if (!(Test-Path -LiteralPath $taskPath -PathType Leaf) -or
+        (Get-Item -LiteralPath $taskPath).Length -ne $taskDll.bytes -or
+        (Get-FileHash -LiteralPath $taskPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $taskDll.sha256) {
+        $taskReady = $false
     }
 }
+if (!$taskReady) { & (Join-Path $PSScriptRoot 'build-source.ps1') | Out-Host }
+foreach ($taskRelative in $taskRequired) {
+    if (!(Test-Path -LiteralPath (Join-Path $taskInstall $taskRelative) -PathType Leaf)) {
+        throw "Incomplete pinned FFmpeg install: $taskRelative"
+    }
+}
+& (Join-Path $PSScriptRoot 'prepare-source-kit.ps1') | Out-Host
 & (Join-Path $PSScriptRoot 'prepare-runtime.ps1') -Install $taskInstall
 if (!$CargoArguments.Count) {
     Write-Output $taskInstall

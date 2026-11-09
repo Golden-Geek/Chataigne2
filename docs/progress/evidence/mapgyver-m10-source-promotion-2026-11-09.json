@@ -1,0 +1,74 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4",
+	"state": "Active; default source SDK promoted; no gate closed",
+	"progress": { "accepted": 85, "total": 102, "m10_accepted": 2, "m10_total": 4 },
+	"deliverable": "Ordinary MapGyver run/watch/build paths now build and bundle the source-pinned shared Video SDK, complete local reconstruction/source kit and FFmpeg/GCC/MinGW notices. The five DLL files total22,422,528 bytes versus117,679,616 previously; this is a file-size reduction, not a throughput claim.",
+	"ownership": "tools/mapgyver/ffmpeg owns dependency construction, verification and staging. Existing Golden workers/renderers and app File transport own playback. No product Rust/DTO/UI behavior or acceptance budget changed.",
+	"source_identity": {
+		"manifest": "tools/mapgyver/ffmpeg/source-build.json",
+		"runtime_pin": "tools/mapgyver/ffmpeg/windows-x64.json",
+		"ffmpeg_commit": "d4070a14cecc7e29eb278f9b6036c2284255f70d",
+		"sdk": "target/ffmpeg-source/stage/mapgyver-video-sdk",
+		"kit": "target/ffmpeg-source/source-kit",
+		"prior_owning_receipt": "docs/progress/evidence/mapgyver-m10-source-sdk-2026-11-09.json",
+		"configuration": "Built-in playback decoders, SIMD, software scaling and D3D11/DXVA2 remain. Optional external codec/filter/device/network libraries, encoders and CLI programs are excluded. Decoder registration alone does not accept DXV/WebP. Exact compiler/assembler/source archives, hashes and configure flags remain in the manifest."
+	},
+	"reconstruction": {
+		"result": "pass; exit0",
+		"path": "target/mapgyver-ffmpeg-repro/recipe/target/mapgyver-ffmpeg-candidate/stage/mapgyver-video-sdk",
+		"logs": [
+			"target/mapgyver-ffmpeg-repro/build-final.stdout.log",
+			"target/mapgyver-ffmpeg-repro/build-final.stderr.log"
+		],
+		"proof": "A clean exported recipe rebuilt all five DLLs in a second directory under a newer enclosing repository commit. All five hashes exactly match the original candidate and promoted runtime pin. Live public version/configuration/license, decoder catalog and headers pass source_sdk.py. Cross-machine identity remains unclaimed.",
+		"correction": "The first build linked all DLLs but GNU dlltool failed because long absolute output paths became temporary filenames. Generate public MSVC import libraries from the SDK lib directory using relative filenames. The rerun completes without a system long-path setting or FFmpeg source change. Failed baseline logs are retained."
+	},
+	"software": {
+		"app": "611 passed,4 ignored,0 failed;88.26s. cargo test --locked -p MapGyver --lib --no-run compiles the default app; its isolated test executable runs beside the exact source DLLs.",
+		"test_binary_sha256": "aab79e065ecade0798c4de4a4de29ef4a5b349b3e5c156a1a191fa9dc8263a52",
+		"strict": "cargo clippy --locked -p MapGyver --lib --tests -- -D warnings:exit0,38.63s",
+		"golden": "Prior unchanged SDK receipt retains270 software passes,61 ignored, strict and five native groups on both GPUs.",
+		"build": "with-ffmpeg.ps1 --tauri build --debug --no-bundle:exit0,46.35s; selects the promoted SDK and stages its resources automatically.",
+		"tooling": "Runtime staging idempotence and corrupt extracted DLL/license rejection pass with the promoted SDK. JS syntax/Prettier, JSON and PowerShell parse checks and root/Golden Cargo formatting pass. Full repository product-tool contracts retain the unrelated shared-owner migration debt recorded in M09; no whole-CI claim."
+	},
+	"native_workers": {
+		"result": "2 passed,0 failed;exit0,1.74s",
+		"command": "MapGyverTests.exe media::rendering::tests::videos::hardware --ignored --nocapture --test-threads=1",
+		"scope": "Actual Intel H.264 forward/back/seek/stop, explicit zero-GPU-budget software fallback and ProRes software decoding. Both GPUs run three concurrent4096x2160 HAP/HAPAlpha/HAPQ sources with six consumers, three workers, shared pairwise targets and12+ distinct frames per source. Stable340,623,408 GPU bytes and zero full retirement. These short functional checks are not sustained performance."
+	},
+	"normal_app": {
+		"binary_sha256": "883bf3b652eb0e56047247c4e60e5180456d575bcb904cac5ffc470c30f9c2f9",
+		"payload": "target/mapgyver-m10-source-default-final",
+		"provenance": "Unmodified normal Tauri debug binary plus the five exact default-pin DLLs,11 current Video notice/provenance files and the supplied font license. Each notice hash matches the managed runtime stage. FFmpeg entries are removed from PATH; loaded-process inspection verifies exact executable-local DLL paths, sizes and hashes.",
+		"nvidia": {
+			"result": "pass; normal shutdown",
+			"pid": 25896,
+			"adapter": "dxgi:00000000:90b3a15f",
+			"physical_checkpoints": 89,
+			"requests_and_clean_receipts": 2100,
+			"trace": "target/mapgyver-m10-source-proof-nvidia-2026-11-09/video-playback.json",
+			"sha256": "197c3517c579280d1aefccce3d1d3de2b7039d6579d31f677f8fcd89e72d6182"
+		},
+		"intel": {
+			"result": "pass; exit0; normal shutdown",
+			"pid": 50372,
+			"adapter": "dxgi:00000000:00015b69",
+			"physical_checkpoints": 89,
+			"requests_and_clean_receipts": 2068,
+			"trace": "target/mapgyver-m10-source-proof-intel-correct-2026-11-09/video-playback.json",
+			"sha256": "8eeaf273560603e0266acff4273e2e4a3761602606a2de7f6391d1539767d9b2"
+		},
+		"scope": "Ten common/HAP profiles: defaults, play/EOF/stop, seek/history/step, native preview registration, independent HAP Composition copy, shared Matrix/Reference, mixed-rate loop and save/New/load.178 independent physical checkpoints and4,168 matched UI requests/receipts; zero page errors or rejected edits. H.264 chromatic, HEVC Main and Main10 explicitly assert D3D11 resident playback on both GPUs. HAP RGB/Alpha/Q use compressed GPU playback. ProRes/alpha and unsupported tiny profiles retain explicit software fallback.",
+		"earlier_controls": "Candidate app and initial normal-build runs also pass both GPUs. Initial normal-build traces contain178 images/4,149 clean receipts, maximum linear error0.014453917013954043 within4/255. Their raw log tail omitted early hardware events; the final reruns above use a bounded512-line filtered event collector and assert the three main hardware profiles.",
+		"failed_launch": "The first final Intel proof launch mistakenly selected unavailable adapter000141b6 and correctly faulted without fallback. Its failure.json is preserved under target/mapgyver-m10-source-proof-intel-2026-11-09. The replacement uses00015b69 from the prior verified Intel report; it is not credited as a passing unavailable-adapter run.",
+		"policy_limit": "Automatic policy rejected deleting a redundant nested notices folder in an earlier copied payload. That folder is preserved. A fresh owned payload assembled from exact verified files completes the check without deletion. No release or deployment occurred."
+	},
+	"remaining": [
+		"M10/4 exact/coalesced superseding seeks and stale-result rejection",
+		"M10/4 file relink/retry and combined device recovery",
+		"M10/4 sustained1080p/4K resource/performance acceptance and remaining integration checks",
+		"M14 follows M10/4; deferred DXV/WebP remains M10/3 after M14",
+		"M09 final Windows artifact/source publication, repository regressions and retained qualification debt"
+	]
+}

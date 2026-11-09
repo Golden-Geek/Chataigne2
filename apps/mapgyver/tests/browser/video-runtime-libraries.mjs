@@ -5,9 +5,13 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-export async function inspectLocalVideoLibraries(pid, binary) {
+export async function inspectLocalVideoLibraries(
+	pid,
+	binary,
+	pinPath = 'tools/mapgyver/ffmpeg/windows-x64.json'
+) {
 	assert(Number.isSafeInteger(pid) && pid > 0);
-	const pin = JSON.parse(await readFile('tools/mapgyver/ffmpeg/windows-x64.json', 'utf8'));
+	const pin = JSON.parse(await readFile(pinPath, 'utf8'));
 	const modules = JSON.parse(
 		execFileSync(
 			'powershell',

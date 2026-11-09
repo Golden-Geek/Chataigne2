@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 $taskPin = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'windows-x64.json') -Raw | ConvertFrom-Json
 $taskStage = Join-Path $taskRoot 'target/mapgyver-ffmpeg-runtime'
+$taskKit = Join-Path $taskRoot $taskPin.source_kit
 
 # Verify every input before changing the managed stage, including an already extracted SDK.
 $taskFiles = @()
@@ -26,7 +27,12 @@ $taskFiles += @(
     @{ source = (Join-Path $PSScriptRoot 'NOTICE.txt'); target = 'licenses/VIDEO-NOTICE.txt' },
     @{ source = (Join-Path $taskRoot 'crates/golden_video/vendor/hap/hap.h'); target = 'licenses/HAP-reference-header.h' },
     @{ source = (Join-Path $taskRoot 'crates/golden_video/vendor/hap/snappy-c.h'); target = 'licenses/Snappy-C-header.h' },
-    @{ source = (Join-Path $PSScriptRoot 'windows-x64.json'); target = 'licenses/ffmpeg-pin.json' }
+    @{ source = (Join-Path $PSScriptRoot 'windows-x64.json'); target = 'licenses/ffmpeg-pin.json' },
+    @{ source = (Join-Path $PSScriptRoot 'source-build.json'); target = 'licenses/ffmpeg-source-build.json' },
+    @{ source = (Join-Path $taskKit 'README.md'); target = 'licenses/VIDEO-SOURCES.md' },
+    @{ source = (Join-Path $taskKit 'licenses/COPYING.MinGW-w64-runtime.txt'); target = 'licenses/MinGW-runtime.txt' },
+    @{ source = (Join-Path $taskKit 'licenses/GCC-Runtime-Exception.txt'); target = 'licenses/GCC-Runtime-Exception.txt' },
+    @{ source = (Join-Path $taskKit 'licenses/GCC-GPL-3.0.txt'); target = 'licenses/GCC-GPL-3.0.txt' }
 )
 foreach ($taskFile in $taskFiles) {
     if (!(Test-Path -LiteralPath $taskFile.source -PathType Leaf)) { throw "Missing runtime input: $($taskFile.source)" }

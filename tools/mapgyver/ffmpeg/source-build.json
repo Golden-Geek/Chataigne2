@@ -1,5 +1,7 @@
 {
 	"revision": "mapgyver-video-sdk-1",
+	"build_directory": "ffmpeg-source",
+	"install_name": "mapgyver-video-sdk",
 	"source_date_epoch": 1793971242,
 	"ffmpeg": {
 		"version": "9.0.2",

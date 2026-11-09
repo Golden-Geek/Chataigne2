@@ -123,15 +123,19 @@ Reference/reload pixels on both GPUs. The external test material stays in ignore
 `MAPGYVER_HAP_EXTERNAL` selects its extracted `FFmpeg` directory for the owning native tests.
 These short functional checks leave sustained performance and complete recovery to M10/4.
 
-The isolated [source SDK build](../../tools/mapgyver/ffmpeg/source-build.json) pins the same
+The default [source SDK build](../../tools/mapgyver/ffmpeg/source-build.json) pins the same
 FFmpeg source with a complete reconstruction/source kit. It keeps built-in decoders, SIMD,
 software scaling and D3D11/DXVA2 without optional external codec/filter/device/network libraries.
 This makes the source/notices boundary independently reviewable and reduces its five DLLs to
-22,422,528 bytes. The candidate passes Golden software and native GPU integration checks; it
-does not replace the default SDK until app qualification and explicit build-pin promotion.
+22,422,528 bytes. Clean builds in two directories reproduce all five DLL bytes. Golden and
+default-app software/strict, both-GPU native workers and actual app profile/routing/reload checks
+precede its explicit runtime pin promotion. SDK, source kit and runtime staging live under
+`target/ffmpeg-source` and `target/mapgyver-ffmpeg-runtime` respectively.
 
 The [pinned dependency helper](../../tools/mapgyver/ffmpeg/README.md) verifies the exact Windows
-shared LGPL archive and establishes only process-local build/runtime paths. Packet/image/work
+FFmpeg/compiler/assembler sources and runtime bytes, with process-local build/runtime paths.
+It builds missing SDK inputs and assembles corresponding sources and FFmpeg/GCC/MinGW notices.
+Packet/image/work
 admission is explicit; failures require reopening the owner. These limits do not claim a hard
 ceiling on every temporary allocation inside third-party demuxers.
 
@@ -255,7 +259,8 @@ Tiny clips establish functional checkpoints, not sustained playback or
 physical panel/cadence qualification.
 
 M10/1 common-codec and M10/2 HAP functional gates are accepted in their linked audits.
-Default feature/DLL resource wiring is implemented; complete source/third-party-notice delivery,
-installer checks, seek/relink/device recovery and sustained1080p/4K/resource/performance
+Default source SDK/DLL/notice wiring and the complete local reconstruction/source kit are
+implemented and functionally verified. Exact/coalesced seeks, relink/device recovery and sustained1080p/4K/resource/performance
 acceptance remain M10/4 before M14. DXV/WebP remains M10/3
-after M14. Functional acceptance does not close those retained requirements.
+after M14. Final Windows artifact/source publication stays M09. Functional acceptance does
+not close those retained requirements.

@@ -1,9 +1,9 @@
 $ErrorActionPreference = 'Stop'
 $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 $taskPin = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'source-build.json') -Raw | ConvertFrom-Json
-$taskBase = Join-Path $taskRoot 'target/mapgyver-ffmpeg-candidate'
+$taskBase = Join-Path $taskRoot ('target/' + $taskPin.build_directory)
 $taskCache = Join-Path $taskBase 'downloads'
-$taskSdk = Join-Path $taskBase 'stage/mapgyver-video-sdk'
+$taskSdk = Join-Path (Join-Path $taskBase 'stage') $taskPin.install_name
 $taskKit = Join-Path $taskBase 'source-kit'
 $taskSource = Join-Path $taskCache 'ffmpeg-source.tar.gz'
 $taskCompilerSource = Join-Path $taskCache 'w64devkit-source.tar'

@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { StringDecoder } from 'node:string_decoder';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
@@ -35,9 +36,19 @@ const native = await openNativeEditor({
 });
 const { page } = native;
 let playbackLog = '';
+const playbackEvents = [];
 for (const stream of [native.app.stdout, native.app.stderr]) {
+	const decoder = new StringDecoder('utf8');
+	let pending = '';
 	stream.on('data', (data) => {
 		playbackLog = (playbackLog + data).slice(-131072);
+		const lines = (pending + decoder.write(data)).split(/\r?\n/);
+		pending = lines.pop().slice(-16384);
+		for (const line of lines) {
+			if (!line.includes('[mapgyver-video]')) continue;
+			playbackEvents.push(line);
+			if (playbackEvents.length > 512) playbackEvents.shift();
+		}
 	});
 }
 const errors = [];
@@ -200,7 +211,11 @@ try {
 	const displays = await control({ kind: 'mapgyverDisplays', refresh: true });
 	localRuntimeLibraries =
 		process.env.MAPGYVER_VIDEO_LOCAL_DLLS === '1'
-			? await inspectLocalVideoLibraries(native.app.pid, process.env.MAPGYVER_TEST_BINARY)
+			? await inspectLocalVideoLibraries(
+					native.app.pid,
+					process.env.MAPGYVER_TEST_BINARY,
+					process.env.MAPGYVER_VIDEO_RUNTIME_PIN
+				)
 			: null;
 	if (selectedAdapter) assert.equal(runtime.gpu_adapter, selectedAdapter);
 	assert(displays.displays.length >= 2, 'Physical Screen check uses the external display');
@@ -507,6 +522,14 @@ try {
 	await pixels('Loaded Matrix shared HAP alpha source', 4, 'hap-alpha');
 	assert.deepEqual(errors, []);
 	assert.deepEqual(rejected, []);
+	for (const name of ['h264-color.mp4', 'hevc-main.mp4', 'hevc-main10.mp4']) {
+		assert(
+			playbackEvents.some(
+				(line) => line.includes('D3D11 resident playback:') && line.includes(name)
+			),
+			`${name} must retain the hardware path in the qualified source SDK`
+		);
+	}
 	report = {
 		result: 'pass',
 		pid: native.app.pid,
@@ -522,7 +545,7 @@ try {
 		rejected,
 		uiReceipts: observed,
 		projectReload: true,
-		backendEvents: playbackLog.split(/\r?\n/).filter((line) => line.includes('[mapgyver-video]')),
+		backendEvents: playbackEvents,
 		normalShutdown: false,
 		scope:
 			'Ten common/HAP profiles, chromatic 8/10-bit, ProRes4444/HAP alpha and YCoCg, exact controls, independent HAP Composition copy and shared HAP Matrix/Reference routing with project reload. Backend events distinguish hardware/BC upload from software fallback. Not sustained performance, high-resolution concurrency or combined device recovery'
@@ -536,6 +559,7 @@ try {
 				observations,
 				moving,
 				localRuntimeLibraries,
+				backendEvents: playbackEvents,
 				pageErrors: errors,
 				rejected,
 				log: native.log(),

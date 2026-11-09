@@ -2,7 +2,10 @@ param([ValidateRange(1, 32)][int]$Jobs = 12)
 $ErrorActionPreference = 'Stop'
 $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 $taskPin = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'source-build.json') -Raw | ConvertFrom-Json
-$taskBase = Join-Path $taskRoot 'target/mapgyver-ffmpeg-candidate'
+if ($taskPin.build_directory -notmatch '^[a-z0-9-]+$' -or $taskPin.install_name -notmatch '^[a-z0-9-]+$') {
+    throw 'Invalid source SDK directory'
+}
+$taskBase = Join-Path $taskRoot ('target/' + $taskPin.build_directory)
 $taskCache = Join-Path $taskBase 'downloads'
 New-Item -ItemType Directory -Path $taskCache -Force | Out-Null
 . (Join-Path $PSScriptRoot 'source-inputs.ps1')
@@ -56,19 +59,21 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Source FFmpeg compilation failed' }
     & (Join-Path $taskCompiler 'make.exe') @taskMake 'install' ('DESTDIR=' + $taskStage.Replace('\', '/'))
     if ($LASTEXITCODE -ne 0) { throw 'Source FFmpeg installation failed' }
-    $taskSdk = Join-Path $taskStage 'mapgyver-video-sdk'
+    $taskSdk = Join-Path $taskStage $taskPin.install_name
+    # dlltool derives temporary names from its output argument; keep long workspace paths out.
+    Set-Location -LiteralPath (Join-Path $taskSdk 'lib')
     foreach ($taskDll in Get-ChildItem -LiteralPath (Join-Path $taskSdk 'bin') -Filter '*.dll') {
         if ($taskDll.Name -notmatch '^(avcodec|avformat|avutil|swresample|swscale)-[0-9]+\.dll$') {
             throw "Unexpected source SDK library: $($taskDll.Name)"
         }
         $taskLibrary = ($taskDll.Name -split '-')[0]
-        $taskDefinition = Join-Path $taskSource ('lib' + $taskLibrary + '/' + $taskDll.BaseName + '.def')
-        & (Join-Path $taskCompiler 'dlltool.exe') '-m' 'i386:x86-64' '-d' $taskDefinition '-D' $taskDll.Name '-l' (Join-Path $taskSdk ('lib/' + $taskLibrary + '.lib'))
+        $taskDefinition = $taskDll.BaseName + '.def'
+        & (Join-Path $taskCompiler 'dlltool.exe') '-m' 'i386:x86-64' '-d' $taskDefinition '-D' $taskDll.Name '-l' ($taskLibrary + '.lib')
         if ($LASTEXITCODE -ne 0) { throw "MSVC import library generation failed: $taskLibrary" }
     }
     Copy-Item -LiteralPath (Join-Path $taskSource 'COPYING.LGPLv3') -Destination (Join-Path $taskSdk 'LICENSE.txt')
     Copy-Item -LiteralPath (Join-Path $taskSource 'COPYING.GPLv3') -Destination (Join-Path $taskSdk 'GPL-3.0.txt')
-    Write-Output "Candidate SDK: $taskSdk"
+    Write-Output "Source SDK: $taskSdk"
 } finally {
     Set-Location -LiteralPath $taskOldDirectory
     $env:PATH = $taskOldPath

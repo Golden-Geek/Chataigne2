@@ -4,42 +4,39 @@
 		"version": "9.0.0",
 		"features": ["format", "software-scaling"]
 	},
-	"version": "n9.0.2-48-gd4070a14ce-20261108",
-	"root": "ffmpeg-n9.0.2-48-gd4070a14ce-win64-lgpl-shared-9.0",
-	"url": "https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-11-08-12-35/ffmpeg-n9.0.2-48-gd4070a14ce-win64-lgpl-shared-9.0.zip",
-	"sha256": "642ac7acf4060503cfdf8dfb5791900f8fd768d5a54c27f3efef78293f5f3bbf",
-	"bytes": 76530110,
-	"linkage": "Shared DLLs with supplied MSVC import libraries; no static FFmpeg linkage",
-	"license": "LGPL-3.0-or-later; archive LICENSE.txt and dependency notices must accompany the final bundled redistribution",
+	"version": "9.0.2-d4070a14cecc-mapgyver-d4070a14ce",
+	"source_build": "source-build.json",
+	"linkage": "Source-built shared DLLs with generated MSVC import libraries; no static FFmpeg linkage",
+	"license": "LGPL-3.0-or-later; FFmpeg/GCC/MinGW notices and the matching source kit accompany redistribution",
 	"license_sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768",
 	"runtime": [
 		{
 			"name": "avcodec-63.dll",
-			"bytes": 91675136,
-			"sha256": "72775af8ecd8ede780fe23723af6c157e0daf3473e3c2853afae9d192812d01b"
+			"bytes": 16493056,
+			"sha256": "8a4064e5c1f148490d5b7fb1faaf75b91a8c5ace5cb67cef4c9056b085f62b24"
 		},
 		{
 			"name": "avformat-63.dll",
-			"bytes": 19888128,
-			"sha256": "2bcaf3c2d04c1c596f8f6bae7008067a506a0e0eb7ebc88b40b8a38057e5ef79"
+			"bytes": 2511360,
+			"sha256": "2749fafbe6a890cf870a1a74e2697b3978b92549763ac30d0c2f16e461d9df4a"
 		},
 		{
 			"name": "avutil-61.dll",
-			"bytes": 3025408,
-			"sha256": "886b63482c77a76c46932f0e72bd22887ec2078737dc3a0d748495c95c8ef210"
+			"bytes": 1115648,
+			"sha256": "72701ec9b3e2bae8997e85ff9713aac53942c2774620bbf4fa28df47129abdac"
 		},
 		{
 			"name": "swresample-7.dll",
-			"bytes": 747008,
-			"sha256": "c5ed3308ac79c3956daf11c7c18b292004063d4e589206b0d52479bbbff6aab4"
+			"bytes": 180224,
+			"sha256": "f2acf457ce329eb47c9978ef2cbb6be81567c2a92bd90c5f4d00b3006b340800"
 		},
 		{
 			"name": "swscale-10.dll",
-			"bytes": 2343936,
-			"sha256": "2a3298b1fc24f621564d829080e5ade7a9fe16dbe9a7cd9d85373e1366d48a86"
+			"bytes": 2122240,
+			"sha256": "0b543620503c6099039f822bd75efe5f3359d90eaeb60dfc40d96b7500e2aa01"
 		}
 	],
-	"source": "https://github.com/FFmpeg/FFmpeg/commit/d4070a14ce",
-	"build_source": "https://github.com/FFmpeg-Builds/FFmpeg-Builds/tree/autobuild-2026-11-08-12-35",
-	"release_scope": "Pinned default Windows runtime inputs. Corresponding source and statically incorporated third-party notices, actual installer/recovery/sustained qualification remain M10/4; staging is not release acceptance."
+	"source": "https://github.com/FFmpeg/FFmpeg/commit/d4070a14cecc7e29eb278f9b6036c2284255f70d",
+	"source_kit": "target/ffmpeg-source/source-kit",
+	"release_scope": "Qualified source-built default dependency. Exact/coalesced seeks, relink/device recovery and sustained/resource qualification remain M10/4; final Windows/source publication remains M09."
 }
