@@ -71,7 +71,7 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: VideoEdit) -> 
     let repeated_seek = matches!(&edit, VideoEdit::Seek { position_ms } if *position_ms == candidate.position_ms);
     match &edit {
         VideoEdit::Seek { position_ms } => candidate.position_ms = *position_ms,
-        VideoEdit::Rate { rate } => candidate.rate = *rate,
+        VideoEdit::Speed { speed } => candidate.speed = *speed,
         _ => {}
     }
     candidate.validate()?;

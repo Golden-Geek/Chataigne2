@@ -31,7 +31,7 @@ impl VideoPlaybackMode {
 pub struct VideoTransportSettings {
     pub mode: VideoPlaybackMode,
     pub position_ms: f64,
-    pub rate: f64,
+    pub speed: f64,
     pub looping: bool,
 }
 impl Default for VideoTransportSettings {
@@ -39,7 +39,7 @@ impl Default for VideoTransportSettings {
         Self {
             mode: VideoPlaybackMode::Paused,
             position_ms: 0.0,
-            rate: 1.0,
+            speed: 1.0,
             looping: false,
         }
     }
@@ -49,8 +49,8 @@ impl VideoTransportSettings {
         if !self.position_ms.is_finite() || !(0.0..=9_000_000_000_000.0).contains(&self.position_ms) {
             return Err("Video seek position must be finite milliseconds in 0..9000000000000".into());
         }
-        if !self.rate.is_finite() || !(-16.0..=16.0).contains(&self.rate) {
-            return Err("Video rate must be finite in -16..16".into());
+        if !self.speed.is_finite() || !(-16.0..=16.0).contains(&self.speed) {
+            return Err("Video speed must be finite in -16..16".into());
         }
         Ok(())
     }
@@ -71,8 +71,8 @@ pub enum VideoEdit {
     Seek {
         position_ms: f64,
     },
-    Rate {
-        rate: f64,
+    Speed {
+        speed: f64,
     },
     Loop {
         looping: bool,

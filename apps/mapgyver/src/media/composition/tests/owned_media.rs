@@ -205,7 +205,7 @@ fn named_drop_method_delivers_committed_reference_and_independent_copy_callbacks
             if index == 0 {
                 "mapgyver.media.reference.v4"
             } else {
-                "mapgyver.media.v8"
+                "mapgyver.media.v9"
             }
         );
     }

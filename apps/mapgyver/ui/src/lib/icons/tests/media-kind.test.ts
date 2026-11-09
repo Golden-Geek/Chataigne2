@@ -5,7 +5,7 @@ import { mediaIconKind } from '../media-kind.ts';
 
 test('media icon classification reads the real immutable Parameter with bounded work', () => {
 	const root = {
-		node_type: 'mapgyver.media.v8',
+		node_type: 'mapgyver.media.v9',
 		children: [1, ...Array.from({ length: 10000 }, (_, i) => i + 3)]
 	} as UiNodeDto;
 	const nodes = new Map<number, UiNodeDto>([

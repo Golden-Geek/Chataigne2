@@ -14,7 +14,7 @@ use golden_io::{RevisionGuard, RevisionSource};
 use std::sync::OnceLock;
 
 #[node(
-    "mapgyver.media.v8",
+    "mapgyver.media.v9",
     label = "Media",
     user_permissions = golden_core::node::NodeUserPermissions {
         can_edit_name: true,
@@ -39,7 +39,7 @@ use std::sync::OnceLock;
             enum_options = crate::parameters::enum_options(&["Playing", "Paused", "Stopped"]), constraint_policy = "reject");
         video_position_ms: f64 = 0.0 [0.0..9000000000000.0] (label = "Seek to", widget = "time", unit = "ms",
             dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video, constraint_policy = "reject");
-        video_rate: f64 = 1.0 [-16.0..16.0] (label = "Rate", step = 0.01,
+        video_speed: f64 = 1.0 [-16.0..16.0] (label = "Speed", step = 0.01,
             dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video, constraint_policy = "reject");
         video_looping: bool = false (label = "Loop", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
     }
@@ -64,7 +64,7 @@ impl MediaNode {
         let settings = super::video::protocol::VideoTransportSettings {
             mode: super::video::protocol::VideoPlaybackMode::parse(self.video_mode.get_ref().as_str())?,
             position_ms: self.video_position_ms.get(),
-            rate: self.video_rate.get(),
+            speed: self.video_speed.get(),
             looping: self.video_looping.get(),
         };
         settings.validate()?;
@@ -92,7 +92,7 @@ impl MediaNode {
                 (self.video_position_ms.id(), ParamValue::Float(0.0)),
             ],
             VideoEdit::Seek { position_ms } => vec![(self.video_position_ms.id(), ParamValue::Float(*position_ms))],
-            VideoEdit::Rate { rate } => vec![(self.video_rate.id(), ParamValue::Float(*rate))],
+            VideoEdit::Speed { speed } => vec![(self.video_speed.id(), ParamValue::Float(*speed))],
             VideoEdit::Loop { looping } => vec![(self.video_looping.id(), ParamValue::Bool(*looping))],
         }
     }
@@ -100,7 +100,7 @@ impl MediaNode {
         [
             self.video_mode.id(),
             self.video_position_ms.id(),
-            self.video_rate.id(),
+            self.video_speed.id(),
             self.video_looping.id(),
         ]
         .contains(&id)
@@ -230,7 +230,7 @@ impl MediaNode {
         let _ = self.matrix_root.set(root);
     }
 }
-#[node("mapgyver.media.v8", from_struct)]
+#[node("mapgyver.media.v9", from_struct)]
 impl Node for MediaNode {
     fn inbox_requires_tree_snapshot(&self, _: &golden_core::events::EventFrame) -> bool {
         false
@@ -259,7 +259,7 @@ impl Node for MediaNode {
         // Catalog creation and app admission apply the source-specific policy.
         Some(UserContainerRules::new(&[
             "mapgyver.media.channel.v2",
-            "mapgyver.media.v8",
+            "mapgyver.media.v9",
             super::reference::NODE_TYPE,
             super::composition::PLACEMENT_TYPE,
         ]))
@@ -387,7 +387,7 @@ impl Node for MediaNode {
                     settings.mode = super::video::protocol::VideoPlaybackMode::parse(value)?
                 }
                 (id, ParamValue::Float(value)) if id == self.video_position_ms.id() => settings.position_ms = *value,
-                (id, ParamValue::Float(value)) if id == self.video_rate.id() => settings.rate = *value,
+                (id, ParamValue::Float(value)) if id == self.video_speed.id() => settings.speed = *value,
                 (id, ParamValue::Bool(value)) if id == self.video_looping.id() => settings.looping = *value,
                 _ => return Err("invalid Video transport Parameter type".into()),
             }

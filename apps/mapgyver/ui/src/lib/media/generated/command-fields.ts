@@ -217,13 +217,13 @@ export const COMMAND_PARAMETER_FIELDS = {
   "VideoPlay": [
     "media"
   ],
-  "VideoRate": [
-    "media",
-    "video_rate"
-  ],
   "VideoSeek": [
     "media",
     "video_position_ms"
+  ],
+  "VideoSpeed": [
+    "media",
+    "video_speed"
   ],
   "VideoStep": [
     "media",

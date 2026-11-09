@@ -118,7 +118,7 @@ fn file_workers_publish_real_frames_and_references_share_one_stream_without_per_
         &mut engine,
         MediaEdit::Video {
             media: reference.media,
-            edit: VideoEdit::Rate { rate: 0.5 },
+            edit: VideoEdit::Speed { speed: 0.5 },
         },
     );
     edit(

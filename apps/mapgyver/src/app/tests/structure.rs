@@ -265,7 +265,7 @@ fn shared_catalog_creation_builds_complete_typed_media_and_screen_forests() {
     let catalog = engine.catalog_creatable_items(manager);
     for item in catalog
         .into_iter()
-        .filter(|item| item.item_kind == "mapgyver.media.v8" || item.node_type == "mapgyver.media.folder")
+        .filter(|item| item.item_kind == "mapgyver.media.v9" || item.node_type == "mapgyver.media.folder")
     {
         let history = engine.undo_len();
         let ack = apply_project_intent(

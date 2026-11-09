@@ -598,7 +598,7 @@ fn malformed_parameter_records_are_rejected_before_a_project_can_run() {
     let fields = parameters(&resolution_engine, owner);
     for (name, value) in [
         ("video_mode", serde_json::json!("Unknown")),
-        ("video_rate", serde_json::json!(17.0)),
+        ("video_speed", serde_json::json!(17.0)),
         ("video_position_ms", serde_json::json!(-1.0)),
     ] {
         assert_invalid_record(&resolution_engine, fields[&format!("parameters/{name}")], value);

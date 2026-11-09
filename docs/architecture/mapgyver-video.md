@@ -4,11 +4,18 @@ MapGyver owns media transport policy in `apps/mapgyver/src/media/video`. Golden 
 the monotonic authority and checked rational mapping. Golden Video owns file demux, decoder and
 frame lifetime in its optional `decode` module. Neither the engine nor the UI decodes files.
 
-`MediaTransport` is one owner per Video media. It starts paused at zero, with rate one and
+`MediaTransport` is one owner per Video media. It starts paused at zero, with Speed one and
 looping off. Channel workers and References consume one immutable `TransportSample`; reading
-does not advance time or accumulate rounded frame periods. Rate changes preserve the visible
+does not advance time or accumulate rounded frame periods. Speed changes preserve the visible
 position. Stop returns to zero. Completed non-looping playback restarts at the appropriate
 endpoint when played again, including reverse playback.
+
+Speed is a real typed `video_speed` Parameter, bounded to finite values in -16..16. The
+generic Inspector, `VideoEdit::Speed`, Set Video Speed command and `setVideoSpeed` script
+method share that backend value. Rust generates the transport DTOs and command catalog for
+TypeScript. Golden Time's internal `PlaybackRate` remains the rational clock mapping.
+The changed authored keys use Media schema v9 and Media Command schema v7; previous schemas
+are rejected rather than silently dropping their old Speed setting.
 
 Background metadata probing supplies the longest authored channel duration, including variants
 without render consumers. Each channel samples at the lesser of

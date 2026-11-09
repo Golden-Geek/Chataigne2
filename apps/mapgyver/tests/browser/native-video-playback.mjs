@@ -271,9 +271,19 @@ try {
 		assert.deepEqual((await state(reference.media)).settings, {
 			mode: 'Paused',
 			position_ms: 0,
-			rate: 1,
+			speed: 1,
 			looping: false
 		});
+		const speedInput = parameter('Speed').locator('input.number-field');
+		for (const speed of [0.5, 1]) {
+			await speedInput.fill(String(speed));
+			await speedInput.press('Enter');
+			await wait(
+				() => state(reference.media),
+				(value) => value.settings.speed === speed,
+				`${name} Inspector Speed ${speed}`
+			);
+		}
 		await route(reference);
 		await wait(
 			() => sourceState(reference),
@@ -503,7 +513,7 @@ try {
 	assert.deepEqual(mirrored[0].definition.source, { kind: 'Reference', target: first });
 	await route(mirrored[0].reference);
 	await seek(first, 125, 3, 'HAP Reference mirrors shared seek', 'hap');
-	await transport(first.media, { kind: 'Rate', rate: 0.5 });
+	await transport(first.media, { kind: 'Speed', speed: 0.5 });
 	await transport(first.media, { kind: 'Loop', looping: true });
 	await transport(first.media, { kind: 'Play' });
 	// A fixed observer delay can alias the six-frame loop, especially with process-start cost.
@@ -563,7 +573,7 @@ try {
 	assert.deepEqual((await state(first.media)).settings, {
 		mode: 'Paused',
 		position_ms: 125,
-		rate: 0.5,
+		speed: 0.5,
 		looping: true
 	});
 	await pixels('Loaded HAP Reference output', 3, 'hap');

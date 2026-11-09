@@ -10,7 +10,7 @@ pub(super) const METHODS: &[&str] = &[
     "pauseVideo",
     "stopVideo",
     "seekVideo",
-    "setVideoRate",
+    "setVideoSpeed",
     "setVideoLoop",
     "stepVideo",
     "configureVideoFile",
@@ -79,7 +79,7 @@ fn reference(args: &[ParamValue]) -> Result<ChannelReference, String> {
 pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<MediaEdit>, String> {
     let count = match method {
         "playVideo" | "pauseVideo" | "stopVideo" | "inspectVideo" => 1,
-        "seekVideo" | "setVideoRate" | "setVideoLoop" | "inspectVideoFrame" | "inspectVideoSource" => 2,
+        "seekVideo" | "setVideoSpeed" | "setVideoLoop" | "inspectVideoFrame" | "inspectVideoSource" => 2,
         "stepVideo" | "configureVideoFile" => 3,
         "createMedia"
         | "addChannel"
@@ -129,9 +129,11 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
                 position_ms: number(args, 1)?,
             },
         },
-        "setVideoRate" => MediaEdit::Video {
+        "setVideoSpeed" => MediaEdit::Video {
             media: MediaId(uuid(args, 0)?),
-            edit: super::video::protocol::VideoEdit::Rate { rate: number(args, 1)? },
+            edit: super::video::protocol::VideoEdit::Speed {
+                speed: number(args, 1)?,
+            },
         },
         "setVideoLoop" => {
             let Some(ParamValue::Bool(looping)) = args.get(1) else {

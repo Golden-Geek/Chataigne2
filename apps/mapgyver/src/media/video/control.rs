@@ -447,7 +447,7 @@ impl State {
         self.apply(first || extended)
     }
     fn apply(&mut self, play_requested: bool) -> Result<(), String> {
-        let rate = PlaybackRate::new((self.settings.rate * 1_000_000.0).round() as i32, 1_000_000)
+        let rate = PlaybackRate::new((self.settings.speed * 1_000_000.0).round() as i32, 1_000_000)
             .map_err(|e| e.to_string())?;
         self.transport.set_rate(rate).map_err(|e| e.to_string())?;
         self.transport

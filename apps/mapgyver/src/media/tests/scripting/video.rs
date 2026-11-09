@@ -15,7 +15,7 @@ fn hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection() 
                 const media = '{media}', channel = '{channel}';
                 local.configureVideoFile('file', media, channel, 'clips/example.mov');
                 local.seekVideo('seek', media, 1250.5);
-                local.setVideoRate('rate', media, -0.5);
+                local.setVideoSpeed('speed', media, -0.5);
                 local.setVideoLoop('loop', media, true);
                 local.playVideo('play', media);
                 local.pauseVideo('pause', media);
@@ -24,7 +24,7 @@ fn hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection() 
                 local.inspectVideo('inspect', media);
                 local.inspectVideoFrame('frame', media, channel);
                 local.inspectVideoSource('source', media, channel);
-                local.setVideoRate('reject', media, 17);
+                local.setVideoSpeed('reject', media, 17);
             }}
             function onAppOperationResult(reply) {{ gc.emit('media-method-reply', reply); }}
             "#
@@ -36,7 +36,7 @@ fn hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection() 
     let results = replies(&engine);
     assert_eq!(results.len(), 12, "each actual QuickJS call has one callback");
     for request in [
-        "file", "seek", "rate", "loop", "play", "pause", "stop", "inspect", "frame", "source",
+        "file", "seek", "speed", "loop", "play", "pause", "stop", "inspect", "frame", "source",
     ] {
         let reply = results.iter().find(|reply| reply["request_id"] == request).unwrap();
         assert_eq!(reply["status"], "applied", "{reply}");
@@ -51,7 +51,7 @@ fn hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection() 
     assert_eq!(unavailable["status"], "rejected");
     assert!(unavailable.get("value").is_none());
     assert_eq!(result("stop")["position_ms"], 0.0);
-    assert_eq!(result("inspect")["settings"]["rate"], -0.5);
+    assert_eq!(result("inspect")["settings"]["speed"], -0.5);
     assert_eq!(result("inspect")["settings"]["looping"], true);
     assert!(results.iter().find(|reply| reply["request_id"] == "frame").unwrap()["value"]["frame"].is_null());
     let source = &results.iter().find(|reply| reply["request_id"] == "source").unwrap()["value"]["status"];

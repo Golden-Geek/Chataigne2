@@ -4,4 +4,4 @@ import type { VideoPlaybackMode } from "./VideoPlaybackMode";
 /**
  * Read projection of real Media Parameters; never an opaque persistence record.
  */
-export type VideoTransportSettings = { mode: VideoPlaybackMode, position_ms: number, rate: number, looping: boolean, };
+export type VideoTransportSettings = { mode: VideoPlaybackMode, position_ms: number, speed: number, looping: boolean, };

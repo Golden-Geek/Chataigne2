@@ -103,7 +103,7 @@ pub(super) fn items() -> Vec<UserCreatableItem> {
     items.extend(
         SOURCES
             .into_iter()
-            .map(|(node_type, kind)| UserCreatableItem::new(node_type, "mapgyver.media.v8", kind.default_label())),
+            .map(|(node_type, kind)| UserCreatableItem::new(node_type, "mapgyver.media.v9", kind.default_label())),
     );
     items
 }

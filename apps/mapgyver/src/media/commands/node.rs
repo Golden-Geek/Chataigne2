@@ -9,7 +9,7 @@ use golden_core::{
 use golden_video::Extent2D;
 use std::sync::Arc;
 
-#[node("mapgyver.media.command.v6", label = "Media Command", user_permissions = golden_core::node::NodeUserPermissions {
+#[node("mapgyver.media.command.v7", label = "Media Command", user_permissions = golden_core::node::NodeUserPermissions {
     can_edit_name: true, can_remove_and_duplicate: true, ..Default::default()
 })]
 #[children(
@@ -20,7 +20,7 @@ use std::sync::Arc;
         media: NodeReference = NodeReference::empty() (
             label = "Media",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.v8".into(), "mapgyver.media.reference.v4".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.v9".into(), "mapgyver.media.reference.v4".into()]
         );
         matrix_layer: NodeReference = NodeReference::empty() (label = "Layer", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v3".into()]);
         matrix_column: NodeReference = NodeReference::empty() (label = "Column", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v3".into()]);
@@ -29,9 +29,9 @@ use std::sync::Arc;
         launch_mode: Enum = "Configured" (label = "Launch mode", enum_options = crate::parameters::enum_options(&["Configured", "Cut"]), constraint_policy = "reject");
         position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position", description = "Composition canvas texels.");
         copy_media: bool = false (label = "Copy media");
-        composition_target: NodeReference = NodeReference::empty() (label = "Replace media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v8".into(), "mapgyver.media.reference.v4".into()]);
+        composition_target: NodeReference = NodeReference::empty() (label = "Replace media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v9".into(), "mapgyver.media.reference.v4".into()]);
         reference_target: NodeReference = NodeReference::empty() (label = "Target media", reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.v8".into(), "mapgyver.media.reference.v4".into()]);
+            reference_allowed_node_types = vec!["mapgyver.media.v9".into(), "mapgyver.media.reference.v4".into()]);
         channel: NodeReference = NodeReference::empty() (
             label = "Channel",
             reference_target_kind = ReferenceTargetKind::AnyNode,
@@ -50,7 +50,7 @@ use std::sync::Arc;
         entry: NodeReference = NodeReference::empty() (
             label = "Entry",
             reference_target_kind = ReferenceTargetKind::AnyNode,
-            reference_allowed_node_types = vec!["mapgyver.media.folder".into(), "mapgyver.media.v8".into(), "mapgyver.media.reference.v4".into()]
+            reference_allowed_node_types = vec!["mapgyver.media.folder".into(), "mapgyver.media.v9".into(), "mapgyver.media.reference.v4".into()]
         );
         after_channel: NodeReference = NodeReference::empty() (
             label = "After channel",
@@ -87,7 +87,7 @@ use std::sync::Arc;
         picture_file: File = File::default() (label = "File");
         video_file: File = File::default() (label = "File");
         video_position_ms: f64 = 0.0 [0.0..9000000000000.0] (label = "Seek to", widget = "time", unit = "ms", constraint_policy = "reject");
-        video_rate: f64 = 1.0 [-16.0..16.0] (label = "Rate", constraint_policy = "reject");
+        video_speed: f64 = 1.0 [-16.0..16.0] (label = "Speed", constraint_policy = "reject");
         video_looping: bool = false (label = "Loop");
         video_step_direction: Enum = "Next" (label = "Direction", enum_options = crate::parameters::enum_options(&["Previous", "Next"]), constraint_policy = "reject");
         direction: Enum = "Earlier" (
@@ -162,10 +162,10 @@ impl MediaCommandNode {
                     position_ms: self.video_position_ms.get(),
                 },
             },
-            MediaCommandKind::VideoRate => MediaEdit::Video {
+            MediaCommandKind::VideoSpeed => MediaEdit::Video {
                 media,
-                edit: super::super::video::protocol::VideoEdit::Rate {
-                    rate: self.video_rate.get(),
+                edit: super::super::video::protocol::VideoEdit::Speed {
+                    speed: self.video_speed.get(),
                 },
             },
             MediaCommandKind::VideoLoop => MediaEdit::Video {
@@ -429,7 +429,7 @@ impl MediaCommandNode {
     }
 }
 
-#[node("mapgyver.media.command.v6", from_struct)]
+#[node("mapgyver.media.command.v7", from_struct)]
 impl Node for MediaCommandNode {
     fn needs_update(&self) -> bool {
         false

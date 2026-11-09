@@ -19,7 +19,7 @@ command_kinds! {
     VideoPause => "Pause Video", "Video", ["media"];
     VideoStop => "Stop Video", "Video", ["media"];
     VideoSeek => "Seek Video", "Video", ["media", "video_position_ms"];
-    VideoRate => "Set Video Rate", "Video", ["media", "video_rate"];
+    VideoSpeed => "Set Video Speed", "Video", ["media", "video_speed"];
     VideoLoop => "Set Video Loop", "Video", ["media", "video_looping"];
     VideoStep => "Step Video Frame", "Video", ["media", "channel", "video_step_direction"];
     VideoFile => "Set Video File", "Video", ["media", "channel", "video_file"];

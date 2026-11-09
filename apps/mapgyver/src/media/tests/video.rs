@@ -101,10 +101,48 @@ fn video_creation_has_one_transport_real_file_variants_and_independent_project_c
 }
 
 #[test]
+fn inspector_speed_uses_the_same_transport_and_rejects_invalid_values_atomically() {
+    let mut engine = fixture();
+    let reference = create(&mut engine, MediaKind::Video);
+    let speed = parameter(&engine, reference.media.0, "video_speed");
+    for value in [-16.0, 0.0, 16.0, -0.5] {
+        let ack = apply_project_intent(
+            &mut engine,
+            UiEditIntent::SetParam {
+                node: speed,
+                value: ParamValue::Float(value),
+                behaviour: ParameterEventBehaviour::Append,
+            },
+        );
+        assert!(ack.success, "{ack:?}");
+        assert_eq!(state(&mut engine, reference.media).settings.speed, value);
+    }
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    for value in [-16.01, 16.01, f64::NAN, f64::INFINITY] {
+        let ack = apply_project_intent(
+            &mut engine,
+            UiEditIntent::SetParam {
+                node: speed,
+                value: ParamValue::Float(value),
+                behaviour: ParameterEventBehaviour::Append,
+            },
+        );
+        assert!(!ack.success, "{ack:?}");
+        assert_eq!(state(&mut engine, reference.media).settings.speed, -0.5);
+        assert_eq!(engine.undo_len(), history);
+        assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+    }
+    let mut loaded = from_sparse_project_json::<AppNode>(&before).unwrap();
+    loaded.apply_edits().unwrap();
+    assert_eq!(state(&mut loaded, reference.media).settings.speed, -0.5);
+}
+
+#[test]
 fn typed_transport_intents_share_parameters_history_and_truthful_runtime_readiness() {
     let mut engine = fixture();
     let reference = create(&mut engine, MediaKind::Video);
-    edit(&mut engine, reference.media, VideoEdit::Rate { rate: 0.5 });
+    edit(&mut engine, reference.media, VideoEdit::Speed { speed: 0.5 });
     edit(&mut engine, reference.media, VideoEdit::Loop { looping: true });
     edit(&mut engine, reference.media, VideoEdit::Seek { position_ms: 1250.25 });
     let playing = edit(&mut engine, reference.media, VideoEdit::Play);
@@ -162,7 +200,7 @@ fn generic_parameter_edits_enforce_stop_companions_and_invalid_writes_are_atomic
             &mut engine,
             MediaEdit::Video {
                 media: reference.media,
-                edit: VideoEdit::Rate { rate: 17.0 }
+                edit: VideoEdit::Speed { speed: 17.0 }
             }
         )
         .success

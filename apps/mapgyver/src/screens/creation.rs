@@ -153,7 +153,7 @@ fn first_source(context: &UserItemCreationContext<'_>) -> Result<Option<ChannelR
                     pending.push(child);
                 }
             }
-            "mapgyver.media.v8" => {
+            "mapgyver.media.v9" => {
                 let mut next = node.node_data().first_child;
                 while let Some(id) = next {
                     let channel = context.node(id).ok_or("media child is missing")?;
