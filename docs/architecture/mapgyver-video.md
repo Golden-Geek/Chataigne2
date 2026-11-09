@@ -194,6 +194,14 @@ claiming a ceiling on all temporary allocations internal to FFmpeg. Cancellation
 demux/open and wakes waits without joining on the engine or UI. Missing files retry once per
 second. Relinking and project-root changes withdraw old sources before replacement.
 
+At the eight-worker limit, an admitted replacement waits for actual old-worker retirement;
+temporary slot pressure does not reject the new capture or fault healthy sources. Golden IO's
+`RetirementPool::availability()` publishes a slot-release revision outside its state lock.
+File demand captures that revision before cancellation/admission and retains a one-shot wake
+subscription while pending. A release before subscription wakes immediately. The desired capture
+coalesces newer edits, so neither a pending-job queue nor a polling timer is needed. Nine demanded
+files still reject before displacing the eight admitted sources; worker and byte caps are unchanged.
+
 The reader decodes at most eight frames per turn before checking controls/cancellation. It
 samples original timestamps, holds the final frame at EOF, rewinds for backward seeks and
 uses coalesced latest-image publication. After a paused keyframe seek, its preceding frame may

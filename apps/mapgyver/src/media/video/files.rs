@@ -8,7 +8,10 @@ use crate::media::{
     capture::CapturedChannels,
     protocol::{ChannelReference, ChannelSource},
 };
-use golden_io::{BoundedWorker, RetirementPool, WorkerContext, WorkerLimits, WorkerNotifier};
+use golden_io::{
+    BoundedWorker, RetirementPool, RevisionGuard, RevisionSubscription, WorkerContext, WorkerLimits, WorkerNotifier,
+    WorkerStartError,
+};
 use golden_video::{
     decode::{DecodeLimits, Decoder},
     image::ImageStream,
@@ -112,6 +115,10 @@ struct Entry {
     output: Arc<Mutex<Output>>,
     _worker: BoundedWorker<(), ()>,
 }
+struct CapacityWait {
+    guard: RevisionGuard,
+    _subscription: Option<RevisionSubscription>,
+}
 pub(crate) struct Files {
     #[cfg(all(windows, feature = "native-video"))]
     hardware: Option<Hardware>,
@@ -122,6 +129,7 @@ pub(crate) struct Files {
     budget: Arc<Budget>,
     changes: Arc<golden_io::RevisionSource>,
     observed: u64,
+    capacity_wait: Option<CapacityWait>,
     notifier: Option<WorkerNotifier>,
 }
 /// Completion of file-worker cancellation and all retained decoded-image storage.
@@ -195,6 +203,7 @@ impl Files {
             budget: Default::default(),
             changes: Default::default(),
             observed: 0,
+            capacity_wait: None,
             notifier,
         }
     }
@@ -211,6 +220,10 @@ impl Files {
         true
     }
     pub fn sync(&mut self, capture: &CapturedChannels, demanded: &[ChannelReference]) -> Result<(), String> {
+        // Capture before cancellation or admission: a release between failure and subscription
+        // must invalidate this guard and wake immediately rather than strand the replacement.
+        let availability = self.pool.availability();
+        let available_at = availability.current();
         if self.project != Some(capture.project) {
             self.entries.clear();
             self.project = Some(capture.project);
@@ -235,6 +248,7 @@ impl Files {
                 *file == entry.file && *binding == entry.binding && Arc::ptr_eq(control, &entry.control)
             })
         });
+        let mut pending = false;
         for (reference, (file, control, binding)) in wanted {
             if self.entries.contains_key(&reference) {
                 continue;
@@ -254,7 +268,7 @@ impl Files {
             };
             let owner = context.owner;
             control.claim_channel(reference.channel, owner, binding.clone())?;
-            let worker = BoundedWorker::spawn(
+            let worker = match BoundedWorker::spawn(
                 "mapgyver-video-file",
                 &self.pool,
                 WorkerLimits {
@@ -264,11 +278,19 @@ impl Files {
                     event_weight: 1,
                 },
                 move |worker| context.run(worker),
-            )
-            .map_err(|e| {
-                control.release_channel(reference.channel, owner);
-                e.to_string()
-            })?;
+            ) {
+                Ok(worker) => worker,
+                Err(WorkerStartError::Capacity(_)) => {
+                    // Retiring workers keep their slots. The desired capture remains admitted,
+                    // with this source preparing until actual retirement makes a slot available.
+                    pending = true;
+                    continue;
+                }
+                Err(error) => {
+                    control.release_channel(reference.channel, owner);
+                    return Err(error.to_string());
+                }
+            };
             self.entries.insert(
                 reference,
                 Entry {
@@ -280,6 +302,14 @@ impl Files {
                 },
             );
         }
+        self.capacity_wait = pending.then(|| {
+            let guard = availability.guard_at(available_at);
+            let subscription = self.notifier.as_ref().map(|notifier| guard.subscribe(notifier.clone()));
+            CapacityWait {
+                guard,
+                _subscription: subscription,
+            }
+        });
         Ok(())
     }
     pub fn source(
@@ -307,7 +337,11 @@ impl Files {
     }
     pub fn service(&mut self) -> bool {
         let revision = self.changes.reader().current();
-        let changed = self.observed != revision;
+        let changed = self.observed != revision
+            || self
+                .capacity_wait
+                .as_ref()
+                .is_some_and(|waiting| !waiting.guard.is_current());
         self.observed = revision;
         changed
     }

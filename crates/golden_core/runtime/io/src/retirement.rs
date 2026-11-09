@@ -1,3 +1,4 @@
+use crate::{RevisionReader, RevisionSource};
 use std::fmt;
 use std::num::NonZeroUsize;
 use std::sync::{Arc, Condvar, Mutex};
@@ -18,6 +19,7 @@ struct RetirementShared {
     capacity: usize,
     state: Mutex<RetirementState>,
     changed: Condvar,
+    availability: RevisionSource,
 }
 
 #[derive(Default)]
@@ -54,6 +56,7 @@ impl RetirementPool {
                 capacity: capacity.get(),
                 state: Mutex::new(RetirementState::default()),
                 changed: Condvar::new(),
+                availability: RevisionSource::default(),
             }),
         }
     }
@@ -109,6 +112,12 @@ impl RetirementPool {
             peak: state.peak,
             rejected: state.rejected,
         }
+    }
+
+    /// Slot-release notifications for a nonblocking owner waiting to retry admission.
+    /// A revision is a wake hint, not a reservation; capacity must still be claimed.
+    pub fn availability(&self) -> RevisionReader {
+        self.shared.availability.reader()
     }
 
     /// Waits for all admitted cleanup tasks. Intended for orderly host shutdown and tests, never
@@ -206,6 +215,7 @@ impl RetirementShared {
         state.active -= 1;
         drop(state);
         self.changed.notify_all();
+        self.availability.advance();
     }
 }
 

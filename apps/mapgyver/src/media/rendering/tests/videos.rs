@@ -1,4 +1,5 @@
 use super::*;
+mod admission;
 #[cfg(all(windows, feature = "native-qualification"))]
 mod device;
 mod diagnostics;

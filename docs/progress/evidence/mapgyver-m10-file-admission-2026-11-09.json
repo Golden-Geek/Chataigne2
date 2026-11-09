@@ -1,0 +1,73 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4",
+	"state": "Active; bounded file replacement fixed and verified; no whole gate credit",
+	"progress": {
+		"accepted": 85,
+		"total": 102,
+		"m10_accepted": 2,
+		"m10_total": 4,
+		"gates_closed": 0
+	},
+	"deliverable": "Relinking a Video File or replacing its project at the eight-worker limit no longer fails because canceled workers are still retiring. The latest admitted capture waits for actual slot availability and wakes without a polling timer; healthy sources keep their owners. Nine demanded files still reject without displacing the admitted eight. No worker, queue or byte cap increased.",
+	"ownership": {
+		"golden_io": "RetirementPool::availability exposes a generic slot-release revision. Release decrements the actual lifetime count before notifying, outside the pool mutex. A captured stale guard immediately wakes a late subscriber; the revision grants no reservation. Existing worker/retirement ownership and metrics stay authoritative.",
+		"mapgyver": "Files captures availability before canceling or trying admission. Temporary WorkerStartError::Capacity leaves the missing source preparing under the latest desired capture. A retained one-shot guard wakes the presentation owner after real retirement, then normal bounded admission retries. Other spawn failures remain errors. Failed spawn closures release their transient channel owner. There is no pending-job queue or synchronous decoder/cleanup wait."
+	},
+	"reproduction": {
+		"base_commit": "4ae6335bd9c497f542ece81725ddcfea93380108",
+		"fixture": "apps/mapgyver/src/media/rendering/tests/videos/admission.rs",
+		"log": "target/mapgyver-m10-admission-baseline/results.log",
+		"log_sha256": "3c92c3e02892cd2a18f2cb45a01f9e71a1a310e5dc4d2fe54fc5d8d34a19c233",
+		"result": "exit101;1 passed,1 failed in0.03s",
+		"failure": "An otherwise admitted File relink fails with retirement capacity of8 active tasks is exhausted. The ninth-source atomic rejection case already passes. This is a reproduced product admission error, not a missing tool or visual smoothness issue."
+	},
+	"software": {
+		"app": "615 passed,0 failed,6 ignored;87.19s. Six ignored native cases at this build; the later native relink regression adds one ignored case only. All unignored product/test bodies are unchanged afterward.",
+		"app_log": "target/mapgyver-m10-admission-fixed/app.log",
+		"app_test_binary_sha256": "a6201bdf464a84358cd949b7d49d2798e8f02516d0d29ffc2fc205adcbccf85e",
+		"io": "74 passed,0 failed,1 ignored;0.69s",
+		"io_log": "target/mapgyver-m10-admission-fixed/io.log",
+		"io_test_binary_sha256": "1fcc0b46c4f54a8bf0d0d79eb9f8f0a58b32db00394f8af0fd0536679dfea275",
+		"strict": "cargo clippy --locked -p MapGyver -p golden_io --lib --tests --features MapGyver/native-qualification -- -D warnings:exit0,15.36s; final native-test addition strict exit0,8.28s. Existing ts-rs attribute warnings remain unchanged.",
+		"behavior": "Sixteen relinks at eight live workers preserve all seven healthy streams; four full eight-source project replacements withdraw old streams and recover new sources. Both recovery fixtures use a coalesced single-slot notification channel and block on events instead of polling progress. Ninth demand rejects before changing the last admitted request or eight live workers. All fixtures finish with zero active workers and retained source bytes. IO tests verify notification after real cleanup, reentrant metrics outside the mutex, late-subscription wake and unchanged capacity1/peak1."
+	},
+	"native": {
+		"binary_sha256": "36fdc6b798e1913f2294110d3276d47a52907cf2f71fb64279b07d9827583f37",
+		"log": "target/mapgyver-m10-admission-native/native.log",
+		"log_sha256": "a46e1c790837a05eb544bcb66d677af2395285a86281f1324f3241a8acb87d2f",
+		"result": "exit0;2 passed,0 failed;27.41s",
+		"command": "MapGyverTests.exe media::rendering::tests::videos::device:: --ignored --skip hardware_video_recovery_after_genuine_device_removal --nocapture --test-threads=1",
+		"scope": "Eight concurrent common/HAP sources per local GPU, actual File workers and D3D11/Spout outputs. Four relative/absolute File rebindings per GPU while all media are Playing/Looping; static seek comparisons explicitly Pause. All eight frame4 output centers match their prior independent Spout baselines, with resident H.264/HEVC and compressed HAP routes retained and ProRes software paths explicit. Exactly eight live workers, same native device, no retirement leak. The existing no-reset Playing/authored-state/history/pixel preflight also passes.",
+		"intel": { "adapter": "dxgi:00000000:00015b69", "rebindings": 4, "shutdown_ms": 84.9443 },
+		"nvidia": { "adapter": "dxgi:00000000:90b3a15f", "rebindings": 4, "shutdown_ms": 81.2457 },
+		"paired_preflight_shutdown_ms": 190.7202,
+		"shutdown_limit_ms": 5000,
+		"limits": "Native integration centers/ownership, not full-raster or sustained-throughput qualification. Genuine reset is explicitly skipped and receives no credit."
+	},
+	"normal_app": {
+		"build": "with-ffmpeg.ps1 --tauri build --debug --no-bundle:exit0,53.87s",
+		"binary_sha256": "9eb5ec327cbe2e8cda5cd67912abe39bc876c3c8548d70232bf0af7524b1bca6",
+		"payload": "target/mapgyver-m10-admission-app",
+		"runtime": "Five exact source-built default-pin DLLs beside the normal Tauri binary; executable-local loaded module paths/sizes/hashes verified with FFmpeg PATH entries excluded. Current11 Video notices and the supplied font license are staged.",
+		"nvidia": {
+			"result": "pass;exit0;normal shutdown",
+			"pid": 27612,
+			"physical_checkpoints": 117,
+			"clean_requests_and_receipts": 2547,
+			"trace": "target/mapgyver-m10-admission-app-nvidia-2026-11-09/video-playback.json",
+			"sha256": "fe9eeec212663ccebd448e179f6133c1809356daa6cee53bbe54186d286b641e"
+		},
+		"intel": {
+			"result": "pass;exit0;normal shutdown",
+			"pid": 32688,
+			"physical_checkpoints": 117,
+			"clean_requests_and_receipts": 2496,
+			"trace": "target/mapgyver-m10-admission-app-intel-2026-11-09/video-playback.json",
+			"sha256": "aa43c2b9ab5d02b67effc6785e6998eefd58fa8a265f158fffbc287edef73de7"
+		},
+		"scope": "Ten common/HAP profiles, exact controls/history/steps, superseding seek holds, four missing/corrupt-file retry/relink routes per GPU, independent Composition copy, shared Matrix/Reference, mixed-rate hold and project reload.234 physical checkpoints,5,043 matched UI receipts, zero page errors/rejected edits. This is functional bundled-app regression, not sustained1080p/4K performance."
+	},
+	"prepared_reset": "The unchanged elevated command now points to the updated native executable at target/mapgyver-m10-device-ready/MapGyverTests.exe, SHA36fdc6b798e1913f2294110d3276d47a52907cf2f71fb64279b07d9827583f37. No live process used that path before replacement. The paired no-reset/native relink tests above validate its current code. The earlier denied non-admin reset remains unaccepted; no retry from that token occurred.",
+	"remaining": "M10/4 specified bundled-app sustained1080p/4K/resource/per-format upload qualification and genuine Video device recovery through the recorded elevated-session return action. M14 follows M10/4; DXV/WebP follows M14. Retained M03/M05/M08/M13 and final M09 debt remain unchanged. No new smoothness/AA acceptance or whole-CI/release claim."
+}

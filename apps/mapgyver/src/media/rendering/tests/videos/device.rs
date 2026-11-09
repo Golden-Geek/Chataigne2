@@ -410,3 +410,60 @@ fn hardware_video_recovery_preflight_without_device_removal() {
 fn hardware_video_recovery_after_genuine_device_removal() {
     run(true);
 }
+
+#[test]
+#[ignore = "explicit both-GPU relink at eight native file workers with independent Spout pixels"]
+fn hardware_video_relink_at_capacity_preserves_routes_pixels_and_bounded_retirement() {
+    for adapter in adapters().unwrap().into_iter().filter(|adapter| !adapter.software) {
+        let mut owner = Owner::new(adapter.id);
+        for cycle in 0..4 {
+            owner.play();
+            let file = if cycle % 2 == 0 {
+                fixture_root().join(NAMES[0]).to_string_lossy().into_owned()
+            } else {
+                NAMES[0].to_owned()
+            };
+            edit(
+                &mut owner.engine,
+                MediaEdit::ConfigureVideoFile {
+                    reference: owner.references[0],
+                    file,
+                },
+            );
+            let capture = capture_channels(&owner.engine, &owner.references, 16).unwrap();
+            let routes = owner
+                .references
+                .iter()
+                .enumerate()
+                .map(|(index, reference)| ChannelRoute {
+                    output: OutputId::new(index as u64 + 1).unwrap(),
+                    channel: *reference,
+                })
+                .collect();
+            owner
+                .renderer
+                .as_mut()
+                .unwrap()
+                .publish(capture, routes)
+                .expect("native retiring workers must defer an admitted replacement without faulting");
+            owner.settle();
+            owner.seek(4);
+            let expected = owner.fourth.clone();
+            owner.pixels(Some(&expected));
+            owner.assert_routes();
+            assert_eq!(owner.live().video_retirement().unwrap().active_workers(), 8);
+            assert_eq!(
+                owner.live().snapshot().resources.unwrap().last_submitted.device,
+                owner.original
+            );
+        }
+        let closing = Instant::now();
+        drop(owner);
+        assert!(closing.elapsed() < Duration::from_secs(5));
+        eprintln!(
+            "native eight-source relink {:?}: four active-playback rebindings, all eight exact output centers/routes retained, zero retirement in {:?}",
+            adapter.id,
+            closing.elapsed()
+        );
+    }
+}
