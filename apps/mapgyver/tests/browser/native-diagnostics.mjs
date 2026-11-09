@@ -19,6 +19,7 @@ export async function inspectNativeDiagnostics(pid, appLog) {
 	const captures = [];
 	const counts = {};
 	let uploadBytes = 0;
+	const sourceUploads = new Map();
 	for (const name of names.sort()) {
 		const file = path.join(directory, name);
 		const hash = createHash('sha256');
@@ -44,6 +45,15 @@ export async function inspectNativeDiagnostics(pid, appLog) {
 				const kind = kinds[0];
 				counts[kind] = (counts[kind] ?? 0) + 1;
 				if (kind === 'ImageUpload') uploadBytes += row.event[kind].bytes;
+				const upload = row.event[kind].software_upload;
+				if (upload) {
+					const identity = `${upload.stream}:${upload.sequence}`;
+					if (sourceUploads.has(identity)) assert.deepEqual(sourceUploads.get(identity), upload);
+					else {
+						sourceUploads.set(identity, upload);
+						uploadBytes += upload.bytes;
+					}
+				}
 				events++;
 			} else if (row.kind === 'snapshot') {
 				assert.equal(row.process.process_id, pid);
@@ -73,14 +83,19 @@ export async function inspectNativeDiagnostics(pid, appLog) {
 		assert(bytes <= header.max_bytes);
 		captures.push({ file, bytes, events, snapshots, sha256: hash.digest('hex') });
 	}
-	for (const kind of ['FrameCpu', 'Output', 'Gpu', 'SourceUse', 'ImageUpload']) {
+	for (const kind of ['FrameCpu', 'Output', 'Gpu', 'SourceUse']) {
 		assert(counts[kind] > 0, `real playback must emit ${kind}`);
 	}
 	assert(uploadBytes > 0);
+	assert(
+		(counts.ImageUpload ?? 0) > 0 || sourceUploads.size > 0,
+		'actual CPU upload evidence required'
+	);
 	return {
 		captures,
 		counts,
 		uploadBytes,
+		observedSourceUploads: sourceUploads.size,
 		scope:
 			'Completed actual-app event capture, ring health and native retirement; no sustained-performance, per-format allowance or source-age acceptance.'
 	};

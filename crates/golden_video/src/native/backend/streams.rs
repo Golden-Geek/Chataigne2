@@ -58,6 +58,7 @@ pub(super) fn update(
             sequence: target.image_visible.get(),
             stream: Some(stream.id()),
             publication: None,
+            software_upload: None,
         }));
     }
 }

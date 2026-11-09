@@ -56,6 +56,7 @@ impl Fault {
 /// It contains no COM interface and cannot be constructed from an uncompleted GPU write.
 #[derive(Clone)]
 pub struct GpuImage {
+    pub(super) software_upload: Option<super::SoftwareUploadTrace>,
     surface: Arc<Surface>,
     adapter: AdapterId,
     fault: Arc<Fault>,

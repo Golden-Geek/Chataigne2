@@ -286,6 +286,27 @@ playing retains8ms and idle/paused playback waits for control notifications (wit
 fallback). Timer creation errors surface as typed IO failures and retry through the existing
 one-second recovery path. This changes neither authored clocks nor source/frame queue bounds;
 it does not change process-wide Windows timer resolution or add stream callback state.
+Golden's GPU-frame owner now supports source-worker software images. It uploads exact RGBA8 bytes only after claiming
+a free keyed slot, retains CPU admission until real GPU completion, then publishes through the
+existing GPU-frame stream. All render consumers share that completed
+image; the render turn performs GPU imports/copies rather than CPU `UpdateSubresource` calls.
+GPU-frame publishers use the same explicit timeline-fence completion as Golden's source workers;
+copy-only progress must not depend on rendering/timestamp-query batches being submitted.
+All three source slots are charged to existing GPU admission before native allocation.
+MapGyver's attempted software File integration is retained in stash
+`4717c50928733b156a19e7be03ccd5fdef17dfbe`: the fully validated owner works, but the combined
+File loop reaches only HD39.70/4K24.38 updates/s versus the existing55.23/28.11 on NVIDIA.
+Software File playback therefore retains ImageStream pending a pipelined integration that
+meets the original throughput/ownership requirements. Do not automatically restore that stash.
+Hardware/HAP File publishers use the timeline completion correction now; all original resource,
+recovery and performance qualification remains required.
+`SourceUseTrace::software_upload` retains the actual producer UUID/counter, byte/row layout and
+optional source API QPC interval with the pixels copied into each renderer texture. Observers
+deduplicate that identity across held frames/consumers. Timing is opt-in; absent timing or
+uploads never sampled by a renderer remain unknown, including missing final producer counters.
+The source-worker upload ends before GPU-frame publication, so its API end cannot serve as
+a publication-age lower bound. The auditor keeps that age unknown rather than backdating it.
+This does not replace full decoder/pool, per-format upload or source-age qualification.
 For an explicit actual-app qualification run, set `MAPGYVER_NATIVE_DIAGNOSTICS` to an owned
 capture directory before launch. The host creates a fresh PID/UUID file per renderer lifetime,
 enables a16384-row ring and delegates writing to Golden's separate `DiagnosticCapture` I/O owner.

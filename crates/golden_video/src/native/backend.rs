@@ -567,19 +567,38 @@ impl D3d11Backend {
                             Ok(Some(reader)) => {
                                 native.gpu_uses.push((token.serial, reader));
                                 native.gpu_uses.last().unwrap().1.copy_to(&native.device, target);
+                                target.software_upload.set(image.software_upload);
+                                target
+                                    .image_visible
+                                    .set(image.software_upload.map_or(sample.sequence, |upload| upload.sequence));
                                 sequence.set(Some(sample.sequence));
                             }
                             Ok(None) => {} // Zero-timeout contention retains the prior image.
                             Err(error) => {
                                 image.fail(error.code().0);
+                                target.software_upload.set(None);
+                                target.image_visible.set(0);
                                 unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
                                 sequence.set(Some(sample.sequence));
                             }
                         }
                     } else {
+                        target.software_upload.set(None);
+                        target.image_visible.set(0);
                         unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
                         sequence.set(Some(sample.sequence));
                     }
+                }
+                if let Some(recorder) = recorder {
+                    let upload = target.software_upload.get();
+                    recorder.push(DiagnosticEvent::SourceUse(SourceUseTrace {
+                        token,
+                        texture: external.id,
+                        sequence: target.image_visible.get(),
+                        stream: upload.map(|upload| upload.stream),
+                        publication: None,
+                        software_upload: upload,
+                    }));
                 }
                 continue;
             }
@@ -638,6 +657,7 @@ impl D3d11Backend {
                     sequence: frame.sequence,
                     stream: None,
                     publication: frame.timing,
+                    software_upload: None,
                 }));
             }
         }

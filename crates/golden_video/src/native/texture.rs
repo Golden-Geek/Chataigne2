@@ -18,6 +18,7 @@ pub(super) struct Texture {
     // Contents follow the reused allocation, rather than the render-plan generation.
     pub(super) image_sequence: std::cell::Cell<Option<u64>>,
     pub(super) image_visible: std::cell::Cell<u64>,
+    pub(super) software_upload: std::cell::Cell<Option<super::SoftwareUploadTrace>>,
     _image_lease: Option<ImageLease>,
     _local: PhantomData<Rc<()>>,
     // Last field: release all native texture/views before publishing this object's release.
@@ -177,6 +178,7 @@ impl Texture {
             descriptor,
             image_sequence: std::cell::Cell::new(None),
             image_visible: std::cell::Cell::new(0),
+            software_upload: std::cell::Cell::new(None),
             _image_lease: None,
             _local: PhantomData,
             allocation: None,

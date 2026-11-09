@@ -55,8 +55,8 @@ pub use selection::{AdapterPreference, AdapterSelectionError, select_adapter};
 pub use timing::{
     CpuInterval, DiagnosticContext, DiagnosticDelivery, DiagnosticEvent, DiagnosticsConfig, DiagnosticsSnapshot,
     FrameCpuTrace, GpuSampleStatus, GpuTrace, ImageUploadTrace, OutputQueueBound, OutputTrace, PublicationTiming,
-    ScheduleClock, ScheduleClockError, ScheduleDisposition, ScheduleTrace, SourceCpuTrace, SourceUseTrace,
-    SpoutImageVersion, ThreadCpuDelta,
+    ScheduleClock, ScheduleClockError, ScheduleDisposition, ScheduleTrace, SoftwareUploadTrace, SourceCpuTrace,
+    SourceUseTrace, SpoutImageVersion, ThreadCpuDelta,
 };
 
 pub(crate) use backend::D3d11Backend;

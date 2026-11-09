@@ -1,6 +1,7 @@
 //! Worker-local file conversion, with completion before immutable shared publication.
 use super::{Fault, GpuFrameBudget, GpuFrameStream, GpuImage};
 use crate::native::{
+    completion::FenceCompletion,
     device::Device,
     inputs::{
         budget::Lease,
@@ -8,6 +9,7 @@ use crate::native::{
         video::{Decoder, Format, Image},
     },
 };
+use crate::runtime::{CompletionToken, DeviceGeneration};
 use crate::{
     AlphaMode, ColorEncoding, PixelFormat, TextureDescriptor,
     decode::{D3d11Frame, D3d11Storage, DecodeError, HapFrame},
@@ -21,20 +23,21 @@ use std::{
 };
 use windows::{
     Win32::Graphics::Direct3D11::*,
-    core::{BOOL, Error, HRESULT, Interface},
+    core::{Error, HRESULT, Interface},
 };
+mod software;
 
 /// Source-local conversion/admission failure, separate from renderer state.
 #[derive(Debug, thiserror::Error)]
 pub enum GpuFrameError {
     /// Frame interpretation or native storage is outside the implemented SDR contract.
-    #[error("unsupported hardware Video color interpretation or storage")]
+    #[error("unsupported Video GPU color interpretation or storage")]
     Unsupported,
     /// A fixed source contract changed and requires a new admitted producer.
-    #[error("hardware Video source contract changed")]
+    #[error("Video GPU source contract changed")]
     Layout,
     /// Shared conversion/bridge storage is still retained at capacity.
-    #[error("hardware Video bridge storage capacity retained")]
+    #[error("Video GPU bridge storage capacity retained")]
     Capacity,
     /// Actual decoder-frame retention failed.
     #[error(transparent)]
@@ -45,9 +48,14 @@ pub enum GpuFrameError {
 }
 struct Pending {
     slot: usize,
+    token: CompletionToken,
+    software_upload: Option<crate::native::SoftwareUploadTrace>,
     _input: Input,
 }
 pub(super) enum Input {
+    Software {
+        _image: Arc<crate::image::ImageData>,
+    },
     Hap {
         _frame: HapFrame,
     },
@@ -60,6 +68,11 @@ pub(super) enum Input {
     },
 }
 enum Conversion {
+    Software {
+        id: uuid::Uuid,
+        sequence: u64,
+        clock: Option<crate::native::timing::Clock>,
+    },
     Video {
         interpretation: u32,
         storage: D3d11Storage,
@@ -68,7 +81,7 @@ enum Conversion {
     },
     Hap(super::hap::HapImage),
 }
-/// Fixed three-slot GPU converter. No pixel transfer/readback or growing frame queue.
+/// Fixed three-slot GPU conversion/upload owner. No readback or growing frame queue.
 /// Call submit/poll and drop only on the file worker; Drop drains real GPU completion.
 pub struct GpuFramePublisher {
     stream: GpuFrameStream,
@@ -76,7 +89,9 @@ pub struct GpuFramePublisher {
     conversion: Conversion,
     pending: Option<Pending>,
     slots: Vec<Slot>,
-    query: ID3D11Query,
+    completion: FenceCompletion,
+    generation: DeviceGeneration,
+    serial: u64,
     device: Device,
     _lease: Arc<Lease>,
 }
@@ -170,16 +185,7 @@ impl GpuFramePublisher {
         let slots = (0..3)
             .map(|index| Slot::new_leased(&device, descriptor, index, Some(lease.clone())))
             .collect::<windows::core::Result<Vec<_>>>()?;
-        let mut query = None;
-        unsafe {
-            device.device.CreateQuery(
-                &D3D11_QUERY_DESC {
-                    Query: D3D11_QUERY_EVENT,
-                    MiscFlags: 0,
-                },
-                Some(&mut query),
-            )?
-        };
+        let completion = FenceCompletion::new(&device)?;
         Ok(Self {
             stream: GpuFrameStream::new(descriptor, device.adapter),
             fault: Arc::new(Fault {
@@ -189,7 +195,9 @@ impl GpuFramePublisher {
             conversion,
             pending: None,
             slots,
-            query: query.ok_or_else(missing)?,
+            completion,
+            generation: DeviceGeneration::new(uuid::Uuid::new_v4(), 1),
+            serial: 0,
             device,
             _lease: lease,
         })
@@ -257,10 +265,9 @@ impl GpuFramePublisher {
         let Conversion::Video { input, shader, .. } = &self.conversion else {
             unreachable!()
         };
-        let _mark = Mark {
-            device: &self.device,
-            query: &self.query,
-        };
+        let _mark = self
+            .completion
+            .begin(&self.device, self.pending.as_ref().unwrap().token);
         let extent = self.stream.descriptor().extent;
         unsafe {
             self.device.context.CopySubresourceRegion(
@@ -298,10 +305,9 @@ impl GpuFramePublisher {
         let Conversion::Hap(input) = &self.conversion else {
             unreachable!()
         };
-        let _mark = Mark {
-            device: &self.device,
-            query: &self.query,
-        };
+        let _mark = self
+            .completion
+            .begin(&self.device, self.pending.as_ref().unwrap().token);
         input.upload_draw(&self.device, frame, &self.slots[index].texture)?;
         Ok(true)
     }
@@ -310,6 +316,7 @@ impl GpuFramePublisher {
         if self.pending.is_some() {
             return Ok(None);
         }
+        let serial = self.serial.checked_add(1).ok_or(GpuFrameError::Capacity)?;
         let mut free = None;
         for (index, slot) in self.slots.iter().enumerate() {
             if slot.acquire_free()? {
@@ -322,21 +329,22 @@ impl GpuFramePublisher {
         };
         self.pending = Some(Pending {
             slot: index,
+            token: CompletionToken {
+                device: self.generation,
+                serial,
+            },
+            software_upload: None,
             _input: input,
         });
+        self.serial = serial;
         Ok(Some(index))
     }
-    fn completed(&self) -> windows::core::Result<bool> {
-        let mut done = BOOL(0);
-        unsafe {
-            self.device.context.GetData(
-                &self.query,
-                Some((&mut done as *mut BOOL).cast()),
-                size_of::<BOOL>() as u32,
-                D3D11_ASYNC_GETDATA_DONOTFLUSH.0 as u32,
-            )?
-        };
-        Ok(done.as_bool())
+    fn completed(&mut self) -> windows::core::Result<bool> {
+        let completed = self.completion.completed(&self.device, self.generation)?;
+        Ok(self
+            .pending
+            .as_ref()
+            .is_some_and(|pending| completed.serial >= pending.token.serial))
     }
     /// Observe completion without waiting. Caller fences its media epoch before publishing.
     pub fn poll(&mut self) -> Result<Option<GpuImage>, GpuFrameError> {
@@ -348,6 +356,7 @@ impl GpuFramePublisher {
         let slot = &self.slots[pending.slot];
         unsafe { slot.mutex.ReleaseSync(1)? };
         Ok(Some(GpuImage {
+            software_upload: pending.software_upload,
             surface: slot.surface.clone(),
             adapter: self.device.adapter,
             fault: self.fault.clone(),
@@ -371,18 +380,6 @@ impl Drop for GpuFramePublisher {
         }
     }
 }
-struct Mark<'a> {
-    device: &'a Device,
-    query: &'a ID3D11Query,
-}
-impl Drop for Mark<'_> {
-    fn drop(&mut self) {
-        unsafe {
-            self.device.context.End(self.query);
-            self.device.context.Flush();
-        }
-    }
-}
 fn format(storage: D3d11Storage) -> Format {
     match storage {
         D3d11Storage::Nv12 => Format::Nv12,
@@ -401,7 +398,4 @@ fn interpretation(frame: &D3d11Frame) -> Result<u32, GpuFrameError> {
         _ => return Err(GpuFrameError::Unsupported),
     };
     Ok(transfer | u32::from(frame.color_range() == Range::JPEG))
-}
-fn missing() -> Error {
-    Error::from_hresult(HRESULT(0x8000_4005_u32 as i32))
 }

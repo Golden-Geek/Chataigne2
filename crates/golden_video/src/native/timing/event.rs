@@ -184,6 +184,26 @@ pub struct SourceUseTrace {
     pub stream: Option<uuid::Uuid>,
     /// Exact retained source metadata, absent for missing or uninstrumented publication.
     pub publication: Option<PublicationTiming>,
+    /// Actual source-worker upload retained with these pixels, not another render upload.
+    pub software_upload: Option<SoftwareUploadTrace>,
+}
+
+/// One software upload on a source-owned context. Repeated observations share its identity.
+/// Only sampled uploads are observable here; gaps/unused final uploads remain unknown.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SoftwareUploadTrace {
+    /// Unique producer lifetime, independent of renderer/device generations.
+    pub stream: Uuid,
+    /// Monotonic count of actual successful upload submissions on this producer.
+    pub sequence: u64,
+    /// Actual tightly packed RGBA8 row pitch supplied to the API.
+    pub row_pitch: u32,
+    /// Actual uploaded rows.
+    pub rows: u32,
+    /// Actual CPU bytes supplied to the API.
+    pub bytes: u64,
+    /// Opt-in API wall interval; absent when disabled or QPC is unavailable.
+    pub cpu: Option<CpuInterval>,
 }
 
 /// One actual CPU image-plane upload, separate from source decode/conversion and GPU completion.

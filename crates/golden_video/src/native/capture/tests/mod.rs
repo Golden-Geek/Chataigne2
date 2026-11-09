@@ -40,6 +40,7 @@ fn event() -> DiagnosticEvent {
         sequence: 0,
         stream: None,
         publication: None,
+        software_upload: None,
     })
 }
 fn rows(buffer: &Buffer) -> Vec<serde_json::Value> {

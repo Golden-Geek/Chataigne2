@@ -12,15 +12,32 @@ def key(value):
     return json.dumps(value, sort_keys=True)
 
 
-def publication_age_lower_bound(upload, output, frequency):
+def publication_age_lower_bound(upload, output, frequency, *, precedes_publication=False):
     if frequency <= 0:
         raise ValueError("positive QPC frequency required")
+    if precedes_publication:
+        # Source-worker upload ends before completed GPU publication. Its end is not an
+        # upper bound on publication time and must not inflate a source-age failure bound.
+        return None
     cpu, api = upload.get("cpu"), output.get("consumer_api")
     if cpu is None or api is None:
         return None
     if api["begin"] < cpu["end"]:
         raise ValueError("upload/output counter order is invalid")
     return (api["begin"] - cpu["end"]) * 1000 / frequency
+
+
+def observed_source_uploads(uses):
+    uploads = {}
+    for use in uses:
+        upload = use.get("software_upload")
+        if upload is None:
+            continue
+        identity = (upload["stream"], upload["sequence"])
+        if identity in uploads and uploads[identity] != upload:
+            raise ValueError("source upload identity changed across observers")
+        uploads[identity] = upload
+    return list(uploads.values())
 
 
 def analyze(directory):
@@ -38,7 +55,9 @@ def analyze(directory):
     frames = {key(row["token"]): row for row in events["FrameCpu"]}
     uploaded = {(key(row["token"]["device"]), row["texture"], row["stream"], row["sequence"]): row
                 for row in events["ImageUpload"]}
-    layouts = {row["stream"]: (row["row_pitch"] // 4, row["rows"]) for row in events["ImageUpload"]}
+    source_uploads = observed_source_uploads(events["SourceUse"])
+    all_uploads = events["ImageUpload"] + source_uploads
+    layouts = {row["stream"]: (row["row_pitch"] // 4, row["rows"]) for row in all_uploads}
     uses = defaultdict(list)
     for use in events["SourceUse"]:
         if use["stream"] is not None and use["sequence"]:
@@ -90,26 +109,29 @@ def analyze(directory):
             lower = None
             if len(dependencies) == 1:
                 use = dependencies[0]
-                upload = uploaded.get((key(use["token"]["device"]), use["texture"], use["stream"], use["sequence"]))
+                upload = use.get("software_upload") or uploaded.get((key(use["token"]["device"]), use["texture"], use["stream"], use["sequence"]))
                 if upload is not None:
-                    lower = publication_age_lower_bound(upload, output, frequency)
+                    lower = publication_age_lower_bound(upload, output, frequency,
+                                                        precedes_publication=use.get("software_upload") is not None)
             if lower is None:
                 age_unknown[output["output"]] += 1
             # Unknown ages contribute zero only to this failure lower bound, never a passing age.
             age[output["output"]].append(0.0 if lower is None else lower)
         for fixture in report["fixtures"]["cases"]:
             layout = (fixture["width"], fixture["height"])
-            uploads = [row for row in events["ImageUpload"] if row["cpu"] and begin <= row["cpu"]["begin"] < end
+            uploads = [row for row in all_uploads if row["cpu"] and begin <= row["cpu"]["begin"] < end
                        and layouts[row["stream"]] == layout]
             visible = [use for token in selected_tokens for use in uses[token] if layouts.get(use["stream"]) == layout]
             distinct = {(use["stream"], use["sequence"]) for use in visible}
             repeated = Counter((key(frames[key(row["token"])]["generation"]), row["stream"], row["sequence"])
-                               for row in uploads if key(row["token"]) in frames)
+                               for row in uploads if "token" in row and key(row["token"]) in frames)
             source_stats.append({"width": layout[0], "height": layout[1], "requested_fps": fixture["rate"],
                                  "visible_publications": len(distinct), "visible_publication_rate": len(distinct) / seconds,
-                                 "actual_upload_calls": len(uploads), "upload_bytes": sum(row["bytes"] for row in uploads),
+                                 "observed_upload_calls": len(uploads), "upload_bytes": sum(row["bytes"] for row in uploads),
+                                 "upload_coverage": "Observed source-worker identities deduplicated across consumers, plus render-thread uploads. Unsampled uploads/final producer counters remain unknown; not complete per-format accounting.",
                                  "upload_bytes_per_second": sum(row["bytes"] for row in uploads) / seconds,
                                  "duplicate_uploads_within_one_resource_generation": sum(count - 1 for count in repeated.values()),
+                                 "duplicate_scope": "Render-thread uploads only; source counter observations are deduplicated, and repeated source uploads of one original PTS remain unknown without continuous PTS lineage.",
                                  "uploaded_rows": sorted({row["rows"] for row in uploads}),
                                  "uploaded_row_pitches": sorted({row["row_pitch"] for row in uploads})})
         private = [row["process"]["memory"]["private_bytes"] for row in native if row["process"] and row["process"]["memory"]]
@@ -124,7 +146,7 @@ def analyze(directory):
                         "dxgi": [row["adapter_memory"] for row in native if row["adapter_memory"]]})
     return {"adapter": report["adapter"], "pid": report["pid"], "samples": results,
             "independent_receivers": receiver_summaries,
-            "scope": "One warmed baseline, not the required three independent samples. Renderer GPU is one context. Source age is an inward CPU-QPC lower bound from upload end to matching output API begin, never an invented publication timestamp or passing age proof. Incomplete decoder/pool/PTS/visible-frame coverage remains required."}
+            "scope": "One warmed sample, not the required three independent samples. Renderer GPU is one context. Only render-thread upload end can bound an already-published CPU image inward against matching output API begin. Source-worker upload ends before GPU publication and its publication age remains unknown. No invented timestamp or passing full-age proof. Incomplete decoder/pool/PTS/visible-frame and unsampled-upload coverage remains required."}
 
 
 if __name__ == "__main__":
