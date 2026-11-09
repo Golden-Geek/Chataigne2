@@ -1,0 +1,23 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4 alone Active; ordinary Cargo dev launch repaired, no full gate closed",
+	"request": "User reports cargo run dev launch fails at FFmpeg discovery; then asks to use the existing jcodemunch index.",
+	"baseline": { "command": "cargo run -p MapGyver -- --dev", "exit_code": 101, "error": "FFmpeg not found: FFMPEG_DIR not set; vcpkg/pkg-config cannot supply the dependency.", "log": "target/q06-plain-cargo-baseline.log", "sha256": "6a164b8f3f734ee7cb116245e4c35a9a9f4a63a7b0d37d957fba0e9a8356e1fb" },
+	"change": "Workspace Cargo config defaults FFMPEG_DIR to the prepared repository-relative pinned SDK; an explicit caller value retains precedence. Windows x64 MSVC gets the same16MiB linker stack reserve as the existing wrapper for bindgen. Existing Tauri Windows resource mapping owns DLL/license copying. No new app bootstrap, runtime-staging implementation, dependency or environment persistence. Document one-time SDK/source/runtime preparation and normal Cargo use; non-Windows consumers select their native SDK explicitly.",
+	"validation": {
+		"strict": "Plain cargo clippy --locked -p MapGyver --all-targets --features native-qualification -- -D warnings passes30.44s; existing ts-rs notices remain.",
+		"strict_log": "target/q06-plain-cargo-clippy-final.log",
+		"strict_sha256": "fc5e754dceda2e01379db1c15b5e162f66fae9732e134dd0a08afe8d3f193fef",
+		"final_launch": "Exact cargo run -p MapGyver -- --dev compiles30.89s and starts PID29480. No wrapper-only FFMPEG_DIR,LIBCLANG_PATH,RUSTFLAGS or encoded Rust flags are supplied by the invoking shell. Only APPDATA is isolated for the final UI check.",
+		"launch_log": "target/q06-plain-cargo-final.log",
+		"launch_sha256": "7509ad51edd838dc551ff2003a7b222d196243193bf25a8341c9cacabedbbbd60",
+		"app_sha256": "76d570a7f33b69c7683f7e95c22296043f5105e4901227b694f7b44a4e230138",
+		"host": "Backend starts127.0.0.1:7011 with bundled_frontend=false. Svelte dev frontend5174 returns200 with __sveltekit_dev; native accessibility observes the Untitled workbench document at that exact URL, default Screen/Surface and no user edits. Default native output reaches Ready/first acceptance.",
+		"libraries": "Existing independent inspectLocalVideoLibraries helper verifies all five loaded DLLs beside target/debug/MapGyver.exe, exact pinned sizes/SHA256. Existing licenses/video/FFmpeg-LGPL-3.0.txt is present.",
+		"stager": "Existing runtime regression passes: idempotent timestamps/hashes, corrupt final DLL/license reject before changing the stage. Temporary duplicate staging code/tests were removed after identifying the existing Tauri owner; no such implementation remains in the final diff.",
+		"formatting": "Root and Golden Core cargo fmt and scoped whitespace checks complete. No authored UI, protocol or decoder changes in this launch fix."
+	},
+	"limits": "An initial lint attempt while the user edited the first launched app failed because Tauri could not recopy a loaded DLL (Windows error32). User saved/closed it; final strict then passed. First launch exited0 on that normal user close. Supported Computer Use close input for the unchanged isolated final window failed with DwmFlush/composition and geometry errors; after two bounded attempts, exact owned PID/parent/executable identity was checked and only that test process terminated. Final exit0xffffffff is explicit test cleanup, not a normal-shutdown or resource-retirement pass. User project work is preserved.",
+	"tooling": "jcodemunch CLI confirms Chataigne2 fresh,watcher=watching,56,700 symbols/3,890 files. Local read-only MCP initializes successfully; its catalog uses route/menu/order. No index rebuild, plugin reconfiguration or new package installation.",
+	"next": "Prepared genuine-reset fixture is refreshed to the verified native-retry implementationfd3d12b2, SHA3bdd5c33084b21635bd2b4125f48a950640ecb8bde5d836ac10995d7a4bf2c6f. Its original no-reset2/2 checks pass; fresh elevated reset remains required. Continue M10/4 acceptance, then M14;85/102=83%,M10 2/4=50%,8/15 phases."
+}

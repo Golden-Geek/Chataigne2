@@ -1,7 +1,7 @@
 {
 	"date": "2026-11-09",
 	"gate": "M10/4",
-	"state": "Active; native Video recovery fixture preflight verified; genuine reset awaits an elevated Windows token",
+	"state": "Active; user-elevated trigger succeeded but recovery pixels failed; native-retry correction preflight verified and fresh genuine reset required",
 	"progress": {
 		"accepted": 85,
 		"total": 102,
@@ -97,8 +97,8 @@
 	"remaining": "Genuine Video device recovery awaits elevated execution. Continue the specified bundled-app sustained1080p/4K/resource performance within M10/4 meanwhile. M14 remains after M10/4; all original gate counts/budgets remain.",
 	"current_prepared_fixture": {
 		"path": "target/mapgyver-m10-device-ready/MapGyverTests.exe",
-		"sha256": "7cd60a9ed751444edc56f699683bdd0e44319b8a5bba548fb5981a603cd3f331",
-		"evidence": "mapgyver-m10-frame-windows-2026-11-09.json",
-		"scope": "Timestamped GPU File handoff: two presentation windows, one pending conversion, three native slots; static holds publish immediately. Epoch invalidation releases stale windows before replacement allocation, retaining renderer copies and real completion fences. Paired preflight/relink passes2 tests,27.26s,complete retirement in222.7543ms paired/89.2613ms Intel/99.1803ms NVIDIA, exact pixels and all eight expected routes. Historical candidate/preflight/denied-trigger identities retain their hashes in linked receipts. Sustained performance and genuine recovery remain unverified; the elevated command/target path is unchanged."
+		"sha256": "3bdd5c33084b21635bd2b4125f48a950640ecb8bde5d836ac10995d7a4bf2c6f",
+		"evidence": "mapgyver-m10-native-retry-2026-11-09.json",
+		"scope": "Native-retry correctionfd3d12b2 preserves supported native decoders after runtime/device/capacity/layout failures; explicit unsupported capability may fall back, HAP stays compressed.625 app tests, strict/default build, original both-GPU preflight/relink2/2 pass32.85s; paired zero-admission retirement197.1824ms. User's preceding reset trigger exited0 but prior implementation failed exact recovery pixels; full failure in mapgyver-m10-frame-window-cohorts-2026-11-09.json. Fresh genuine reset against this corrected fixture remains required. Historical identities stay retained; same elevated command/target path."
 	}
 }

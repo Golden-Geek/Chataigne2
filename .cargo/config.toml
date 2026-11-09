@@ -1,6 +1,15 @@
 [build]
 target-dir = "target"
 
+[env]
+# Windows Video development uses the repository's prepared, pinned source SDK.
+# Explicit caller SDKs take precedence. Other hosts must select their native FFmpeg install.
+FFMPEG_DIR = { value = "target/ffmpeg-source/stage/mapgyver-video-sdk", relative = true }
+
+[target.x86_64-pc-windows-msvc]
+# Bindgen traverses the Windows SDK in build scripts as well as product crates.
+rustflags = ["-C", "link-arg=/STACK:16777216"]
+
 [alias]
 xtask = "run --package xtask --"
 test-fast = "test --profile dev"

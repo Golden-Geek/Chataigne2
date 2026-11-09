@@ -135,6 +135,10 @@ precede its explicit runtime pin promotion. SDK, source kit and runtime staging 
 The [pinned dependency helper](../../tools/mapgyver/ffmpeg/README.md) verifies the exact Windows
 FFmpeg/compiler/assembler sources and runtime bytes, with process-local build/runtime paths.
 It builds missing SDK inputs and assembles corresponding sources and FFmpeg/GCC/MinGW notices.
+After preparation, workspace Cargo defaults `FFMPEG_DIR` to that SDK and supplies the Windows
+MSVC stack reserve used by bindgen. Explicit caller SDKs take precedence. Ordinary Cargo dev
+launches use the existing Windows Tauri resource mapping for pinned DLLs/notices; app startup
+does not discover or copy dependencies. Other hosts explicitly select their native FFmpeg SDK.
 Packet/image/work
 admission is explicit; failures require reopening the owner. These limits do not claim a hard
 ceiling on every temporary allocation inside third-party demuxers.
