@@ -1,0 +1,44 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4 alone Active; no acceptance credit",
+	"batch": "09:35 UTC start,10:20 UTC cutoff; finished two sequential unchanged mixed-profile comparisons by10:05 UTC. No third experiment. This candidate is rejected for promotion; restore the simpler current implementation and retain the same gate.",
+	"decision": "Fixed-function sRGB output views preserved color/alpha/Spout delivery, but did not improve the reproduced Intel cadence failure. NVIDIA also showed no useful gain. Do not promote the extra texture-view/SDK API machinery without demonstrated product value. The candidate is preserved locally and must not be restored automatically.",
+	"candidate": {
+		"base_commit": "8153854c959a16c7b21d7522fd367b9ddb2c7901",
+		"stash": "017f787a6163d9d555948d5535f3f431cf85cd66",
+		"stash_name": "mapgyver-m10-output-srgb-no-cadence-gain-2026-11-09",
+		"scope": "Golden owned RGBA8/BGRA8 sRGB straight/opaque output views, retained raw views and shader fallback; explicit typed Spout SendTextureFormat boundary. Candidate tests and architecture note are in the scoped stash. Unrelated user work was excluded. No candidate runtime changes remain in the checkout.",
+		"app": "target/q06-srgb-output-app/MapGyver.exe",
+		"app_sha256": "ba5e85aa3746fef641ea31c72df47f41aef912d2fff9a28f9142f1ab0fe87a94",
+		"golden_tests_sha256": "3467d9b2a6f7874febd8ff304cfdd93e8828617fdf6c586e362c77b6b6c4f88b",
+		"app_tests_sha256": "547b504178a96eedc57229c7283650ea06c82c66a7b3a36632f56fae6999a12f",
+		"workload": "Unchanged four-second frame-numbered ProRes HQ1920x1080@60 and3840x2160@30, HD shared Reference, three Spout Video outputs plus default Screen/preview. Same source SDK/probe/fixtures as mapgyver-m10-mixed-qualification-2026-11-09.json. Each adapter:30s warmup,120s sample,60s minimized,60s receiver disconnected. No concurrent build, GPU test or cohort during timing. No output rate, resolution, alpha, memory or queue-budget change."
+	},
+	"prerequisites": {
+		"software": "Golden280 passed,64 ignored,2.03s; MapGyver617 passed,7 ignored,46.30s. Final corrected Golden executable repeated its280 software checks successfully. Native qualification compiled successfully; ordinary no-bundle Tauri build passed in63s. Strict all-target Golden/MapGyver clippy -D warnings passed23.12s, then4.02s after the first test correction; final Golden-only strict passed8.65s after the final test-only correction. Existing ts-rs notices retained.",
+		"native": "New both-GPU output-view conformance passed0.68s: RGBA/BGRA, straight/opaque/premultiplied, alpha0/1/64/128/255, identity/scaling, raw-view equivalence, linear/float fallback. Candidate preflight/relink passed2 tests in27.88s, eight File workers/GPU and independent Spout output pixels; paired zero CPU/GPU admission248.3659ms, relink93.7288ms Intel/95.9209ms NVIDIA. No genuine reset occurred.",
+		"test_corrections": "Initial raw-view expectation incorrectly treated normalized readback as BGRA; corrected. NVIDIA then produced UNORM midpoint127 rather than128. Final check requires bit-exact agreement with the existing typed raw view and one-byte agreement with ideal quantization. Both failures are retained in target/q06-srgb-output-tests/output-transfer.log and output-transfer-final.log; the passing final is output-transfer-corrected.log. Neither was a product fix or performance experiment.",
+		"logs": "target/q06-srgb-output-tests/{golden-final,app,device,output-transfer-corrected}.log. Root and Golden Core cargo fmt plus vendor crate formatting and scoped whitespace review completed."
+	},
+	"intel": {
+		"pid": 40884,
+		"directory": "target/q06-srgb-output-intel",
+		"report_sha256": "6860002962cef2251325767cd0afc9e846a26991d1f996f3946f823e5c5228de",
+		"audit_sha256": "a7ce51be6e04e9e7541dda668ce6392a292596a43ee5351d52cf80ddac1fbc83",
+		"sample": "HD39.40313/4K25.09441 visible updates/s, compared with baseline40.15266/25.61075.1476/7204 unsubmitted slots=20.4886% definite misses versus baseline19.9750% and required0.1%. CPU render wall upper p95=4.5593ms,p99=5.1388ms. Renderer-context GPU p95=23.65599ms,p99=25.04531ms, versus baseline22.87229/23.85828. All5728 sampled GPU rows valid. Context stage p95 inputs2.76052/render11.15813/outputs11.93359ms; separate marginal percentiles include feed/scheduling and must not be added or called active shader/full critical-path cost.",
+		"background": "Minimized46.66753/29.56886 updates/s,390/3604 definite misses=10.8213%; disconnected40.90621/29.91797,718/3604=19.9223%. The native cadence failure persists in every phase.",
+		"resources_age": "Sparse private peak634806272B in sample,827899904B disconnected; known texels317126408B sample,395283208B disconnected exclude unknown decoder/pools.4K inward age lower p95=30.8688ms is not passing full age; HD GPU publication age remains unknown."
+	},
+	"nvidia": {
+		"pid": 29824,
+		"directory": "target/q06-srgb-output-nvidia",
+		"report_sha256": "d23c61c00ab4094d5280446642de3862c39fb11819901adf60c258abbfe99b98",
+		"audit_sha256": "97251516f0d93cc544a504fa22feee9f04da5ad5955e8ed0e6ae2d4050ee1de7",
+		"sample": "HD59.62097/4K27.83644 visible updates/s, compared with baseline59.67038/28.18601. Zero definite misses; worst observed7/7203=0.0972%, below0.1% in this one sample. CPU wall upper p95=3.2154ms,p99=3.5735ms. Renderer-context GPU p95=2.683136ms,p99=3.007744ms, versus baseline2.701088/2.903072. All7203 sampled GPU rows valid. No useful improvement or three-run/full-path qualification follows.",
+		"background": "Minimized59.27091/30.00174 updates/s, worst observed2/3604=0.0555%; disconnected59.09019/29.98631,zero observed misses. CPU wall upper p95=3.8476/3.9310ms. Original full-age, repeated-series and complete accounting requirements remain.",
+		"resources_age": "Sparse private peak712138752B sample,851968000B disconnected; known texels317126408B sample,395283208B disconnected exclude decoder/pools.4K inward age lower p95=30.9967ms cannot establish passing full age; HD GPU publication age remains unknown."
+	},
+	"shared_result": "Both ordinary app cohorts completed held full-resolution frame-code checks, independent SDK delivery, normal exit and complete zero-loss capture with zero recorded native allocations. Continuous Video PTS/pixel lineage and complete source upload/pool accounting remain open. Candidate behavior is not promoted, so the earlier8153854c baseline remains authoritative for the product checkout. The elevated-reset prepared fixture remains the prior promoted binary; the rejected candidate does not replace it.",
+	"next_product_deliverable": "Golden native identity sampling: full-frame, unmapped, equal-extent media draws currently still execute four-tap SampleFilter::Linear through pipeline::draw_view and shader::sample_source. Introduce a typed internal one-texel identity path at that shared boundary, retaining Linear for scaling, crops, placements and warps. Verify admission predicates and exact color/alpha/pixel-center behavior on both GPUs before unchanged workload comparisons. Existing Automatic Reference sharing and equal-extent output nearest selection are already implemented and must not be reimplemented.",
+	"remaining": "No gate closes:85/102=83%,M10 2/4=50%,8/15 phases. M10/4 alone Active. Keep Intel cadence, all common/HAP sustained profiles and three independent series, complete source age/critical path, decoder/pool/plane/inflight accounting, continuous Video PTS lineage and genuine elevated reset open before M14. No budget reduction or scope-order change. Existing smoothness/AA user acceptance remains unchanged."
+}
