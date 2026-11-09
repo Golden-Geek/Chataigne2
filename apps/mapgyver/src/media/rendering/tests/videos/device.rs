@@ -290,6 +290,10 @@ impl Owner {
                         values.push(pixel);
                         break;
                     }
+                    // SpoutProbe deliberately freezes one completed receiving image.
+                    // Another observation needs a fresh probe, not another read of that copy.
+                    drop(image);
+                    probe = SpoutProbe::new(sender, self.adapter, budget.clone()).unwrap();
                 }
                 if Instant::now() >= deadline {
                     let observed = edit(

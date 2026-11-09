@@ -1,0 +1,25 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4 alone Active; original recovery observation repaired, genuine acceptance still pending",
+	"finding": "SpoutProbe::capture_pixels explicitly returns one immutable received image; its documentation requires a fresh probe for a fresh observation. Session::poll keeps copied=true, and the readback retains that first image. Owner::pixels incorrectly retried the same completed snapshot while expecting later frame4/0 output. Therefore the12:55 failure proves the first copy mismatched, not that the live output stayed stale throughout the8s wait. Earlier native-downgrade evidence remains a real separate policy defect, corrected in fd3d12b2.",
+	"authoritative_contract": "crates/golden_video/src/native/probe/pixels.rs: SpoutProbe::capture_pixels; crates/golden_video/src/native/probe.rs: Session::poll",
+	"change": "After a completed image mismatches the expected pixel, drop that CPU image and replace its probe. Each retry then captures the current endpoint. Preserve the exact original eight-source/two-GPU fixture, frame0/frame4 baselines, pixel tolerance2/255,8s deadline,5s retirement, source caps and native/software/compressed paths. Only four lines in the original ignored fixture change; no production runtime or controller change.",
+	"validation": {
+		"compile": "Final original fixture compiles in91s; target/q06-fresh-probe-build.jsonl ends build-finished success=true.",
+		"strict": "All-target MapGyver native-qualification clippy -D warnings passes9.67s; existing ts-rs notices retained.",
+		"controller": "Original6 readiness/4 target-identifier checks pass; no process/reset launched by those contracts.",
+		"native": "Original no-reset preflight and four-relink-per-GPU test:2 passed,29.79s. Exact frame0/frame4, play/pause/loop/seeks and all eight outputs/routes remain verified on both GPUs. Paired zero CPU/GPU admission retirement235.1337ms; relink Intel91.4832ms/NVIDIA116.4384ms.",
+		"native_log": "target/q06-fresh-probe-tests/preflight.log",
+		"native_log_sha256": "48b326a992fe73d9bb106f292514f35c6e2ded134ccfdf8fd7b37e5efafd767f",
+		"reuse": "625 app/314 Golden software tests and79 age-tooling tests remain applicable to unchanged production/software bodies. No full software rerun or ordinary-app rebuild is claimed for this ignored-fixture-only correction. Root/Golden Core cargo fmt and scoped whitespace checks complete."
+	},
+	"prepared": { "path": "target/mapgyver-m10-device-ready/MapGyverTests.exe", "sha256": "194d12fa335d4ac37d573e67fc932dde5f92b6e73be29616b66c8e6a3a20bab6", "source": "target/q06-fresh-probe-tests/MapGyverTests.exe", "libraries": "Same five pinned executable-local FFmpeg DLLs; refreshed only after original software/strict/native prerequisites succeeded.", "command": "./apps/mapgyver/tests/native/invoke-device-removal.ps1 -TestExecutable ./target/mapgyver-m10-device-ready/MapGyverTests.exe -SourceKind Video -AllowDriverReset -UseCurrentToken" },
+	"superseded_comparison": {
+		"stash": "10ccaaee8052095c9751ec3eb02fa60da61519fc",
+		"name": "mapgyver-m10-source-replay-superseded-by-fresh-probe-2026-11-09",
+		"scope": "Opt-in fresh-renderer/current-File replay, controller selector and tests, including its later three-reservation/fresh-probe correction. Preserved unpromoted; do not apply automatically. The independent replay is unnecessary for the now-proved probe API misuse and is absent from the active change.",
+		"limits": "Initial compile import was corrected to Golden Video's public runtime API. First native comparison preflight failed because the new probe admitted only2 items, while receiving/staging/CPU images require3; original preflight passed. Corrected comparison variant compiles/strict passes but was shelved before native revalidation. Its initial failed log target/q06-source-replay-tests/preflight.log and binary hashEFD575A69C68687B878008C62CE6E01D922CCF038EC995ABAB1C5EC954D5F1A1 are not acceptance."
+	},
+	"effort": "Cumulative failed resets12:15/12:55 remain retained. The narrower investigation ended by13:55 with an authoritative static API/caller mismatch. Subsequent work completed the original corrected fixture's planned validation; no further diagnostic reset/profiler/variant was run. One fresh original genuine acceptance remains required, with no observer replay or relaxed conditions.",
+	"remaining": "Actual affected device generations, fresh original output pixels/native routes and complete retirement still require the prepared elevated run. Existing NVIDIA sustained deadline failure,4K/other-output age, Intel/format/repeated/resource/path/soak scope remain open. No full gate closed:85/102=83%,M10 2/4=50%,8/15 phases."
+}

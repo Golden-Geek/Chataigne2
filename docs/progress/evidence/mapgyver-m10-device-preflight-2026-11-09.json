@@ -1,7 +1,7 @@
 {
 	"date": "2026-11-09",
 	"gate": "M10/4",
-	"state": "Active; corrected native retry survives genuine reset on the native path, but original recovery pixels still fail; source-versus-delivery boundary remains unresolved",
+	"state": "Active; native retry preserves residency; stale recovery observation was a frozen-probe fixture mistake, now repaired/no-reset verified; fresh original genuine acceptance required",
 	"progress": {
 		"accepted": 85,
 		"total": 102,
@@ -94,11 +94,11 @@
 		"result": "Windows permission prerequisite failed; no reset/device recovery pass. The controller retains the fixture process handle through its bounded deadline and cleanup. No UAC prompt, security setting change, persistent disable, system reboot or privileged workaround was attempted."
 	},
 	"return_action": "Run the prepared controller from an elevated Windows PowerShell at the repository root: ./apps/mapgyver/tests/native/invoke-device-removal.ps1 -TestExecutable ./target/mapgyver-m10-device-ready/MapGyverTests.exe -SourceKind Video -AllowDriverReset -UseCurrentToken. It starts fresh owned fixtures and refuses stale/wrong-PID readiness. Inspect each actual affected adapter, new device generation, hardware/BC routes, fresh output pixels and zero retirement before credit. An unaffected GPU remains a healthy control, not an affected-device pass.",
-	"remaining": "Corrected genuine reset14792 is terminal101 with successful trigger0; native decoders reopen but original frame4 output pixels mismatch. Full latest result and next source-versus-delivery decision are in mapgyver-m10-publication-age-2026-11-09.json. Do not repeat a bare reset against the unchanged prepared fixture. Sustained1080p/4K/resource performance and all original gates/budgets remain; M14 follows M10/4.",
+	"remaining": "Reset14792 is retained failed: its original fixture kept reading one frozen first image, so that log does not prove sustained output staleness. The now-corrected original fixture needs fresh genuine acceptance; see mapgyver-m10-fresh-recovery-observations-2026-11-09.json. Native retry, sustained1080p/4K/resource performance and all original gates/budgets remain; M14 follows M10/4.",
 	"current_prepared_fixture": {
 		"path": "target/mapgyver-m10-device-ready/MapGyverTests.exe",
-		"sha256": "3bdd5c33084b21635bd2b4125f48a950640ecb8bde5d836ac10995d7a4bf2c6f",
-		"evidence": "mapgyver-m10-native-retry-2026-11-09.json",
-		"scope": "Native-retry correctionfd3d12b2 preserves supported native decoders after runtime/device/capacity/layout failures; explicit unsupported capability may fall back, HAP stays compressed.625 app tests, strict/default build, original both-GPU preflight/relink2/2 pass32.85s; paired zero-admission retirement197.1824ms. User's preceding reset trigger exited0 but prior implementation failed exact recovery pixels; full failure in mapgyver-m10-frame-window-cohorts-2026-11-09.json. Fresh genuine reset against this corrected fixture remains required. Historical identities stay retained; same elevated command/target path."
+		"sha256": "194d12fa335d4ac37d573e67fc932dde5f92b6e73be29616b66c8e6a3a20bab6",
+		"evidence": "mapgyver-m10-fresh-recovery-observations-2026-11-09.json",
+		"scope": "Original fixture now recreates each immutable SpoutProbe after a mismatched completed readback, retaining original scope/deadlines/tolerance. Native retryfd3d12b2 remains production behavior. Strict/original native2/2 passes29.79s; paired zero-admission retirement235.1337ms, relink Intel91.4832ms/NVIDIA116.4384ms. No direct-source comparison variant is active. Historical failed resets remain retained; fresh original genuine acceptance required with the same command/target path."
 	}
 }
