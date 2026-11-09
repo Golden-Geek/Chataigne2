@@ -1,0 +1,54 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4 Active; affected-NVIDIA recovery fails after PnP changes the adapter LUID",
+	"deliverable": "Existing qualification controller can now reproduce the earlier manual NVIDIA disable/enable autonomously using the elevated current token. Exact healthy NVIDIA admission and reset authorization remain required. It observes problem code22, dwells7s, and attempts re-enable in finally even after a partial disable, failed status query or interrupted dwell. It verifies healthy restoration. The original fixture reports both runtime snapshots on generation timeout; deadlines, pixel tolerances, source counts and resource caps are unchanged.",
+	"prerequisites": "Existing625 app/284 Golden software, portable166, strict and original native preflight remain applicable to unchanged production bodies. First current-source fixture compiles109s. Final fixture changes only timeout failure context; it compiles128s and all-target native-qualification clippy -D warnings passes13.48s. Before the cycle, pure PowerShell contracts pass6 readiness,4 identifier and7 restoration/terminal cases using mocked OS boundaries. Final review additionally passes3 actual entrypoint rejection cases for missing target/current-token/reset authorization, before filesystem/process/device work. No test contract launches a reset. Both native tests start only after their prerequisites succeed. No timed cohort overlaps.",
+	"first_restart": {
+		"directory": "target/m034-removal-559025a6f38e433eb046c7c6a04487d1",
+		"result_sha256": "b951a7bfa036c13699e9cc14a20ca0ebde743d36a05ce04a842e3e9b1301977a",
+		"stderr_sha256": "326f72333ebaf6790989410aed841454b2ce26fac06cff8f01284c3bf72df8df",
+		"binary_sha256": "bad50985e36b7f78907605818cd215e1a908860ab9c18952310f40d2775dd0c1",
+		"pid": 33472,
+		"started_utc": "2026-11-09T14:49:19.4980041Z",
+		"ready_utc": "2026-11-09T14:49:27.1432208Z",
+		"finished_utc": "2026-11-09T14:49:57.3513939Z",
+		"trigger": "Exact-target pnputil /restart-device exits0 and reports healthy restoration. Qualification exits101 after30s without any renderer generation advance. Native decoders report errors. No recovered pixels/routes or complete qualification credit is awarded.",
+		"initial_nvidia_luid": "dxgi:00000000:90b3a15f"
+	},
+	"disable_enable_comparison": {
+		"directory": "target/m034-removal-ccc176f9a36c470d8918b4e04791e111",
+		"result_sha256": "7c7053089af2a18d90e3de52e53a4b3bbd99748b163b7b8b6a6cae5f6c35d52e",
+		"stderr_sha256": "9704659dad6055710e20f58d8b964bec28b2bf2201d85a6da6a1962325a2ef04",
+		"binary": "target/q06-nvidia-cycle-tests/MapGyverTests.exe",
+		"binary_sha256": "91abc2793697d79f0f0e0c9907be84723cb195c88b182bbbc2c72f071e7aa51d",
+		"pid": 42596,
+		"started_utc": "2026-11-09T15:04:15.2633544Z",
+		"ready_utc": "2026-11-09T15:04:23.0026435Z",
+		"disabled_utc": "2026-11-09T15:04:24.5154993Z",
+		"reenabled_utc": "2026-11-09T15:04:36.9124391Z",
+		"finished_utc": "2026-11-09T15:04:53.1608807Z",
+		"disable_exit_code": 0,
+		"disabled_problem_code": 22,
+		"enable_exit_code": 0,
+		"device_status_after": "OK",
+		"qualification_exit_code": 101,
+		"fixture_terminal": true,
+		"intel": "Running generation1, active eight-output plan,2211 submissions,2210 completions and no failure. This establishes a live unaffected renderer, not a post-recovery independent pixel comparison, which the failed fixture never reached.",
+		"nvidia": "Actual loss is recorded: Faulted, device_lost=true, active=None, generation1 and failure Backend/render device was lost. It cannot recreate within the original30s bound. Initial adapter was already dxgi:00000001:4c1db9d3 after the first restart. No fresh recovered-pixel/native-route/retirement acceptance is claimed.",
+		"target": "Same physical PCI NVIDIA instance in both controller receipts: PCI\\VEN_10DE&DEV_2C59&SUBSYS_800F17AA&REV_A1\\813FD165DA2DB04800."
+	},
+	"root_cause": {
+		"inventory": "Read-only existing native_qualification --role hardware observes current NVIDIA dxgi:00000001:4d070f3e, while Intel remains dxgi:00000000:00015b69. Both display devices are healthy; laptop primary bounds[0,0,2560,1600] and external bounds[2560,0,4480,1080] are restored. No further renderer/reset experiment was run.",
+		"inventory_path": "target/q06-nvidia-after-cycle-hardware.json",
+		"inventory_sha256": "875bfbecfe576fe3083780b19a4c96916e2dd1221aa86325eec7cbb4554594bf",
+		"source": "D3d11Backend::allocate repeatedly calls Device::new(self.config.adapter); Device::new accepts only the old exact LUID and returns DXGI_ERROR_NOT_FOUND when absent. Native completion already checks GetDeviceRemovedReason even without new submissions. selection.rs currently treats LUID re-enumeration as a missing choice by design; it has no persistent physical-device binding. The old NVIDIA LUID is now absent, despite its same PCI device returning healthy.",
+		"decision": "Fix physical GPU identity at the Golden native selection/recovery boundary and update host preferences/File bindings consistently. Retain LUID only as the current GPU-sharing/runtime coordinate. Resolve only the same persistent PnP device instance; never match a friendly name/vendor tuple, select a default GPU, retain invalid source leases or silently fall back to another adapter. Review current LUID-based preference semantics explicitly in that implementation rather than adding a recovery-only alias.",
+		"references": [
+			"https://learn.microsoft.com/en-us/uwp/api/windows.devices.display.core.displayadapter.id",
+			"https://learn.microsoft.com/en-us/windows-hardware/drivers/install/device-instance-ids",
+			"https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-displayconfig_adapter_name"
+		]
+	},
+	"effort": "Two hardware experiments including the baseline; no third reset/profiler/observer is planned for this batch. The second failure plus read-only inventory changes the product decision from reset-trigger choice to persistent physical-device selection. Continue with that concrete implementation; resume original native acceptance only after its software/compile prerequisites pass. The user's standing authorization for autonomous resets remains in force.",
+	"remaining": "NVIDIA recovery stays unaccepted until the persistent physical binding is implemented and the original fresh pixels/routes/zero-retirement fixture passes. The earlier genuine Intel recovery remains accepted. Full sustained/repeated/age/path/pool/resource/soak qualification remains open. No gate/denominator/budget change:85/102=83%,M10 2/4=50%,8/15 phases."
+}

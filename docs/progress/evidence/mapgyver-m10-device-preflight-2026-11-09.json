@@ -1,7 +1,7 @@
 {
 	"date": "2026-11-09",
 	"gate": "M10/4",
-	"state": "Active; original corrected fixture passes genuine Intel device recovery, exact fresh output centers/routes and zero retirement; NVIDIA healthy control remains generation1",
+	"state": "Active; genuine Intel recovery accepted; actual NVIDIA PnP cycle fails recreation after runtime LUID replacement, with devices restored healthy",
 	"progress": {
 		"accepted": 85,
 		"total": 102,
@@ -93,12 +93,12 @@
 		"qualification_reason": "no genuine renderer device-generation change",
 		"result": "Windows permission prerequisite failed; no reset/device recovery pass. The controller retains the fixture process handle through its bounded deadline and cleanup. No UAC prompt, security setting change, persistent disable, system reboot or privileged workaround was attempted."
 	},
-	"return_action": "No repeat of the unchanged Intel recovery case: terminal PID23208 passes against the exact prepared binary. Return to any still-required affected-NVIDIA case only with its explicit target, original software prerequisites and bounded acceptance fixture. Continue M10/4 sustained1080p/4K/resource performance; retain all original gates/budgets.",
-	"remaining": "Reset14792 remains a failed frozen-first-image observation, not proof of sustained staleness. Fresh genuine PID23208 is accepted for affected Intel and healthy NVIDIA; see mapgyver-m10-fresh-recovery-observations-2026-11-09.json. Sustained/repeated/age/path/pool/soak and affected-NVIDIA scope remain; M14 follows M10/4.",
+	"return_action": "No repeat of unchanged accepted Intel recovery. After the two bounded NVIDIA failures, implement persistent physical selection/recovery and consistent host/File bindings, then run original native acceptance after software prerequisites. The actual process is now elevated; no manual-terminal handoff is needed. See mapgyver-m10-nvidia-identity-2026-11-09.json. No third reset/probe for the completed investigation.",
+	"remaining": "Intel PID23208 remains accepted; earlier frozen-first-image failure14792 remains historical. NVIDIA PID42596 records actual device_lost/Faulted after Code22 cycle, cannot recreate its obsolete LUID and fails101. Both physical devices and display bounds are restored. Physical identity correction plus full sustained/repeated/age/path/pool/resource/soak remain; M14 follows M10/4.",
 	"current_prepared_fixture": {
-		"path": "target/mapgyver-m10-device-ready/MapGyverTests.exe",
-		"sha256": "194d12fa335d4ac37d573e67fc932dde5f92b6e73be29616b66c8e6a3a20bab6",
-		"evidence": "mapgyver-m10-fresh-recovery-observations-2026-11-09.json",
-		"scope": "Original fixture recreates each immutable SpoutProbe after a mismatched completed readback, retaining original scope/deadlines/tolerance. Native retryfd3d12b2 remains production behavior. Strict/original native2/2 passes29.79s; paired zero-admission retirement235.1337ms, relink Intel91.4832ms/NVIDIA116.4384ms. Fresh genuine PID23208 passes1/1 in29.73s: Intel generation1->2, NVIDIA healthy1->1, all eight fresh output centers/routes each and paired zero-admission retirement199.6078ms. No direct-source comparison variant is active. Historical failed resets remain retained."
+		"path": "target/q06-nvidia-cycle-tests/MapGyverTests.exe",
+		"sha256": "91abc2793697d79f0f0e0c9907be84723cb195c88b182bbbc2c72f071e7aa51d",
+		"evidence": "mapgyver-m10-nvidia-identity-2026-11-09.json",
+		"scope": "Original fresh-probe/eight-source fixture, now with both runtime snapshots in timeout failures and unchanged deadlines/tolerance/caps. Final compile/strict pass. Actual NVIDIA cycle fails101: old LUID absent after the same physical PCI device returns; no recovery credit. Original Intel acceptance remains in the fresh-recovery receipt, not reclassified by this failure. No direct-source comparison variant is active; do not repeat unchanged resets before the physical-identity correction."
 	}
 }

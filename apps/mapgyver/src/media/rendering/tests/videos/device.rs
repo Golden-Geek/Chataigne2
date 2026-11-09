@@ -370,7 +370,11 @@ fn run(genuine: bool) {
             }
             assert!(
                 Instant::now() < deadline,
-                "no genuine renderer device-generation change"
+                "no genuine renderer device-generation change: {:?}",
+                owners
+                    .iter()
+                    .map(|owner| (owner.adapter, owner.live().snapshot()))
+                    .collect::<Vec<_>>()
             );
             std::thread::sleep(Duration::from_millis(5));
         }

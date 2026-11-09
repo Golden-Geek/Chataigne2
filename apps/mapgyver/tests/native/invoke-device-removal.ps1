@@ -3,6 +3,7 @@ param(
     [switch]$AllowDriverReset,
     [ValidateSet('SharedTexture', 'Video')][string]$SourceKind = 'SharedTexture',
     [switch]$UseCurrentToken,
+    [switch]$CycleDevice,
     [ValidatePattern('^PCI\\VEN_10DE&[A-Z0-9_&]+\\[A-Z0-9&]+$')]
     [string]$RestartDeviceInstanceId
 )
@@ -14,8 +15,65 @@ function Test-OwnedFixtureReady {
     return [bool]([string]$Text -match "(?m)^READY_EXTERNAL_DEVICE_REMOVAL pid=${ExpectedProcessId}:")
 }
 
+function Invoke-PnpDeviceAction {
+    param(
+        [ValidateSet('disable', 'enable')][string]$Action,
+        [string]$InstanceId,
+        [string]$Directory
+    )
+    $process = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32/pnputil.exe') `
+        -ArgumentList @(('/' + $Action + '-device'), ('"' + $InstanceId + '"')) `
+        -WindowStyle Hidden -PassThru `
+        -RedirectStandardOutput (Join-Path $Directory ($Action + '.stdout.log')) `
+        -RedirectStandardError (Join-Path $Directory ($Action + '.stderr.log'))
+    try {
+        $retainedHandle = $process.Handle
+        $process.WaitForExit()
+        if ($null -eq $process.ExitCode) { throw "Missing $Action device exit code" }
+        return [int]$process.ExitCode
+    } finally {
+        $process.Dispose()
+    }
+}
+
+function Invoke-TargetedDeviceCycle {
+    param(
+        [string]$InstanceId,
+        [string]$Directory,
+        [System.Collections.IDictionary]$Metadata
+    )
+    # The caller admits only an exact healthy NVIDIA adapter. Always attempt restoration,
+    # including a partial disable, failed status check or interrupted dwell.
+    try {
+        $Metadata.disable_exit_code = Invoke-PnpDeviceAction `
+            -Action disable -InstanceId $InstanceId -Directory $Directory
+        if ($Metadata.disable_exit_code -ne 0) { throw 'Targeted device disable failed' }
+        $problem = Get-PnpDeviceProperty -InstanceId $InstanceId -KeyName 'DEVPKEY_Device_ProblemCode'
+        $Metadata.disabled_problem_code = [int]$problem.Data
+        if ($Metadata.disabled_problem_code -ne 22) { throw 'NVIDIA disabled state was not observed' }
+        $Metadata.disabled_utc = [DateTime]::UtcNow.ToString('o')
+        Start-Sleep -Seconds 7
+    } finally {
+        $Metadata.enable_exit_code = Invoke-PnpDeviceAction `
+            -Action enable -InstanceId $InstanceId -Directory $Directory
+        if ($Metadata.enable_exit_code -ne 0) { throw 'Targeted device re-enable failed' }
+        $deadline = [DateTime]::UtcNow.AddSeconds(10)
+        do {
+            $restored = Get-PnpDevice -PresentOnly -InstanceId $InstanceId -ErrorAction Stop
+            $Metadata.device_status_after = [string]$restored.Status
+            if ($Metadata.device_status_after -eq 'OK') { break }
+            if ([DateTime]::UtcNow -ge $deadline) { throw 'Re-enabled NVIDIA adapter is not healthy' }
+            Start-Sleep -Milliseconds 100
+        } while ($true)
+        $Metadata.reenabled_utc = [DateTime]::UtcNow.ToString('o')
+    }
+}
+
 # Default is a no-reset preflight. Supply the switch only after explicit operator approval.
 $ErrorActionPreference = 'Stop'
+if ($CycleDevice -and (-not $UseCurrentToken -or -not $RestartDeviceInstanceId)) {
+    throw 'Device cycle requires an elevated current token and an exact NVIDIA target'
+}
 if ($RestartDeviceInstanceId) {
     if (-not $AllowDriverReset) { throw 'Targeted device restart requires explicit reset authorization' }
     $targetDevice = Get-PnpDevice -PresentOnly -InstanceId $RestartDeviceInstanceId -ErrorAction Stop
@@ -48,6 +106,7 @@ $metadata = [ordered]@{
     source_kind = $SourceKind
     use_current_token = [bool]$UseCurrentToken
     restart_device_instance_id = $RestartDeviceInstanceId
+    cycle_device = [bool]$CycleDevice
     directory = $directory
 }
 $qualificationProcess = $null
@@ -103,18 +162,22 @@ try {
             $triggerOptions.FilePath = Join-Path $env:SystemRoot 'System32/DXCap.exe'
             $triggerOptions.ArgumentList = '-forcetdr'
         }
-        $resetProcess = Start-Process @triggerOptions
-        $retainedResetHandle = $resetProcess.Handle
-        $resetProcess.WaitForExit()
-        if ($RestartDeviceInstanceId) {
-            $metadata.pnputil_exit_code = $resetProcess.ExitCode
-            $restored = Get-PnpDevice -PresentOnly -InstanceId $RestartDeviceInstanceId -ErrorAction Stop
-            $metadata.device_status_after = [string]$restored.Status
-            if ($restored.Status -ne 'OK') { throw 'Restarted NVIDIA adapter is not healthy' }
+        if ($CycleDevice) {
+            Invoke-TargetedDeviceCycle -InstanceId $RestartDeviceInstanceId -Directory $directory -Metadata $metadata
         } else {
-            $metadata.dxcap_exit_code = $resetProcess.ExitCode
+            $resetProcess = Start-Process @triggerOptions
+            $retainedResetHandle = $resetProcess.Handle
+            $resetProcess.WaitForExit()
+            if ($RestartDeviceInstanceId) {
+                $metadata.pnputil_exit_code = $resetProcess.ExitCode
+                $restored = Get-PnpDevice -PresentOnly -InstanceId $RestartDeviceInstanceId -ErrorAction Stop
+                $metadata.device_status_after = [string]$restored.Status
+                if ($restored.Status -ne 'OK') { throw 'Restarted NVIDIA adapter is not healthy' }
+            } else {
+                $metadata.dxcap_exit_code = $resetProcess.ExitCode
+            }
+            if ($resetProcess.ExitCode -ne 0) { throw 'Driver trigger failed; no successful trigger claimed' }
         }
-        if ($resetProcess.ExitCode -ne 0) { throw 'Driver trigger failed; no successful trigger claimed' }
     }
     $qualificationProcess.WaitForExit()
     $metadata.qualification_exit_code = $qualificationProcess.ExitCode
