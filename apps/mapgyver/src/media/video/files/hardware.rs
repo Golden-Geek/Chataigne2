@@ -33,6 +33,7 @@ impl Run {
                 max_pixels: 16384 * 16384,
                 max_packet_bytes: 16 * 1024 * 1024,
                 max_packets_per_frame: 256,
+                software_threads: golden_video::decode::SoftwareDecodeThreads::One,
             },
             hardware.adapter,
             hardware.budget.clone(),

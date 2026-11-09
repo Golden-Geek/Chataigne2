@@ -271,6 +271,14 @@ changing decoded pixels, thread admission or published-frame ownership. Q06's fi
 scenario and inward upload-end/output-API-begin age bounds live in `video_fixtures.py`,
 `native-video-sustained.mjs` and `video_sample.py`; an age lower bound can prove failure, never
 passing full source age. Each invocation is one independent warmed sample, not a three-run series.
+`DecodeLimits::software_threads` separately admits one, two or four software codec workers.
+Golden requests slice threading only when the codec advertises support, verifies the opened
+context stays within its count and rejects any frame-thread flag. Unsupported codecs use one;
+HAP keeps its compressed parser and hardware decode stays serial. Slice workers share the current
+decoded frame, so this adds no frame-threading queue or delayed-frame policy. MapGyver selects
+four for software File owners and one for native attempts; its eight-owner limit, CPU/frame pools
+and GPU admission remain unchanged. Third-party codec scratch/stack costs still require measured
+process accounting. Requested compute parallelism is operational admission, not authored state.
 For an explicit actual-app qualification run, set `MAPGYVER_NATIVE_DIAGNOSTICS` to an owned
 capture directory before launch. The host creates a fresh PID/UUID file per renderer lifetime,
 enables a16384-row ring and delegates writing to Golden's separate `DiagnosticCapture` I/O owner.

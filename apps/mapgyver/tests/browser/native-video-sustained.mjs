@@ -369,6 +369,7 @@ try {
 	await native.close();
 }
 report.nativeDiagnostics = await inspectNativeDiagnostics(native.app.pid, native.log());
+report.backendLog = native.log();
 await writeFile(path.join(directory, 'sample.json'), JSON.stringify(report, null, 2));
 console.log(
 	JSON.stringify({ result: report.result, pid: report.pid, adapter: report.adapter.key })

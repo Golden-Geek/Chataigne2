@@ -17,6 +17,7 @@ fn open(name: &str) -> Decoder {
             max_pixels: 4096 * 2160,
             max_packet_bytes: 1024 * 1024,
             max_packets_per_frame: 256,
+            software_threads: golden_video::decode::SoftwareDecodeThreads::One,
         },
     )
     .unwrap()

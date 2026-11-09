@@ -187,6 +187,7 @@ fn hardware_common_codec_sdr_frames_match_independent_linear_pixels_on_both_gpus
                     max_pixels: 4096 * 2160,
                     max_packet_bytes: 1024 * 1024,
                     max_packets_per_frame: 256,
+                    software_threads: crate::decode::SoftwareDecodeThreads::One,
                 },
             )
             .unwrap();

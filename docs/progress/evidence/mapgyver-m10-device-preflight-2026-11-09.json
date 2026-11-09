@@ -97,8 +97,8 @@
 	"remaining": "Genuine Video device recovery awaits elevated execution. Continue the specified bundled-app sustained1080p/4K/resource performance within M10/4 meanwhile. M14 remains after M10/4; all original gate counts/budgets remain.",
 	"current_prepared_fixture": {
 		"path": "target/mapgyver-m10-device-ready/MapGyverTests.exe",
-		"sha256": "1932da318159c49eac8c3a14416582105dd475c9f9e0fbf9dd0c2b1849fdee2f",
-		"evidence": "mapgyver-m10-upload-identity-2026-11-09.json",
-		"scope": "The subsequent software upload identity fix updates the prepared binary after successful current-code paired native preflight/relink validation:2 passed,26.24s,complete retirement below5s. Historical preflight and denied-trigger identities above retain their original hashes. The elevated command/target path is unchanged; genuine recovery is still unverified."
+		"sha256": "5e80830d4e0fa4dcde91238898f29d05acf9cc9428e785c83f18733c6691a89e",
+		"evidence": "mapgyver-m10-slice-decoding-2026-11-09.json",
+		"scope": "Bounded software slice decoding is included after successful current-code paired native preflight/relink validation:2 passed,26.01s,complete retirement in176.2839ms paired/90.4883ms Intel/80.9678ms NVIDIA. Historical preflight and denied-trigger identities above retain their original hashes. The elevated command/target path is unchanged; genuine recovery is still unverified."
 	}
 }

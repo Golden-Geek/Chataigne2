@@ -13,6 +13,7 @@ fn open(name: &str) -> Decoder {
             max_pixels: 4096 * 2160,
             max_packet_bytes: 16 * 1024 * 1024,
             max_packets_per_frame: 32,
+            software_threads: crate::decode::SoftwareDecodeThreads::One,
         },
     )
     .unwrap()

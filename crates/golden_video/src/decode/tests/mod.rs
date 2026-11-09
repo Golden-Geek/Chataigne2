@@ -1,4 +1,5 @@
 use super::*;
+mod parallelism;
 mod profiles;
 
 fn limits() -> DecodeLimits {
@@ -6,6 +7,7 @@ fn limits() -> DecodeLimits {
         max_pixels: 4096 * 2160,
         max_packet_bytes: 8 * 1024 * 1024,
         max_packets_per_frame: 128,
+        software_threads: crate::decode::SoftwareDecodeThreads::One,
     }
 }
 
@@ -153,6 +155,7 @@ fn extent_packet_and_per_call_work_limits_are_enforced() {
         &file,
         DecodeLimits {
             max_packets_per_frame: 1,
+            software_threads: crate::decode::SoftwareDecodeThreads::One,
             ..limits()
         },
     )

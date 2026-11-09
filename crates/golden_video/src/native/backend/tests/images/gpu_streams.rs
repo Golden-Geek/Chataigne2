@@ -215,6 +215,7 @@ fn hardware_gpu_frames_import_actual_intel_decoder_without_cpu_conversion() {
         max_pixels: 4096 * 2160,
         max_packet_bytes: 1024 * 1024,
         max_packets_per_frame: 128,
+        software_threads: crate::decode::SoftwareDecodeThreads::One,
     };
     let budget = GpuFrameBudget::new(1024 * 1024);
     let mut decoder = Decoder::open_native(&root.join("h264.mp4"), limits, adapter.id, budget.clone()).unwrap();

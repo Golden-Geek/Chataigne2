@@ -419,9 +419,19 @@ impl Run {
                 max_pixels: 16384 * 16384,
                 max_packet_bytes: 16 * 1024 * 1024,
                 max_packets_per_frame: 256,
+                software_threads: golden_video::decode::SoftwareDecodeThreads::Four,
             },
             move || cancel.is_cancelled(),
         )?;
+        if std::env::var_os("MAPGYVER_NATIVE_DIAGNOSTICS").is_some_and(|value| !value.is_empty())
+            && let Some(threads) = decoder.software_decode_threads()
+        {
+            let info = decoder.info();
+            eprintln!(
+                "[mapgyver-video] software decode: {} {}x{} threads={threads}",
+                info.codec, info.width, info.height
+            );
+        }
         let lease = Arc::new(
             self.budget
                 .reserve(u64::from(decoder.info().width) * u64::from(decoder.info().height))

@@ -6,6 +6,7 @@ fn limits() -> DecodeLimits {
         max_pixels: 4096 * 2160,
         max_packet_bytes: 8 * 1024 * 1024,
         max_packets_per_frame: 128,
+        software_threads: crate::decode::SoftwareDecodeThreads::Four,
     }
 }
 fn fixture(name: &str) -> std::path::PathBuf {
@@ -104,9 +105,9 @@ fn hardware_frames_preserve_adapter_timestamps_seek_and_pool_leases_on_both_gpus
         .filter(|a| !a.software)
         .collect();
     assert_eq!(adapters.len(), 2, "this qualification requires both local GPUs");
-    for (name, rate, extent) in [
-        ("h264.mp4", (24, 1), (64, 48)),
-        ("hevc-main.mp4", (30000, 1001), (1920, 1080)),
+    for (name, rate, extent, base_luma) in [
+        ("h264-color.mp4", (24, 1), (1920, 1080), 32),
+        ("hevc-main.mp4", (30000, 1001), (1920, 1080), 32),
     ] {
         for adapter in &adapters {
             eprintln!("hardware decode GPU: {}, file: {name}", adapter.description);
@@ -117,6 +118,13 @@ fn hardware_frames_preserve_adapter_timestamps_seek_and_pool_leases_on_both_gpus
                 GpuFrameBudget::new(512 * 1024 * 1024),
             )
             .unwrap();
+            assert_eq!(decoder.software_decode_threads(), None);
+            let threading = decoder.decoder.as_ref().unwrap().threading();
+            assert_eq!(threading.kind, ffmpeg::codec::threading::Type::None);
+            assert_eq!(
+                threading.count, 1,
+                "software slice admission must not alter hardware pools"
+            );
             let base = decoder.info().time_base;
             let mut held = Vec::new();
             while let Some(frame) = decoder.next_frame().unwrap() {
@@ -134,7 +142,10 @@ fn hardware_frames_preserve_adapter_timestamps_seek_and_pool_leases_on_both_gpus
                 let gpu = frame.d3d11_frame().unwrap();
                 assert_eq!(gpu.adapter(), adapter.id);
                 assert_eq!((gpu.extent().width(), gpu.extent().height()), extent);
-                assert!(luma(gpu).abs_diff(32 + index as u8 * 24) <= 3, "{name} frame{index}");
+                assert!(
+                    luma(gpu).abs_diff(base_luma + index as u8 * 24) <= 3,
+                    "{name} frame{index}"
+                );
                 held.push(frame);
             }
             assert_eq!(held.len(), 6);
@@ -150,16 +161,16 @@ fn hardware_frames_preserve_adapter_timestamps_seek_and_pool_leases_on_both_gpus
                     }
                 }
                 let frame = found.expect("exact original seek timestamp");
-                assert!(luma(frame.d3d11_frame().unwrap()).abs_diff(32 + index as u8 * 24) <= 3);
+                assert!(luma(frame.d3d11_frame().unwrap()).abs_diff(base_luma + index as u8 * 24) <= 3);
                 assert!(
-                    luma(held[0].d3d11_frame().unwrap()).abs_diff(32) <= 3,
+                    luma(held[0].d3d11_frame().unwrap()).abs_diff(base_luma) <= 3,
                     "old pool slot must survive each replacement decoder"
                 );
             }
             drop(decoder);
             for (index, frame) in held.iter().enumerate() {
                 assert!(
-                    luma(frame.d3d11_frame().unwrap()).abs_diff(32 + index as u8 * 24) <= 3,
+                    luma(frame.d3d11_frame().unwrap()).abs_diff(base_luma + index as u8 * 24) <= 3,
                     "{name}: old pool slot remains valid after replacement/decoder shutdown"
                 );
             }

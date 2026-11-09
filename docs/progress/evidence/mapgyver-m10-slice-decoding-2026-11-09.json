@@ -1,0 +1,36 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4 Active; no acceptance credit",
+	"batch": "06:02 UTC start,06:47 UTC cutoff. Deliver bounded software codec parallelism, verify unchanged bytes/timestamps/ownership, then validate the same ProRes workload on both adapters. No timing-budget or frame/worker admission revision.",
+	"implementation": "Golden DecodeLimits now requires typed SoftwareDecodeThreads One/Two/Four. Only capable software codecs receive FF_THREAD_SLICE; HAP keeps its compressed parser and hardware stays serial. Opened contexts enabling FF_THREAD_FRAME or exceeding the admitted thread count are rejected. All Rust callers are updated. MapGyver File software owners request Four and native attempts One; eight IO-owner admission and retained-frame/GPU budgets stay unchanged. Codec scratch/stack working memory remains separately observable, not claimed zero or charged as decoded frames.",
+	"software": {
+		"golden": "278 passed,62 ignored; final ordinary rerun2.92s. Two new tests compare serial/two/four modes on six common profiles byte-for-byte, exact timestamps, EOF and four adversarial seeks; actual ProRes slice admission and no frame threads are asserted. HAP allocates no codec context/pool. Existing padded-row/all-byte/alpha/transfer test retained.",
+		"app": "615 passed,7 ignored;45.64s. App test binary5e80830d4e0fa4dcde91238898f29d05acf9cc9428e785c83f18733c6691a89e; log target/q06-slice-tests/app-software.log SHA2560b34763de38d427fb0c8373faddd8a762e97ac5d226ffcf2bd37adc906c04010.",
+		"strict": "All-target Golden Video/MapGyver with native-qualification and -D warnings:exit0,final9.35s. A needless struct-update lint was repaired using the binding's Config constructor; existing ts-rs notices unchanged. Root/Golden Core cargo fmt and touched JS checks pass.",
+		"golden_binary_sha256": "497c97beeec03f5708dd5c60a54e2067e64e8022853898808293156d3703c77e"
+	},
+	"native_preservation": {
+		"hardware": "One test passes on both GPUs,1.00s: qualified HD H.264 and HEVC retain original pixels/timestamps/seeks/old pool slots while a Four software limit still opens hardware with one thread/no frame threading. target/q06-slice-tests/hardware-final.log SHA256ea0b1363982301e906d5a9938ad37808919ceb8e522b43f56be9e34439edc9f9.",
+		"retirement": "Two app preflight/relink tests pass,26.01s: eight sources per GPU, exact pixels/routes and zero CPU/GPU retirement; paired176.2839ms,Intel90.4883ms,NVIDIA80.9678ms,within5s. Genuine reset explicitly skipped. target/q06-slice-tests/device-preflight.log SHA2562467b134942fd08b0c8a2f28f2efc57307e464201b8012928479a06c2453c7f5. Prepared elevated fixture updated after confirming no live process.",
+		"failed_invocations": "The older hardware test assumed tiny64x48 H.264 works on NVIDIA, contrary to retained common-codec evidence. It failed before dependent native checks. Replaced that case with qualified chromatic HD H.264; the first expected raw luma incorrectly used16 instead of32 (16 is the limited-range-normalized offset), then corrected against the fixture generator. Both failed logs remain hardware.log and hardware-hd.log; unsupported tiny hardware is not relabelled supported."
+	},
+	"app_build": "Ordinary source-SDK Tauri debug/no-bundle,exit0,56.77s; staged exact DLLs/notices and loaded paths/hashes verified. Binary7f8afd8c51d358038d5d78ddb503100b95bb3c4f9da2636b7c975502d379374a at target/q06-prores-slice-app.",
+	"nvidia": {
+		"pid": 38012,
+		"report": "target/q06-prores-nvidia-slice/sample.json",
+		"report_sha256": "703017c3708217b9ba2b256fea38f6e90610d3668995e8dfbb560816c4aa19e0",
+		"audit_sha256": "e07bde4cb41ba10bc0c74f3a629c279ac430ca0dc51535702770b9d04ce8739c",
+		"sample": "HD55.88898 and4K22.00576 publication changes/s, improved from row-copy46.54621/14.65190; required60/30 still unmet. CPU wall upper bound p95=3.2834ms,p99=3.7745ms; renderer GPU p95=3.083296ms,p99=3.269408ms. Source4K age lower bound p95=32.2422ms cannot establish a passing full age.",
+		"minimized_disconnected": "HD59.88548/59.95905 and4K26.12185/26.14155 changes/s. Disconnected CPU wall p95=4.1106ms exceeds the4ms upper-bound acceptance comparison; actual CPU work excluding waits remains inconclusive, not silently passed."
+	},
+	"intel": {
+		"pid": 29704,
+		"report": "target/q06-prores-intel-slice/sample.json",
+		"report_sha256": "1c3950d9e5f748abdc156d494b1b97238acf776cadb64621b9ca50b9b2eee9ef",
+		"audit_sha256": "580b7eb486a9670019f18e2649c5aae0ae77bfa6e378824b0dd88da5932806c9",
+		"sample": "HD44.40926/4K20.23903 publication changes/s. Native software deadline analysis proves1307/7204 slots unsubmitted,18.1427% definite misses versus0.1% allowed. Renderer-context GPU elapsed p95=22.220625ms,p99=23.441823ms is above the12/16.667ms comparison; it includes feed gaps and is not a measured active-shader/full-path duration. CPU wall upper bound p95=7.1831ms,p99=7.9009ms. Source4K age lower bound p95=31.66ms is not passing full-age evidence.",
+		"minimized_disconnected": "HD53.76241/48.74030 and4K24.53430/24.56990 changes/s. Renderer GPU p95=19.26698/21.74672ms remains above budget."
+	},
+	"shared_method": "Same frame-numbered ProRes HQ1080p60+4K30 files and shared Reference/independent SDK consumers as the linked baseline. Each GPU completes30s warmup,120s sample,60s minimized,60s disconnected, full-size held frame codes, normal shutdown and complete zero-loss capture with zero recorded native allocations. No duplicate software uploads within one resource generation. One independent sample per GPU, not the required three. Continuous Video pixel/PTS lineage, full publication-age upper bounds, decoder/pool/plane and all-format critical-path accounting remain open. Backend log tail is retained, but HTTP diagnostics evict early per-codec thread lines; no missing telemetry is presented as observed actual thread counts.",
+	"remaining": "Stop repeated qualification against these known failures. Next product deliverable: frame-paced File production using reusable native consumer-demand wakeups rather than the recurring8ms post-work delay; preserve headless/cancellation and bounded queues. Retain Intel renderer GPU/submission failure as an explicit subsequent return item, not a budget waiver. Then complete the three independent samples, every common/HAP cohort and all original resource/age/format criteria; genuine reset still needs the prepared elevated session.85/102 gates (83%),M10 2/4 (50%),8/15 phases unchanged. M14 remains after M10/4."
+}

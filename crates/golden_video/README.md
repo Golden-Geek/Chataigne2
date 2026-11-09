@@ -22,6 +22,11 @@ The implemented foundations are:
   exact stream-timestamp seeking replaces codec reorder state. Explicit admission limits and
   poisoned-error state prevent unbounded packet work or false clean completion. It does not
   own app transport, GPU readback or implicit colour conversion.
+  `DecodeLimits::software_threads` explicitly selects one, two or four bounded software codec
+  workers. Only advertised slice threading is enabled; opened contexts exceeding the admitted
+  count or enabling frame threading are rejected. HAP keeps its compressed parser and native
+  hardware decode stays serial. This preserves decoded-frame queue semantics; third-party
+  scratch/stack memory remains separate from retained-frame admission and must be observed.
   [Pinned Windows dependency and checks](../../tools/mapgyver/ffmpeg/README.md) describe the
   current boundary and remaining hardware/worker/package integration.
 - `plan/` validates the complete submitted dependency graph and caller-supplied limits, then

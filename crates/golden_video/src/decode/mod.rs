@@ -8,8 +8,10 @@ use ffmpeg_next as ffmpeg;
 use std::path::Path;
 mod hap;
 mod image;
+mod parallelism;
 pub use hap::{HapFormat, HapFrame};
 pub use image::{ConversionError, SoftwareImageConverter};
+pub use parallelism::SoftwareDecodeThreads;
 mod timing;
 pub use timing::{StreamTiming, probe_timing_with_interrupt};
 #[cfg(all(windows, feature = "d3d11"))]
@@ -26,6 +28,8 @@ pub struct DecodeLimits {
     pub max_packet_bytes: usize,
     /// Maximum packets inspected while producing a single frame.
     pub max_packets_per_frame: usize,
+    /// Bounded slice workers for capable software codecs; never frame threading.
+    pub software_threads: SoftwareDecodeThreads,
 }
 
 /// Original stream units; no inferred frame rate or floating-point clock conversion.
@@ -211,7 +215,7 @@ enum DecodeState {
 }
 
 impl Decoder {
-    /// Open local video with one codec thread, preserving HAP's GPU block compression.
+    /// Open local video with admitted software slice parallelism and preserved HAP blocks.
     pub fn open(path: &Path, limits: DecodeLimits) -> Result<Self, DecodeError> {
         Self::open_with_interrupt(path, limits, || false)
     }
@@ -320,6 +324,15 @@ impl Decoder {
             #[cfg(all(windows, feature = "d3d11"))]
             DecoderKind::D3d11(_) => DecodeStorage::D3d11,
         }
+    }
+
+    /// Actual codec thread count for an available software decoder; HAP/hardware return None.
+    /// This excludes the owning IO task and does not describe decoder storage bytes.
+    pub fn software_decode_threads(&self) -> Option<usize> {
+        self.decoder
+            .as_ref()
+            .filter(|_| matches!(self.kind, DecoderKind::Software))
+            .map(|decoder| decoder.threading().count)
     }
 
     /// Seek to a keyframe at/before an original stream timestamp with a fresh codec owner.
@@ -466,7 +479,9 @@ fn open_decoder(
     unsafe {
         (*context.as_mut_ptr()).max_pixels = limits.max_pixels as i64;
     }
-    context.set_threading(ffmpeg::codec::threading::Config::count(1));
+    let threading = parallelism::configuration(&context, kind, limits.software_threads);
+    let admitted_threads = threading.count;
+    context.set_threading(threading);
     kind.configure(&mut context)?;
     let mut decoder = context.decoder();
     decoder.set_packet_time_base(stream.time_base());
@@ -477,6 +492,12 @@ fn open_decoder(
             error.into()
         }
     })?;
+    // SAFETY: immutable metadata on this live opened context. The wrapper's enum collapses
+    // unknown bit combinations, so inspect the frame-thread flag before admitting the owner.
+    let frame_threads = unsafe { (*decoder.as_ptr()).active_thread_type & ffmpeg::ffi::FF_THREAD_FRAME != 0 };
+    if frame_threads || decoder.threading().count > admitted_threads {
+        return Err(DecodeError::LimitExceeded);
+    }
     admit_extent(decoder.width(), decoder.height(), limits.max_pixels)?;
     Ok(decoder)
 }
