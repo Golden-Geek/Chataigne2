@@ -69,7 +69,7 @@ if ($workflowSource -match 'key: (?:product-gate|compatibility)-[^\r\n]*hashFile
     throw "rust-cache custom keys must not defer file hashing to the post-job phase."
 }
 if ($workflowSource -notmatch 'mozilla-actions/sccache-action@[0-9a-f]{40}' -or
-    $workflowSource -notmatch 'SCCACHE_GHA_ENABLED: "true"' -or
+    $workflowSource -notmatch 'SCCACHE_GHA_ENABLED: (?:"true"|''true'')' -or
     $workflowSource -notmatch 'RUSTC_WRAPPER: sccache' -or
     $workflowSource -notmatch 'cache-targets: false') {
     throw "Product qualification must use content-addressed compiler caching without duplicating target caches."

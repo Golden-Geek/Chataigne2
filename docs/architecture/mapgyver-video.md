@@ -229,10 +229,10 @@ timestamps. Healthy recovery clears the current source error without authored hi
 errors retain known duration during endpoint loss and clear after successful re-probing, including
 when the restored File has the same fingerprint as before its disappearance.
 
-During integration, enable `video-files` through the pinned dependency helper:
+MapGyver enables `video-files` by default. Windows builds use the pinned dependency helper:
 
 ```powershell
-powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 run --locked -p MapGyver --features video-files
+powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 run --locked -p MapGyver
 ```
 
 The host binds these file sources to the existing Media Preview, Composition, Matrix and
@@ -240,11 +240,15 @@ Screen render graph. `tests/browser/native-video-playback.mjs` verifies the bund
 File/Playback/Seek and frame-step controls, Undo/Redo, native preview installation, Reference
 transport and save/New/load recovery. The existing read-only Screen observer compares physical
 pixels with independent BT.709 or BC/sRGB/alpha/YCoCg references in linear space. It runs with an isolated
-profile, `MAPGYVER_TEST_BINARY` pointing to the current `video-files` app, and the pinned FFmpeg
-DLL directory on `PATH`. Tiny clips establish functional checkpoints, not sustained playback or
+profile and `MAPGYVER_TEST_BINARY` pointing to the current app. The dependency helper verifies
+and stages the five DLLs; the Windows Tauri resource map places them beside ordinary app builds
+and carries notices under `licenses/video`. A staged app runs without an FFmpeg PATH entry.
+`MAPGYVER_VIDEO_LOCAL_DLLS=1` verifies actual loaded module paths/sizes/hashes against the pin.
+Tiny clips establish functional checkpoints, not sustained playback or
 physical panel/cadence qualification.
 
 M10/1 common-codec and M10/2 HAP functional gates are accepted in their linked audits.
-Default feature/redistribution wiring, complete seek/relink/device recovery and sustained
-1080p/4K/resource/performance acceptance remain M10/4 before M14. DXV/WebP remains M10/3
+Default feature/DLL resource wiring is implemented; complete source/third-party-notice delivery,
+installer checks, seek/relink/device recovery and sustained1080p/4K/resource/performance
+acceptance remain M10/4 before M14. DXV/WebP remains M10/3
 after M14. Functional acceptance does not close those retained requirements.

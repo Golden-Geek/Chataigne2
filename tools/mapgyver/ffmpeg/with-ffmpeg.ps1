@@ -24,6 +24,7 @@ foreach ($taskRequired in @('include/libavcodec/avcodec.h', 'lib/avcodec.lib', '
         throw "Incomplete pinned FFmpeg install: $taskRequired"
     }
 }
+& (Join-Path $PSScriptRoot 'prepare-runtime.ps1') -Install $taskInstall
 if (!$CargoArguments.Count) {
     Write-Output $taskInstall
     exit 0
@@ -48,7 +49,13 @@ try {
     if (!$env:LIBCLANG_PATH -and (Test-Path -LiteralPath 'C:/Program Files/LLVM/bin/libclang.dll')) {
         $env:LIBCLANG_PATH = 'C:/Program Files/LLVM/bin'
     }
-    & cargo @CargoArguments
+    if ($CargoArguments[0] -eq '--tauri') {
+        Set-Location -LiteralPath (Join-Path $taskRoot 'apps/mapgyver')
+        $taskTauriArguments = @($CargoArguments | Select-Object -Skip 1)
+        & npm.cmd exec -- tauri @taskTauriArguments
+    } else {
+        & cargo @CargoArguments
+    }
     $taskExit = $LASTEXITCODE
 } finally {
     Set-Location -LiteralPath $taskOldDirectory

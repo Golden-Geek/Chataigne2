@@ -1,0 +1,12 @@
+{
+	"bundle": {
+		"resources": {
+			"../../target/mapgyver-ffmpeg-runtime/bin/avcodec-63.dll": "avcodec-63.dll",
+			"../../target/mapgyver-ffmpeg-runtime/bin/avformat-63.dll": "avformat-63.dll",
+			"../../target/mapgyver-ffmpeg-runtime/bin/avutil-61.dll": "avutil-61.dll",
+			"../../target/mapgyver-ffmpeg-runtime/bin/swresample-7.dll": "swresample-7.dll",
+			"../../target/mapgyver-ffmpeg-runtime/bin/swscale-10.dll": "swscale-10.dll",
+			"../../target/mapgyver-ffmpeg-runtime/licenses/": "licenses/video/"
+		}
+	}
+}

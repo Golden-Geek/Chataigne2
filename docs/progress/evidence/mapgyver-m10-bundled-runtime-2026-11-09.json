@@ -1,0 +1,44 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4",
+	"state": "Active; default-runtime milestone delivered, no gate acceptance",
+	"deliverable": "MapGyver enables Video by default and stages pinned executable-local Windows FFmpeg libraries with dependency notices through the ordinary Tauri resource boundary. Golden Video keeps its optional ffmpeg feature. No app-shell runtime or system DLL/PATH mutation was added.",
+	"implementation": {
+		"manifest": "MapGyver default features are native-video and video-files. The existing user tauri-build manifest edit is preserved and excluded from this milestone's staged feature hunk.",
+		"pin": "tools/mapgyver/ffmpeg/windows-x64.json retains the same verified LGPL shared9.0.2 archive and adds hashes/sizes for the five runtime DLLs and its license; binding features now document software-scaling as well as format.",
+		"staging": "prepare-runtime.ps1 validates all source DLLs and license before changing target/mapgyver-ffmpeg-runtime. It copies only changed bytes, preserving timestamps on unchanged inputs. License/GPL texts, full HAP/Snappy public-header notices, Rust snap BSD text, binding WTFPL text and exact provenance accompany the stage.",
+		"resources": "apps/mapgyver/tauri.windows.conf.json maps avcodec63, avformat63, avutil61, swresample7 and swscale10 beside the executable, and notices under licenses/video. Existing font resources remain present. Tauri's public build/resource mechanism performs the profile and installer-input copying; no duplicated app build/bootstrap implementation.",
+		"commands": "run:mapgyver, watch:mapgyver and both MapGyver package commands use the existing process-local dependency helper. --tauri runs the repository-local Tauri CLI from the app directory and restores the caller environment/directory afterward.",
+		"ci": "The workspace product workflow prepares the same pinned Windows SDK and MSVC stack setting before default builds. macOS/Linux install FFmpeg development libraries for workspace build coverage. Remote CI and non-Windows runtime qualification were not executed here.",
+		"dependency_closure": "LLVM PE import inspection of all five selected libraries shows their FFmpeg imports resolve within this set; other observed imports are Windows/CRT libraries. avdevice/avfilter and CLI executables are not shipped in this runtime stage."
+	},
+	"software": {
+		"default_test": "with-ffmpeg.ps1 test --locked -p MapGyver --lib --quiet -- --test-threads=1",
+		"result": { "passed": 611, "failed": 0, "ignored": 4, "seconds": 85.39, "exit": 0 },
+		"strict": "Default-feature MapGyver --lib --tests Clippy with -D warnings exits0 in46.50s. This validates Video without an explicit video-files flag. Existing ts-rs serde-attribute notices remain unchanged.",
+		"staging_tests": "tools/mapgyver/ffmpeg/tests/runtime.ps1 exits0: unchanged stage hashes/timestamps persist; corrupt last DLL and corrupt extracted license each reject before any staged content changes; owned temporary inputs are cleaned up.",
+		"frontend": "No product frontend or protocol DTO changed. Earlier current-code zero-error/zero-warning Svelte and generated-contract proof is retained. New browser modules pass syntax/Prettier; package/Windows-resource/pin/workflow JSON/YAML formatting passes.",
+		"global_tool_limit": "tools/product-gate/tests/contract-tests.ps1 still fails its pre-existing app-local UI-watch assertion at line131: it expects GC_UI_ASSUME_BUILT implementation in apps/chataigne/build.rs, although that behavior moved to shared codegen. The assertion is also false on unchanged HEAD, and neither owning implementation changed. A temporary reconciliation exposed a later stale desktop-host assertion too; that broader migration was not retained. Only acceptance of either valid YAML quote style for the unchanged sccache value is included. No full global tool-contract pass or remote product-gate pass is claimed. Return at final qualification: reconcile these assertions with the shared codegen/desktop owners and rerun the complete tool contracts.",
+		"format": "Root and golden_core Cargo formatting, owned complete-diff review, staged whitespace and JSON parsing checks complete."
+	},
+	"artifact": {
+		"command": "with-ffmpeg.ps1 --tauri build --debug --no-bundle",
+		"result": { "exit": 0, "cargo_seconds": 78 },
+		"path": "target/debug/MapGyver.exe",
+		"bytes": 41498624,
+		"sha256": "b0093b83a8463789270daf1a6a9bfa677a0ec6257af86d04d1e48f44b91eaad3",
+		"isolated_layout": "target/mapgyver-m10-bundled-2026-11-09/MapGyver.exe plus Tauri-emitted DLLs and licenses. Directories containing ffmpeg were removed from the process PATH before launching. No installer, signature, release or deployment was produced."
+	},
+	"actual_app": {
+		"script": "native-video-playback.mjs with MAPGYVER_VIDEO_LOCAL_DLLS=1",
+		"pid": 48852,
+		"adapter": "dxgi:00000000:90b3a15f",
+		"result": { "profiles": 10, "physical_checkpoints": 89, "requests": 2068, "receipts": 2068, "page_errors": 0, "rejections": 0, "normal_shutdown": true, "exit": 0 },
+		"local_libraries": "The owned process loads all five expected DLLs from the isolated executable directory, each with the exact pinned byte count/SHA256. The read-only module observer verifies actual loaded locations, not just copied filenames.",
+		"coverage": "Common and HAP File/defaults/Play/EOF/Stop/seek/history/exact frame-step/native-preview installation, bright independent HAP Alpha Composition copy, shared Matrix and HAP Reference/rate/loop/pause, mixed-rate hold, Save/New/load and physical Screen pixels all pass. Eight phase-varied motion observations show four distinct actual colors. Existing both-GPU functional audits remain retained; this package-layout check uses NVIDIA.",
+		"report": "target/mapgyver-m10-bundled-final-2026-11-09/video-playback.json",
+		"report_sha256": "bfb2098c9a84d5b5149504ac6215ec5c6b0741a29302789eacf5bc730b6a7b2e",
+		"failed_baseline": "The first packaged run passed83 physical checkpoints and module identity before its fixed65ms/eight-sample shared-motion assertion failed to observe three colors. Exact aliasing cause is unproven because those initial motion samples were not retained. Preserve target/mapgyver-m10-bundled-acceptance-2026-11-09/failure.json, SHA73f23f7dd3995ddefa5f360189a7334147c721a28717a67b7976ad8adfc5c7af. The fixture now persists motion/module observations on failure and uses eight bounded varied delays17/53/89/127/173/211/257/307ms to avoid a fixed observer period locking to the six-frame loop. Required color diversity and pixel tolerances are unchanged. The final run passes; neither run proves sustained cadence."
+	},
+	"remaining": "M10/4 remains the sole Active gate: complete corresponding-source and incorporated third-party-notice delivery for the FFmpeg build, bundled exact/coalesced superseding seeks/stale-result rejection, missing-file relink/retry, combined file/device recovery and actual sustained1080p/4K/resource performance for common and HAP codecs. Final complete Windows-artifact qualification remains M09. Next: complete reproducible dependency source/notices inputs before sustained qualification.85/102 gates (83%), M10 2/4 (50%),8/15 phases (53%) unchanged. M14 follows M10/4; DXV/WebP after M14."
+}

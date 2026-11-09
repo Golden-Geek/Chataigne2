@@ -7,6 +7,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
 import { observeNativeRejectedRequests } from './intent-observer.mjs';
+import { inspectLocalVideoLibraries } from './video-runtime-libraries.mjs';
 
 const directory = path.resolve(process.argv[2] ?? `target/mapgyver-video-app-${Date.now()}`);
 await mkdir(directory, { recursive: true });
@@ -43,6 +44,8 @@ const errors = [];
 page.on('pageerror', (error) => errors.push(String(error)));
 const { rejected, observed } = await observeNativeRejectedRequests(page, () => 'Video playback');
 const observations = [];
+const moving = [];
+let localRuntimeLibraries = null;
 const fixtures = path.resolve('crates/golden_video/src/decode/tests/fixtures');
 let token, screen, surface, surfaceDefinition;
 async function post(route, body) {
@@ -195,6 +198,10 @@ try {
 		'native renderer'
 	);
 	const displays = await control({ kind: 'mapgyverDisplays', refresh: true });
+	localRuntimeLibraries =
+		process.env.MAPGYVER_VIDEO_LOCAL_DLLS === '1'
+			? await inspectLocalVideoLibraries(native.app.pid, process.env.MAPGYVER_TEST_BINARY)
+			: null;
 	if (selectedAdapter) assert.equal(runtime.gpu_adapter, selectedAdapter);
 	assert(displays.displays.length >= 2, 'Physical Screen check uses the external display');
 	const display = displays.displays.find((display) => !display.primary) ?? displays.displays[1];
@@ -431,10 +438,15 @@ try {
 	await transport(first.media, { kind: 'Rate', rate: 0.5 });
 	await transport(first.media, { kind: 'Loop', looping: true });
 	await transport(first.media, { kind: 'Play' });
-	const moving = [];
-	for (let i = 0; i < 8; i++) {
-		await delay(65);
-		moving.push({ transport: await state(first.media), windows: windows() });
+	// A fixed observer delay can alias the six-frame loop, especially with process-start cost.
+	for (const delayMs of [17, 53, 89, 127, 173, 211, 257, 307]) {
+		await delay(delayMs);
+		moving.push({
+			observedAtMs: Date.now(),
+			delayMs,
+			transport: await state(first.media),
+			windows: windows()
+		});
 	}
 	assert(moving.every((sample) => sample.transport.playing));
 	assert(new Set(moving.map((sample) => Math.round(sample.transport.position_ms))).size >= 4);
@@ -500,6 +512,7 @@ try {
 		pid: native.app.pid,
 		adapter: runtime.gpu_adapter,
 		gpu: runtime.gpu,
+		localRuntimeLibraries,
 		codecs,
 		routing,
 		mixedRateVariant: variant,
@@ -521,6 +534,8 @@ try {
 			{
 				error: String(error),
 				observations,
+				moving,
+				localRuntimeLibraries,
 				pageErrors: errors,
 				rejected,
 				log: native.log(),
