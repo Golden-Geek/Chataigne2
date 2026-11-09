@@ -1,9 +1,13 @@
 use super::{MediaTransport, protocol::*};
 use golden_time::{PlaybackRate, SystemClock};
 use std::{sync::Mutex, time::Duration};
+#[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+pub(super) mod scheduling;
 
 struct State {
     transport: MediaTransport<SystemClock>,
+    #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+    clock: SystemClock,
     settings: VideoTransportSettings,
     seek_pending: bool,
     seek_waiting_for_duration: bool,
@@ -17,9 +21,12 @@ struct State {
 pub struct VideoControl(Mutex<State>, golden_io::RevisionSource);
 impl Default for VideoControl {
     fn default() -> Self {
+        let clock = SystemClock::new();
         Self(
             Mutex::new(State {
-                transport: MediaTransport::new(SystemClock::new()).expect("fresh monotonic clock is representable"),
+                transport: MediaTransport::new(clock.clone()).expect("fresh monotonic clock is representable"),
+                #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+                clock,
                 settings: Default::default(),
                 seek_pending: true,
                 seek_waiting_for_duration: false,
@@ -311,17 +318,6 @@ impl VideoControl {
         expected: super::TransportSample,
         stream: &golden_video::image::ImageStream,
         image: golden_video::image::ImageData,
-    ) -> Result<bool, String> {
-        self.publish_with(channel, owner, expected, || stream.replace(Some(image)))
-    }
-    #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
-    pub(super) fn publish_gpu_frame(
-        &self,
-        channel: super::super::protocol::ChannelId,
-        owner: uuid::Uuid,
-        expected: super::TransportSample,
-        stream: &golden_video::native::GpuFrameStream,
-        image: golden_video::native::GpuImage,
     ) -> Result<bool, String> {
         self.publish_with(channel, owner, expected, || stream.replace(Some(image)))
     }

@@ -27,6 +27,74 @@ fn software_upload_rejects_unadmitted_storage_before_device_creation() {
 }
 
 #[test]
+#[ignore = "both-GPU three-slot epoch replacement; no desktop input"]
+fn hardware_epoch_change_releases_stale_windows_before_replacement_allocation() {
+    use crate::native::GpuFrameClock;
+    use crate::scheduling::{FramePosition, FrameWindow};
+    use golden_time::{PlaybackRate, ShowPosition, SystemClock, TimeAuthority};
+    struct Clock(FramePosition);
+    impl GpuFrameClock for Clock {
+        fn position_at(&self, _: Instant) -> Option<FramePosition> {
+            Some(self.0)
+        }
+    }
+    for adapter in adapters().unwrap().into_iter().filter(|adapter| !adapter.software) {
+        let mut clock =
+            TimeAuthority::new(SystemClock::new(), ShowPosition::from_nanos(0), PlaybackRate::NORMAL).unwrap();
+        let epoch = clock.sample().unwrap().epoch();
+        let now = FramePosition {
+            epoch,
+            position: ShowPosition::from_nanos(0),
+            reverse: false,
+        };
+        let desc = descriptor(2, ColorEncoding::Srgb, AlphaMode::Straight);
+        let budget = GpuFrameBudget::new(24);
+        let mut owner = GpuFramePublisher::new_software(desc, adapter.id, &budget, None).unwrap();
+        owner.set_presentation_clock(Arc::new(Clock(now))).unwrap();
+        let stream = owner.stream();
+        drop(stream.begin_epoch(epoch).unwrap());
+        let input = Arc::new(ImageData::new(desc, vec![127; 8]).unwrap());
+        for index in 0..2 {
+            assert!(owner.submit_software(input.clone()).unwrap());
+            let image = completed(&mut owner);
+            let start = ShowPosition::from_nanos(index * 10);
+            let end = ShowPosition::from_nanos((index + 1) * 10);
+            let window = FrameWindow::new(epoch, start, Some(end), start).unwrap();
+            assert!(matches!(
+                stream.replace_scheduled(image, window, now).unwrap(),
+                crate::native::GpuFramePublication::Published(_)
+            ));
+        }
+        assert!(owner.submit_software(input.clone()).unwrap());
+        let cached_rejected = completed(&mut owner);
+        assert!(
+            !owner.submit_software(input.clone()).unwrap(),
+            "old windows and cached completion occupy all three slots"
+        );
+        let next = clock
+            .discontinuity(ShowPosition::from_nanos(0), PlaybackRate::PAUSED)
+            .unwrap()
+            .epoch();
+        let retired = stream.begin_epoch(next).unwrap();
+        assert_eq!(retired.iter().flatten().count(), 2);
+        drop(retired);
+        assert!(
+            stream.sample().is_none(),
+            "epoch invalidation retains renderer pixels, rather than clearing them"
+        );
+        assert!(
+            owner.submit_software(input).unwrap(),
+            "replacement allocation must not depend on publishing its own replacement"
+        );
+        drop(completed(&mut owner));
+        drop(cached_rejected);
+        drop(owner);
+        drop(stream);
+        assert_eq!(budget.retained_bytes(), 0);
+    }
+}
+
+#[test]
 #[ignore = "explicit software source upload, color/alpha, shared consumers and slot retirement on both GPUs"]
 fn hardware_software_upload_preserves_pixels_shared_consumers_and_bounded_slots_on_both_gpus() {
     let hardware: Vec<_> = adapters()

@@ -1,0 +1,45 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4 alone Active; functionally verified implementation, not complete qualification",
+	"batch": "11:30 UTC start,12:15 UTC cutoff. Resume scoped stash7d3d036b solely for the reproduced paused-seek correctness blocker. Preserve prior failed results; no sustained cohort or reset in this batch.",
+	"progress": { "accepted": 85, "total": 102, "m10_accepted": 2, "m10_total": 4, "gates_closed": 0 },
+	"implementation": {
+		"base_commit": "3fe6b221771df46c42b9811f8f6e09b56b538952",
+		"golden": "Original monotonic-clock Instant projection and immutable time mapping; generic two-window FrameBuffer; nonblocking public GPU source clock and due-window selection. Three existing source slots, one conversion pending, two completed windows. Optional actual/requested PTS/window/publication witnesses follow imported pixels.",
+		"mapgyver": "File workers prepare one upcoming frame, map timestamps/shared loops/rates to absolute media windows, retain retry ownership under pressure and reuse immutable pixels across clock controls. Static pause/zero-rate/final holds publish immediately with ordinary frame neighbours; advancing metadata selects the same presentation window as native input. Reverse remains bounded timestamp seeking.",
+		"epoch_repair": "Invalidate old scheduled/immediate ownership before requesting a new epoch's replacement slot. Withhold a new source observation while renderer-owned copied pixels remain visible. Dispose displaced images outside locks; actual GPU read leases retain their completion fences. No new slots, memory caps, authored settings, output rates or CPU fallback route.",
+		"architecture": "../../architecture/mapgyver-video.md"
+	},
+	"failure_and_correction": {
+		"prior_receipt": "mapgyver-m10-timed-handoff-candidate-2026-11-09.json",
+		"initial_static_moving": "target/q06-static-moving-tests/device.log: original preflight/relink still fail,18.69s. The unchanged5s deadline now reports frame-neighbour wanted133.46666666666667ms,last=None; initial paused output pixels pass.",
+		"cause": "Two old-epoch committed images and one completed rejected conversion can pin all three native slots. Publishing replacement pixels was the only way to release old windows, but their ownership prevented replacement allocation. Explicit begin_epoch breaks this cycle before conversion submission.",
+		"regression": "Native test admits exactly three3x2 RGBA8 slots, queues two images and holds the third unpublished. A fourth submission is rejected. Epoch invalidation releases stale windows, withholds stale sampling and permits the replacement before publication; all GPU admission retires to zero on both GPUs. No forged completion or test deadline relaxation."
+	},
+	"software": {
+		"golden_time": "33 passed; target/q06-static-moving-tests/time.log",
+		"golden_video": "281 passed,64 ignored,2.03s; target/q06-static-moving-tests/golden-epoch.log",
+		"mapgyver": "622 passed,7 ignored,55.47s; target/q06-static-moving-tests/app-epoch.log",
+		"total_passed": 936,
+		"compile": "Final native-qualification test compilation succeeds,90s; target/q06-static-moving-epoch-build.jsonl",
+		"strict": "golden_time/golden_video/MapGyver all-target native-qualification clippy -D warnings passes14.50s; existing ts-rs attribute notices remain.",
+		"ordinary_app": "Default Tauri debug no-bundle build passes46.24s. Root and Golden Core cargo fmt and scoped whitespace checks complete.",
+		"optional_configuration_limit": "Additional MapGyver --no-default-features --lib clippy -D warnings fails20 dead-code findings in unchanged media/sender_catalog.rs,preview/runtime_status.rs,screens/catalog_runtime.rs,screens/nodes.rs. Those files have zero diff from HEAD, but a separate baseline configuration was not tested. The planned following video-files-only check did not execute. Default native required lint passes; minimal-feature strict is not claimed. Retain for final feature-matrix validation."
+	},
+	"native": {
+		"epoch_slots": { "result": "1 passed,0.21s,both GPUs", "log": "target/q06-static-moving-tests/epoch-slots.log", "sha256": "21560a1d488a0b27a4ae8cbad95cf1bf6166961195f838569d7f627bab6c84ee" },
+		"shared_upload": { "result": "1 passed,6.43s,both GPUs; existing color/alpha/shared-consumer/three-slot budget assertions", "log": "target/q06-static-moving-tests/shared-software.log", "sha256": "d15bc41bae98c3bc1a1fa5ba141cbc949a5dc4073f1c7bdbbeb1d60e841ff7c7" },
+		"original_preflight_relink": { "result": "2 passed,27.26s", "log": "target/q06-static-moving-tests/device-epoch.log", "sha256": "2c6c649f1589f655710b54625a35e8077262a7d589746f6d0eef78096569022a", "assertions": "Eight common/HAP sources and independent Spout pixels on each GPU; original frame0/frame4,pause/play/loop/seek and four active relinks per GPU. All eight routes retain expected native/compressed/software ownership. CPU/GPU admission returns to zero.", "paired_shutdown_ms": 222.7543, "intel_relink_shutdown_ms": 89.2613, "nvidia_relink_shutdown_ms": 99.1803 },
+		"device_loss": "No genuine reset occurred; generation1 unaffected controls. Preflight does not accept recovery. Prepared elevated-reset target refreshed to this verified test binary; same command/path and pending elevated-token prerequisite."
+	},
+	"artifacts": {
+		"app": "target/q06-frame-window-app/MapGyver.exe",
+		"app_sha256": "6d207e35616229b5d7c67cb78becca7ac4cda69f2b689c681f92979623be11a2",
+		"mapgyver_tests": "target/q06-static-moving-tests/MapGyverTests.exe",
+		"mapgyver_tests_sha256": "7cd60a9ed751444edc56f699683bdd0e44319b8a5bba548fb5981a603cd3f331",
+		"golden_video_tests_sha256": "9e3c77a55061e0bcbab9a858dd16b9911ea83677609d4660f26b2202a40cfbb4",
+		"libraries": "Same five pinned FFmpeg DLLs and source/license materials as mapgyver-m10-bundled-runtime-2026-11-09.json; isolated app/test directories, no stale dependency-directory DLL execution."
+	},
+	"next": "Push implementation first, then unchanged mixed ProRes1080p60/4K30 ordinary-app cohorts on both GPUs. Do not restore parked sRGB/identity candidates automatically. New optional PTS fields alone do not establish continuous source age or full critical-path qualification.",
+	"remaining": "All original common/HAP sustained profiles, source cadence/PTS, three-run series, full age/cross-context critical path, decoder/pool/plane/inflight accounting, soak and elevated genuine reset remain required.85/102=83%,8/15 phases,M10 2/4=50%. M14 follows first-pass M10 acceptance; M10/3 after M14. Smoothness/AA user acceptance remains unchanged."
+}

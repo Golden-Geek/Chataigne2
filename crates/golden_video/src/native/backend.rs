@@ -547,6 +547,7 @@ impl D3d11Backend {
         let inputs_begin = recorder.and_then(Recorder::stamp);
         let pipeline = &native.pipeline;
         pipeline.begin_frame(time);
+        let input_instant = std::time::Instant::now();
         for external in plan.external_textures().iter().filter(|_| !presentation_only) {
             if let Some(ExternalSource::GpuFrames(stream)) = &external.source {
                 resources.gpu_imports.borrow_mut().prune();
@@ -555,7 +556,13 @@ impl D3d11Backend {
                 if sequence.get().is_none() {
                     unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
                 }
-                if let Some(sample) = stream.sample()
+                let sampled = stream.sample_at(input_instant);
+                let requested_sequence = sampled.as_ref().map(|sample| sample.sequence);
+                let requested_position_nanos = sampled
+                    .as_ref()
+                    .and_then(|sample| sample.position)
+                    .map(|position| position.position.as_nanos());
+                if let Some(sample) = sampled
                     && sequence.get() != Some(sample.sequence)
                 {
                     if let Some(image) = sample.image {
@@ -568,6 +575,7 @@ impl D3d11Backend {
                                 native.gpu_uses.push((token.serial, reader));
                                 native.gpu_uses.last().unwrap().1.copy_to(&native.device, target);
                                 target.software_upload.set(image.software_upload);
+                                target.timed_frame.set(sample.frame);
                                 target
                                     .image_visible
                                     .set(image.software_upload.map_or(sample.sequence, |upload| upload.sequence));
@@ -577,6 +585,7 @@ impl D3d11Backend {
                             Err(error) => {
                                 image.fail(error.code().0);
                                 target.software_upload.set(None);
+                                target.timed_frame.set(None);
                                 target.image_visible.set(0);
                                 unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
                                 sequence.set(Some(sample.sequence));
@@ -584,6 +593,7 @@ impl D3d11Backend {
                         }
                     } else {
                         target.software_upload.set(None);
+                        target.timed_frame.set(None);
                         target.image_visible.set(0);
                         unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
                         sequence.set(Some(sample.sequence));
@@ -598,6 +608,9 @@ impl D3d11Backend {
                         stream: upload.map(|upload| upload.stream),
                         publication: None,
                         software_upload: upload,
+                        frame: target.timed_frame.get(),
+                        requested_sequence,
+                        requested_position_nanos,
                     }));
                 }
                 continue;
@@ -658,6 +671,9 @@ impl D3d11Backend {
                     stream: None,
                     publication: frame.timing,
                     software_upload: None,
+                    frame: None,
+                    requested_sequence: None,
+                    requested_position_nanos: None,
                 }));
             }
         }

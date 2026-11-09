@@ -96,6 +96,17 @@ pub struct GpuFramePublisher {
     _lease: Arc<Lease>,
 }
 impl GpuFramePublisher {
+    /// Select timestamp-based presentation before sharing or publishing the source stream.
+    pub fn set_presentation_clock(&mut self, clock: Arc<dyn super::GpuFrameClock>) -> Result<(), GpuFrameError> {
+        if Arc::strong_count(&self.stream.state) != 1
+            || self.stream.state.lock().map_err(|_| GpuFrameError::Layout)?.sequence != 0
+        {
+            return Err(GpuFrameError::Layout);
+        }
+        self.stream.clock = Some(clock);
+        Ok(())
+    }
+
     /// Admit conversion/bridge storage on the decoded frame's exact device.
     /// The decoder's pool reservation already covers the retained input frame.
     pub fn new(

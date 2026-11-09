@@ -16,14 +16,21 @@ fn frame(engine: &mut AppEngine, reference: ChannelReference) -> Option<VideoFra
     frame
 }
 pub(super) fn at(engine: &mut AppEngine, reference: ChannelReference, position: f64) -> VideoFrameState {
-    let mut result = None;
-    wait(|| {
-        result = frame(engine, reference);
-        result
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let result = frame(engine, reference);
+        if result
             .as_ref()
             .is_some_and(|frame| (frame.position_ms - position).abs() < 0.000001 && frame.previous_ready)
-    });
-    result.unwrap()
+        {
+            return result.unwrap();
+        }
+        assert!(
+            Instant::now() < deadline,
+            "Video frame-neighbour deadline: {reference:?}, wanted={position}ms, last={result:?}"
+        );
+        std::thread::sleep(Duration::from_millis(2));
+    }
 }
 pub(super) fn step(engine: &mut AppEngine, reference: ChannelReference, direction: VideoStepDirection) -> f64 {
     let MediaEditResult::Video { snapshot } = edit(

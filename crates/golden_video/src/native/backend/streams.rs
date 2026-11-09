@@ -59,6 +59,9 @@ pub(super) fn update(
             stream: Some(stream.id()),
             publication: None,
             software_upload: None,
+            frame: None,
+            requested_sequence: None,
+            requested_position_nanos: None,
         }));
     }
 }

@@ -1,4 +1,6 @@
-use golden_time::{Clock, PlaybackRate, ShowPosition, TimeAuthority, TimeEpoch, TimeError};
+#[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+use golden_time::MonotonicTime;
+use golden_time::{Clock, PlaybackRate, ShowPosition, TimeAuthority, TimeEpoch, TimeError, TimeMapping};
 use std::time::Duration;
 
 /// One immutable media-wide observation. Every channel samples this same position.
@@ -12,9 +14,23 @@ pub struct TransportSample {
     pub position: Duration,
     /// Effective playback state, false at a non-looping endpoint.
     pub playing: bool,
+    pub(crate) mapping: TimeMapping,
+    pub(crate) duration: Duration,
+    pub(crate) looping: bool,
 }
 
 impl TransportSample {
+    pub(crate) fn frame_position(self) -> Result<golden_video::scheduling::FramePosition, String> {
+        let raw = i128::from(self.cycle) * self.duration.as_nanos() as i128 + self.position.as_nanos() as i128;
+        // Reverse looping maps the exact seam to the previous cycle's final image.
+        let raw =
+            raw - i128::from(self.looping && self.mapping.rate().numerator() < 0 && self.position == self.duration);
+        Ok(golden_video::scheduling::FramePosition {
+            epoch: self.epoch,
+            position: ShowPosition::from_nanos(i64::try_from(raw).map_err(|_| "Video presentation overflow")?),
+            reverse: self.mapping.rate().numerator() < 0,
+        })
+    }
     /// Shorter channels hold their last available frame until the whole media reaches its end.
     /// The decoder selects the frame at/before this timestamp; duration is not a frame number.
     pub fn channel_position(self, channel_duration: Duration) -> Duration {
@@ -92,7 +108,16 @@ impl<C: Clock> MediaTransport<C> {
     /// Observe the immutable clock mapping. Reading never accumulates rounded frame periods.
     pub fn sample(&mut self) -> Result<TransportSample, TransportError> {
         let time = self.authority.sample()?;
-        let raw = time.show_position().as_nanos();
+        self.project(time.show_position().as_nanos(), time.mapping())
+    }
+
+    #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+    pub(super) fn sample_at(&self, time: MonotonicTime) -> Result<TransportSample, TransportError> {
+        let mapping = self.authority.mapping();
+        self.project(mapping.show_at(time)?.as_nanos(), mapping)
+    }
+
+    fn project(&self, raw: i64, mapping: TimeMapping) -> Result<TransportSample, TransportError> {
         let (position, cycle, playing) = if self.playing && self.looping && self.duration > 0 {
             let position = raw.rem_euclid(self.duration);
             let cycle = raw.div_euclid(self.duration);
@@ -112,10 +137,13 @@ impl<C: Clock> MediaTransport<C> {
             (raw.clamp(0, self.duration), 0, self.playing && !ended)
         };
         Ok(TransportSample {
-            epoch: time.epoch(),
+            epoch: mapping.epoch(),
             cycle,
             position: Duration::from_nanos(position as u64),
             playing,
+            mapping,
+            duration: self.duration(),
+            looping: self.looping,
         })
     }
 

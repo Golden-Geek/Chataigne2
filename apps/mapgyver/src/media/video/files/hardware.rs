@@ -1,7 +1,15 @@
 //! Exact-adapter file decode and asynchronous, clock-fenced GPU publication.
+use super::super::control::scheduling;
 use super::*;
 use golden_video::decode::{DecodeStorage, HapFormat};
 use golden_video::native::{GpuFrameError, GpuFramePublisher};
+
+#[derive(Clone, Copy)]
+struct PreparedFrame {
+    sample: super::super::TransportSample,
+    frame: super::super::frames::Neighbours,
+    timestamp: i64,
+}
 
 pub(super) enum NativeFailure {
     Fallback(Failure),
@@ -83,6 +91,11 @@ impl Run {
             .channel_duration(self.reference.channel, owner, reader.duration)?;
         let mut publisher: Option<GpuFramePublisher> = None;
         let mut pending = None;
+        let mut ready = None;
+        let mut cached = None;
+        let mut retry = None;
+        let mut cursor = None;
+        let mut epoch = None;
         let mut software_image: Option<(i64, Arc<golden_video::image::ImageData>)> = None;
         let mut installed = false;
         while !worker.cancellation().is_cancelled() {
@@ -91,15 +104,35 @@ impl Run {
             let revision = self.control.revisions();
             let _subscription = revision.guard_at(revision.current()).subscribe(worker.wake_notifier());
             let sample = self.control.sample()?;
+            if epoch != Some(sample.epoch) {
+                epoch = Some(sample.epoch);
+                cursor = None;
+                retry = None;
+                if let Some(publisher) = &publisher {
+                    // Old windows plus a completed rejected image can otherwise pin all three
+                    // slots and prevent the new epoch from ever producing its replacement.
+                    drop(publisher.stream().begin_epoch(sample.epoch)?);
+                }
+            }
             let mut waiting = false;
             if let Some(publisher) = &mut publisher {
                 if let Some(image) = publisher.poll()? {
                     let expected = pending.take().expect("one clock fence per submitted conversion");
+                    let expected: PreparedFrame = expected;
+                    cached = Some((expected.timestamp, image.clone()));
+                    ready = Some((expected, image));
+                }
+                if let Some((expected, image)) = &ready {
+                    let expected: &PreparedFrame = expected;
                     let stream = publisher.stream();
-                    if self
-                        .control
-                        .publish_gpu_frame(self.reference.channel, owner, expected, &stream, image)?
-                    {
+                    if self.control.publish_gpu_scheduled(
+                        self.reference.channel,
+                        owner,
+                        expected.sample,
+                        &stream,
+                        image.clone(),
+                        expected.frame,
+                    )? {
                         if !installed {
                             let mut output = self.output.lock().unwrap();
                             output.stream = Some(Stream::Hardware(stream));
@@ -120,85 +153,132 @@ impl Run {
                             );
                             self.changed();
                         }
-                        if let Some(frame) = reader.neighbours()? {
-                            self.control
-                                .observe_neighbours(self.reference.channel, owner, expected, frame)?;
-                        }
-                    } else {
-                        reader.invalidate_publication();
+                        ready = None;
+                    } else if self.control.sample()?.epoch != expected.sample.epoch {
+                        ready = None;
+                        cursor = None;
                     }
                 }
-                waiting = publisher.is_pending();
+                waiting = publisher.is_pending() || ready.is_some();
             }
             if !waiting {
-                if reader.advance(sample.channel_position(reader.duration))? {
-                    let image = if software {
-                        let timestamp = reader.frame().timestamp();
-                        if software_image.as_ref().is_none_or(|(stamp, _)| *stamp != timestamp) {
-                            software_image =
-                                Some((timestamp, Arc::new(reader.software_image()?.retain(cpu_lease.clone()))));
-                        }
-                        Some(software_image.as_ref().unwrap().1.clone())
-                    } else {
-                        None
-                    };
-                    let frame = reader.frame();
-                    if publisher.is_none() {
-                        publisher = Some(if let Some(image) = &image {
-                            GpuFramePublisher::new_software(
-                                image.descriptor(),
-                                hardware.adapter,
-                                &hardware.budget,
-                                Some(worker.wake_notifier()),
-                            )?
-                        } else if let Some(frame) = frame.hap_frame() {
-                            GpuFramePublisher::new_hap(
-                                frame,
-                                hardware.adapter,
-                                &hardware.budget,
-                                Some(worker.wake_notifier()),
-                            )?
+                let target = if let Some(target) = retry {
+                    Some(target)
+                } else {
+                    scheduling::target(
+                        sample,
+                        cursor,
+                        reader.neighbours()?,
+                        reader.frame_is_published(),
+                        reader.duration,
+                    )?
+                };
+                if let Some(target) = target {
+                    if reader.advance(target.channel_position(reader.duration))? {
+                        retry = Some(target);
+                        let image = if software {
+                            let timestamp = reader.frame().timestamp();
+                            if software_image.as_ref().is_none_or(|(stamp, _)| *stamp != timestamp) {
+                                software_image =
+                                    Some((timestamp, Arc::new(reader.software_image()?.retain(cpu_lease.clone()))));
+                            }
+                            Some(software_image.as_ref().unwrap().1.clone())
                         } else {
-                            GpuFramePublisher::new(
-                                frame.d3d11_frame().ok_or("native decoder returned software storage")?,
-                                &hardware.budget,
-                                Some(worker.wake_notifier()),
-                            )?
-                        });
-                        if std::env::var_os("MAPGYVER_NATIVE_DIAGNOSTICS").is_some_and(|value| !value.is_empty()) {
-                            publisher.as_mut().unwrap().record_software_upload_timing();
-                        }
-                    }
-                    let submitted = if let Some(image) = image {
-                        publisher.as_mut().unwrap().submit_software(image)?
-                    } else if let Some(frame) = frame.hap_frame() {
-                        publisher.as_mut().unwrap().submit_hap(frame)?
-                    } else {
-                        publisher
-                            .as_mut()
-                            .unwrap()
-                            .submit(frame.d3d11_frame().ok_or("native decoder returned software storage")?)?
-                    };
-                    if submitted {
-                        software_image = None;
-                        pending = Some(sample);
-                        reader.mark_published();
-                        if software && sample.playing {
-                            let now = self.control.sample()?;
-                            if now.playing && (now.epoch, now.cycle) == (sample.epoch, sample.cycle) {
-                                reader.prepare_next(now.channel_position(reader.duration))?;
+                            None
+                        };
+                        let frame = reader.frame();
+                        if publisher.is_none() {
+                            publisher = Some(if let Some(image) = &image {
+                                GpuFramePublisher::new_software(
+                                    image.descriptor(),
+                                    hardware.adapter,
+                                    &hardware.budget,
+                                    Some(worker.wake_notifier()),
+                                )?
+                            } else if let Some(frame) = frame.hap_frame() {
+                                GpuFramePublisher::new_hap(
+                                    frame,
+                                    hardware.adapter,
+                                    &hardware.budget,
+                                    Some(worker.wake_notifier()),
+                                )?
+                            } else {
+                                GpuFramePublisher::new(
+                                    frame.d3d11_frame().ok_or("native decoder returned software storage")?,
+                                    &hardware.budget,
+                                    Some(worker.wake_notifier()),
+                                )?
+                            });
+                            publisher
+                                .as_mut()
+                                .unwrap()
+                                .set_presentation_clock(self.control.clone())?;
+                            drop(publisher.as_ref().unwrap().stream().begin_epoch(target.epoch)?);
+                            if std::env::var_os("MAPGYVER_NATIVE_DIAGNOSTICS").is_some_and(|value| !value.is_empty()) {
+                                publisher.as_mut().unwrap().record_software_upload_timing();
                             }
                         }
-                    }
-                    // Retry a full conversion ring even while paused. Slot release also wakes us.
-                    waiting = true;
-                } else {
-                    if let Some(frame) = reader.neighbours()? {
-                        self.control
-                            .observe_neighbours(self.reference.channel, owner, sample, frame)?;
-                    }
-                    if !sample.playing {
-                        reader.prepare_previous()?;
+                        let submitted = if let Some(image) = image {
+                            publisher.as_mut().unwrap().submit_software(image)?
+                        } else if let Some(frame) = frame.hap_frame() {
+                            publisher.as_mut().unwrap().submit_hap(frame)?
+                        } else {
+                            publisher
+                                .as_mut()
+                                .unwrap()
+                                .submit(frame.d3d11_frame().ok_or("native decoder returned software storage")?)?
+                        };
+                        if submitted {
+                            software_image = None;
+                            pending = Some(PreparedFrame {
+                                sample: target,
+                                frame: reader.neighbours()?.ok_or("Selected Video timestamps unavailable")?,
+                                timestamp: reader.frame().timestamp(),
+                            });
+                            retry = None;
+                            cursor = Some(target);
+                            reader.mark_published();
+                            if software && target.playing {
+                                let now = self.control.sample()?;
+                                if now.playing && now.epoch == target.epoch {
+                                    reader.prepare_next(now.channel_position(reader.duration))?;
+                                }
+                            }
+                        }
+                        // Retry a full conversion ring even while paused. Slot release also wakes us.
+                        waiting = true;
+                    } else {
+                        if let Some(frame) = reader.neighbours()? {
+                            // A clock discontinuity or a one-image loop can reuse immutable pixels.
+                            // The new window is still fenced under the current media epoch.
+                            if cursor.is_none_or(|cursor: super::super::TransportSample| {
+                                (cursor.epoch, cursor.cycle) != (target.epoch, target.cycle)
+                                    || scheduling::timed(cursor) != scheduling::timed(target)
+                            }) && let Some((timestamp, image)) = &cached
+                                && *timestamp == reader.frame().timestamp()
+                            {
+                                ready = Some((
+                                    PreparedFrame {
+                                        sample: target,
+                                        frame,
+                                        timestamp: *timestamp,
+                                    },
+                                    image.clone(),
+                                ));
+                                cursor = Some(target);
+                                waiting = true;
+                            } else {
+                                self.control.refresh_gpu_neighbours(
+                                    self.reference.channel,
+                                    owner,
+                                    cursor.unwrap_or(sample),
+                                    frame,
+                                )?;
+                            }
+                        }
+                        if !sample.playing {
+                            reader.prepare_previous()?;
+                        }
                     }
                 }
             }

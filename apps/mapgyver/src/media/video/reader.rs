@@ -35,6 +35,12 @@ pub(super) fn duration(ticks: i64, base: TimeBase) -> Result<Duration, String> {
     Ok(Duration::from_nanos(nanos))
 }
 impl Reader {
+    #[cfg(all(windows, feature = "native-video"))]
+    pub(super) fn frame_is_published(&self) -> bool {
+        self.current
+            .as_ref()
+            .is_some_and(|frame| self.published == Some(frame.timestamp()))
+    }
     pub fn invalidate_publication(&mut self) {
         self.published = None;
     }

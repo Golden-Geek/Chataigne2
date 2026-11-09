@@ -35,6 +35,7 @@ impl GpuFramePublisher {
 
     /// Enable source API timestamps for qualification. No QPC calls occur while disabled.
     pub fn record_software_upload_timing(&mut self) {
+        self.stream.timing = Some(crate::native::timing::Clock::new());
         if let Conversion::Software { clock, .. } = &mut self.conversion {
             *clock = Some(crate::native::timing::Clock::new());
         }

@@ -173,6 +173,19 @@ pub struct PublicationTiming {
 
 /// Source frame actually used by one renderer batch, including unchanged retained frames.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct TimedFrameTrace {
+    /// Source PTS normalized to nanoseconds, without a loop offset.
+    pub pts_nanos: i64,
+    /// Included absolute presentation coordinate.
+    pub start_nanos: i64,
+    /// Excluded coordinate; absent for an unbounded final hold.
+    pub end_nanos: Option<i64>,
+    /// Before successful queue publication, never backdated to upload submission.
+    pub publication_qpc: Option<u64>,
+}
+
+/// Source frame actually used by one renderer batch, including unchanged retained frames.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct SourceUseTrace {
     /// Renderer batch using the retained texture contents.
     pub token: CompletionToken,
@@ -186,6 +199,12 @@ pub struct SourceUseTrace {
     pub publication: Option<PublicationTiming>,
     /// Actual source-worker upload retained with these pixels, not another render upload.
     pub software_upload: Option<SoftwareUploadTrace>,
+    /// PTS/window retained with the actual imported pixels.
+    pub frame: Option<TimedFrameTrace>,
+    /// Selected stream sequence before nonblocking import acquisition.
+    pub requested_sequence: Option<u64>,
+    /// Shared-clock position at this renderer frame's input sampling instant.
+    pub requested_position_nanos: Option<i64>,
 }
 
 /// One software upload on a source-owned context. Repeated observations share its identity.

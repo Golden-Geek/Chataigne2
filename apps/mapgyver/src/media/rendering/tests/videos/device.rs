@@ -255,10 +255,18 @@ impl Owner {
         }
         self.settle();
         let submitted = self.live().snapshot().frames_submitted;
-        wait(|| {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
             let snapshot = self.live().snapshot();
-            snapshot.frames_submitted >= submitted + 3 && snapshot.last_frame.is_some()
-        });
+            if snapshot.frames_submitted >= submitted + 3 && snapshot.last_frame.is_some() {
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "Video paused-seek render-progress deadline: index={index}, before={submitted}, last={snapshot:?}"
+            );
+            std::thread::sleep(Duration::from_millis(2));
+        }
     }
 
     fn pixels(&mut self, expected: Option<&[[u8; 4]]>) -> Vec<[u8; 4]> {

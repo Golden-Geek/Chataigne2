@@ -41,6 +41,9 @@ fn event() -> DiagnosticEvent {
         stream: None,
         publication: None,
         software_upload: None,
+        frame: None,
+        requested_sequence: None,
+        requested_position_nanos: None,
     })
 }
 fn rows(buffer: &Buffer) -> Vec<serde_json::Value> {

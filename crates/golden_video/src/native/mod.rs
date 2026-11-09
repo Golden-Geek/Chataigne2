@@ -35,7 +35,7 @@ pub use capture::{DiagnosticCapture, DiagnosticCaptureLimits, DiagnosticCaptureS
 pub use config::{AdapterId, D3d11Config, InputLimits, NativeConfigError, OutputBinding, WindowTarget};
 pub use device::{AdapterInfo, AdapterOutput, AdapterOutputs, adapters, preferred_adapters};
 pub use discovery::{DiscoveryError, MAX_DISCOVERY_SENDERS, SpoutDiscovery, SpoutSenderCatalog};
-pub use frames::{GpuFrameBudget, GpuFrameStream, GpuImage};
+pub use frames::{GpuFrameBudget, GpuFrameClock, GpuFramePublication, GpuFrameStream, GpuImage};
 #[cfg(feature = "ffmpeg")]
 pub use frames::{GpuFrameError, GpuFramePublisher};
 pub use inputs::{SourceSnapshot, SourceState};
@@ -56,7 +56,7 @@ pub use timing::{
     CpuInterval, DiagnosticContext, DiagnosticDelivery, DiagnosticEvent, DiagnosticsConfig, DiagnosticsSnapshot,
     FrameCpuTrace, GpuSampleStatus, GpuTrace, ImageUploadTrace, OutputQueueBound, OutputTrace, PublicationTiming,
     ScheduleClock, ScheduleClockError, ScheduleDisposition, ScheduleTrace, SoftwareUploadTrace, SourceCpuTrace,
-    SourceUseTrace, SpoutImageVersion, ThreadCpuDelta,
+    SourceUseTrace, SpoutImageVersion, ThreadCpuDelta, TimedFrameTrace,
 };
 
 pub(crate) use backend::D3d11Backend;

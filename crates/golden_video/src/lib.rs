@@ -16,6 +16,7 @@ pub mod preview;
 pub mod qualification;
 mod resource;
 pub mod runtime;
+pub mod scheduling;
 
 #[cfg(all(windows, feature = "d3d11"))]
 pub mod native;

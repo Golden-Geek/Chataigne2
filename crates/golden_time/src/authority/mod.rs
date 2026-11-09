@@ -31,6 +31,16 @@ impl SystemClock {
     pub fn new() -> Self {
         Self { origin: Instant::now() }
     }
+
+    /// Converts an instant using this clock's original coordinate system.
+    pub fn monotonic_at(&self, instant: Instant) -> Result<MonotonicTime, TimeError> {
+        let elapsed = instant
+            .checked_duration_since(self.origin)
+            .ok_or(TimeError::BeforeAnchor)?;
+        u64::try_from(elapsed.as_nanos())
+            .map(MonotonicTime::from_nanos)
+            .map_err(|_| TimeError::Overflow)
+    }
 }
 
 impl Default for SystemClock {
@@ -141,6 +151,11 @@ pub struct TimeAuthority<C: Clock> {
 }
 
 impl<C: Clock> TimeAuthority<C> {
+    /// Current immutable mapping, without observing or advancing the authority.
+    pub const fn mapping(&self) -> TimeMapping {
+        self.mapping
+    }
+
     /// Observes the initial clock and creates a distinct authority lifetime.
     pub fn new(clock: C, show: ShowPosition, rate: PlaybackRate) -> Result<Self, TimeError> {
         let now = clock.now()?;

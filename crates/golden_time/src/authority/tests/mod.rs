@@ -4,6 +4,26 @@ use super::*;
 use crate::tests::ManualClock;
 
 #[test]
+fn system_clock_projects_one_shared_instant_without_changing_its_origin() {
+    let clock = SystemClock::new();
+    let instant = Instant::now();
+    let first = clock.monotonic_at(instant).unwrap();
+    assert_eq!(clock.clone().monotonic_at(instant).unwrap(), first);
+    assert_eq!(
+        clock
+            .monotonic_at(instant + std::time::Duration::from_millis(17))
+            .unwrap()
+            .as_nanos()
+            - first.as_nanos(),
+        17_000_000
+    );
+    assert_eq!(
+        clock.monotonic_at(clock.origin - std::time::Duration::from_millis(1)),
+        Err(TimeError::BeforeAnchor)
+    );
+}
+
+#[test]
 fn repeated_consumers_observe_one_anchor_without_duplicate_advancement() {
     let clock = ManualClock::new(100);
     let mut authority =

@@ -14,6 +14,7 @@ struct Source {
     owner: uuid::Uuid,
     file: AssetLocator,
     frame: Option<(TransportSample, Neighbours)>,
+    scheduled: golden_video::scheduling::FrameBuffer<Neighbours>,
     ready: bool,
     error: Option<VideoSourceError>,
 }
@@ -31,6 +32,7 @@ impl Frames {
                 owner,
                 file,
                 frame: None,
+                scheduled: Default::default(),
                 ready: false,
                 error: None,
             },
@@ -71,6 +73,7 @@ impl Frames {
             return false;
         };
         source.frame = None;
+        source.scheduled.clear();
         if source.error.as_ref() == Some(&error) {
             return false;
         }
@@ -83,12 +86,42 @@ impl Frames {
             && source.owner == owner
         {
             source.frame = Some((sample, frame));
+            source.scheduled.clear();
         }
     }
     fn current(&self, channel: ChannelId, file: &AssetLocator, now: TransportSample) -> Option<Neighbours> {
         let source = self.0.get(&channel)?;
+        if source.file != *file {
+            return None;
+        }
+        if !source.scheduled.is_empty() {
+            return source
+                .scheduled
+                .sample(now.frame_position().ok()?)
+                .map(|(_, frame)| *frame);
+        }
         let (sample, frame) = source.frame?;
         (source.file == *file && (sample.epoch, sample.cycle) == (now.epoch, now.cycle)).then_some(frame)
+    }
+    #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+    pub(super) fn observe_scheduled(
+        &mut self,
+        channel: ChannelId,
+        owner: uuid::Uuid,
+        window: golden_video::scheduling::FrameWindow,
+        frame: Neighbours,
+        now: golden_video::scheduling::FramePosition,
+    ) -> Result<(), String> {
+        let source = self
+            .0
+            .get_mut(&channel)
+            .filter(|source| source.owner == owner)
+            .ok_or("Video frame owner changed")?;
+        source
+            .scheduled
+            .publish(window, frame, now)
+            .map_err(|_| "Video frame metadata capacity diverged")?;
+        Ok(())
     }
     pub fn inspect(
         &self,

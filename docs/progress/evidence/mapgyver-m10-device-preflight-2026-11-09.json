@@ -97,8 +97,8 @@
 	"remaining": "Genuine Video device recovery awaits elevated execution. Continue the specified bundled-app sustained1080p/4K/resource performance within M10/4 meanwhile. M14 remains after M10/4; all original gate counts/budgets remain.",
 	"current_prepared_fixture": {
 		"path": "target/mapgyver-m10-device-ready/MapGyverTests.exe",
-		"sha256": "5e99f9fa142ba3f8672d094f7ae9e15edd95f00626f99091672d3cc4d7e3a3b3",
-		"evidence": "mapgyver-m10-pipelined-file-2026-11-09.json",
-		"scope": "Current promoted checkout: hardware/BC plus software rasters up to2,073,600 pixels use the GPU publisher with timeline completion; larger software files retain ImageStream. Fresh-clock lookahead conversion is bounded and timestamp-fenced. Paired preflight/relink passes2 tests,26.30s,complete retirement in208.6605ms paired/89.6219ms Intel/96.4668ms NVIDIA, exact pixels and all eight GPU routes for the fixture's software-raster sizes. Historical candidate/preflight/denied-trigger identities retain their hashes in linked receipts. Final mixed-workload/Intel performance and genuine recovery remain unverified; the elevated command/target path is unchanged."
+		"sha256": "7cd60a9ed751444edc56f699683bdd0e44319b8a5bba548fb5981a603cd3f331",
+		"evidence": "mapgyver-m10-frame-windows-2026-11-09.json",
+		"scope": "Timestamped GPU File handoff: two presentation windows, one pending conversion, three native slots; static holds publish immediately. Epoch invalidation releases stale windows before replacement allocation, retaining renderer copies and real completion fences. Paired preflight/relink passes2 tests,27.26s,complete retirement in222.7543ms paired/89.2613ms Intel/99.1803ms NVIDIA, exact pixels and all eight expected routes. Historical candidate/preflight/denied-trigger identities retain their hashes in linked receipts. Sustained performance and genuine recovery remain unverified; the elevated command/target path is unchanged."
 	}
 }

@@ -303,6 +303,32 @@ A fresh media-clock check skips speculative conversion if sampling is already du
 epoch/cycle changed; this prevents wasted lookahead from feeding a late-sampling loop.
 The earlier serial integration remains only as historical stash4717c509; do not restore it.
 The final mixed HD-GPU/4K-direct workload and Intel throughput remain required before acceptance.
+GPU File playback uses Golden's bounded `scheduling::FrameBuffer`: two completed presentation
+windows and the existing three admitted native slots, with one conversion pending. Forward
+playback prepares one upcoming image before its PTS; source control maps channel timestamps,
+shared duration and loop cycles into absolute media-clock windows. Shorter channels keep their
+final image through the shared cycle. Reverse playback retains bounded timestamp seeking;
+paused playback retains predecessor probing. Neither path invents a nominal frame period.
+The native renderer captures one input `Instant` and projects every demanded channel through
+its source's original clock mapping using a nonblocking public `GpuFrameClock` hook. It selects
+only the current epoch's due window. Seek/rate changes cannot expose an old future image;
+queue pressure retains the completed image for retry, and imports retain their zero-timeout,
+actual-completion ownership. Immediate GPU streams keep their existing latest-image semantics.
+Advancing playback's frame-neighbour inspection samples the same two presentation windows, so
+preparing a future image does not advance Inspector frame-step state. A stationary clock
+(pause, zero rate or final hold) instead publishes immediate epoch-fenced pixels and ordinary
+frame neighbours. Mode changes clear displaced scheduled/immediate ownership atomically and
+dispose it after releasing owner locks; cached immutable pixels need no repeated upload.
+On a clock-epoch change, the source releases obsolete committed windows before requesting a
+replacement slot. Otherwise two old windows plus one completed rejected image can pin all
+three slots and prevent the replacement from ever being produced. Invalidation withholds a
+new source observation while retaining renderer-owned copied pixels; explicit withdrawal still
+clears them. In-flight read leases keep their actual GPU-completion fences.
+Golden owns clock coordinates and window
+selection; MapGyver owns media duration/loop/rate policy. Advancing-source diagnostics retain
+normalized PTS/windows, successful-publication QPC and requested versus imported sequences.
+Missing clock/acquisition witnesses stay unknown. Diagnostics remain opt-in; the new mechanism
+does not by itself qualify sustained cadence, full source age or complete decoder/pool costs.
 Hardware/HAP File publishers use the timeline completion correction now; all original resource,
 recovery and performance qualification remains required.
 `SourceUseTrace::software_upload` retains the actual producer UUID/counter, byte/row layout and
