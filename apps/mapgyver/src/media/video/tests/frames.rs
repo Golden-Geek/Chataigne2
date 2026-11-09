@@ -53,6 +53,7 @@ fn prepared_steps_are_fenced_by_file_epoch_and_source_incarnation() {
                 ..Default::default()
             },
             true,
+            None,
         )
         .unwrap();
     control

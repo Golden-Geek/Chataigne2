@@ -21,6 +21,7 @@ fn authored_bindings_fence_metadata_and_removed_channels_while_retired_media_kee
                 ..Default::default()
             },
             true,
+            None,
         )
         .unwrap();
     let short_generation = files.iter().find(|(channel, _, _)| *channel == short).unwrap().1;
@@ -40,6 +41,7 @@ fn authored_bindings_fence_metadata_and_removed_channels_while_retired_media_kee
                 ..Default::default()
             },
             true,
+            None,
         )
         .unwrap();
     assert_eq!(control.sample().unwrap().position, Duration::from_millis(1500));
@@ -81,6 +83,7 @@ fn authored_bindings_fence_metadata_and_removed_channels_while_retired_media_kee
                 ..Default::default()
             },
             true,
+            None,
         )
         .unwrap();
     control.retire_media();

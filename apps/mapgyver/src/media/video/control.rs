@@ -18,6 +18,8 @@ struct State {
     frames: super::frames::Frames,
     feedback: Option<super::feedback::Publisher>,
     feedback_sequence: u64,
+    input_time: Option<golden_core::engine::EngineTime>,
+    duration_changes: golden_io::RevisionSource,
     load_pending: bool,
     ready_once: bool,
     explicit_mode: bool,
@@ -41,6 +43,8 @@ impl Default for VideoControl {
                 frames: Default::default(),
                 feedback: None,
                 feedback_sequence: 0,
+                input_time: None,
+                duration_changes: Default::default(),
                 load_pending: false,
                 ready_once: false,
                 explicit_mode: false,
@@ -71,11 +75,12 @@ impl VideoControl {
         state.ready_once = !state.transport.duration().is_zero();
         state.load_pending = settings.play_at_load && !state.ready_once;
         state.explicit_mode = false;
+        state.input_time = None;
         state.seek_pending = true;
         state.settings = settings;
         state.apply(true)?;
-        drop(state);
         self.1.advance();
+        drop(state);
         self.publish_feedback()
     }
     pub(crate) fn command(&self, mode: VideoPlaybackMode) -> Result<(), String> {
@@ -90,8 +95,8 @@ impl VideoControl {
             state.settings.position_ms = 0.0;
         }
         state.apply(mode == VideoPlaybackMode::Playing)?;
-        drop(state);
         self.1.advance();
+        drop(state);
         self.publish_feedback()
     }
     pub(crate) fn set_feedback(&self, publisher: super::feedback::Publisher) -> Result<(), String> {
@@ -115,6 +120,16 @@ impl VideoControl {
         let status = super::feedback::Status {
             playing: sample.playing,
             length_ms: super::frames::millis(sample.duration),
+            position_ms: super::frames::millis(sample.position),
+            input_time: state.input_time,
+            range_guard: {
+                let reader = state.duration_changes.reader();
+                reader.guard_at(reader.current())
+            },
+            guard: {
+                let reader = self.1.reader();
+                reader.guard_at(reader.current())
+            },
         };
         drop(state);
         publisher.publish(sequence, status);
@@ -191,8 +206,8 @@ impl VideoControl {
             return Ok(());
         }
         file.metadata_error = Some(error);
-        drop(state);
         self.1.advance();
+        drop(state);
         Ok(())
     }
     #[cfg(feature = "video-files")]
@@ -204,10 +219,10 @@ impl VideoControl {
     ) -> Result<(), String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
         let changed = state.frames.failure(channel, owner, error);
-        drop(state);
         if changed {
             self.1.advance();
         }
+        drop(state);
         Ok(())
     }
     pub(crate) fn retire_media(&self) {
@@ -260,8 +275,8 @@ impl VideoControl {
             )
             .and_then(|file| file.duration);
         state.duration_changed(old, None)?;
-        drop(state);
         self.1.advance();
+        drop(state);
         Ok(())
     }
     pub(crate) fn unbind_file(&self, channel: super::super::protocol::ChannelId, owner: uuid::Uuid) {
@@ -272,8 +287,8 @@ impl VideoControl {
             let old = state.files.remove(&channel).and_then(|file| file.duration);
             state.frames.remove(channel);
             let _ = state.duration_changed(old, None);
-            drop(state);
             self.1.advance();
+            drop(state);
         }
     }
     #[cfg(any(feature = "video-files", test))]
@@ -312,15 +327,15 @@ impl VideoControl {
         let recovered = file.metadata_error.take().is_some();
         if file.duration == Some(duration) {
             if recovered {
-                drop(state);
                 self.1.advance();
+                drop(state);
             }
             return Ok(true);
         }
         let old = file.duration.replace(duration);
         state.duration_changed(old, Some(duration))?;
-        drop(state);
         self.1.advance();
+        drop(state);
         Ok(true)
     }
     #[cfg(feature = "video-files")]
@@ -381,8 +396,8 @@ impl VideoControl {
         }
         let old = binding.duration.replace(duration);
         state.duration_changed(old, Some(duration))?;
-        drop(state);
         self.1.advance();
+        drop(state);
         Ok(())
     }
     pub fn release_channel(&self, channel: super::super::protocol::ChannelId, owner: uuid::Uuid) {
@@ -422,7 +437,12 @@ impl VideoControl {
         drop(retired);
         Ok(true)
     }
-    pub fn configure(&self, mut settings: VideoTransportSettings, seek: bool) -> Result<(), String> {
+    pub fn configure(
+        &self,
+        mut settings: VideoTransportSettings,
+        seek: bool,
+        input_time: Option<golden_core::engine::EngineTime>,
+    ) -> Result<(), String> {
         settings.validate()?;
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
         if state.settings == settings && !seek {
@@ -442,11 +462,14 @@ impl VideoControl {
             }
         }
         let play = settings.mode == VideoPlaybackMode::Playing && (state.settings.mode != settings.mode || seek);
+        if let Some(time) = input_time {
+            state.input_time = Some(time);
+        }
         state.seek_pending |= seek || state.settings.position_ms != settings.position_ms;
         state.settings = settings;
         state.apply(play)?;
-        drop(state);
         self.1.advance();
+        drop(state);
         self.publish_feedback()
     }
     /// Explicit timing fixture injection; product metadata comes from authored channel bindings.
@@ -454,10 +477,16 @@ impl VideoControl {
     pub fn prepare(&self, duration: Duration) -> Result<(), String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
         let first = state.transport.duration().is_zero();
+        if state.transport.duration() != duration {
+            state.duration_changes.advance();
+        }
         state.transport.set_duration(duration).map_err(|e| e.to_string())?;
         state.ready_once |= !duration.is_zero();
         state.load_pending = false;
-        state.apply(first)
+        state.apply(first)?;
+        self.1.advance();
+        drop(state);
+        self.publish_feedback()
     }
     pub fn snapshot(&self, media: super::super::protocol::MediaId) -> Result<VideoTransportSnapshot, String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
@@ -533,6 +562,7 @@ impl State {
         let first = self.transport.duration().is_zero();
         let extended = duration > self.transport.duration();
         self.seek_pending |= duration.is_zero();
+        self.duration_changes.advance();
         self.transport.set_duration(duration).map_err(|e| e.to_string())?;
         if !duration.is_zero() {
             self.ready_once = true;

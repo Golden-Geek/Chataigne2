@@ -58,7 +58,12 @@ read-only or transient numeric Parameter. These bounds appear in the same snapsh
 as authored constraints and enforce subsequent writes; shrinking availability clamps the live
 value even if manual edits use Reject. Runtime bounds never enter project data or constraint
 history. A new project lifetime starts from the declared value and authored constraints.
-These primitives do not provide gesture arbitration or stale-producer fencing themselves.
+Transient writes record the exact input event time. Guarded feedback must acknowledge that
+input and carry a current producer revision; older feedback cannot overwrite a newer intent,
+even before its owner callback runs. During an edit session, feedback for its transient targets
+is coalesced and deferred until the session ends or its client disconnects, then checked again.
+Other targets keep receiving feedback. These runtime markers reset when a Parameter is removed
+and never enter persistence/history. Availability bounds can carry their own revision guard.
 Current Position uses this transient storage with the generic `time_slider` Inspector. The
 Video owner normalizes every actual seek to the currently known longest-channel timeline,
 including zero while duration is unknown. Duration feedback updates the same Parameter's
@@ -66,9 +71,13 @@ availability range; shrinking it clamps the visible value. Requests beyond a sho
 are not remembered and revived when metadata later extends the timeline. A new media/project
 lifetime starts at zero. Repeated seeks are normal Parameter intents, with no separate
 operation-adapter replay path. Feedback publication order is fenced by an owner sequence,
-while unchanged status still coalesces without a wake. Continuous actual-position feedback,
-active-seek arbitration and complete native acceptance remain M10/5 work; this bounded control
-checkpoint alone does not close that gate.
+while consumed unchanged status coalesces without a wake. Pending status retries a coalesced
+wake at the existing background checkpoint. That owner samples actual clock position every
+100ms; it adds no per-node engine polling rule. Position feedback acknowledges the exact seek
+event, never becomes another seek, and suspends during its generic Inspector edit session.
+Duration bounds have a separate revision so transport edits cannot discard unchanged metadata.
+This scalar clock feedback does not establish decoded-frame latency or performance acceptance;
+complete native transport acceptance remains M10/5 work.
 
 Background metadata probing supplies the longest authored channel duration, including variants
 without render consumers. Each channel samples at the lesser of
@@ -76,7 +85,9 @@ that shared position and its own duration, holding its final frame while longer 
 Temporary file loss must retain last-known metadata; clearing a channel's authored File is a
 different operation from an unavailable endpoint. No whole-file timestamp index is required.
 
-Explicit controls issue a new Golden Time epoch. Loop cycles are separately fenced, including
+Timeline discontinuities issue a new Golden Time epoch. Changing future Speed while paused
+or repeating Pause preserves the current frame neighbours, so an immediate Step stays valid.
+Loop cycles are separately fenced, including
 reverse boundaries, so an old seek result cannot publish into a later cycle at the same wrapped
 position. Frame stepping pauses at an exact timestamp supplied by the selected channel's
 decoder. The worker prepares the current, previous and next presentation timestamps; neither

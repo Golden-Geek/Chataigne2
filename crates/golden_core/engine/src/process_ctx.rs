@@ -632,7 +632,35 @@ impl ProcessCtx {
     /// Publish read-only scalar telemetry through the ordinary Parameter snapshot/event path.
     /// This leaves the authored value and undo/redo unchanged. `None` clears feedback.
     pub fn set_param_feedback_from(&mut self, source: NodeId, node: NodeId, value: Option<ParamValue>) {
-        self.edits.push_from(source, Edit::SetParamFeedback { node, value });
+        self.edits.push_from(
+            source,
+            Edit::SetParamFeedback {
+                node,
+                value,
+                expected_input: None,
+                guard: None,
+            },
+        );
+    }
+
+    /// Publish feedback correlated with the producer's accepted input and current runtime state.
+    pub fn set_param_feedback_guarded_from(
+        &mut self,
+        source: NodeId,
+        node: NodeId,
+        value: Option<ParamValue>,
+        expected_input: Option<EngineTime>,
+        guard: golden_io::RevisionGuard,
+    ) {
+        self.edits.push_from(
+            source,
+            Edit::SetParamFeedback {
+                node,
+                value,
+                expected_input,
+                guard: Some(guard),
+            },
+        );
     }
 
     /// The exact event being dispatched by the standard node inbox callbacks.

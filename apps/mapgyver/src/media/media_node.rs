@@ -63,6 +63,8 @@ pub struct MediaNode {
     video_ready: bool,
     #[state(default = super::video::feedback::Inbox::default())]
     video_feedback: super::video::feedback::Inbox,
+    #[state(default = None)]
+    video_range_guard: Option<RevisionGuard>,
 }
 impl MediaNode {
     pub(crate) fn video_control(&self) -> Option<std::sync::Arc<super::video::VideoControl>> {
@@ -105,7 +107,7 @@ impl MediaNode {
         ]
         .contains(&id)
     }
-    fn publish_video(&self, ctx: &mut ProcessCtx, parameter: Option<golden_core::node::NodeId>) {
+    fn publish_video(&self, ctx: &mut ProcessCtx, parameter: Option<(golden_core::node::NodeId, ParamValue)>) {
         if self.video_ready
             && let Some(control) = self.video_control()
         {
@@ -121,17 +123,17 @@ impl MediaNode {
                         );
                         control.initialize(settings)
                     }
-                    Some(id) if id == self.video_play.id() => control.command(VideoPlaybackMode::Playing),
-                    Some(id) if id == self.video_pause.id() => control.command(VideoPlaybackMode::Paused),
-                    Some(id) if id == self.video_stop.id() => control.command(VideoPlaybackMode::Stopped),
-                    Some(id) if id == self.video_current_position_ms.id() => {
-                        settings.position_ms = self.video_current_position_ms.get();
+                    Some((id, _)) if id == self.video_play.id() => control.command(VideoPlaybackMode::Playing),
+                    Some((id, _)) if id == self.video_pause.id() => control.command(VideoPlaybackMode::Paused),
+                    Some((id, _)) if id == self.video_stop.id() => control.command(VideoPlaybackMode::Stopped),
+                    Some((id, ParamValue::Float(position))) if id == self.video_current_position_ms.id() => {
+                        settings.position_ms = position;
                         if settings.mode == VideoPlaybackMode::Stopped {
                             settings.mode = VideoPlaybackMode::Paused;
                         }
-                        control.configure(settings, true)
+                        control.configure(settings, true, ctx.current_event().map(|event| event.time))
                     }
-                    Some(_) => control.configure(settings, false),
+                    Some(_) => control.configure(settings, false, None),
                 }
             }) {
                 Ok(()) => ctx.clear_node_warning(self.id(), Some("video-transport")),
@@ -364,23 +366,50 @@ impl Node for MediaNode {
         true
     }
     fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
-        if let Some(status) = self.video_feedback.take() {
+        let Some(status) = self.video_feedback.take() else {
+            return;
+        };
+        // Stable metadata does not become three redundant edits on every clock sample.
+        if status.range_guard.is_current()
+            && (self.video_length_ms.get() != status.length_ms
+                || self.video_range_guard.as_ref().is_none_or(|guard| !guard.is_current()))
+        {
             ctx.edits.push_from(
                 self.id(),
                 golden_core::edit::Edit::SetParamRuntimeRange {
                     node: self.video_current_position_ms.id(),
                     range: golden_core::parameter::RangeConstraint::uniform(Some(0.0), Some(status.length_ms)),
+                    guard: Some(status.range_guard.clone()),
                 },
             );
-            ctx.set_param_feedback_from(
-                self.id(),
-                self.video_playing.id(),
-                Some(ParamValue::Bool(status.playing)),
-            );
-            ctx.set_param_feedback_from(
+            ctx.set_param_feedback_guarded_from(
                 self.id(),
                 self.video_length_ms.id(),
                 Some(ParamValue::Float(status.length_ms)),
+                None,
+                status.range_guard.clone(),
+            );
+            self.video_range_guard = Some(status.range_guard.clone());
+        }
+        if !status.guard.is_current() {
+            return;
+        }
+        if self.video_playing.get() != status.playing {
+            ctx.set_param_feedback_guarded_from(
+                self.id(),
+                self.video_playing.id(),
+                Some(ParamValue::Bool(status.playing)),
+                None,
+                status.guard.clone(),
+            );
+        }
+        if self.video_current_position_ms.get() != status.position_ms {
+            ctx.set_param_feedback_guarded_from(
+                self.id(),
+                self.video_current_position_ms.id(),
+                Some(ParamValue::Float(status.position_ms)),
+                status.input_time,
+                status.guard,
             );
         }
     }
@@ -388,7 +417,7 @@ impl Node for MediaNode {
         let id = self.id();
         self.pulses.result(ctx, id, &event);
     }
-    fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: golden_core::node::NodeId, _: ParamValue) {
+    fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: golden_core::node::NodeId, _old_value: ParamValue) {
         if parameter == self.video_current_position_ms.id()
             && ctx.current_event().is_some_and(|event| {
                 matches!(&event.kind,
@@ -401,7 +430,13 @@ impl Node for MediaNode {
             return;
         }
         if self.video_parameter(parameter) {
-            self.publish_video(ctx, Some(parameter));
+            let Some(golden_core::events::EventKind::ParamChanged { new_value: value, .. }) =
+                ctx.current_event().map(|event| &event.kind)
+            else {
+                return;
+            };
+            let value = value.clone();
+            self.publish_video(ctx, Some((parameter, value)));
             return;
         }
         if parameter == self.stop_all.id() {

@@ -244,6 +244,7 @@ impl<T: Node> Engine<T> {
                                     if !active.transaction.is_empty() {
                                         self.push_undo_transaction(active.transaction);
                                     }
+                                    self.queue_deferred_feedback(active.feedback);
                                     (Ok(None), false)
                                 }
                             } else {
@@ -266,12 +267,26 @@ impl<T: Node> Engine<T> {
                             effects.set_policy(behaviour, self.time.tick);
                             (Ok(effects.history()), changed)
                         }
-                        Edit::SetParamFeedback { node, value } => {
-                            self.apply_param_feedback(edit_index, node, value, request.param_source)?;
+                        Edit::SetParamFeedback {
+                            node,
+                            value,
+                            expected_input,
+                            guard,
+                        } => {
+                            self.apply_param_feedback(
+                                edit_index,
+                                node,
+                                super::parameter_feedback::PendingParameterFeedback {
+                                    value,
+                                    expected_input,
+                                    guard,
+                                    source: request.param_source,
+                                },
+                            )?;
                             (Ok(None), false)
                         }
-                        Edit::SetParamRuntimeRange { node, range } => {
-                            self.apply_param_runtime_range(edit_index, node, range, request.param_source)?;
+                        Edit::SetParamRuntimeRange { node, range, guard } => {
+                            self.apply_param_runtime_range(edit_index, node, range, request.param_source, guard)?;
                             (Ok(None), false)
                         }
                         Edit::SetParamControlState { node, state } => {

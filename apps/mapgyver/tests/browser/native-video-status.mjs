@@ -159,6 +159,59 @@ try {
 	await edit({ kind: 'Video', media: reference.media, edit: { kind: 'Loop', looping: true } });
 	await parameter('Play').getByRole('button', { name: 'Trigger', exact: true }).click();
 	await wait(() => playing.isChecked(), Boolean, 'live Playing');
+	const livePositions = [];
+	for (let sample = 0; sample < 7; sample++) {
+		livePositions.push(await positionValue());
+		await delay(75);
+	}
+	assert(
+		new Set(livePositions.map(Math.round)).size >= 3,
+		`live position did not advance: ${livePositions}`
+	);
+	await edit({ kind: 'Video', media: reference.media, edit: { kind: 'Seek', position_ms: 0 } });
+	await wait(positionValue, (value) => value < 25, 'fresh seek before drag');
+	const box = await slider.boundingBox();
+	assert(box && box.width > 8 && box.height > 0, 'visible position slider');
+	await page.mouse.move(box.x + box.width * 0.25, box.y + box.height * 0.5);
+	await page.mouse.down();
+	let heldPosition, acceptedSeek;
+	try {
+		await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.5);
+		acceptedSeek = await wait(
+			async () => (await edit({ kind: 'InspectVideo', media: reference.media })).snapshot,
+			(value) => value.settings.position_ms > 0,
+			'active slider seek accepted'
+		);
+		await wait(
+			positionValue,
+			(value) => Math.abs(value - acceptedSeek.settings.position_ms) <= 1,
+			'active seek presentation'
+		);
+		heldPosition = await positionValue();
+		await delay(350);
+		assert.equal(
+			await positionValue(),
+			heldPosition,
+			'clock feedback must not fight the held seek'
+		);
+		assert.equal(
+			(await edit({ kind: 'InspectVideo', media: reference.media })).snapshot.settings.mode,
+			'Playing'
+		);
+	} finally {
+		await page.mouse.up();
+	}
+	await wait(
+		positionValue,
+		(value) => Math.abs(value - heldPosition) > 1,
+		'feedback resumes after release'
+	);
+	assert.equal(
+		(await edit({ kind: 'InspectVideo', media: reference.media })).snapshot.settings.position_ms,
+		acceptedSeek.settings.position_ms,
+		'feedback must not become another seek'
+	);
+
 	await parameter('Pause').getByRole('button', { name: 'Trigger', exact: true }).click();
 	await wait(
 		() => playing.isChecked(),
@@ -219,6 +272,14 @@ try {
 		pageErrors,
 		length_ms: [250, longest, 250],
 		playing: [false, true, false],
+		live_positions_ms: livePositions,
+		seek_feedback: {
+			held_ms: heldPosition,
+			accepted_ms: acceptedSeek.settings.position_ms,
+			frozen_for_350ms: true,
+			resumed_after_release: true,
+			transport_mode_preserved: true
+		},
 		read_only: { length: true, playing: true },
 		transport_triggers: ['Play', 'Pause', 'Stop', 'Play', 'Pause'],
 		position: {
@@ -236,7 +297,7 @@ try {
 		},
 		source,
 		scope:
-			'Generic Inspector status, bounded Current Position, transport triggers and authored Play at Load with project reload/metadata readiness; no continuous clock feedback, active-seek arbitration, codec pixels, recovery or full M10/5 acceptance',
+			'Generic Inspector status, bounded Current Position, transport triggers and authored Play at Load with project reload/metadata readiness; live clock feedback and held-seek suspension/resume verified; no codec pixels, recovery or full M10/5 acceptance',
 		normalShutdown: false
 	};
 } catch (error) {

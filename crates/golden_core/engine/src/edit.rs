@@ -173,6 +173,10 @@ pub enum Edit {
         node: NodeId,
         /// Runtime value, or `None` to restore the baseline within current bounds.
         value: Option<ParamValue>,
+        /// Last manual input acknowledged by the producer; required to match transient Parameters.
+        expected_input: Option<crate::engine::EngineTime>,
+        /// Optional producer-state fence, checked again after an edit session finishes.
+        guard: Option<golden_io::RevisionGuard>,
     },
     /// Publish availability bounds without changing authored constraints or history.
     SetParamRuntimeRange {
@@ -180,6 +184,8 @@ pub enum Edit {
         node: NodeId,
         /// Availability range; `None` restores the authored range.
         range: Option<crate::parameter::RangeConstraint>,
+        /// Optional producer-state fence.
+        guard: Option<golden_io::RevisionGuard>,
     },
     /// Replace the live constraints on an existing parameter node.
     SetParamConstraints {

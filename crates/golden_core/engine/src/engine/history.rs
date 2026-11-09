@@ -183,6 +183,8 @@ pub(crate) struct ActiveEditSession<T: Node> {
     pub(crate) ui_client_instance_id: Option<String>,
     /// Accumulated history transaction for this session.
     pub(crate) transaction: HistoryTransaction<T>,
+    pub(super) transient_parameters: std::collections::HashSet<NodeId>,
+    pub(super) feedback: std::collections::HashMap<NodeId, super::parameter_feedback::PendingParameterFeedback>,
 }
 
 impl<T: Node> ActiveEditSession<T> {
@@ -199,6 +201,8 @@ impl<T: Node> ActiveEditSession<T> {
             client_edit_id,
             ui_client_instance_id,
             transaction: HistoryTransaction::new(),
+            transient_parameters: Default::default(),
+            feedback: Default::default(),
         }
     }
 }
@@ -698,6 +702,7 @@ impl<T: Node> Engine<T> {
             );
         }
         active.transaction.dispose(self);
+        self.queue_deferred_feedback(active.feedback);
     }
 
     /// Cancels the active UI edit session owned by `client_instance_id`, if any.
@@ -724,6 +729,7 @@ impl<T: Node> Engine<T> {
         }
         let active = self.active_edit_session.take().expect("matched UI session");
         self.push_undo_transaction(active.transaction);
+        self.queue_deferred_feedback(active.feedback);
         true
     }
 

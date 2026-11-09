@@ -40,7 +40,7 @@ fn pause_and_stop_cancel_pending_load_and_explicit_play_wins_policy_cancellation
     control.command(VideoPlaybackMode::Playing).unwrap();
     let mut settings = control.settings().unwrap();
     settings.play_at_load = false;
-    control.configure(settings, false).unwrap();
+    control.configure(settings, false, None).unwrap();
     control.prepare(seconds(60)).unwrap();
     assert!(playing(&control));
 }
@@ -49,15 +49,15 @@ fn pause_and_stop_cancel_pending_load_and_explicit_play_wins_policy_cancellation
 fn pending_policy_changes_apply_before_ready_but_ready_changes_wait_for_next_load() {
     let control = VideoControl::default();
     control.initialize(policy(false)).unwrap();
-    control.configure(policy(true), false).unwrap();
+    control.configure(policy(true), false, None).unwrap();
     let mut cancel = control.settings().unwrap();
     cancel.play_at_load = false;
-    control.configure(cancel, false).unwrap();
+    control.configure(cancel, false, None).unwrap();
     control.prepare(seconds(60)).unwrap();
     assert!(!playing(&control));
     let mut next = control.settings().unwrap();
     next.play_at_load = true;
-    control.configure(next.clone(), false).unwrap();
+    control.configure(next.clone(), false, None).unwrap();
     assert!(
         !playing(&control),
         "ready media must not start just because the load policy changes"
@@ -120,6 +120,17 @@ fn delayed_metadata_feedback_cannot_restore_older_duration_bounds() {
         crate::media::video::feedback::Status {
             playing: false,
             length_ms: 200.0,
+            range_guard: {
+                let state = control.0.lock().unwrap();
+                let reader = state.duration_changes.reader();
+                reader.guard_at(reader.current())
+            },
+            position_ms: 0.0,
+            input_time: None,
+            guard: {
+                let reader = control.revisions();
+                reader.guard_at(reader.current())
+            },
         },
     );
     publisher.publish(
@@ -127,6 +138,17 @@ fn delayed_metadata_feedback_cannot_restore_older_duration_bounds() {
         crate::media::video::feedback::Status {
             playing: false,
             length_ms: 100.0,
+            range_guard: {
+                let state = control.0.lock().unwrap();
+                let reader = state.duration_changes.reader();
+                reader.guard_at(reader.current())
+            },
+            position_ms: 0.0,
+            input_time: None,
+            guard: {
+                let reader = control.revisions();
+                reader.guard_at(reader.current())
+            },
         },
     );
     engine.run_tick(Duration::from_millis(1)).unwrap();

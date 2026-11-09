@@ -1,0 +1,54 @@
+{
+  "date": "2026-11-09",
+  "gate": "M10/5",
+  "gate_state": "Active",
+  "scope": "Actual transport-position feedback and shared transient Parameter seek arbitration; native decoded playback remains open",
+  "product": {
+    "position": "Existing background metadata owner samples actual clock position every 100ms; control actions publish immediately. Delta-only scalar edits use one coalesced inbox per media, with no per-node engine polling rule.",
+    "arbitration": "Manual transient writes record their exact emitted event time. Feedback acknowledges that input and a current producer revision; old feedback cannot overwrite a newer write even before its callback runs. Active edit sessions retain only latest feedback for touched transient targets. Release/disconnect queues it for fresh validation; unrelated targets continue updating.",
+    "lifetime": "Parameter removal clears runtime values, bounds and input markers. Restored media receives a new producer inbox. Runtime feedback stays outside persistence/history and never becomes another seek.",
+    "bounds": "Duration availability has its own revision, so transport changes cannot invalidate unchanged metadata. Pending coalesced status retries its wake at the next existing background checkpoint.",
+    "stepping": "Changing future Speed while paused and repeating Pause preserve the current epoch/frame neighbours; real seek/play discontinuities retain fencing. This repairs immediate mixed-rate Step rejection without waiting for a worker race.",
+    "schema": "Media v11 and Command v8 unchanged; internal trusted Edit fields are not wire DTOs"
+  },
+  "validation": {
+    "engine": { "passed": 691, "failed": 0, "ignored": 3, "log": "target/m10-live-position-engine-tests.log", "binary": "target/debug/deps/golden_engine-1194a704e7ec30e3.exe", "note": "Full compiled engine suite run directly after Cargo stopped on app failures. Subsequent fixes touched app code only; engine source stayed unchanged." },
+    "app": { "passed": 639, "failed": 0, "ignored": 7, "seconds": 56.17, "profile": "dev", "features": "native-qualification", "log": "target/m10-live-position-acceptance-tests.log" },
+    "behavior": ["Actual play/pause/stop position without render demand or authored changes", "Superseded manual input, latest deferred value, producer invalidation, unrelated edit targets and disconnect/removal lifetime", "Exact mixed-rate/keyframe stepping and pixels", "Generic/script/transport/command callers and callbacks, independent copies, authored history and project reload", "Initial unknown bounds, longest-duration changes, clamping and delayed status order"],
+    "contracts": { "files": 155, "result": "pass", "method": "App suite compares fresh Rust exports byte-for-byte" },
+    "strict_lint": { "result": "pass", "packages": ["golden_engine", "MapGyver"], "targets": "all", "warnings_denied": true, "log": "target/m10-live-position-clippy.log" },
+    "ui": { "svelte_errors": 0, "svelte_warnings": 0, "node_tests": 2, "prettier": "pass", "logs": ["target/m10-live-position-ui-check.log", "target/m10-live-position-ui-tests.log"] },
+    "format": "Root and golden_core cargo fmt --all completed after final runtime changes",
+    "failed_attempts": [
+      "target/m10-live-position-tests.log: initial duration bounds were rejected by transport revision; paused mixed-rate stepping rejected stale timestamps",
+      "target/m10-live-position-app-tests.log: callback argument was incorrectly treated as new value; fixed by reading current_event ParamChanged.new_value with its timestamp",
+      "target/m10-live-position-app-final-tests.log: 637 passed, only immediate mixed-rate stepping failed; fixed paused mapping invalidation and added a deterministic epoch regression"
+    ]
+  },
+  "native": {
+    "result": "pass for Inspector clock/control scope",
+    "report": "target/m10-live-position-native/video-status.json",
+    "binary": "target/m10-live-position-app/MapGyver.exe",
+    "sha256": "4aa3bad560f3f8a134c9b025bee3ad9fcd36fb81e05fd831413a8cb27320398c",
+    "pid": 51428,
+    "exit_code": 0,
+    "normal_shutdown": true,
+    "page_errors": [],
+    "live_positions_ms": [0.0011, 47.0275, 147.9425, 249.3933, 100.3268, 100.3268, 200.9851],
+    "held_seek_ms": 37.501522836,
+    "held_duration_ms": 350,
+    "resume_without_another_seek": true,
+    "transport_mode_preserved": true,
+    "range_max_ms": [0, 250, 500, 250],
+    "other_checks": "Read-only status, manual125ms/400ms seek, clamp250ms, triggers and authored Play at Load project reload",
+    "isolation": "Private executable/profile with five pinned FFmpeg DLLs; per-command TAURI_CONFIG bundle.resources=[] bypasses locked development resource copies only. No packaging qualification is claimed.",
+    "retained_failure": "H.264 source reports Unavailable, Decode / FFmpeg: Invalid data found when processing input, retrying true, duration250ms. This run proves clock/Inspector behavior, not native decoded pixels, seek latency, recovery or performance."
+  },
+  "remaining": [
+    "Resolve the retained native H.264 decode failure and complete current M10/5 native playback acceptance; no gate is awarded for scalar clock feedback alone.",
+    "Then complete M10/6 seeking and M10/7 Matrix policy, and return to original M10/4 integration/production requirements before M14."
+  ],
+  "batch": { "started_utc": "21:38", "cutoff_utc": "22:23", "verification_finished_utc": "22:33", "overrun": "10min completing failed-check corrections and selected build/native verification; no new scope after cutoff" },
+  "accepted_gate_changes": [],
+  "progress": { "accepted": 85, "total": 106, "overall_percent": 80, "m10_accepted": 2, "m10_total": 8 }
+}

@@ -5,14 +5,29 @@ use crate::{
     parameter::{ParamValue, Parameter},
 };
 
+pub(super) struct PendingParameterFeedback {
+    pub value: Option<ParamValue>,
+    pub expected_input: Option<super::EngineTime>,
+    pub guard: Option<golden_io::RevisionGuard>,
+    pub source: Option<NodeId>,
+}
+
 impl<T: Node> Engine<T> {
     pub(super) fn apply_param_feedback(
         &mut self,
         edit_index: usize,
         node: NodeId,
-        value: Option<ParamValue>,
-        source: Option<NodeId>,
+        feedback: PendingParameterFeedback,
     ) -> Result<(), EngineEditError> {
+        let PendingParameterFeedback {
+            value,
+            expected_input,
+            guard,
+            source,
+        } = feedback;
+        if guard.as_ref().is_some_and(|guard| !guard.is_current()) {
+            return Ok(());
+        }
         if let Some(source) = source
             && self.nodes.get(source).is_none()
         {
@@ -48,6 +63,9 @@ impl<T: Node> Engine<T> {
                 message: "runtime feedback requires a bool, int or float Parameter".into(),
             });
         }
+        if parameter.transient_value && parameter.runtime_input_time != expected_input {
+            return Ok(());
+        }
         // Restoring the baseline must also respect currently available bounds.
         let reset = value.is_none();
         let value = parameter
@@ -63,6 +81,21 @@ impl<T: Node> Engine<T> {
         } else {
             Some(value)
         };
+        if parameter.transient_value
+            && let Some(session) = &mut self.active_edit_session
+            && session.transient_parameters.contains(&node)
+        {
+            session.feedback.insert(
+                node,
+                PendingParameterFeedback {
+                    value,
+                    expected_input,
+                    guard,
+                    source,
+                },
+            );
+            return Ok(());
+        }
         let old = parameter.get().clone();
         parameter.set_runtime_value(value);
         let new = parameter.get().clone();
@@ -79,7 +112,11 @@ impl<T: Node> Engine<T> {
         node: NodeId,
         range: Option<crate::parameter::RangeConstraint>,
         source: Option<NodeId>,
+        guard: Option<golden_io::RevisionGuard>,
     ) -> Result<(), EngineEditError> {
+        if guard.as_ref().is_some_and(|guard| !guard.is_current()) {
+            return Ok(());
+        }
         if source.is_some_and(|source| self.nodes.get(source).is_none()) {
             return Ok(());
         }
@@ -111,5 +148,37 @@ impl<T: Node> Engine<T> {
         self.emit_param_events_for_state_change(node, &old.value, &new.value, source);
         self.emit_param_constraints_event(node, old.constraints, new.constraints);
         Ok(())
+    }
+}
+
+impl<T: Node> Engine<T> {
+    pub(super) fn queue_deferred_feedback(
+        &mut self,
+        feedback: std::collections::HashMap<NodeId, PendingParameterFeedback>,
+    ) {
+        let mut pending = feedback.into_iter().collect::<Vec<_>>();
+        pending.sort_unstable_by_key(|(node, _)| node.0);
+        for (
+            node,
+            PendingParameterFeedback {
+                value,
+                expected_input,
+                guard,
+                source,
+            },
+        ) in pending
+        {
+            let edit = crate::edit::Edit::SetParamFeedback {
+                node,
+                value,
+                expected_input,
+                guard,
+            };
+            if let Some(source) = source {
+                self.edits.push_from(source, edit);
+            } else {
+                self.edits.push(edit);
+            }
+        }
     }
 }

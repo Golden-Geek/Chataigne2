@@ -31,6 +31,7 @@ pub struct Parameter {
     pub value: ParamValue,
     runtime_value: Option<Box<ParamValue>>,
     runtime_range: Option<Box<super::RangeConstraint>>,
+    pub(crate) runtime_input_time: Option<crate::engine::EngineTime>,
     /// Editable runtime state whose value never enters project data or undo history.
     pub transient_value: bool,
     /// Declared default value.
@@ -66,6 +67,7 @@ impl Parameter {
             value,
             runtime_value: None,
             runtime_range: None,
+            runtime_input_time: None,
             transient_value: false,
             default_value,
             change_check,
@@ -278,6 +280,7 @@ fn current_parameter_project_data(parameter: &Parameter) -> ParameterAuthoredSta
         control_modes_enabled,
         runtime_value: _,
         runtime_range: _,
+        runtime_input_time: _,
     } = parameter;
     ParameterAuthoredState {
         value: value.clone(),
@@ -310,6 +313,7 @@ fn restore_parameter_state(parameter: &mut Parameter, state: ParameterAuthoredSt
     } = state;
     if parameter.value != value || (!read_only && !transient_value) {
         parameter.runtime_value = None;
+        parameter.runtime_input_time = None;
     }
     parameter.value = value;
     parameter.default_value = default_value;
@@ -518,6 +522,11 @@ impl Parameter {
 }
 
 impl Node for Parameter {
+    fn destroy(&mut self, _: &mut ProcessCtx) {
+        self.runtime_value = None;
+        self.runtime_range = None;
+        self.runtime_input_time = None;
+    }
     fn node_data(&self) -> &crate::node::NodeData {
         &self.node_data
     }

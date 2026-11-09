@@ -137,6 +137,22 @@ fn speed_changes_are_continuous_and_reverse_restarts_from_the_end() {
 }
 
 #[test]
+fn changing_paused_speed_preserves_frame_neighbours_until_a_real_discontinuity() {
+    let (clock, mut transport) = fixture();
+    transport.seek(seconds(4)).unwrap();
+    let before = transport.sample().unwrap();
+    transport.set_rate(PlaybackRate::new(2, 1).unwrap()).unwrap();
+    transport.pause().unwrap();
+    let after = transport.sample().unwrap();
+    assert_eq!(after.epoch, before.epoch);
+    assert_eq!(after.position, before.position);
+    transport.play().unwrap();
+    assert_ne!(transport.sample().unwrap().epoch, before.epoch);
+    clock.set(1_000_000_000);
+    assert_eq!(transport.sample().unwrap().position, seconds(6));
+}
+
+#[test]
 fn rejected_controls_and_clock_regression_leave_accepted_mapping_intact() {
     let (clock, mut transport) = fixture();
     transport.seek(seconds(3)).unwrap();

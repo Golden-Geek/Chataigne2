@@ -279,6 +279,10 @@ impl<T: Node> Engine<T> {
             }
         };
 
+        if transient && let Some(session) = &mut self.active_edit_session {
+            session.transient_parameters.insert(node);
+            session.feedback.remove(&node);
+        }
         let should_emit = transient
             || match change_check {
                 Some(ParameterChangeCheck::None) => true,
@@ -300,6 +304,16 @@ impl<T: Node> Engine<T> {
             new_value: new_value.clone(),
             source,
         });
+        if transient {
+            let input_time = self.inbox.events.last().expect("emitted parameter input").time;
+            self.nodes
+                .get_mut(node)
+                .unwrap()
+                .as_any_mut()
+                .downcast_mut::<Parameter>()
+                .unwrap()
+                .runtime_input_time = Some(input_time);
+        }
         self.param_change_counter = self.param_change_counter.saturating_add(1);
         self.param_last_change_counter.insert(node, self.param_change_counter);
         self.parameter_values_cache.insert(node, new_value.clone());

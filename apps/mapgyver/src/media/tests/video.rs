@@ -338,6 +338,64 @@ fn seek_command_keeps_its_authored_argument_and_clamps_runtime_execution() {
 }
 
 #[test]
+fn current_position_follows_play_pause_and_stop_without_render_demand_or_authored_changes() {
+    let mut engine = fixture();
+    let reference = create(&mut engine, MediaKind::Video);
+    let AppNode::Media(node) = engine
+        .nodes
+        .get(engine.node_id_by_uuid(reference.media.0).unwrap())
+        .unwrap()
+    else {
+        panic!()
+    };
+    let control = node.video_control().unwrap();
+    let id = parameter(&engine, reference.media.0, "video_current_position_ms");
+    let visible = |engine: &AppEngine| match engine.nodes.get(id).unwrap().engine_param_snapshot().unwrap().value {
+        ParamValue::Float(value) => value,
+        _ => panic!(),
+    };
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    control.prepare(Duration::from_secs(60)).unwrap();
+    edit(&mut engine, reference.media, VideoEdit::Play);
+    std::thread::sleep(Duration::from_millis(25));
+    control.publish_feedback().unwrap();
+    engine.run_tick(Duration::from_millis(1)).unwrap();
+    let first = visible(&engine);
+    assert!(first > 0.0);
+    std::thread::sleep(Duration::from_millis(25));
+    control.publish_feedback().unwrap();
+    engine.run_tick(Duration::from_millis(1)).unwrap();
+    assert!(visible(&engine) > first);
+    edit(&mut engine, reference.media, VideoEdit::Pause);
+    engine.run_tick(Duration::from_millis(1)).unwrap();
+    let paused = visible(&engine);
+    assert!((paused - state(&mut engine, reference.media).position_ms).abs() < 0.001);
+    std::thread::sleep(Duration::from_millis(25));
+    control.publish_feedback().unwrap();
+    engine.run_tick(Duration::from_millis(1)).unwrap();
+    assert_eq!(visible(&engine), paused);
+    edit(&mut engine, reference.media, VideoEdit::Seek { position_ms: 125.0 });
+    edit(&mut engine, reference.media, VideoEdit::Play);
+    std::thread::sleep(Duration::from_millis(25));
+    control.publish_feedback().unwrap();
+    engine.run_tick(Duration::from_millis(1)).unwrap();
+    assert!(
+        visible(&engine) > 125.0,
+        "feedback acknowledges the latest manual input token"
+    );
+    edit(&mut engine, reference.media, VideoEdit::Stop);
+    engine.run_tick(Duration::from_millis(1)).unwrap();
+    assert_eq!(visible(&engine), 0.0);
+    assert_eq!(
+        state(&mut engine, reference.media).settings.mode,
+        VideoPlaybackMode::Stopped
+    );
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+}
+
+#[test]
 fn inspector_transport_triggers_do_not_author_or_replay_playback_mode() {
     let mut engine = fixture();
     let reference = create(&mut engine, MediaKind::Video);

@@ -79,6 +79,7 @@ fn superseding_seeks_and_file_incarnations_reject_held_real_decodes_before_strea
                         ..Default::default()
                     },
                     true,
+                    None,
                 )
                 .unwrap();
             if index % 64 == 0 {
@@ -92,6 +93,7 @@ fn superseding_seeks_and_file_incarnations_reject_held_real_decodes_before_strea
                     ..Default::default()
                 },
                 true,
+                None,
             )
             .unwrap();
         for stale in superseded {

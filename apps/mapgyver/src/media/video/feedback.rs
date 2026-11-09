@@ -2,10 +2,22 @@
 use golden_core::{engine::NodeWaker, process_ctx::ProcessCtx};
 use std::sync::{Arc, Mutex, Weak};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub(crate) struct Status {
     pub playing: bool,
     pub length_ms: f64,
+    pub position_ms: f64,
+    pub input_time: Option<golden_core::engine::EngineTime>,
+    pub guard: golden_io::RevisionGuard,
+    pub range_guard: golden_io::RevisionGuard,
+}
+impl Status {
+    fn same_values(&self, other: &Self) -> bool {
+        self.playing == other.playing
+            && self.length_ms == other.length_ms
+            && self.position_ms == other.position_ms
+            && self.input_time == other.input_time
+    }
 }
 
 #[derive(Default)]
@@ -61,10 +73,20 @@ impl Publisher {
             return;
         }
         state.sequence = sequence;
-        if state.last == Some(value) {
+        if state
+            .last
+            .as_ref()
+            .is_some_and(|last| last.same_values(&value) && last.guard.is_current() && last.range_guard.is_current())
+        {
+            // A wake coalesced with the currently running callback may leave a pending sample.
+            let retry = state.pending.is_some();
+            drop(state);
+            if retry {
+                let _ = self.waker.wake();
+            }
             return;
         }
-        state.pending = Some(value);
+        state.pending = Some(value.clone());
         state.last = Some(value);
         drop(state);
         if self.waker.wake().is_err()

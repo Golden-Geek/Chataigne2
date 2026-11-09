@@ -183,6 +183,9 @@ impl<C: Clock> MediaTransport<C> {
     /// Freeze at the current shared position, without changing the chosen rate.
     pub fn pause(&mut self) -> Result<(), TransportError> {
         let current = self.sample()?;
+        if !current.playing {
+            return Ok(());
+        }
         self.reanchor(nanos(current.position)?, false)
     }
 
@@ -211,9 +214,14 @@ impl<C: Clock> MediaTransport<C> {
             return Ok(());
         }
         let current = self.sample()?;
-        let active_rate = if current.playing { rate } else { PlaybackRate::PAUSED };
+        // A paused mapping stays paused; changing its future speed cannot invalidate the
+        // exact frame neighbours needed by an immediately following Step command.
+        if !current.playing {
+            self.rate = rate;
+            return Ok(());
+        }
         self.authority
-            .discontinuity(ShowPosition::from_nanos(nanos(current.position)?), active_rate)?;
+            .discontinuity(ShowPosition::from_nanos(nanos(current.position)?), rate)?;
         self.rate = rate;
         self.playing = current.playing;
         Ok(())
