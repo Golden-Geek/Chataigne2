@@ -311,15 +311,17 @@ impl VideoControl {
             state.frames.release(channel, owner);
         }
     }
-    pub fn publish_frame(
+    pub(crate) fn publish_frame(
         &self,
         channel: super::super::protocol::ChannelId,
         owner: uuid::Uuid,
         expected: super::TransportSample,
         stream: &golden_video::image::ImageStream,
         image: golden_video::image::ImageData,
+        frame: super::frames::Neighbours,
     ) -> Result<bool, String> {
-        self.publish_with(channel, owner, expected, || stream.replace(Some(image)))
+        let window = super::frames::window(expected, frame)?;
+        self.publish_with(channel, owner, expected, || stream.replace_frame(image, window))
     }
     fn publish_with<T>(
         &self,

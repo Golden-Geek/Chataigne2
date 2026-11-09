@@ -61,6 +61,14 @@ impl Recorder {
         stamp
     }
 
+    pub(crate) fn publication_lower_bound(&self, instant: std::time::Instant) -> Option<u64> {
+        let stamp = self.0.clock.lower_bound(instant);
+        if stamp.is_none() {
+            increment(&self.0.clock_failures);
+        }
+        stamp
+    }
+
     pub(crate) fn interval(&self, begin: Option<u64>) -> Option<CpuInterval> {
         begin
             .zip(self.stamp())

@@ -74,6 +74,12 @@ fn source_diagnostics_distinguish_metadata_pixels_recovery_and_fence_retired_fil
             control.sample().unwrap(),
             &stream,
             ImageData::new(descriptor, vec![255; 4]).unwrap(),
+            super::super::frames::Neighbours {
+                position: Duration::ZERO,
+                previous: None,
+                previous_ready: false,
+                next: None,
+            },
         )
         .unwrap();
     assert_eq!(

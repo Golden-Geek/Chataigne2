@@ -3,6 +3,31 @@ use super::{TransportSample, protocol::*};
 use crate::media::protocol::{AssetLocator, ChannelId, ChannelReference, MediaId};
 use std::{collections::HashMap, time::Duration};
 
+pub(super) fn window(
+    sample: TransportSample,
+    frame: Neighbours,
+) -> Result<golden_video::scheduling::FrameWindow, String> {
+    use golden_time::ShowPosition;
+    let origin = i128::from(sample.cycle) * sample.duration.as_nanos() as i128;
+    let coordinate = |position: Duration| -> Result<ShowPosition, String> {
+        i64::try_from(origin + position.as_nanos() as i128)
+            .map(ShowPosition::from_nanos)
+            .map_err(|_| "Video frame window overflow".into())
+    };
+    let end = frame
+        .next
+        .or(sample.looping.then_some(sample.duration))
+        .map(coordinate)
+        .transpose()?;
+    golden_video::scheduling::FrameWindow::new(
+        sample.epoch,
+        coordinate(frame.position)?,
+        end,
+        ShowPosition::from_nanos(i64::try_from(frame.position.as_nanos()).map_err(|_| "Video PTS overflow")?),
+    )
+    .ok_or_else(|| "Invalid Video frame interval".into())
+}
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Neighbours {
     pub position: Duration,

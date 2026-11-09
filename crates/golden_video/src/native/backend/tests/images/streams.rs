@@ -10,8 +10,24 @@ fn hardware_held_stream_frame_uploads_once_across_compatible_plan_rebuilds() {
         let desc = descriptor(2, ColorEncoding::Srgb, AlphaMode::Straight);
         let image = prepared_image(desc, &[0; 8]);
         let stream = ImageStream::new(desc);
+        let mut authority = golden_time::TimeAuthority::new(
+            golden_time::SystemClock::new(),
+            golden_time::ShowPosition::from_nanos(0),
+            golden_time::PlaybackRate::NORMAL,
+        )
+        .unwrap();
+        let epoch = authority.sample().unwrap().epoch();
+        let window = |pts| {
+            crate::scheduling::FrameWindow::new(
+                epoch,
+                golden_time::ShowPosition::from_nanos(pts),
+                None,
+                golden_time::ShowPosition::from_nanos(pts),
+            )
+            .unwrap()
+        };
         stream
-            .publish(Some(ImageData::new(desc, [255, 0, 0, 255].repeat(2)).unwrap()))
+            .replace_frame(ImageData::new(desc, [255, 0, 0, 255].repeat(2)).unwrap(), window(0))
             .unwrap();
         let mut renderer = Renderer::with_diagnostics(
             adapter.id,
@@ -30,7 +46,7 @@ fn hardware_held_stream_frame_uploads_once_across_compatible_plan_rebuilds() {
         expect(&renderer.pixel_frame(), &[[255, 0, 0, 255]; 2]);
         assert_eq!(renderer.backend.control.snapshot().created_textures, created);
         stream
-            .publish(Some(ImageData::new(desc, [0, 255, 0, 255].repeat(2)).unwrap()))
+            .replace_frame(ImageData::new(desc, [0, 255, 0, 255].repeat(2)).unwrap(), window(17))
             .unwrap();
         expect(&renderer.pixel_frame(), &[[0, 255, 0, 255]; 2]);
         expect(&renderer.pixel_frame(), &[[0, 255, 0, 255]; 2]);
@@ -77,6 +93,33 @@ fn hardware_held_stream_frame_uploads_once_across_compatible_plan_rebuilds() {
             })
             .collect();
         assert_eq!(uses, vec![1, 1, 1, 2, 2, 0, 0]);
+        let actual_frames = rows
+            .iter()
+            .filter_map(|row| match row {
+                DiagnosticEvent::SourceUse(row) if row.stream == Some(stream.id()) => Some(row.frame),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            actual_frames
+                .iter()
+                .map(|frame| frame.map(|frame| frame.pts_nanos))
+                .collect::<Vec<_>>(),
+            vec![Some(0), Some(0), Some(0), Some(17), Some(17), None, None]
+        );
+        let stamps = actual_frames
+            .iter()
+            .filter_map(|frame| frame.and_then(|frame| frame.publication_qpc))
+            .collect::<Vec<_>>();
+        assert_eq!(stamps.len(), 5);
+        assert_eq!(
+            &stamps[..3],
+            &[stamps[0]; 3],
+            "held pixels retain the original publication endpoint"
+        );
+        assert_eq!(stamps[3], stamps[4]);
+        assert!(stamps[0] <= uploads[0].cpu.unwrap().begin);
+        assert!(stamps[3] <= uploads[1].cpu.unwrap().begin);
         let replacement_uploads = rows
             .iter()
             .filter_map(|row| match row {

@@ -466,10 +466,14 @@ impl Run {
             if let Some(image) = reader.poll(sample.channel_position(reader.duration))? {
                 let image = image.retain(lease.clone());
                 let next = stream.get_or_insert_with(|| ImageStream::new(image.descriptor()));
-                if self
-                    .control
-                    .publish_frame(self.reference.channel, owner, sample, next, image)?
-                {
+                if self.control.publish_frame(
+                    self.reference.channel,
+                    owner,
+                    sample,
+                    next,
+                    image,
+                    reader.neighbours()?.ok_or("Selected Video timestamps unavailable")?,
+                )? {
                     let mut output = self.output.lock().unwrap();
                     if output.stream.is_none() {
                         output.stream = Some(Stream::Software(next.clone()));

@@ -180,7 +180,8 @@ pub struct TimedFrameTrace {
     pub start_nanos: i64,
     /// Excluded coordinate; absent for an unbounded final hold.
     pub end_nanos: Option<i64>,
-    /// Before successful queue publication, never backdated to upload submission.
+    /// Before successful publication, never the later upload submission. CPU ImageStream
+    /// observations project their committed Instant to a conservative QPC lower endpoint.
     pub publication_qpc: Option<u64>,
 }
 

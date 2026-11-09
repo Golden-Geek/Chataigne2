@@ -8,7 +8,7 @@ mod font;
 mod stream;
 pub use atlas::ImageAtlas;
 pub use font::FontAtlas;
-pub use stream::{ImageStream, StreamSample};
+pub use stream::{FramePublication, ImageStream, StreamSample};
 
 /// A tightly packed, immutable image. Source storage/color/alpha is explicit;
 /// conversion into the renderer's linear premultiplied targets happens while sampling.

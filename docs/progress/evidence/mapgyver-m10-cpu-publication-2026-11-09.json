@@ -1,0 +1,37 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4 alone Active; CPU File publication metadata verified, no sustained-age or full-gate acceptance",
+	"deliverable": "Golden ImageStream atomically retains actual decoded PTS/window and a precommit Instant with its exact image/sequence. MapGyver's software File worker supplies Reader neighbours under the existing owner/epoch/cycle publication fence. Native upload retains that metadata with the allocation across held frames and compatible plan rebuilds; withdrawal/plain replacement clears it. Shared consumers still upload each new sampled image only once.",
+	"ownership": "Golden owns portable image publication and native timing projection; MapGyver owns media-window policy. Move the existing window function to the portable app frame boundary so software and GPU routes share it. No app policy enters Golden, no extra image queue/decoder/upload/pool capacity or UI/protocol declaration is added.",
+	"timing": "Windows Instant is QPC-backed. The optional native recorder reads QPC before a later Instant anchor, subtracts elapsed time rounded outward by one nanosecond and one QPC tick, and retains the resulting lower endpoint with the actual texture contents. Preemption can only widen the publication-to-copy upper bound. Invalid/future/overflowing clocks remain unknown. The upload API wall interval ends immediately after UpdateSubresource, before metadata projection; no upload-end timestamp is borrowed as File publication.",
+	"clock_reference": "https://doc.rust-lang.org/stable/std/time/struct.Instant.html#underlying-system-calls",
+	"software": {
+		"result": "625 MapGyver and284 Golden Video tests pass with4 test threads (52.62s/2.90s); 909 distinct tests across those targets. Three new Golden tests cover image/metadata identity and conservative/invalid clock projection. Existing real-decode superseding-seek tests now verify actual PTS, committed time and stale-owner metadata rejection across all eight common fixtures.",
+		"log": "target/q06-cpu-publication-software-recheck.log",
+		"sha256": "506915ed4978aae4486b763957c6f086079842f2b56c914239950fc9f340ae76",
+		"initial_failure": "Default-parallel run compiled successfully in2m13s but finished624 passed/1 failed: nested_column_group_topology hit Script app-operation lifetime capacity exhausted. Golden Core's process-global512MiB request pool reserves32MiB for each request/reply; concurrent test pressure is consistent with this rejection. The exact isolated test passes0.22s, then the full suite passes at4 threads. No product admission limit was changed and no default-parallel full pass is claimed.",
+		"initial_log": "target/q06-cpu-publication-software.log",
+		"initial_sha256": "97437f8af045afb8da554a12e011e884bd63f7ccb925e722d0b066541668dddc",
+		"final_native_accounting_review": "After that pass, only the native ImageUpload CPU interval endpoint moved before metadata projection. Final Golden284 tests pass2.03s after43.49s compile, and both-package all-target native-qualification clippy -D warnings passes37.18s. Unchanged MapGyver software bodies retain the625 pass; the affected native path is rerun below. Existing ts-rs notices remain.",
+		"final_golden_log": "target/q06-cpu-publication-final-golden.log",
+		"final_golden_sha256": "e9958f5a95dc29a1d2701982e245e157f1c5050e38b7c5b96c414ba0a6add7e5",
+		"strict_log": "target/q06-cpu-publication-final-clippy.log",
+		"strict_sha256": "2fda39f671fd3a3ea209cda88cca9017e0bf51b9f3c7725601a5e76cc6a1e6cc",
+		"portable": "No-default-features Golden Video:166 passed,2.01s after12.17s compile. This is overlapping feature coverage, not166 additional distinct tests. Its portable bodies are unchanged by the final native-only interval adjustment.",
+		"portable_log": "target/q06-cpu-publication-portable.log",
+		"python": "Unchanged Video age auditor16 and production PresentMon16 tests pass. No old capture is reclassified or reconstructed; earlier CPU frames lack these tags."
+	},
+	"native": {
+		"result": "Final exact held-stream native test passes1/1 in2.45s, with two hardware-adapter iterations/16 pixel comparisons. Both retain first-frame metadata through three held/rebuilt uses and second-frame metadata through two uses, then clear it on withdrawal. Exactly two original-stream uploads (sequences1,2), one replacement-stream upload, unchanged texture allocation and zero dropped diagnostics. Publication lower endpoints precede the upload begin; held endpoints are identical.",
+		"binary": "target/q06-cpu-publication-tests/GoldenVideoTests.exe",
+		"sha256": "947288f3571d8f241e4a53e961db2891e4bb591dac7fd8e1b3b1d0656ce4f65a",
+		"log": "target/q06-cpu-publication-tests/native-final.log",
+		"log_sha256": "f5780e50d3b0fbe887609bd42113cb0ba882ea5137be88868df29abb46f609ae",
+		"app_preflight": "Original both-GPU eight-source native preflight passes1/1 in13.12s, Intel88937 and NVIDIA2427691359 both healthy generation1, fresh frame4/frame0 centers/routes and paired zero CPU/GPU admission retirement235.8577ms. Binary4237f8fb7924789b82649e74a9e7a29210022a6405dbbda3e93ececaf41d1089; only the later direct-CPU upload interval endpoint differs from the final source. This preflight uses source-worker GPU routes and its bodies remain unchanged.",
+		"app_preflight_log": "target/q06-cpu-publication-tests/preflight.log",
+		"app_preflight_sha256": "40689edf6b7fbc4605ffca77cacc6e8be863bf598b9e80d75065b3e9ed4d5fbc",
+		"libraries": "Five isolated executable-local pinned FFmpeg DLLs,22422528 bytes total; every hash matches windows-x64.json. Native work started only after successful software and strict prerequisites. No driver reset or sustained timing cohort ran in this slice."
+	},
+	"environment": "Administrator role is now verified true for the actual executing process after the user's VS Code restart. Further authorized resets need no manual elevated-terminal handoff. The earlier genuine Intel recovery remains accepted in74e2b431; NVIDIA was then only an unaffected control.",
+	"remaining": "Fresh production-app cohorts must actually supply4K publication/copy witnesses and qualify all required ages. Differing/ambiguous alias metadata still remains unbounded in the existing auditor. NVIDIA disconnected deadline failure, invalidated Intel timing, repeated codec/resource/path/pool/soak and affected-NVIDIA recovery remain open. No budget, denominator or full gate changes:85/102=83%,M10 2/4=50%,8/15 phases."
+}

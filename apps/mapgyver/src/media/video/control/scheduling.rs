@@ -1,10 +1,10 @@
 //! Media policy projects decoded PTS windows onto Golden's bounded presentation mechanism.
 use crate::media::protocol::ChannelId;
+use crate::media::video::frames::window;
 use crate::media::video::{TransportSample, VideoControl, frames::Neighbours};
-use golden_time::ShowPosition;
 use golden_video::{
     native::{GpuFrameClock, GpuFramePublication, GpuFrameStream, GpuImage},
-    scheduling::{FramePosition, FrameWindow},
+    scheduling::FramePosition,
 };
 use std::time::{Duration, Instant};
 
@@ -85,27 +85,6 @@ impl VideoControl {
 
 pub(in crate::media::video) fn timed(sample: TransportSample) -> bool {
     sample.playing && sample.mapping.rate().numerator() != 0
-}
-
-pub(in crate::media::video) fn window(sample: TransportSample, frame: Neighbours) -> Result<FrameWindow, String> {
-    let origin = i128::from(sample.cycle) * sample.duration.as_nanos() as i128;
-    let coordinate = |position: Duration| -> Result<ShowPosition, String> {
-        i64::try_from(origin + position.as_nanos() as i128)
-            .map(ShowPosition::from_nanos)
-            .map_err(|_| "Video frame window overflow".into())
-    };
-    let end = frame
-        .next
-        .or(sample.looping.then_some(sample.duration))
-        .map(coordinate)
-        .transpose()?;
-    FrameWindow::new(
-        sample.epoch,
-        coordinate(frame.position)?,
-        end,
-        ShowPosition::from_nanos(i64::try_from(frame.position.as_nanos()).map_err(|_| "Video PTS overflow")?),
-    )
-    .ok_or_else(|| "Invalid Video frame interval".into())
 }
 
 /// Only one forward future frame is prepared. Reverse retains its exact bounded seek route.

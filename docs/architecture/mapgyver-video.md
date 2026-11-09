@@ -338,7 +338,18 @@ output versions and independent consumer GPU-completion observations. The contro
 distinct-extent source mapping rejects ambiguity. Every accepted image contributes to the
 percentile rank, with missing endpoints unbounded; `age_bounds.py` shares the exact outward
 arithmetic with PresentMon. This proves only publication-to-copy bounds for witnessed outputs,
-not decoded Video pixel/PTS identity, display scanout or unknown CPU File publications.
+not decoded Video pixel/PTS identity or display scanout. Software File workers also publish
+the actual decoded PTS/window through Golden's `ImageStream::replace_frame`, under the same
+owner/epoch/cycle fence as their pixels. The latest-image slot commits a portable `Instant`
+with the image and sequence; it adds no queue or scheduling behavior. Native upload retains
+that metadata with the destination allocation, including held frames and compatible rebuilds,
+and clears it on withdrawal/plain-image replacement. The optional Windows recorder projects
+that Instant to a conservative QPC lower endpoint: QPC precedes the later Instant anchor,
+elapsed nanoseconds and ticks round outward, and invalid/overflowing clocks stay unknown.
+[Rust documents Windows Instant as QPC-backed](https://doc.rust-lang.org/stable/std/time/struct.Instant.html#underlying-system-calls).
+This bounds publication-to-copy without borrowing upload-end time or claiming decode completion;
+the existing age auditor still rejects differing/ambiguous alias metadata. Older CPU captures
+without these tags remain unqualified and cannot be reconstructed by replaying the auditor.
 Hardware/HAP File publishers use the timeline completion correction now; all original resource,
 recovery and performance qualification remains required.
 File workers fall back only for an explicit unsupported native codec/interface or conversion.

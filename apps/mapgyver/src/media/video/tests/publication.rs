@@ -57,6 +57,7 @@ fn superseding_seeks_and_file_incarnations_reject_held_real_decodes_before_strea
         let started = Instant::now();
         let mut reader = super::super::reader::Reader::new(open(name)).unwrap();
         let held = decoded_at(&mut reader, Duration::ZERO);
+        let held_frame = reader.neighbours().unwrap().unwrap();
         let cold = started.elapsed();
         let channel = ChannelId(NodeUuid(uuid::Uuid::new_v4()));
         let file = AssetLocator::ProjectRelative {
@@ -95,7 +96,11 @@ fn superseding_seeks_and_file_incarnations_reject_held_real_decodes_before_strea
             .unwrap();
         for stale in superseded {
             let image = ImageData::new(held.descriptor(), held.pixels().to_vec()).unwrap();
-            assert!(!control.publish_frame(channel, owner, stale, &stream, image).unwrap());
+            assert!(
+                !control
+                    .publish_frame(channel, owner, stale, &stream, image, held_frame)
+                    .unwrap()
+            );
             assert_eq!(stream.sample().unwrap().sequence, 0);
         }
         let latest = control.sample().unwrap();
@@ -104,23 +109,43 @@ fn superseding_seeks_and_file_incarnations_reject_held_real_decodes_before_strea
         let image = decoded_at(&mut reader, latest.position);
         let warm = started.elapsed();
         assert_eq!(image.pixels(), expected.unwrap(), "{name}: latest exact pixels");
-        assert!(control.publish_frame(channel, owner, latest, &stream, image).unwrap());
+        let actual_frame = reader.neighbours().unwrap().unwrap();
+        let before = Instant::now();
+        assert!(
+            control
+                .publish_frame(channel, owner, latest, &stream, image, actual_frame)
+                .unwrap()
+        );
         assert_eq!(stream.sample().unwrap().sequence, 1);
+        let published = stream.sample().unwrap().frame.unwrap();
+        assert_eq!(
+            published.window.pts().as_nanos(),
+            actual_frame.position.as_nanos() as i64
+        );
+        assert!(published.published_at >= before && published.published_at <= Instant::now());
 
         let replacement = uuid::Uuid::new_v4();
         control.claim_channel(channel, replacement, file.clone()).unwrap();
         let sample = control.sample().unwrap();
-        assert!(!control.publish_frame(channel, owner, sample, &stream, held).unwrap());
+        assert!(
+            !control
+                .publish_frame(channel, owner, sample, &stream, held, held_frame)
+                .unwrap()
+        );
         assert_eq!(stream.sample().unwrap().sequence, 1);
         control.bind_file(channel, binding, None).unwrap();
         let pixels = stream.sample().unwrap().image.unwrap().pixels().to_vec();
         let image = ImageData::new(stream.descriptor(), pixels).unwrap();
         assert!(
             !control
-                .publish_frame(channel, replacement, sample, &stream, image)
+                .publish_frame(channel, replacement, sample, &stream, image, actual_frame)
                 .unwrap()
         );
         assert_eq!(stream.sample().unwrap().sequence, 1);
+        assert_eq!(
+            stream.sample().unwrap().frame.unwrap().published_at,
+            published.published_at
+        );
         eprintln!("{name}:1025 seeks coalesced,17 held epochs/old owner/relink rejected; cold={cold:?},warm={warm:?}");
     }
 }

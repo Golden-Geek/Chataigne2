@@ -32,7 +32,16 @@ pub(super) fn update(
             unsafe {
                 context.UpdateSubresource(&target.texture, 0, None, image.pixels().as_ptr().cast(), row_pitch, 0);
             }
+            let cpu = recorder.and_then(|recorder| recorder.interval(begin));
             target.image_visible.set(sample.sequence);
+            target
+                .timed_frame
+                .set(sample.frame.map(|frame| super::super::TimedFrameTrace {
+                    pts_nanos: frame.window.pts().as_nanos(),
+                    start_nanos: frame.window.start().as_nanos(),
+                    end_nanos: frame.window.end().map(|end| end.as_nanos()),
+                    publication_qpc: recorder.and_then(|recorder| recorder.publication_lower_bound(frame.published_at)),
+                }));
             if let Some(recorder) = recorder {
                 recorder.push(DiagnosticEvent::ImageUpload(ImageUploadTrace {
                     token,
@@ -42,12 +51,13 @@ pub(super) fn update(
                     row_pitch,
                     rows: image.descriptor().extent.height(),
                     bytes: image.pixels().len() as u64,
-                    cpu: recorder.interval(begin),
+                    cpu,
                 }));
             }
         } else {
             unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
             target.image_visible.set(0);
+            target.timed_frame.set(None);
         }
         target.image_sequence.set(Some(sample.sequence));
     }
@@ -59,7 +69,7 @@ pub(super) fn update(
             stream: Some(stream.id()),
             publication: None,
             software_upload: None,
-            frame: None,
+            frame: target.timed_frame.get(),
             requested_sequence: None,
             requested_position_nanos: None,
         }));
