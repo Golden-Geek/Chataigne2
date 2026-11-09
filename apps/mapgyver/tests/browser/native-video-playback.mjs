@@ -1,8 +1,8 @@
 // Bundled app controls, public authoring and independent composited Screen pixels.
-// Build MapGyver with video-files and put the pinned FFmpeg DLL directory on PATH.
+// Use the default bundled Video build; optional local-DLL checks verify the loaded pin.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, writeFile } from 'node:fs/promises';
 import { StringDecoder } from 'node:string_decoder';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -56,6 +56,8 @@ page.on('pageerror', (error) => errors.push(String(error)));
 const { rejected, observed } = await observeNativeRejectedRequests(page, () => 'Video playback');
 const observations = [];
 const moving = [];
+const seekBursts = [];
+const fileRecovery = [];
 let localRuntimeLibraries = null;
 const fixtures = path.resolve('crates/golden_video/src/decode/tests/fixtures');
 let token, screen, surface, surfaceDefinition;
@@ -346,6 +348,22 @@ try {
 			`${name} UI Previous`
 		);
 		await checkPixels(`${name} UI Previous`, 0);
+		const started = performance.now();
+		for (const position_ms of [180, 0, 160, 40, 120, 80, 200, 0, 125]) {
+			await transport(reference.media, { kind: 'Seek', position_ms });
+		}
+		const finalIndex = Math.floor(0.125 * rate);
+		await wait(
+			() => frame(reference),
+			(value) => value && Math.abs(value.position_ms - (finalIndex * 1000) / rate) < 0.002,
+			`${name} latest burst seek`
+		);
+		const acknowledgedMs = performance.now() - started;
+		await checkPixels(`${name} superseding seek`, finalIndex);
+		await delay(230);
+		await checkPixels(`${name} superseding seek held`, finalIndex);
+		seekBursts.push({ name, requests: 9, finalPositionMs: 125, finalIndex, acknowledgedMs });
+		await transport(reference.media, { kind: 'Stop' });
 		await tab('Media Preview').click();
 		await page
 			.locator(
@@ -360,6 +378,40 @@ try {
 			reference,
 			steppedTimestampMs: stepped.settings.position_ms
 		});
+	}
+	for (const name of ['h264-color.mp4', 'hevc-main10.mp4', 'prores-alpha.mov', 'hap-alpha.mov']) {
+		const codec = codecs.find((codec) => codec.name === name);
+		const { reference, profile, rate } = codec;
+		await route(reference);
+		const recoveredPath = path.join(directory, `recovered-${name}`);
+		await edit({ kind: 'ConfigureVideoFile', reference, file: recoveredPath });
+		const missing = await wait(
+			() => sourceState(reference),
+			(value) => value.error?.kind === 'Missing' && value.retrying,
+			`${name} missing/retry`
+		);
+		await writeFile(recoveredPath, 'not a Video file');
+		await wait(
+			() => sourceState(reference),
+			(value) => value.error?.kind === 'Decode' && value.retrying,
+			`${name} corrupt/retry`
+		);
+		await copyFile(path.join(fixtures, name), recoveredPath);
+		await wait(
+			() => sourceState(reference),
+			(value) => value.state === 'Ready' && !value.error && !value.retrying,
+			`${name} same-path recovery`
+		);
+		await seek(reference, (3 * 1000) / rate, 3, `${name} recovered exact frame`, profile);
+		await edit({ kind: 'ConfigureVideoFile', reference, file: path.join(fixtures, name) });
+		await wait(
+			() => sourceState(reference),
+			(value) => value.state === 'Ready' && !value.error,
+			`${name} authored relink`
+		);
+		await pixels(`${name} relink preserves transport`, 3, profile);
+		await transport(reference.media, { kind: 'Stop' });
+		fileRecovery.push({ name, missing: missing.state, retryRecovered: true, relinked: true });
 	}
 	const alpha = codecs.find((codec) => codec.profile === 'hap-alpha').reference;
 	const { reference: composition } = await edit({
@@ -541,6 +593,8 @@ try {
 		mixedRateVariant: variant,
 		observations,
 		moving,
+		seekBursts,
+		fileRecovery,
 		pageErrors: errors,
 		rejected,
 		uiReceipts: observed,
@@ -548,7 +602,7 @@ try {
 		backendEvents: playbackEvents,
 		normalShutdown: false,
 		scope:
-			'Ten common/HAP profiles, chromatic 8/10-bit, ProRes4444/HAP alpha and YCoCg, exact controls, independent HAP Composition copy and shared HAP Matrix/Reference routing with project reload. Backend events distinguish hardware/BC upload from software fallback. Not sustained performance, high-resolution concurrency or combined device recovery'
+			'Ten common/HAP profiles, chromatic 8/10-bit, ProRes4444/HAP alpha and YCoCg, superseding seeks, missing/corrupt-file retry/relink, exact controls, independent HAP Composition copy and shared HAP Matrix/Reference routing with project reload. Backend events distinguish hardware/BC upload from software fallback. Not sustained performance, high-resolution concurrency or combined device recovery'
 	};
 } catch (error) {
 	await writeFile(
@@ -558,6 +612,8 @@ try {
 				error: String(error),
 				observations,
 				moving,
+				seekBursts,
+				fileRecovery,
 				localRuntimeLibraries,
 				backendEvents: playbackEvents,
 				pageErrors: errors,

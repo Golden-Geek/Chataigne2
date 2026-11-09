@@ -203,6 +203,12 @@ paused workers wait for an explicit control wake.
 Known duration survives consumer withdrawal; a returning Reference continues the media clock.
 Per-channel owner tokens reject frames from superseded workers.
 
+[Seek/retry/relink qualification](../progress/evidence/mapgyver-m10-seek-recovery-2026-11-09.json)
+holds real decoded images across superseding controls, replaced decoders and revoked File bindings.
+Both-GPU bundled-app fixtures verify latest-seek pixels, a delayed stale-image check and typed
+missing/corrupt-file retry followed by valid-file recovery and authored relink. These short
+functional checks leave combined device recovery and sustained resource/performance acceptance open.
+
 Channel lifecycle registrations bind each real File to its media control. File edits and actual
 channel removal revoke the old generation and duration; consumer withdrawal does not. A counted
 ordered duration set updates the longest duration in logarithmic time, avoiding whole-channel

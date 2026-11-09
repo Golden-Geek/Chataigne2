@@ -1,0 +1,66 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4",
+	"state": "Active; exact/superseding seek and missing-file retry/relink slice functionally verified; no whole gate credit",
+	"progress": { "accepted": 85, "total": 102, "m10_accepted": 2, "m10_total": 4 },
+	"deliverable": "Retained regression coverage proves latest-seek publication and source-incarnation rejection using actual decoded images, and exercises automatic file retry/relink through the ordinary bundled app on both GPUs. Existing product behavior passes; no production runtime fix was required.",
+	"ownership": "MapGyver VideoControl stores the latest transport settings and fences stream mutation by owner plus epoch/cycle. App File workers sample that state between bounded decode turns; no seek-command queue accumulates. Golden supplies original decoder timestamps and bounded CPU/GPU image mechanisms. File binding generations revoke superseded sources and metadata independently of demand.",
+	"inputs": {
+		"base_commit": "bd0430f6104b166a2942e7583184e7707d93cf64",
+		"cargo_lock_sha256": "c33336b45753ed513456525394d8c9ab1d5f5e3e220ab4f8b888b41a09a711c8",
+		"npm_lock_sha256": "85a62b85ab751659a4efd486b12f982385d5f8bc62dee2cee9dadc1460c9f0af",
+		"app_manifest_sha256": "890711490f887f2d4da124de2bb96bc0a7b1a8303357946b5e715605d8b6d82d",
+		"golden_video_manifest_sha256": "1862d3bcb2d5c17595f70a6822a0c02130a0da6ac191703cd3fc37d69ef48990",
+		"test_binary_sha256": "ef9706f8a82254be40516bf8816ac24364da43d08be8d36c200ffeaa17aced10",
+		"normal_app_sha256": "883bf3b652eb0e56047247c4e60e5180456d575bcb904cac5ffc470c30f9c2f9",
+		"source_runtime": "tools/mapgyver/ffmpeg/windows-x64.json; exact executable-local DLL hashes and paths verified without FFmpeg PATH",
+		"drivers": {
+			"Intel(R) Graphics": "32.0.101.8331",
+			"NVIDIA GeForce RTX 5080 Laptop GPU": "32.0.15.9201"
+		},
+		"dirty_scope": "Only owning test sources and evidence/ledger documentation change in this slice. Preserved user edits, including the app manifest, remain unstaged. The unchanged normal app binary is the previously qualified ordinary Tauri build."
+	},
+	"software": {
+		"prerequisites": "cargo test --locked -p MapGyver --lib --no-run:exit0; isolated test executable runs beside exact source DLLs. Full suite612 passed,0 failed,4 ignored in85.60s. Strict cargo clippy --locked -p MapGyver --lib --tests -- -D warnings:exit0,23.17s. Existing ts-rs attribute warnings remain unchanged.",
+		"log": "target/mapgyver-m10-seek-tests/software.log",
+		"new_test": "media::video::tests::publication::superseding_seeks_and_file_incarnations_reject_held_real_decodes_before_stream_mutation",
+		"proof": "Eight profiles including chromatic/10-bit/alpha and cross-keyframe H.264:1,025 seeks per profile overwrite latest state.17 held old epochs per profile reject before changing stream sequence; latest125ms produces byte-exact reference pixels and exactly one publication. Replaced decoder owner and revoked File binding reject held actual images without stream mutation.8,200 total seek updates and136 held-epoch rejections plus16 source-owner/File rejections. The existing suite also covers original timestamp steps/history, root changes, stale metadata generations, actual missing/corrupt-file retry, scoped healthy-source isolation and complete worker/image retirement.",
+		"timing_scope": "One warmed-filesystem local observation per profile, recorded by the focused nocapture rerun. Cold means Decoder open plus first zero-frame conversion; warm means selected125ms frame decode/conversion on that reader after superseding controls. These are not cold-storage distributions, source-to-display latency or a sustained-performance pass. No new performance threshold was invented.",
+		"cold_warm_ms": {
+			"h264.mp4": [0.7944, 0.0447],
+			"h264-keyframes.mp4": [0.7398, 0.0482],
+			"h264-color.mp4": [17.5224, 9.1099],
+			"hevc.mp4": [0.4196, 0.0298],
+			"hevc-main.mp4": [17.4905, 11.8592],
+			"hevc-main10.mp4": [25.5185, 16.2411],
+			"prores.mov": [0.2518, 0.0292],
+			"prores-alpha.mov": [0.2529, 0.0425]
+		}
+	},
+	"actual_app": {
+		"fixture": "apps/mapgyver/tests/browser/native-video-playback.mjs",
+		"criteria_defined_in_fixture": "Latest125ms selects the last original presentation timestamp at/before the target. Prepared timestamp error is below0.002ms; independent composited physical pixels match the generator oracle within4/255 linear light. A second pixel observation after230ms rejects delayed old-frame reversion. The8s wait is a correctness timeout, not a playback/latency performance budget.",
+		"seek_scope": "All ten common/HAP profiles receive nine alternating seeks without waiting for intermediate decode results, then verify the latest image and held state.180 authored seek operations across both GPUs. Existing exact controls/history/step, hardware-path assertions, independent Composition copy, shared Matrix/Reference, mixed-rate hold and project reload still pass.",
+		"file_scope": "H.264 chromatic, HEVC Main10, ProRes4444 alpha and HAP Alpha each relink to an absent owned path, report typed Missing with retry, then typed Decode after malformed bytes. Replacing those bytes with a valid fixture automatically returns Ready; exact frame3 pixels pass. Relinking back to the original valid path preserves transport and image. Four routes per GPU, eight successful retry/relink flows. This does not claim disappearance detection for a still-open valid file handle.",
+		"nvidia": {
+			"result": "pass;exit0;normal shutdown",
+			"pid": 50812,
+			"adapter": "dxgi:00000000:90b3a15f",
+			"physical_checkpoints": 117,
+			"clean_requests_and_receipts": 2488,
+			"trace": "target/mapgyver-m10-seek-recovery-nvidia-2026-11-09/video-playback.json",
+			"sha256": "58d658d657f1acd5e80dad51583adbc83893c4320bdb43a7c8332a9159af808a"
+		},
+		"intel": {
+			"result": "pass;exit0;normal shutdown",
+			"pid": 31344,
+			"adapter": "dxgi:00000000:00015b69",
+			"physical_checkpoints": 117,
+			"clean_requests_and_receipts": 2488,
+			"trace": "target/mapgyver-m10-seek-recovery-intel-2026-11-09/video-playback.json",
+			"sha256": "36df485f380329b6e48fa7fe157307d4deadb8d3c433bab23ffb98592fce6942"
+		},
+		"total": "234 physical checkpoints,4,976 matched UI requests/receipts, zero page errors or rejected edits; both processes shut down normally. Burst acknowledgement includes nine HTTP edits and up-to40ms readiness polling:10.5903–55.5525ms NVIDIA and10.5058–93.8227ms Intel. It is not precise individual seek or display latency."
+	},
+	"remaining": "M10/4 combined actual source/device recovery, remaining bounded admission/integration cases and actual sustained1080p/4K/resource performance with the specified workloads/distributions. Retained budgets and failures remain. M14 follows M10/4; DXV/WebP follows M14; M09 owns final artifact/source publication and global regression/qualification. No smoothness/AA scope is reopened."
+}
