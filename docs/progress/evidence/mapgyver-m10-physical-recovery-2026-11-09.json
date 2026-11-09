@@ -1,0 +1,49 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4 Active; affected-NVIDIA physical-device recovery accepted, native Preferences replay still pending",
+	"implementation": "Golden separates validated persistent PhysicalAdapterId/PnP keys from current AdapterId/LUID coordinates. Read-only DisplayConfig/Configuration Manager mapping preserves exact device identity and explicit query errors. Automatic selection follows Windows' first hardware choice and fails if its identity is unknown; explicit physical selection rejects missing/software/ambiguous matches without substituting another GPU. The backend pins the physical device before allocation and resolves its new LUID during recreation. MapGyver's coarse host catalog uses the same selector; File workers retire/rebind on the recovered runtime adapter while retaining the existing admission pools. Old images are never retagged across device instances.",
+	"persistence": "Preferences now author pnp: keys in the existing typed Golden Enum Parameter. Runtime-status GPU IDs remain dxgi: coordinates. Historical LUID-only saved choices remain unavailable; no name/vendor-based migration or recovery alias is added. Qualification writers can target a currently observed runtime coordinate, but resolve it before writing the physical preference; absent runtime IDs are rejected.",
+	"validation": {
+		"early_api": "One focused identity test passes after a justified early Windows API compile. Read-only native mapping then passes1/1: Intel and NVIDIA resolve to distinct exact PnP devices. A proposed device-node AdapterLuid property was absent and is not used; no reset/profiler was added for API discovery.",
+		"software": "625 app/286 Golden Video tests pass,43.63s/2.94s after128s compile. New typed-key persistence/malformed-input and same-physical/new-LUID/missing/software/ambiguous/unknown selection checks pass. Existing generated media/preview/Screen contracts pass in the app suite. Four test threads retain the previously documented global script-pool test admission constraint.",
+		"software_log": "target/q06-physical-binding-software.log",
+		"software_sha256": "4ba1c500cc1f2d6bf10c3b42ef1c1af941a77149295e2629686aee0cdece489d",
+		"strict": "Initial strict rejected manual modulo instead of is_multiple_of; the equivalent expression and missing API docs were corrected. Both-package all-target native-qualification strict passes23.48s. Final review exposes the already-tested pure catalog selector publicly and reuses it in the host cache, so ambiguous matches cannot be chosen by find-first; full strict passes again12.38s. Selector bodies/software cases are unchanged.",
+		"final_review_log": "target/q06-physical-binding-final-review.log",
+		"final_review_sha256": "33e826bb7d5c0692507bbe765842bdb1531dd0606737a9898b88daf24741e5a1",
+		"app_build": "Tauri app and native qualification runner build successfully in112s with native-qualification enabled. App SHAeeb0e485f5a1081cd5d94b53eefc7557c62c14bfac951658efb05b33f15393b3; runner SHA3d42ca4fb07e318eeb6a598620a8ef3d95aa9a50a31e9e7830bcb3067b8a1d35. The subsequent host-cache ambiguity guard is compiled by final strict, but these executables predate that guard. No default-feature-only app build or requalification of that new ambiguous-input branch is inferred from this artifact.",
+		"format": "Root/Golden Core cargo fmt; only touched JS helpers formatted and node syntax checks pass. No generated UI DTO changes are needed: physical identity is native metadata; the typed Parameter/status string fields retain their single-source contracts."
+	},
+	"native_preflight": {
+		"log": "target/q06-physical-binding-tests/preflight.log",
+		"sha256": "09235d4b5a6898dcdd9e112b7447d0ef7e890318fedd60d966e612b4ef6b7925",
+		"result": "Original eight-source/two-GPU preflight passes1/1 in13.12s, with both unchanged generations, exact fresh frame4/frame0 centers/routes and paired zero CPU/GPU admission retirement215.3673ms."
+	},
+	"genuine_nvidia": {
+		"outcome": "PASSED_NATIVE for the actual affected NVIDIA device and healthy Intel control",
+		"directory": "target/m034-removal-9da1b3acbd994355b111b0c43414eb92",
+		"result_sha256": "e6bcee4e11550308e788d0b1776c80a3a2e4fe69cb17810e526ec20338c44704",
+		"stderr_sha256": "352b9ad5e61fe21ebf0654212669f6e704bcc1cdf7ad2a2dc800f7288af00100",
+		"binary": "target/q06-physical-binding-tests/MapGyverTests.exe",
+		"binary_sha256": "0094c6740544f2519cbfbf09b81272c3d869015d94b6f0ea2c6ee3c5ff8fe4dc",
+		"artifact_scope": "Compiled during the full software pass. Later source changes are API docs, equivalent modulo spelling and host-cache reuse of the unchanged pure selector; fixture/runtime recovery bodies are unchanged. Five isolated FFmpeg DLL hashes match the pin. Native tests start only after software/strict and required build success.",
+		"pid": 21832,
+		"ready_utc": "2026-11-09T15:54:15.5070778Z",
+		"disabled_utc": "2026-11-09T15:54:16.5904511Z",
+		"reenabled_utc": "2026-11-09T15:54:29.0895918Z",
+		"finished_utc": "2026-11-09T15:54:32.3699503Z",
+		"trigger": "Exact PID readiness; NVIDIA disable0/problem22/seven-second dwell/enable0/healthy restoration; qualification0 and fixture_terminal=true. Original test passes1/1 in24.31s. No timing cohort overlaps.",
+		"nvidia": "Same physical PCI instance, runtime7ba0c3c6-c268-4eb9-867b-55f38e6b0828 generation1->2, LUID dxgi:00000001:4d070f3e -> dxgi:00000001:4ffc79d4. Independent receivers use the renderer's current coordinate and assert the same physical binding, not adapter index/name. All eight original frame4/frame0 output centers match within2/255. Logs confirm resident H.264/HEVC, compressed HAP/Alpha/Q and software-upload ProRes/alpha reopen on the new LUID.",
+		"intel": "Healthy runtime610e9eae-98cb-4200-9b66-d27214c5ac18 generation1->1, unchanged LUID00000000:00015b69, all eight fresh original output centers/routes pass.",
+		"state_and_retirement": "Both retain authored sparse project/history and Playing/Loop state. Exactly eight active File workers each, zero retiring renderer generations. Both renderer/File owners completely retire, zero CPU/GPU admission,205.8784ms against5000ms. No full-image/production-resolution/sustained-throughput claim from16x16 centers.",
+		"previous_failures": "Both failed NVIDIA attempts in mapgyver-m10-nvidia-identity-2026-11-09.json remain retained; the correction now closes their specific physical-identity requirement. Earlier genuine Intel acceptance remains valid."
+	},
+	"native_preferences_replay": {
+		"result": "UNAVAILABLE for this attempted automated GUI check; no passing five-stage physical-key Inspector/cold-start audit is claimed",
+		"log": "target/q06-physical-preferences.log",
+		"sha256": "c6cc52af0420f6e62fcecb699ba2402d6d1c052141543e79aa6a8d3893b949c5",
+		"finding": "Owned app starts its bundled host, connects a real WebView UI client, installs its source-free native plan and retires normally, but the helper never observes the requested WebView2 CDP endpoint within20s. It fails before the first Inspector stage; no product failure is localized. Source helper uses a private WebView user-data directory and standard remote-debugging arguments. No sandbox/security policy was disabled and no unrelated browser was controlled.",
+		"return": "Complete the updated existing five-process GUI fixture after resolving its owned CDP startup, or use supported owned-window computer control for the same real Inspector/persistence/restart scope. No manual user/elevation action is required. Earlier generic Inspector coverage remains historical; physical-key GUI replay is a required M10 integration return item."
+	},
+	"remaining": "Native GPU device recovery is now verified on both GPUs within the paired Intel/NVIDIA cases. Complete physical-key GUI replay, then original fresh4K age and sustained/repeated/resource/path/pool/soak requirements. Existing NVIDIA deadline failure and invalidated Intel cohort remain. No full gate closes:85/102=83%,M10 2/4=50%,8/15 phases."
+}

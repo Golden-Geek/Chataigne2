@@ -5,7 +5,7 @@ import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
-import { adapterKey } from './native-adapter.mjs';
+import { adapterKey, preferenceKey } from './native-adapter.mjs';
 import { createPreviewOutputObserver } from './preview-output-observer.mjs';
 
 const directory = path.resolve(process.argv[2] ?? `target/mapgyver-gpu-preferences-${Date.now()}`);
@@ -20,10 +20,12 @@ const other = hardware.adapters.find(
 	(adapter) => !adapter.software && adapterKey(adapter.id) !== adapterKey(preferred.id)
 );
 assert(other, 'acceptance needs two available hardware GPUs');
-const preferredKey = adapterKey(preferred.id),
-	otherKey = adapterKey(other.id);
-const missing = 'dxgi:ffffffff:ffffffff';
-assert(!hardware.adapters.some((adapter) => adapterKey(adapter.id) === missing));
+const preferredKey = preferenceKey(preferred),
+	otherKey = preferenceKey(other);
+const preferredRuntime = adapterKey(preferred.id),
+	otherRuntime = adapterKey(other.id);
+const missing = 'pnp:PCI\\MISSING\\UNAVAILABLE';
+assert(!hardware.adapters.some((adapter) => adapter.physical_id?.Ok === missing));
 const results = [];
 
 async function stage(name, selected, expected, next) {
@@ -90,8 +92,10 @@ async function stage(name, selected, expected, next) {
 			throw error;
 		}
 		for (const key of [preferredKey, otherKey])
-			await choice.locator(`option[value="${key}"]`).waitFor({ state: 'attached' });
-		await choice.locator(`option[value="${selected}"]`).waitFor({ state: 'attached' });
+			await choice.locator(`option[value=${JSON.stringify(key)}]`).waitFor({ state: 'attached' });
+		await choice
+			.locator(`option[value=${JSON.stringify(selected)}]`)
+			.waitFor({ state: 'attached' });
 		assert.equal(await choice.inputValue(), selected);
 		const { reference } = await edit({
 			kind: 'CreateMedia',
@@ -112,7 +116,10 @@ async function stage(name, selected, expected, next) {
 			assert.equal(status.gpu_adapter, null);
 			assert.equal(status.gpu_restart_required, false);
 			assert.match(status.error, /selected GPU.*unavailable/i);
-			assert.match(await choice.locator(`option[value="${missing}"]`).innerText(), /unavailable/);
+			assert.match(
+				await choice.locator(`option[value=${JSON.stringify(missing)}]`).innerText(),
+				/unavailable/
+			);
 			results.push({ name, status });
 		} else {
 			await output.observe('first-grid', { first: reference });
@@ -173,9 +180,9 @@ async function stage(name, selected, expected, next) {
 	}
 }
 
-await stage('automatic', 'Automatic', preferredKey, otherKey);
-await stage('explicit-other', otherKey, otherKey, preferredKey);
-await stage('explicit-preferred', preferredKey, preferredKey, null);
+await stage('automatic', 'Automatic', preferredRuntime, otherKey);
+await stage('explicit-other', otherKey, otherRuntime, preferredKey);
+await stage('explicit-preferred', preferredKey, preferredRuntime, null);
 const files = (await readdir(appDataDirectory, { recursive: true })).filter(
 	(file) => path.basename(file) === 'preferences.json'
 );
@@ -188,7 +195,7 @@ execFileSync(
 	{ windowsHide: true }
 );
 await stage('missing', missing, null, 'Automatic');
-await stage('recovered', 'Automatic', preferredKey, null);
+await stage('recovered', 'Automatic', preferredRuntime, null);
 await writeFile(
 	path.join(directory, 'gpu-preferences.json'),
 	JSON.stringify({ hardware, preferredKey, otherKey, missing, results }, null, 2)

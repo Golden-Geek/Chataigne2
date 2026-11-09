@@ -15,9 +15,22 @@ pub fn write(mut args: Arguments) -> io::Result<()> {
     let file = args.required("file")?;
     let selected = args.required("selected")?;
     args.done()?;
-    if golden_video::native::AdapterId::from_key(&selected).is_none() {
-        return Err(io::Error::other("fixture requires an exact GPU identity"));
-    }
+    // Qualification callers may target an enumerated runtime coordinate. Persist only
+    // its exact physical identity; an absent runtime token is never guessed by name.
+    let selected = if let Some(physical) = golden_video::native::PhysicalAdapterId::from_key(&selected) {
+        physical.key()
+    } else {
+        let runtime = golden_video::native::AdapterId::from_key(&selected)
+            .ok_or_else(|| io::Error::other("fixture requires an exact GPU identity"))?;
+        golden_video::native::adapters()
+            .map_err(io::Error::other)?
+            .into_iter()
+            .find(|adapter| adapter.id == runtime && !adapter.software)
+            .ok_or_else(|| io::Error::other("observed runtime GPU is absent"))?
+            .physical_id
+            .map_err(|error| io::Error::other(format!("physical GPU identity unavailable: {error:#x}")))?
+            .key()
+    };
     let mut engine = golden_core::app::create_new_project_engine::<AppNode>().map_err(io::Error::other)?;
     ensure_preferences_defaults(&mut engine, AppNode::preferences_tree(String::new()));
     prepare_engine_for_runtime(&mut engine).map_err(io::Error::other)?;

@@ -21,6 +21,7 @@ struct Owner {
     engine: AppEngine,
     renderer: Option<ChannelRenderer>,
     adapter: AdapterId,
+    physical: golden_video::native::PhysicalAdapterId,
     references: Vec<ChannelReference>,
     senders: Vec<String>,
     budget: GpuFrameBudget,
@@ -33,6 +34,13 @@ struct Owner {
 
 impl Owner {
     fn new(adapter: AdapterId) -> Self {
+        let physical = golden_video::native::adapters()
+            .unwrap()
+            .into_iter()
+            .find(|current| current.id == adapter)
+            .unwrap()
+            .physical_id
+            .unwrap();
         let mut engine = engine();
         let references: Vec<_> = NAMES.iter().map(|name| source(&mut engine, name)).collect();
         for reference in &references {
@@ -106,6 +114,7 @@ impl Owner {
             engine,
             renderer: Some(renderer),
             adapter,
+            physical,
             references,
             senders,
             budget,
@@ -134,6 +143,15 @@ impl Owner {
 
     fn live(&self) -> &ChannelRenderer {
         self.renderer.as_ref().unwrap()
+    }
+    fn current_adapter(&self) -> AdapterId {
+        let current = self.live().native_control().unwrap().snapshot().adapter.unwrap();
+        let selected = golden_video::native::select_adapter(golden_video::native::AdapterPreference::Explicit(
+            self.physical.clone(),
+        ))
+        .unwrap();
+        assert_eq!(selected.id, current, "recovery must retain the same physical GPU");
+        current
     }
 
     fn assert_routes(&self) {
@@ -270,10 +288,11 @@ impl Owner {
     }
 
     fn pixels(&mut self, expected: Option<&[[u8; 4]]>) -> Vec<[u8; 4]> {
+        let adapter = self.current_adapter();
         let budget = PayloadPool::new("Video reset output probes", 8, 1024 * 1024).unwrap();
         let mut values = Vec::new();
         for (index, sender) in self.senders.clone().iter().enumerate() {
-            let mut probe = SpoutProbe::new(sender, self.adapter, budget.clone()).unwrap();
+            let mut probe = SpoutProbe::new(sender, adapter, budget.clone()).unwrap();
             let deadline = Instant::now() + Duration::from_secs(8);
             let mut last = None;
             loop {
@@ -293,7 +312,7 @@ impl Owner {
                     // SpoutProbe deliberately freezes one completed receiving image.
                     // Another observation needs a fresh probe, not another read of that copy.
                     drop(image);
-                    probe = SpoutProbe::new(sender, self.adapter, budget.clone()).unwrap();
+                    probe = SpoutProbe::new(sender, adapter, budget.clone()).unwrap();
                 }
                 if Instant::now() >= deadline {
                     let observed = edit(
@@ -399,10 +418,12 @@ fn run(genuine: bool) {
         assert_eq!(owner.live().video_retirement().unwrap().active_workers(), 8);
         assert_eq!(owner.live().snapshot().resources.unwrap().retiring_generations, 0);
         eprintln!(
-            "Video device recovery {:?}: affected={affected}, old={:?}, current={current:?}, eight fresh outputs={actual:?}, GPU bytes={}",
+            "Video device recovery {:?}: affected={affected}, old={:?}, current={current:?}, eight fresh outputs={actual:?}, GPU bytes={}, current adapter={:?}, physical={:?}",
             owner.adapter,
             owner.original,
-            owner.budget.retained_bytes()
+            owner.budget.retained_bytes(),
+            owner.current_adapter(),
+            owner.physical
         );
     }
     let closing = Instant::now();

@@ -2,8 +2,16 @@
 
 **State: Accepted.** Automatic preference, persisted typed explicit choice and native recovery checks pass.
 
+**2026-11-09 physical-identity correction:** [M10 recovery evidence](evidence/mapgyver-m10-physical-recovery-2026-11-09.json)
+replaces authored LUID preference tokens with exact persistent PnP keys, while runtime observations
+retain current LUIDs. Native NVIDIA stop/start recovery now passes with a changed LUID and the
+same physical device. The five-process GUI audit below is historical LUID-token coverage;
+its updated physical-key replay is a required M10 integration return item after an owned CDP
+startup failure. No updated five-process Inspector/cold-start pass is claimed. Generic typed
+Inspector/persistence coverage remains retained; see the active ledger for this explicit debt.
+
 Golden Video owns read-only DXGI enumeration and preference resolution in
-`crates/golden_video/src/native/{device,selection}.rs`. MapGyver's presentation worker
+`crates/golden_video/src/native/{device,identity,selection}.rs`. MapGyver's presentation worker
 uses that public boundary, pins the chosen identity for its task lifetime and reports
 the device's observed LUID through the generated runtime-status contract. No GPU
 enumeration, selection policy or native work moves into the engine or UI.
@@ -16,8 +24,8 @@ enumeration indices. `select_adapter(Automatic)` chooses the first hardware adap
 Renderer/output recreation retains the chosen adapter, including after New/Load.
 The native test receiver now uses the renderer's exact reported identity instead of
 assuming adapter zero. Labels, dedicated-memory size and display ownership are not
-adapter identity. LUID tokens can become unavailable after OS/device re-enumeration;
-they are not promised as permanent physical-device identifiers.
+adapter identity. Physical keys now survive LUID replacement; a missing/ambiguous physical
+device remains unavailable. Earlier saved LUID-only tokens are not migrated or guessed.
 
 On 2026-11-04, raw enumeration lists Intel first and NVIDIA second, while Windows'
 high-performance enumeration lists NVIDIA first. The actual rebuilt desktop host

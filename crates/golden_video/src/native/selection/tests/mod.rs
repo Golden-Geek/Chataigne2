@@ -4,6 +4,7 @@ use crate::native::AdapterOutputs;
 fn adapter(low: u32, software: bool, dedicated_video_memory: u64) -> AdapterInfo {
     AdapterInfo {
         id: AdapterId { low, high: 0 },
+        physical_id: Ok(physical(low)),
         description: format!("GPU {low}"),
         software,
         vendor_id: 0,
@@ -12,6 +13,10 @@ fn adapter(low: u32, software: bool, dedicated_video_memory: u64) -> AdapterInfo
         shared_system_memory: 0,
         outputs: AdapterOutputs::Observed(Vec::new()),
     }
+}
+
+fn physical(low: u32) -> PhysicalAdapterId {
+    PhysicalAdapterId::from_key(&format!("pnp:PCI\\MODEL\\INSTANCE-{low}")).unwrap()
 }
 
 #[test]
@@ -27,19 +32,45 @@ fn automatic_obeys_os_preference_instead_of_memory_size_or_display_ownership() {
 #[test]
 fn explicit_selection_survives_reordering_and_never_substitutes_a_missing_or_software_gpu() {
     let available = [adapter(3, false, 100), adapter(2, false, 1), adapter(1, true, 0)];
-    let selected = AdapterId { low: 2, high: 0 };
+    let selected = physical(2);
     assert_eq!(
         select_from(&available, AdapterPreference::Explicit(selected))
             .unwrap()
-            .id,
-        selected
+            .id
+            .low,
+        2
     );
-    for id in [AdapterId { low: 9, high: 0 }, AdapterId { low: 1, high: 0 }] {
+    for id in [physical(9), physical(1)] {
         assert!(matches!(
-            select_from(&available, AdapterPreference::Explicit(id)),
+            select_from(&available, AdapterPreference::Explicit(id.clone())),
             Err(AdapterSelectionError::Unavailable(actual)) if actual == id
         ));
     }
+}
+
+#[test]
+fn physical_selection_follows_only_the_same_device_after_luid_replacement_and_rejects_ambiguity() {
+    let mut selected = adapter(2, false, 100);
+    selected.id = AdapterId { low: 42, high: 5 };
+    let other = adapter(3, false, 100);
+    let available = [other, selected.clone()];
+    assert_eq!(
+        select_from(&available, AdapterPreference::Explicit(physical(2)))
+            .unwrap()
+            .id,
+        selected.id
+    );
+    let ambiguous = [selected.clone(), selected];
+    assert!(matches!(
+        select_from(&ambiguous, AdapterPreference::Explicit(physical(2))),
+        Err(AdapterSelectionError::Ambiguous(_))
+    ));
+    let mut unknown = adapter(9, false, 100);
+    unknown.physical_id = Err(-1);
+    assert!(matches!(
+        select_from(&[unknown, adapter(3, false, 1)], AdapterPreference::Automatic),
+        Err(AdapterSelectionError::IdentityUnavailable(_, -1))
+    ));
 }
 
 #[test]

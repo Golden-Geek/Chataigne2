@@ -44,6 +44,9 @@ concurrent-queue = { version = "=2.5.0", optional = true }
 spout2-sys = { version = "=0.1.1", default-features = false, features = ["dx"], optional = true }
 windows = { version = "=0.61.3", optional = true, features = [
     "Win32_Foundation",
+    "Win32_Devices_Display",
+    "Win32_Devices_DeviceAndDriverInstallation",
+    "Win32_Devices_Properties",
     "Win32_Security",
     "Win32_Graphics_Direct3D",
     "Win32_Graphics_Direct3D11",

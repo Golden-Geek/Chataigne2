@@ -20,6 +20,8 @@ use super::AdapterId;
 pub struct AdapterInfo {
     /// Adapter identity for explicit device creation and recreation.
     pub id: AdapterId,
+    /// Persistent physical device, or the exact failed identity-query HRESULT.
+    pub physical_id: std::result::Result<super::PhysicalAdapterId, i32>,
     /// Human-readable driver description.
     pub description: String,
     /// Software adapters are listed for observation but rejected by the native backend.
@@ -102,6 +104,11 @@ fn describe(adapter: &IDXGIAdapter1) -> Result<AdapterInfo> {
             low: desc.AdapterLuid.LowPart,
             high: desc.AdapterLuid.HighPart,
         },
+        physical_id: super::identity::physical_id(AdapterId {
+            low: desc.AdapterLuid.LowPart,
+            high: desc.AdapterLuid.HighPart,
+        })
+        .map_err(|error| error.code().0),
         description: String::from_utf16_lossy(
             &desc.Description[..desc
                 .Description

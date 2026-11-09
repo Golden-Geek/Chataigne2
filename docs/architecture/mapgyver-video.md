@@ -353,6 +353,10 @@ without these tags remain unqualified and cannot be reconstructed by replaying t
 Hardware/HAP File publishers use the timeline completion correction now; all original resource,
 recovery and performance qualification remains required.
 File workers fall back only for an explicit unsupported native codec/interface or conversion.
+When native recovery resolves the same physical GPU under a new LUID, ChannelRenderer retires
+its old File bindings and recreates them on that exact current adapter. Existing CPU/GPU
+admission pools include the retiring workers and handles; no second budget or old-image
+retagging is allowed. Transport, authored Files and Reference identity remain unchanged.
 A supported decoder's runtime device, decode, capacity or changed-source-contract error instead
 withdraws its old stream and reopens the native decoder/publisher through the existing bounded
 one-second retry. This preserves the resident decode/color path after a transient driver reset.

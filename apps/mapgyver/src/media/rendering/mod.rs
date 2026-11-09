@@ -414,6 +414,18 @@ impl ChannelRenderer {
     /// Invoke on a worker notification. Frame counters are excluded from observation equality;
     /// unchanged metadata produces no plan construction/publication.
     pub fn refresh(&mut self) -> Result<Option<RequestId>, String> {
+        #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+        let adapter_changed = self
+            .runtime
+            .d3d11_control()
+            .and_then(|control| control.snapshot().adapter)
+            .is_some_and(|adapter| {
+                self.videos
+                    .as_mut()
+                    .is_some_and(|videos| videos.rebind_adapter(adapter))
+            });
+        #[cfg(not(all(windows, feature = "native-video", feature = "video-files")))]
+        let adapter_changed = false;
         let time = self.runtime.read_time().map_err(|error| error.to_string())?;
         let transitions_finished = self
             .desired
@@ -430,7 +442,8 @@ impl ChannelRenderer {
         let videos_changed = self.videos.as_mut().is_some_and(|videos| videos.service());
         #[cfg(not(feature = "video-files"))]
         let videos_changed = false;
-        if !pictures_changed
+        if !adapter_changed
+            && !pictures_changed
             && !videos_changed
             && !transitions_finished
             && self

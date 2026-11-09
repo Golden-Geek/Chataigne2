@@ -4,7 +4,7 @@ use crate::{
     preferences::{AUTOMATIC, native::Catalog},
 };
 use golden_core::application::ProductionRuntime;
-use golden_video::native::{AdapterId, AdapterInfo, AdapterPreference, select_adapter};
+use golden_video::native::{AdapterInfo, AdapterPreference, PhysicalAdapterId, select_adapter, select_from};
 
 #[derive(Default)]
 pub(super) struct Selection {
@@ -14,9 +14,18 @@ pub(super) struct Selection {
 }
 impl Selection {
     pub fn service(&mut self, runtime: &ProductionRuntime<AppNode>) {
-        self.catalog.service(runtime);
+        let refreshed = self.catalog.service(runtime);
         if self.startup.is_none() {
             self.startup = self.catalog.value.clone();
+        }
+        if refreshed
+            && let Some(pinned) = self
+                .adapter
+                .as_ref()
+                .and_then(|adapter| adapter.physical_id.as_ref().ok())
+            && let Ok(current) = select_from(&self.catalog.adapters, AdapterPreference::Explicit(pinned.clone()))
+        {
+            self.adapter = Some(current.clone());
         }
     }
     pub fn adapter(&mut self) -> Result<&AdapterInfo, String> {
@@ -25,7 +34,7 @@ impl Selection {
             let preference = if value == AUTOMATIC {
                 AdapterPreference::Automatic
             } else {
-                AdapterPreference::Explicit(AdapterId::from_key(value).ok_or("invalid selected GPU identity")?)
+                AdapterPreference::Explicit(PhysicalAdapterId::from_key(value).ok_or("invalid selected GPU identity")?)
             };
             self.adapter = Some(select_adapter(preference).map_err(|error| error.to_string())?);
         }

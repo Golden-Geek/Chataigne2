@@ -5,6 +5,11 @@ export function adapterKey(id) {
 	return `dxgi:${(id.high >>> 0).toString(16).padStart(8, '0')}:${id.low.toString(16).padStart(8, '0')}`;
 }
 
+export function preferenceKey(adapter) {
+	assert.equal(typeof adapter.physical_id?.Ok, 'string', 'physical GPU identity must be observed');
+	return adapter.physical_id.Ok;
+}
+
 // Read the public native status, never infer a device from its name or display ownership.
 export async function observeNativeAdapter(page, hardware) {
 	const deadline = Date.now() + 8000;

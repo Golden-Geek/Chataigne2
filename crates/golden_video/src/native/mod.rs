@@ -15,6 +15,7 @@ mod discovery;
 #[cfg(feature = "qualification")]
 pub mod fixtures;
 mod frames;
+mod identity;
 mod inputs;
 mod memory;
 mod observation;
@@ -38,6 +39,7 @@ pub use discovery::{DiscoveryError, MAX_DISCOVERY_SENDERS, SpoutDiscovery, Spout
 pub use frames::{GpuFrameBudget, GpuFrameClock, GpuFramePublication, GpuFrameStream, GpuImage};
 #[cfg(feature = "ffmpeg")]
 pub use frames::{GpuFrameError, GpuFramePublisher};
+pub use identity::PhysicalAdapterId;
 pub use inputs::{SourceSnapshot, SourceState};
 pub use memory::{
     AdapterMemorySnapshot, MemoryAdmissionError, MemoryQueryError, MemorySegmentSnapshot, query_adapter_memory,
@@ -51,7 +53,7 @@ pub use probe::{SpoutProbe, SpoutProbeSnapshot};
 pub use process::{
     ProcessMemorySnapshot, ProcessQueryError, ProcessResourceSnapshot, ProcessTimeSnapshot, query_process_resources,
 };
-pub use selection::{AdapterPreference, AdapterSelectionError, select_adapter};
+pub use selection::{AdapterPreference, AdapterSelectionError, select_adapter, select_from};
 pub use timing::{
     CpuInterval, DiagnosticContext, DiagnosticDelivery, DiagnosticEvent, DiagnosticsConfig, DiagnosticsSnapshot,
     FrameCpuTrace, GpuSampleStatus, GpuTrace, ImageUploadTrace, OutputQueueBound, OutputTrace, PublicationTiming,

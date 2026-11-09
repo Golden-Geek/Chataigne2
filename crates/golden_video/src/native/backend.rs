@@ -63,6 +63,7 @@ impl Drop for NativeState {
 
 pub(crate) struct D3d11Backend {
     config: D3d11Config,
+    physical: Option<super::PhysicalAdapterId>,
     control: D3d11Control,
     generation: DeviceGeneration,
     native: Option<NativeState>,
@@ -103,6 +104,7 @@ impl D3d11Backend {
         *control.diagnostics.lock().unwrap_or_else(|error| error.into_inner()) = diagnostics.clone();
         Self {
             config,
+            physical: None,
             control,
             generation,
             native: None,
@@ -188,7 +190,18 @@ impl D3d11Backend {
             state.initialization_attempts = state.initialization_attempts.saturating_add(1);
         });
         let result = (|| {
-            let selected = self.config.adapter;
+            let selected = if let Some(key) = &self.physical {
+                super::select_adapter(super::AdapterPreference::Explicit(key.clone()))
+                    .map_err(|error| {
+                        windows::core::Error::new(
+                            windows::Win32::Graphics::Dxgi::DXGI_ERROR_NOT_FOUND,
+                            error.to_string(),
+                        )
+                    })?
+                    .id
+            } else {
+                self.config.adapter
+            };
             #[cfg(test)]
             let selected = self
                 .control
@@ -197,7 +210,13 @@ impl D3d11Backend {
                 .unwrap_or_else(|error| error.into_inner())
                 .as_ref()
                 .map_or(selected, |gate| gate.adapter(selected));
+            let physical = super::identity::physical_id(selected)?;
+            if self.physical.as_ref().is_some_and(|pinned| pinned != &physical) {
+                return Err(windows::core::Error::from_hresult(E_INVALIDARG));
+            }
+            self.physical = Some(physical);
             let device = Device::new(selected)?;
+            self.config.adapter = selected;
             let pipeline = Pipeline::new(&device.device)?;
             let completion = EventCompletion::new(&device)?;
             let timing = self

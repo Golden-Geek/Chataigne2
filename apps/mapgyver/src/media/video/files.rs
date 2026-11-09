@@ -217,6 +217,19 @@ impl Files {
     pub fn set_hardware(&mut self, hardware: Hardware) {
         self.hardware = Some(hardware);
     }
+    #[cfg(all(windows, feature = "native-video"))]
+    pub fn rebind_adapter(&mut self, adapter: golden_video::native::AdapterId) -> bool {
+        let Some(hardware) = &mut self.hardware else {
+            return false;
+        };
+        if hardware.adapter == adapter {
+            return false;
+        }
+        // Existing worker/lease retirement continues to charge the same admission pools.
+        self.entries.clear();
+        hardware.adapter = adapter;
+        true
+    }
     pub fn set_root(&mut self, root: &Path) -> bool {
         if self.root == root {
             return false;

@@ -6,6 +6,29 @@ ordinary Tauri/Wry + D3D11 + pinned `spout2-sys =0.1.1` for the thin M02 shell, 
 This is not a full performance/display qualification. See [ownership and product contracts](mapgyver.md)
 and the [implementation plan](../plan/MapGyver_Implementation_Plan.md).
 
+## Physical GPU identity and recovery
+
+Golden's native identity boundary distinguishes `PhysicalAdapterId` (an exact Windows PnP
+device instance) from `AdapterId` (the current DXGI LUID). Preferences persist the former;
+runtime status, texture sharing and memory observations retain the latter. Windows can
+[replace a LUID when an adapter stops/starts](https://learn.microsoft.com/en-us/uwp/api/windows.devices.display.core.displayadapter.id),
+while the [device instance identifies the persistent device](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/device-instance-ids).
+The read-only mapping uses `DisplayConfigGetDeviceInfo` for the adapter interface and
+Configuration Manager for its device instance; it does not parse interface paths or infer
+identity from labels, vendor/model, display ownership or enumeration order. Failed identity
+queries remain explicit HRESULTs, and duplicate physical matches are rejected.
+
+The native backend pins that physical binding before first allocation. Recreation resolves
+only its current LUID, preserving the existing missing-device retry and no-fallback behavior.
+MapGyver's host catalog refreshes the current coordinate for this same binding, and File
+workers retire/rebind under the existing shared storage budget. Old images are never retagged
+for a replacement device: native import still requires the exact current LUID. Authored GPU
+choice does not change during recovery. Earlier persisted `dxgi:` choices are historical
+runtime tokens and remain unavailable; there is no name-based conversion or data migration.
+Native qualification records both original/current coordinates and independently checks the
+physical binding before receiving recovered pixels. Full recovery qualification remains in
+the active M10 ledger until the original fixture passes.
+
 ## Transparent WebView over native rendering
 
 The desired "hole" is a transparent area in the HTML/WebView revealing a native GPU-rendered
