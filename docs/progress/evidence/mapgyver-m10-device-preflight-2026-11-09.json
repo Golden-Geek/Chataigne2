@@ -1,0 +1,98 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4",
+	"state": "Active; native Video recovery fixture preflight verified; genuine reset awaits an elevated Windows token",
+	"progress": {
+		"accepted": 85,
+		"total": 102,
+		"m10_accepted": 2,
+		"m10_total": 4,
+		"gates_closed": 0
+	},
+	"deliverable": "A production app-engine/File-worker/native-renderer fixture covers eight concurrent common/HAP sources and independent Spout output pixels on each local GPU. The existing reset controller selects this fixture, verifies readiness against its exact PID, retains process handles through failure/cleanup and supports a non-elevating current-token trigger.",
+	"scope": "Native integration, not a Tauri/WebView host or sustained-throughput run. No production runtime/decoder behavior or acceptance budget changed. Actual genuine Video device recovery remains unverified.",
+	"inputs": {
+		"base_commit": "a3a373eceeb8f53fbb055dea3c61f96063dc4389",
+		"fixture": "apps/mapgyver/src/media/rendering/tests/videos/device.rs",
+		"controller": "apps/mapgyver/tests/native/invoke-device-removal.ps1",
+		"binary": "target/mapgyver-m10-device-ready/MapGyverTests.exe",
+		"binary_sha256": "90a1769a88170d733b046c13d83b8a62bcfcc9f7903e9ddc936deeb7056941b5",
+		"libraries": "The isolated test executable is staged beside the five DLLs pinned by tools/mapgyver/ffmpeg/windows-x64.json. Source SDK/version/configuration and earlier default-app loaded-module identity checks remain in the promotion receipt.",
+		"profiles": [
+			"h264-color.mp4",
+			"hevc-main.mp4",
+			"hevc-main10.mp4",
+			"prores.mov",
+			"prores-alpha.mov",
+			"hap.mov",
+			"hap-alpha.mov",
+			"hap-q.mov"
+		],
+		"workload": "Eight File workers and eight16x16 Spout outputs per GPU. Source fixture sizes/rates remain unchanged, including actual1080p H.264/HEVC. Explicit512MiB decoder/conversion admission per renderer; native render targets stay under the existing128MiB unit fixture limit. This is not the product sustained1080p/4K workload."
+	},
+	"software": {
+		"result": "612 passed,0 failed,6 ignored;87.16s on the native-qualification feature build",
+		"log": "target/mapgyver-m10-device-tests/software.log",
+		"software_binary_sha256": "d2a15f6db4c67836cf086ab657690b554905f25036fd42b8d1c0250d95d8c968",
+		"reuse_scope": "After this full pass, only the ignored native fixture's failure reporting, explicit Pause before static pixel comparisons, bounded outcome draining and shutdown deadline changed. All unignored product/software bodies and configuration are unchanged. The final corrected fixture compiles and passes strict clippy with native-qualification;7.98s. Existing ts-rs attribute warnings remain.",
+		"controller": "Six exact-PID readiness and four constrained device-identifier checks pass; PowerShell parsing passes. No controller test itself launches a process/reset.",
+		"formatting": "Root and Golden Core cargo fmt, scoped whitespace checks completed. No protocol/UI contract changed."
+	},
+	"diagnostic_findings": {
+		"runs": [
+			{
+				"directory": "target/m034-removal-c1e1b697f0c44199af76ef9dccc3065b",
+				"exit_code": 101,
+				"reset": false
+			},
+			{
+				"directory": "target/m034-removal-91631b7085304bcd90c3f08d99d4b52f",
+				"exit_code": 101,
+				"reset": false
+			}
+		],
+		"cause": "The static-image fixture sought while Playing and assumed Seek paused playback. The documented product contract retains playback on a seek. A transient matching timestamp advanced before later pixel comparisons; the last sampled color was frame5 instead of frame4. The fixture now explicitly Pauses and asserts !playing before static seeks. No product regression or transport fix is claimed.",
+		"allowance": "Two diagnostic preflight traces isolated the fixture mistake; no profiler, workload variant or further investigation probe was added. The corrected fixture then underwent required acceptance preflight validation."
+	},
+	"verified_preflight": {
+		"directory": "target/m034-removal-9d27c04f8cc34bce9d635ea30057e461",
+		"result_sha256": "05228760823f32a03fb153c21b141e44c58ce0c621e36b1c04e3c4ab39bc3245",
+		"stderr_sha256": "83e458246fc1f9efd928f7d653efcf60d630df91aa6fe06065f9cc0617a43b2c",
+		"pid": 3752,
+		"exit_code": 0,
+		"started_utc": "2026-11-09T03:36:31.7406591Z",
+		"finished_utc": "2026-11-09T03:36:42.7318479Z",
+		"reset": false,
+		"intel": {
+			"adapter": "dxgi:00000000:00015b69",
+			"device_generation": 1,
+			"gpu_admission_bytes": 441256572
+		},
+		"nvidia": {
+			"adapter": "dxgi:00000000:90b3a15f",
+			"device_generation": 1,
+			"gpu_admission_bytes": 441256572
+		},
+		"assertions": "Actual output centers establish distinct frame0/frame4 baselines. Both sets start looping; exact authored sparse JSON/history and all eight Playing states remain unchanged. Explicit Pause/seek restores frame4/frame0 output pixels within2/255 of baseline. Resident H.264/HEVC and compressed HAP routes remain native, ProRes remains software. Exactly eight file workers per GPU, zero retiring render generations. Both renderers/File workers retire completely, zero CPU/GPU admission.",
+		"shutdown_ms": 187.7989,
+		"shutdown_limit_ms": 5000,
+		"limits": "No device loss occurred; generation remains1. Pixel/route/retirement preflight does not accept device recreation, production allocation capacity, cold/warm distributions or sustained throughput."
+	},
+	"earlier_corrected_preflight": "target/m034-removal-a1f26cc1bc6349f6aca459323d645143 also passes with binaryb72665dafdb19c80cc98a31d5751a144d58d9673b7bd8b9fc61c6a8d36fa58d5 and190.8806ms shutdown. The final fixture additionally drains up to16 outcomes per pump, matching the production host and preventing its bounded submission queue from filling during recovery. The final preflight above revalidates that caller correction.",
+	"genuine_attempt": {
+		"directory": "target/m034-removal-fdbfbe257d1447ed90131a4b2c171fb3",
+		"result_sha256": "83edf7256c341da2064f13c5b9d8bee515c448bc4f4d918fee0445fe9fa19bbf",
+		"pid": 10344,
+		"binary_sha256": "b72665dafdb19c80cc98a31d5751a144d58d9673b7bd8b9fc61c6a8d36fa58d5",
+		"readiness": "Exact live PID10344 readiness matched before the trigger. The native test and controller both reach terminal failure; no missing/null exit is accepted.",
+		"reset_authorized": true,
+		"current_token_administrator": false,
+		"dxcap_exit_code": -1,
+		"trigger_output": "DXCap: force TDR failed: Please run as administrator. Error text: Unknown error.",
+		"qualification_exit_code": 101,
+		"qualification_reason": "no genuine renderer device-generation change",
+		"result": "Windows permission prerequisite failed; no reset/device recovery pass. The controller retains the fixture process handle through its bounded deadline and cleanup. No UAC prompt, security setting change, persistent disable, system reboot or privileged workaround was attempted."
+	},
+	"return_action": "Run the prepared controller from an elevated Windows PowerShell at the repository root: ./apps/mapgyver/tests/native/invoke-device-removal.ps1 -TestExecutable ./target/mapgyver-m10-device-ready/MapGyverTests.exe -SourceKind Video -AllowDriverReset -UseCurrentToken. It starts fresh owned fixtures and refuses stale/wrong-PID readiness. Inspect each actual affected adapter, new device generation, hardware/BC routes, fresh output pixels and zero retirement before credit. An unaffected GPU remains a healthy control, not an affected-device pass.",
+	"remaining": "Genuine Video device recovery awaits elevated execution. Continue bounded admission/integration and the specified bundled-app sustained1080p/4K/resource performance within M10/4 meanwhile. M14 remains after M10/4; all original gate counts/budgets remain."
+}

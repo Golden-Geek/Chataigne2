@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(all(windows, feature = "native-qualification"))]
+mod device;
 mod diagnostics;
 #[cfg(all(windows, feature = "native-video"))]
 mod hardware;

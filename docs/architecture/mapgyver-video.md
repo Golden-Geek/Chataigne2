@@ -209,6 +209,12 @@ Both-GPU bundled-app fixtures verify latest-seek pixels, a delayed stale-image c
 missing/corrupt-file retry followed by valid-file recovery and authored relink. These short
 functional checks leave combined device recovery and sustained resource/performance acceptance open.
 
+The [native recovery fixture](../../apps/mapgyver/tests/native/README.md) uses full Golden device
+identities and independent Spout probes around eight common/HAP File workers on each local GPU.
+Its preflight preserves looping playback/authored history, then explicitly Pauses for static seek
+comparisons and checks complete CPU/GPU retirement. Genuine recovery requires an observed new
+device generation plus fresh native/BC output; an unavailable reset privilege earns no acceptance.
+
 Channel lifecycle registrations bind each real File to its media control. File edits and actual
 channel removal revoke the old generation and duration; consumer withdrawal does not. A counted
 ordered duration set updates the longest duration in logarithmic time, avoiding whole-channel

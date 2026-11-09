@@ -1,6 +1,8 @@
 param(
     [Parameter(Mandatory = $true)][string]$TestExecutable,
     [switch]$AllowDriverReset,
+    [ValidateSet('SharedTexture', 'Video')][string]$SourceKind = 'SharedTexture',
+    [switch]$UseCurrentToken,
     [ValidatePattern('^PCI\\VEN_10DE&[A-Z0-9_&]+\\[A-Z0-9&]+$')]
     [string]$RestartDeviceInstanceId
 )
@@ -27,16 +29,24 @@ $directory = Join-Path $repository ('target/m034-removal-' + [guid]::NewGuid().T
 [void][IO.Directory]::CreateDirectory($directory)
 $stdoutPath = Join-Path $directory 'stdout.log'
 $stderrPath = Join-Path $directory 'stderr.log'
-$testName = if ($AllowDriverReset) {
-    'hardware_genuine_device_removal_rebuilds_owned_plans_and_retires_unobserved_old_work'
+$testName = if ($SourceKind -eq 'Video') {
+    if ($AllowDriverReset) {
+        'media::rendering::tests::videos::device::hardware_video_recovery_after_genuine_device_removal'
+    } else {
+        'media::rendering::tests::videos::device::hardware_video_recovery_preflight_without_device_removal'
+    }
+} elseif ($AllowDriverReset) {
+    'native::backend::tests::retirement::removal::hardware_genuine_device_removal_rebuilds_owned_plans_and_retires_unobserved_old_work'
 } else {
-    'hardware_source_recovery_fixture_preflight_without_device_removal'
+    'native::backend::tests::retirement::removal::hardware_source_recovery_fixture_preflight_without_device_removal'
 }
 $metadata = [ordered]@{
     started_utc = [DateTime]::UtcNow.ToString('o')
     binary = $binary
     binary_sha256 = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash
     reset_authorized = [bool]$AllowDriverReset
+    source_kind = $SourceKind
+    use_current_token = [bool]$UseCurrentToken
     restart_device_instance_id = $RestartDeviceInstanceId
     directory = $directory
 }
@@ -45,7 +55,7 @@ try {
     if ($AllowDriverReset) { $env:GOLDEN_VIDEO_EXTERNAL_DEVICE_REMOVAL = '1' }
     $qualificationProcess = Start-Process -FilePath $binary -ArgumentList @(
         '--ignored', '--exact',
-        "native::backend::tests::retirement::removal::$testName",
+        $testName,
         '--nocapture', '--test-threads=1'
     ) -WorkingDirectory $repository -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
@@ -54,7 +64,8 @@ try {
     $metadata.qualification_pid = $qualificationProcess.Id
     $retainedHandle = $qualificationProcess.Handle
     $expected = "(?m)^READY_EXTERNAL_DEVICE_REMOVAL pid=$($qualificationProcess.Id):"
-    $deadline = [DateTime]::UtcNow.AddSeconds(20)
+    $readinessSeconds = if ($SourceKind -eq 'Video') { 45 } else { 20 }
+    $deadline = [DateTime]::UtcNow.AddSeconds($readinessSeconds)
     while (-not (Test-OwnedFixtureReady `
         -Text ([string](Get-Content -LiteralPath $stderrPath -Raw -ErrorAction SilentlyContinue)) `
         -ExpectedProcessId $qualificationProcess.Id)) {
@@ -72,15 +83,28 @@ try {
     $metadata.ready_utc = [DateTime]::UtcNow.ToString('o')
     if ($AllowDriverReset) {
         if ($qualificationProcess.HasExited) { throw 'Ready fixture has already exited' }
+        $triggerOptions = @{
+            WindowStyle = 'Hidden'
+            PassThru = $true
+        }
+        if ($UseCurrentToken) {
+            # Redirection selects CreateProcess with the current token, so an elevation-only
+            # executable fails rather than leaving an unattended UAC dialog open.
+            $triggerOptions.RedirectStandardOutput = Join-Path $directory 'trigger.stdout.log'
+            $triggerOptions.RedirectStandardError = Join-Path $directory 'trigger.stderr.log'
+        } else {
+            $triggerOptions.Verb = 'RunAs'
+        }
         if ($RestartDeviceInstanceId) {
             # Restart one verified adapter. No class-wide, persistent-disable or reboot flag.
-            $resetProcess = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32/pnputil.exe') `
-                -ArgumentList @('/restart-device', ('"' + $RestartDeviceInstanceId + '"')) `
-                -Verb RunAs -WindowStyle Hidden -PassThru
+            $triggerOptions.FilePath = Join-Path $env:SystemRoot 'System32/pnputil.exe'
+            $triggerOptions.ArgumentList = @('/restart-device', ('"' + $RestartDeviceInstanceId + '"'))
         } else {
-            $resetProcess = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32/DXCap.exe') `
-                -ArgumentList '-forcetdr' -Verb RunAs -WindowStyle Hidden -PassThru
+            $triggerOptions.FilePath = Join-Path $env:SystemRoot 'System32/DXCap.exe'
+            $triggerOptions.ArgumentList = '-forcetdr'
         }
+        $resetProcess = Start-Process @triggerOptions
+        $retainedResetHandle = $resetProcess.Handle
         $resetProcess.WaitForExit()
         if ($RestartDeviceInstanceId) {
             $metadata.pnputil_exit_code = $resetProcess.ExitCode
@@ -101,6 +125,11 @@ try {
     }
 } catch {
     $metadata.error = $_.Exception.Message
+    if ($qualificationProcess -and -not $qualificationProcess.HasExited) {
+        # The fixture has its own bounded removal deadline. Preserve the retained handle
+        # through cleanup even when the external trigger fails.
+        [void]$qualificationProcess.WaitForExit(45000)
+    }
     throw
 } finally {
     $metadata.finished_utc = [DateTime]::UtcNow.ToString('o')
