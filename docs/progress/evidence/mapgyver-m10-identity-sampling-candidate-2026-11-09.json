@@ -1,0 +1,54 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4 alone Active; no acceptance credit",
+	"batch": "10:07 UTC start,10:52 UTC cutoff. Two sequential unchanged mixed-profile cohorts completed by10:27 UTC. Existing capture counters were inspected afterward; no third run, probe or workload variant. Candidate is preserved unpromoted; retain the same gate with a smaller correctness deliverable.",
+	"decision": "The identity candidate has lower measured renderer-context spans and fewer Intel native misses, but the NVIDIA cohort observes only47.41 HD images/s despite an actual-upload counter span near60/s. Causation by the shader is unproven, including publication/locking/phase effects. Do not promote a playback regression or call a faster context span a complete improvement. Preserve the implementation for reconsideration after deterministic GPU File handoff is verified.",
+	"candidate": {
+		"base_commit": "59918ac53243a8849bd6998adeeda9f5d7783ff9",
+		"stash": "874b45229d8db4fe57650e5bbd729136fb3c5850",
+		"stash_name": "mapgyver-m10-identity-sampling-await-source-cadence-2026-11-09",
+		"scope": "Golden DrawSettings exact eligibility, one build-time ps_identity program using physical pixel coordinates, shared source decoding/alpha/compositing, software/native tests and architecture note. Full-frame unmapped equal-extent Linear draws only; crops, partial viewports, maps, patterns and scaling retain existing sampling. No texture, source queue, SDK API or authored setting change. Scoped stash excludes user work; no candidate runtime changes remain in the checkout.",
+		"app": "target/q06-identity-app/MapGyver.exe",
+		"app_sha256": "81208dbfb0982276eac719fcf2630bff1e969a5378e216b0067ff50950e63fad",
+		"app_tests_sha256": "521886a854c95bee7979bc8f60157b44f7cf12eb3c9f4991b8a4e923f0ac7a1c",
+		"golden_tests_sha256": "dd8c7ff49a13288ae0a8c5877ea9d4f35a377d8cbb84ac60fbc2a0dfe969e3d3",
+		"workload": "Same numbered4s ProRes HQ1080p60/4K30 fixtures, HD Reference, three Spout Video outputs, default Screen/preview, SDK/probe/DLLs and30/120/60/60s phases as mapgyver-m10-mixed-qualification-2026-11-09.json. HD software GPU publisher plus4K direct upload remain unchanged. No builds or GPU checks overlap timing."
+	},
+	"prerequisites": {
+		"compile": "Initial compile rejected an incomplete BlitRegion test initializer; source/visibility/placement fields were corrected. Final combined native-qualification test build exited0 in85s. No native check ran against the failed build. Ordinary no-bundle app build exited0 in73s. Existing ts-rs notices retained.",
+		"software": "Golden280 passed,64 ignored,2.03s; MapGyver617 passed,7 ignored,46.48s. Eligibility excludes missing source, unequal width/height, Nearest, crops, partial destinations, mappings and patterns. Generated identity program is recompiled and compared byte-for-byte by the existing embedded-program test. Strict all-target Golden/MapGyver clippy -D warnings passed71s, including time waiting for the compile lock. Root and Golden Core cargo fmt plus scoped whitespace review completed.",
+		"native": "Both-GPU identity/reference pixel comparison passed1.65s: RGBA/BGRA,8x8 and7x5, linear/sRGB, straight/opaque/premultiplied, transparent/fractional alpha, all four blends, opacity and prior backdrop, cropped/partial-region fallback. Four existing color/filter/source-view/output/float tests passed0.53s and projective crop/alpha oracle passed0.11s. Paired Video preflight/relink passed2 tests in26.29s with eight source/output routes per GPU, independent pixels and zero CPU/GPU admission; paired shutdown200.4124ms, relink82.7775ms Intel/99.2865ms NVIDIA. No genuine reset.",
+		"logs": "target/q06-identity-tests/{golden,app,identity,pixels,mapping,device}.log",
+		"app_log_sha256": "2f2f84d7022305255714b97df448970c603ff9010ddc0ab40e7c8ca45b4c712d",
+		"native_identity_log_sha256": "eb4826e45b87095cd97aac6f0b21c933f53fdb80b1f874745918901e8ff3d1dc",
+		"native_device_log_sha256": "21e55fa5701f2d78c79ee7fb303ba32518edc9c11b687082acf9f2bd63366f74"
+	},
+	"intel": {
+		"pid": 39652,
+		"directory": "target/q06-identity-intel",
+		"report_sha256": "997b6220ccce6e116318e3072d202a9e08b05f1295940240017481f16494a544",
+		"audit_sha256": "683e842457ce5cf32c559389d8e60d72806aa64c96ca555b1dce6d4884e9da21",
+		"sample": "HD44.65422/4K24.60063 visible updates/s versus promoted baseline40.15266/25.61075.938/7204 unsubmitted native slots=13.0205% definite misses versus19.9750% baseline, still far above0.1%. CPU wall upper p95=4.6964ms,p99=5.5094ms. One renderer-context GPU p95=21.30766ms,p99=22.45911ms versus baseline22.87229/23.85828;6266/6266 valid rows. Marginal stage p95 inputs2.60297/render9.36219/outputs11.75422ms; include feed/scheduling, cannot be added or called active-shader/full critical path.",
+		"background": "Minimized49.62812/29.88342 updates/s,59/3604 definite misses=1.6371%; disconnected43.28689/28.80243,443/3604=12.2919%. Both improve baseline native misses but still fail. CPU wall upper p95=4.9050/5.7040ms; actual CPU work excluding waits remains inconclusive.",
+		"resources_age": "Sparse private peak636383232B sample,912588800B disconnected. Known texel peak317126408B sample,395283208B disconnected excludes unknown Video decoder/pools.4K inward age lower p95=31.2602ms is not a passing full-age proof; HD GPU age remains unknown."
+	},
+	"nvidia": {
+		"pid": 33668,
+		"directory": "target/q06-identity-nvidia",
+		"report_sha256": "823abe898f5a69e5fd479dc07d0dabbe110a34486768ffbb4998db8195d89fcc",
+		"audit_sha256": "85b6283c44f86499ae83546191dd8e3e0dd0073a5f3ca9a9197963a37794fac9",
+		"sample": "HD47.40907/4K28.35216 visible updates/s versus baseline59.67038/28.18601. Zero definite misses, worst observed4/7204=0.0555% in this one sample. CPU wall upper p95=3.2592ms,p99=3.5927ms. Renderer-context GPU p95=2.330816ms,p99=2.665248ms versus baseline2.701088/2.903072;7204/7204 valid rows. GPU execution improves while observed HD source cadence worsens, so this is not a playback qualification or promotion.",
+		"background": "Minimized52.76195/30.01887 updates/s, worst observed2/3604=0.0555%; disconnected53.08287/30.00481,zero observed misses. HD cadence remains below the baseline in all three phases. CPU wall upper p95=3.1370/3.2824ms.",
+		"resources_age": "Sparse private peak747442176B sample,1023143936B disconnected; known texels317126408B sample,395283208B disconnected exclude unknown decoder/pools.4K inward age lower p95=30.8004ms cannot prove passing full age; HD GPU age unknown."
+	},
+	"existing_counter_analysis": {
+		"method": "Read the two already-completed NVIDIA captures. Map SourceUse.token to FrameCpu.wall.begin, select each original phase, filter SoftwareUploadTrace.rows1080 and one producer UUID, deduplicate actual upload sequence identities. Counter span=max-min+1, rate=span/actual phase duration. No new run or sampling probe. These counters count submitted uploads, not successful clock-fenced publications, original PTS or presented frames; unobserved endpoints remain unknown.",
+		"baseline": "Sample7164 observed identities/7203 counter span=59.99522 submissions/s,39 missing within span. Minimized3588/3603=59.98626,15 missing; disconnected3590/3604=59.99610,14 missing.",
+		"candidate": "Sample5692 observed identities/7204 span=60.00263 submissions/s,1512 missing within span. Minimized3169/3605=60.02109,436 missing; disconnected3188/3603=59.99296,415 missing. This rules out explaining47.4 observed images/s solely as47.4 upload submissions/s. It does not locate the loss among clock-fenced publication, latest-only observation and nonblocking import acquisition, or prove the shader caused it.",
+		"owning_code": "apps/mapgyver/src/media/video/files/hardware.rs polls completion and publishes under control.rs epoch/cycle ownership. Golden native/frames/mod.rs retains only the latest completed GPU image; native/backend.rs samples it and retains old pixels on zero-timeout acquisition contention. Current traces do not retain complete successful-publication/requested/imported PTS lineage. Automatic References already share the producer texture."
+	},
+	"shared_result": "Both ordinary app cohorts completed full-resolution held frame-code checks, independent typed BGRA8 sRGB/straight Spout delivery, normal exit and zero-loss diagnostics with zero recorded native allocations. These do not prove continuous Video PTS/pixel lineage, complete decoder/pool accounting or full source age. The candidate and its architecture note were scoped-stashed without user work; product runtime matches the earlier8153854c baseline. Prepared elevated-reset fixture remains the prior promoted executable, not this rejected candidate.",
+	"next_product_deliverable": "Deterministic timestamp-based GPU File preparation/publication/selection at the existing app Video control and Golden GPU-frame boundary. Design the bounded handoff before editing: preserve the three admitted native slots, at most two pending images, shared consumers, exact paused seek/loop/rate/short-file hold, stale epoch rejection, nonblocking imports and actual completion retirement. Retain actual frame PTS and successful publication/selection lineage as part of that mechanism; do not replace it with a larger profiler or another shader benchmark. Prove worst-phase/jitter sampling in software and both-GPU native preservation before unchanged playback comparisons. Candidate874b4522 may be reconsidered only after its missing-HD-sample case is resolved; do not restore automatically.",
+	"effort_and_limits": "This is the second consecutive unpromoted candidate, following the sRGB candidate checkpoint59918ac5. No usable capability or acceptance gate is claimed from either implementation/test count. Reduce the next slice to the reproduced GPU File handoff correctness requirement instead of adding output/shader tuning probes. Retain cumulative effort on the same playback issue across pacing, upload, lookahead and these experiments; a continuation does not reset it. No acceptance-budget or execution-order change is authorized here.",
+	"remaining": "M10/4 alone Active;85/102=83%,M10 2/4=50%,8/15 phases. Intel native deadlines, complete source cadence/PTS, all common/HAP sustained profiles and three independent series, full source age/critical path, decoder/pool/plane/inflight accounting and genuine elevated reset remain required before M14. Existing smoothness/AA acceptance remains unchanged."
+}
