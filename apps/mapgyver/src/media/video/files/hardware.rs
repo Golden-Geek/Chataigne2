@@ -11,17 +11,38 @@ struct PreparedFrame {
     timestamp: i64,
 }
 
+#[derive(Debug)]
 pub(super) enum NativeFailure {
     Fallback(Failure),
     Retry(Failure),
 }
 
+impl NativeFailure {
+    fn opening(error: golden_video::decode::DecodeError) -> Self {
+        match error {
+            golden_video::decode::DecodeError::UnsupportedCodec
+            | golden_video::decode::DecodeError::UnsupportedHardware => Self::Fallback(error.into()),
+            _ => Self::Retry(error.into()),
+        }
+    }
+
+    fn playback(error: Failure, compressed: bool) -> Self {
+        // A supported decoder must be recreated after a runtime failure. Falling back here
+        // would keep the worker on a different decode/color path after a transient reset.
+        if !compressed && error.0.kind == VideoSourceErrorKind::Unsupported {
+            Self::Fallback(error)
+        } else {
+            Self::Retry(error)
+        }
+    }
+}
+
 impl From<GpuFrameError> for Failure {
     fn from(error: GpuFrameError) -> Self {
         let kind = match &error {
-            GpuFrameError::Unsupported | GpuFrameError::Layout => VideoSourceErrorKind::Unsupported,
+            GpuFrameError::Unsupported => VideoSourceErrorKind::Unsupported,
             GpuFrameError::Capacity => VideoSourceErrorKind::Capacity,
-            GpuFrameError::Decode(_) | GpuFrameError::Native(_) => VideoSourceErrorKind::Decode,
+            GpuFrameError::Layout | GpuFrameError::Decode(_) | GpuFrameError::Native(_) => VideoSourceErrorKind::Decode,
         };
         Self(VideoSourceError::new(kind, error.to_string()))
     }
@@ -47,16 +68,10 @@ impl Run {
             hardware.budget.clone(),
             move || cancel.is_cancelled(),
         )
-        .map_err(|error| NativeFailure::Fallback(error.into()))?;
+        .map_err(NativeFailure::opening)?;
         let compressed = decoder.storage() == DecodeStorage::Hap;
         self.drive_native(worker, owner, hardware, decoder, None)
-            .map_err(|error| {
-                if compressed {
-                    NativeFailure::Retry(error)
-                } else {
-                    NativeFailure::Fallback(error)
-                }
-            })
+            .map_err(|error| NativeFailure::playback(error, compressed))
     }
     pub(super) fn drive_native(
         &self,
@@ -290,3 +305,6 @@ impl Run {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests;

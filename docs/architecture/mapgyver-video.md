@@ -331,6 +331,12 @@ Missing clock/acquisition witnesses stay unknown. Diagnostics remain opt-in; the
 does not by itself qualify sustained cadence, full source age or complete decoder/pool costs.
 Hardware/HAP File publishers use the timeline completion correction now; all original resource,
 recovery and performance qualification remains required.
+File workers fall back only for an explicit unsupported native codec/interface or conversion.
+A supported decoder's runtime device, decode, capacity or changed-source-contract error instead
+withdraws its old stream and reopens the native decoder/publisher through the existing bounded
+one-second retry. This preserves the resident decode/color path after a transient driver reset.
+HAP retries without expanding its compressed storage to a software raster. Reopen failures retain
+their typed status; an unavailable device is not classified as an unsupported codec.
 `SourceUseTrace::software_upload` retains the actual producer UUID/counter, byte/row layout and
 optional source API QPC interval with the pixels copied into each renderer texture. Observers
 deduplicate that identity across held frames/consumers. Timing is opt-in; absent timing or
