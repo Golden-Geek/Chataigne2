@@ -200,9 +200,18 @@ struct Renderer {
 
 impl Renderer {
     fn new(adapter: AdapterId, image: &PreparedImageFixture, width: u32) -> Self {
+        Self::with_diagnostics(adapter, image, width, None)
+    }
+
+    fn with_diagnostics(
+        adapter: AdapterId,
+        image: &PreparedImageFixture,
+        width: u32,
+        diagnostics: Option<crate::native::DiagnosticsConfig>,
+    ) -> Self {
         let config = D3d11Config {
             output_rates: Vec::new(),
-            diagnostics: None,
+            diagnostics,
             adapter,
             inputs: InputLimits {
                 max_sources: 0,

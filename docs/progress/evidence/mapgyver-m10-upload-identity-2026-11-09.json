@@ -1,0 +1,48 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4",
+	"state": "Active; software upload identity fixed and functionally verified, no whole gate credit",
+	"batch": "04:21 UTC start,05:06 UTC cutoff. One baseline hypothesis and its corrected implementation; no new diagnostic variant. Existing regression failures from invocation prerequisites are retained below.",
+	"product": "Golden Video now retains the uploaded software publication version with the actual shared native texture across compatible live render-plan generations. A stable ImageStream UUID prevents replacement sources with coincident local sequences from reusing stale pixels. The cache remains weak and device-local; no source/GPU lifetime, worker cap or memory allowance is enlarged.",
+	"baseline": {
+		"software": "270 passed,62 ignored;exit0,2.72s. Strict Golden Video lint passed before the native baseline.",
+		"binary_sha256": "04b011d9e39d651c859ff0703f11cd74a6f4e821a73c39ab28afc4d2ce47beb2",
+		"native": "exit101,0.17s: Intel uploaded one unchanged frame twice across compatible retained plan generations, expected once. Pixel comparisons passed; the upload count reproduced the defect.",
+		"log": "target/m10-upload-baseline/native.log",
+		"log_sha256": "4fcdf8714e9b23a0fe9d66fb6615f80f0ed1ef0d4eda84e824ff12b26eadc7ed"
+	},
+	"telemetry": "Existing opt-in bounded native diagnostics now emit software SourceUse(stream UUID, visible sequence) and ImageUpload only at the actual UpdateSubresource call, including tightly packed row pitch/rows/bytes and API wall interval. Withdrawals report visible sequence0. Source publication age is unknown; no SDK receive timing is fabricated. This is not decoder-plane metadata, GPU execution time, GPU import/copy accounting or HAP block-upload accounting.",
+	"software": {
+		"golden_video": "Final source:270 passed,62 ignored;exit0,2.56s. Binary39377806aff28966b45d944128cad07ce4ed186b517118bca753ec636cca17a5; target/m10-upload-final/software.log SHA25626062581d11af54a4351489bc4ca1cd48d0857eedeba8b67ac2f0177a40db9e1.",
+		"mapgyver": "615 passed,7 ignored;exit0,54.30s; native-qualification test feature. Binary1932da318159c49eac8c3a14416582105dd475c9f9e0fbf9dd0c2b1849fdee2f. target/m10-upload-app-tests/software.log SHA256d99045bd36ed7667f4b08ea446c14dd4cedbafb1cbdee058244bf9724963cf3d.",
+		"strict": "with-ffmpeg.ps1 clippy --locked -p golden_video -p MapGyver --all-targets --features MapGyver/native-qualification -- -D warnings:exit0, final11.06s after removing a redundant serde attribute. Existing ts-rs serde attribute notices unchanged. Root and Golden Core cargo fmt --all completed. No UI/transport DTO changes; native diagnostic schema is Rust-owned."
+	},
+	"native": {
+		"new_regression": "Both local GPUs: two actual publications upload exactly twice; holds and a compatible retained plan rebuild add no upload/allocation; withdrawal clears; a new UUID at sequence1 renders its own blue pixels; returning to the old withdrawn stream stays clear. SourceUse sequence history is1,1,1,2,2,0,0; replacement upload sequence1; diagnostic dropped_full0.",
+		"final": "exit0,1 passed,0.29s after the final assertion readability change. target/m10-upload-final/native.log SHA256bea7c55f36f4abaf6df1191b85f91486b55101f9cbd37243d550958384de247a.",
+		"existing_regressions": "Ten relevant native image tests passed in the grouped run, including the new regression, common codec pixels, image/canvas identity, hardware import/conversion, real Intel decoder, HAP blocks/alpha/YCoCg/odd extents and retirement. Original grouped process exit101:10 passed,1 failed,96.75s because the additional official HAP oracle test requires MAPGYVER_HAP_EXTERNAL, omitted from that invocation.",
+		"group_binary_sha256": "be82d2e4f5bd406f6550f3a4e66044f106ba3e17f888d2c988d07f15f510a30d",
+		"group_log": "target/m10-upload-fixed/native.log",
+		"group_log_sha256": "25d8ef73aeceb846dd9dd7523a71caaef6d44f2a35827ca55784671bf4169d8c",
+		"oracle_correction": "Same unchanged test/binary, required environment restored to target/hap-external-ffmpeg/FFmpeg:exit0,1 passed,11.98s. No product change or new hypothesis. target/m10-upload-fixed/hap-oracle.log SHA2565a36acdffdd1b737c36bf4d15455c58f2aa2ae39bd925639d2e49e549dde2353.",
+		"app_recovery_preflight": "Current app fixture:exit0,2 passed,26.24s. Paired eight-source no-reset Playing/seek/authored-state/pixel preflight retires completely in200.4455ms; four active File rebindings per GPU preserve all eight output centers/routes and retire in68.2613ms Intel/90.2327ms NVIDIA, below5s. Genuine reset explicitly skipped. target/m10-upload-app-tests/native.log SHA256f9c63206969c1f47ee4eff317019fde280ba5ce848b2662ad912b472afdb28ae. Prepared elevated target updated to this verified1932da31 binary after confirming no live fixture."
+	},
+	"normal_app": {
+		"build": "Default source-built SDK, ordinary Tauri debug/no-bundle:exit0,83s. Binaryb04701cb626793ef4c951d8d79ff2c11b2d037efdba80f36491940d39dd93de1.",
+		"payload": "target/m10-upload-app; five exact pinned DLLs plus current Video/font notices. Actual loaded module paths/sizes/hashes verified with no FFmpeg PATH dependency.",
+		"nvidia": {
+			"pid": 2576,
+			"result": "pass;exit0;117 physical checkpoints;ten codec profiles;2500 clean requests/receipts;no page errors/rejected requests;normal shutdown",
+			"trace": "target/m10-upload-app-nvidia/video-playback.json",
+			"sha256": "4b70d04690dfb0f40f7e67a74b4046a9c273fd3a2575cb228887cf6e1054369e"
+		},
+		"intel": {
+			"pid": 49124,
+			"result": "pass;exit0;117 physical checkpoints;ten codec profiles;2514 clean requests/receipts;no page errors/rejected requests;normal shutdown",
+			"trace": "target/m10-upload-app-intel/video-playback.json",
+			"sha256": "dfedb0331bac279f09a68df8d952cc024988aa0880d69140883695403812cbf9"
+		},
+		"scope": "Actual File/Playback/Seek controls, superseding seeks, missing/corrupt file retry/relink, independent HAP Composition copy, shared Matrix/Reference and project reload. Small clips prove function/ownership, not sustained high-resolution performance."
+	},
+	"remaining": "M10/4 remains Active. Actual-app Q06 sustained1080p60/4K30 and two4K60 HAP workloads, specified sample durations, CPU/GPU/resource limits and complete per-format upload/conversion/in-flight accounting remain unverified. The normal app still has diagnostics disabled; bounded opt-in draining must be connected before those measurements. GPU stream and HAP upload accounting and source-age joins remain separate requirements. Genuine Video device recovery still needs the already-prepared elevated Windows command; no reset was attempted this batch. M14 remains next after M10/4;85/102 gates (83%),M10 2/4 (50%),8/15 phases unchanged."
+}

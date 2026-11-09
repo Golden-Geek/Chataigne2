@@ -180,8 +180,31 @@ pub struct SourceUseTrace {
     pub texture: TextureId,
     /// Runtime-local publication sequence; zero means the missing-input clear.
     pub sequence: u64,
+    /// Software publication lifetime, absent for native SDK publications.
+    pub stream: Option<uuid::Uuid>,
     /// Exact retained source metadata, absent for missing or uninstrumented publication.
     pub publication: Option<PublicationTiming>,
+}
+
+/// One actual CPU image-plane upload, separate from source decode/conversion and GPU completion.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct ImageUploadTrace {
+    /// Renderer batch issuing the upload.
+    pub token: CompletionToken,
+    /// Logical external texture receiving the pixels.
+    pub texture: TextureId,
+    /// Stable software publication lifetime.
+    pub stream: uuid::Uuid,
+    /// Exact sampled publication uploaded by this call.
+    pub sequence: u64,
+    /// Exact tightly packed input row pitch supplied to UpdateSubresource.
+    pub row_pitch: u32,
+    /// Number of tightly packed rows.
+    pub rows: u32,
+    /// Actual source byte count supplied to the API.
+    pub bytes: u64,
+    /// API wall interval, not GPU execution time or OS-accounted active CPU time.
+    pub cpu: Option<CpuInterval>,
 }
 
 /// Source SDK/copy CPU wall observations for one source-context batch.
@@ -266,6 +289,8 @@ pub enum DiagnosticEvent {
     Output(OutputTrace),
     /// Exact retained source publication used by a renderer batch.
     SourceUse(SourceUseTrace),
+    /// Exact CPU image bytes submitted once for a source-stream version.
+    ImageUpload(ImageUploadTrace),
     /// Independent source worker CPU phases.
     SourceCpu(SourceCpuTrace),
     /// Context-local GPU timing and explicit coverage status.

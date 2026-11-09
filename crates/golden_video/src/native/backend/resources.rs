@@ -24,6 +24,7 @@ struct Key {
     role: Role,
     descriptor: TextureDescriptor,
     image: Option<usize>,
+    stream: Option<uuid::Uuid>,
 }
 
 /// Worker/device-local index. Only resource generations own textures; stale index entries
@@ -87,6 +88,7 @@ impl TextureCache {
                 role,
                 descriptor,
                 image: None,
+                stream: None,
             },
             counts,
             || match role {
@@ -123,10 +125,7 @@ pub(super) fn prepare(
     let device = &native.device.device;
     for external in plan.external_textures() {
         let role = Role::External(external.id);
-        if matches!(
-            &external.source,
-            Some(ExternalSource::Frames(_) | ExternalSource::GpuFrames(_))
-        ) {
+        if matches!(&external.source, Some(ExternalSource::GpuFrames(_))) {
             resources
                 .stream_sequences
                 .insert(external.id, std::cell::Cell::new(None));
@@ -139,6 +138,7 @@ pub(super) fn prepare(
                     role: Role::Image,
                     descriptor: external.descriptor,
                     image: Some(std::ptr::from_ref(image.value()) as usize),
+                    stream: None,
                 };
                 let before = counts.created;
                 let texture = cache.get(key, counts, || Texture::from_asset(device, image))?;
@@ -148,6 +148,16 @@ pub(super) fn prepare(
                 }
                 texture
             }
+            Some(ExternalSource::Frames(stream)) => cache.get(
+                Key {
+                    role,
+                    descriptor: external.descriptor,
+                    image: None,
+                    stream: Some(stream.id()),
+                },
+                counts,
+                || Texture::new_sampled(device, external.descriptor),
+            )?,
             _ => {
                 // Every installed generation revalidates its source contents before drawing.
                 // Sharing storage never carries a prior generation's sequence/availability hint.
@@ -169,6 +179,7 @@ pub(super) fn prepare(
                 role: Role::Image,
                 descriptor: image.descriptor(),
                 image: Some(identity),
+                stream: None,
             };
             let before = counts.created;
             let texture = cache.get(key, counts, || Texture::from_canvas_image(device, image))?;

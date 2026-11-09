@@ -248,12 +248,23 @@ channels, and metadata service work admits4096 configured Files across the proje
 worker and storage budgets remain separate and unchanged.
 
 Golden's `ImageStream` supplies fixed-descriptor software frames to an installed render plan.
+Its opaque publication identity is shared by clones and separates replacement streams whose
+local sequence numbers coincide. The device-local weak texture cache keys software inputs by
+that identity as well as their logical texture/layout. Uploaded sequence and withdrawal state
+belong to the actual texture allocation, so compatible live plan generations retain held pixels
+without uploading them again. New allocations after retirement/device recreation must upload
+their current frame normally; the cache owns no source or GPU lifetime.
 Native storage is updated only when its sequence changes. Frame delivery does not rebuild
 plans or create textures per frame. The render worker uses a nonblocking observation and keeps
 the previous upload during publication contention. Software conversion, upload and hardware
 decoding are distinct: the current converter explicitly handles supported SDR BT.709/sRGB/
 linear transfer, rejects other matrices/transfers, and never reads a hardware frame back.
 Displaced pixel buffers are freed outside the media control lock.
+Existing opt-in bounded native diagnostics record software `SourceUse` with stream identity and
+the visible sequence (zero after withdrawal), plus an `ImageUpload` only at a real CPU upload.
+That event reports tightly packed input row pitch, rows, bytes and API wall time. It does not
+describe the original decoder planes, GPU execution, HAP block uploads or end-to-end source age;
+software publication timing remains unknown. GPU-frame copy/import accounting is separate.
 Software conversion failures use Golden's typed `ConversionError`; app status never classifies
 support by parsing human-readable decoder/scaler messages. Failure revokes prepared frame-step
 timestamps. Healthy recovery clears the current source error without authored history. Metadata

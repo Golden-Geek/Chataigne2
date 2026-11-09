@@ -28,6 +28,7 @@ use super::{D3d11Config, D3d11Control, InputLimits, NativeFailure, OutputBinding
 
 mod presentation;
 mod resources;
+mod streams;
 
 struct NativeState {
     quiesced: bool,
@@ -583,37 +584,14 @@ impl D3d11Backend {
                 continue;
             }
             if let Some(ExternalSource::Frames(stream)) = &external.source {
-                let sequence = &resources.stream_sequences[&external.id];
-                let target = &resources.textures[&external.id];
-                if sequence.get().is_none() {
-                    unsafe {
-                        context.ClearRenderTargetView(&target.rtv, &[0.0; 4]);
-                    }
-                }
-                if let Some(sample) = stream.sample()
-                    && sequence.get() != Some(sample.sequence)
-                {
-                    if let Some(image) = sample.image {
-                        // SAFETY: ImageData validates tight storage; UpdateSubresource copies
-                        // the source bytes before returning. Immediate-context ordering protects
-                        // prior GPU reads of this same admitted texture, without CPU readback.
-                        unsafe {
-                            context.UpdateSubresource(
-                                &target.texture,
-                                0,
-                                None,
-                                image.pixels().as_ptr().cast(),
-                                image.descriptor().extent.width() * image.descriptor().format.bytes_per_pixel() as u32,
-                                0,
-                            );
-                        }
-                    } else {
-                        unsafe {
-                            context.ClearRenderTargetView(&target.rtv, &[0.0; 4]);
-                        }
-                    }
-                    sequence.set(Some(sample.sequence));
-                }
+                streams::update(
+                    context,
+                    &resources.textures[&external.id],
+                    external.id,
+                    stream,
+                    token,
+                    recorder,
+                );
                 continue;
             }
             if !matches!(external.source, Some(ExternalSource::Spout(_))) {
@@ -658,6 +636,7 @@ impl D3d11Backend {
                     token,
                     texture: external.id,
                     sequence: frame.sequence,
+                    stream: None,
                     publication: frame.timing,
                 }));
             }

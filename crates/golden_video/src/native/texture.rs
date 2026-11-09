@@ -15,6 +15,9 @@ pub(super) struct Texture {
     decoded_srv: Option<ID3D11ShaderResourceView>,
     pub(super) rtv: ID3D11RenderTargetView,
     pub(super) descriptor: TextureDescriptor,
+    // Contents follow the reused allocation, rather than the render-plan generation.
+    pub(super) image_sequence: std::cell::Cell<Option<u64>>,
+    pub(super) image_visible: std::cell::Cell<u64>,
     _image_lease: Option<ImageLease>,
     _local: PhantomData<Rc<()>>,
     // Last field: release all native texture/views before publishing this object's release.
@@ -172,6 +175,8 @@ impl Texture {
             decoded_srv,
             rtv: rtv.ok_or_else(missing_output)?,
             descriptor,
+            image_sequence: std::cell::Cell::new(None),
+            image_visible: std::cell::Cell::new(0),
             _image_lease: None,
             _local: PhantomData,
             allocation: None,

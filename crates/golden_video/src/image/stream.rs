@@ -13,6 +13,7 @@ struct State {
 /// Pixel storage is admitted by the producer; this slot retains at most one image.
 #[derive(Clone)]
 pub struct ImageStream {
+    id: uuid::Uuid,
     descriptor: TextureDescriptor,
     state: Arc<Mutex<State>>,
 }
@@ -34,6 +35,7 @@ impl ImageStream {
     /// Create a fixed-descriptor source. Extent changes require a newly admitted stream.
     pub fn new(descriptor: TextureDescriptor) -> Self {
         Self {
+            id: uuid::Uuid::new_v4(),
             descriptor,
             state: Default::default(),
         }
@@ -41,6 +43,11 @@ impl ImageStream {
     /// The immutable storage/color contract installed with a render plan.
     pub fn descriptor(&self) -> TextureDescriptor {
         self.descriptor
+    }
+
+    /// Opaque identity of this publication lifetime, shared by cloned consumers.
+    pub fn id(&self) -> uuid::Uuid {
+        self.id
     }
     /// Publish or withdraw one image on the producer worker. No queue can accumulate.
     pub fn publish(&self, image: Option<ImageData>) -> Result<(), &'static str> {

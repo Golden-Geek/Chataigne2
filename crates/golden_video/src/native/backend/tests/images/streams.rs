@@ -2,6 +2,96 @@ use super::*;
 use crate::image::{ImageData, ImageStream};
 
 #[test]
+#[ignore = "explicit both-GPU mutable image upload accounting across shared plan generations"]
+fn hardware_held_stream_frame_uploads_once_across_compatible_plan_rebuilds() {
+    use crate::native::{DiagnosticEvent, DiagnosticsConfig};
+    use std::num::NonZeroUsize;
+    for adapter in adapters().unwrap().into_iter().filter(|adapter| !adapter.software) {
+        let desc = descriptor(2, ColorEncoding::Srgb, AlphaMode::Straight);
+        let image = prepared_image(desc, &[0; 8]);
+        let stream = ImageStream::new(desc);
+        stream
+            .publish(Some(ImageData::new(desc, [255, 0, 0, 255].repeat(2)).unwrap()))
+            .unwrap();
+        let mut renderer = Renderer::with_diagnostics(
+            adapter.id,
+            &image,
+            2,
+            Some(DiagnosticsConfig {
+                capacity: NonZeroUsize::new(1024).unwrap(),
+            }),
+        );
+        install(&mut renderer, stream.clone());
+        expect(&renderer.pixel_frame(), &[[255, 0, 0, 255]; 2]);
+        expect(&renderer.pixel_frame(), &[[255, 0, 0, 255]; 2]);
+        let created = renderer.backend.control.snapshot().created_textures;
+        let held = renderer.resources.take().unwrap();
+        install(&mut renderer, stream.clone());
+        expect(&renderer.pixel_frame(), &[[255, 0, 0, 255]; 2]);
+        assert_eq!(renderer.backend.control.snapshot().created_textures, created);
+        stream
+            .publish(Some(ImageData::new(desc, [0, 255, 0, 255].repeat(2)).unwrap()))
+            .unwrap();
+        expect(&renderer.pixel_frame(), &[[0, 255, 0, 255]; 2]);
+        expect(&renderer.pixel_frame(), &[[0, 255, 0, 255]; 2]);
+        stream.publish(None).unwrap();
+        expect(&renderer.pixel_frame(), &[[0; 4]; 2]);
+        let replacement = ImageStream::new(desc);
+        assert_ne!(replacement.id(), stream.id());
+        assert_eq!(stream.id(), stream.clone().id());
+        replacement
+            .publish(Some(ImageData::new(desc, [0, 0, 255, 255].repeat(2)).unwrap()))
+            .unwrap();
+        let held_withdrawn = renderer.resources.take().unwrap();
+        install(&mut renderer, replacement.clone());
+        expect(&renderer.pixel_frame(), &[[0, 0, 255, 255]; 2]);
+        install(&mut renderer, stream.clone());
+        expect(&renderer.pixel_frame(), &[[0; 4]; 2]);
+        let mut rows = Vec::new();
+        renderer
+            .backend
+            .control
+            .drain_diagnostics(&mut rows, NonZeroUsize::new(1024).unwrap());
+        let uploads: Vec<_> = rows
+            .iter()
+            .filter_map(|row| match row {
+                DiagnosticEvent::ImageUpload(row) if row.stream == stream.id() => Some(row),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            uploads.len(),
+            2,
+            "{}: only two actual frame publications upload",
+            adapter.description
+        );
+        assert_eq!(uploads.iter().map(|row| row.sequence).collect::<Vec<_>>(), vec![1, 2]);
+        assert_eq!(uploads[0].bytes, 8);
+        assert_eq!(uploads[0].row_pitch, 8);
+        assert_eq!(uploads[0].rows, 1);
+        let uses: Vec<_> = rows
+            .iter()
+            .filter_map(|row| match row {
+                DiagnosticEvent::SourceUse(row) if row.stream == Some(stream.id()) => Some(row.sequence),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(uses, vec![1, 1, 1, 2, 2, 0, 0]);
+        let replacement_uploads = rows
+            .iter()
+            .filter_map(|row| match row {
+                DiagnosticEvent::ImageUpload(row) if row.stream == replacement.id() => Some(row.sequence),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(replacement_uploads, vec![1]);
+        assert_eq!(renderer.backend.control.diagnostics_snapshot().dropped_full, 0);
+        drop(held_withdrawn);
+        drop(held);
+    }
+}
+
+#[test]
 #[ignore = "requires explicitly available Windows hardware D3D11"]
 fn hardware_stream_frames_update_one_installed_texture_and_withdraw_on_both_gpus() {
     let hardware = adapters()
