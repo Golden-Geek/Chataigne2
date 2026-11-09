@@ -155,10 +155,18 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
 			.getByRole('tab')
 			.filter({ hasText: /^Composition(?::|$)/ })
 			.click();
-		const panel = native.page.locator('section.composition');
+		const panel = native.page
+			.getByRole('tabpanel', { name: /^Composition\b/ })
+			.getByRole('region', { name: 'Composition', exact: true });
 		await panel.waitFor();
 		assert.deepEqual(await inspect(), before, 'selecting an editor must not author domain state');
 		assert.deepEqual(errors, []);
+		if (!process.env.MAPGYVER_NATIVE_DIAGNOSTICS) {
+			assert(
+				!native.log().includes('[mapgyver-diagnostics]'),
+				'default launch must not start capture'
+			);
+		}
 		console.log(
 			JSON.stringify({
 				result: 'pass',

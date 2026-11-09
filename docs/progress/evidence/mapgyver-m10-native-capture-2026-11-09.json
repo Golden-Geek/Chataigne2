@@ -1,0 +1,69 @@
+{
+	"date": "2026-11-09",
+	"gate": "M10/4",
+	"state": "Active; actual bundled-app diagnostic capture verified, no sustained-performance gate credit",
+	"batch": "04:54 UTC start,05:39 UTC cutoff. Previous421fad6b product upload fix remains pushed. This slice connects its native telemetry to the actual app; it does not replace the prescribed sustained workload.",
+	"ownership": "Golden Video exposes DiagnosticCapture over a caller-owned writer and metadata-only D3d11Control. A dedicated I/O thread drains fixed4096-row chunks, serializes the existing DiagnosticEvent envelope and samples native/OS metadata once per second. It owns no device, context, texture, source or frame payload. MapGyver host owns the environment opt-in, fresh exclusive PID/UUID file and completion after renderer/file-worker retirement. Public native snapshot serialization remains Rust-owned; no new UI/transport DTO.",
+	"bounds": "Absent/empty MAPGYVER_NATIVE_DIAGNOSTICS creates no capture or native timing queries. Enabled host uses16384 ring rows,256MiB per renderer capture and a ten-minute recording window. Ring drops, remaining rows, clock failures, duration cutoff, write failure and failed flush remain explicit. A footer alone is insufficient: inspect the owner I/O outcome and normal app shutdown. Failed capture does not fail rendering. Writer/OS calls run off rendering/UI threads; elapsed limits are observed between bounded drains, not preemption of underlying OS I/O.",
+	"software": {
+		"golden_video": "275 passed,62 ignored;exit0,2.56s. Five new tests cover final draining beyond one4096-row batch and typed event roundtrip, ring loss and disabled health, byte ceiling and broken writer, flush failure even with a footer, explicit duration cutoff/zero-duration rejection.",
+		"golden_binary_sha256": "bce1af17cb532dfd3576422882002a6dca8a3ffb9507057264c1cee612d18239",
+		"golden_log": "target/m10-capture-tests/golden-software.log",
+		"golden_log_sha256": "3e4240429905609ec5e021ec6dd1e7905bb2a10f315045f917da6d296f93e5e4",
+		"mapgyver": "615 passed,7 ignored;exit0,47.36s; native-qualification feature enabled.",
+		"app_test_binary_sha256": "952ddb214d9d985f1782475bab430d13a34ec88c9201bcea91a47314070c5c91",
+		"app_log": "target/m10-capture-tests/app-software.log",
+		"app_log_sha256": "d53c40f41c7a08299b08e989b2026d22d2270cb615c9ff20b502979264c8f011",
+		"strict": "Golden Video and MapGyver all-target clippy with MapGyver/native-qualification and -D warnings:exit0,17.68s. Existing ts-rs serde notices unchanged. Root/Golden Core formatting and touched JavaScript syntax/Prettier checks pass.",
+		"initial_compile": "One test import used an extra super level; corrected before software/strict/native validation. No native chain ran against the failed build."
+	},
+	"normal_app": {
+		"build": "Default source-built SDK, ordinary Tauri debug/no-bundle:exit0,71s. Five exact pinned DLLs and current Video/font notices staged; actual executable-local modules verified without FFmpeg PATH.",
+		"payload": "target/m10-capture-app",
+		"binary_sha256": "4ba4cc4b8f7809f04f9b7be77c594b292500b7d6468d9ffec1d74663ee0297ab",
+		"scope": "Ten common/HAP profiles, real generic controls, superseding seek/retry/relink, independent Composition copy, shared Matrix/Reference and save/New/load. Both runs have117 physical pixel checkpoints, no page errors/rejected requests and normal shutdown. Enabled captures validate exact PID, complete event/snapshot counts, ring written=drained,zero queued/dropped/clock failures,no duration cutoff and final initialized=false/zero native ownership for every renderer lifetime. Per-file byte counts and SHA256 are embedded in each report.",
+		"nvidia": {
+			"pid": 29712,
+			"adapter": "dxgi:00000000:90b3a15f",
+			"trace": "target/m10-capture-app-nvidia/video-playback.json",
+			"sha256": "00a0f2310d44389448f1fca00761bd8f42edf2f0d15d70c1a1810aedcd46cd61",
+			"clean_requests_and_receipts": 2487,
+			"renderer_captures": 5,
+			"total_trace_bytes": 10634016,
+			"events": {
+				"Plan": 362,
+				"Preparation": 114,
+				"Output": 8609,
+				"FrameCpu": 2895,
+				"Schedule": 2898,
+				"Gpu": 2895,
+				"ImageUpload": 66,
+				"SourceUse": 791
+			},
+			"software_upload_bytes": 811008
+		},
+		"intel": {
+			"pid": 39144,
+			"adapter": "dxgi:00000000:00015b69",
+			"trace": "target/m10-capture-app-intel/video-playback.json",
+			"sha256": "23ee6f66fe3035dc1192df5fd5f8bfe325fb050ea9be1721fff178dc174e9556",
+			"clean_requests_and_receipts": 2492,
+			"renderer_captures": 5,
+			"total_trace_bytes": 10721100,
+			"events": {
+				"Plan": 378,
+				"Preparation": 121,
+				"Output": 8801,
+				"FrameCpu": 2962,
+				"Schedule": 2966,
+				"Gpu": 2962,
+				"ImageUpload": 50,
+				"SourceUse": 600
+			},
+			"software_upload_bytes": 614400
+		},
+		"default_disabled": "Same binary, empty capture environment: native-editor smoke passes actual Composition tab selection, unchanged manager document and no capture startup log; PID19392,normal exit0. target/m10-capture-default-final.log SHA256d481b39531e27d753c5ac62eaae1256d497924cea9dd174807f2cbd52c1cf03a.",
+		"smoke_repair": "Initial default smoke failed its obsolete section.composition CSS selector after the prior shared Spatial editor change. The first accessible-region replacement also matched the dock group. Scope the named Composition region to its named tabpanel; the final smoke passes. Failed invocations remain target/m10-capture-default.log and target/m10-capture-default-corrected.log. No product UI change or broad M09 regression acceptance."
+	},
+	"remaining": "Next run the actual-app Q06 frame-numbered1080p60+4K30/common and two4K60/HAP workloads with prescribed warmup and three120s samples, mixed rates/shared consumers, original resource/cadence/CPU/GPU budgets and minimized/disconnected periods. Current snapshots include OS/DXGI and native plan/Spout allocation ownership, not complete Video decoder/source pool inventory. GPU/HAP source use/upload accounting, conversion/in-flight counts and source-age/critical-path joins remain explicit. Small debug functional captures prove recording, not performance. Genuine Video device recovery still awaits the prepared elevated command; no reset or prepared-fixture replacement this batch. M10/4 remains the only Active gate;85/102 (83%),M10 2/4 (50%),8/15 phases unchanged. M14 follows M10/4."
+}

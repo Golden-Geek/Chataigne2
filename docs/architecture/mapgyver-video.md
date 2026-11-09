@@ -265,6 +265,15 @@ the visible sequence (zero after withdrawal), plus an `ImageUpload` only at a re
 That event reports tightly packed input row pitch, rows, bytes and API wall time. It does not
 describe the original decoder planes, GPU execution, HAP block uploads or end-to-end source age;
 software publication timing remains unknown. GPU-frame copy/import accounting is separate.
+For an explicit actual-app qualification run, set `MAPGYVER_NATIVE_DIAGNOSTICS` to an owned
+capture directory before launch. The host creates a fresh PID/UUID file per renderer lifetime,
+enables a16384-row ring and delegates writing to Golden's separate `DiagnosticCapture` I/O owner.
+Capture stops at256MiB or ten minutes; failures/cutoffs remain visible and do not stop playback.
+The host retires rendering/file workers before the final drain. With the variable absent or
+empty, no capture file, collector thread or native timing queries are created. This operational
+capture option is not authored project state. `native-video-playback.mjs` validates terminal
+health and zero native allocations when the option is present; small functional captures do not
+qualify sustained playback, decoder-pool accounting or source age.
 Software conversion failures use Golden's typed `ConversionError`; app status never classifies
 support by parsing human-readable decoder/scaler messages. Failure revokes prepared frame-step
 timestamps. Healthy recovery clears the current source error without authored history. Metadata

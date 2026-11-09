@@ -9,6 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
 import { observeNativeRejectedRequests } from './intent-observer.mjs';
 import { inspectLocalVideoLibraries } from './video-runtime-libraries.mjs';
+import { inspectNativeDiagnostics } from './native-diagnostics.mjs';
 
 const directory = path.resolve(process.argv[2] ?? `target/mapgyver-video-app-${Date.now()}`);
 await mkdir(directory, { recursive: true });
@@ -630,6 +631,7 @@ try {
 	await native.close();
 }
 report.normalShutdown = true;
+report.nativeDiagnostics = await inspectNativeDiagnostics(native.app.pid, native.log());
 await writeFile(path.join(directory, 'video-playback.json'), JSON.stringify(report, null, 2));
 console.log(
 	JSON.stringify({

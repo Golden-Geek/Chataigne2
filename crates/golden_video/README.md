@@ -171,6 +171,14 @@ mutex. Capacity pressure still drops explicitly; recording never grows storage t
 Snapshots are sparse observations; exact written/drained/queued accounting requires quiescent
 producers. Disabled runtimes allocate no timing queries. Drops, invalid/skipped/uncollected timing
 and missing OS counters remain explicit.
+`DiagnosticCapture` optionally drains these same events to a caller-owned writer on a separate
+I/O thread. Its fixed4096-row batch, configured byte/duration ceilings and explicit final health
+bound capture independently of rendering. Sparse snapshots include native allocation ownership,
+process counters and process-local DXGI observations; they do not include unknown Video decoder
+pool accounting. Stop producers before `finish`, inspect its I/O result and require a terminal
+`capture_end` with no queued/dropped rows or duration cutoff. A footer alone cannot certify a
+successful final flush. Capture owns metadata only; finish/drop it on an outer I/O host, never
+on a rendering/UI worker. It shares the existing `kind:diagnostic,event` JSONL envelope.
 Renderer slots also prepare two intermediate timestamps on the same disjoint scope, after
 input copying and after render passes. Completed rows partition that exact batch into inputs,
 rendering and outputs; incomplete/invalid marker order cannot certify partitions, and slot

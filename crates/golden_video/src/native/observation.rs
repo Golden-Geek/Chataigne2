@@ -7,7 +7,7 @@ use crate::runtime::{CompletionToken, DeviceGeneration};
 use super::{AdapterId, outputs::Delivery};
 
 /// Compact failure stage. No COM objects, driver strings or pixel payloads leave the worker.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 pub enum NativeFailure {
     /// Native device/pipeline/output initialization failed.
     Initialization,
@@ -20,7 +20,7 @@ pub enum NativeFailure {
 }
 
 /// Bounded aggregate observations, distinct from display/scanout or pixel correctness evidence.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize)]
 pub struct D3d11Snapshot {
     /// Selected hardware adapter observed on the created device.
     pub adapter: Option<AdapterId>,
@@ -58,7 +58,7 @@ pub struct D3d11Snapshot {
 
 /// One fixed native consumer's last API-accepted submission. This is neither scanout nor a GPU
 /// completion certificate; consumers must check the exact device and required frame serial.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct OutputSnapshot {
     /// Logical consumer from the immutable native output configuration.
     pub id: OutputId,
@@ -103,7 +103,7 @@ pub(super) struct OutputStatus {
 
 /// Per-consumer delivery and recovery lifecycle. Busy/occluded endpoints retain their objects;
 /// ordinary failures recover independently from the renderer's device lifecycle.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 pub enum OutputState {
     /// Fixed binding exists but no native endpoint has been constructed.
     Starting,

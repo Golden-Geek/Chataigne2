@@ -7,6 +7,7 @@
 
 mod allocations;
 mod backend;
+mod capture;
 mod completion;
 mod config;
 mod device;
@@ -30,6 +31,7 @@ pub use allocations::{
     NativeAllocationSnapshot, OutputTextureAllocation, OutputTextureSnapshot, OwnedTextureSnapshot,
     SourceTextureSnapshot,
 };
+pub use capture::{DiagnosticCapture, DiagnosticCaptureLimits, DiagnosticCaptureSummary};
 pub use config::{AdapterId, D3d11Config, InputLimits, NativeConfigError, OutputBinding, WindowTarget};
 pub use device::{AdapterInfo, AdapterOutput, AdapterOutputs, adapters, preferred_adapters};
 pub use discovery::{DiscoveryError, MAX_DISCOVERY_SENDERS, SpoutDiscovery, SpoutSenderCatalog};

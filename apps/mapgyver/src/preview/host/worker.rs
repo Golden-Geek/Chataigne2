@@ -27,6 +27,7 @@ struct Owner {
     gpu: String,
     windows: Vec<(OutputId, Arc<super::output_windows::WindowLease>)>,
     escapes: Vec<(super::targets::Target, Arc<std::sync::atomic::AtomicBool>)>,
+    diagnostics: Option<super::diagnostics::Capture>,
 }
 impl Drop for Owner {
     fn drop(&mut self) {
@@ -43,6 +44,9 @@ impl Drop for Owner {
             while !videos.wait(Duration::from_millis(20)) {}
         }
         self.windows.clear();
+        if let Some(capture) = self.diagnostics.take() {
+            capture.finish();
+        }
     }
 }
 
@@ -130,6 +134,7 @@ fn create(
             windows.push((target.id, lease));
         }
     }
+    let diagnostics = super::diagnostics::prepare();
     let runtime = VideoRuntime::spawn_d3d11(
         config.video,
         D3d11Config {
@@ -139,7 +144,7 @@ fn create(
             ))
             .chain(targets.iter().map(|target| (target.id, target.frame_rate)))
             .collect(),
-            diagnostics: None,
+            diagnostics: diagnostics.as_ref().map(super::diagnostics::Pending::config),
             adapter: adapter.id,
             inputs: InputLimits {
                 max_sources: crate::preview::config::MAX_NATIVE_PRODUCERS,
@@ -154,12 +159,14 @@ fn create(
         gpu: adapter.description.clone(),
         escapes: super::output_windows::escape_targets(targets, &windows),
         windows,
+        diagnostics: None,
     };
     let native = owner
         .renderer
         .native_control()
         .ok_or_else(|| io::Error::other("native preview control missing"))?;
     native.set_output_notifier(notifier.clone());
+    owner.diagnostics = diagnostics.and_then(|pending| pending.start(native.clone()));
     #[cfg(feature = "video-files")]
     owner
         .renderer
