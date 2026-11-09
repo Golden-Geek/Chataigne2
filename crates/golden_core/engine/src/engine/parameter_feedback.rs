@@ -12,6 +12,12 @@ pub(super) struct PendingParameterFeedback {
     pub source: Option<NodeId>,
 }
 
+pub(super) enum RuntimeRangeUpdate {
+    Fixed(Option<crate::parameter::RangeConstraint>),
+    Bind(crate::parameter::RuntimeScalarRange),
+    Refresh,
+}
+
 impl<T: Node> Engine<T> {
     pub(super) fn apply_param_feedback(
         &mut self,
@@ -110,7 +116,7 @@ impl<T: Node> Engine<T> {
         &mut self,
         edit_index: usize,
         node: NodeId,
-        range: Option<crate::parameter::RangeConstraint>,
+        update: RuntimeRangeUpdate,
         source: Option<NodeId>,
         guard: Option<golden_io::RevisionGuard>,
     ) -> Result<(), EngineEditError> {
@@ -141,8 +147,15 @@ impl<T: Node> Engine<T> {
                 "runtime bounds require a read-only or transient numeric Parameter".into(),
             ));
         }
-        let old = parameter.snapshot();
-        parameter.set_runtime_range(range).map_err(rejected)?;
+        let mut old = parameter.snapshot();
+        // Reads already see current shared availability; events compare its last publication.
+        old.constraints = parameter.published_constraints();
+        match update {
+            RuntimeRangeUpdate::Fixed(range) => parameter.set_runtime_range(range),
+            RuntimeRangeUpdate::Bind(range) => parameter.bind_runtime_range(range),
+            RuntimeRangeUpdate::Refresh => parameter.refresh_runtime_range(),
+        }
+        .map_err(rejected)?;
         let new = parameter.snapshot();
         self.clear_tick_tree_snapshot();
         self.emit_param_events_for_state_change(node, &old.value, &new.value, source);

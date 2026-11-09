@@ -286,7 +286,33 @@ impl<T: Node> Engine<T> {
                             (Ok(None), false)
                         }
                         Edit::SetParamRuntimeRange { node, range, guard } => {
-                            self.apply_param_runtime_range(edit_index, node, range, request.param_source, guard)?;
+                            self.apply_param_runtime_range(
+                                edit_index,
+                                node,
+                                super::parameter_feedback::RuntimeRangeUpdate::Fixed(range),
+                                request.param_source,
+                                guard,
+                            )?;
+                            (Ok(None), false)
+                        }
+                        Edit::BindParamRuntimeRange { node, range } => {
+                            self.apply_param_runtime_range(
+                                edit_index,
+                                node,
+                                super::parameter_feedback::RuntimeRangeUpdate::Bind(range),
+                                request.param_source,
+                                None,
+                            )?;
+                            (Ok(None), false)
+                        }
+                        Edit::RefreshParamRuntimeRange { node, guard } => {
+                            self.apply_param_runtime_range(
+                                edit_index,
+                                node,
+                                super::parameter_feedback::RuntimeRangeUpdate::Refresh,
+                                request.param_source,
+                                guard,
+                            )?;
                             (Ok(None), false)
                         }
                         Edit::SetParamControlState { node, state } => {
@@ -765,6 +791,8 @@ fn edit_kind_name(edit: &Edit) -> &'static str {
         Edit::SetParam { .. } => "SetParam",
         Edit::SetParamFeedback { .. } => "SetParamFeedback",
         Edit::SetParamRuntimeRange { .. } => "SetParamRuntimeRange",
+        Edit::BindParamRuntimeRange { .. } => "BindParamRuntimeRange",
+        Edit::RefreshParamRuntimeRange { .. } => "RefreshParamRuntimeRange",
         Edit::SetParamComponent { .. } => "SetParamComponent",
         Edit::SetParamsAtomic { .. } => "SetParamsAtomic",
         Edit::SetParamConstraints { .. } => "SetParamConstraints",

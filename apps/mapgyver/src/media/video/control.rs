@@ -20,6 +20,7 @@ struct State {
     feedback_sequence: u64,
     input_time: Option<golden_core::engine::EngineTime>,
     duration_changes: golden_io::RevisionSource,
+    position_range: golden_core::parameter::RuntimeScalarRange,
     load_pending: bool,
     ready_once: bool,
     explicit_mode: bool,
@@ -45,6 +46,7 @@ impl Default for VideoControl {
                 feedback_sequence: 0,
                 input_time: None,
                 duration_changes: Default::default(),
+                position_range: golden_core::parameter::RuntimeScalarRange::new(0.0, 0.0).expect("valid zero bounds"),
                 load_pending: false,
                 ready_once: false,
                 explicit_mode: false,
@@ -54,6 +56,14 @@ impl Default for VideoControl {
     }
 }
 impl VideoControl {
+    pub(crate) fn position_range(&self) -> Result<golden_core::parameter::RuntimeScalarRange, String> {
+        Ok(self
+            .0
+            .lock()
+            .map_err(|_| "Video control poisoned")?
+            .position_range
+            .clone())
+    }
     pub(crate) fn settings(&self) -> Result<VideoTransportSettings, String> {
         Ok(self.0.lock().map_err(|_| "Video control poisoned")?.settings.clone())
     }
@@ -481,6 +491,7 @@ impl VideoControl {
             state.duration_changes.advance();
         }
         state.transport.set_duration(duration).map_err(|e| e.to_string())?;
+        state.position_range.set(0.0, super::frames::millis(duration))?;
         state.ready_once |= !duration.is_zero();
         state.load_pending = false;
         state.apply(first)?;
@@ -564,6 +575,7 @@ impl State {
         self.seek_pending |= duration.is_zero();
         self.duration_changes.advance();
         self.transport.set_duration(duration).map_err(|e| e.to_string())?;
+        self.position_range.set(0.0, super::frames::millis(duration))?;
         if !duration.is_zero() {
             self.ready_once = true;
             self.load_pending = false;

@@ -334,11 +334,19 @@ impl Node for MediaNode {
         self.video_ready = true;
         if let Some(control) = self.video_control() {
             control.activate_media();
-            match self
-                .video_feedback
-                .register(ctx)
-                .and_then(|publisher| control.set_feedback(publisher))
-            {
+            let owner = self.id();
+            match control.position_range().and_then(|range| {
+                ctx.edits.push_from(
+                    owner,
+                    golden_core::edit::Edit::BindParamRuntimeRange {
+                        node: self.video_current_position_ms.id(),
+                        range,
+                    },
+                );
+                self.video_feedback
+                    .register(ctx)
+                    .and_then(|publisher| control.set_feedback(publisher))
+            }) {
                 Ok(()) => ctx.clear_node_warning(self.id(), Some("video-feedback")),
                 Err(error) => ctx.set_node_warning_with(self.id(), Some("video-feedback"), error, None),
             }
@@ -376,9 +384,8 @@ impl Node for MediaNode {
         {
             ctx.edits.push_from(
                 self.id(),
-                golden_core::edit::Edit::SetParamRuntimeRange {
+                golden_core::edit::Edit::RefreshParamRuntimeRange {
                     node: self.video_current_position_ms.id(),
-                    range: golden_core::parameter::RangeConstraint::uniform(Some(0.0), Some(status.length_ms)),
                     guard: Some(status.range_guard.clone()),
                 },
             );

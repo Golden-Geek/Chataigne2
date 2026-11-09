@@ -1,0 +1,50 @@
+{
+  "date": "2026-11-10",
+  "gate": "M10/5",
+  "gate_state": "Accepted",
+  "scope": "Complete typed transport and timeline-feedback contract; combined software, generic Inspector and both-GPU native functional evidence",
+  "implementation": {
+    "fix": "Cached zero availability clamped a fresh125ms seek to0 before owner normalization. RuntimeScalarRange now supplies validated shared bounds to Parameter snapshots and pure write preparation immediately. Bind/Refresh internal edits separate current authority from constraint publication, preserving UI events, atomic rejection, history and lifecycle fencing. MapGyver updates the same cell alongside its shared transport duration.",
+    "ownership": "Generic primitive in golden_engine Parameter, exported through golden_core. MapGyver supplies runtime duration through public APIs. No caller retry, UI policy, new engine polling rule or wire DTO was added.",
+    "prior_slices": ["mapgyver-m10-speed-2026-11-09.json", "mapgyver-m10-runtime-status-2026-11-09.json", "mapgyver-m10-transport-triggers-2026-11-09.json", "mapgyver-m10-bounded-position-2026-11-09.json", "mapgyver-m10-live-position-2026-11-09.json", "mapgyver-m10-native-fallback-2026-11-09.json"],
+    "schema": "Media v11 / Command v8 unchanged; source handles remain outside authored state, history and serialization"
+  },
+  "requirement_audit": {
+    "Playing_Length_read_only": "runtime_playing_and_length_are_read_only_and_never_authored_history; current native status checks disabled/read-only widgets and live values",
+    "Play_Pause_Stop_triggers": "inspector_transport_triggers_do_not_author_or_replay_playback_mode; native UI triggers and EOF/repeated controls on both GPUs",
+    "Play_at_Load": "All five control-policy tests, load_policy_roundtrips_but_old_pause_does_not_override_a_new_media_lifetime, and current native generic Inspector saved reload",
+    "Current_Position_slider_and_bounds": "current_position_is_bounded_transient_and_shared_by_generic_and_script_seeks; current native maxima0/250/500/250ms,125/400ms seeks and250ms clamps",
+    "Unknown_mixed_changed_duration": "metadata tests cover empty/unopened/mixed variants, clear/removal/history/reload; fresh_seeks_use_current_duration_before_queued_range_feedback_is_applied covers500/0/250ms before wake delivery",
+    "Actual_feedback_and_seek_arbitration": "current_position_follows_play_pause_and_stop_without_render_demand_or_authored_changes; engine tests cover latest input/producer revision, deferred feedback, disconnect and removal; current native350ms held drag freezes then resumes without issuing another seek",
+    "Speed_rename": "Media declaration and generated contracts expose Speed; inspector_speed_uses_the_same_transport_and_rejects_invalid_values_atomically plus current native Speed undo/redo preserving seek for ten profiles",
+    "All_callers_callbacks_snippets": "hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection; prepared_steps_match_named_quickjs_commands_headless_parameters_and_once_only_callbacks; command/script/template/catalog and generated-contract suites all pass",
+    "History_copy_reload": "Source-media/variant duplication and transient-history tests; current native independent HAP alpha Composition copy, shared Matrix/Reference, mixed-rate hold and new-lifetime zero runtime positions on both GPUs",
+    "Atomic_and_source_lifetime": "New shared-bounds tests prove immutable atomic validation/rejection, finite ordered updates, publication events, fixed replacement, and source detachment on removal"
+  },
+  "software": {
+    "app": { "passed": 640, "failed": 0, "ignored": 7, "seconds": 49.96 },
+    "engine": { "passed": 694, "failed": 0, "ignored": 3, "seconds": 0.68 },
+    "log": "target/m10-live-range-tests.log",
+    "strengthened_control_tests": { "passed": 5, "log": "target/m10-live-range-control-tests.log", "note": "Explicit Length200 assertion proves an older queued status is rejected independently of the shared range" },
+    "strict_lint": { "result": "pass", "packages": ["golden_engine", "MapGyver"], "targets": "all", "warnings_denied": true, "log": "target/m10-live-range-delivery-clippy.log" },
+    "contracts": "All155 TypeScript media exports match fresh Rust output in the full app suite",
+    "format": "Root and golden_core cargo fmt --all; native fixture Prettier/node --check pass",
+    "retained": "Unchanged UI retains0 Svelte errors/warnings and two Node tests; unchanged decoder implementation retains287 Golden Video tests from the fallback slice",
+    "baseline": "target/m10-fresh-range-baseline.log: deterministic generic125ms seek failed with actual0ns before the shared range fix",
+    "preflight": "Missing edit tracing arms, public API docs and facade export corrected before validation. An incremental compiler ICE during the unresolved export disappeared after correction; normal default-cache lint and full compilation pass."
+  },
+  "native": {
+    "binary": "target/m10-live-range-app/MapGyver.exe",
+    "sha256": "11909c228595638223c3a4934badb2b0677629d2f49e208167b3670c8e36f0fd",
+    "nvidia": { "pid": 47468, "adapter": "dxgi:00000001:4ffc79d4", "profiles": 10, "physical_checkpoints": 117, "requests": 1894, "receipts": 1894, "report": "target/m10-live-range-nvidia-primary/video-playback.json", "report_sha256": "fc58dc3313f040039e4b08b34f488559cd2084a5cd7727ebc005ad1ba5c99027", "exit": 0, "normal_shutdown": true },
+    "intel": { "pid": 26160, "adapter": "dxgi:00000000:00015b69", "profiles": 10, "physical_checkpoints": 117, "requests": 1888, "receipts": 1888, "report": "target/m10-live-range-intel-primary/video-playback.json", "report_sha256": "41bb2b6b290500c8b332e279393ab03edfaa0bb181fe3bd934787fdfa6f94adf", "exit": 0, "normal_shutdown": true },
+    "complete_playback": "234 physical checkpoints,180 burst-seek requests, eight missing/corrupt/relink recovery cases, actual controls, independent copies, Matrix/Reference routing, mixed-rate hold and project reload; zero page errors or rejected requests on both GPUs. Supported chromatic/10-bit H.264/HEVC paths retain D3D11 resident storage; small unsupported streams explicitly fall back and HAP stays compressed.",
+    "inspector": { "pid": 32608, "report": "target/m10-live-range-status/video-status.json", "exit": 0, "normal_shutdown": true, "read_only_status": true, "range_max_ms": [0, 250, 500, 250], "live_samples": 7, "held_seek_ms": 38.503222836, "held_duration_ms": 350, "release_resumes": true, "accepted_seek_anchor_unchanged": true, "saved_Play_at_Load_reload": true, "page_errors": 0 },
+    "display": "The external display disappeared from live Windows inventory. Fixture placement now uses a live display, preferring external; on the primary it stays away from the centered owned editor. Both GPU runs use the same physical laptop display and unchanged320x240 window,4/255 linear tolerance, deadlines and pixel assertions. No OS display setting changed; no external-topology qualification is claimed.",
+    "setup_failure": "target/m10-live-range-nvidia/failure.json stopped before decode because the previous fixture required an external display; retained as setup failure, not playback evidence",
+    "isolation": "Owned private executable/profile; all five pinned executable-local FFmpeg DLLs verified. Per-command bundle.resources=[] avoids locked development resource copying and is not packaging qualification."
+  },
+  "accepted_gate_changes": ["M10/5"],
+  "remaining": "M10/6 paused/playing seek correctness and responsiveness becomes sole Active, followed by7 Matrix transport policy and original4 bundled/performance qualification before M14. No driver-recovery, sustained performance, external topology, codec or final-release requirement is waived.",
+  "progress": { "accepted": 86, "total": 106, "overall_percent": 81, "m10_accepted": 3, "m10_total": 8, "m10_percent": 38, "completed_phases": 8, "total_phases": 15 }
+}

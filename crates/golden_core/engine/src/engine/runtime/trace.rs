@@ -71,6 +71,12 @@ impl<T: Node> Engine<T> {
                 format!("SetParamRuntimeRange target={}", self.describe_node(*node))
             }
             Edit::SetParamFeedback { node, .. } => format!("SetParamFeedback target={}", self.describe_node(*node)),
+            Edit::BindParamRuntimeRange { node, .. } => {
+                format!("BindParamRuntimeRange target={}", self.describe_node(*node))
+            }
+            Edit::RefreshParamRuntimeRange { node, .. } => {
+                format!("RefreshParamRuntimeRange target={}", self.describe_node(*node))
+            }
             Edit::SetParamComponent { node, component, .. } => format!(
                 "SetParamComponent target={} component={component}",
                 self.describe_node(*node)

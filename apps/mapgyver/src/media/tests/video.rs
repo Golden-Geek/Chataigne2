@@ -177,6 +177,47 @@ fn restored_project_does_not_inherit_old_runtime_feedback() {
 }
 
 #[test]
+fn fresh_seeks_use_current_duration_before_queued_range_feedback_is_applied() {
+    let mut engine = fixture();
+    let reference = create(&mut engine, MediaKind::Video);
+    let AppNode::Media(node) = engine
+        .nodes
+        .get(engine.node_id_by_uuid(reference.media.0).unwrap())
+        .unwrap()
+    else {
+        panic!()
+    };
+    let control = node.video_control().unwrap();
+    let position = parameter(&engine, reference.media.0, "video_current_position_ms");
+    engine.run_tick(Duration::from_millis(1)).unwrap();
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    for duration in [500, 0, 250] {
+        control.prepare(Duration::from_millis(duration)).unwrap();
+        // The IO owner has new metadata; no engine tick has delivered the range wake yet.
+        let ack = apply_project_intent(
+            &mut engine,
+            UiEditIntent::SetParam {
+                node: position,
+                value: ParamValue::Float(125.0),
+                behaviour: ParameterEventBehaviour::Append,
+            },
+        );
+        assert!(ack.success, "{ack:?}");
+        engine.settle_edit_notifications(16).unwrap();
+        assert_eq!(
+            control.sample().unwrap().position,
+            Duration::from_millis(125.min(duration)),
+            "generic seeks use current availability before its queued projection"
+        );
+        let sought = edit(&mut engine, reference.media, VideoEdit::Seek { position_ms: 200.0 });
+        assert_eq!(sought.position_ms, 200.min(duration) as f64, "typed atomic seeks agree");
+    }
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+}
+
+#[test]
 fn current_position_is_bounded_transient_and_shared_by_generic_and_script_seeks() {
     use golden_core::parameter::RangeConstraint;
     let mut engine = fixture();

@@ -576,3 +576,136 @@ fn disconnected_client_resumes_feedback_and_removed_parameter_starts_a_fresh_lif
     engine.apply_edits().unwrap();
     assert_eq!(live(&engine, id), ParamValue::Float(2.0));
 }
+
+#[test]
+fn shared_runtime_bounds_prepare_writes_before_publishing_a_constraint_event() {
+    use crate::parameter::RuntimeScalarRange;
+    let (mut engine, id) = transient_fixture();
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    let range = RuntimeScalarRange::new(0.0, 0.0).unwrap();
+    engine.edits.push(Edit::BindParamRuntimeRange {
+        node: id,
+        range: range.clone(),
+    });
+    engine.apply_edits().unwrap();
+    engine.inbox.clear();
+    range.set(0.0, 10.0).unwrap();
+    assert_eq!(
+        engine
+            .nodes
+            .get(id)
+            .unwrap()
+            .engine_param_snapshot()
+            .unwrap()
+            .constraints
+            .range,
+        RangeConstraint::uniform(Some(0.0), Some(10.0))
+    );
+    write(&mut engine, id, 8.0);
+    assert_eq!(live(&engine, id), ParamValue::Float(8.0));
+    engine
+        .edits
+        .push(Edit::RefreshParamRuntimeRange { node: id, guard: None });
+    engine.apply_edits().unwrap();
+    assert!(engine.inbox.events.iter().any(|event| matches!(
+        &event.kind,
+        EventKind::ParamConstraintsChanged { param, new_constraints, .. }
+        if *param == id && new_constraints.range == RangeConstraint::uniform(Some(0.0), Some(10.0))
+    )));
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+}
+
+#[test]
+fn shared_bounds_do_not_mutate_an_atomic_proposal_or_allow_partial_rejection() {
+    use crate::parameter::RuntimeScalarRange;
+    let (mut engine, id) = transient_fixture();
+    let other = Parameter::new("Other", ParamValue::Float(0.0), ParameterChangeCheck::ValueChange);
+    engine.add_node(other.into(), None);
+    engine.apply_edits().unwrap();
+    let other = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.label == "Other")
+        .unwrap()
+        .0;
+    let range = RuntimeScalarRange::new(0.0, 0.0).unwrap();
+    engine.edits.push(Edit::BindParamRuntimeRange {
+        node: id,
+        range: range.clone(),
+    });
+    engine.apply_edits().unwrap();
+    range.set(0.0, 10.0).unwrap();
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    engine.edits.push(Edit::SetParamsAtomic {
+        values: vec![(id, ParamValue::Float(8.0)), (other, ParamValue::Float(f64::NAN))],
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    assert!(engine.apply_edits().is_err());
+    assert_eq!(live(&engine, id), ParamValue::Float(0.0));
+    assert_eq!(live(&engine, other), ParamValue::Float(0.0));
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+    engine.edits.push(Edit::SetParamsAtomic {
+        values: vec![(id, ParamValue::Float(8.0)), (other, ParamValue::Float(4.0))],
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    engine.apply_edits().unwrap();
+    assert_eq!(live(&engine, id), ParamValue::Float(8.0));
+    assert_eq!(live(&engine, other), ParamValue::Float(4.0));
+}
+
+#[test]
+fn shared_range_validation_fixed_replacement_and_removal_fence_old_sources() {
+    use crate::parameter::RuntimeScalarRange;
+    let (mut engine, id) = transient_fixture();
+    let range = RuntimeScalarRange::new(0.0, 10.0).unwrap();
+    for (min, max) in [(3.0, 2.0), (f64::NAN, 3.0), (0.0, f64::INFINITY)] {
+        assert!(range.set(min, max).is_err());
+        assert_eq!(range.range(), RangeConstraint::uniform(Some(0.0), Some(10.0)).unwrap());
+    }
+    engine.edits.push(Edit::BindParamRuntimeRange {
+        node: id,
+        range: range.clone(),
+    });
+    engine.apply_edits().unwrap();
+    write(&mut engine, id, 8.0);
+    range.set(0.0, 1.0).unwrap();
+    engine
+        .edits
+        .push(Edit::RefreshParamRuntimeRange { node: id, guard: None });
+    engine.apply_edits().unwrap();
+    assert_eq!(live(&engine, id), ParamValue::Float(1.0));
+    engine.edits.push(Edit::SetParamRuntimeRange {
+        node: id,
+        range: RangeConstraint::uniform(Some(0.0), Some(3.0)),
+        guard: None,
+    });
+    engine.apply_edits().unwrap();
+    range.set(0.0, 100.0).unwrap();
+    write(&mut engine, id, 8.0);
+    assert_eq!(live(&engine, id), ParamValue::Float(3.0));
+    engine.edits.push(Edit::BindParamRuntimeRange {
+        node: id,
+        range: range.clone(),
+    });
+    engine.apply_edits().unwrap();
+    engine.edits.push(Edit::RemoveNode { node: id });
+    engine.apply_edits().unwrap();
+    assert!(engine.undo().unwrap());
+    range.set(0.0, 1.0).unwrap();
+    assert_eq!(live(&engine, id), ParamValue::Float(2.0));
+    assert!(
+        engine
+            .nodes
+            .get(id)
+            .unwrap()
+            .engine_param_snapshot()
+            .unwrap()
+            .constraints
+            .range
+            .is_none()
+    );
+}

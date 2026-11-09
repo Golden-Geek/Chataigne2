@@ -115,6 +115,7 @@ fn delayed_metadata_feedback_cannot_restore_older_duration_bounds() {
     let publisher = state.feedback.clone().unwrap();
     let sequence = state.feedback_sequence + 2;
     drop(state);
+    control.prepare(Duration::from_millis(200)).unwrap();
     publisher.publish(
         sequence,
         crate::media::video::feedback::Status {
@@ -161,5 +162,15 @@ fn delayed_metadata_feedback_cannot_restore_older_duration_bounds() {
     assert_eq!(
         position.engine_param_snapshot().unwrap().constraints.range,
         golden_core::parameter::RangeConstraint::uniform(Some(0.0), Some(200.0))
+    );
+    let length = engine
+        .nodes
+        .iter()
+        .find(|(_, node)| node.node_data().meta.decl_id.0 == "parameters/video_length_ms")
+        .unwrap()
+        .1;
+    assert_eq!(
+        length.engine_param_snapshot().unwrap().value,
+        golden_core::parameter::ParamValue::Float(200.0)
     );
 }

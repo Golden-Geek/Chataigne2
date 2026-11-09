@@ -49,7 +49,7 @@ pub use golden_engine::node_macros;
 
 /// Parameter node implementations and value conversions.
 pub mod parameter {
-    pub use golden_engine::parameter::{Parameter, ParameterAnimationControlNode};
+    pub use golden_engine::parameter::{Parameter, ParameterAnimationControlNode, RuntimeScalarRange};
     pub use golden_parameters::*;
 }
 

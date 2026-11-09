@@ -187,6 +187,20 @@ pub enum Edit {
         /// Optional producer-state fence.
         guard: Option<golden_io::RevisionGuard>,
     },
+    /// Bind authoritative availability before asynchronous constraint publication.
+    BindParamRuntimeRange {
+        /// Target read-only or transient scalar Parameter.
+        node: NodeId,
+        /// Shared authoritative availability, excluded from authored state.
+        range: crate::parameter::RuntimeScalarRange,
+    },
+    /// Publish bound availability and clamp live state without authoring an edit.
+    RefreshParamRuntimeRange {
+        /// Parameter whose bound range should be published.
+        node: NodeId,
+        /// Optional producer fence for this publication.
+        guard: Option<golden_io::RevisionGuard>,
+    },
     /// Replace the live constraints on an existing parameter node.
     SetParamConstraints {
         /// Target node id.

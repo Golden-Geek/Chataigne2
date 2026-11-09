@@ -31,6 +31,7 @@ pub struct Parameter {
     pub value: ParamValue,
     runtime_value: Option<Box<ParamValue>>,
     runtime_range: Option<Box<super::RangeConstraint>>,
+    runtime_range_source: Option<super::RuntimeScalarRange>,
     pub(crate) runtime_input_time: Option<crate::engine::EngineTime>,
     /// Editable runtime state whose value never enters project data or undo history.
     pub transient_value: bool,
@@ -67,6 +68,7 @@ impl Parameter {
             value,
             runtime_value: None,
             runtime_range: None,
+            runtime_range_source: None,
             runtime_input_time: None,
             transient_value: false,
             default_value,
@@ -138,6 +140,14 @@ impl Parameter {
     }
 
     pub(crate) fn effective_constraints(&self) -> ParameterConstraints {
+        let mut constraints = self.published_constraints();
+        if let Some(source) = &self.runtime_range_source {
+            constraints.range = Some(source.range());
+        }
+        constraints
+    }
+
+    pub(crate) fn published_constraints(&self) -> ParameterConstraints {
         let mut constraints = self.constraints.clone();
         if let Some(range) = &self.runtime_range {
             constraints.range = Some((**range).clone());
@@ -146,6 +156,26 @@ impl Parameter {
     }
 
     pub(crate) fn set_runtime_range(&mut self, range: Option<super::RangeConstraint>) -> Result<(), String> {
+        self.publish_runtime_range(range)?;
+        self.runtime_range_source = None;
+        Ok(())
+    }
+
+    pub(crate) fn bind_runtime_range(&mut self, source: super::RuntimeScalarRange) -> Result<(), String> {
+        self.publish_runtime_range(Some(source.range()))?;
+        self.runtime_range_source = Some(source);
+        Ok(())
+    }
+
+    pub(crate) fn refresh_runtime_range(&mut self) -> Result<(), String> {
+        let source = self
+            .runtime_range_source
+            .as_ref()
+            .ok_or("runtime range source is not bound")?;
+        self.publish_runtime_range(Some(source.range()))
+    }
+
+    fn publish_runtime_range(&mut self, range: Option<super::RangeConstraint>) -> Result<(), String> {
         if let Some(range) = &range {
             match range {
                 super::RangeConstraint::Uniform { min, max }
@@ -280,6 +310,7 @@ fn current_parameter_project_data(parameter: &Parameter) -> ParameterAuthoredSta
         control_modes_enabled,
         runtime_value: _,
         runtime_range: _,
+        runtime_range_source: _,
         runtime_input_time: _,
     } = parameter;
     ParameterAuthoredState {
@@ -525,6 +556,7 @@ impl Node for Parameter {
     fn destroy(&mut self, _: &mut ProcessCtx) {
         self.runtime_value = None;
         self.runtime_range = None;
+        self.runtime_range_source = None;
         self.runtime_input_time = None;
     }
     fn node_data(&self) -> &crate::node::NodeData {

@@ -58,6 +58,13 @@ read-only or transient numeric Parameter. These bounds appear in the same snapsh
 as authored constraints and enforce subsequent writes; shrinking availability clamps the live
 value even if manual edits use Reject. Runtime bounds never enter project data or constraint
 history. A new project lifetime starts from the declared value and authored constraints.
+For IO-owned availability, `RuntimeScalarRange` binds one validated shared scalar range through
+`BindParamRuntimeRange`. Reads and pure write preparation see the current bounds immediately,
+including before a metadata wake; atomic proposals do not mutate the source. The owner then
+uses `RefreshParamRuntimeRange` to publish constraints and clamp live state. Event comparison
+uses the last published range, so a fresh snapshot cannot hide the pending UI event. A fixed
+range replaces the binding, and removal clears it. MapGyver updates this range alongside its
+duration under the Video control lock, avoiding stale zero bounds after File relink.
 Transient writes record the exact input event time. Guarded feedback must acknowledge that
 input and carry a current producer revision; older feedback cannot overwrite a newer intent,
 even before its owner callback runs. During an edit session, feedback for its transient targets

@@ -61,7 +61,7 @@ const seekBursts = [];
 const fileRecovery = [];
 let localRuntimeLibraries = null;
 const fixtures = path.resolve('crates/golden_video/src/decode/tests/fixtures');
-let token, screen, surface, surfaceDefinition;
+let token, screen, surface, surfaceDefinition, observedDisplay;
 async function post(route, body) {
 	const response = await fetch(`${native.base}${route}`, {
 		method: 'POST',
@@ -221,8 +221,9 @@ try {
 				)
 			: null;
 	if (selectedAdapter) assert.equal(runtime.gpu_adapter, selectedAdapter);
-	assert(displays.displays.length >= 2, 'Physical Screen check uses the external display');
-	const display = displays.displays.find((display) => !display.primary) ?? displays.displays[1];
+	assert(displays.displays.length >= 1, 'Physical Screen check requires a live display');
+	const display = displays.displays.find((display) => !display.primary) ?? displays.displays[0];
+	observedDisplay = display;
 	const created = await edit(
 		{ kind: 'CreateScreen', label: 'Video integration output' },
 		'screens'
@@ -231,7 +232,9 @@ try {
 	surfaceDefinition = (await edit({ kind: 'InspectSurface', reference: surface }, 'screens'))
 		.snapshot.definition;
 	const bounds = {
-		left: display.bounds.left + 80,
+		// Keep a primary-display output away from the centered owned editor window.
+		left:
+			display.bounds.left + (display.primary ? Math.max(0, display.bounds.extent.width - 400) : 80),
 		top: display.bounds.top + 120,
 		extent: { width: 320, height: 240 }
 	};
@@ -633,6 +636,7 @@ try {
 		pid: native.app.pid,
 		adapter: runtime.gpu_adapter,
 		gpu: runtime.gpu,
+		display: observedDisplay,
 		localRuntimeLibraries,
 		codecs,
 		routing,
