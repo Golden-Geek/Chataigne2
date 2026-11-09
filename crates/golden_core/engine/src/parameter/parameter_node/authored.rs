@@ -10,6 +10,7 @@ impl PartialEq for ParameterAuthoredState {
             event_behaviour,
             read_only,
             persist_read_only_value,
+            transient_value,
             constraints,
             ui_hints,
             control,
@@ -21,6 +22,7 @@ impl PartialEq for ParameterAuthoredState {
             && event_behaviour == &other.event_behaviour
             && read_only == &other.read_only
             && persist_read_only_value == &other.persist_read_only_value
+            && transient_value == &other.transient_value
             && constraints_eq(constraints, &other.constraints)
             && ui_hints == &other.ui_hints
             && control == &other.control

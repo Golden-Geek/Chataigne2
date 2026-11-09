@@ -30,6 +30,9 @@ pub struct Parameter {
     /// Authored parameter value; runtime feedback is excluded from persistence and history.
     pub value: ParamValue,
     runtime_value: Option<Box<ParamValue>>,
+    runtime_range: Option<Box<super::RangeConstraint>>,
+    /// Editable runtime state whose value never enters project data or undo history.
+    pub transient_value: bool,
     /// Declared default value.
     pub default_value: ParamValue,
     /// Change-detection policy for `set`.
@@ -62,6 +65,8 @@ impl Parameter {
             node_data,
             value,
             runtime_value: None,
+            runtime_range: None,
+            transient_value: false,
             default_value,
             change_check,
             event_behaviour: ParameterEventBehaviour::Coalesce,
@@ -76,7 +81,7 @@ impl Parameter {
 
     /// Requests a parameter update through the process context.
     pub fn set(&mut self, ctx: &mut ProcessCtx, new_value: ParamValue) {
-        let normalized = match self.constraints.normalize(new_value) {
+        let normalized = match self.effective_constraints().normalize(new_value) {
             Ok(value) => value,
             Err(message) => {
                 eprintln!(
@@ -89,7 +94,7 @@ impl Parameter {
 
         let is_trigger = matches!(&normalized, ParamValue::Trigger());
         let value_changed = self.value != normalized || self.get() != &normalized;
-        if is_trigger || self.change_check == ParameterChangeCheck::None || value_changed {
+        if self.transient_value || is_trigger || self.change_check == ParameterChangeCheck::None || value_changed {
             ctx.set_param_with_behaviour(self.node_data().id, normalized, self.event_behaviour);
         }
     }
@@ -118,6 +123,48 @@ impl Parameter {
         }
     }
 
+    fn normalize_runtime_value(&mut self) {
+        let mut constraints = self.effective_constraints();
+        if self.runtime_range.is_some() {
+            constraints.policy = super::ParameterConstraintPolicy::ClampAdapt;
+        }
+        self.runtime_value = self
+            .runtime_value
+            .take()
+            .and_then(|value| constraints.normalize(*value).ok())
+            .map(Box::new);
+    }
+
+    pub(crate) fn effective_constraints(&self) -> ParameterConstraints {
+        let mut constraints = self.constraints.clone();
+        if let Some(range) = &self.runtime_range {
+            constraints.range = Some((**range).clone());
+        }
+        constraints
+    }
+
+    pub(crate) fn set_runtime_range(&mut self, range: Option<super::RangeConstraint>) -> Result<(), String> {
+        if let Some(range) = &range {
+            match range {
+                super::RangeConstraint::Uniform { min, max }
+                    if min.is_none_or(f64::is_finite)
+                        && max.is_none_or(f64::is_finite)
+                        && !matches!((min, max), (Some(min), Some(max)) if min > max) => {}
+                _ => return Err("runtime scalar bounds must be finite and ordered".into()),
+            }
+        }
+        let mut constraints = self.constraints.clone();
+        if let Some(range) = &range {
+            constraints.range = Some(range.clone());
+        }
+        // A shrinking availability range must clamp live state even when manual edits reject.
+        constraints.policy = super::ParameterConstraintPolicy::ClampAdapt;
+        let value = constraints.normalize(self.get().clone())?;
+        self.runtime_range = range.map(Box::new);
+        self.set_runtime_value(Some(value));
+        Ok(())
+    }
+
     /// Returns a UI snapshot view of this parameter.
     pub fn snapshot(&self) -> ParameterSnapshot {
         ParameterSnapshot {
@@ -126,7 +173,7 @@ impl Parameter {
             change_check: self.change_check.clone(),
             event_behaviour: self.event_behaviour,
             read_only: self.read_only,
-            constraints: self.constraints.clone(),
+            constraints: self.effective_constraints(),
             ui_hints: self.ui_hints.clone(),
             control: self.control.clone(),
             control_modes_enabled: self.control_modes_enabled,
@@ -190,6 +237,7 @@ pub(crate) struct ParameterAuthoredState {
     event_behaviour: ParameterEventBehaviour,
     read_only: bool,
     persist_read_only_value: bool,
+    transient_value: bool,
     constraints: ParameterConstraints,
     ui_hints: ParameterUiHints,
     control: ParameterControlState,
@@ -206,6 +254,7 @@ fn default_parameter_project_data(node_type: &str) -> Result<ParameterAuthoredSt
         event_behaviour: ParameterEventBehaviour::Coalesce,
         read_only: false,
         persist_read_only_value: false,
+        transient_value: false,
         constraints: ParameterConstraints::default(),
         ui_hints: ParameterUiHints::default(),
         control: ParameterControlState::default(),
@@ -222,11 +271,13 @@ fn current_parameter_project_data(parameter: &Parameter) -> ParameterAuthoredSta
         event_behaviour,
         read_only,
         persist_read_only_value,
+        transient_value,
         constraints,
         ui_hints,
         control,
         control_modes_enabled,
         runtime_value: _,
+        runtime_range: _,
     } = parameter;
     ParameterAuthoredState {
         value: value.clone(),
@@ -235,6 +286,7 @@ fn current_parameter_project_data(parameter: &Parameter) -> ParameterAuthoredSta
         event_behaviour: *event_behaviour,
         read_only: *read_only,
         persist_read_only_value: *persist_read_only_value,
+        transient_value: *transient_value,
         constraints: constraints.clone(),
         ui_hints: ui_hints.clone(),
         control: control.clone(),
@@ -250,12 +302,13 @@ fn restore_parameter_state(parameter: &mut Parameter, state: ParameterAuthoredSt
         event_behaviour,
         read_only,
         persist_read_only_value,
+        transient_value,
         constraints,
         ui_hints,
         control,
         control_modes_enabled,
     } = state;
-    if parameter.value != value || !read_only {
+    if parameter.value != value || (!read_only && !transient_value) {
         parameter.runtime_value = None;
     }
     parameter.value = value;
@@ -264,12 +317,9 @@ fn restore_parameter_state(parameter: &mut Parameter, state: ParameterAuthoredSt
     parameter.event_behaviour = event_behaviour;
     parameter.read_only = read_only;
     parameter.persist_read_only_value = persist_read_only_value;
+    parameter.transient_value = transient_value;
     parameter.constraints = constraints;
-    parameter.runtime_value = parameter
-        .runtime_value
-        .take()
-        .and_then(|value| parameter.constraints.normalize(*value).ok())
-        .map(Box::new);
+    parameter.normalize_runtime_value();
     parameter.ui_hints = ui_hints;
     parameter.control = control;
     parameter.control_modes_enabled = control_modes_enabled;
@@ -345,6 +395,10 @@ fn decode_parameter_project_data_with_baseline(
         parsed.persist_read_only_value = serde_json::from_value(persist_read_only_value.clone())
             .map_err(|err| format!("invalid persist_read_only_value payload: {err}"))?;
     }
+    if let Some(value) = object.get("transient_value") {
+        parsed.transient_value =
+            serde_json::from_value(value.clone()).map_err(|err| format!("invalid transient_value payload: {err}"))?;
+    }
     if let Some(constraints) = object.get("constraints") {
         parsed.constraints =
             serde_json::from_value(constraints.clone()).map_err(|err| format!("invalid constraints payload: {err}"))?;
@@ -415,6 +469,9 @@ impl Parameter {
                 serde_json::to_value(self.read_only)
                     .map_err(|err| format!("failed to encode 'read_only' field: {err}"))?,
             );
+        }
+        if self.transient_value != baseline.transient_value {
+            data.insert("transient_value".into(), serde_json::Value::Bool(self.transient_value));
         }
         if self.persist_read_only_value != baseline.persist_read_only_value {
             data.insert(
@@ -570,6 +627,9 @@ impl Node for Parameter {
                     .map_err(|err| format!("failed to encode 'read_only' field: {err}"))?,
             );
         }
+        if self.transient_value != baseline.transient_value {
+            data.insert("transient_value".into(), serde_json::Value::Bool(self.transient_value));
+        }
         if self.persist_read_only_value != baseline.persist_read_only_value {
             data.insert(
                 "persist_read_only_value".to_string(),
@@ -640,6 +700,11 @@ impl Node for Parameter {
     }
 
     fn engine_set_param_value(&mut self, value: ParamValue) -> Option<ParamValue> {
+        if self.transient_value {
+            let old = self.get().clone();
+            self.set_runtime_value(Some(value));
+            return Some(old);
+        }
         self.runtime_value = None;
         let old = std::mem::replace(&mut self.value, value);
         Some(old)
@@ -647,7 +712,7 @@ impl Node for Parameter {
 
     fn engine_prepare_param_value(&self, value: ParamValue) -> Result<ParamValue, String> {
         let coerced = self.coerce_for_current_value_kind(value)?;
-        self.constraints.normalize(coerced)
+        self.effective_constraints().normalize(coerced)
     }
 
     fn engine_param_snapshot(&self) -> Option<crate::parameter::ParameterSnapshot> {
@@ -657,7 +722,7 @@ impl Node for Parameter {
     fn engine_process_tree_parameter_state(&self) -> Option<ProcessTreeParameterState> {
         Some(ProcessTreeParameterState {
             value: self.get().clone(),
-            constraints: self.constraints.clone(),
+            constraints: self.effective_constraints(),
             control: self.control.clone(),
         })
     }
@@ -741,12 +806,8 @@ impl Node for Parameter {
         if let std::borrow::Cow::Owned(value) = constraints.normalize_ref(&self.value)? {
             self.value = value;
         }
-        self.runtime_value = self
-            .runtime_value
-            .take()
-            .and_then(|value| constraints.normalize(*value).ok())
-            .map(Box::new);
         self.constraints = constraints;
+        self.normalize_runtime_value();
         Ok(())
     }
 
@@ -761,12 +822,8 @@ impl Node for Parameter {
             self.runtime_value = None;
         }
         self.value = value;
-        self.runtime_value = self
-            .runtime_value
-            .take()
-            .and_then(|value| constraints.normalize(*value).ok())
-            .map(Box::new);
         self.constraints = constraints;
+        self.normalize_runtime_value();
         Ok(())
     }
 
@@ -785,7 +842,7 @@ impl Node for Parameter {
                 if self.read_only {
                     return Err("parameter is read-only".to_string());
                 }
-                let normalized = self.constraints.normalize_ref(value)?.into_owned();
+                let normalized = self.effective_constraints().normalize_ref(value)?.into_owned();
                 ctx.set_param_with_behaviour(self.id(), normalized, ParameterEventBehaviour::Coalesce);
                 Ok(true)
             }

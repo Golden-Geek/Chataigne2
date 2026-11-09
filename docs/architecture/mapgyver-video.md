@@ -44,12 +44,22 @@ The engine and UI do not poll for these values. Length follows the longest known
 independently of render demand; source availability remains a separate runtime status.
 
 Golden's public `SetParamFeedback` / `ProcessCtx::set_param_feedback_from` accepts read-only
-bool/int/float telemetry. `Parameter::get`, process snapshots and ordinary parameter events
+or explicitly transient bool/int/float telemetry. `Parameter::get`, process snapshots and ordinary parameter events
 expose the live value; its authored `value` remains the persistence/history baseline. Feedback
 does not clear redo or mark authored edits, and constraint/history restoration cannot turn a
-live status into authored data. A node wake must fence asynchronous producers. Writable
-Current Position authority/seek arbitration, its duration bounds and unknown-duration editing
-policy remain separate M10/5 work; this status API does not claim that support.
+live status into authored data. A node wake must fence asynchronous producers.
+
+The Params DSL's `transient_value = true` declares an editable runtime value. Ordinary writes
+still use the same type, owner-validation and event boundaries, including repeated identical
+intents, while the declared baseline remains separate from persistence and undo/redo. The
+internal `SetParamRuntimeRange` edit publishes finite ordered scalar availability bounds on a
+read-only or transient numeric Parameter. These bounds appear in the same snapshots/events
+as authored constraints and enforce subsequent writes; shrinking availability clamps the live
+value even if manual edits use Reject. Runtime bounds never enter project data or constraint
+history. A new project lifetime starts from the declared value and authored constraints.
+These primitives do not provide gesture arbitration or stale-producer fencing themselves.
+Connecting Current Position to Video duration, unknown-duration policy and seek-safe live
+feedback remains M10/5 work; the shared API alone does not close that gate.
 
 Background metadata probing supplies the longest authored channel duration, including variants
 without render consumers. Each channel samples at the lesser of

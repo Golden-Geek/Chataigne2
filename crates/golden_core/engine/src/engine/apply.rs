@@ -270,6 +270,10 @@ impl<T: Node> Engine<T> {
                             self.apply_param_feedback(edit_index, node, value, request.param_source)?;
                             (Ok(None), false)
                         }
+                        Edit::SetParamRuntimeRange { node, range } => {
+                            self.apply_param_runtime_range(edit_index, node, range, request.param_source)?;
+                            (Ok(None), false)
+                        }
                         Edit::SetParamControlState { node, state } => {
                             let effect = self
                                 .apply_set_param_control_state(edit_index, node, state)?
@@ -745,6 +749,7 @@ fn edit_kind_name(edit: &Edit) -> &'static str {
         Edit::EndEditSession { .. } => "EndEditSession",
         Edit::SetParam { .. } => "SetParam",
         Edit::SetParamFeedback { .. } => "SetParamFeedback",
+        Edit::SetParamRuntimeRange { .. } => "SetParamRuntimeRange",
         Edit::SetParamComponent { .. } => "SetParamComponent",
         Edit::SetParamsAtomic { .. } => "SetParamsAtomic",
         Edit::SetParamConstraints { .. } => "SetParamConstraints",

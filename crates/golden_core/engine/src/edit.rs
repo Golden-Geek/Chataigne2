@@ -169,10 +169,17 @@ pub enum Edit {
     /// Publish scalar runtime feedback without changing authored state or undo/redo.
     /// Async producers must deliver through their lifetime-fenced node wake callback.
     SetParamFeedback {
-        /// Target read-only built-in bool, int or float Parameter.
+        /// Target read-only or transient built-in bool, int or float Parameter.
         node: NodeId,
-        /// Runtime value, or `None` to expose the authored value again.
+        /// Runtime value, or `None` to restore the baseline within current bounds.
         value: Option<ParamValue>,
+    },
+    /// Publish availability bounds without changing authored constraints or history.
+    SetParamRuntimeRange {
+        /// Target read-only or transient scalar Parameter.
+        node: NodeId,
+        /// Availability range; `None` restores the authored range.
+        range: Option<crate::parameter::RangeConstraint>,
     },
     /// Replace the live constraints on an existing parameter node.
     SetParamConstraints {

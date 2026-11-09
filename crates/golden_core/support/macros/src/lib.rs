@@ -736,6 +736,7 @@ struct ParamsDslParamOptions {
     description: Option<LitStr>,
     read_only: Option<Expr>,
     persist_read_only_value: Option<Expr>,
+    transient_value: Option<Expr>,
     widget: Option<LitStr>,
     unit: Option<LitStr>,
     dependency: Option<Expr>,
@@ -1098,6 +1099,11 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
                     return Err(Error::new(key.span(), "duplicate `read_only` option"));
                 }
                 out.read_only = Some(input.parse::<Expr>()?);
+            } else if key == "transient_value" {
+                if out.transient_value.is_some() {
+                    return Err(Error::new(key.span(), "duplicate `transient_value` option"));
+                }
+                out.transient_value = Some(input.parse::<Expr>()?);
             } else if key == "persist_read_only_value" {
                 if out.persist_read_only_value.is_some() {
                     return Err(Error::new(key.span(), "duplicate `persist_read_only_value` option"));
@@ -1267,7 +1273,7 @@ fn parse_params_options(input: ParseStream) -> Result<ParamsDslParamOptions> {
             } else {
                 return Err(Error::new(
                     key.span(),
-                    "unsupported parameter child option (supported: label, description, read_only, persist_read_only_value, widget, unit, dependency, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, collapsed, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content, behavior, min, max, step, step_base, policy, enum_options, enum_domain, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
+                    "unsupported parameter child option (supported: label, description, read_only, persist_read_only_value, transient_value, widget, unit, dependency, short_name, enabled, can_be_disabled, tags, semantics, presentation, color, collapsed, warnings, show_child_warnings_max_depth, show_in_nested_inspector, show_in_inspector_content, behavior, min, max, step, step_base, policy, enum_options, enum_domain, enum_default, file_allowed_types, file_allowed_extensions, reference_root, reference_target_kind, reference_allowed_node_types, reference_allowed_parameter_types, reference_allow_projections, reference_custom_filter_key, reference_default_search_filter, default_callback, callback)",
                 ));
             }
         } else {
@@ -1731,6 +1737,7 @@ struct ParamsParamSpec {
     behaviour: Option<ParamEventBehaviourSpec>,
     read_only: Option<Expr>,
     persist_read_only_value: Option<Expr>,
+    transient_value: Option<Expr>,
     widget: Option<LitStr>,
     unit: Option<LitStr>,
     min: Option<Expr>,
@@ -1995,6 +2002,7 @@ fn push_params_items_into_plan(items: &[ParamsDslItem], parent_path: &[String], 
                     behaviour,
                     read_only: param.options.read_only.clone(),
                     persist_read_only_value: param.options.persist_read_only_value.clone(),
+                    transient_value: param.options.transient_value.clone(),
                     widget: param.options.widget.clone(),
                     unit: param.options.unit.clone(),
                     min: param.options.min.clone(),
@@ -4341,6 +4349,9 @@ fn build_params_plan_param_create_tokens_with_insert_after(
             __param_node.read_only = #expr;
         }
     });
+    let set_transient_value = param.transient_value.as_ref().map(|expr| {
+        quote! { __param_node.transient_value = #expr; }
+    });
     let set_persist_read_only_value = param.persist_read_only_value.as_ref().map(|expr| {
         quote! {
             __param_node.persist_read_only_value = #expr;
@@ -4455,6 +4466,7 @@ fn build_params_plan_param_create_tokens_with_insert_after(
                     __param_node.event_behaviour = self.#field_ident.event_behaviour();
                     #set_read_only
                     #set_persist_read_only_value
+                    #set_transient_value
                     #set_ui_hints
                     #set_range
                     #set_step

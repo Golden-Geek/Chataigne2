@@ -227,6 +227,11 @@ impl<T: Node> Engine<T> {
     ) -> Result<Option<SetParamEffect>, EngineEditError> {
         const OP: &str = "SetParam";
 
+        let transient = self
+            .nodes
+            .get(node)
+            .and_then(|target| target.as_any().downcast_ref::<Parameter>())
+            .is_some_and(|parameter| parameter.transient_value);
         let (old_value, old_live_value, new_value, change_check) = {
             let target = self.nodes.get_mut(node).ok_or(EngineEditError::NodeNotFound {
                 edit_index,
@@ -241,7 +246,8 @@ impl<T: Node> Engine<T> {
                 .downcast_ref::<Parameter>()
                 .map(|parameter| &parameter.value);
 
-            if !matches!(&prepared_value, ParamValue::Trigger())
+            if !transient
+                && !matches!(&prepared_value, ParamValue::Trigger())
                 && matches!(change_check, Some(ParameterChangeCheck::ValueChange))
                 && snapshot.as_ref().is_some_and(|state| state.value == prepared_value)
                 && authored.is_none_or(|value| *value == prepared_value)
@@ -273,13 +279,14 @@ impl<T: Node> Engine<T> {
             }
         };
 
-        let should_emit = match change_check {
-            Some(ParameterChangeCheck::None) => true,
-            Some(ParameterChangeCheck::ValueChange) => {
-                matches!(&new_value, ParamValue::Trigger()) || old_value != new_value || old_live_value != new_value
-            }
-            None => true,
-        };
+        let should_emit = transient
+            || match change_check {
+                Some(ParameterChangeCheck::None) => true,
+                Some(ParameterChangeCheck::ValueChange) => {
+                    matches!(&new_value, ParamValue::Trigger()) || old_value != new_value || old_live_value != new_value
+                }
+                None => true,
+            };
 
         if !should_emit {
             return Ok(None);
@@ -296,6 +303,9 @@ impl<T: Node> Engine<T> {
         self.param_change_counter = self.param_change_counter.saturating_add(1);
         self.param_last_change_counter.insert(node, self.param_change_counter);
         self.parameter_values_cache.insert(node, new_value.clone());
+        if transient {
+            self.clear_tick_tree_snapshot();
+        }
         #[cfg(debug_assertions)]
         {
             if let Some(live) = self.nodes.get(node).and_then(|n| n.engine_param_snapshot()) {
@@ -307,9 +317,9 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        // A trigger pulse emits an event without changing authored state. Recording it in
-        // history adds an empty undo step and can execute a command again during replay.
-        if old_value == new_value {
+        // Trigger pulses and transient writes are intents, not authored state. Replaying
+        // them through history would execute a command or rewind live runtime state.
+        if transient || old_value == new_value {
             return Ok(None);
         }
 
@@ -343,6 +353,12 @@ impl<T: Node> Engine<T> {
     ) -> Result<Option<SetParamConstraintsEffect>, EngineEditError> {
         const OP: &str = "SetParamConstraints";
         let old_snapshot = self.capture_param_snapshot(edit_index, OP, node)?;
+        let old_constraints = self
+            .nodes
+            .get(node)
+            .and_then(|target| target.as_any().downcast_ref::<Parameter>())
+            .map(|parameter| parameter.constraints.clone())
+            .unwrap_or_else(|| old_snapshot.constraints.clone());
         let old_authored = self
             .nodes
             .get(node)
@@ -376,13 +392,23 @@ impl<T: Node> Engine<T> {
         }
 
         let new_snapshot = self.capture_param_snapshot(edit_index, OP, node)?;
+        let new_constraints = self
+            .nodes
+            .get(node)
+            .and_then(|target| target.as_any().downcast_ref::<Parameter>())
+            .map(|parameter| parameter.constraints.clone())
+            .unwrap_or_else(|| new_snapshot.constraints.clone());
         let new_authored = self
             .nodes
             .get(node)
             .and_then(|target| target.as_any().downcast_ref::<Parameter>())
             .map(|parameter| parameter.value.clone())
             .unwrap_or_else(|| new_snapshot.value.clone());
-        if old_snapshot.constraints == new_snapshot.constraints && old_snapshot.value == new_snapshot.value {
+        if old_constraints == new_constraints
+            && old_authored == new_authored
+            && old_snapshot.constraints == new_snapshot.constraints
+            && old_snapshot.value == new_snapshot.value
+        {
             return Ok(None);
         }
 
@@ -395,8 +421,8 @@ impl<T: Node> Engine<T> {
 
         Ok(Some(SetParamConstraintsEffect {
             node,
-            old_constraints: old_snapshot.constraints,
-            new_constraints: new_snapshot.constraints,
+            old_constraints,
+            new_constraints,
             old_value: old_authored,
             new_value: new_authored,
         }))

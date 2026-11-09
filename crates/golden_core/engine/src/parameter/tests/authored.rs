@@ -78,6 +78,7 @@ fn native_parameter_checkpoint_restores_all_authored_fields_and_rejects_wrong_pa
     parameter.event_behaviour = ParameterEventBehaviour::Append;
     parameter.read_only = true;
     parameter.persist_read_only_value = true;
+    parameter.transient_value = true;
     parameter.constraints.range = RangeConstraint::uniform(Some(-1.0), Some(2.0));
     parameter.constraints.step = Some(0.5);
     parameter.constraints.step_base = Some(0.25);
@@ -97,6 +98,7 @@ fn native_parameter_checkpoint_restores_all_authored_fields_and_rejects_wrong_pa
     parameter.event_behaviour = ParameterEventBehaviour::Coalesce;
     parameter.read_only = false;
     parameter.persist_read_only_value = false;
+    parameter.transient_value = false;
     parameter.constraints = Default::default();
     parameter.ui_hints = Default::default();
     parameter.control = Default::default();
@@ -104,6 +106,7 @@ fn native_parameter_checkpoint_restores_all_authored_fields_and_rejects_wrong_pa
     parameter.engine_restore_authored_data(captured).unwrap();
     assert_eq!(parameter.project_encode_data().unwrap(), expected);
     assert!(parameter.persist_read_only_value);
+    assert!(parameter.transient_value);
     let before = parameter.snapshot();
     assert!(
         parameter

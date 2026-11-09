@@ -29,12 +29,12 @@ impl<T: Node> Engine<T> {
                 node_type: node_type.clone(),
             }
         })?;
-        if !parameter.read_only {
+        if !parameter.read_only && !parameter.transient_value {
             return Err(EngineEditError::ParamConstraintViolation {
                 edit_index,
                 node,
                 node_type,
-                message: "runtime status feedback requires a read-only Parameter".into(),
+                message: "runtime status feedback requires a read-only or transient Parameter".into(),
             });
         }
         if !matches!(
@@ -48,20 +48,68 @@ impl<T: Node> Engine<T> {
                 message: "runtime feedback requires a bool, int or float Parameter".into(),
             });
         }
-        let value = value
-            .map(|value| parameter.engine_prepare_param_value(value))
-            .transpose()
+        // Restoring the baseline must also respect currently available bounds.
+        let reset = value.is_none();
+        let value = parameter
+            .engine_prepare_param_value(value.unwrap_or_else(|| parameter.value.clone()))
             .map_err(|message| EngineEditError::ParamConstraintViolation {
                 edit_index,
                 node,
                 node_type,
                 message,
             })?;
+        let value = if reset && value == parameter.value {
+            None
+        } else {
+            Some(value)
+        };
         let old = parameter.get().clone();
         parameter.set_runtime_value(value);
         let new = parameter.get().clone();
         self.clear_tick_tree_snapshot();
         self.emit_param_events_for_state_change(node, &old, &new, source);
+        Ok(())
+    }
+}
+
+impl<T: Node> Engine<T> {
+    pub(super) fn apply_param_runtime_range(
+        &mut self,
+        edit_index: usize,
+        node: NodeId,
+        range: Option<crate::parameter::RangeConstraint>,
+        source: Option<NodeId>,
+    ) -> Result<(), EngineEditError> {
+        if source.is_some_and(|source| self.nodes.get(source).is_none()) {
+            return Ok(());
+        }
+        let Some(target) = self.nodes.get_mut(node) else {
+            return Ok(());
+        };
+        let node_type = target.get_type().to_string();
+        let rejected = |message: String| EngineEditError::ParamConstraintViolation {
+            edit_index,
+            node,
+            node_type: node_type.clone(),
+            message,
+        };
+        let parameter = target
+            .as_any_mut()
+            .downcast_mut::<Parameter>()
+            .ok_or_else(|| rejected("runtime bounds require a built-in Parameter".into()))?;
+        if (!parameter.read_only && !parameter.transient_value)
+            || !matches!(parameter.value, ParamValue::Int(_) | ParamValue::Float(_))
+        {
+            return Err(rejected(
+                "runtime bounds require a read-only or transient numeric Parameter".into(),
+            ));
+        }
+        let old = parameter.snapshot();
+        parameter.set_runtime_range(range).map_err(rejected)?;
+        let new = parameter.snapshot();
+        self.clear_tick_tree_snapshot();
+        self.emit_param_events_for_state_change(node, &old.value, &new.value, source);
+        self.emit_param_constraints_event(node, old.constraints, new.constraints);
         Ok(())
     }
 }

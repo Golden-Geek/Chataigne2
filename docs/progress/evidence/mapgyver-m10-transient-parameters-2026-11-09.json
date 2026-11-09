@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-09",
+  "gate": "M10/5",
+  "gate_state": "Active",
+  "scope": "Shared Parameter prerequisite for Current Position; no Video UI integration or complete gate acceptance",
+  "implementation": {
+    "owner": "golden_engine Parameter storage, edit application, project codec and golden_core_macros Params DSL",
+    "transient_value": "An explicitly declared editable runtime value uses ordinary typed writes and owner validation, emits repeated identical intents, and keeps live values out of saved authored data and undo/redo.",
+    "runtime_range": "SetParamRuntimeRange publishes finite ordered scalar availability bounds for read-only or transient numeric Parameters. Snapshots and events expose the effective bounds; ordinary writes enforce them. Shrinking bounds clamp live state even with Reject manual policy.",
+    "history": "Constraint undo/redo captures authored constraints, never the runtime range overlay. Clearing feedback cannot expose an out-of-range baseline.",
+    "lifecycle": "The declared Parameter reload test reconstructs the default value and authored bounds without the previous live value/range.",
+    "frontend_contract": "Existing Parameter snapshots and constraint events remain the only UI contract; no duplicate TypeScript types or specialized editor were added."
+  },
+  "validation": {
+    "command": "with-ffmpeg.ps1 test --locked --profile dev -p golden_engine -p MapGyver --lib --features MapGyver/native-qualification -- --quiet --test-threads=4",
+    "log": "target/m10-position-runtime-final-tests.log",
+    "engine": { "passed": 686, "failed": 0, "ignored": 3 },
+    "mapgyver": { "passed": 634, "failed": 0, "ignored": 7 },
+    "strict_lint": {
+      "command": "cargo clippy --locked -p golden_engine -p golden_core_macros --all-targets -- -D warnings",
+      "exit_code": 0,
+      "log": "target/m10-position-runtime-final-clippy.log"
+    },
+    "format": "cargo fmt --all and cargo fmt --all --manifest-path crates/golden_core/Cargo.toml passed before final validation",
+    "earlier_failure": "Preliminary core run: 684 pass, one reload-fixture lookup failure. The fixture assumed the previous declared child UUID resolved after reconstruction. It now resolves the loaded owner's declared Parameter handle; all original reload/default/bounds assertions remain and pass.",
+    "sdk": "Pinned five-library FFmpeg source SDK verification passed; 22422528 bytes, source commit d4070a14cecc7e29eb278f9b6036c2284255f70d.",
+    "native": "Not run for this shared API checkpoint; no new app pixel, slider or seek qualification is claimed."
+  },
+  "batch": {
+    "started_utc": "20:05",
+    "cutoff_utc": "20:50",
+    "overrun": "Only the already-started final validation cycle finished after cutoff; no new implementation scope was opened. The intended Video integration remains unfinished."
+  },
+  "remaining": [
+    "Replace Seek To with editable Current Position and canonical time_slider Inspector metadata.",
+    "Connect backend longest-channel duration bounds, changed files/channels and truthful unknown-duration edits through every caller.",
+    "Publish actual transport position, suspend feedback during an active seek and fence stale feedback until the latest seek settles.",
+    "Complete UI/script/transport/headless, callbacks/snippets, independent copy, history, project reload and native acceptance.",
+    "Retain the earlier native H.264 invalid-data failures and all original M10/4 qualification requirements."
+  ],
+  "accepted_gate_changes": [],
+  "progress": { "accepted": 85, "total": 106, "overall_percent": 80, "m10_accepted": 2, "m10_total": 8 }
+}

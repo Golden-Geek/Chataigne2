@@ -10,8 +10,16 @@ use crate::{
     },
 };
 
+#[crate::node("transient_feedback_test")]
+#[children(position: f64 = 0.0 (transient_value = true);)]
+struct TransientNode {}
+#[crate::node("transient_feedback_test", from_struct)]
+impl Node for TransientNode {}
+
 define_node_enum!(
-    enum FeedbackNode {}
+    enum FeedbackNode {
+        Transient(TransientNode),
+    }
 );
 impl crate::app::ProjectLifecycle for FeedbackNode {}
 
@@ -136,4 +144,238 @@ fn rejected_feedback_leaves_authoring_and_live_state_unchanged() {
     assert_eq!(live(&engine, id), ParamValue::Float(8.0));
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
     assert_eq!(engine.undo_len(), history);
+}
+
+#[test]
+fn transient_writes_emit_repeated_intents_without_saved_values_or_history() {
+    let (mut engine, id) = fixture();
+    let parameter = engine
+        .nodes
+        .get_mut(id)
+        .unwrap()
+        .as_any_mut()
+        .downcast_mut::<Parameter>()
+        .unwrap();
+    parameter.read_only = false;
+    parameter.transient_value = true;
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    write(&mut engine, id, 8.0);
+    engine.inbox.clear();
+    write(&mut engine, id, 8.0);
+    assert!(
+        engine
+            .inbox
+            .events
+            .iter()
+            .any(|event| matches!(event.kind, EventKind::ParamChanged { param, .. } if param == id))
+    );
+    assert_eq!(live(&engine, id), ParamValue::Float(8.0));
+    assert_eq!(authored(&engine, id), ParamValue::Float(2.0));
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+    feedback(&mut engine, id, Some(ParamValue::Float(9.0)));
+    assert_eq!(live(&engine, id), ParamValue::Float(9.0));
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+}
+
+#[test]
+fn runtime_range_clamps_live_state_and_validates_all_writes_without_persisting_bounds() {
+    let (mut engine, id) = fixture();
+    let parameter = engine
+        .nodes
+        .get_mut(id)
+        .unwrap()
+        .as_any_mut()
+        .downcast_mut::<Parameter>()
+        .unwrap();
+    parameter.read_only = false;
+    parameter.transient_value = true;
+    parameter.constraints.policy = crate::parameter::ParameterConstraintPolicy::Reject;
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    write(&mut engine, id, 8.0);
+    engine.edits.push_from(
+        engine.root,
+        Edit::SetParamRuntimeRange {
+            node: id,
+            range: RangeConstraint::uniform(Some(0.0), Some(5.0)),
+        },
+    );
+    engine.apply_edits().unwrap();
+    assert_eq!(live(&engine, id), ParamValue::Float(5.0));
+    let snapshot = engine.nodes.get(id).unwrap().engine_param_snapshot().unwrap();
+    assert_eq!(
+        snapshot.constraints.range,
+        RangeConstraint::uniform(Some(0.0), Some(5.0))
+    );
+    assert_eq!(
+        engine
+            .process_tree_snapshot()
+            .node(id)
+            .unwrap()
+            .param_constraints
+            .as_ref()
+            .unwrap()
+            .range,
+        snapshot.constraints.range
+    );
+    engine.edits.push(Edit::SetParam {
+        node: id,
+        value: ParamValue::Float(6.0),
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    assert!(engine.apply_edits().is_err());
+    assert_eq!(live(&engine, id), ParamValue::Float(5.0));
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+    engine.edits.push(Edit::SetParamRuntimeRange { node: id, range: None });
+    engine.apply_edits().unwrap();
+    write(&mut engine, id, 6.0);
+    assert_eq!(live(&engine, id), ParamValue::Float(6.0));
+    assert_eq!(engine.undo_len(), history);
+}
+
+#[test]
+fn declared_transient_parameter_reloads_at_default_and_keeps_authored_undo_separate() {
+    let mut engine = Engine::<FeedbackNode>::new(Folder::new("root").into());
+    engine.add_node(TransientNode::new().into(), None);
+    engine.settle_edit_notifications(16).unwrap();
+    let owner = engine.nodes.get(engine.root).unwrap().node_data().first_child.unwrap();
+    let FeedbackNode::Transient(owner) = engine.nodes.get(owner).unwrap() else {
+        panic!()
+    };
+    let id = owner.position.id();
+    let parameter = engine
+        .nodes
+        .get(id)
+        .unwrap()
+        .as_any()
+        .downcast_ref::<Parameter>()
+        .unwrap();
+    assert!(parameter.transient_value);
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    write(&mut engine, id, 8.0);
+    engine.edits.push(Edit::SetParamRuntimeRange {
+        node: id,
+        range: RangeConstraint::uniform(Some(0.0), Some(5.0)),
+    });
+    engine.apply_edits().unwrap();
+    assert_eq!(live(&engine, id), ParamValue::Float(5.0));
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
+    engine.edits.push(Edit::SetParamConstraints {
+        node: id,
+        constraints: ParameterConstraints {
+            step: Some(0.5),
+            ..Default::default()
+        },
+    });
+    engine.apply_edits().unwrap();
+    assert!(engine.undo().unwrap());
+    let parameter = engine
+        .nodes
+        .get(id)
+        .unwrap()
+        .as_any()
+        .downcast_ref::<Parameter>()
+        .unwrap();
+    assert_eq!(parameter.constraints.range, None);
+    assert_eq!(
+        parameter.snapshot().constraints.range,
+        RangeConstraint::uniform(Some(0.0), Some(5.0))
+    );
+    assert_eq!(parameter.get(), &ParamValue::Float(5.0));
+    assert!(engine.redo().unwrap());
+    let current = to_sparse_project_json_pretty(&engine).unwrap();
+    let mut loaded: Engine<FeedbackNode> = crate::app::from_sparse_project_json(&current).unwrap();
+    loaded.settle_edit_notifications(16).unwrap();
+    let owner = loaded.nodes.get(loaded.root).unwrap().node_data().first_child.unwrap();
+    let FeedbackNode::Transient(owner) = loaded.nodes.get(owner).unwrap() else {
+        panic!()
+    };
+    let id = owner.position.id();
+    assert_eq!(live(&loaded, id), ParamValue::Float(0.0));
+    assert_eq!(
+        loaded
+            .nodes
+            .get(id)
+            .unwrap()
+            .engine_param_snapshot()
+            .unwrap()
+            .constraints
+            .range,
+        None
+    );
+}
+
+#[test]
+fn invalid_runtime_bounds_and_authored_writable_targets_leave_state_unchanged() {
+    let (mut engine, id) = fixture();
+    for range in [
+        RangeConstraint::uniform(Some(6.0), Some(5.0)),
+        RangeConstraint::uniform(Some(f64::NAN), None),
+    ] {
+        let before = engine.nodes.get(id).unwrap().engine_param_snapshot().unwrap();
+        engine.edits.push(Edit::SetParamRuntimeRange { node: id, range });
+        assert!(engine.apply_edits().is_err());
+        assert_eq!(engine.nodes.get(id).unwrap().engine_param_snapshot().unwrap(), before);
+    }
+    engine
+        .nodes
+        .get_mut(id)
+        .unwrap()
+        .as_any_mut()
+        .downcast_mut::<Parameter>()
+        .unwrap()
+        .read_only = false;
+    engine.edits.push(Edit::SetParamRuntimeRange {
+        node: id,
+        range: RangeConstraint::uniform(Some(0.0), Some(5.0)),
+    });
+    assert!(engine.apply_edits().is_err());
+    engine.edits.push(Edit::SetParamFeedback {
+        node: id,
+        value: Some(ParamValue::Float(3.0)),
+    });
+    assert!(engine.apply_edits().is_err());
+    assert_eq!(live(&engine, id), ParamValue::Float(2.0));
+}
+
+#[test]
+fn clearing_feedback_cannot_expose_an_authored_value_outside_runtime_bounds() {
+    let (mut engine, id) = fixture();
+    engine
+        .nodes
+        .get_mut(id)
+        .unwrap()
+        .as_any_mut()
+        .downcast_mut::<Parameter>()
+        .unwrap()
+        .constraints
+        .policy = crate::parameter::ParameterConstraintPolicy::Reject;
+    engine.edits.push(Edit::SetParamRuntimeRange {
+        node: id,
+        range: RangeConstraint::uniform(Some(0.0), Some(1.0)),
+    });
+    engine.apply_edits().unwrap();
+    assert_eq!(live(&engine, id), ParamValue::Float(1.0));
+    engine.edits.push(Edit::SetParamFeedback { node: id, value: None });
+    assert!(engine.apply_edits().is_err());
+    assert_eq!(live(&engine, id), ParamValue::Float(1.0));
+    engine
+        .nodes
+        .get_mut(id)
+        .unwrap()
+        .as_any_mut()
+        .downcast_mut::<Parameter>()
+        .unwrap()
+        .constraints
+        .policy = crate::parameter::ParameterConstraintPolicy::ClampAdapt;
+    feedback(&mut engine, id, None);
+    assert_eq!(live(&engine, id), ParamValue::Float(1.0));
+    engine.edits.push(Edit::SetParamRuntimeRange { node: id, range: None });
+    engine.apply_edits().unwrap();
+    feedback(&mut engine, id, None);
+    assert_eq!(live(&engine, id), ParamValue::Float(2.0));
 }
