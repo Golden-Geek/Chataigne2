@@ -97,8 +97,8 @@
 	"remaining": "Genuine Video device recovery awaits elevated execution. Continue the specified bundled-app sustained1080p/4K/resource performance within M10/4 meanwhile. M14 remains after M10/4; all original gate counts/budgets remain.",
 	"current_prepared_fixture": {
 		"path": "target/mapgyver-m10-device-ready/MapGyverTests.exe",
-		"sha256": "1ebb91c4306f08b765473caec7adb2a429921a16576b0e1fb9be461550d35a55",
-		"evidence": "mapgyver-m10-software-gpu-owner-2026-11-09.json",
-		"scope": "Current promoted checkout: hardware/BC GPU publishers use explicit timeline completion, software ProRes retains ImageStream while the slower candidate integration is preserved separately. Paired preflight/relink passes2 tests,26.11s,complete retirement in189.9972ms paired/81.6239ms Intel/80.9384ms NVIDIA, exact pixels and original route assertions. Historical candidate/preflight/denied-trigger identities retain their hashes in the linked receipts. The elevated command/target path is unchanged; genuine recovery is still unverified."
+		"sha256": "5e99f9fa142ba3f8672d094f7ae9e15edd95f00626f99091672d3cc4d7e3a3b3",
+		"evidence": "mapgyver-m10-pipelined-file-2026-11-09.json",
+		"scope": "Current promoted checkout: hardware/BC plus software rasters up to2,073,600 pixels use the GPU publisher with timeline completion; larger software files retain ImageStream. Fresh-clock lookahead conversion is bounded and timestamp-fenced. Paired preflight/relink passes2 tests,26.30s,complete retirement in208.6605ms paired/89.6219ms Intel/96.4668ms NVIDIA, exact pixels and all eight GPU routes for the fixture's software-raster sizes. Historical candidate/preflight/denied-trigger identities retain their hashes in linked receipts. Final mixed-workload/Intel performance and genuine recovery remain unverified; the elevated command/target path is unchanged."
 	}
 }

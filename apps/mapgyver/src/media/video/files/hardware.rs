@@ -41,22 +41,25 @@ impl Run {
         )
         .map_err(|error| NativeFailure::Fallback(error.into()))?;
         let compressed = decoder.storage() == DecodeStorage::Hap;
-        self.drive_native(worker, owner, hardware, decoder).map_err(|error| {
-            if compressed {
-                NativeFailure::Retry(error)
-            } else {
-                NativeFailure::Fallback(error)
-            }
-        })
+        self.drive_native(worker, owner, hardware, decoder, None)
+            .map_err(|error| {
+                if compressed {
+                    NativeFailure::Retry(error)
+                } else {
+                    NativeFailure::Fallback(error)
+                }
+            })
     }
-    fn drive_native(
+    pub(super) fn drive_native(
         &self,
         worker: &WorkerContext<(), ()>,
         owner: uuid::Uuid,
         hardware: &Hardware,
         decoder: Decoder,
+        cpu_lease: Option<Arc<Lease>>,
     ) -> Result<(), Failure> {
         let compressed = decoder.storage() == DecodeStorage::Hap;
+        let software = decoder.storage() == DecodeStorage::Software;
         let mut bytes = 16 * 1024 * 1024;
         if compressed {
             let info = decoder.info();
@@ -67,15 +70,20 @@ impl Run {
                 .and_then(|frames| frames.checked_add(bytes))
                 .ok_or("HAP storage overflow")?;
         }
-        let _cpu_lease = self
-            .budget
-            .reserve_bytes(bytes)
-            .map_err(|error| Failure(VideoSourceError::new(VideoSourceErrorKind::Capacity, error)))?;
+        let cpu_lease = match cpu_lease {
+            Some(lease) => lease,
+            None => Arc::new(
+                self.budget
+                    .reserve_bytes(bytes)
+                    .map_err(|error| Failure(VideoSourceError::new(VideoSourceErrorKind::Capacity, error)))?,
+            ),
+        };
         let mut reader = Reader::new(decoder)?;
         self.control
             .channel_duration(self.reference.channel, owner, reader.duration)?;
         let mut publisher: Option<GpuFramePublisher> = None;
         let mut pending = None;
+        let mut software_image: Option<(i64, Arc<golden_video::image::ImageData>)> = None;
         let mut installed = false;
         while !worker.cancellation().is_cancelled() {
             let turn_started = Instant::now();
@@ -100,7 +108,9 @@ impl Run {
                             installed = true;
                             eprintln!(
                                 "[mapgyver-video] {} playback: {} on {:?}",
-                                if compressed {
+                                if software {
+                                    "software decode/source-worker GPU upload"
+                                } else if compressed {
                                     "HAP compressed GPU"
                                 } else {
                                     "D3D11 resident"
@@ -122,9 +132,26 @@ impl Run {
             }
             if !waiting {
                 if reader.advance(sample.channel_position(reader.duration))? {
+                    let image = if software {
+                        let timestamp = reader.frame().timestamp();
+                        if software_image.as_ref().is_none_or(|(stamp, _)| *stamp != timestamp) {
+                            software_image =
+                                Some((timestamp, Arc::new(reader.software_image()?.retain(cpu_lease.clone()))));
+                        }
+                        Some(software_image.as_ref().unwrap().1.clone())
+                    } else {
+                        None
+                    };
                     let frame = reader.frame();
                     if publisher.is_none() {
-                        publisher = Some(if let Some(frame) = frame.hap_frame() {
+                        publisher = Some(if let Some(image) = &image {
+                            GpuFramePublisher::new_software(
+                                image.descriptor(),
+                                hardware.adapter,
+                                &hardware.budget,
+                                Some(worker.wake_notifier()),
+                            )?
+                        } else if let Some(frame) = frame.hap_frame() {
                             GpuFramePublisher::new_hap(
                                 frame,
                                 hardware.adapter,
@@ -138,8 +165,13 @@ impl Run {
                                 Some(worker.wake_notifier()),
                             )?
                         });
+                        if std::env::var_os("MAPGYVER_NATIVE_DIAGNOSTICS").is_some_and(|value| !value.is_empty()) {
+                            publisher.as_mut().unwrap().record_software_upload_timing();
+                        }
                     }
-                    let submitted = if let Some(frame) = frame.hap_frame() {
+                    let submitted = if let Some(image) = image {
+                        publisher.as_mut().unwrap().submit_software(image)?
+                    } else if let Some(frame) = frame.hap_frame() {
                         publisher.as_mut().unwrap().submit_hap(frame)?
                     } else {
                         publisher
@@ -148,8 +180,15 @@ impl Run {
                             .submit(frame.d3d11_frame().ok_or("native decoder returned software storage")?)?
                     };
                     if submitted {
+                        software_image = None;
                         pending = Some(sample);
                         reader.mark_published();
+                        if software && sample.playing {
+                            let now = self.control.sample()?;
+                            if now.playing && (now.epoch, now.cycle) == (sample.epoch, sample.cycle) {
+                                reader.prepare_next(now.channel_position(reader.duration))?;
+                            }
+                        }
                     }
                     // Retry a full conversion ring even while paused. Slot release also wakes us.
                     waiting = true;

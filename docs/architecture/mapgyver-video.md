@@ -293,11 +293,16 @@ image; the render turn performs GPU imports/copies rather than CPU `UpdateSubres
 GPU-frame publishers use the same explicit timeline-fence completion as Golden's source workers;
 copy-only progress must not depend on rendering/timestamp-query batches being submitted.
 All three source slots are charged to existing GPU admission before native allocation.
-MapGyver's attempted software File integration is retained in stash
-`4717c50928733b156a19e7be03ccd5fdef17dfbe`: the fully validated owner works, but the combined
-File loop reaches only HD39.70/4K24.38 updates/s versus the existing55.23/28.11 on NVIDIA.
-Software File playback therefore retains ImageStream pending a pipelined integration that
-meets the original throughput/ownership requirements. Do not automatically restore that stash.
+MapGyver admits this software GPU route for rasters up to1920×1080 pixels; larger software
+files retain their direct ImageStream upload. This operational profile choice preserves the
+measured faster4K path while the new HD path reaches59.71 observed updates/s on NVIDIA.
+It does not change authored resolution, source limits, memory budgets or qualification targets.
+The Reader converts one already-decoded future image while the selected image uploads, and
+consumes it only at its exact timestamp. Seek, predecessor probing and EOF clear prepared data.
+A fresh media-clock check skips speculative conversion if sampling is already due or the
+epoch/cycle changed; this prevents wasted lookahead from feeding a late-sampling loop.
+The earlier serial integration remains only as historical stash4717c509; do not restore it.
+The final mixed HD-GPU/4K-direct workload and Intel throughput remain required before acceptance.
 Hardware/HAP File publishers use the timeline completion correction now; all original resource,
 recovery and performance qualification remains required.
 `SourceUseTrace::software_upload` retains the actual producer UUID/counter, byte/row layout and

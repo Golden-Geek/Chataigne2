@@ -9,6 +9,7 @@ use std::time::Duration;
 pub(super) struct Reader {
     decoder: Decoder,
     converter: SoftwareImageConverter,
+    prepared: Option<(i64, ImageData)>,
     current: Option<DecodedFrame>,
     next: Option<DecodedFrame>,
     previous: Option<i64>,
@@ -49,6 +50,7 @@ impl Reader {
         Ok(Self {
             decoder,
             converter: Default::default(),
+            prepared: None,
             current: None,
             next: None,
             previous: None,
@@ -67,13 +69,41 @@ impl Reader {
         if !self.advance(position)? {
             return Ok(None);
         }
-        let image = self.converter.convert(self.current.as_ref().unwrap())?;
+        let image = self.software_image()?;
         self.mark_published();
         Ok(Some(image))
     }
     #[cfg(all(windows, feature = "native-video"))]
     pub fn frame(&self) -> &DecodedFrame {
         self.current.as_ref().expect("advance selected a frame")
+    }
+    pub fn software_image(&mut self) -> Result<ImageData, Failure> {
+        let frame = self.current.as_ref().expect("advance selected a frame");
+        if let Some((timestamp, image)) = self.prepared.take()
+            && timestamp == frame.timestamp()
+        {
+            return Ok(image);
+        }
+        Ok(self.converter.convert(frame)?)
+    }
+    /// Convert the already-decoded lookahead while the selected frame uploads on the GPU.
+    /// One prepared image replaces the next; no decoded frame or image queue is added.
+    #[cfg(all(windows, feature = "native-video"))]
+    pub fn prepare_next(&mut self, position: Duration) -> Result<(), Failure> {
+        let Some(frame) = &self.next else {
+            self.prepared = None;
+            return Ok(());
+        };
+        let timestamp = frame.timestamp();
+        if self.position(timestamp)? <= position {
+            // Sampling is already due again. Let advance select the current timestamp rather
+            // than spending a second conversion on lookahead that may already be obsolete.
+            return Ok(());
+        }
+        if self.prepared.as_ref().is_none_or(|(stamp, _)| *stamp != timestamp) {
+            self.prepared = Some((timestamp, self.converter.convert(frame)?));
+        }
+        Ok(())
     }
     pub fn mark_published(&mut self) {
         self.published = self.current.as_ref().map(DecodedFrame::timestamp);
@@ -94,6 +124,7 @@ impl Reader {
             self.next = None;
             self.previous = None;
             self.probed_previous = None;
+            self.prepared = None;
             self.eof = false;
             self.published = None;
         }
@@ -190,6 +221,7 @@ impl Reader {
         self.decoder.seek_before(before).map_err(|e| e.to_string())?;
         self.current = None;
         self.next = None;
+        self.prepared = None;
         self.eof = false;
         self.probed_previous = Some(PreviousProbe {
             target: timestamp,
@@ -200,3 +232,6 @@ impl Reader {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests;

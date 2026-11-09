@@ -139,10 +139,9 @@ impl Owner {
     fn assert_routes(&self) {
         for (index, reference) in self.references.iter().enumerate() {
             let (_, source) = self.live().videos.as_ref().unwrap().source(*reference).unwrap();
-            assert_eq!(
+            assert!(
                 matches!(source, golden_video::plan::ExternalSource::GpuFrames(_)),
-                !NAMES[index].starts_with("prores"),
-                "{} on {:?}: hardware/BC route must survive recovery",
+                "{} on {:?}: hardware/BC/software-upload GPU route must survive recovery",
                 NAMES[index],
                 self.adapter
             );
