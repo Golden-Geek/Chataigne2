@@ -239,6 +239,46 @@ fn original_timestamp_seeks_flush_old_frames_and_rewind_after_clean_eof() {
 }
 
 #[test]
+fn warm_seeks_keep_the_codec_and_retained_pixels_without_stale_reordered_frames() {
+    for name in ["h264.mp4", "hevc.mp4", "prores.mov"] {
+        let mut reference = Decoder::open(&fixture(name), limits()).unwrap();
+        let mut expected = Vec::new();
+        while let Some(frame) = reference.next_frame().unwrap() {
+            expected.push((frame.timestamp(), frame.software_image().unwrap().data(0).to_vec()));
+        }
+        let mut decoder = Decoder::open(&fixture(name), limits()).unwrap();
+        let retained = decoder.next_frame().unwrap().unwrap();
+        let mut warm_seeks = 0;
+        for index in [2, 0, 3, 1, 4, 0, 2] {
+            let warm = decoder.state == DecodeState::Reading;
+            let owner = unsafe { decoder.decoder.as_ref().unwrap().as_ptr() };
+            decoder.seek_before(expected[index].0).unwrap();
+            if warm {
+                warm_seeks += 1;
+                assert_eq!(
+                    unsafe { decoder.decoder.as_ref().unwrap().as_ptr() },
+                    owner,
+                    "warm seek must retain the admitted codec: {name}"
+                );
+            }
+            loop {
+                let frame = decoder.next_frame().unwrap().unwrap();
+                assert!(frame.timestamp() <= expected[index].0, "stale reorder state: {name}");
+                if frame.timestamp() == expected[index].0 {
+                    assert_eq!(frame.software_image().unwrap().data(0), expected[index].1);
+                    break;
+                }
+            }
+            assert_eq!(retained.software_image().unwrap().data(0), expected[0].1);
+        }
+        // The six-frame HEVC fixture may enter draining before its first output.
+        if name != "hevc.mp4" {
+            assert!(warm_seeks > 0, "fixture must exercise warm reuse: {name}");
+        }
+    }
+}
+
+#[test]
 fn invalid_seek_is_atomic_and_poisoned_decoders_cannot_hide_errors_by_seeking() {
     let mut decoder = Decoder::open(&fixture("h264.mp4"), limits()).unwrap();
     assert!(matches!(decoder.seek_before(i64::MAX), Err(DecodeError::OutsideStream)));

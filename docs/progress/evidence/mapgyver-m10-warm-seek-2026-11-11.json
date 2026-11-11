@@ -1,0 +1,158 @@
+{
+	"date": "2026-11-11",
+	"gate": "M10/6",
+	"result": "warm_seek_milestone_verified_gate_open",
+	"accepted": false,
+	"user_revision": "2026-11-11: Intel may be less efficient than NVIDIA during smooth seeking. NVIDIA retains >=25 presented seek updates/s; Intel retains measured limits, continued progress, correct latest frame/state, ownership and recovery. Separate M10/4 budgets are unchanged.",
+	"scope": "Warm decoder/pool reuse and exact paused/playing seek correctness. Physical continuous presentation, latency and remaining recovery are still required.",
+	"fixture": {
+		"path": "D:\\Documents\\MapGyver\\test videos\\ball_turn.mp4",
+		"sha256": "5063c411cd98b33d47506a4d20571f95decd5a98671244deb16708be5db4f0d7",
+		"codec": "h264 Main",
+		"extent": [1920, 1080],
+		"frame_rate": "24/1",
+		"duration_seconds": 8.291667,
+		"frames": 199,
+		"independent_ffprobe": "All199 decoded frames report key_frame=1,pict_type=I; no B frames. Preinstalled FFmpeg used only for fixture inspection/reference, never production playback."
+	},
+	"baseline": {
+		"binary_sha256": "11909c228595638223c3a4934badb2b0677629d2f49e208167b3670c8e36f0fd",
+		"prerequisite": "b1f1ab31:640 app/694 engine tests, strict lint, contracts and both-GPU native transport acceptance retained for unchanged product code",
+		"nvidia": {
+			"artifact": "target/m10-seek-burst-nvidia/seek.json",
+			"pid": 45824,
+			"normal_shutdown": true,
+			"isolated_paused_seek_metadata_ms": [34.633, 35.417, 60.891, 41.804, 39.38, 43.964],
+			"paused_burst": {
+				"intents": 120,
+				"elapsed_ms": 2976.058,
+				"samples": 302,
+				"non_null_frame_samples": 61,
+				"distinct_non_null_pts": 52
+			},
+			"playing_burst": {
+				"intents": 120,
+				"elapsed_ms": 2976.657,
+				"samples": 319,
+				"non_null_frame_samples": 131,
+				"distinct_non_null_pts": 112
+			}
+		},
+		"intel": {
+			"artifact": "target/m10-seek-burst-intel/seek.json",
+			"pid": 15112,
+			"normal_shutdown": true,
+			"isolated_paused_seek_metadata_ms": [59.361, 135.099, 110.649, 110.813, 110.103, 106.523],
+			"paused_burst": {
+				"intents": 120,
+				"elapsed_ms": 2977.196,
+				"samples": 299,
+				"non_null_frame_samples": 3,
+				"distinct_non_null_pts": 1
+			},
+			"playing_burst": {
+				"intents": 120,
+				"elapsed_ms": 2977.373,
+				"samples": 317,
+				"non_null_frame_samples": 0,
+				"distinct_non_null_pts": 0
+			}
+		},
+		"correctness": "Both GPUs reach all six exact isolated paused seeks and final2000ms after each burst without source errors. This does not prove intermediate presentation or a visible rate; initial sampling did not assert every transport mode.",
+		"failed_setup": [
+			"target/m10-seek-baseline/failure.json: initial navigation race, corrected before baseline",
+			"target/m10-seek-pixels-nvidia/failure.json: owned foreground activation unavailable; no physical measurement ran"
+		]
+	},
+	"implementation": {
+		"owner": "crates/golden_video/src/decode/mod.rs::Decoder::seek_before",
+		"reading": "Flush and reuse the admitted codec and frame pool after successful exact-stream demux seek",
+		"draining_or_ended": "Recreate codec to retain the known HEVC drained-frame correction",
+		"invariants": "Returned frames retain independent references; out-of-range seek remains atomic; failed seek poisons owner; app epochs/latest intent/completion fences remain unchanged"
+	},
+	"software": {
+		"result": "pass",
+		"log": "target/m10-warm-seek-tests-bounded.log",
+		"mapgyver": { "passed": 640, "ignored": 4 },
+		"golden_video": { "passed": 288, "ignored": 65 },
+		"concurrency": "Four test threads respect bounded shared script-operation lifetimes. Default parallel run retained as failed:639 passed/1 capacity-exhaustion failure in target/m10-warm-seek-tests-final.log; no product capacity increase.",
+		"new_regression": "Exact H.264/HEVC/ProRes timestamps and image planes across forward/backward warm seeks; codec identity retained during Reading; old frame pixels unchanged. Existing drain/EOF rewind remains passing.",
+		"strict_lint": {
+			"result": "pass",
+			"log": "target/m10-warm-seek-clippy.log",
+			"packages": ["MapGyver", "golden_video"],
+			"all_targets": true,
+			"native_qualification": true,
+			"warnings_denied": true
+		}
+	},
+	"hardware": {
+		"result": "pass",
+		"log": "target/m10-warm-seek-hardware.log",
+    "adapters": ["Intel(R) Graphics", "NVIDIA GeForce RTX 5080 Laptop GPU"],
+		"profiles": ["h264-color.mp4", "hevc-main.mp4"],
+		"checks": "Exact original timestamps and native luma, warm codec retention, all six old hardware frame leases remain correct across warm/replacement seeks and decoder shutdown",
+		"test": "decode::d3d11::tests::hardware_frames_preserve_adapter_timestamps_seek_and_pool_leases_on_both_gpus"
+	},
+	"corrected_binary": {
+		"build_log": "target/m10-warm-seek-build.log",
+		"path": "target/m10-warm-seek-app/MapGyver.exe",
+		"sha256": "f00e0fdc06ecf0f42d702fc67dda816e2832031710ae9153cbc86a8342c05375",
+		"libraries": "Five pinned executable-local FFmpeg DLLs; actual loaded-library identities checked by each native run"
+	},
+	"corrected_native": {
+		"nvidia": {
+			"artifact": "target/m10-warm-seek-nvidia/seek.json",
+			"pid": 41044,
+			"normal_shutdown": true,
+			"isolated_paused_seek_metadata_ms": [32.122, 28.358, 55.985, 29.166, 32.06, 29.019],
+			"paused_burst": {
+				"intents": 120,
+				"elapsed_ms": 2978.228,
+				"samples": 340,
+				"non_null_frame_samples": 248,
+				"distinct_non_null_pts": 99
+			},
+			"playing_burst": {
+				"intents": 120,
+				"elapsed_ms": 2976.762,
+				"samples": 335,
+				"non_null_frame_samples": 259,
+				"distinct_non_null_pts": 119
+			}
+		},
+		"intel": {
+			"artifact": "target/m10-warm-seek-intel/seek.json",
+			"pid": 30180,
+			"normal_shutdown": true,
+			"isolated_paused_seek_metadata_ms": [29.172, 28.57, 27.925, 27.823, 28.674, 30.787],
+			"paused_burst": {
+				"intents": 120,
+				"elapsed_ms": 2976.769,
+				"samples": 353,
+				"non_null_frame_samples": 250,
+				"distinct_non_null_pts": 100
+			},
+			"playing_burst": {
+				"intents": 120,
+				"elapsed_ms": 2975.415,
+				"samples": 364,
+				"non_null_frame_samples": 276,
+				"distinct_non_null_pts": 119
+			}
+		},
+		"checks": "Both GPUs: six exact isolated paused seeks;120 paused and120 playing forward/backward intents; every sampled transport retains its mode; no source/UI error; final2000ms seek exact and paused; normal owned-app shutdown; pinned local libraries verified.",
+		"interpretation": "Normal codec/pool reuse substantially improves sampled decoder progress, especially Intel. Counts are decoder metadata, not physical presented FPS or latency. The original invalid call was not reproduced in either current baseline or corrected run; no causal fix claim for that historical error."
+	},
+	"remaining": [
+		"Actual continuous paused/playing presented seek updates >=25/s on NVIDIA, measured Intel limits, input-to-present latency and native visual review",
+		"Endpoints, pause/play during scrubbing, repeated use, shared channel/Reference ownership and file/project/device recovery on both GPUs",
+		"Cold/warm and codec-specific limits stay explicit"
+	],
+	"desktop": {
+		"status": "Both installed computer-use interfaces report native pipe unavailable, os error2; prescribed retry/reset did not restore it. Alternate interface also reports browser host unavailable.",
+		"input_sent": false,
+		"terminal_elevation": "WindowsPrincipal.IsInRole(Administrator) reports false for the current tool process despite the IDE elevation report. Actual driver reset must use an elevated token; ordinary tests/builds remain available.",
+		"return_trigger": "Reconnect the existing computer-use host; resume the existing guarded desktop/QPC collector and owned-window review. No weakened foreground guard or replacement capture framework."
+	}
+}

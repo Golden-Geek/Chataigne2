@@ -105,10 +105,11 @@ Its ordinary open methods preserve HAP blocks and otherwise select software;
 `open_native` requests D3D11 decode on an exact adapter while preserving HAP blocks for
 GPU upload on that same selected adapter.
 It performs no implicit colour conversion or GPU readback. Seeking uses the selected stream's
-native time base and replaces codec reorder/drain state while retaining the file demux owner.
-This prevents an old HEVC drain frame observed after buffer flushing in the pinned fixture.
-Already-returned frames retain independent reference-counted storage. Seek setup cost remains
-part of the later cold/warm seek and resource checks.
+native time base while retaining the file demux owner. During normal reading it flushes and
+reuses the admitted codec and hardware frame pool, avoiding pool creation for every scrub
+update. After drain/EOF it replaces the codec: the pinned HEVC fixture previously emitted an
+old drained frame after flushing. Already-returned frames retain independent reference-counted
+storage across either path. Physical seek latency/rate and recovery remain acceptance checks.
 
 The D3D11 decoder uses FFmpeg's public hardware-device and frame-pool APIs, not a hand-written
 copy of its platform ABI. A fresh DXGI lookup resolves the requested LUID, and every returned

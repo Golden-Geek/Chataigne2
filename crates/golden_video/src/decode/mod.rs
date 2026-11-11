@@ -335,7 +335,7 @@ impl Decoder {
             .map(|decoder| decoder.threading().count)
     }
 
-    /// Seek to a keyframe at/before an original stream timestamp with a fresh codec owner.
+    /// Seek to a keyframe at/before an original stream timestamp.
     /// The worker then decodes forward to its exact timestamp. This never estimates a frame
     /// index from FPS. A failed demux seek poisons the owner; an out-of-range timestamp does
     /// not disturb its current state. Clean EOF can be rewound without reopening the file.
@@ -353,20 +353,20 @@ impl Decoder {
                 return Err(DecodeError::OutsideStream);
             }
         }
-        // A discontinuity replaces codec-owned reorder/drain state rather than depending on
-        // avcodec_flush_buffers to discard every delayed frame. The admitted HEVC fixture
-        // emits an old drained frame after flush. Keep one demux/file owner; decoded images
-        // already handed to consumers retain their independent reference-counted storage.
-        let decoder = match if matches!(self.kind, DecoderKind::Hap) {
-            Ok(None)
-        } else {
-            open_decoder(&self.input, self.stream, self.limits, &self.kind).map(Some)
-        } {
-            Ok(decoder) => decoder,
-            Err(error) => {
-                self.state = DecodeState::Failed;
-                return Err(error);
+        // Ordinary scrubbing keeps the admitted codec and hardware frame pool. Recreating
+        // them per pointer update can starve the latest request. Drained HEVC can emit an
+        // old delayed frame after flush, so a drain/EOF discontinuity still gets a new codec.
+        // Consumers keep independent frame references across either path.
+        let replacement = if self.state != DecodeState::Reading && !matches!(self.kind, DecoderKind::Hap) {
+            match open_decoder(&self.input, self.stream, self.limits, &self.kind) {
+                Ok(decoder) => Some(decoder),
+                Err(error) => {
+                    self.state = DecodeState::Failed;
+                    return Err(error);
+                }
             }
+        } else {
+            None
         };
         // Keep the selected stream's exact time base, rather than converting through the
         // high-level Input::seek API's global microsecond coordinate.
@@ -384,7 +384,11 @@ impl Decoder {
             self.state = DecodeState::Failed;
             return Err(ffmpeg::Error::from(result).into());
         }
-        self.decoder = decoder;
+        if let Some(decoder) = replacement {
+            self.decoder = Some(decoder);
+        } else if let Some(decoder) = &mut self.decoder {
+            decoder.flush();
+        }
         self.state = DecodeState::Reading;
         Ok(())
     }

@@ -1108,12 +1108,16 @@ Library capability is not acceptance of any codec/profile in MapGyver.
    paused; playing seeks must remain responsive and continue from the latest requested position.
    Support continuous scrubbing with an immediate, smooth **25–30 fps feel** in both states,
    at least on this intraframe fixture. Measure input-to-present latency and distinct presented
-   seek updates (target at least 25/s under continuous input), alongside native visual review;
+   seek updates (target at least 25/s under continuous input on NVIDIA), alongside native visual review;
    a slider moving smoothly without fresh video pixels is insufficient. Preserve frame/timestamp
    accuracy, latest-request coalescing, stale-frame rejection, shared channel/Reference ownership,
    bounded queues and completion-safe D3D resource reuse. Verify rapid forward/backward seeks,
    endpoints, pause/play during scrubbing, repeated use and file/project/device recovery on both
    GPUs after software prerequisites. Retain cold/warm and codec-specific limits explicitly.
+   **2026-11-11 user revision:** Intel may have lower smooth-seek throughput than NVIDIA.
+   Record its measured rate/latency and limits; correct latest-frame seeking, transport state,
+   continued progress during input, ownership and recovery remain required on Intel. This
+   does not revise M10/4's separate rendering/performance budgets.
 7. **High priority — Matrix Video transport policy.** Owner: MapGyver's Video transport and
    Matrix activation/transition/demand backend, consuming public Golden runtime contracts.
    Add typed enum Parameters for Video in Matrix: **On Activate = Play from Start (default),

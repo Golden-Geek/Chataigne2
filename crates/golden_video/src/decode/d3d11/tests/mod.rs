@@ -181,9 +181,20 @@ fn hardware_frames_preserve_adapter_timestamps_seek_and_pool_leases_on_both_gpus
                 held.push(frame);
             }
             assert_eq!(held.len(), 6);
+            let mut warm_seeks = 0;
             for index in [0, 5, 2, 4, 1] {
                 let target = held[index].timestamp();
+                let warm = decoder.state == super::super::DecodeState::Reading;
+                let codec = unsafe { decoder.decoder.as_ref().unwrap().as_ptr() };
                 decoder.seek_before(target).unwrap();
+                if warm {
+                    warm_seeks += 1;
+                    assert_eq!(
+                        unsafe { decoder.decoder.as_ref().unwrap().as_ptr() },
+                        codec,
+                        "warm hardware seek retains its codec/pool"
+                    );
+                }
                 let mut found = None;
                 for _ in 0..6 {
                     let frame = decoder.next_frame().unwrap().unwrap();
@@ -196,9 +207,10 @@ fn hardware_frames_preserve_adapter_timestamps_seek_and_pool_leases_on_both_gpus
                 assert!(luma(frame.d3d11_frame().unwrap()).abs_diff(base_luma + index as u8 * 24) <= 3);
                 assert!(
                     luma(held[0].d3d11_frame().unwrap()).abs_diff(base_luma) <= 3,
-                    "old pool slot must survive each replacement decoder"
+                    "old pool slot must survive both warm and replacement seeks"
                 );
             }
+            assert!(warm_seeks > 0, "qualification must exercise warm hardware seek");
             drop(decoder);
             for (index, frame) in held.iter().enumerate() {
                 assert!(

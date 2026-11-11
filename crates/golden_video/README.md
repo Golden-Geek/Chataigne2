@@ -19,7 +19,9 @@ The implemented foundations are:
 - `color/` validates finite SDR premultiplied clear colors and unit-range opacity.
 - `decode/` (optional `ffmpeg` feature) demuxes local files and owns software decoder/frame
   lifetimes on a caller's worker. Original timestamps, planes and colour metadata survive;
-  exact stream-timestamp seeking replaces codec reorder state. Explicit admission limits and
+  exact stream-timestamp seeking flushes and reuses a reading codec/pool; drain/EOF seeks
+  replace the codec to discard delayed drain state. Returned frame references remain valid
+  across either path. Explicit admission limits and
   poisoned-error state prevent unbounded packet work or false clean completion. It does not
   own app transport, GPU readback or implicit colour conversion.
   `DecodeLimits::software_threads` explicitly selects one, two or four bounded software codec
