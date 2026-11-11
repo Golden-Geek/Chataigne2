@@ -89,7 +89,7 @@
 	"hardware": {
 		"result": "pass",
 		"log": "target/m10-warm-seek-hardware.log",
-    "adapters": ["Intel(R) Graphics", "NVIDIA GeForce RTX 5080 Laptop GPU"],
+		"adapters": ["Intel(R) Graphics", "NVIDIA GeForce RTX 5080 Laptop GPU"],
 		"profiles": ["h264-color.mp4", "hevc-main.mp4"],
 		"checks": "Exact original timestamps and native luma, warm codec retention, all six old hardware frame leases remain correct across warm/replacement seeks and decoder shutdown",
 		"test": "decode::d3d11::tests::hardware_frames_preserve_adapter_timestamps_seek_and_pool_leases_on_both_gpus"
@@ -144,9 +144,54 @@
 		"checks": "Both GPUs: six exact isolated paused seeks;120 paused and120 playing forward/backward intents; every sampled transport retains its mode; no source/UI error; final2000ms seek exact and paused; normal owned-app shutdown; pinned local libraries verified.",
 		"interpretation": "Normal codec/pool reuse substantially improves sampled decoder progress, especially Intel. Counts are decoder metadata, not physical presented FPS or latency. The original invalid call was not reproduced in either current baseline or corrected run; no causal fix claim for that historical error."
 	},
+	"recovery_followup": {
+		"product_code": "e600ee615788d3b17bdfa2390e58b0c94574cc0c",
+		"fixture": "apps/mapgyver/tests/browser/native-video-playback.mjs",
+		"nvidia": {
+			"artifact": "target/m10-warm-recovery-nvidia/video-playback.json",
+			"pid": 30496,
+			"profiles": 10,
+			"physical_pixel_checkpoints": 117,
+			"superseding_seek_bursts": 10,
+			"ui_requests": 1898,
+			"ui_receipts": 1898,
+			"normal_shutdown": true,
+			"project_reload": true
+		},
+		"intel": {
+			"artifact": "target/m10-warm-recovery-intel/video-playback.json",
+			"pid": 37024,
+			"profiles": 10,
+			"physical_pixel_checkpoints": 117,
+			"superseding_seek_bursts": 10,
+			"ui_requests": 1900,
+			"ui_receipts": 1900,
+			"normal_shutdown": true,
+			"project_reload": true
+		},
+		"checks": "All ten common/HAP profiles preserve exact seek and EOF/Stop pixels; chromatic8/10-bit and alpha/YCoCg oracles; missing/corrupt file retry and relink for H.264,HEVC10,ProRes4444,HAP alpha; independent Composition copy; shared Matrix/Reference routing and actual changing playback pixels; mixed-rate final-frame hold; project New retires output and reload resets runtime positions without replaying transport.",
+		"path": "Resident D3D11 backend events retained for supported H.264/HEVC profiles; five actual executable-local pinned DLL identities verified on both GPUs. No UI errors or rejected requests.",
+		"limits": "These independent physical pixels verify functional seeks/recovery, not >=25 continuous presented seek updates/s, latency, visual smoothness or combined device removal. Native timing diagnostics were disabled."
+	},
+	"reported_file_endpoints_and_handoffs": {
+		"fixture": "apps/mapgyver/tests/browser/native-video-seek.mjs",
+		"nvidia": {
+			"artifact": "target/m10-seek-endpoints-nvidia/seek.json",
+			"pid": 2876,
+			"normal_shutdown": true
+		},
+		"intel": {
+			"artifact": "target/m10-seek-endpoints-intel/seek.json",
+			"pid": 14916,
+			"normal_shutdown": true
+		},
+		"endpoints": "Paused duration8291.666666ms selects last actual frame8250ms; rewind selects exact0ms on both GPUs",
+		"handoffs": "Each GPU:120 continuous seek intents with actual Pause/Play changes at indices30,60,90; every inspected mode matches; no source/UI errors; final2000ms frame exact and paused. Original isolated and120-paused/120-playing checks also pass.",
+		"scope": "Exact decoder timestamps and transport state; no continuous physical presentation or latency claim"
+	},
 	"remaining": [
 		"Actual continuous paused/playing presented seek updates >=25/s on NVIDIA, measured Intel limits, input-to-present latency and native visual review",
-		"Endpoints, pause/play during scrubbing, repeated use, shared channel/Reference ownership and file/project/device recovery on both GPUs",
+		"Combined actual device removal/recovery after warm seeking on both GPUs; current tool token is not elevated",
 		"Cold/warm and codec-specific limits stay explicit"
 	],
 	"desktop": {

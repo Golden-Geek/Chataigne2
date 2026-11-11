@@ -217,6 +217,58 @@ try {
 		);
 		bursts.push({ playing, requests, samples, final });
 	}
+	const endpoints = [];
+	const duration = (await state()).source.duration_ms;
+	assert(Math.abs(duration - 8291.666667) < 0.01, 'reported199-frame intraframe fixture');
+	for (const [position_ms, expected_ms] of [
+		[duration, 8250],
+		[0, 0]
+	]) {
+		await edit({ kind: 'Video', media: reference.media, edit: { kind: 'Seek', position_ms } });
+		endpoints.push(
+			await wait(
+				state,
+				(value) => {
+					assert(!value.source.error, JSON.stringify(value));
+					assert.equal(value.transport.settings.mode, 'Paused');
+					return (
+						!value.transport.playing && Math.abs(value.frame?.position_ms - expected_ms) < 0.002
+					);
+				},
+				`exact endpoint${position_ms}`
+			)
+		);
+	}
+	const handoffs = [];
+	const handoffStarted = performance.now();
+	let playing = false;
+	for (let index = 0; index < 120; index++) {
+		await delay(Math.max(0, handoffStarted + index * 25 - performance.now()));
+		if (index > 0 && index % 30 === 0) {
+			playing = !playing;
+			await edit({
+				kind: 'Video',
+				media: reference.media,
+				edit: { kind: playing ? 'Play' : 'Pause' }
+			});
+		}
+		const position_ms = (((index * 37) % 180) * 1000) / 24;
+		await edit({ kind: 'Video', media: reference.media, edit: { kind: 'Seek', position_ms } });
+		const value = await state();
+		assert(!value.source.error, JSON.stringify(value));
+		assert.equal(value.transport.settings.mode, playing ? 'Playing' : 'Paused');
+		handoffs.push({ index, position_ms, playing, ...value });
+	}
+	await edit({ kind: 'Video', media: reference.media, edit: { kind: 'Pause' } });
+	await edit({ kind: 'Video', media: reference.media, edit: { kind: 'Seek', position_ms: 2000 } });
+	const handoffFinal = await wait(
+		state,
+		(value) => {
+			assert(!value.source.error, JSON.stringify(value));
+			return !value.transport.playing && Math.abs(value.frame?.position_ms - 2000) < 0.002;
+		},
+		'latest exact frame after pause/play handoffs'
+	);
 	assert.deepEqual(pageErrors, []);
 	report = {
 		result: 'pass',
@@ -227,6 +279,9 @@ try {
 		observations,
 		pageErrors,
 		bursts,
+		endpoints,
+		handoffs,
+		handoffFinal,
 		scope:
 			'Paused/playing seek correctness and source metadata only; no presented-pixel latency, continuous presented scrub rate or full M10/6 acceptance',
 		normalShutdown: false
