@@ -1,7 +1,7 @@
 {
 	"date": "2026-11-11",
 	"gate": "M10/6",
-	"result": "warm_seek_milestone_verified_gate_open",
+	"result": "warm_seek_and_genuine_device_recovery_verified_gate_open",
 	"accepted": false,
 	"user_revision": "2026-11-11: Intel may be less efficient than NVIDIA during smooth seeking. NVIDIA retains >=25 presented seek updates/s; Intel retains measured limits, continued progress, correct latest frame/state, ownership and recovery. Separate M10/4 budgets are unchanged.",
 	"scope": "Warm decoder/pool reuse and exact paused/playing seek correctness. Physical continuous presentation, latency and remaining recovery are still required.",
@@ -189,16 +189,69 @@
 		"handoffs": "Each GPU:120 continuous seek intents with actual Pause/Play changes at indices30,60,90; every inspected mode matches; no source/UI errors; final2000ms frame exact and paused. Original isolated and120-paused/120-playing checks also pass.",
 		"scope": "Exact decoder timestamps and transport state; no continuous physical presentation or latency claim"
 	},
+	"device_recovery_after_warm_seek": {
+		"build_log": "target/m10-warm-removal-build.jsonl",
+		"build_terminal_exit_code": 0,
+		"binary": "target/mapgyver-m10-warm-device-ready/MapGyverTests.exe",
+		"binary_sha256": "ecf590b4ed31af9a4d33a875cb2f8102c44be434ec48fe8ef9622f7d75b87902",
+		"prerequisites": "Retained640 app/288 Golden Video tests, strict all-target native-feature lint and direct both-GPU hardware warm-seek/held-frame tests cover unchanged product code; fresh native-feature harness compile terminates successfully before hardware runs.",
+		"preflight": {
+			"result": "pass",
+			"directory": "target/m034-removal-fd928027c14f4d49bf036db9efe369e5",
+			"pid": 31064,
+			"qualification_exit_code": 0,
+			"fixture_terminal": true,
+			"profiles_per_gpu": 8,
+			"shutdown_ms": 202.088,
+			"retirement": "Zero active file workers, CPU bytes and GPU admission on both GPUs"
+		},
+		"dxcap": {
+			"result": "pass_for_intel_removal_nvidia_healthy_control",
+			"directory": "target/m034-removal-7b0829d6e4a24d71bbfe8952441c2b61",
+			"pid": 46952,
+			"trigger_exit_code": 0,
+			"qualification_exit_code": 0,
+			"fixture_terminal": true,
+			"intel": { "affected": true, "old_generation": 1, "recovered_generation": 2 },
+			"nvidia": { "affected": false, "old_generation": 1, "current_generation": 1 },
+			"gpu_bytes_per_renderer_after_recovery": 441330300,
+			"shutdown_ms": 211.1796,
+			"checks": "Eight profiles per GPU seek fourth→zero before readiness. Genuine Intel device-generation change; automatic resident decode/output recovery; exact fresh fourth/zero Spout output pixels; authored files/geometry/transport/history retained; same physical GPUs; zero retiring generations and full worker/CPU/GPU retirement. NVIDIA remains a healthy control, not NVIDIA removal evidence."
+		},
+		"nvidia_targeted_cycle": {
+			"result": "pass_for_nvidia_removal_intel_healthy_control",
+			"directory": "target/m034-removal-0d9c3cec05fc4318b0656bd9a7cac528",
+			"pid": 23480,
+			"disable_exit_code": 0,
+			"disabled_problem_code": 22,
+			"enable_exit_code": 0,
+			"device_status_after": "OK",
+			"qualification_exit_code": 0,
+			"fixture_terminal": true,
+			"intel": { "affected": false, "old_generation": 1, "current_generation": 1 },
+			"nvidia": {
+				"affected": true,
+				"old_generation": 1,
+				"recovered_generation": 2,
+				"old_adapter": { "low": 1341946324, "high": 1 },
+				"recovered_adapter": { "low": 2039279374, "high": 1 },
+				"physical_id": "PCI\\VEN_10DE&DEV_2C59&SUBSYS_800F17AA&REV_A1\\813FD165DA2DB04800"
+			},
+			"gpu_bytes_per_renderer_after_recovery": 441330300,
+			"shutdown_ms": 263.1179,
+			"checks": "Seven-second NVIDIA disable verified by Windows problem22; exact device re-enabled successfully. Genuine NVIDIA generation change and new runtime adapter LUID preserve physical identity. All eight sources automatically recover resident/BC/software-upload routes and exact fresh fourth/zero output pixels; authored files/geometry/transport/history unchanged. Intel stays healthy. Both owners retire zero workers/CPU/GPU bytes within5s; no retiring generations remain. Final PnP inventory reports both display adapters OK."
+		},
+		"accepted_scope": "Genuine warm-seek device recovery verified on both GPUs with each GPU separately affected and the other preserved as a healthy control. Existing timeouts, pixel tolerances and resource budgets unchanged; no presentation-rate/latency/visual acceptance."
+	},
 	"remaining": [
 		"Actual continuous paused/playing presented seek updates >=25/s on NVIDIA, measured Intel limits, input-to-present latency and native visual review",
-		"Combined actual device removal/recovery after warm seeking on both GPUs; current tool token is not elevated",
 		"Cold/warm and codec-specific limits stay explicit"
 	],
 	"desktop": {
 		"blocked_audit": "2026-11-11 11:45 UTC: third consecutive goal turn with the same access blockers. Native pipe still missing(os error2); WindowsPrincipal.IsInRole(Administrator)=false. No owned MapGyver test process remains live. M10/7 and later gates require M10/6 acceptance, so no other selected task can advance. Prior turn classified no progress; no new acceptance or repeated experiment.",
 		"status": "Both installed computer-use interfaces report native pipe unavailable, os error2; prescribed retry/reset did not restore it. Alternate interface also reports browser host unavailable.",
 		"input_sent": false,
-		"terminal_elevation": "WindowsPrincipal.IsInRole(Administrator) reports false for the current tool process despite the IDE elevation report. Actual driver reset must use an elevated token; ordinary tests/builds remain available.",
-		"return_trigger": "Reconnect the existing computer-use host; resume the existing guarded desktop/QPC collector and owned-window review. No weakened foreground guard or replacement capture framework."
+		"terminal_elevation": "11:45 UTC blocked audit observed WindowsPrincipal.IsInRole(Administrator)=false. Resumed session11:50 UTC observes true, resolving the reset-token blocker. Desktop native pipe remains unavailable after a fresh kernel/binding recovery.",
+		"return_trigger": "Reconnect the existing computer-use host; re-enumerate current GPU identities because the targeted NVIDIA cycle changed its LUID, then resume the existing guarded desktop/QPC collector and owned-window review. No weakened foreground guard or replacement capture framework."
 	}
 }
