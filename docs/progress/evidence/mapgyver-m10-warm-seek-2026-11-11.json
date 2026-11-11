@@ -248,6 +248,15 @@
 		"Cold/warm and codec-specific limits stay explicit"
 	],
 	"desktop": {
+		"host_recovery_attempt": {
+			"date_utc": "2026-11-11 13:07–13:13",
+			"official_setup_url": "https://learn.chatgpt.com/docs/computer-use",
+			"baseline": "Windows StartApps registration and installed package manifest identify ChatGPT desktop; its registered ChatGPT.exe process was absent. Native pipe missing(os error2); command token elevated.",
+			"registered_application": "OpenAI.Codex_2p2nqsd0c76g0!App",
+			"action": "Started the installed app through its observed Windows launch registration. Registered ChatGPT.exe processes now run; no app UI or permission/settings action was automated.",
+			"result": "Existing supported native connection still reports missing pipe after fresh JavaScript-kernel initialization. Starting the desktop app alone did not restore the broker.",
+			"manual_return_action": "Check ChatGPT desktop Settings → Computer use → Control → Any App; complete Install/enable if shown and leave Windows unlocked. A setup-status question is pending. Retry only through the existing supported tool after setup; no private helper launch or alternate capture framework."
+		},
 		"blocked_audit": "2026-11-11 12:03 UTC: third consecutive resumed goal turn confirms native pipe missing(os error2). Administrator token is now true and genuine device recovery is verified on both GPUs; the earlier token blocker is resolved. No owned test process remains live. Only continuous physical seek rate/latency/native visual review remains; M10/7 and later gates require M10/6 acceptance. Prior turn was no progress; no repeated test, reset or acceptance claim. Resume when the existing computer-use host reconnects.",
 		"status": "Both installed computer-use interfaces report native pipe unavailable, os error2; prescribed retry/reset did not restore it. Alternate interface also reports browser host unavailable.",
 		"input_sent": false,
