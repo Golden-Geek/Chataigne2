@@ -248,7 +248,7 @@
 		"Cold/warm and codec-specific limits stay explicit"
 	],
 	"desktop": {
-		"blocked_audit": "2026-11-11 11:45 UTC: third consecutive goal turn with the same access blockers. Native pipe still missing(os error2); WindowsPrincipal.IsInRole(Administrator)=false. No owned MapGyver test process remains live. M10/7 and later gates require M10/6 acceptance, so no other selected task can advance. Prior turn classified no progress; no new acceptance or repeated experiment.",
+		"blocked_audit": "2026-11-11 12:03 UTC: third consecutive resumed goal turn confirms native pipe missing(os error2). Administrator token is now true and genuine device recovery is verified on both GPUs; the earlier token blocker is resolved. No owned test process remains live. Only continuous physical seek rate/latency/native visual review remains; M10/7 and later gates require M10/6 acceptance. Prior turn was no progress; no repeated test, reset or acceptance claim. Resume when the existing computer-use host reconnects.",
 		"status": "Both installed computer-use interfaces report native pipe unavailable, os error2; prescribed retry/reset did not restore it. Alternate interface also reports browser host unavailable.",
 		"input_sent": false,
 		"terminal_elevation": "11:45 UTC blocked audit observed WindowsPrincipal.IsInRole(Administrator)=false. Resumed session11:50 UTC observes true, resolving the reset-token blocker. Desktop native pipe remains unavailable after a fresh kernel/binding recovery.",
