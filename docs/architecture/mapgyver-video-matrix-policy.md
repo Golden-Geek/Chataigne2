@@ -4,12 +4,11 @@ MapGyver's Video owner declares **On Activate** and **On Deactivate** as real en
 Parameter children. They belong to the Video media, alongside its shared transport,
 not to a Reference, channel decoder, panel or Golden's codec runtime.
 
-Authoring provides settings and inspection. Committed Matrix **Cut** actions now
-use the runtime leases below; all nine policy pairs, replacement, shared owners,
-ordinary Cut/Stop triggers and hosted script calls are software-verified without
-a renderer. Configured/nonzero incoming activation, complete headless fade
-completion and native acceptance remain M10/7 work. Changing a setting alone
-leaves transport as it is.
+Authoring provides settings and inspection. Committed Matrix **Cut and configured**
+actions use the runtime leases below. Cut/Stop and hosted scripts share the same
+receipt boundary; configured activation and outgoing completion also work without
+a renderer. Full source-change/recovery and native acceptance remain M10/7 work.
+Changing a setting alone leaves transport as it is.
 
 The public Rust protocol defines `VideoOnActivate` (`PlayFromStart`, `Resume`,
 `Nothing`) and `VideoOnDeactivate` (`Stop`, `Pause`, `Nothing`). Defaults are
@@ -50,19 +49,33 @@ Matrix prepares canonical Video owners through its selected Cell media, followin
 Reference outputs to the existing owner. It stages only metadata with the edit
 completion receipt. `ChannelNode` reserves one coalesced Golden node wake for the
 Final channel; committed work runs after application, including headless callers.
-A failed/discarded receipt applies no Video action. Incoming Cut consumers are
+A failed/discarded receipt applies no Video action. Incoming consumers are
 admitted before outgoing release. Source selection and transport stay in the
 backend; neither a panel query nor a renderer is needed to start playback.
 
-Cut-to-configured outgoing consumers already follow the existing Matrix frame's
-clip lifetime: the clock stays playing through the actual fade and releases at
-settlement. Configured incoming activation and no-renderer transition completion
-are still unfinished; ordinary Play with a nonzero transition does not yet gain
-the new activation behavior. Nested Compositions/Matrices keep their own playback
-domains; a selected Video or Reference to Video receives this transport policy.
+Outgoing consumers follow the existing Matrix frame's clip lifetime. Once a shared
+render-time observation exists, committed transitions advance that same timeline
+from its observation plus elapsed monotonic time. They start at committed playback,
+rather than waiting for a later panel capture. Golden IO's bounded `DelayedNotifier`
+requests one coalesced node wake at the next transition boundary; it owns no payload
+or extra Video clock and adds no periodic node work. Continuing captures can settle
+the same frame earlier and cancel the wake. A replaced time authority retains the
+existing envelope contract: settle to the target. GPU completion remains separate.
 
-The remaining Matrix integration must apply activation at committed playback
-boundaries and defer **all** deactivation choices until the outgoing transition
+Before any frame is captured, outgoing uses wait the configured headless interval.
+A first capture contains the current incoming clips, not an unrendered history;
+there is no old visible contribution to retain. Interrupted headless destinations
+extend only the affected Layer's outgoing interval. Admission bounds logical uses
+to32 per Layer before committing, independently of lazy frame capture. Cut/Stop,
+Matrix disable/removal withdraw affected uses and cancel unnecessary deadlines; other
+active shared consumers retain their clock. Re-enabling a Matrix activates its
+latest committed destination. Disabled control owners retain the existing contract:
+ignore trigger delivery and never replay it after enable. Layer Stop retains today's immediate Cut contract;
+M14/10 will introduce its separately required transition resolution. Nested
+Compositions/Matrices keep their own playback domains; a selected Video or
+Reference to Video receives this transport policy.
+
+Committed playback defers **all** deactivation choices until the outgoing transition
 ends. `Pause` then retains position; `Stop` resets it; `Nothing` leaves transport
 unchanged. Outgoing content must keep moving until that boundary. Resolve shared
 Video owners once across channels and References, retain other active consumers,

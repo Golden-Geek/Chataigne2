@@ -2,7 +2,7 @@
 	"date": "2026-11-12",
 	"gate": "M10/7",
 	"accepted": false,
-	"result": "matrix_cut_functionally_verified_configured_activation_and_native_pending",
+	"result": "configured_and_headless_functionally_verified_native_pending",
 	"deliverable": "Video-owned On Activate and On Deactivate enum Parameters, generic Inspector metadata, typed public operations, command nodes, named script methods and generated contracts. Editing policies alone does not alter transport.",
 	"defaults": { "on_activate": "PlayFromStart", "on_deactivate": "Stop" },
 	"choices": {
@@ -135,12 +135,51 @@
 		],
 		"limits": "Tests/lint use task-local TAURI_CONFIG bundle.resources=[] while the user's running development app owns its DLLs. Rust checks retain full scope; DLL packaging/copying is not claimed. Protocol/UI consumers are unchanged and retain their earlier clean check. No native experiment was started for this partial Cut slice."
 	},
+	"configured_completion": {
+		"source": "apps/mapgyver/src/matrix/playback/timing.rs",
+		"behavior": "Configured/nonzero receipt-gated launches activate the selected shared Video owner. Outgoing clocks retain their uses through the same Matrix timeline. Once a render-time observation exists, commit advances that timeline using its immutable snapshot plus elapsed monotonic time; a cancellable Golden IO deadline schedules its next boundary. Before any frame capture, the configured headless interval governs outgoing uses. No periodic node updates, independent Video clock, new worker framework or fabricated GPU completion.",
+		"bounds_and_lifecycle": "Admission bounds headless interruption to32 uses per Layer before playback commit. Changed destinations extend only the affected Layer's headless interval. Scoped Stop includes outgoing logical columns/Layers before any frame capture; unrelated clocks continue. Matrix disable releases uses, re-enable applies its last committed destination, and disabled trigger owners retain the existing ignore/no-replay contract. Reactivation and explicit seek fence stale completion.",
+		"software": {
+			"exit_code": 0,
+			"passed": 667,
+			"failed": 0,
+			"ignored": 4,
+			"test_threads": 4,
+			"log": "target/m10-matrix-configured-tests-verified.log",
+			"new_tests": 7,
+			"scope": "All nine policies on real configured/headless launches; retained outgoing clock; deadline completion after captured rendering stops; outgoing Column/Layer Stop; disable/re-enable and ignored disabled launch; reactivation/manual seek;33rd-use rejection without activation and Cut recovery. Earlier Cut/authoring/contracts remain covered. No native moving-image claim."
+		},
+		"earlier_checks": [
+			{
+				"log": "target/m10-matrix-configured-tests.log",
+				"exit_code": 0,
+				"passed": 664,
+				"limit": "Before the final disable/Layer Stop/bounded admission cases and linear admission counting"
+			},
+			{
+				"log": "target/m10-matrix-configured-tests-qualified.log",
+				"exit_code": 101,
+				"passed": 665,
+				"failed": 2,
+				"correction": "Fixtures assumed disabled triggers update destinations and outer trigger acknowledgement means playback was admitted. Corrected to the established ignore/no-replay and deferred dispatch contracts, with explicit admission failure/no activation assertions. Product behavior and32-use bound were not relaxed."
+			}
+		],
+		"strict_lint": {
+			"result": "pass",
+			"exit_code": 0,
+			"all_targets": true,
+			"native_qualification": true,
+			"warnings_denied": true,
+			"log": "target/m10-matrix-configured-clippy.log",
+			"configuration": "Task-local TAURI_CONFIG resource-copy-only override; unchanged Rust targets/features and no checked-in configuration change"
+		},
+		"limits": "Same task-local resource-copy-only override protects the user's running app and locked FFmpeg DLLs; no packaging/copy proof. No UI/protocol change; retain earlier clean UI checks and current generated-contract tests. No native experiment in this partial slice. Today's immediate Layer Stop behavior remains; M14/10 still requires resolved fading Stop."
+	},
 	"remaining": [
-		"Extend receipt-gated activation from Cut to configured/nonzero incoming Video consumers",
-		"Defer Stop/Pause/Nothing until outgoing transition completion; keep moving outgoing frames and demand",
-		"Fence reactivation/interruption/deletion/project changes and retain still-shared consumers with one clock",
-		"Verify all runtime policy combinations, manual transport, Matrix enabled/Layer Stop contracts and actual native playback after software prerequisites"
+		"Reconcile selected canonical Video uses on active Cell/Reference/source-enable changes; verify deletion/history/project fences and no stale activation recipe",
+		"Complete configured shared/multi-Layer interruption and all-caller/copy/reload audit",
+		"Verify both GPUs' actual native moving incoming/outgoing images, policies, manual transport, shared clock, enabled/Stop lifecycle and retirement after software prerequisites"
 	],
-	"scope": "Authoring, shared-use boundary and actual committed Cut behavior are software verified. Configured incoming activation, complete headless/timed ownership and native M10/7 acceptance remain unfinished. M10/6 stays accepted with its Intel limit; separate M10/4 budgets are unchanged.",
+	"scope": "Authoring, shared-use boundary, committed Cut/configured activation and renderer-independent outgoing completion are software verified. Full source-lifecycle/caller audit and native M10/7 acceptance remain unfinished. M10/6 stays accepted with its Intel limit; separate M10/4 budgets are unchanged.",
 	"architecture": "docs/architecture/mapgyver-video-matrix-policy.md"
 }

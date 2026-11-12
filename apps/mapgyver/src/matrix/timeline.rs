@@ -231,6 +231,9 @@ pub(crate) struct Timeline {
     pub applications: super::applications::Applications,
 }
 impl Timeline {
+    pub(super) fn next_video_interval(&self) -> Option<Interval> {
+        self.frame.next
+    }
     pub(super) fn contains_video_clip(&self, layer: LayerId, column: ColumnId, version: u64, individual: bool) -> bool {
         self.frame.layer(layer).clips.iter().any(|entry| {
             entry.clip.column == column && entry.clip.version == version && entry.clip.individual == individual

@@ -15,6 +15,7 @@ use std::sync::{
     Arc, Mutex, OnceLock, Weak,
     atomic::{AtomicBool, Ordering},
 };
+mod timing;
 
 #[derive(Clone, Default)]
 pub(crate) struct PlaybackControl(Arc<Control>);
@@ -39,6 +40,9 @@ struct State {
     video_running: bool,
     video_error: Option<String>,
     waker: Option<golden_core::engine::NodeWaker>,
+    video_deadline: Option<golden_io::DelayedNotifier>,
+    video_deadline_armed: bool,
+    video_time: Option<timing::Observation>,
     configuration: Option<(u64, Arc<super::configuration::Configuration>)>,
     current: MatrixPlaybackSnapshot,
     version: u64,
@@ -96,10 +100,30 @@ impl RuntimeBinding {
 }
 
 impl PlaybackControl {
-    pub(crate) fn bind_video_waker(&self, waker: golden_core::engine::NodeWaker, enabled: bool) {
+    pub(super) fn admit_videos(&self, plan: &super::video::Prepared) -> Result<(), String> {
+        if self
+            .0
+            .state
+            .lock()
+            .expect("Matrix playback lock poisoned")
+            .videos
+            .accepts(plan)
+        {
+            Ok(())
+        } else {
+            Err("Matrix interrupted Video mix exceeds 32 retained uses per Layer".into())
+        }
+    }
+    pub(crate) fn bind_video_waker(&self, waker: golden_core::engine::NodeWaker, enabled: bool) -> Result<(), String> {
+        let timer_waker = waker.clone();
+        let deadline = golden_io::DelayedNotifier::new(golden_io::WorkerNotifier::new(move || {
+            let _ = timer_waker.wake();
+        }))?;
         let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
         state.waker = Some(waker);
+        state.video_deadline = Some(deadline);
         state.video_enabled = enabled;
+        Ok(())
     }
     pub(crate) fn video_enabled(&self, enabled: bool) {
         let waker = {
@@ -117,12 +141,15 @@ impl PlaybackControl {
         if !state.video_enabled {
             state.videos.clear();
             state.video_running = false;
+            state.cancel_video_deadline();
         } else if !state.video_running
             && let Some(plan) = state.video_plan.clone()
         {
-            state.video_error = state.videos.commit(&plan).err();
+            let order = state.order;
+            state.video_error = state.videos.commit(&plan, order, std::time::Instant::now()).err();
             state.video_running = true;
         }
+        state.advance_videos();
         state.video_error.clone()
     }
     pub(super) fn configuration(&self) -> Option<Arc<super::configuration::Configuration>> {
@@ -201,6 +228,8 @@ impl PlaybackControl {
         let State { timeline, videos, .. } = &mut *state;
         timeline.settle(time);
         videos.retain_timeline(timeline);
+        state.observe_video_time(time);
+        state.schedule_video_deadline();
     }
     pub fn with_frame<T>(
         &self,
@@ -228,7 +257,12 @@ impl PlaybackControl {
         // The installed timeline now carries the filtered mixes and suppressed targets.
         *cuts = super::stops::Cuts::default();
         videos.retain_frame(&frame);
-        capture(timeline, &frame, &desired).map(Some)
+        let result = capture(timeline, &frame, &desired).map(Some);
+        if let Some(time) = time {
+            state.observe_video_time(time);
+        }
+        state.schedule_video_deadline();
+        result
     }
     pub(crate) fn bind_sources(
         &self,
@@ -261,6 +295,7 @@ impl PlaybackControl {
     pub(super) fn retained_layers(&self) -> std::collections::HashSet<LayerId> {
         let state = self.0.state.lock().expect("Matrix playback lock poisoned");
         let mut layers = state.timeline.bindings.layers();
+        layers.extend(state.videos.layers());
         layers.extend(state.timeline.applications.layers());
         layers
     }
@@ -301,11 +336,14 @@ impl PlaybackControl {
                     state.current = desired;
                     if let Some(plan) = videos {
                         if state.video_enabled {
-                            state.video_error = state.videos.commit(&plan).err();
+                            state.video_error = state.videos.commit(&plan, order, std::time::Instant::now()).err();
                             state.video_running = true;
                         }
                         state.video_plan = Some(plan);
                     }
+                    let State { videos, cuts, .. } = &mut *state;
+                    videos.cut(cuts);
+                    state.advance_videos();
                     self.0.revision.advance();
                 }
                 EditCompletionStatus::Failed => {
@@ -367,6 +405,7 @@ impl PlaybackControl {
     pub(super) fn active_columns(&self) -> std::collections::HashSet<ColumnId> {
         let state = self.0.state.lock().expect("Matrix playback lock poisoned");
         let mut columns = state.timeline.columns();
+        columns.extend(state.videos.columns());
         columns.extend(state.current.desired_column);
         columns.extend(state.current.layers.iter().filter_map(|request| request.column));
         columns
@@ -378,6 +417,7 @@ impl PlaybackControl {
     ) {
         let state = self.0.state.lock().expect("Matrix playback lock poisoned");
         let mut retained = state.timeline.bindings.layers();
+        retained.extend(state.videos.layers());
         retained.extend(state.timeline.applications.layers());
         let requests = state
             .current
@@ -557,6 +597,7 @@ pub(super) fn launch(
         return Err("Matrix interrupted mix retains 32 runtime clips; use Cut or wait for completion".into());
     }
     let videos = super::video::Prepared::capture(engine, &desired, &index, control.authoring_revision())?;
+    control.admit_videos(&videos)?;
     let event = CustomEvent::from_latest_payload(MATRIX_PLAYBACK_EVENT, Some(parent), &desired)
         .map_err(|error| error.to_string())?;
     engine.edits.push(Edit::EmitCustomEvent { event });
@@ -639,6 +680,7 @@ pub(super) fn launch_cell(
     desired.layers = layers.into();
     desired.request_id = Some(launch);
     let videos = super::video::Prepared::capture(engine, &desired, &index, control.authoring_revision())?;
+    control.admit_videos(&videos)?;
     let event = CustomEvent::from_latest_payload(MATRIX_PLAYBACK_EVENT, Some(root_id), &desired)
         .map_err(|error| error.to_string())?;
     engine.edits.push(Edit::EmitCustomEvent { event });

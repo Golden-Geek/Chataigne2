@@ -200,6 +200,7 @@ pub(super) fn stop(engine: &mut AppEngine, media: MediaId, owner: NodeUuid) -> R
     desired.layers = requests.into();
     desired.request_id = Some(uuid::Uuid::new_v4());
     let videos = super::video::Prepared::capture(engine, &desired, &index, control.authoring_revision())?;
+    control.admit_videos(&videos)?;
     let event = CustomEvent::from_latest_payload(MATRIX_PLAYBACK_EVENT, Some(root), &desired)
         .map_err(|error| error.to_string())?;
     engine.edits.push(Edit::EmitCustomEvent { event });

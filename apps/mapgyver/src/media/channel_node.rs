@@ -280,7 +280,11 @@ impl Node for ChannelNode {
         self.register_video(ctx);
         if let Some(control) = self.matrix_playback() {
             match ctx.node_waker() {
-                Ok(waker) => control.bind_video_waker(waker, self.node_data().effective_enabled),
+                Ok(waker) => {
+                    if let Err(error) = control.bind_video_waker(waker, self.node_data().effective_enabled) {
+                        ctx.set_node_warning(self.id(), error);
+                    }
+                }
                 Err(error) => ctx.set_node_warning(self.id(), error.to_string()),
             }
         }
