@@ -1,10 +1,11 @@
 {
 	"date": "2026-11-11",
 	"gate": "M10/6",
-	"result": "warm_seek_and_genuine_device_recovery_verified_gate_open",
-	"accepted": false,
+	"result": "accepted_with_explicit_intel_throughput_allowance",
+	"accepted": true,
+	"accepted_date": "2026-11-12",
 	"user_revision": "2026-11-11: Intel may be less efficient than NVIDIA during smooth seeking. NVIDIA retains >=25 presented seek updates/s; Intel retains measured limits, continued progress, correct latest frame/state, ownership and recovery. Separate M10/4 budgets are unchanged.",
-	"scope": "Warm decoder/pool reuse and exact paused/playing seek correctness. Physical continuous presentation, latency and remaining recovery are still required.",
+	"scope": "Warm decoder/pool reuse, exact paused/playing seeks, genuine both-GPU recovery and native Inspector/image review. NVIDIA physical presentation meets >=25 updates/s. Intel normal-input progress is verified; its continuous desktop-readback stress result fails and remains explicit M10/4 qualification debt under the user's lower-throughput allowance. No Intel physical25FPS claim.",
 	"fixture": {
 		"path": "D:\\Documents\\MapGyver\\test videos\\ball_turn.mp4",
 		"sha256": "5063c411cd98b33d47506a4d20571f95decd5a98671244deb16708be5db4f0d7",
@@ -243,10 +244,89 @@
 		},
 		"accepted_scope": "Genuine warm-seek device recovery verified on both GPUs with each GPU separately affected and the other preserved as a healthy control. Existing timeouts, pixel tolerances and resource budgets unchanged; no presentation-rate/latency/visual acceptance."
 	},
-	"remaining": [
-		"Actual continuous paused/playing presented seek updates >=25/s on NVIDIA, measured Intel limits, input-to-present latency and native visual review",
-		"Cold/warm and codec-specific limits stay explicit"
-	],
+	"physical_presentation": {
+		"product_binary": "target/m10-warm-seek-app/MapGyver.exe",
+		"sha256": "f00e0fdc06ecf0f42d702fc67dda816e2832031710ae9153cbc86a8342c05375",
+		"fixtures": [
+			"apps/mapgyver/tests/browser/native-video-seek.mjs",
+			"apps/mapgyver/tests/browser/native-video-seek-pixels.mjs",
+			"apps/mapgyver/tests/browser/native-video-seek-control.mjs"
+		],
+		"method": "Existing guarded native desktop/QPC collector, foreground-owned Media Preview; 199 distinct paused source-frame pixel signatures, 120 unique seek intents per mode near40/s, monotonic request matching. Count actual changed pixels, not metadata or natural playback repeats. Playing permits at most two frames of clock advancement. Latency is conservative pre-intent-to-pixel-copy, not scanout/photon time. Desktop-wide protected-content flag does not identify the ROI: this ROI was visibly valid, nonblack and matched all199 distinct references.",
+		"environment": "Owned1500x1000 main window,125% laptop scaling,2560x1600/240Hz display, on battery; source1920x1080/24FPS. Intel desktop capture is independent of NVIDIA rendering.",
+		"nvidia": {
+			"directory": "target/m10-physical-preview-nvidia-verified",
+			"pid": 26136,
+			"normal_shutdown": true,
+			"paused": {
+				"input_per_second": 40.01847171945,
+				"presented_seek_updates_per_second": 35.64670590135924,
+				"matched_requests": 108,
+				"unknown_pixels": 0,
+				"latency_p50_ms": 47.0112,
+				"latency_p95_ms": 62.7595,
+				"latency_max_ms": 83.1313
+			},
+			"playing": {
+				"input_per_second": 40.0828414652,
+				"presented_seek_updates_per_second": 33.34622945425965,
+				"matched_requests": 101,
+				"unknown_pixels": 0,
+				"latency_p50_ms": 49.3965,
+				"latency_p95_ms": 59.8929,
+				"latency_max_ms": 67.8423
+			},
+			"final_request": "Request119 matches frame120 in both modes; paused exactness and playing mode retained."
+		},
+		"intel_readback_stress": {
+			"directory": "target/m10-physical-preview-intel-verified",
+			"pid": 24852,
+			"result": "failed_stress_limit_not_a_passing_rate",
+			"paused_presented_seek_updates_per_second": 0.23457608301666344,
+			"playing_presented_seek_updates_per_second": 0.27494740805978635,
+			"paused_matched_latency_ms": 1084.9592,
+			"playing_matched_latency_ms": 137.6668,
+			"unknown_pixels": 0,
+			"limit": "Only one actual changed image per mode; raw90/63 capture rows confirm this is not solely a matching failure. Readback completion25-89ms. Physical files complete, but parent later expires during visual-review wait and exits1: no normal-shutdown claim. First external control against the expiring parent fails ECONNRESET and is invalid."
+		},
+		"intel_without_continuous_readback": {
+			"directory": "target/m10-intel-native-review",
+			"pid": 22984,
+			"normal_shutdown": true,
+			"uncaptured_metadata": {
+				"paused_elapsed_ms": 2976.789,
+				"paused_samples": 395,
+				"paused_distinct_pts": 92,
+				"playing_elapsed_ms": 2983.2253,
+				"playing_samples": 414,
+				"playing_distinct_pts": 98
+			},
+			"native_observation": "Supported native window captures during continuous seeks show distinct real ball poses, then restored2s. Generic Inspector Current Position06.000 produces the expected different native image and exact paused6000ms frame. Metadata rates are not presented FPS; sparse native captures prove progress without assigning a physical rate. Read-only frame queries do not prepare/wake decoding.",
+			"interpretation": "Normal-input progress is confirmed; continuous readback appears to perturb Intel, but its driver-level cause and healthy physical rate/latency are unproven. Accept the revised M10/6 scope with this visible limitation; retain the stress result for M10/4."
+		},
+		"nvidia_native_review": {
+			"directory": "target/m10-nvidia-native-review",
+			"pid": 51508,
+			"normal_shutdown": true,
+			"check": "Actual native Media Preview changes from2s to Inspector06.000; exact paused6000ms frame, clean page and normal exit. No repeated rate experiment."
+		},
+		"failed_setup_artifacts": [
+			{
+				"directory": "target/m10-physical-seek-nvidia",
+				"result": "PID43160 activation wait expired during interruption; no rate run"
+			},
+			{
+				"directory": "target/m10-physical-preview-nvidia",
+				"result": "PID52092 aborted before calibration on erroneous desktop-wide protected-content assertion; no rate run"
+			},
+			{
+				"directory": "target/m10-physical-preview-nvidia-corrected",
+				"result": "PID4048 failed199-reference uniqueness because first calibration admitted old2s pixels as frame0; corrected by requiring an actual hash change for the first reference too. Independent first/last source frames differ."
+			}
+		]
+	},
+	"remaining": [],
+	"retained_qualification": "M10/4 retains unchanged cold/warm codec, cadence, age, resource/path/pool/soak budgets and the failed Intel continuous-readback stress result. Acceptance here does not qualify production playback or claim healthy Intel captured rate/latency.",
 	"desktop": {
 		"host_recovery_attempt": {
 			"date_utc": "2026-11-11 13:07–13:13",
@@ -258,9 +338,9 @@
 			"manual_return_action": "Check ChatGPT desktop Settings → Computer use → Control → Any App; complete Install/enable if shown and leave Windows unlocked. A setup-status question is pending. Retry only through the existing supported tool after setup; no private helper launch or alternate capture framework."
 		},
 		"blocked_audit": "2026-11-11 12:03 UTC: third consecutive resumed goal turn confirms native pipe missing(os error2). Administrator token is now true and genuine device recovery is verified on both GPUs; the earlier token blocker is resolved. No owned test process remains live. Only continuous physical seek rate/latency/native visual review remains; M10/7 and later gates require M10/6 acceptance. Prior turn was no progress; no repeated test, reset or acceptance claim. Resume when the existing computer-use host reconnects.",
-		"status": "Both installed computer-use interfaces report native pipe unavailable, os error2; prescribed retry/reset did not restore it. Alternate interface also reports browser host unavailable.",
-		"input_sent": false,
+		"status": "Resolved2026-11-12: supported @oai/sky native window selection, activation and capture work; both-GPU owned-window visual review completed. Earlier setup failures below are historical only.",
+		"input_sent": true,
 		"terminal_elevation": "11:45 UTC blocked audit observed WindowsPrincipal.IsInRole(Administrator)=false. Resumed session11:50 UTC observes true, resolving the reset-token blocker. Desktop native pipe remains unavailable after a fresh kernel/binding recovery.",
-		"return_trigger": "Reconnect the existing computer-use host; re-enumerate current GPU identities because the targeted NVIDIA cycle changed its LUID, then resume the existing guarded desktop/QPC collector and owned-window review. No weakened foreground guard or replacement capture framework."
+		"return_trigger": "None for M10/6. Existing setup/reset history is retained; user confirms desktop available. Continue M10/7, then return to separate M10/4 qualification."
 	}
 }

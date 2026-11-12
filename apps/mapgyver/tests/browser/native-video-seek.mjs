@@ -1,7 +1,7 @@
 // Owned-app correctness check for the reported intraframe seek regression.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
@@ -269,6 +269,118 @@ try {
 		},
 		'latest exact frame after pause/play handoffs'
 	);
+	let physical = null;
+	if (process.env.MAPGYVER_SEEK_PIXELS === '1') {
+		await page
+			.getByRole('tab')
+			.filter({ hasText: /^Medias$/ })
+			.click();
+		await page
+			.getByRole('region', { name: 'Medias', exact: true })
+			.getByRole('button', { name: 'Intraframe seek', exact: true })
+			.click();
+		await page
+			.getByRole('tab')
+			.filter({ hasText: /^Media Preview$/ })
+			.click();
+		const viewport = page.locator(
+			'.media-preview-panel .native-preview[data-preview-installed="true"]'
+		);
+		await viewport.waitFor({ state: 'visible' });
+		const outputs = JSON.parse(
+			execFileSync(
+				'python',
+				['apps/mapgyver/tests/native_output/window_state.py', String(native.app.pid), '--main'],
+				{ encoding: 'utf8', windowsHide: true }
+			)
+		);
+		assert.equal(outputs.length, 1);
+		await writeFile(
+			path.join(directory, 'physical-ready.json'),
+			JSON.stringify(
+				{
+					pid: native.app.pid,
+					selected,
+					output: outputs[0]
+				},
+				null,
+				2
+			)
+		);
+		const deadline = Date.now() + 8 * 60 * 1000;
+		while (
+			!(await access(path.join(directory, 'physical-start')).then(
+				() => true,
+				() => false
+			))
+		) {
+			assert(Date.now() < deadline, 'owned-window activation deadline');
+			await delay(100);
+		}
+		const { measureSeekPixels } = await import('./native-video-seek-pixels.mjs');
+		physical = await measureSeekPixels({
+			native,
+			directory,
+			viewport,
+			state,
+			seek: (position_ms) =>
+				edit({ kind: 'Video', media: reference.media, edit: { kind: 'Seek', position_ms } }),
+			mode: (playing) =>
+				edit({ kind: 'Video', media: reference.media, edit: { kind: playing ? 'Play' : 'Pause' } })
+		});
+	}
+	let visualReview = null;
+	if (process.env.MAPGYVER_SEEK_REVIEW === '1') {
+		const tab = (label) => page.getByRole('tab').filter({ hasText: new RegExp(`^${label}$`) });
+		await tab('Medias').click();
+		await page
+			.getByRole('region', { name: 'Medias', exact: true })
+			.getByRole('button', { name: 'Intraframe seek', exact: true })
+			.click();
+		await tab('Media Preview').click();
+		await wait(
+			state,
+			(value) => Math.abs(value.frame?.position_ms - 2000) < 0.002,
+			'review baseline'
+		);
+		await writeFile(
+			path.join(directory, 'visual-ready.json'),
+			JSON.stringify({ pid: native.app.pid, position_ms: 2000 })
+		);
+		async function reviewSignal(name) {
+			const end = Date.now() + 8 * 60 * 1000;
+			while (
+				!(await access(path.join(directory, name)).then(
+					() => true,
+					() => false
+				))
+			) {
+				assert(Date.now() < end, 'native visual review deadline');
+				await delay(100);
+			}
+		}
+		await reviewSignal('visual-next');
+		const input = page
+			.locator('.parameter-inspector')
+			.filter({ has: page.getByText('Current Position', { exact: true }) })
+			.locator('input.time-field');
+		await input.fill('00:00:06.000');
+		await input.press('Enter');
+		const final = await wait(
+			state,
+			(value) => {
+				assert(!value.source.error && !value.transport.playing, JSON.stringify(value));
+				return Math.abs(value.frame?.position_ms - 6000) < 0.002;
+			},
+			'native Inspector review seek'
+		);
+		await writeFile(
+			path.join(directory, 'visual-next-ready.json'),
+			JSON.stringify({ pid: native.app.pid, position_ms: 6000 })
+		);
+		await reviewSignal('visual-done');
+		visualReview = { baseline_ms: 2000, inspector_seek_ms: 6000, final };
+	}
 	assert.deepEqual(pageErrors, []);
 	report = {
 		result: 'pass',
@@ -282,8 +394,11 @@ try {
 		endpoints,
 		handoffs,
 		handoffFinal,
-		scope:
-			'Paused/playing seek correctness and source metadata only; no presented-pixel latency, continuous presented scrub rate or full M10/6 acceptance',
+		physical,
+		visualReview,
+		scope: physical
+			? 'Seek correctness plus physical Media Preview observations; hardware-specific rate acceptance and observer limits require the owning audit. Latency is a conservative pre-intent-to-pixel-copy bound, not scanout timing.'
+			: 'Paused/playing correctness and optional native visual review; decoder metadata is not presented FPS or latency',
 		normalShutdown: false
 	};
 } catch (error) {
