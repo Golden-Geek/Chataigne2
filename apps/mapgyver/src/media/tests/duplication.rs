@@ -67,6 +67,22 @@ fn source_media_and_variant_copies_preserve_settings_owned_files_and_independent
                 );
             }
             if kind == MediaKind::Video {
+                for edit in [
+                    crate::media::video::protocol::VideoEdit::OnActivate {
+                        policy: crate::media::video::protocol::VideoOnActivate::Resume,
+                    },
+                    crate::media::video::protocol::VideoEdit::OnDeactivate {
+                        policy: crate::media::video::protocol::VideoOnDeactivate::Pause,
+                    },
+                ] {
+                    apply(
+                        &mut engine,
+                        MediaEdit::Video {
+                            media: first.media,
+                            edit,
+                        },
+                    );
+                }
                 let id = engine.node_id_by_uuid(first.media.0).unwrap();
                 let crate::app::AppNode::Media(node) = engine.nodes.get(id).unwrap() else {
                     panic!()
@@ -140,6 +156,14 @@ fn source_media_and_variant_copies_preserve_settings_owned_files_and_independent
                 };
                 let original = control(first);
                 let duplicate = control(copy);
+                assert_eq!(
+                    duplicate.settings().unwrap().on_activate,
+                    crate::media::video::protocol::VideoOnActivate::Resume
+                );
+                assert_eq!(
+                    duplicate.settings().unwrap().on_deactivate,
+                    crate::media::video::protocol::VideoOnDeactivate::Pause
+                );
                 assert_eq!(original.settings().unwrap().position_ms, 1250.5);
                 assert_eq!(
                     duplicate.settings().unwrap().position_ms,

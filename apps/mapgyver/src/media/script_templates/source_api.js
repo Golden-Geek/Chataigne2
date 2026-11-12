@@ -16,6 +16,8 @@ function sourceExamples(mediaId, channelId, assetId) {
 	// local.seekVideo("seek", mediaId, 1250.5); // milliseconds; generic Inspector edits the same Parameter
 	// local.setVideoSpeed("speed", mediaId, 0.5); local.setVideoLoop("loop", mediaId, true);
 	// local.setVideoPlayAtLoad("load", mediaId, true);
+	// local.setVideoOnActivate("activate", mediaId, "Resume"); // PlayFromStart (default), Resume, Nothing
+	// local.setVideoOnDeactivate("deactivate", mediaId, "Pause"); // Stop (default), Pause, Nothing
 	// local.inspectVideoFrame("frame", mediaId, channelId); // null while timestamp preparation is pending
 	// local.inspectVideoSource("source", mediaId, channelId); // timing/decoded readiness, failure kind and retry state
 	// local.stepVideo("next", mediaId, channelId, "Next"); // commits a prepared exact timestamp; no FPS estimate

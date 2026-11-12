@@ -253,10 +253,43 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
         if *kind == MediaCommandKind::VideoPlayAtLoad {
             set(&mut engine, command, "video_play_at_load", ParamValue::Bool(true));
         }
+        if *kind == MediaCommandKind::VideoOnActivate {
+            set(
+                &mut engine,
+                command,
+                "video_on_activate",
+                ParamValue::Enum("Resume".into()),
+            );
+        }
+        if *kind == MediaCommandKind::VideoOnDeactivate {
+            set(
+                &mut engine,
+                command,
+                "video_on_deactivate",
+                ParamValue::Enum("Pause".into()),
+            );
+        }
         let before = to_sparse_project_json_pretty(&engine).unwrap();
         let history = engine.undo_len();
         let ack = invoke(&mut engine, MediaEdit::ExecuteCommand { command });
         assert!(ack.success, "{kind:?}: {ack:?}");
+        if matches!(
+            kind,
+            MediaCommandKind::VideoOnActivate | MediaCommandKind::VideoOnDeactivate
+        ) {
+            let snapshot = crate::media::video::authoring::inspect(&engine, target.media).unwrap();
+            if *kind == MediaCommandKind::VideoOnActivate {
+                assert_eq!(
+                    snapshot.settings.on_activate,
+                    crate::media::video::protocol::VideoOnActivate::Resume
+                );
+            } else {
+                assert_eq!(
+                    snapshot.settings.on_deactivate,
+                    crate::media::video::protocol::VideoOnDeactivate::Pause
+                );
+            }
+        }
         let after = to_sparse_project_json_pretty(&engine).unwrap();
         if before != after {
             assert_eq!(engine.undo_len(), history + 1, "{kind:?}");

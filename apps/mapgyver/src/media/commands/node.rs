@@ -90,6 +90,8 @@ use std::sync::Arc;
         video_speed: f64 = 1.0 [-16.0..16.0] (label = "Speed", constraint_policy = "reject");
         video_looping: bool = false (label = "Loop");
         video_play_at_load: bool = false (label = "Play at Load");
+        video_on_activate: Enum = "PlayFromStart" (label = "On Activate", enum_options = super::super::video::protocol::VideoOnActivate::options(), constraint_policy = "reject");
+        video_on_deactivate: Enum = "Stop" (label = "On Deactivate", enum_options = crate::parameters::enum_options(&["Stop", "Pause", "Nothing"]), constraint_policy = "reject");
         video_step_direction: Enum = "Next" (label = "Direction", enum_options = crate::parameters::enum_options(&["Previous", "Next"]), constraint_policy = "reject");
         direction: Enum = "Earlier" (
             label = "Direction",
@@ -179,6 +181,18 @@ impl MediaCommandNode {
                 media,
                 edit: super::super::video::protocol::VideoEdit::Loop {
                     looping: self.video_looping.get(),
+                },
+            },
+            MediaCommandKind::VideoOnActivate => MediaEdit::Video {
+                media,
+                edit: super::super::video::protocol::VideoEdit::OnActivate {
+                    policy: choice(self.video_on_activate.get_ref().as_str())?,
+                },
+            },
+            MediaCommandKind::VideoOnDeactivate => MediaEdit::Video {
+                media,
+                edit: super::super::video::protocol::VideoEdit::OnDeactivate {
+                    policy: choice(self.video_on_deactivate.get_ref().as_str())?,
                 },
             },
             MediaCommandKind::VideoStep => MediaEdit::Video {

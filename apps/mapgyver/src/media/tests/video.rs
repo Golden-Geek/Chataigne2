@@ -8,6 +8,8 @@ use golden_core::{
 };
 use std::time::Duration;
 
+mod policy;
+
 fn state(engine: &mut AppEngine, media: MediaId) -> VideoTransportSnapshot {
     let MediaEditResult::Video { snapshot } = apply(engine, MediaEdit::InspectVideo { media }) else {
         panic!()

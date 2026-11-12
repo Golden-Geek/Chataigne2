@@ -13,6 +13,8 @@ pub(super) const METHODS: &[&str] = &[
     "setVideoSpeed",
     "setVideoLoop",
     "setVideoPlayAtLoad",
+    "setVideoOnActivate",
+    "setVideoOnDeactivate",
     "stepVideo",
     "configureVideoFile",
     "inspectVideo",
@@ -80,8 +82,14 @@ fn reference(args: &[ParamValue]) -> Result<ChannelReference, String> {
 pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<MediaEdit>, String> {
     let count = match method {
         "playVideo" | "pauseVideo" | "stopVideo" | "inspectVideo" => 1,
-        "seekVideo" | "setVideoSpeed" | "setVideoLoop" | "setVideoPlayAtLoad" | "inspectVideoFrame"
-        | "inspectVideoSource" => 2,
+        "seekVideo"
+        | "setVideoSpeed"
+        | "setVideoLoop"
+        | "setVideoPlayAtLoad"
+        | "inspectVideoFrame"
+        | "inspectVideoSource"
+        | "setVideoOnActivate"
+        | "setVideoOnDeactivate" => 2,
         "stepVideo" | "configureVideoFile" => 3,
         "createMedia"
         | "addChannel"
@@ -155,6 +163,18 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
             edit: super::video::protocol::VideoEdit::Step {
                 channel: ChannelId(uuid(args, 1)?),
                 direction: choice(args, 2)?,
+            },
+        },
+        "setVideoOnActivate" => MediaEdit::Video {
+            media: MediaId(uuid(args, 0)?),
+            edit: super::video::protocol::VideoEdit::OnActivate {
+                policy: choice(args, 1)?,
+            },
+        },
+        "setVideoOnDeactivate" => MediaEdit::Video {
+            media: MediaId(uuid(args, 0)?),
+            edit: super::video::protocol::VideoEdit::OnDeactivate {
+                policy: choice(args, 1)?,
             },
         },
         "configureVideoFile" => MediaEdit::ConfigureVideoFile {

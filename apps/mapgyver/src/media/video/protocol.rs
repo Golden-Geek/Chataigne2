@@ -8,6 +8,61 @@ pub enum VideoPlaybackMode {
     Paused,
     Stopped,
 }
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum VideoOnActivate {
+    #[default]
+    PlayFromStart,
+    Resume,
+    Nothing,
+}
+impl VideoOnActivate {
+    pub(crate) fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "PlayFromStart" => Ok(Self::PlayFromStart),
+            "Resume" => Ok(Self::Resume),
+            "Nothing" => Ok(Self::Nothing),
+            _ => Err("unknown Video On Activate policy".into()),
+        }
+    }
+    pub(crate) fn key(self) -> &'static str {
+        match self {
+            Self::PlayFromStart => "PlayFromStart",
+            Self::Resume => "Resume",
+            Self::Nothing => "Nothing",
+        }
+    }
+    pub(crate) fn options() -> Vec<golden_core::parameter::ParameterEnumOption> {
+        let mut options = crate::parameters::enum_options(&["PlayFromStart", "Resume", "Nothing"]);
+        options[0].label = "Play from Start".into();
+        options
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum VideoOnDeactivate {
+    #[default]
+    Stop,
+    Pause,
+    Nothing,
+}
+impl VideoOnDeactivate {
+    pub(crate) fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "Stop" => Ok(Self::Stop),
+            "Pause" => Ok(Self::Pause),
+            "Nothing" => Ok(Self::Nothing),
+            _ => Err("unknown Video On Deactivate policy".into()),
+        }
+    }
+    pub(crate) fn key(self) -> &'static str {
+        match self {
+            Self::Stop => "Stop",
+            Self::Pause => "Pause",
+            Self::Nothing => "Nothing",
+        }
+    }
+}
 /// Authored transport options and current runtime intent; never an opaque persistence record.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct VideoTransportSettings {
@@ -16,6 +71,8 @@ pub struct VideoTransportSettings {
     pub speed: f64,
     pub looping: bool,
     pub play_at_load: bool,
+    pub on_activate: VideoOnActivate,
+    pub on_deactivate: VideoOnDeactivate,
 }
 impl Default for VideoTransportSettings {
     fn default() -> Self {
@@ -25,6 +82,8 @@ impl Default for VideoTransportSettings {
             speed: 1.0,
             looping: false,
             play_at_load: false,
+            on_activate: VideoOnActivate::default(),
+            on_deactivate: VideoOnDeactivate::default(),
         }
     }
 }
@@ -63,6 +122,12 @@ pub enum VideoEdit {
     },
     PlayAtLoad {
         enabled: bool,
+    },
+    OnActivate {
+        policy: VideoOnActivate,
+    },
+    OnDeactivate {
+        policy: VideoOnDeactivate,
     },
     Step {
         channel: super::super::protocol::ChannelId,

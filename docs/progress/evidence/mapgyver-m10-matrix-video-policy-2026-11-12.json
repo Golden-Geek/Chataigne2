@@ -1,0 +1,60 @@
+{
+	"date": "2026-11-12",
+	"gate": "M10/7",
+	"accepted": false,
+	"result": "typed_authoring_functionally_verified_matrix_application_pending",
+	"deliverable": "Video-owned On Activate and On Deactivate enum Parameters, generic Inspector metadata, typed public operations, command nodes, named script methods and generated contracts. Editing policies alone does not alter transport.",
+	"defaults": { "on_activate": "PlayFromStart", "on_deactivate": "Stop" },
+	"choices": {
+		"on_activate": ["PlayFromStart", "Resume", "Nothing"],
+		"on_deactivate": ["Stop", "Pause", "Nothing"]
+	},
+	"ownership": "MapGyver Video media owns Parameters and shared transport. References and channel decoders do not acquire independent settings/clocks. Golden remains app-agnostic.",
+	"authoring_check_scope": "All nine authored combinations, generic metadata/rejection, history/reload/copy, unchanged position/seek epoch, command execution and all four public callers; generated TypeScript, strict lint and UI checks.",
+	"validation": {
+		"generation": {
+			"exit_code": 0,
+			"command": "cargo run -p MapGyver --no-default-features --bin generate_media_protocol -- apps/mapgyver/ui/src/lib/media/generated",
+			"limit": "Reduced-feature generator build retains23 existing feature-gated dead-code warnings; strict lint uses the full native configuration."
+		},
+		"software": {
+			"result": "pass",
+			"exit_code": 0,
+			"passed": 643,
+			"failed": 0,
+			"ignored": 4,
+			"test_threads": 4,
+			"log": "target/m10-matrix-policy-tests-corrected.log",
+			"scope": "Includes all nine authored policy combinations, exact paused seek epoch/position preservation, ordinary Parameters/history/reload, independent media/shared-channel copies, command nodes and UI/direct/hosted/named QuickJS parity; generated media/screen contracts match Rust."
+		},
+		"ui": {
+			"result": "pass",
+			"exit_code": 0,
+			"command": "npm run check:mapgyver",
+			"errors": 0,
+			"warnings": 0
+		},
+		"strict_lint": {
+			"result": "pass",
+			"exit_code": 0,
+			"log": "target/m10-matrix-policy-clippy.log",
+			"command": "with-ffmpeg.ps1 clippy --package MapGyver --all-targets --features native-qualification -- -D warnings"
+		},
+		"formatting": "Root and Golden Core cargo fmt, authored JavaScript/docs/receipt Prettier and owned diff whitespace checks pass. Generated files retain their generator-owned format.",
+		"failed_initial_run": {
+			"log": "target/m10-matrix-policy-tests.log",
+			"exit_code": 101,
+			"passed": 640,
+			"failed": 3,
+			"corrections": "Update expected visible Video Parameter count13→15; keep the existing13-request burst within the unchanged lifetime bound and verify new methods through the separate four-caller policy cases; use an invalid boolean instead of a string Golden validly normalizes to an Enum. No production capacity increase or coercion change."
+		}
+	},
+	"remaining": [
+		"Apply activation policies at committed Matrix playback boundaries",
+		"Defer Stop/Pause/Nothing until outgoing transition completion; keep moving outgoing frames and demand",
+		"Fence reactivation/interruption/deletion/project changes and retain still-shared consumers with one clock",
+		"Verify all runtime policy combinations, manual transport, Matrix enabled/Layer Stop contracts and actual native playback after software prerequisites"
+	],
+	"scope": "Authoring slice only; no automatic Matrix transport application or M10/7 gate acceptance yet. M10/6 remains accepted with its explicit Intel limit; separate M10/4 budgets remain unchanged.",
+	"architecture": "docs/architecture/mapgyver-video-matrix-policy.md"
+}

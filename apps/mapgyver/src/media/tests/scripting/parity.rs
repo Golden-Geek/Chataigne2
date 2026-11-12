@@ -12,6 +12,7 @@ mod matrix;
 mod picture_file;
 mod reference_selection;
 mod target_picker;
+mod video_policy;
 
 #[derive(Clone, Copy, Debug)]
 enum Caller {
@@ -24,6 +25,14 @@ const CALLERS: [Caller; 4] = [Caller::Ui, Caller::QuickJs, Caller::HostedQuickJs
 
 fn named_invocation(operation: &MediaEdit) -> String {
     let (method, args) = match operation {
+        MediaEdit::Video {
+            media,
+            edit: crate::media::video::protocol::VideoEdit::OnActivate { policy },
+        } => ("setVideoOnActivate", serde_json::json!([media, policy])),
+        MediaEdit::Video {
+            media,
+            edit: crate::media::video::protocol::VideoEdit::OnDeactivate { policy },
+        } => ("setVideoOnDeactivate", serde_json::json!([media, policy])),
         MediaEdit::ConfigureReference { media, target } => (
             "configureReference",
             serde_json::json!([media, target.map(|id| id.0.0.to_string()).unwrap_or_default()]),
@@ -246,6 +255,11 @@ type ApplicationState = (
     crate::applications::protocol::ApplicationEnablement,
     crate::applications::protocol::ApplicationDefinition,
 );
+type VideoPolicyState = (
+    MediaId,
+    crate::media::video::protocol::VideoOnActivate,
+    crate::media::video::protocol::VideoOnDeactivate,
+);
 
 fn authored(
     engine: &AppEngine,
@@ -254,6 +268,7 @@ fn authored(
     Vec<crate::media::composition::protocol::CompositionSnapshot>,
     Vec<crate::matrix::protocol::MatrixSnapshot>,
     Vec<ApplicationState>,
+    Vec<VideoPolicyState>,
 ) {
     let catalog = inspect(engine);
     let references = catalog
@@ -287,7 +302,18 @@ fn authored(
         })
         .collect::<Vec<_>>();
     applications.sort_by_key(|(application, ..)| application.0.0);
-    (catalog, compositions, matrices, applications)
+    let policies = catalog
+        .media
+        .iter()
+        .filter(|media| media.media_kind == MediaKind::Video)
+        .map(|media| {
+            let settings = crate::media::video::authoring::inspect(engine, media.id)
+                .unwrap()
+                .settings;
+            (media.id, settings.on_activate, settings.on_deactivate)
+        })
+        .collect();
+    (catalog, compositions, matrices, applications, policies)
 }
 
 /// The observer is installed before measuring history. Only the operation itself earns a step.

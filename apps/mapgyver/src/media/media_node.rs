@@ -39,6 +39,12 @@ use std::sync::OnceLock;
         video_pause: ParamValue = ParamValue::Trigger() (label = "Pause", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
         video_stop: ParamValue = ParamValue::Trigger() (label = "Stop", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
         video_play_at_load: bool = false (label = "Play at Load", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
+        video_on_activate: Enum = "PlayFromStart" (label = "On Activate", description = "Matrix activation: restart, resume, or leave transport unchanged.",
+            dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video,
+            enum_options = super::video::protocol::VideoOnActivate::options(), constraint_policy = "reject");
+        video_on_deactivate: Enum = "Stop" (label = "On Deactivate", description = "Applied after the outgoing Matrix transition and final shared consumer release.",
+            dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video,
+            enum_options = crate::parameters::enum_options(&["Stop", "Pause", "Nothing"]), constraint_policy = "reject");
         video_current_position_ms: f64 = 0.0 [0.0..9000000000000.0] (label = "Current Position", widget = "time_slider", unit = "ms", transient_value = true,
             dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video, constraint_policy = "clamp_adapt");
         video_speed: f64 = 1.0 [-16.0..16.0] (label = "Speed", step = 0.01,
@@ -75,6 +81,10 @@ impl MediaNode {
         settings.speed = self.video_speed.get();
         settings.looping = self.video_looping.get();
         settings.play_at_load = self.video_play_at_load.get();
+        settings.on_activate =
+            super::video::protocol::VideoOnActivate::parse(self.video_on_activate.get_ref().as_str())?;
+        settings.on_deactivate =
+            super::video::protocol::VideoOnDeactivate::parse(self.video_on_deactivate.get_ref().as_str())?;
         settings.validate()?;
         Ok(settings)
     }
@@ -93,6 +103,12 @@ impl MediaNode {
             VideoEdit::Speed { speed } => vec![(self.video_speed.id(), ParamValue::Float(*speed))],
             VideoEdit::Loop { looping } => vec![(self.video_looping.id(), ParamValue::Bool(*looping))],
             VideoEdit::PlayAtLoad { enabled } => vec![(self.video_play_at_load.id(), ParamValue::Bool(*enabled))],
+            VideoEdit::OnActivate { policy } => {
+                vec![(self.video_on_activate.id(), ParamValue::Enum(policy.key().into()))]
+            }
+            VideoEdit::OnDeactivate { policy } => {
+                vec![(self.video_on_deactivate.id(), ParamValue::Enum(policy.key().into()))]
+            }
         }
     }
     fn video_parameter(&self, id: golden_core::node::NodeId) -> bool {
@@ -101,6 +117,8 @@ impl MediaNode {
             self.video_pause.id(),
             self.video_stop.id(),
             self.video_play_at_load.id(),
+            self.video_on_activate.id(),
+            self.video_on_deactivate.id(),
             self.video_current_position_ms.id(),
             self.video_speed.id(),
             self.video_looping.id(),
@@ -516,6 +534,12 @@ impl Node for MediaNode {
                 (id, ParamValue::Float(value)) if id == self.video_speed.id() => settings.speed = *value,
                 (id, ParamValue::Bool(value)) if id == self.video_looping.id() => settings.looping = *value,
                 (id, ParamValue::Bool(value)) if id == self.video_play_at_load.id() => settings.play_at_load = *value,
+                (id, ParamValue::Enum(value)) if id == self.video_on_activate.id() => {
+                    settings.on_activate = super::video::protocol::VideoOnActivate::parse(value)?;
+                }
+                (id, ParamValue::Enum(value)) if id == self.video_on_deactivate.id() => {
+                    settings.on_deactivate = super::video::protocol::VideoOnDeactivate::parse(value)?;
+                }
                 _ => return Err("invalid Video transport Parameter type".into()),
             }
             settings.validate()?;

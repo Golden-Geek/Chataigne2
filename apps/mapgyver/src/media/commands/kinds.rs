@@ -22,6 +22,8 @@ command_kinds! {
     VideoSpeed => "Set Video Speed", "Video", ["media", "video_speed"];
     VideoLoop => "Set Video Loop", "Video", ["media", "video_looping"];
     VideoPlayAtLoad => "Set Play at Load", "Video", ["media", "video_play_at_load"];
+    VideoOnActivate => "Set Video On Activate", "Video", ["media", "video_on_activate"];
+    VideoOnDeactivate => "Set Video On Deactivate", "Video", ["media", "video_on_deactivate"];
     VideoStep => "Step Video Frame", "Video", ["media", "channel", "video_step_direction"];
     VideoFile => "Set Video File", "Video", ["media", "channel", "video_file"];
     InspectVideo => "Inspect Video Transport", "Video", ["media"];
