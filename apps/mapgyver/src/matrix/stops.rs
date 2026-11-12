@@ -199,9 +199,10 @@ pub(super) fn stop(engine: &mut AppEngine, media: MediaId, owner: NodeUuid) -> R
     requests.sort_by_key(|request| request.layer.0.0);
     desired.layers = requests.into();
     desired.request_id = Some(uuid::Uuid::new_v4());
+    let videos = super::video::Prepared::capture(engine, &desired, &index, control.authoring_revision())?;
     let event = CustomEvent::from_latest_payload(MATRIX_PLAYBACK_EVENT, Some(root), &desired)
         .map_err(|error| error.to_string())?;
     engine.edits.push(Edit::EmitCustomEvent { event });
-    control.stage_with_stop(desired.clone(), engine.edits.completion(), Some(scope));
+    control.stage_with_stop(desired.clone(), engine.edits.completion(), Some(scope), Some(videos));
     Ok(MediaEditResult::MatrixPlayback { snapshot: desired })
 }

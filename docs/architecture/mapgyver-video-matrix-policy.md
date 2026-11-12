@@ -4,10 +4,12 @@ MapGyver's Video owner declares **On Activate** and **On Deactivate** as real en
 Parameter children. They belong to the Video media, alongside its shared transport,
 not to a Reference, channel decoder, panel or Golden's codec runtime.
 
-The authoring slice provides settings and inspection. The runtime-use boundary
-below applies those policies to explicit backend leases. Wiring actual Matrix
-playback to these leases and native acceptance remain M10/7 work; changing a
-setting alone leaves transport as it is.
+Authoring provides settings and inspection. Committed Matrix **Cut** actions now
+use the runtime leases below; all nine policy pairs, replacement, shared owners,
+ordinary Cut/Stop triggers and hosted script calls are software-verified without
+a renderer. Configured/nonzero incoming activation, complete headless fade
+completion and native acceptance remain M10/7 work. Changing a setting alone
+leaves transport as it is.
 
 The public Rust protocol defines `VideoOnActivate` (`PlayFromStart`, `Resume`,
 `Nothing`) and `VideoOnDeactivate` (`Stop`, `Pause`, `Nothing`). Defaults are
@@ -38,9 +40,26 @@ logical bookkeeping, so an old lease cannot act on a restored owner. Decoded/GPU
 frames retain their existing completion owners; a logical clock action fabricates
 no frame completion. Software policy tests use a zero playback rate for exact
 positions; moving native images still require the full Matrix integration checks.
-Ordinary Play rewinds at forward EOF and reverse zero. Matrix's literal zero-start
-and retained-position policies still need endpoint/reverse reconciliation in the
-next committed Cut slice before native acceptance.
+Ordinary Play rewinds at forward EOF and reverse zero. Matrix activation resumes
+the exact coordinate instead: Play from Start selects zero even with reverse
+speed; Resume retains an endpoint. Late duration readiness follows the same rule.
+Explicit seeks also retain their requested coordinate while playing; an explicit
+Play retains its existing endpoint-rewind behavior.
+
+Matrix prepares canonical Video owners through its selected Cell media, following
+Reference outputs to the existing owner. It stages only metadata with the edit
+completion receipt. `ChannelNode` reserves one coalesced Golden node wake for the
+Final channel; committed work runs after application, including headless callers.
+A failed/discarded receipt applies no Video action. Incoming Cut consumers are
+admitted before outgoing release. Source selection and transport stay in the
+backend; neither a panel query nor a renderer is needed to start playback.
+
+Cut-to-configured outgoing consumers already follow the existing Matrix frame's
+clip lifetime: the clock stays playing through the actual fade and releases at
+settlement. Configured incoming activation and no-renderer transition completion
+are still unfinished; ordinary Play with a nonzero transition does not yet gain
+the new activation behavior. Nested Compositions/Matrices keep their own playback
+domains; a selected Video or Reference to Video receives this transport policy.
 
 The remaining Matrix integration must apply activation at committed playback
 boundaries and defer **all** deactivation choices until the outgoing transition

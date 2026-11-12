@@ -42,6 +42,7 @@ mod stops;
 mod timeline;
 mod transition_metadata;
 mod validation;
+mod video;
 mod view;
 
 fn fixture() -> AppEngine {

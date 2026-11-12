@@ -29,6 +29,7 @@ struct State {
     manual_revision: u64,
     matrix_uses: matrix::Uses,
     matrix_generation: uuid::Uuid,
+    retain_play_position: bool,
 }
 
 /// Shared per-media runtime control, retained by demanded sources rather than per Reference.
@@ -58,6 +59,7 @@ impl Default for VideoControl {
                 manual_revision: 0,
                 matrix_uses: Default::default(),
                 matrix_generation: uuid::Uuid::new_v4(),
+                retain_play_position: false,
             }),
             Default::default(),
         )
@@ -93,6 +95,7 @@ impl VideoControl {
         state.ready_once = !state.transport.duration().is_zero();
         state.load_pending = settings.play_at_load && !state.ready_once;
         state.explicit_mode = false;
+        state.retain_play_position = false;
         state.input_time = None;
         state.seek_pending = true;
         state.settings = settings;
@@ -111,6 +114,7 @@ impl VideoControl {
             .checked_add(1)
             .ok_or("Video intent revision exhausted")?;
         state.explicit_mode = true;
+        state.retain_play_position = false;
         state.load_pending = false;
         state.settings.mode = mode;
         if mode == VideoPlaybackMode::Stopped {
@@ -485,6 +489,13 @@ impl VideoControl {
                 .checked_add(1)
                 .ok_or("Video intent revision exhausted")?;
         }
+        if explicit || state.settings.play_at_load != settings.play_at_load {
+            state.retain_play_position = false;
+        }
+        if seek || state.settings.position_ms != settings.position_ms {
+            // Seek selects an exact coordinate; only an explicit Play rewinds terminal edges.
+            state.retain_play_position = true;
+        }
         if explicit {
             state.explicit_mode = true;
             state.load_pending = false;
@@ -634,6 +645,9 @@ impl State {
             self.seek_pending = false;
         }
         match self.settings.mode {
+            VideoPlaybackMode::Playing if play_requested && self.retain_play_position => {
+                self.transport.resume_position()
+            }
             VideoPlaybackMode::Playing if play_requested => self.transport.play(),
             VideoPlaybackMode::Playing => Ok(()),
             VideoPlaybackMode::Paused => self.transport.pause(),

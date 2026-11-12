@@ -180,6 +180,19 @@ impl<C: Clock> MediaTransport<C> {
         self.reanchor(position, true)
     }
 
+    /// Resume the exact retained coordinate, including terminal boundaries. Matrix activation
+    /// chooses this behavior explicitly instead of ordinary Play's endpoint rewind.
+    pub(super) fn resume_position(&mut self) -> Result<(), TransportError> {
+        if self.duration == 0 {
+            return Err(TransportError::NoDuration);
+        }
+        let current = self.sample()?;
+        if current.playing {
+            return Ok(());
+        }
+        self.reanchor(nanos(current.position)?, true)
+    }
+
     /// Freeze at the current shared position, without changing the chosen rate.
     pub fn pause(&mut self) -> Result<(), TransportError> {
         let current = self.sample()?;

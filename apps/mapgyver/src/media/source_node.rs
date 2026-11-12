@@ -10,6 +10,27 @@ pub(crate) struct MediaSource {
     pub channel: Option<ChannelId>,
 }
 impl MediaSource {
+    /// Resolve only selected Video media (including Reference chains), never independent
+    /// clocks for mirrors or transport actions on a Composition/Matrix's descendants.
+    pub fn video_owner(
+        self,
+        engine: &AppEngine,
+    ) -> Result<Option<(MediaId, std::sync::Arc<super::video::VideoControl>)>, String> {
+        let Some(output) = self.capture(engine, &mut Vec::new())? else {
+            return Ok(None);
+        };
+        let reference = super::reference::Resolver::new(engine).canonical(output)?;
+        let Some(AppNode::Media(node)) = engine
+            .node_id_by_uuid(reference.media.0)
+            .and_then(|id| engine.nodes.get(id))
+        else {
+            return Ok(None);
+        };
+        if !node.node_data().effective_enabled {
+            return Ok(None);
+        }
+        Ok(node.video_control().map(|control| (reference.media, control)))
+    }
     pub fn output(self, engine: &AppEngine) -> Result<Option<ChannelReference>, String> {
         let channel = match self.channel {
             Some(channel) => Some(channel),

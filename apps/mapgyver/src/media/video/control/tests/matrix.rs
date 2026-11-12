@@ -206,3 +206,56 @@ fn a_late_reference_to_outgoing_content_preserves_newer_manual_transport() {
     assert_eq!(control.sample().unwrap().position, Duration::from_millis(2500));
     assert_eq!(control.sample().unwrap().epoch, epoch);
 }
+
+#[test]
+fn matrix_zero_start_and_resume_do_not_use_manual_plays_endpoint_rewind() {
+    for (policy, speed, position) in [
+        (VideoOnActivate::PlayFromStart, -1.0, 2500.0),
+        (VideoOnActivate::Resume, 1.0, 10000.0),
+        (VideoOnActivate::Resume, -1.0, 0.0),
+    ] {
+        let control = control(policy, VideoOnDeactivate::Nothing);
+        let mut settings = control.settings().unwrap();
+        settings.speed = speed;
+        settings.position_ms = position;
+        control.configure(settings, true, None).unwrap();
+        let lease = control.activate_for_matrix(uuid::Uuid::new_v4()).unwrap();
+        assert_eq!(
+            control.sample().unwrap().position,
+            Duration::from_secs_f64(if policy == VideoOnActivate::PlayFromStart {
+                0.0
+            } else {
+                position / 1000.0
+            })
+        );
+        lease.finish().unwrap();
+    }
+    let control = Arc::new(VideoControl::default());
+    let mut settings = control.settings().unwrap();
+    settings.speed = -1.0;
+    control.configure(settings, false, None).unwrap();
+    let lease = control.activate_for_matrix(uuid::Uuid::new_v4()).unwrap();
+    control.prepare(Duration::from_secs(10)).unwrap();
+    assert_eq!(
+        control.sample().unwrap().position,
+        Duration::ZERO,
+        "late duration readiness retains the Matrix start rule"
+    );
+    lease.finish().unwrap();
+}
+
+#[test]
+fn playing_seek_retains_eof_while_explicit_play_still_rewinds() {
+    let control = control(VideoOnActivate::Resume, VideoOnDeactivate::Nothing);
+    let mut settings = control.settings().unwrap();
+    settings.speed = 1.0;
+    control.configure(settings, false, None).unwrap();
+    let lease = control.activate_for_matrix(uuid::Uuid::new_v4()).unwrap();
+    let mut settings = control.settings().unwrap();
+    settings.position_ms = 10000.0;
+    control.configure(settings, true, None).unwrap();
+    assert_eq!(control.sample().unwrap().position, Duration::from_secs(10));
+    control.command(VideoPlaybackMode::Playing).unwrap();
+    assert!(control.sample().unwrap().position < Duration::from_secs(1));
+    lease.finish().unwrap();
+}

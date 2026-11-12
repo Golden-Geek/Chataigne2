@@ -1,6 +1,61 @@
 use super::*;
 
 #[test]
+fn hosted_matrix_cut_activates_video_after_commit_without_render_or_playback_query() {
+    use crate::matrix::protocol::*;
+    let mut engine = fixture();
+    let video = create(&mut engine, MediaKind::Video);
+    let id = engine.node_id_by_uuid(video.media.0).unwrap();
+    let AppNode::Media(node) = engine.nodes.get(id).unwrap() else {
+        panic!()
+    };
+    let control = node.video_control().unwrap();
+    control.prepare(std::time::Duration::from_secs(10)).unwrap();
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    let snapshot = crate::matrix::inspect(&engine, matrix.media).unwrap();
+    let row = snapshot
+        .items
+        .iter()
+        .find_map(|item| match item.id {
+            MatrixItemId::Layer { id } => Some(id),
+            _ => None,
+        })
+        .unwrap();
+    let column = snapshot.columns[0].id;
+    apply(
+        &mut engine,
+        MediaEdit::Matrix {
+            media: matrix.media,
+            edit: MatrixEdit::DropSource {
+                layer: row,
+                column,
+                source: video.media.0,
+                copy: false,
+            },
+        },
+    );
+    script(
+        &mut engine,
+        format!(
+            "function init(){{local.listen({{level:1}});local.launchMatrixColumn('cut','{}','{}','Cut');}} function onAppOperationResult(reply){{gc.emit('media-method-reply',reply);}}",
+            matrix.media.0.0, column.0.0
+        ),
+    );
+    service_script_app_operations(&mut engine).unwrap();
+    // The named method commits a typed trigger; its Matrix control intent is serviced next.
+    service_script_app_operations(&mut engine).unwrap();
+    engine.run_tick(std::time::Duration::from_millis(1)).unwrap();
+    let replies = replies(&engine);
+    assert_eq!(replies.len(), 1);
+    assert_eq!(replies[0]["status"], "applied", "{replies:?}");
+    assert_eq!(
+        control.settings().unwrap().mode,
+        crate::media::video::protocol::VideoPlaybackMode::Playing
+    );
+    assert!(control.sample().unwrap().playing);
+}
+
+#[test]
 fn hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection() {
     let mut engine = fixture();
     let reference = create(&mut engine, MediaKind::Video);

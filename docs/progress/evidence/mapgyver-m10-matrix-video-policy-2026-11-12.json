@@ -2,7 +2,7 @@
 	"date": "2026-11-12",
 	"gate": "M10/7",
 	"accepted": false,
-	"result": "authoring_and_explicit_shared_use_boundary_verified_matrix_application_pending",
+	"result": "matrix_cut_functionally_verified_configured_activation_and_native_pending",
 	"deliverable": "Video-owned On Activate and On Deactivate enum Parameters, generic Inspector metadata, typed public operations, command nodes, named script methods and generated contracts. Editing policies alone does not alter transport.",
 	"defaults": { "on_activate": "PlayFromStart", "on_deactivate": "Stop" },
 	"choices": {
@@ -93,13 +93,54 @@
 		},
 		"integration_decision": "Retain leases through the actual outgoing transition. An independent timer could stop too early: existing fades begin when their render plan is captured. Next deliver committed Cut activation/replacement with canonical shared Video owners, then nonzero transitions and renderer-independent/headless completion. No new diagnostic framework or clock-budget revision."
 	},
+	"committed_cut": {
+		"source": "apps/mapgyver/src/matrix/video.rs",
+		"behavior": "Prepare selected canonical Video/Reference owners with the Matrix edit receipt. A coalesced Final-channel Golden node wake services committed Cut/Stop work without a panel query or renderer. Discarded receipts cause no Video action. Incoming shared uses precede outgoing release. All nine policy pairs, replacement/reentry, shared two-Matrix ownership, ordinary trigger and hosted script paths pass. Cut-to-configured outgoing clocks follow the actual frame clip lifetime; configured incoming activation is still unfinished.",
+		"endpoints": "Matrix zero-start and Resume retain exact forward EOF/reverse-zero coordinates, including late duration readiness. Playing seeks retain requested EOF; explicit ordinary Play keeps its endpoint rewind behavior.",
+		"software": {
+			"exit_code": 0,
+			"passed": 660,
+			"failed": 0,
+			"ignored": 4,
+			"test_threads": 4,
+			"log": "target/m10-matrix-cut-tests-verified.log",
+			"new_tests": 9,
+			"scope": "Real engine operations and coalesced wakes, no Matrix query/renderer needed; all nine pairs, same-column reactivation, two Matrices/nested References, discarded receipt, ordinary Cut/Stop Parameters, named hosted script and actual Matrix-frame outgoing retention. Controller endpoint/reverse and playing-EOF seek regressions also pass. No native moving-image claim."
+		},
+		"strict_lint": {
+			"result": "pass",
+			"exit_code": 0,
+			"log": "target/m10-matrix-cut-clippy.log",
+			"configuration": "Same task-local resource-copy override as the runtime boundary; all native-qualification targets and warnings denied."
+		},
+		"earlier_checks": [
+			{
+				"log": "target/m10-matrix-cut-tests.log",
+				"exit_code": 0,
+				"passed": 655,
+				"limit": "Initial Cut/controller suite; unused test import subsequently removed"
+			},
+			{
+				"log": "target/m10-matrix-cut-tests-final.log",
+				"exit_code": 101,
+				"passed": 658,
+				"failed": 1,
+				"correction": "Hosted named method commits a typed trigger, whose nested Matrix control requires the existing second bounded app-operation service turn; fixture now services both before asserting transport."
+			},
+			{
+				"log": "target/m10-matrix-cut-tests-qualified.log",
+				"exit_code": 101,
+				"correction": "Added an explicit canonical Video owner cache value type after using HashMap Entry; no runtime experiment ran from the failing compile."
+			}
+		],
+		"limits": "Tests/lint use task-local TAURI_CONFIG bundle.resources=[] while the user's running development app owns its DLLs. Rust checks retain full scope; DLL packaging/copying is not claimed. Protocol/UI consumers are unchanged and retain their earlier clean check. No native experiment was started for this partial Cut slice."
+	},
 	"remaining": [
-		"Reconcile Matrix Resume at EOF and PlayFromStart with reverse rates against ordinary Play's endpoint rewind behavior; the current exact-position controller oracle uses rate0. Include this in the next actual Cut slice before native acceptance.",
-		"Apply activation policies at committed Matrix playback boundaries",
+		"Extend receipt-gated activation from Cut to configured/nonzero incoming Video consumers",
 		"Defer Stop/Pause/Nothing until outgoing transition completion; keep moving outgoing frames and demand",
 		"Fence reactivation/interruption/deletion/project changes and retain still-shared consumers with one clock",
 		"Verify all runtime policy combinations, manual transport, Matrix enabled/Layer Stop contracts and actual native playback after software prerequisites"
 	],
-	"scope": "Authoring and explicit Rust shared-use boundary only; automatic Matrix application and native M10/7 acceptance remain unfinished. M10/6 remains accepted with its explicit Intel limit; separate M10/4 budgets remain unchanged.",
+	"scope": "Authoring, shared-use boundary and actual committed Cut behavior are software verified. Configured incoming activation, complete headless/timed ownership and native M10/7 acceptance remain unfinished. M10/6 stays accepted with its Intel limit; separate M10/4 budgets are unchanged.",
 	"architecture": "docs/architecture/mapgyver-video-matrix-policy.md"
 }

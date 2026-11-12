@@ -83,6 +83,7 @@ impl MatrixVideoUse {
                 VideoOnDeactivate::Nothing => false,
                 VideoOnDeactivate::Stop => {
                     state.settings.mode = VideoPlaybackMode::Stopped;
+                    state.retain_play_position = false;
                     state.settings.position_ms = 0.0;
                     state.seek_pending = false;
                     state.explicit_mode = true;
@@ -92,6 +93,7 @@ impl MatrixVideoUse {
                 }
                 VideoOnDeactivate::Pause => {
                     state.settings.mode = VideoPlaybackMode::Paused;
+                    state.retain_play_position = false;
                     state.explicit_mode = true;
                     state.load_pending = false;
                     state.apply(false)?;
@@ -151,6 +153,7 @@ impl VideoControl {
                         state.seek_pending = true;
                     }
                     state.settings.mode = VideoPlaybackMode::Playing;
+                    state.retain_play_position = true;
                     state.explicit_mode = true;
                     state.load_pending = false;
                     state.apply(true)?;

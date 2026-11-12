@@ -33,6 +33,12 @@ struct Control {
 }
 #[derive(Default)]
 struct State {
+    videos: super::video::Playback,
+    video_plan: Option<Arc<super::video::Prepared>>,
+    video_enabled: bool,
+    video_running: bool,
+    video_error: Option<String>,
+    waker: Option<golden_core::engine::NodeWaker>,
     configuration: Option<(u64, Arc<super::configuration::Configuration>)>,
     current: MatrixPlaybackSnapshot,
     version: u64,
@@ -47,6 +53,7 @@ struct State {
     application_axis: Option<(u64, Arc<super::application_axis::ApplicationAxis>)>,
 }
 struct Pending {
+    videos: Option<Arc<super::video::Prepared>>,
     desired: MatrixPlaybackSnapshot,
     receipt: EditCompletion,
     version: u64,
@@ -89,6 +96,35 @@ impl RuntimeBinding {
 }
 
 impl PlaybackControl {
+    pub(crate) fn bind_video_waker(&self, waker: golden_core::engine::NodeWaker, enabled: bool) {
+        let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
+        state.waker = Some(waker);
+        state.video_enabled = enabled;
+    }
+    pub(crate) fn video_enabled(&self, enabled: bool) {
+        let waker = {
+            let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
+            state.video_enabled = enabled;
+            state.waker.clone()
+        };
+        if let Some(waker) = waker {
+            let _ = waker.wake();
+        }
+    }
+    pub(crate) fn service_videos(&self) -> Option<String> {
+        self.snapshot();
+        let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
+        if !state.video_enabled {
+            state.videos.clear();
+            state.video_running = false;
+        } else if !state.video_running
+            && let Some(plan) = state.video_plan.clone()
+        {
+            state.video_error = state.videos.commit(&plan).err();
+            state.video_running = true;
+        }
+        state.video_error.clone()
+    }
     pub(super) fn configuration(&self) -> Option<Arc<super::configuration::Configuration>> {
         self.0
             .state
@@ -161,12 +197,10 @@ impl PlaybackControl {
         self.0.authored.reader().current()
     }
     pub fn settle(&self, time: golden_time::TimeSnapshot) {
-        self.0
-            .state
-            .lock()
-            .expect("Matrix playback lock poisoned")
-            .timeline
-            .settle(time);
+        let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
+        let State { timeline, videos, .. } = &mut *state;
+        timeline.settle(time);
+        videos.retain_timeline(timeline);
     }
     pub fn with_frame<T>(
         &self,
@@ -185,6 +219,7 @@ impl PlaybackControl {
             epochs,
             launch_orders,
             cuts,
+            videos,
             ..
         } = &mut *state;
         let Some(frame) = timeline.frame(&desired, time, version, epochs, launch_orders, cuts)? else {
@@ -192,6 +227,7 @@ impl PlaybackControl {
         };
         // The installed timeline now carries the filtered mixes and suppressed targets.
         *cuts = super::stops::Cuts::default();
+        videos.retain_frame(&frame);
         capture(timeline, &frame, &desired).map(Some)
     }
     pub(crate) fn bind_sources(
@@ -234,7 +270,11 @@ impl PlaybackControl {
             match pending.receipt.status() {
                 EditCompletionStatus::Applied => {
                     let Pending {
-                        desired, version, stop, ..
+                        desired,
+                        version,
+                        stop,
+                        videos,
+                        ..
                     } = state.pending.take().unwrap();
                     state.order = state.order.checked_add(1).expect("Matrix playback order exhausted");
                     let order = state.order;
@@ -259,6 +299,13 @@ impl PlaybackControl {
                         state.launch_orders.entry(id).or_insert(order);
                     }
                     state.current = desired;
+                    if let Some(plan) = videos {
+                        if state.video_enabled {
+                            state.video_error = state.videos.commit(&plan).err();
+                            state.video_running = true;
+                        }
+                        state.video_plan = Some(plan);
+                    }
                     self.0.revision.advance();
                 }
                 EditCompletionStatus::Failed => {
@@ -269,14 +316,20 @@ impl PlaybackControl {
         }
         state.current.clone()
     }
-    pub fn stage(&self, desired: MatrixPlaybackSnapshot, receipt: EditCompletion) {
-        self.stage_with_stop(desired, receipt, None);
+    pub(super) fn stage(
+        &self,
+        desired: MatrixPlaybackSnapshot,
+        receipt: EditCompletion,
+        videos: Option<Arc<super::video::Prepared>>,
+    ) {
+        self.stage_with_stop(desired, receipt, None, videos);
     }
     pub(super) fn stage_with_stop(
         &self,
         desired: MatrixPlaybackSnapshot,
         receipt: EditCompletion,
         stop: Option<super::stops::Scope>,
+        videos: Option<Arc<super::video::Prepared>>,
     ) {
         // Preserve an earlier committed request even when the next request later fails.
         self.snapshot();
@@ -285,10 +338,21 @@ impl PlaybackControl {
             receipt,
             version: self.authoring_revision(),
             stop,
+            videos,
         });
         // Conservative invalidation may also trigger recapture after an aborted request.
         self.0.revision.advance();
         self.notify_applications();
+        let waker = self
+            .0
+            .state
+            .lock()
+            .expect("Matrix playback lock poisoned")
+            .waker
+            .clone();
+        if let Some(waker) = waker {
+            let _ = waker.wake();
+        }
     }
     pub(super) fn stop_capacity(&self, additional: usize) -> bool {
         self.0
@@ -492,11 +556,12 @@ pub(super) fn launch(
     if !control.admits(&desired) {
         return Err("Matrix interrupted mix retains 32 runtime clips; use Cut or wait for completion".into());
     }
+    let videos = super::video::Prepared::capture(engine, &desired, &index, control.authoring_revision())?;
     let event = CustomEvent::from_latest_payload(MATRIX_PLAYBACK_EVENT, Some(parent), &desired)
         .map_err(|error| error.to_string())?;
     engine.edits.push(Edit::EmitCustomEvent { event });
     let receipt = engine.edits.completion();
-    control.stage(desired.clone(), receipt);
+    control.stage(desired.clone(), receipt, Some(videos));
     Ok(MediaEditResult::MatrixPlayback { snapshot: desired })
 }
 
@@ -573,10 +638,11 @@ pub(super) fn launch_cell(
     layers.sort_by_key(|request| request.layer.0.0);
     desired.layers = layers.into();
     desired.request_id = Some(launch);
+    let videos = super::video::Prepared::capture(engine, &desired, &index, control.authoring_revision())?;
     let event = CustomEvent::from_latest_payload(MATRIX_PLAYBACK_EVENT, Some(root_id), &desired)
         .map_err(|error| error.to_string())?;
     engine.edits.push(Edit::EmitCustomEvent { event });
-    control.stage(desired.clone(), engine.edits.completion());
+    control.stage(desired.clone(), engine.edits.completion(), Some(videos));
     Ok(MediaEditResult::MatrixPlayback { snapshot: desired })
 }
 
@@ -600,7 +666,11 @@ pub(crate) fn unload(engine: &mut AppEngine, media: MediaId) -> Result<MediaEdit
     let event =
         CustomEvent::from_latest_payload(MATRIX_PLAYBACK_EVENT, Some(parent), &desired).map_err(|e| e.to_string())?;
     engine.edits.push(Edit::EmitCustomEvent { event });
-    control.stage(desired.clone(), engine.edits.completion());
+    control.stage(
+        desired.clone(),
+        engine.edits.completion(),
+        Some(super::video::Prepared::empty()),
+    );
     Ok(MediaEditResult::MatrixPlayback { snapshot: desired })
 }
 

@@ -278,6 +278,24 @@ impl ChannelNode {
 impl Node for ChannelNode {
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
         self.register_video(ctx);
+        if let Some(control) = self.matrix_playback() {
+            match ctx.node_waker() {
+                Ok(waker) => control.bind_video_waker(waker, self.node_data().effective_enabled),
+                Err(error) => ctx.set_node_warning(self.id(), error.to_string()),
+            }
+        }
+    }
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        if let Some(control) = self.matrix_playback() {
+            if let Some(error) = control.service_videos() {
+                ctx.set_node_warning_with(self.id(), Some("video-policy"), error, None);
+            } else {
+                ctx.clear_node_warning(self.id(), Some("video-policy"));
+            }
+        }
+    }
+    fn worker_wake_when_disabled(&self) -> bool {
+        true
     }
     fn on_child_moved(&mut self, ctx: &mut ProcessCtx, child: NodeId, old_parent: NodeId, new_parent: NodeId) {
         if child == self.id() && old_parent != new_parent {
@@ -334,8 +352,11 @@ impl Node for ChannelNode {
             }
         }
     }
-    fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, _: bool) {
+    fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
         self.invalidate();
+        if let Some(control) = self.matrix_playback() {
+            control.video_enabled(enabled);
+        }
     }
     fn destroy(&mut self, ctx: &mut ProcessCtx) {
         if let Some(binding) = self.video_binding.take() {
