@@ -1,10 +1,12 @@
 use super::{MediaTransport, protocol::*};
 use golden_time::{PlaybackRate, SystemClock};
 use std::{sync::Mutex, time::Duration};
+mod matrix;
 #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
 pub(super) mod scheduling;
 #[cfg(test)]
 mod tests;
+pub use matrix::MatrixVideoUse;
 
 struct State {
     transport: MediaTransport<SystemClock>,
@@ -24,6 +26,9 @@ struct State {
     load_pending: bool,
     ready_once: bool,
     explicit_mode: bool,
+    manual_revision: u64,
+    matrix_uses: matrix::Uses,
+    matrix_generation: uuid::Uuid,
 }
 
 /// Shared per-media runtime control, retained by demanded sources rather than per Reference.
@@ -50,6 +55,9 @@ impl Default for VideoControl {
                 load_pending: false,
                 ready_once: false,
                 explicit_mode: false,
+                manual_revision: 0,
+                matrix_uses: Default::default(),
+                matrix_generation: uuid::Uuid::new_v4(),
             }),
             Default::default(),
         )
@@ -98,6 +106,10 @@ impl VideoControl {
         if state.retired {
             return Err("Video media is retired".into());
         }
+        state.manual_revision = state
+            .manual_revision
+            .checked_add(1)
+            .ok_or("Video intent revision exhausted")?;
         state.explicit_mode = true;
         state.load_pending = false;
         state.settings.mode = mode;
@@ -239,6 +251,8 @@ impl VideoControl {
         if let Ok(mut state) = self.0.lock() {
             state.retired = true;
             state.feedback = None;
+            state.matrix_generation = uuid::Uuid::new_v4();
+            state.matrix_uses = Default::default();
         }
     }
     pub(crate) fn activate_media(&self) {
@@ -459,6 +473,18 @@ impl VideoControl {
             return Ok(());
         }
         let explicit = state.settings.mode != settings.mode;
+        if seek
+            || explicit
+            || state.settings.position_ms != settings.position_ms
+            || state.settings.speed != settings.speed
+            || state.settings.looping != settings.looping
+            || state.settings.play_at_load != settings.play_at_load
+        {
+            state.manual_revision = state
+                .manual_revision
+                .checked_add(1)
+                .ok_or("Video intent revision exhausted")?;
+        }
         if explicit {
             state.explicit_mode = true;
             state.load_pending = false;

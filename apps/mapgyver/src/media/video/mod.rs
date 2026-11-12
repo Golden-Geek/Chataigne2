@@ -12,7 +12,7 @@ pub(crate) mod feedback;
 mod frames;
 pub mod protocol;
 mod transport;
-pub use control::VideoControl;
+pub use control::{MatrixVideoUse, VideoControl};
 #[cfg(any(feature = "video-files", test))]
 pub(crate) use frames::Neighbours;
 pub use transport::{MediaTransport, TransportError, TransportSample};

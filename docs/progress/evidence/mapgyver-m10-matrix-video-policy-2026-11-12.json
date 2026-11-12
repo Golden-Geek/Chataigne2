@@ -2,7 +2,7 @@
 	"date": "2026-11-12",
 	"gate": "M10/7",
 	"accepted": false,
-	"result": "typed_authoring_functionally_verified_matrix_application_pending",
+	"result": "authoring_and_explicit_shared_use_boundary_verified_matrix_application_pending",
 	"deliverable": "Video-owned On Activate and On Deactivate enum Parameters, generic Inspector metadata, typed public operations, command nodes, named script methods and generated contracts. Editing policies alone does not alter transport.",
 	"defaults": { "on_activate": "PlayFromStart", "on_deactivate": "Stop" },
 	"choices": {
@@ -49,12 +49,57 @@
 			"corrections": "Update expected visible Video Parameter count13→15; keep the existing13-request burst within the unchanged lifetime bound and verify new methods through the separate four-caller policy cases; use an invalid boolean instead of a string Golden validly normalizes to an Enum. No production capacity increase or coercion change."
 		}
 	},
+	"runtime_use_boundary": {
+		"source": "apps/mapgyver/src/media/video/control/matrix.rs",
+		"api": "VideoControl::activate_for_matrix -> MatrixVideoUse; deactivate retains outgoing content, finish/Drop releases the exact use once",
+		"behavior": "One Video clock and activation action per live identity across channel/Reference uses. Final release waits for every use; fresh activation cancels older pending actions. Newer manual transport/seek/rate/loop/load intents fence a deferred action; policy edits retain its captured choice. Late mirrors of entirely outgoing identities stay outgoing, preserving the manual fence. Retirement changes generation, fencing old leases after media restore. Frame/GPU completion stays with existing frame owners.",
+		"software": {
+			"exit_code": 0,
+			"passed": 651,
+			"failed": 0,
+			"ignored": 4,
+			"test_threads": 4,
+			"log": "target/m10-matrix-video-use-tests-qualified.log",
+			"new_boundary_tests": 8,
+			"scope": "All nine controller policy combinations, zero-rate exact positions, duplicate/shared uses, outgoing retention, reactivation, manual command/seek, captured policy, active Drop, retirement/restore and late outgoing Reference. No moving-native-image or actual-Matrix-activation claim."
+		},
+		"earlier_passing_checks": [
+			{
+				"log": "target/m10-matrix-video-use-tests.log",
+				"passed": 649,
+				"exit_code": 0,
+				"limit": "Before retirement/restore-generation strengthening"
+			},
+			{
+				"log": "target/m10-matrix-video-use-tests-final.log",
+				"passed": 650,
+				"exit_code": 0,
+				"limit": "Before late-outgoing-mirror fence strengthening"
+			}
+		],
+		"strict_lint": {
+			"exit_code": 0,
+			"all_targets": true,
+			"native_qualification": true,
+			"warnings_denied": true,
+			"log": "target/m10-matrix-video-use-clippy-copyless.log",
+			"configuration": "Task-local TAURI_CONFIG bundle.resources=[] skips resource copying only; Rust features/targets/lints stay enabled. Existing config fields are preserved; no checked-in config changes.",
+			"limit": "This lint run does not validate Tauri DLL copying. Normal-config full651 software tests passed before the development app acquired those DLLs."
+		},
+		"normal_lint_copy_failure": {
+			"exit_code": 101,
+			"log": "target/m10-matrix-video-use-clippy.log",
+			"reason": "Tauri resource copy fails with Windows error32; user MapGyver --dev PID14556 maps target/debug/swresample-7.dll. Process and loaded path verified; app left running. Rust lint passes with the copy-only override above."
+		},
+		"integration_decision": "Retain leases through the actual outgoing transition. An independent timer could stop too early: existing fades begin when their render plan is captured. Next deliver committed Cut activation/replacement with canonical shared Video owners, then nonzero transitions and renderer-independent/headless completion. No new diagnostic framework or clock-budget revision."
+	},
 	"remaining": [
+		"Reconcile Matrix Resume at EOF and PlayFromStart with reverse rates against ordinary Play's endpoint rewind behavior; the current exact-position controller oracle uses rate0. Include this in the next actual Cut slice before native acceptance.",
 		"Apply activation policies at committed Matrix playback boundaries",
 		"Defer Stop/Pause/Nothing until outgoing transition completion; keep moving outgoing frames and demand",
 		"Fence reactivation/interruption/deletion/project changes and retain still-shared consumers with one clock",
 		"Verify all runtime policy combinations, manual transport, Matrix enabled/Layer Stop contracts and actual native playback after software prerequisites"
 	],
-	"scope": "Authoring slice only; no automatic Matrix transport application or M10/7 gate acceptance yet. M10/6 remains accepted with its explicit Intel limit; separate M10/4 budgets remain unchanged.",
+	"scope": "Authoring and explicit Rust shared-use boundary only; automatic Matrix application and native M10/7 acceptance remain unfinished. M10/6 remains accepted with its explicit Intel limit; separate M10/4 budgets remain unchanged.",
 	"architecture": "docs/architecture/mapgyver-video-matrix-policy.md"
 }

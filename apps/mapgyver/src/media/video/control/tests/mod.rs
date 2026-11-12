@@ -1,4 +1,5 @@
 use super::*;
+mod matrix;
 
 fn seconds(value: u64) -> Duration {
     Duration::from_secs(value)
