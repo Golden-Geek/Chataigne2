@@ -235,6 +235,64 @@ pub struct SoftwareUploadTrace {
     pub cpu: Option<CpuInterval>,
 }
 
+/// Submitted source interval, before completion/publication; never a presentation claim.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SourceSubmissionFrame {
+    /// Full authority identity; generation alone cannot identify a replacement timeline.
+    pub epoch_authority: Uuid,
+    /// Discontinuity generation within that exact authority.
+    pub epoch_generation: u64,
+    /// Original decoded PTS normalized to nanoseconds, without a loop offset.
+    pub pts_nanos: i64,
+    /// First included absolute presentation coordinate.
+    pub start_nanos: i64,
+    /// First excluded coordinate; None retains the final frame without a finite end.
+    pub end_nanos: Option<i64>,
+}
+
+impl From<crate::scheduling::FrameWindow> for SourceSubmissionFrame {
+    fn from(window: crate::scheduling::FrameWindow) -> Self {
+        Self {
+            epoch_authority: window.epoch().authority(),
+            epoch_generation: window.epoch().generation(),
+            pts_nanos: window.pts().as_nanos(),
+            start_nanos: window.start().as_nanos(),
+            end_nanos: window.end().map(|end| end.as_nanos()),
+        }
+    }
+}
+
+/// Actual CPU payload for one submitted source conversion, independent of renderer sampling.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SourceSubmissionPayload {
+    /// GPU-resident conversion/copy; no CPU image payload upload.
+    Resident,
+    /// Actual tight RGBA submission and its source-owned API trace.
+    Software(SoftwareUploadTrace),
+    /// Actual compressed BC payload, excluding fixed shader/constants setup.
+    Hap {
+        /// Number of compressed BC bytes passed to the upload API.
+        bytes: u64,
+    },
+}
+
+/// One actual pending source conversion. Ring loss remains explicit in diagnostic health.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct SourceSubmissionTrace {
+    /// Exact GPU publication lifetime, also used by renderer SourceUse events.
+    pub stream: Uuid,
+    /// Source-local submission identity; distinct from renderer completion tokens.
+    pub token: CompletionToken,
+    /// Actual immutable RGBA source contract produced by this conversion.
+    pub descriptor: crate::TextureDescriptor,
+    /// Caller-owned decoded interval; None explicitly means unattributed timing.
+    pub frame: Option<SourceSubmissionFrame>,
+    /// CPU image/compressed upload or an explicit zero-CPU-payload resident copy.
+    pub payload: SourceSubmissionPayload,
+    /// Observation after submission, never GPU completion or publication.
+    pub observed_qpc: Option<u64>,
+}
+
 /// One actual CPU image-plane upload, separate from source decode/conversion and GPU completion.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct ImageUploadTrace {
@@ -340,6 +398,8 @@ pub enum DiagnosticEvent {
     Output(OutputTrace),
     /// Exact retained source publication used by a renderer batch.
     SourceUse(SourceUseTrace),
+    /// Source conversion submitted even when no renderer ever samples its image.
+    SourceSubmission(SourceSubmissionTrace),
     /// Exact CPU image bytes submitted once for a source-stream version.
     ImageUpload(ImageUploadTrace),
     /// Independent source worker CPU phases.

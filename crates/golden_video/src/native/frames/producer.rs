@@ -26,6 +26,7 @@ use windows::{
     core::{Error, HRESULT, Interface},
 };
 mod software;
+mod submission;
 
 /// Source-local conversion/admission failure, separate from renderer state.
 #[derive(Debug, thiserror::Error)]
@@ -50,6 +51,7 @@ struct Pending {
     slot: usize,
     token: CompletionToken,
     software_upload: Option<crate::native::SoftwareUploadTrace>,
+    traced: bool,
     _input: Input,
 }
 pub(super) enum Input {
@@ -363,6 +365,7 @@ impl GpuFramePublisher {
                 serial,
             },
             software_upload: None,
+            traced: false,
             _input: input,
         });
         self.serial = serial;

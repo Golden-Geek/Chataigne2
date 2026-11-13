@@ -133,10 +133,17 @@ impl ChannelRenderer {
         budget: golden_video::native::GpuFrameBudget,
     ) -> Result<(), String> {
         self.enable_videos(root, notifier)?;
+        let submission_sink = self
+            .native_control()
+            .and_then(|control| control.source_submission_sink());
         self.videos
             .as_mut()
             .unwrap()
-            .set_hardware(super::video::files::Hardware { adapter, budget });
+            .set_hardware(super::video::files::Hardware {
+                adapter,
+                budget,
+                submission_sink,
+            });
         Ok(())
     }
     /// Latest captured preparation/clip demand; installation and final-use proof remain separate.

@@ -7,6 +7,8 @@ mod diagnostics;
 mod hardware;
 mod retention;
 mod steps;
+#[cfg(all(windows, feature = "native-video"))]
+mod submissions;
 use crate::media::video::protocol::VideoEdit;
 
 fn fixture_root() -> std::path::PathBuf {

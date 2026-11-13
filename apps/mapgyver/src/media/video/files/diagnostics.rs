@@ -2,6 +2,18 @@
 use super::*;
 
 impl Run {
+    pub(super) fn report_source(&self, stream: uuid::Uuid) {
+        eprintln!(
+            "[mapgyver-video-source] {}",
+            serde_json::json!({
+                "owner": self.owner,
+                "reference": self.reference,
+                "file": self.file,
+                "stream": stream,
+            })
+        );
+    }
+
     pub(super) fn report_cpu_layouts(&self, reader: &Reader, lease: &Lease, retained_cpu_image_bytes: Option<u64>) {
         if !std::env::var_os("MAPGYVER_NATIVE_DIAGNOSTICS").is_some_and(|value| !value.is_empty()) {
             return;

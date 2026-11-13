@@ -21,6 +21,10 @@ pub struct FrameWindow {
     pts: ShowPosition,
 }
 impl FrameWindow {
+    /// Authority/discontinuity fence that owns this decoded interval.
+    pub const fn epoch(self) -> TimeEpoch {
+        self.epoch
+    }
     /// Reject an empty interval; None end holds a final frame on a non-looping timeline.
     pub fn new(epoch: TimeEpoch, start: ShowPosition, end: Option<ShowPosition>, pts: ShowPosition) -> Option<Self> {
         end.is_none_or(|end| end > start)

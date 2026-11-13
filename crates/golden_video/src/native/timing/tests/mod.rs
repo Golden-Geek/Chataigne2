@@ -4,6 +4,7 @@ use super::*;
 use crate::runtime::{CompletionToken, DeviceGeneration};
 
 mod hardware;
+mod submission;
 
 #[test]
 fn copied_spout_image_uses_the_sdks_32_bit_share_handle_authority() {

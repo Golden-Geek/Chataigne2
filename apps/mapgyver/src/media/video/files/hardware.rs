@@ -234,6 +234,9 @@ impl Run {
                                 .unwrap()
                                 .set_presentation_clock(self.control.clone())?;
                             drop(publisher.as_ref().unwrap().stream().begin_epoch(target.epoch)?);
+                            if hardware.submission_sink.is_some() {
+                                self.report_source(publisher.as_ref().unwrap().stream().id());
+                            }
                             if std::env::var_os("MAPGYVER_NATIVE_DIAGNOSTICS").is_some_and(|value| !value.is_empty()) {
                                 publisher.as_mut().unwrap().record_software_upload_timing();
                             }
@@ -250,9 +253,18 @@ impl Run {
                         };
                         if submitted {
                             software_image = None;
+                            let frame = reader.neighbours()?.ok_or("Selected Video timestamps unavailable")?;
+                            if let Some(sink) = &hardware.submission_sink {
+                                // Submission is recorded before completion/publication, including
+                                // frames later superseded or never sampled by a renderer.
+                                // Unprojectable diagnostic timing stays unknown; it must not
+                                // turn an otherwise valid paused conversion into a source fault.
+                                let window = super::super::frames::window(target, frame).ok();
+                                publisher.as_mut().unwrap().trace_pending_submission(sink, window);
+                            }
                             pending = Some(PreparedFrame {
                                 sample: target,
-                                frame: reader.neighbours()?.ok_or("Selected Video timestamps unavailable")?,
+                                frame,
                                 timestamp: reader.frame().timestamp(),
                             });
                             retry = None;

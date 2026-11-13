@@ -103,7 +103,7 @@ impl D3d11Backend {
         generation: DeviceGeneration,
         diagnostics: Option<Recorder>,
     ) -> Self {
-        *control.diagnostics.lock().unwrap_or_else(|error| error.into_inner()) = diagnostics.clone();
+        control.install_diagnostics(diagnostics.clone());
         Self {
             config,
             physical: None,

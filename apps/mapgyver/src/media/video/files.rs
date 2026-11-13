@@ -40,6 +40,7 @@ mod pacing;
 pub(crate) struct Hardware {
     pub adapter: golden_video::native::AdapterId,
     pub budget: golden_video::native::GpuFrameBudget,
+    pub submission_sink: Option<golden_video::native::SourceSubmissionSink>,
 }
 #[cfg(all(windows, feature = "native-video"))]
 impl Hardware {
@@ -539,7 +540,13 @@ impl Run {
             let sample = self.control.sample()?;
             if let Some(image) = reader.poll(sample.channel_position(reader.duration))? {
                 let image = image.retain(lease.clone());
-                let next = stream.get_or_insert_with(|| ImageStream::new(image.descriptor()));
+                let next = stream.get_or_insert_with(|| {
+                    let stream = ImageStream::new(image.descriptor());
+                    if std::env::var_os("MAPGYVER_NATIVE_DIAGNOSTICS").is_some_and(|value| !value.is_empty()) {
+                        self.report_source(stream.id());
+                    }
+                    stream
+                });
                 if self.control.publish_frame(
                     self.reference.channel,
                     owner,

@@ -87,6 +87,11 @@ impl TimeEpoch {
         self.generation
     }
 
+    /// Stable identity of the authority lifetime, including for diagnostic joins.
+    pub const fn authority(self) -> Uuid {
+        self.authority
+    }
+
     /// Whether two epochs share the same monotonic authority lifetime.
     pub fn same_authority(self, other: Self) -> bool {
         self.authority == other.authority

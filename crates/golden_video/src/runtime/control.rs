@@ -199,7 +199,12 @@ impl VideoRuntime {
         let control = match &backend {
             BackendStart::Null(_, control) => BackendControl::Null(control.clone()),
             #[cfg(all(windows, feature = "d3d11"))]
-            BackendStart::D3d11(_, control, _) => BackendControl::D3d11(control.clone()),
+            BackendStart::D3d11(_, control, _) => {
+                // File producers can start before the render worker initializes its backend.
+                // Expose the same preallocated recorder before returning the control handle.
+                control.install_diagnostics(diagnostics.clone());
+                BackendControl::D3d11(control.clone())
+            }
         };
         let worker = BoundedWorker::<(), ()>::spawn(
             "golden-video-render",

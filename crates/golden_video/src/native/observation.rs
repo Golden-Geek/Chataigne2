@@ -234,6 +234,15 @@ impl D3d11Control {
             .map_or_else(Default::default, |recorder| recorder.snapshot())
     }
 
+    /// Share the existing bounded queue with independent file producers when enabled.
+    pub fn source_submission_sink(&self) -> Option<super::SourceSubmissionSink> {
+        self.recorder().map(super::SourceSubmissionSink)
+    }
+
+    pub(crate) fn install_diagnostics(&self, diagnostics: Option<super::timing::Recorder>) {
+        *self.diagnostics.lock().unwrap_or_else(|error| error.into_inner()) = diagnostics;
+    }
+
     pub(super) fn recorder(&self) -> Option<super::timing::Recorder> {
         self.diagnostics
             .lock()

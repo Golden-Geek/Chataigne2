@@ -204,6 +204,19 @@ plane storage and fixed pool count. Producer groups include conversion input/con
 their three output slots. These are logical admitted payloads, not driver allocation sizes or
 CPU decoder scratch/stack memory. All classes share the original source-storage ceiling.
 
+Independent File workers can obtain `D3d11Control::source_submission_sink` from this same
+preallocated queue before renderer startup. After a successful submit, call
+`GpuFramePublisher::trace_pending_submission` once before polling completion. It records the
+actual pending source stream/token and RGBA upload, compressed HAP payload or resident copy,
+including conversions never sampled by a renderer. Optional caller-owned frame windows retain
+full epoch authority/generation and PTS; unknown windows stay absent. Repeated tracing of a
+pending submission adds no row, and queue pressure counts a drop rather than retrying it.
+These are submission facts, not successful completion/publication or unique presented frames.
+Compare payload rows with opt-in lifetime budget totals to detect missing attribution.
+MapGyver logs one channel/File/worker-to-stream binding when each instrumented GPU producer or
+direct CPU ImageStream starts. CPU images retain their existing renderer ImageUpload/SourceUse
+records; they are not source-context GPU conversions and create no SourceSubmission row.
+
 Snapshots are sparse observations; exact written/drained/queued accounting requires quiescent
 producers. Disabled runtimes allocate no timing queries. Drops, invalid/skipped/uncollected timing
 and missing OS counters remain explicit.
