@@ -2,7 +2,7 @@
 	"date": "2026-11-13",
 	"gate": "M10/4",
 	"accepted": false,
-	"result": "continuous_pixel_pts_witness_implemented_native_rebuild_clear_defect_exposed",
+	"result": "continuous_pixel_pts_witness_exposed_rebuild_clear_defect_fixed_and_verified",
 	"deliverable": "The existing independent GPU consumer supports a bounded binary frame-code/sentinel mode. It retains code and sampled intensities in the same append-only12-word log and performs one final post-window readback. CPU and Python independently verify the code. Generic typed marker payloads preserve the ordinary flattened CardStamp JSON fields. Prepared fixed-size OutputSource facts declare complete external-source dependencies; SourceUse retains actual descriptors and Image/GPU lifetime IDs, so equal-sized independent files need not be guessed by dimensions.",
 	"software": "678 app/302 Golden Video tests pass, including5 new binary packing/spec/corruption/serialization cases. Strict both-package all-target native-feature clippy passes.32 Video auditor tests cover exact SDK/PTS joins, mixed24/30/60 rates, loop zero, equal-sized sources, ambiguity, missing/completed/version/corrupt/raw evidence and reversed clocks;147 production auditor tests pass. Node syntax/Prettier and root/Core formatting pass. Both normal app and receiver probe builds exit0.",
 	"native": {
@@ -42,7 +42,23 @@
 		"strict_log_sha256": "9abecd821d565b6705939ba1734afcd8119caed201c57bcbc376a0b0214d2732",
 		"native_log": "target/m10-gpu-rebuild-native-regression-2026-11-13.log",
 		"native_log_sha256": "3c8413b69b5580e30fa8beeb3a46ee865db030321809a40374a7802761616827",
-		"exact_retry": "Pending ordinary builds and one continuous capture using this fixed variant. The failed baseline remains above; no full native-capture pass yet."
+		"exact_retry": {
+			"commit": "c350b03f465e41d1b7f738ddff82f4238e23f4c8",
+			"adapter": "dxgi:00000000:000156b6",
+			"pid": 27328,
+			"process_exit": 0,
+			"audit_exit": 0,
+			"matched": "Visible HD7118/7182 and UHD6933/7155; minimized HD3590/3595 and UHD3583/3591.21224 exact SDK-version pixel/PTS witnesses match,0 invalid markers and0 mismatches. Visible/minimized missing observations total299 and remain unverified. Receiver-disconnected images have no pixel witness by design. Combined observed codes cover240 HD and120 UHD source positions.",
+			"health": "135 Ready/Playing observations,3 held SDK images and0 page errors.281 source-GPU snapshots across5 complete captures retain one24883200-byte shared software publisher; normal owned shutdown and zero source/plan/native retirement pass. Both receivers finish with one final readback,0 overflow and0 lost diagnostic events.",
+			"scope": "The one fixed-variant retry uses identical collector/HLSL/auditor/fixture hashes after terminal software, strict, Intel native regression and normal app/probe build success. It verifies the reproduced black-frame correction within this capture; incomplete pixel coverage, other codec profiles, repeated series, production timing and NVIDIA qualification remain open. No performance improvement or full gate pass is inferred.",
+			"report": "target/q06-video-code-rebuild-fixed-intel-2026-11-13/sample.json",
+			"report_sha256": "5a4adb4e77017eedf59efc2904f49348e2361d5d15875175621f99eec7ddcacc",
+			"audit": "target/q06-video-code-rebuild-fixed-intel-2026-11-13/audit.json",
+			"audit_sha256": "07de65cd2db0cc47bea7c5a89a614df817ed1d1b984282bc8a98fb0629ac2782",
+			"inputs": "target/q06-video-code-rebuild-fixed-intel-2026-11-13/execution-inputs.json",
+			"inputs_sha256": "48783372671dc203b9c858410aacc1fc6895dee3a7ff72f189804c3049e47c0a",
+			"log_sha256": "6a530d2f0c71620467bab7c5ddc1b2e108d4615aa36bd2640ab37a8f1a05e789"
+		}
 	},
-	"next": "Push the verified rebuild fix, build the ordinary app/probe, and perform the one exact continuous native retry. Investigation starts12:27 UTC, cutoff13:27; baseline plus fixed variant only. Preserve the failed capture. No gate closes:4 sole Active,88/106 (83%),M10 5/8. Prior4K66.21ms timing, all codec/repeated/resource/path/plane/pool/PTS scope, NVIDIA prerequisite and M09 remain open."
+	"next": "The reproduced rebuild defect is closed by deterministic GPU pixels and the one exact continuous retry; baseline and fixed variants exhausted, no third probe. Continue M10/4 with the next bounded resource/upload-accounting requirement. No fixed gate closes:4 sole Active,88/106 (83%),M10 5/8. Prior4K66.21ms timing, all codec/repeated/resource/path/plane/pool/PTS scope, NVIDIA prerequisite and M09 remain open."
 }
