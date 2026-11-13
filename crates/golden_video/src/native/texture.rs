@@ -20,6 +20,8 @@ pub(super) struct Texture {
     pub(super) image_visible: std::cell::Cell<u64>,
     pub(super) software_upload: std::cell::Cell<Option<super::SoftwareUploadTrace>>,
     pub(super) timed_frame: std::cell::Cell<Option<super::TimedFrameTrace>>,
+    /// Last commands writing these pixels, shared across compatible resource generations.
+    pub(super) last_write: std::cell::Cell<Option<crate::runtime::CompletionToken>>,
     _image_lease: Option<ImageLease>,
     _local: PhantomData<Rc<()>>,
     // Last field: release all native texture/views before publishing this object's release.
@@ -181,6 +183,7 @@ impl Texture {
             image_visible: std::cell::Cell::new(0),
             software_upload: std::cell::Cell::new(None),
             timed_frame: std::cell::Cell::new(None),
+            last_write: std::cell::Cell::new(None),
             _image_lease: None,
             _local: PhantomData,
             allocation: None,

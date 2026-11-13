@@ -19,6 +19,7 @@ pub(super) fn update(
     if target.image_sequence.get().is_none() {
         // A new allocation has no defined pixels until the first successful publication.
         unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
+        target.last_write.set(Some(token));
         target.image_sequence.set(Some(0));
     }
     if let Some(sample) = stream.sample()
@@ -60,6 +61,7 @@ pub(super) fn update(
             target.timed_frame.set(None);
         }
         target.image_sequence.set(Some(sample.sequence));
+        target.last_write.set(Some(token));
     }
     if let Some(recorder) = recorder {
         recorder.push(DiagnosticEvent::SourceUse(SourceUseTrace {

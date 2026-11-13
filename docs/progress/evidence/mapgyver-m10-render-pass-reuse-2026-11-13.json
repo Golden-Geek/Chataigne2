@@ -1,0 +1,47 @@
+{
+	"date": "2026-11-13",
+	"gate": "M10/4",
+	"accepted": false,
+	"result": "unchanged_native_pass_reuse_functionally_verified_intel",
+	"base_commit": "9ace39afdf7cf9a05d7d4ccd0f962aa8be94b4ad",
+	"deliverable": "Golden reuses unchanged native render-pass contents, independently of output cadence. Actual allocation writes invalidate downstream passes and compatible generations sharing a target. No extra GPU storage, source leases or per-frame cache allocation.",
+	"ownership": "Each device-local Texture records its actual last-write completion token. Per-generation cache metadata retains only logical dependencies and tokens; preparation/device recreation starts cold. Software uploads, GPU copies, Spout copies, withdrawals and clears stamp actual writes. Requested but contended GPU frames do not fabricate changed pixels.",
+	"live_behavior": "Regions always reconstruct live placement/visibility, including presentation-only submissions. Opacity envelopes, Canvas patterns and untracked external inputs continue rendering. Static sampled/composited/clear targets can reuse; changed outputs propagate to dependents. Output conversion/delivery and completion marking remain unchanged.",
+	"diagnostics": "Rust-owned FrameCpuTrace adds rendered_passes and reused_passes. These are logical command counts, not frame-rate, source-age or isolated shader-time proof. No authored setting, UI protocol or app policy changes.",
+	"software": {
+		"app": "678 passed,0 failed,7 ignored with MapGyver/native-qualification; later changes only correct the Golden native test's teardown expectations.",
+		"video": "295 passed,0 failed,66 ignored with ffmpeg,qualification after the final fixture correction. Includes three pure cache tests for held/changed/transitive dependencies, shared-target overwrite, cold preparation, unknown inputs and time/live operations.",
+		"strict": "MapGyver and golden_video all-target clippy with MapGyver/native-qualification and -D warnings passed after final changes.",
+		"format": "Root and Golden Core cargo fmt plus owned diff whitespace checks pass. The existing generated-contract tests pass in the app suite. No UI source changed.",
+		"size_finding": "The additional Texture metadata exposed Capture's large RGB enum variant. RGB is boxed once at receiver preparation; no per-frame allocation or lint suppression.",
+		"app_log": "target/m10-render-reuse-verified-software-2026-11-13.log",
+		"app_log_sha256": "0814b4b2a6a5c0102e077327facdac8b901f1e51f48d0b1165947d2899e144b9",
+		"video_log": "target/m10-render-reuse-final-software-2026-11-13.log",
+		"video_log_sha256": "6753998b64a69cab2dfa7599ebf24d2c0193c970adb10409c66b65877a0ebdec",
+		"strict_log": "target/m10-render-reuse-final-strict-2026-11-13.log",
+		"strict_log_sha256": "a616fcd27a7a8f84c69cd277051e0d545b554a53b3adc830f37b83cea8150377"
+	},
+	"native": {
+		"test": "hardware_intel_render_cache_preserves_pixels_live_changes_and_shared_target_ownership",
+		"adapter": "Explicit Intel hardware selection, vendor0x8086; no NVIDIA qualification claimed.",
+		"exit_code": 0,
+		"result": "1 passed,0 failed. Actual GPU completion and independent staging readbacks, tolerance2/255, match expected premultiplied pixels. Held immutable/CPU/GPU frames reuse; actual changed publications/withdrawals redraw. A compatible generation overwrites the same Rc target, and restoring the old generation redraws its original image. Explicit0/500/1000ms fades remain transparent/half/full. Live half-width placement updates in presentation-only work, and visibility invalidation clears. Source GPU budget returns0 after producer retirement/pruning; final native state is uninitialized with0 live plan allocations and0 diagnostic drops.",
+		"log": "target/m10-render-reuse-intel-native-final-2026-11-13.log",
+		"log_sha256": "6c8160ce99ff3d286d348905e332ba89d705e4250bbec424cd9144e9e276e9fa",
+		"executable": "target/debug/deps/golden_video-7e86c453fb7761c1.exe",
+		"executable_sha256": "5716fd0323b4ec3c5cbf77cee11a9576b9f9b20c54f18b4a4eeb26858b6ee687",
+		"preserved_failures": [
+			{
+				"log": "target/m10-render-reuse-intel-native-2026-11-13.log",
+				"sha256": "88a6260bc8fc20ced05955ce32efebb5b0f4da9337bfd354a331cacad0ca9cdd",
+				"reason": "Fixture checked zero source storage immediately after dropping the publisher, before the next ordinary submission pruned its retired imports.41488 bytes remained; no zero-retirement claim from this run."
+			},
+			{
+				"log": "target/m10-render-reuse-intel-native-retry-2026-11-13.log",
+				"sha256": "9170f9783331800ef83a2aa8218c468f08b230f0de0791c2cb1298cae4f0fe29",
+				"reason": "Fixture incorrectly expected reuse after publisher Drop. The existing Drop implementation publishes a fresh withdrawal, correctly causing one redraw. Assertion corrected to rendered1/reused0; no production behavior or zero-storage requirement changed."
+			}
+		]
+	},
+	"remaining": "No sustained workload rerun or performance acceptance in this implementation slice. The prior source-cohort receipt retains failed Intel timing/age results. Rebuild the ordinary app/probe and run that unchanged workload to measure the actual effect. NVIDIA awaits a fresh supported overlay-Off observation; Computer Use requires unavailable node_repl. All original profiles, repeated series, age/path/CPU/resource/plane/pool/in-flight scope and final M09 Q03/Q05 remain required. M10/4 stays Active;88/106 (83%),M10 5/8,8/15 phases unchanged. M14 follows4 acceptance."
+}

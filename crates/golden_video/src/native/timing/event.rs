@@ -61,6 +61,10 @@ pub struct ThreadCpuDelta {
 /// Renderer CPU observations for one submitted batch, including output API wall time.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct FrameCpuTrace {
+    /// Logical passes whose commands wrote their targets in this submission.
+    pub rendered_passes: u64,
+    /// Eligible passes retaining exactly the previously written input-dependent contents.
+    pub reused_passes: u64,
     /// Exact resource/authored plan identity used by this submission.
     pub generation: crate::runtime::GenerationInfo,
     /// Exact renderer device and batch serial.

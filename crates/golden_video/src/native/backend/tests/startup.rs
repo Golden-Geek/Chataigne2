@@ -7,6 +7,7 @@ use uuid::Uuid;
 use windows::Win32::Graphics::Dxgi::{DXGI_ERROR_DEVICE_REMOVED, DXGI_ERROR_NOT_FOUND};
 
 use super::super::*;
+use crate::LinearColor;
 use crate::native::tests::initialization_gate::InitializationGate;
 use crate::native::{AdapterId, D3d11Config, D3d11Control, InputLimits, OutputBinding, adapters};
 use crate::plan::{PlanLimits, PlanOutput, RenderPass, RenderPlan};

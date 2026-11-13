@@ -245,6 +245,15 @@ upgraded; equal app asset IDs alone do not establish equal content. Expired weak
 pruned at preparation. The index owns neither GPU storage nor asset leases. Core reservations
 still charge the full declared generation footprint, preserving the existing conservative bounds.
 
+`native/backend/cache.rs` retains unchanged render-pass contents using the actual last-write
+completion token on each allocation. A changed source invalidates its dependents; another
+compatible generation writing a shared target invalidates its former contents. New resources
+start cold. The cache adds bounded dependency metadata, without GPU storage or input leases.
+Live region placement/visibility, opacity envelopes, clock-dependent Canvas patterns and
+untracked external inputs still render. Output conversion, presentation cadence and completion
+fences remain independent of pass reuse. `FrameCpuTrace` reports rendered/reused logical pass
+counts; these counts do not establish a frame-rate or source-age improvement.
+
 `D3d11Control::allocations_snapshot` separately observes actual committed native owners. Each
 production plan texture carries one metadata release guard after its native texture/views;
 Rc sharing, reused generations and weak cache entries add no charge. Source inventories report

@@ -108,6 +108,7 @@ pub(super) fn prepare(
 ) -> Result<D3d11Resources> {
     native.textures.prune();
     let mut resources = D3d11Resources {
+        render_cache: std::cell::RefCell::new(super::cache::Cache::new(plan)),
         presentation: std::cell::RefCell::new(super::presentation::Presentation::new(plan, notify)),
         content_time: std::cell::Cell::new(None),
         generation,

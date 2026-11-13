@@ -8,7 +8,7 @@ use crate::{
     native::{GpuFrameBudget, GpuFrameError, GpuFramePublisher, GpuFrameStream},
 };
 
-fn install(renderer: &mut Renderer, stream: GpuFrameStream) {
+pub(super) fn install(renderer: &mut Renderer, stream: GpuFrameStream) {
     install_admitted(renderer, stream, 65536);
 }
 fn install_admitted(renderer: &mut Renderer, stream: GpuFrameStream, max_texture_bytes: u64) {

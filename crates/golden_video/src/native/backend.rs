@@ -12,7 +12,7 @@ use windows::core::HRESULT;
 use crate::plan::{BlendMode, CompiledPlan, ExternalSource, RenderOperation, SampleFilter};
 use crate::runtime::backend::{Backend, BackendError};
 use crate::runtime::{CompletionToken, DeviceGeneration, GenerationInfo};
-use crate::{LinearColor, OutputId, PassId, TextureDescriptor, TextureId};
+use crate::{OutputId, PassId, TextureDescriptor, TextureId};
 
 use super::completion::EventCompletion;
 use super::device::Device;
@@ -26,7 +26,9 @@ use super::timing::{
 };
 use super::{D3d11Config, D3d11Control, InputLimits, NativeFailure, OutputBinding};
 
+mod cache;
 mod presentation;
+mod render;
 mod resources;
 mod streams;
 
@@ -74,6 +76,7 @@ pub(crate) struct D3d11Backend {
 }
 
 pub(crate) struct D3d11Resources {
+    render_cache: RefCell<cache::Cache>,
     presentation: RefCell<presentation::Presentation>,
     content_time: Cell<Option<TimeSnapshot>>,
     generation: GenerationInfo,
@@ -574,6 +577,7 @@ impl D3d11Backend {
                 let target = &resources.textures[&external.id];
                 if sequence.get().is_none() {
                     unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
+                    target.last_write.set(Some(token));
                 }
                 let sampled = stream.sample_at(input_instant);
                 let requested_sequence = sampled.as_ref().map(|sample| sample.sequence);
@@ -593,6 +597,7 @@ impl D3d11Backend {
                             Ok(Some(reader)) => {
                                 native.gpu_uses.push((token.serial, reader));
                                 native.gpu_uses.last().unwrap().1.copy_to(&native.device, target);
+                                target.last_write.set(Some(token));
                                 target.software_upload.set(image.software_upload);
                                 target.timed_frame.set(sample.frame);
                                 target
@@ -607,6 +612,7 @@ impl D3d11Backend {
                                 target.timed_frame.set(None);
                                 target.image_visible.set(0);
                                 unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
+                                target.last_write.set(Some(token));
                                 sequence.set(Some(sample.sequence));
                             }
                         }
@@ -615,6 +621,7 @@ impl D3d11Backend {
                         target.timed_frame.set(None);
                         target.image_visible.set(0);
                         unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
+                        target.last_write.set(Some(token));
                         sequence.set(Some(sample.sequence));
                     }
                 }
@@ -656,6 +663,7 @@ impl D3d11Backend {
                     context.ClearRenderTargetView(&target.rtv, &[0.0; 4]);
                 }
                 sequence.set(Some(CopyFrame::default()));
+                target.last_write.set(Some(token));
             }
             match native.inputs.copy(
                 external.id,
@@ -664,13 +672,19 @@ impl D3d11Backend {
                 token.serial,
                 sequence.get().unwrap(),
             ) {
-                Ok(Some(next)) => sequence.set(Some(next)),
+                Ok(Some(next)) => {
+                    if sequence.get() != Some(next) {
+                        target.last_write.set(Some(token));
+                    }
+                    sequence.set(Some(next));
+                }
                 Ok(None) => {
                     if sequence.get().is_some_and(|frame| frame.sequence != 0) {
                         unsafe {
                             context.ClearRenderTargetView(&target.rtv, &[0.0; 4]);
                         }
                         sequence.set(Some(CopyFrame::default()));
+                        target.last_write.set(Some(token));
                     }
                 }
                 Err(error) => {
@@ -679,6 +693,7 @@ impl D3d11Backend {
                         context.ClearRenderTargetView(&target.rtv, &[0.0; 4]);
                     }
                     sequence.set(Some(CopyFrame::default()));
+                    target.last_write.set(Some(token));
                 }
             }
             if let Some(recorder) = recorder {
@@ -703,100 +718,7 @@ impl D3d11Backend {
         let render_begin = recorder.and_then(Recorder::stamp);
         // Every fallible native allocation/view lookup completed during preparation. From the
         // first command onward, output errors are observations and this token is always marked.
-        for (index, pass) in plan.passes().iter().enumerate() {
-            if !presentation.pass(index) {
-                continue;
-            }
-            let output = &resources.textures[&pass.output];
-            match &pass.operation {
-                RenderOperation::Clear(color) => pipeline.clear(context, output, *color),
-                RenderOperation::Sample { source, filter } => {
-                    pipeline.draw(
-                        context,
-                        &resources.textures[source],
-                        None,
-                        output.as_ref().into(),
-                        1.0,
-                        BlendMode::Normal,
-                        *filter,
-                    );
-                }
-                RenderOperation::Composite { layers } => {
-                    if layers.is_empty() {
-                        pipeline.clear(context, output, LinearColor::TRANSPARENT);
-                    }
-                    for (index, layer) in layers.iter().enumerate() {
-                        let layer = layer.evaluated(time);
-                        let to_output = (layers.len() - index) % 2 == 1;
-                        let target = if to_output {
-                            output
-                        } else {
-                            &resources.scratch[&pass.id]
-                        };
-                        let previous = (index != 0).then(|| {
-                            if to_output {
-                                &resources.scratch[&pass.id]
-                            } else {
-                                output
-                            }
-                        });
-                        pipeline.draw_layer(
-                            context,
-                            match &layer.source {
-                                crate::plan::LayerSource::Pattern(crate::plan::Pattern::Canvas(canvas)) => {
-                                    canvas.image().map(|image| {
-                                        resources.canvas_images[&(std::sync::Arc::as_ptr(image) as usize)].as_ref()
-                                    })
-                                }
-                                source => source.texture().map(|id| resources.textures[&id].as_ref()),
-                            },
-                            previous.map(Rc::as_ref),
-                            target.as_ref().into(),
-                            &layer,
-                        );
-                    }
-                }
-                RenderOperation::Regions { regions, visibility } => {
-                    // Reconstruct every region each frame; hidden/unregistered views cannot
-                    // leave pixels behind in a reused target or expose a previous source.
-                    pipeline.clear(context, output, LinearColor::TRANSPARENT);
-                    if visibility.as_ref().is_none_or(|guard| guard.is_current()) {
-                        for region in regions {
-                            if region.visibility.as_ref().is_none_or(|guard| guard.is_current()) {
-                                let region = region.for_frame(token);
-                                if let Some(placement) = &region.placement
-                                    && placement.tile_capacity() > 0
-                                {
-                                    let mut repeated = region.clone();
-                                    for tile in placement.sample(token).tiles.iter() {
-                                        let Some(tile) = tile.fitted(
-                                            placement.tile_fit(),
-                                            resources.textures[&region.source].descriptor.extent,
-                                            output.descriptor.extent,
-                                        ) else {
-                                            continue;
-                                        };
-                                        repeated.destination = tile.destination;
-                                        repeated.source_rect = tile.source_rect;
-                                        pipeline.draw_region(
-                                            context,
-                                            &resources.textures[&region.source],
-                                            output,
-                                            &repeated,
-                                        );
-                                    }
-                                } else {
-                                    pipeline.draw_region(context, &resources.textures[&region.source], output, &region);
-                                }
-                                if let Some(placement) = &region.placement {
-                                    pipeline.draw_overlays(context, output, &placement.sample(token));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        let pass_work = render::execute(resources, plan, token, time, context, pipeline, &presentation);
         if let Some(gpu) = &mut gpu {
             gpu.render_complete();
         }
@@ -888,6 +810,8 @@ impl D3d11Backend {
         if let Some(cpu) = cpu {
             let measured = cpu.finish();
             recorder.unwrap().push(DiagnosticEvent::FrameCpu(FrameCpuTrace {
+                rendered_passes: pass_work.rendered,
+                reused_passes: pass_work.reused,
                 generation: resources.generation,
                 token,
                 wall: measured.wall,

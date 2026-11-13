@@ -1,4 +1,5 @@
 use std::time::{Duration, Instant};
+mod cache;
 #[cfg(feature = "ffmpeg")]
 mod gpu_streams;
 mod streams;

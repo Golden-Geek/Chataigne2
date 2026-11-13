@@ -172,7 +172,7 @@ fn hardware_stream_frames_update_one_installed_texture_and_withdraw_on_both_gpus
     }
 }
 
-fn install(renderer: &mut Renderer, stream: ImageStream) {
+pub(super) fn install(renderer: &mut Renderer, stream: ImageStream) {
     renderer.plan = RenderPlan {
         external_textures: vec![ExternalTexture {
             id: TextureId::new(1).unwrap(),

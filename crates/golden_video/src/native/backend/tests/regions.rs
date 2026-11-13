@@ -9,7 +9,7 @@ use crate::native::{AdapterId, InputLimits, OutputBinding, adapters};
 use crate::plan::{
     BlitRegion, ExternalSource, ExternalTexture, PlanLimits, PlanOutput, RenderPass, RenderPlan, UnitRect,
 };
-use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat};
+use crate::{AlphaMode, ColorEncoding, Extent2D, LinearColor, PixelFormat};
 
 const WAIT: Duration = Duration::from_secs(5);
 const TRANSPARENT: [u8; 4] = [0; 4];

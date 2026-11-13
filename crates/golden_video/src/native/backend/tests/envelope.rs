@@ -1,7 +1,7 @@
 use super::super::*;
 use crate::native::{InputLimits, OutputBinding, adapters};
 use crate::{
-    AlphaMode, ColorEncoding, Extent2D, Opacity, PixelFormat,
+    AlphaMode, ColorEncoding, Extent2D, LinearColor, Opacity, PixelFormat,
     plan::{InterpolationCurve, Layer, OpacityEnvelope, PlanLimits, PlanOutput, RenderPass, RenderPlan},
 };
 use golden_time::{PlaybackRate, ShowPosition, SystemClock, TimeAuthority};
