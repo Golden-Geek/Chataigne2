@@ -41,12 +41,16 @@ impl Pending {
             capacity: NonZeroUsize::new(16384).unwrap(),
         }
     }
-    pub(super) fn start(self, native: D3d11Control) -> Option<Capture> {
+    pub(super) fn start(
+        self,
+        native: D3d11Control,
+        source_budget: Option<golden_video::native::GpuFrameBudget>,
+    ) -> Option<Capture> {
         let limits = DiagnosticCaptureLimits {
             max_bytes: NonZeroU64::new(256 * 1024 * 1024).unwrap(),
             max_duration: Duration::from_secs(600),
         };
-        match DiagnosticCapture::spawn(native, BufWriter::new(self.file), limits) {
+        match DiagnosticCapture::spawn(native, BufWriter::new(self.file), limits, source_budget) {
             Ok(task) => {
                 eprintln!("[mapgyver-diagnostics] capture started: {}", self.path.display());
                 Some(Capture { path: self.path, task })

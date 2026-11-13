@@ -13,9 +13,6 @@ pub(in crate::native) struct Lease {
     bytes: u64,
 }
 impl Budget {
-    pub fn used(&self) -> u64 {
-        self.0.used.load(Ordering::Acquire)
-    }
     pub fn new(limit: u64) -> Self {
         Self(Arc::new(State {
             limit,

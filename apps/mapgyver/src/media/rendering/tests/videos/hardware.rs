@@ -12,10 +12,10 @@ fn hardware_file_worker_steps_exactly_and_falls_back_without_losing_its_clock() 
         .into_iter()
         .find(|adapter| adapter.vendor_id == 0x8086 && !adapter.software)
         .unwrap();
-    for (name, capacity, hardware) in [
-        ("h264.mp4", 64 * 1024 * 1024, true),
-        ("h264.mp4", 0, false),
-        ("prores.mov", 64 * 1024 * 1024, false),
+    for (name, capacity, resident, gpu_publication) in [
+        ("h264.mp4", 64 * 1024 * 1024, true, true),
+        ("h264.mp4", 0, false, false),
+        ("prores.mov", 64 * 1024 * 1024, false, true),
     ] {
         let mut engine = engine();
         let reference = source(&mut engine, name);
@@ -32,11 +32,33 @@ fn hardware_file_worker_steps_exactly_and_falls_back_without_losing_its_clock() 
         let (_, published) = renderer.videos.as_ref().unwrap().source(reference).unwrap();
         assert_eq!(
             matches!(published, ExternalSource::GpuFrames(_)),
-            hardware,
+            gpu_publication,
             "{name}, capacity{capacity}"
         );
-        if hardware {
+        if resident {
             assert!(budget.retained_bytes() > 0);
+            let pools = budget.snapshot();
+            assert!(pools.decoder_pools.allocations > 0);
+            assert!(pools.decoder_pools.bytes > 0);
+            assert_eq!(pools.hardware_producers.allocations, 1);
+            assert_eq!(pools.hap_producers.bytes, 0);
+            assert_eq!(pools.software_producers.bytes, 0);
+            assert_eq!(
+                pools.retained_bytes,
+                pools.decoder_pools.bytes + pools.hardware_producers.bytes
+            );
+            eprintln!("hardware source accounting: {pools:?}");
+        } else {
+            let pools = budget.snapshot();
+            assert_eq!(pools.decoder_pools.bytes, 0);
+            assert_eq!(pools.hardware_producers.bytes, 0);
+            assert_eq!(pools.hap_producers.bytes, 0);
+            assert_eq!(pools.software_producers.allocations, u64::from(gpu_publication));
+            assert_eq!(pools.retained_bytes, pools.software_producers.bytes);
+            if !gpu_publication {
+                assert_eq!(pools.peak_bytes, 0, "zero budget avoids both source-GPU routes");
+            }
+            eprintln!("software source accounting: {pools:?}");
         }
         let mut timestamps = vec![current.position_ms];
         while let Some(next) = current.next_ms {
@@ -84,7 +106,9 @@ fn hardware_file_worker_steps_exactly_and_falls_back_without_losing_its_clock() 
             "{name}: complete worker and pool retirement"
         );
         assert_eq!(budget.retained_bytes(), 0);
-        eprintln!("file worker verified {name}: hardware={hardware}, {timestamps:?}, retired=0");
+        eprintln!(
+            "file worker verified {name}: resident={resident}, gpu_publication={gpu_publication}, {timestamps:?}, retired=0"
+        );
     }
 }
 
@@ -173,6 +197,13 @@ fn hardware_hap_three_4k_files_share_six_consumers_without_duplicate_workers_and
         );
         let admitted = budget.retained_bytes();
         assert!(admitted > 300 * 1024 * 1024 && admitted < 512 * 1024 * 1024);
+        let pools = retirement.gpu_allocations().unwrap();
+        assert_eq!(pools.hap_producers.allocations, 3);
+        assert_eq!(pools.hap_producers.bytes, admitted);
+        assert_eq!(pools.decoder_pools.bytes, 0);
+        assert_eq!(pools.hardware_producers.bytes, 0);
+        assert_eq!(pools.software_producers.bytes, 0);
+        eprintln!("HAP source accounting: {pools:?}");
         let request = renderer.latest_request();
         for reference in &originals {
             edit(
@@ -220,6 +251,7 @@ fn hardware_hap_three_4k_files_share_six_consumers_without_duplicate_workers_and
         );
         assert_eq!(budget.retained_bytes(), 0);
         assert_eq!(retirement.retained_bytes(), 0);
+        assert_eq!(retirement.gpu_allocations().unwrap().hap_producers.allocations, 0);
         eprintln!(
             "HAP {}: three concurrent 4096x2160 files, six consumers, three owners, stable {admitted} GPU bytes, 12+ distinct frames each, complete retirement",
             adapter.description

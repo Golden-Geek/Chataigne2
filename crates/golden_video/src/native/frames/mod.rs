@@ -1,8 +1,5 @@
 //! Bounded GPU image publication. Only NT handles/immutable leases cross workers.
-use super::{
-    AdapterId,
-    inputs::{budget, surface::Surface},
-};
+use super::{AdapterId, inputs::surface::Surface};
 use crate::TextureDescriptor;
 use crate::scheduling::{FrameBuffer, FramePosition, FrameWindow};
 use std::sync::{
@@ -10,7 +7,9 @@ use std::sync::{
     atomic::{AtomicI32, Ordering},
 };
 use std::time::Instant;
+pub(super) mod budget;
 mod reader;
+pub use budget::{GpuFrameAllocation, GpuFrameBudget, GpuFrameBudgetSnapshot};
 pub(super) use reader::{Imports, ReadLease};
 #[cfg(feature = "ffmpeg")]
 mod hap;
@@ -18,25 +17,6 @@ mod hap;
 mod producer;
 #[cfg(feature = "ffmpeg")]
 pub use producer::{GpuFrameError, GpuFramePublisher};
-
-/// Shared admission for decoder pools, conversion images and retained bridge slots.
-/// Renderer-owned targets require separate admission from the same adapter allowance.
-#[derive(Clone)]
-pub struct GpuFrameBudget(budget::Budget);
-impl GpuFrameBudget {
-    #[cfg(feature = "ffmpeg")]
-    pub(crate) fn reserve(&self, bytes: u64) -> Option<Arc<dyn Send + Sync>> {
-        self.0.claim(bytes).map(|lease| Arc::new(lease) as Arc<dyn Send + Sync>)
-    }
-    /// A zero limit deliberately rejects every allocation.
-    pub fn new(max_bytes: u64) -> Self {
-        Self(budget::Budget::new(max_bytes))
-    }
-    /// Known admitted GPU storage still retained by producers, images or in-flight readers.
-    pub fn retained_bytes(&self) -> u64 {
-        self.0.used()
-    }
-}
 
 struct Fault {
     code: AtomicI32,

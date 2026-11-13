@@ -175,14 +175,25 @@ and two GPU timestamp/disjoint slots per context. The queue uses pinned
 [`concurrent-queue` 2.5.0](https://docs.rs/concurrent-queue/2.5.0/concurrent_queue/struct.ConcurrentQueue.html)
 bounded storage: concurrent source/render producers and the reporting consumer share no metadata
 mutex. Capacity pressure still drops explicitly; recording never grows storage to avoid a drop.
+`GpuFrameBudget::snapshot` reports one coherent source-admission total and peak, separated into
+decoder arrays, hardware conversion producers, HAP producers and software-upload producers.
+Each allocation remains charged once through the last retained frame, shared image or reader;
+cloned consumers do not duplicate its bytes. Decoder arrays include their aligned NV12/P010
+plane storage and fixed pool count. Producer groups include conversion input/constants and
+their three output slots. These are logical admitted payloads, not driver allocation sizes or
+CPU decoder scratch/stack memory. All classes share the original source-storage ceiling.
+
 Snapshots are sparse observations; exact written/drained/queued accounting requires quiescent
 producers. Disabled runtimes allocate no timing queries. Drops, invalid/skipped/uncollected timing
 and missing OS counters remain explicit.
 `DiagnosticCapture` optionally drains these same events to a caller-owned writer on a separate
 I/O thread. Its fixed4096-row batch, configured byte/duration ceilings and explicit final health
 bound capture independently of rendering. Sparse snapshots include native allocation ownership,
-process counters and process-local DXGI observations; they do not include unknown Video decoder
-pool accounting. Stop producers before `finish`, inspect its I/O result and require a terminal
+process counters and process-local DXGI observations. Opaque decoder/driver overhead remains
+unknown. `DiagnosticCapture::spawn` accepts an optional shared source budget and writes
+its `source_gpu` snapshot on the capture I/O worker. A missing budget is explicit null; retaining
+the budget observer retains no allocation. MapGyver supplies its existing budget across source/
+device generations. Stop producers before `finish`, inspect its I/O result and require a terminal
 `capture_end` with no queued/dropped rows or duration cutoff. A footer alone cannot certify a
 successful final flush. Capture owns metadata only; finish/drop it on an outer I/O host, never
 on a rendering/UI worker. It shares the existing `kind:diagnostic,event` JSONL envelope.

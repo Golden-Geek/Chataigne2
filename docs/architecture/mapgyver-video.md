@@ -437,6 +437,11 @@ without these tags remain unqualified and cannot be reconstructed by replaying t
 Hardware/HAP File publishers use the timeline completion correction now; all original resource,
 recovery and performance qualification remains required.
 File workers fall back only for an explicit unsupported native codec/interface or conversion.
+An explicitly zero source-GPU ceiling selects the direct software ImageStream route before
+opening a native decoder or source upload publisher. Nonzero capacity pressure still retries
+the native route; it never silently changes decode/color policy. Software-decoded HD files
+with a nonzero source budget can publish through a GPU upload bridge without becoming
+hardware-decoded files. HAP retains its compressed-only storage contract.
 When native recovery resolves the same physical GPU under a new LUID, ChannelRenderer retires
 its old File bindings and recreates them on that exact current adapter. Existing CPU/GPU
 admission pools include the retiring workers and handles; no second budget or old-image

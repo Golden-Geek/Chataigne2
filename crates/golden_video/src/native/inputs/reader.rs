@@ -17,7 +17,7 @@ pub(in crate::native) struct Imported {
     pub(in crate::native) mutex: IDXGIKeyedMutex,
     surface: Weak<Surface>,
     // Release native views/texture before returning admission, even after the NT handle closes.
-    _lease: Option<Arc<super::budget::Lease>>,
+    _lease: Option<Arc<dyn Send + Sync>>,
 }
 
 impl Imported {

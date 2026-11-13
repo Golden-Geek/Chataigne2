@@ -9,7 +9,7 @@ use std::{
 
 use serde::Serialize;
 
-use super::{D3d11Control, DiagnosticEvent, DiagnosticsSnapshot, timing::Clock};
+use super::{D3d11Control, DiagnosticEvent, DiagnosticsSnapshot, GpuFrameBudget, timing::Clock};
 
 /// Hard storage and elapsed-time bounds for one explicitly enabled capture.
 #[derive(Clone, Copy, Debug)]
@@ -49,6 +49,7 @@ impl DiagnosticCapture {
         control: D3d11Control,
         writer: impl Write + Send + 'static,
         limits: DiagnosticCaptureLimits,
+        source_budget: Option<GpuFrameBudget>,
     ) -> io::Result<Self> {
         if limits.max_duration.is_zero() {
             return Err(io::Error::new(
@@ -59,7 +60,7 @@ impl DiagnosticCapture {
         let (stop, receiver) = mpsc::channel();
         let worker = thread::Builder::new()
             .name("video-diagnostic-capture".into())
-            .spawn(move || record(control, writer, limits, receiver))?;
+            .spawn(move || record(control, writer, limits, receiver, source_budget))?;
         Ok(Self {
             stop,
             worker: Some(worker),
@@ -118,6 +119,7 @@ fn record(
     writer: impl Write,
     limits: DiagnosticCaptureLimits,
     stop: mpsc::Receiver<()>,
+    source_budget: Option<GpuFrameBudget>,
 ) -> io::Result<DiagnosticCaptureSummary> {
     let mut writer = LimitedWriter {
         writer,
@@ -145,7 +147,7 @@ fn record(
     loop {
         drain(&control, &mut writer, &mut rows, &mut summary)?;
         if Instant::now() >= snapshot_at {
-            snapshot(&control, &mut writer, clock)?;
+            snapshot(&control, &mut writer, clock, source_budget.as_ref())?;
             summary.snapshots += 1;
             snapshot_at = Instant::now() + Duration::from_secs(1);
         }
@@ -165,7 +167,7 @@ fn record(
             break;
         }
     }
-    snapshot(&control, &mut writer, clock)?;
+    snapshot(&control, &mut writer, clock, source_budget.as_ref())?;
     summary.snapshots += 1;
     summary.diagnostics = control.diagnostics_snapshot();
     row(
@@ -202,7 +204,12 @@ fn drain(
     Ok(count)
 }
 
-fn snapshot(control: &D3d11Control, writer: &mut impl Write, clock: Clock) -> io::Result<()> {
+fn snapshot(
+    control: &D3d11Control,
+    writer: &mut impl Write,
+    clock: Clock,
+    source_budget: Option<&GpuFrameBudget>,
+) -> io::Result<()> {
     let native = control.snapshot();
     let memory = native.adapter.map(super::query_adapter_memory).transpose();
     let (memory, memory_error) = match memory {
@@ -219,6 +226,7 @@ fn snapshot(control: &D3d11Control, writer: &mut impl Write, clock: Clock) -> io
             "kind":"snapshot", "qpc":clock.stamp(), "native":native,
             "outputs":control.output_snapshots(), "allocations":control.allocations_snapshot(),
             "diagnostics":control.diagnostics_snapshot(),
+            "source_gpu":source_budget.map(GpuFrameBudget::snapshot),
             "process":process, "process_error":process_error,
             "adapter_memory":memory, "adapter_memory_error":memory_error
         }),

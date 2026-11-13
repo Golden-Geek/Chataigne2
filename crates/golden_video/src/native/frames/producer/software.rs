@@ -19,7 +19,9 @@ impl GpuFramePublisher {
             .ok()
             .and_then(|bytes| bytes.checked_mul(3))
             .ok_or(GpuFrameError::Capacity)?;
-        let lease = Arc::new(budget.0.claim(bytes).ok_or(GpuFrameError::Capacity)?);
+        let lease = budget
+            .reserve(bytes, AllocationKind::SoftwareProducer)
+            .ok_or(GpuFrameError::Capacity)?;
         Self::assemble(
             Device::new(adapter)?,
             descriptor,

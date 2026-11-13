@@ -71,14 +71,14 @@ fn pool_storage_admission_accounts_format_count_overflow_and_retained_owners() {
     assert_eq!(pool_bytes(-1, 1088, 24, AV_PIX_FMT_NV12), None);
     assert_eq!(pool_bytes(i32::MAX, i32::MAX, i32::MAX, AV_PIX_FMT_P010LE), None);
     let budget = GpuFrameBudget::new(20);
-    let pool = budget.reserve(20).unwrap();
+    let pool = budget.reserve(20, AllocationKind::DecoderPool).unwrap();
     let retained_frame = pool.clone();
-    assert!(budget.reserve(1).is_none());
+    assert!(budget.reserve(1, AllocationKind::DecoderPool).is_none());
     drop(pool);
     assert_eq!(budget.retained_bytes(), 20);
     drop(retained_frame);
     assert_eq!(budget.retained_bytes(), 0);
-    assert!(budget.reserve(20).is_some());
+    assert!(budget.reserve(20, AllocationKind::DecoderPool).is_some());
 }
 
 #[test]

@@ -1,6 +1,6 @@
 //! FFmpeg-owned D3D11 devices and frame-pool leases. No hardware-to-CPU transfer.
 use super::{DecodeError, DecodeLimits, Decoder, DecoderKind, ffmpeg};
-use crate::native::GpuFrameBudget;
+use crate::native::{AllocationKind, GpuFrameBudget};
 use crate::{Extent2D, native::AdapterId};
 use std::sync::{
     Arc,
@@ -417,7 +417,7 @@ unsafe fn initialize_frames(context: *mut ffmpeg::ffi::AVCodecContext) -> bool {
         parameters.initial_pool_size,
         parameters.sw_format,
     )
-    .and_then(|bytes| admission.budget.reserve(bytes)) else {
+    .and_then(|bytes| admission.budget.reserve(bytes, AllocationKind::DecoderPool)) else {
         admission.exhausted.store(true, Ordering::Release);
         unsafe { ffmpeg::ffi::av_buffer_unref(&mut frames) };
         return false;

@@ -1,10 +1,10 @@
 //! Worker-local file conversion, with completion before immutable shared publication.
 use super::{Fault, GpuFrameBudget, GpuFrameStream, GpuImage};
 use crate::native::{
+    AllocationKind,
     completion::FenceCompletion,
     device::Device,
     inputs::{
-        budget::Lease,
         surface::Slot,
         video::{Decoder, Format, Image},
     },
@@ -93,7 +93,7 @@ pub struct GpuFramePublisher {
     generation: DeviceGeneration,
     serial: u64,
     device: Device,
-    _lease: Arc<Lease>,
+    _lease: Arc<dyn Send + Sync>,
 }
 impl GpuFramePublisher {
     /// Select timestamp-based presentation before sharing or publishing the source stream.
@@ -145,7 +145,9 @@ impl GpuFramePublisher {
                     .checked_add(16)
             })
             .ok_or(GpuFrameError::Capacity)?;
-        let lease = Arc::new(budget.0.claim(bytes).ok_or(GpuFrameError::Capacity)?);
+        let lease = budget
+            .reserve(bytes, AllocationKind::HardwareProducer)
+            .ok_or(GpuFrameError::Capacity)?;
         let input = Image::new(&device, descriptor, format)?;
         let shader = Decoder::with_interpretation(&device.device, format, descriptor, interpretation)?;
         Self::assemble(
@@ -181,7 +183,9 @@ impl GpuFramePublisher {
             .and_then(|rgba| rgba.checked_add(frame.blocks().len() as u64))
             .and_then(|bytes| bytes.checked_add(16))
             .ok_or(GpuFrameError::Capacity)?;
-        let lease = Arc::new(budget.0.claim(bytes).ok_or(GpuFrameError::Capacity)?);
+        let lease = budget
+            .reserve(bytes, AllocationKind::HapProducer)
+            .ok_or(GpuFrameError::Capacity)?;
         let device = Device::new(adapter)?;
         let input = super::hap::HapImage::new(&device, frame)?;
         Self::assemble(device, descriptor, Conversion::Hap(input), lease, wake)
@@ -190,7 +194,7 @@ impl GpuFramePublisher {
         device: Device,
         descriptor: TextureDescriptor,
         conversion: Conversion,
-        lease: Arc<Lease>,
+        lease: Arc<dyn Send + Sync>,
         wake: Option<golden_io::WorkerNotifier>,
     ) -> Result<Self, GpuFrameError> {
         let slots = (0..3)

@@ -36,7 +36,12 @@ pub use capture::{DiagnosticCapture, DiagnosticCaptureLimits, DiagnosticCaptureS
 pub use config::{AdapterId, D3d11Config, InputLimits, NativeConfigError, OutputBinding, WindowTarget};
 pub use device::{AdapterInfo, AdapterOutput, AdapterOutputs, adapters, preferred_adapters};
 pub use discovery::{DiscoveryError, MAX_DISCOVERY_SENDERS, SpoutDiscovery, SpoutSenderCatalog};
-pub use frames::{GpuFrameBudget, GpuFrameClock, GpuFramePublication, GpuFrameStream, GpuImage};
+#[cfg(feature = "ffmpeg")]
+pub(crate) use frames::budget::AllocationKind;
+pub use frames::{
+    GpuFrameAllocation, GpuFrameBudget, GpuFrameBudgetSnapshot, GpuFrameClock, GpuFramePublication, GpuFrameStream,
+    GpuImage,
+};
 #[cfg(feature = "ffmpeg")]
 pub use frames::{GpuFrameError, GpuFramePublisher};
 pub use identity::PhysicalAdapterId;

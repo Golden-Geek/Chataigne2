@@ -1,0 +1,87 @@
+{
+	"date": "2026-11-13",
+	"gate": "M10/4",
+	"accepted": false,
+	"result": "source_gpu_accounting_and_zero_budget_fallback_verified",
+	"deliverable": "Golden source-GPU admission reports coherent current/category/peak logical bytes for decoder pools, hardware conversion, HAP and software-upload producers. MapGyver's optional native capture records that same existing shared budget across renderer/device generations. Explicit zero source-GPU budget now uses the direct CPU ImageStream path instead of indefinitely retrying impossible source allocations.",
+	"ownership": "golden_video/native/frames/budget.rs owns classified lifetime admission and serde snapshots; existing native surfaces/importers retain opaque Send+Sync leases. Decoder and producer allocation owners choose the class before allocation. MapGyver File workers own route selection; Golden capture owns sparse I/O snapshots. No app-shell, authored Parameter or UI/protocol change.",
+	"invariants": [
+		"All four classes share the unchanged source ceiling. Counts/bytes/high-water update together under one short allocation-accounting lock; no per-frame metadata loop, unbounded registry or new polling owner.",
+		"One allocation group stays charged through the last decoder frame/shared image/imported reader. Consumer clones add no second charge. Reject/overflow leaves every count unchanged; final retirement returns every class to zero.",
+		"The existing source budget remains separate from renderer targets and CPU File reservations. Peak means admitted logical payload, not measured driver-private memory. No resource ceiling is increased.",
+		"A zero source ceiling disables both resident decoding and worker GPU upload routes. Nonzero retained-capacity/device errors keep their existing bounded native retry; unsupported codec/conversion fallback and HAP compressed-only storage contracts remain unchanged."
+	],
+	"software": {
+		"app": {
+			"passed": 678,
+			"failed": 0,
+			"ignored": 7,
+			"exit_code": 0,
+			"seconds": 48.37,
+			"features": "native-qualification; four test threads",
+			"log": "target/m10-source-allocation-route-tests-2026-11-13.log",
+			"sha256": "88ea0b0a1600d89f7d49efe03894b6b4e528d0a6b6109d604206bf73754b91ab"
+		},
+		"golden_video": {
+			"passed": 292,
+			"failed": 0,
+			"ignored": 65,
+			"exit_code": 0,
+			"seconds": 2.91,
+			"log": "target/m10-source-allocation-tests-final-2026-11-13.log",
+			"sha256": "99bf4952d48308bf0c594d08784f66b1c408d45b5a7929fce5145160b9846733",
+			"scope": "Four new behavioral checks cover category/shared-lease accounting, zero/overflow rejection, concurrent coherent snapshots and capture output before/after final observer retirement. Existing complete suite passes. The subsequently removed unused input-budget getter and MapGyver-only zero-route fix are covered by current strict compilation; Golden behavioral bodies are unchanged."
+		},
+		"strict": {
+			"packages": ["MapGyver", "golden_video"],
+			"all_targets": true,
+			"native_qualification": true,
+			"warnings_denied": true,
+			"exit_code": 0,
+			"seconds": 10.81,
+			"log": "target/m10-source-allocation-route-clippy-2026-11-13.log",
+			"sha256": "12940cf3a2de569d0cf1fc8e2039f97c65dde7686d2a1ac6fb5c7da1172e2da3"
+		},
+		"optional_ffmpeg_boundary": "Without FFmpeg, Golden Video strict d3d11 library compilation exits0 in8.97s and full qualification all-target compilation exits0 in6.05s. Logs: target/m10-source-allocation-without-ffmpeg-{base-library,qualification}-2026-11-13.log. The attempted bare-d3d11 all-target check fails four calls to qualification-only SpoutProbe::capture_pixels in unchanged native format/video tests; no pass is claimed for that configuration. Return at M09's complete test-feature matrix: gate the native readback fixtures with their required qualification feature and rerun the original command.",
+		"format_contracts": "Root and Golden Core Cargo formatting, owned diff whitespace and JSON formatting pass. Existing app-generated media/preview/Screen contract checks pass in the678 suite. No authored product UI contract changes."
+	},
+	"native": {
+		"command": "with-ffmpeg.ps1 test --locked -p MapGyver --lib --features native-qualification media::rendering::tests::videos::hardware -- --ignored --nocapture --test-threads=1",
+		"prerequisites": "Terminal678-app/292-Golden software success and all-target native-feature strict success inspected before the baseline. After the route correction, fresh678-app and current strict success inspected before the second native invocation. No third native experiment.",
+		"log": "target/m10-source-allocation-native-corrected-2026-11-13.log",
+		"sha256": "0799f0f68c4cc1d0f66b32d56c9a9cc3077d051f1269e485963b7b8e3ac80dfa",
+		"passed": 2,
+		"failed": 0,
+		"exit_code": 0,
+		"seconds": 1.62,
+		"test_binary_sha256": "4ba638c6a8971f425d700d49f3dc101e34169a3bba579a1e2040ef7a3113f509",
+		"intel": {
+			"adapter": "dxgi:00000000:000156b6",
+			"resident_h264": "One decoder pool115200bytes plus one hardware producer41488bytes =156688 logical bytes. Six exact forward/reverse/seek/Stop coordinates and complete retirement pass.",
+			"zero_budget_h264": "Direct CPU publication, all four GPU categories and their peak remain0; six exact transport coordinates and complete retirement pass.",
+			"software_prores": "One software-upload producer36864bytes, no decoder pool/hardware conversion/HAP charge. Six exact coordinates and complete retirement pass. The test now correctly distinguishes a software-decoded GPU publication from resident decoding."
+		},
+		"both_gpu_hap": "Intel000156b6 and NVIDIA00015b86 each pass three concurrent4096x2160 official HAP/HAP Alpha/HAP Q files, six shared consumers, three decoder/render owners,12+ distinct frames each and stable340623408bytes charged only to three HAP producer groups. All other classes0; final total/class counts0. This is short functional ownership proof, not sustained timing.",
+		"baseline_failure": {
+			"log": "target/m10-source-allocation-native-2026-11-13.log",
+			"sha256": "0cf28d3349a4658aa0864f66a4cd0581b8ae183fde9299393f36ec1da7e5929f",
+			"result": "One test passed, one failed: resident H.264 and both-GPU HAP accounting/retirement passed, but the zero-budget case never published frame0 within its original five-second deadline. No full baseline pass. The fix selects CPU before both source-native paths; it does not relax admission/retry/deadline assertions. The ProRes fixture is reconciled with the already-delivered software GPU bridge, with explicit class assertions."
+		}
+	},
+	"inputs": {
+		"base_commit": "0847f79e4a75b78b9d941871b6809dff306ca60d",
+		"metadata": "target/m10-source-allocation-inputs-2026-11-13.json",
+		"metadata_sha256": "156bd1ee2c57c2ec81291aa726db3e786970b6dc7d577559533946054d87c95d",
+		"cargo_lock_sha256": "c33336b45753ed513456525394d8c9ab1d5f5e3e220ab4f8b888b41a09a711c8",
+		"h264_sha256": "3609e90d2d136d028ef20f5d398cb7c531305511895cf291a7c40f60d7a2a127",
+		"prores_sha256": "a09215356e051f214b7ec01575611a2eba1869c91beef0e35de76d5368d67986",
+		"hap_external_sha256": {
+			"Hap_ffmpeg_64.mov": "210f6427287b99c3e348898833aa1a8efad9f6d1dd5119662af4ec77ad958a6b",
+			"Hap_Alpha_ffmpeg_6.mov": "6614053efa6e7ddef2e78f37b3090bef49d84475e95ec11d3199b53e9bc7ae0b",
+			"Hap_Q_ffmpeg_2.mov": "7ca900b349090b9330b856c61fa93429a80a7f108f2478e0d95dcd6d1c8fbf2e"
+		},
+		"libraries": "Existing source-pinned SDK/stage validation passes before every helper invocation. This unit/native worker proof does not claim a fresh isolated Windows package or loaded-module inspection."
+	},
+	"remaining": "M10/4 alone remains Active. Build the ordinary app and use the existing fixed Q06 cohort to verify actual-app source_gpu snapshots/retirement alongside unchanged cadence/age/resource observations. Complete all required common/HAP profile cohorts and independent repeated series, complete source lineage/GPU path/CPU/plane/pool/in-flight accounting and original budgets. Driver-private/codec-scratch bytes and unsampled transients remain unknown. Final Q03 soak/Q05 integrated lifecycle stay required under M09 per the qualification contract. No parked sampling stash is restored or timing limit reset; prior Intel/NVIDIA failures and cumulative effort remain visible.",
+	"progress": "No additional gate accepted:88/106 (83%),M10 5/8 (63%),8/15 phases. M10/7 stays Accepted; M14 waits for4."
+}

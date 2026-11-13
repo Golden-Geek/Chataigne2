@@ -54,6 +54,42 @@ fn rows(buffer: &Buffer) -> Vec<serde_json::Value> {
         .collect()
 }
 
+#[cfg(feature = "ffmpeg")]
+#[test]
+fn snapshots_include_source_pool_storage_until_the_last_observer_retires() {
+    let budget = GpuFrameBudget::new(4096);
+    let owner = budget
+        .reserve(2048, crate::native::AllocationKind::DecoderPool)
+        .unwrap();
+    let mut observer = Some(owner.clone());
+    drop(owner);
+    for retained in [true, false] {
+        let buffer = Buffer::default();
+        DiagnosticCapture::spawn(D3d11Control::default(), buffer.clone(), limits(), Some(budget.clone()))
+            .unwrap()
+            .finish()
+            .unwrap();
+        let snapshot = rows(&buffer)
+            .into_iter()
+            .rev()
+            .find(|row| row["kind"] == "snapshot")
+            .unwrap();
+        assert_eq!(
+            snapshot["source_gpu"]["retained_bytes"],
+            if retained { 2048 } else { 0 }
+        );
+        assert_eq!(
+            snapshot["source_gpu"]["decoder_pools"]["allocations"],
+            u64::from(retained)
+        );
+        assert_eq!(snapshot["source_gpu"]["peak_bytes"], 2048);
+        if retained {
+            // The observer, not a retired decoder/control owner, keeps storage charged.
+            drop(observer.take());
+        }
+    }
+}
+
 #[test]
 fn final_drain_covers_more_than_one_drain_chunk_and_preserves_wire_events() {
     let (control, recorder) = configured(8192);
@@ -61,7 +97,7 @@ fn final_drain_covers_more_than_one_drain_chunk_and_preserves_wire_events() {
         recorder.push(event());
     }
     let buffer = Buffer::default();
-    let summary = DiagnosticCapture::spawn(control, buffer.clone(), limits())
+    let summary = DiagnosticCapture::spawn(control, buffer.clone(), limits(), None)
         .unwrap()
         .finish()
         .unwrap();
@@ -86,13 +122,13 @@ fn ring_loss_and_disabled_observations_are_never_success_shaped_counts() {
     for _ in 0..3 {
         recorder.push(event());
     }
-    let summary = DiagnosticCapture::spawn(control, Buffer::default(), limits())
+    let summary = DiagnosticCapture::spawn(control, Buffer::default(), limits(), None)
         .unwrap()
         .finish()
         .unwrap();
     assert_eq!(summary.events, 2);
     assert_eq!(summary.diagnostics.dropped_full, 1);
-    let summary = DiagnosticCapture::spawn(D3d11Control::default(), Buffer::default(), limits())
+    let summary = DiagnosticCapture::spawn(D3d11Control::default(), Buffer::default(), limits(), None)
         .unwrap()
         .finish()
         .unwrap();
@@ -105,7 +141,7 @@ fn byte_ceiling_and_broken_writer_propagate_failure_without_a_completion_record(
     let buffer = Buffer::default();
     let mut bound = limits();
     bound.max_bytes = NonZeroU64::new(64).unwrap();
-    let error = DiagnosticCapture::spawn(D3d11Control::default(), buffer.clone(), bound)
+    let error = DiagnosticCapture::spawn(D3d11Control::default(), buffer.clone(), bound, None)
         .unwrap()
         .finish()
         .unwrap_err();
@@ -125,7 +161,7 @@ fn byte_ceiling_and_broken_writer_propagate_failure_without_a_completion_record(
             Ok(())
         }
     }
-    let error = DiagnosticCapture::spawn(D3d11Control::default(), Broken, limits())
+    let error = DiagnosticCapture::spawn(D3d11Control::default(), Broken, limits(), None)
         .unwrap()
         .finish()
         .unwrap_err();
@@ -144,7 +180,7 @@ fn flush_error_is_reported_even_if_a_complete_end_record_was_written() {
         }
     }
     let buffer = Buffer::default();
-    let error = DiagnosticCapture::spawn(D3d11Control::default(), FlushFailure(buffer.clone()), limits())
+    let error = DiagnosticCapture::spawn(D3d11Control::default(), FlushFailure(buffer.clone()), limits(), None)
         .unwrap()
         .finish()
         .unwrap_err();
@@ -157,7 +193,7 @@ fn capture_duration_is_bounded_and_limit_is_explicit() {
     let buffer = Buffer::default();
     let mut bound = limits();
     bound.max_duration = Duration::from_millis(1);
-    let capture = DiagnosticCapture::spawn(D3d11Control::default(), buffer.clone(), bound).unwrap();
+    let capture = DiagnosticCapture::spawn(D3d11Control::default(), buffer.clone(), bound, None).unwrap();
     // Wait for this exact capture's terminal record instead of assuming thread scheduling.
     let deadline = Instant::now() + Duration::from_secs(5);
     while !String::from_utf8(buffer.0.lock().unwrap().clone())
@@ -169,5 +205,5 @@ fn capture_duration_is_bounded_and_limit_is_explicit() {
     }
     assert!(capture.finish().unwrap().duration_limit);
     bound.max_duration = Duration::ZERO;
-    assert!(DiagnosticCapture::spawn(D3d11Control::default(), Buffer::default(), bound).is_err());
+    assert!(DiagnosticCapture::spawn(D3d11Control::default(), Buffer::default(), bound, None).is_err());
 }

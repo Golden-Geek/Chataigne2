@@ -40,6 +40,13 @@ pub(crate) struct Hardware {
     pub adapter: golden_video::native::AdapterId,
     pub budget: golden_video::native::GpuFrameBudget,
 }
+#[cfg(all(windows, feature = "native-video"))]
+impl Hardware {
+    // Zero disables source-native storage; pressure under a nonzero ceiling remains retryable.
+    fn has_storage_budget(&self) -> bool {
+        self.budget.snapshot().limit_bytes > 0
+    }
+}
 #[derive(Clone)]
 enum Stream {
     Software(ImageStream),
@@ -150,6 +157,12 @@ impl FileRetirement {
     /// Workers retain their slot until decoder cleanup has finished.
     pub fn active_workers(&self) -> usize {
         self.pool.metrics().active
+    }
+    /// Coherent source-GPU admission, including decoder pools and retained producer images.
+    /// CPU reservations and unmeasured driver-private storage are separate quantities.
+    #[cfg(all(windows, feature = "native-video"))]
+    pub fn gpu_allocations(&self) -> Option<golden_video::native::GpuFrameBudgetSnapshot> {
+        self.hardware.as_ref().map(|hardware| hardware.budget.snapshot())
     }
     /// Admitted CPU/GPU source storage, including old pools and render observers.
     pub fn retained_bytes(&self) -> u64 {
@@ -415,7 +428,9 @@ impl Run {
     }
     fn play(&self, worker: &WorkerContext<(), ()>, owner: uuid::Uuid) -> Result<(), Failure> {
         #[cfg(all(windows, feature = "native-video"))]
-        if let Some(hardware) = &self.hardware {
+        if let Some(hardware) = &self.hardware
+            && hardware.has_storage_budget()
+        {
             match self.play_hardware(worker, owner, hardware) {
                 Ok(()) => return Ok(()),
                 Err(hardware::NativeFailure::Retry(error)) => return Err(error),
@@ -462,6 +477,7 @@ impl Run {
         );
         #[cfg(all(windows, feature = "native-video"))]
         if let Some(hardware) = &self.hardware
+            && hardware.has_storage_budget()
             && u64::from(decoder.info().width) * u64::from(decoder.info().height) <= MAX_SOFTWARE_GPU_PIXELS
         {
             return self.drive_native(worker, owner, hardware, decoder, Some(lease));

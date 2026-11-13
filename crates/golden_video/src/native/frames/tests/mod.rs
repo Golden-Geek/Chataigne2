@@ -26,11 +26,17 @@ fn gpu_stream_withdrawal_and_contention_are_distinct() {
 #[test]
 fn gpu_budget_includes_retained_lease_observers() {
     let budget = GpuFrameBudget::new(64);
-    let lease = Arc::new(budget.0.claim(64).unwrap());
+    let lease = budget
+        .claim(64, super::budget::AllocationKind::SoftwareProducer)
+        .unwrap();
     let held = lease.clone();
     drop(lease);
     assert_eq!(budget.retained_bytes(), 64);
-    assert!(budget.0.claim(1).is_none());
+    assert!(
+        budget
+            .claim(1, super::budget::AllocationKind::SoftwareProducer)
+            .is_none()
+    );
     drop(held);
     assert_eq!(budget.retained_bytes(), 0);
 }

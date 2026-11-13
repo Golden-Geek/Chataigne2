@@ -166,7 +166,11 @@ fn create(
         .native_control()
         .ok_or_else(|| io::Error::other("native preview control missing"))?;
     native.set_output_notifier(notifier.clone());
-    owner.diagnostics = diagnostics.and_then(|pending| pending.start(native.clone()));
+    #[cfg(feature = "video-files")]
+    let source_budget = file_budget.as_ref().map(|(_, budget)| budget.clone());
+    #[cfg(not(feature = "video-files"))]
+    let source_budget = None;
+    owner.diagnostics = diagnostics.and_then(|pending| pending.start(native.clone(), source_budget));
     #[cfg(feature = "video-files")]
     owner
         .renderer

@@ -15,7 +15,7 @@ pub(in crate::native) struct Surface {
     pub index: usize,
     pub descriptor: TextureDescriptor,
     pub storage_descriptor: TextureDescriptor,
-    pub(in crate::native) _lease: Option<Arc<super::budget::Lease>>,
+    pub(in crate::native) _lease: Option<Arc<dyn Send + Sync>>,
 }
 
 pub(in crate::native) struct Slot {
@@ -32,7 +32,7 @@ impl Slot {
         device: &Device,
         descriptor: TextureDescriptor,
         index: usize,
-        lease: Option<Arc<super::budget::Lease>>,
+        lease: Option<Arc<dyn Send + Sync>>,
     ) -> Result<Self> {
         let storage_descriptor = super::conversion::bridge_descriptor(descriptor);
         let mut texture = None;
