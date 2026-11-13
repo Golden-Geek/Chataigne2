@@ -173,6 +173,7 @@ pub struct Decoder {
     stream: usize,
     info: StreamInfo,
     limits: DecodeLimits,
+    allocation_pixel_limit: u64,
     state: DecodeState,
     kind: DecoderKind,
 }
@@ -282,7 +283,7 @@ impl Decoder {
         let decoder = if matches!(kind, DecoderKind::Hap) {
             None
         } else {
-            Some(open_decoder(&input, index, limits, &kind)?)
+            Some(open_decoder(&input, index, limits, &kind, limits.max_pixels)?)
         };
         // HAP demux needs no libavcodec pixel decoder or software texture expansion.
         let parameters = stream.parameters();
@@ -315,6 +316,7 @@ impl Decoder {
             stream: index,
             info,
             limits,
+            allocation_pixel_limit: limits.max_pixels,
             state: DecodeState::Reading,
             kind,
         })
@@ -323,6 +325,33 @@ impl Decoder {
     /// Metadata for this decoder's selected stream.
     pub fn info(&self) -> &StreamInfo {
         &self.info
+    }
+    /// Tighten future frame allocation/admission without increasing the original ceiling.
+    /// Owners reserving storage from initial stream dimensions call this before decoding.
+    /// Retained frames keep their storage; invalid requests leave this decoder unchanged.
+    /// The new ceiling also applies to codec replacement after drain/EOF seeks.
+    pub fn tighten_pixel_limit(&mut self, max_pixels: u64) -> Result<(), DecodeError> {
+        if self.state == DecodeState::Failed {
+            return Err(DecodeError::ReopenRequired);
+        }
+        if max_pixels == 0 || max_pixels > self.limits.max_pixels {
+            return Err(DecodeError::InvalidLimits);
+        }
+        admit_extent(self.info.width, self.info.height, max_pixels)?;
+        let allocation_pixels = if let Some(decoder) = &mut self.decoder {
+            let padded = padded_pixels(decoder, self.info.width, self.info.height)?.max(max_pixels);
+            self.allocation_pixel_limit.min(padded)
+        } else {
+            max_pixels
+        };
+        if let Some(decoder) = &mut self.decoder {
+            // SAFETY: uniquely owned live context between synchronous decoder calls.
+            // Frame threading is rejected at open; retained frames own separate references.
+            unsafe { (*decoder.as_mut_ptr()).max_pixels = allocation_pixels as i64 };
+        }
+        self.limits.max_pixels = max_pixels;
+        self.allocation_pixel_limit = allocation_pixels;
+        Ok(())
     }
     /// Stable storage contract chosen at open, without decoding a frame or parsing a label.
     pub fn storage(&self) -> DecodeStorage {
@@ -366,7 +395,13 @@ impl Decoder {
         // old delayed frame after flush, so a drain/EOF discontinuity still gets a new codec.
         // Consumers keep independent frame references across either path.
         let replacement = if self.state != DecodeState::Reading && !matches!(self.kind, DecoderKind::Hap) {
-            match open_decoder(&self.input, self.stream, self.limits, &self.kind) {
+            match open_decoder(
+                &self.input,
+                self.stream,
+                self.limits,
+                &self.kind,
+                self.allocation_pixel_limit,
+            ) {
                 Ok(decoder) => Some(decoder),
                 Err(error) => {
                     self.state = DecodeState::Failed;
@@ -483,13 +518,14 @@ fn open_decoder(
     index: usize,
     limits: DecodeLimits,
     kind: &DecoderKind,
+    allocation_pixel_limit: u64,
 ) -> Result<ffmpeg::decoder::Video, DecodeError> {
     let stream = input.stream(index).ok_or(ffmpeg::Error::StreamNotFound)?;
     let mut context = ffmpeg::codec::context::Context::from_parameters(stream.parameters())?;
     // SAFETY: uniquely owned, unopened context; libavcodec enforces this bound before
     // allocating decoded images, including later in-stream resolution changes.
     unsafe {
-        (*context.as_mut_ptr()).max_pixels = limits.max_pixels as i64;
+        (*context.as_mut_ptr()).max_pixels = allocation_pixel_limit as i64;
     }
     let threading = parallelism::configuration(&context, kind, limits.software_threads);
     let admitted_threads = threading.count;
@@ -525,6 +561,28 @@ fn admit_extent(width: u32, height: u32, max_pixels: u64) -> Result<(), DecodeEr
     } else {
         Ok(())
     }
+}
+
+fn padded_pixels(decoder: &mut ffmpeg::decoder::Video, width: u32, height: u32) -> Result<u64, DecodeError> {
+    let mut width = i32::try_from(width).map_err(|_| DecodeError::LimitExceeded)?;
+    let mut height = i32::try_from(height).map_err(|_| DecodeError::LimitExceeded)?;
+    let mut lines = [0i32; 8];
+    // SAFETY: uniquely borrowed live context and complete AV_NUM_DATA_POINTERS output.
+    // FFmpeg's allocation check rounds width to its stride alignment; keep that padding
+    // separate from the logical returned-frame ceiling instead of rejecting valid odd widths.
+    unsafe {
+        ffmpeg::ffi::avcodec_align_dimensions2(decoder.as_mut_ptr(), &mut width, &mut height, lines.as_mut_ptr());
+    }
+    let width = u64::try_from(width).map_err(|_| DecodeError::LimitExceeded)?;
+    let height = u64::try_from(height).map_err(|_| DecodeError::LimitExceeded)?;
+    let align = u64::try_from(*lines.iter().max().unwrap())
+        .map_err(|_| DecodeError::LimitExceeded)?
+        .max(1);
+    width
+        .div_ceil(align)
+        .checked_mul(align)
+        .and_then(|width| width.checked_mul(height))
+        .ok_or(DecodeError::LimitExceeded)
 }
 
 #[cfg(test)]

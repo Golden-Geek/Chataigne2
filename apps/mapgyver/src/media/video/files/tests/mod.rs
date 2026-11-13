@@ -1,4 +1,5 @@
 use super::*;
+mod extent;
 
 #[test]
 fn cpu_admission_survives_cancelled_owner_and_last_image_observer_with_stable_identity() {

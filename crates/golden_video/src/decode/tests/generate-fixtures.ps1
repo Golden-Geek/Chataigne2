@@ -34,6 +34,7 @@ foreach ($taskCase in @(
         Pixel = 'yuv420p10le'; Cb = 96; Cr = 160; Tagged = $true
     },
     @{ Name = 'prores.mov'; Rate = '25'; Codec = 'prores_ks'; Options = @('-profile:v', '3'); Pixel = 'yuv422p10le' },
+    @{ Name = 'prores-odd.mov'; Rate = '25'; Size = '65x5'; Codec = 'prores_ks'; Options = @('-profile:v', '4'); Pixel = 'yuva444p10le' },
     @{
         Name = 'prores-alpha.mov'; Rate = '25'; Codec = 'prores_ks'
         Options = @('-profile:v', '4', '-alpha_bits', '16'); Pixel = 'yuva444p10le'; Tagged = $true
@@ -72,4 +73,32 @@ foreach ($taskCase in @(
 if (!$Only.Count -or $Only -contains 'untimed.h264') {
     & $Encoder -hide_banner -loglevel error -y -i (Join-Path $taskFixtures 'h264.mp4') -map 0:v:0 -c copy -bsf:v h264_mp4toannexb -f h264 (Join-Path $taskFixtures 'untimed.h264')
     if ($LASTEXITCODE -ne 0) { throw 'Untimed fixture extraction failed' }
+}
+if (!$Only.Count -or $Only -contains 'h264-growing.mp4') {
+    $taskTempBase = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+    $taskParts = Join-Path $taskTempBase ('golden-video-growing-' + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $taskParts | Out-Null
+    try {
+        foreach ($taskPart in @(
+            @{ Name = 'small.mp4'; Size = '64x48'; Frames = 144 },
+            @{ Name = 'large.mp4'; Size = '3840x2160'; Frames = 2 }
+        )) {
+            & $Encoder -hide_banner -loglevel error -n -f lavfi -i "color=c=red:s=$($taskPart.Size):r=24" `
+                -frames:v $taskPart.Frames -an -c:v libx264 -threads 4 -preset ultrafast -tune zerolatency `
+                -x264-params 'keyint=1:repeat-headers=1' -pix_fmt yuv420p -color_range tv `
+                -colorspace bt709 -color_primaries bt709 -color_trc bt709 (Join-Path $taskParts $taskPart.Name)
+            if ($LASTEXITCODE -ne 0) { throw "Growing fixture segment failed: $($taskPart.Name)" }
+        }
+        [System.IO.File]::WriteAllText((Join-Path $taskParts 'concat.txt'), "file 'small.mp4'`nfile 'large.mp4'`n")
+        & $Encoder -hide_banner -loglevel error -y -f concat -safe 0 -i (Join-Path $taskParts 'concat.txt') `
+            -map 0:v:0 -c copy -movflags +faststart (Join-Path $taskFixtures 'h264-growing.mp4')
+        if ($LASTEXITCODE -ne 0) { throw 'Growing fixture concatenation failed' }
+    } finally {
+        $taskResolvedParts = [System.IO.Path]::GetFullPath($taskParts)
+        if ([System.IO.Path]::GetDirectoryName($taskResolvedParts).TrimEnd('\') -ne $taskTempBase.TrimEnd('\') `
+            -or ![System.IO.Path]::GetFileName($taskResolvedParts).StartsWith('golden-video-growing-')) {
+            throw 'Generated fixture cleanup target is outside its owned temporary directory'
+        }
+        Remove-Item -LiteralPath $taskResolvedParts -Recurse -Force
+    }
 }

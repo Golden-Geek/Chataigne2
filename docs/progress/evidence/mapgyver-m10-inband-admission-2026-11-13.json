@@ -1,0 +1,33 @@
+{
+	"date": "2026-11-13",
+	"gate": "M10/4",
+	"accepted": false,
+	"result": "in_band_software_extent_growth_exceeding_cpu_admission_fixed",
+	"deliverable": "MapGyver now couples its software File CPU reservation to a non-increasing decoder pixel limit before the first frame, covering both direct CPU and source-worker GPU-upload routes. A later in-band resolution expansion cannot reach conversion outside that admission. Golden exposes the reusable limit API, keeps returned-frame and aligned allocation ceilings distinct and preserves both through codec replacement after EOF/seek. Existing CPU/GPU budgets are unchanged.",
+	"baseline": {
+		"fixture": "Generated63186-byte H.264 MP4 with a64x48 header,144 small frames and two3840x2160 frames;146 frames,6.083333s. The external decoder independently confirms both extents while initial stream metadata stays64x48.",
+		"result": "Focused actual decoder/converter plus the existing File reservation fails:33177600-byte converted image exceeds16900096-byte admitted CPU storage. Exit101,0.04s test. This is a reproduced over-admission defect, not a timing estimate.",
+		"log": "target/m10-inband-admission-baseline-2026-11-13.log",
+		"log_sha256": "1c096525c06a2664899717ba8261f9a86422df1f6ec062840801167d311ca5d8"
+	},
+	"implementation": "File Budget::admit_software reserves the existing initial-dimension charge and applies Decoder::tighten_pixel_limit before creating the Reader. Invalid caps do not mutate the decoder, and larger caps cannot restore a relaxed ceiling. FFmpeg's supported alignment query supplies padding for its allocation guard, while logical returned-frame admission stays at the reserved pixel count. The allocation ceiling also never exceeds its previous value. Pinned FFmpeg decode.c checks stride-aligned width; utils.c supplies that alignment. A real65x5 ProRes4444 fixture guards healthy odd-width playback and EOF replacement.",
+	"verification": {
+		"software": "Final682 app/311 Golden Video tests pass,0 failed. The same growth fixture is rejected before oversized conversion; FFmpeg reports3840x2160 exceeding the padded4224-pixel allocation guard, while logical admission stays3072pixels. Atomic invalid/tighten-only limits, normal H.264/HEVC/ProRes/odd ProRes, EOF codec replacement and independently retained frames pass.",
+		"strict": "Final both-package all-target native-qualification clippy with warnings denied exits0. Root and Golden Core Cargo formatting and owned whitespace checks pass. No UI/protocol change.",
+		"native": "After inspected terminal final software/strict success, the existing Intel File-worker regression passes1/1 in0.33s (2.44s wrapper). Resident H.264, zero-budget CPU fallback and ProRes source-GPU publication preserve exact forward/reverse/seek/Stop coordinates and retire CPU/GPU reservations/owners to zero. No NVIDIA startup, reset or timing probe.",
+		"native_log": "target/m10-inband-admission-native-2026-11-13.log",
+		"native_log_sha256": "ee9ff6a980c9cfc8e3b795e3d3d424198fccb38e8c1530a75abb637f4fb4d8f8",
+		"cadence": "One bounded failing software reproducer and its fixed regression; no additional diagnostic workload or timing variant. Initial fixed software/strict also passed. Source review then identified FFmpeg's padding requirement, so final compatibility tests include a generated odd-width fixture and final software/strict verification. All useful logs remain preserved."
+	},
+	"scope": "This closes the reproduced expansion-to-oversized-conversion path. It does not count all unique/private decoder/allocator storage, prove every codec's pool peak, support arbitrary in-band layout changes, establish per-channel PTS/upload uniqueness or qualify production timing. Existing source failure/retry/relink behavior remains authoritative; an unsupported expansion returns a decode/admission error.",
+	"inputs": {
+		"base_commit": "ef4c82c447b8a218b5d9851cb07ea4c7984d6c5d",
+		"manifest": "target/m10-inband-admission-inputs-2026-11-13.json",
+		"manifest_sha256": "7b38d8fd13e59b77f3b44e3982fa90c4baf947f0d9ab0b427e9328a0be9e0e42",
+		"app_test_binary_sha256": "ddae4ea84344ce62acf7f7c4cd6ddaefe41036f0fb425051b773055b31794429",
+		"growing_fixture_sha256": "5f3611eff1c89a7c27488202c22f1e464eed9a371aae76c256dd34c38ca865e6",
+		"odd_fixture_sha256": "a4fcd4a65a7e697e7cad07cddfb95a06a21826eefcd9ec221143dd0e2de3bb1d",
+		"generation": "The manifest retains generator/compiler inputs, Cargo.lock, encoder/probe provenance and all six validation logs. Both small fixtures and their generator are delivered with this slice."
+	},
+	"next": "Push the admission fix, then verify the actual File-worker error/withdrawal and valid-file relink recovery for the generated growing file through the existing backend intents. Preserve failed baseline and all original CPU-pool/per-channel/format/repeated/age/GPU-critical-path/NVIDIA/M09 scope. No fixed gate closes:4 sole Active,88/106 (83%),M10 5/8; M14 follows4 acceptance."
+}

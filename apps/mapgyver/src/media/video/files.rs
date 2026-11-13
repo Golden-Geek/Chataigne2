@@ -139,6 +139,14 @@ impl Budget {
             .ok_or("Video storage overflow")?;
         self.reserve_bytes(bytes)
     }
+    fn admit_software(self: &Arc<Self>, decoder: &mut Decoder) -> Result<Lease, Failure> {
+        let pixels = u64::from(decoder.info().width) * u64::from(decoder.info().height);
+        let lease = self
+            .reserve(pixels)
+            .map_err(|error| Failure(VideoSourceError::new(VideoSourceErrorKind::Capacity, error)))?;
+        decoder.tighten_pixel_limit(pixels)?;
+        Ok(lease)
+    }
     fn reserve_bytes(self: &Arc<Self>, bytes: u64) -> Result<Lease, String> {
         let mut used = self.used.lock().map_err(|_| "Video storage budget poisoned")?;
         if bytes == 0 || bytes > MAX_BYTES.saturating_sub(used.retained_bytes) {
@@ -492,7 +500,7 @@ impl Run {
     }
     fn play_software(&self, worker: &WorkerContext<(), ()>, owner: uuid::Uuid) -> Result<(), Failure> {
         let cancel = worker.cancellation().clone();
-        let decoder = Decoder::open_with_interrupt(
+        let mut decoder = Decoder::open_with_interrupt(
             &self.file,
             DecodeLimits {
                 max_pixels: 16384 * 16384,
@@ -511,11 +519,7 @@ impl Run {
                 info.codec, info.width, info.height
             );
         }
-        let lease = Arc::new(
-            self.budget
-                .reserve(u64::from(decoder.info().width) * u64::from(decoder.info().height))
-                .map_err(|error| Failure(VideoSourceError::new(VideoSourceErrorKind::Capacity, error)))?,
-        );
+        let lease = Arc::new(self.budget.admit_software(&mut decoder)?);
         #[cfg(all(windows, feature = "native-video"))]
         if let Some(hardware) = &self.hardware
             && hardware.has_storage_budget()
