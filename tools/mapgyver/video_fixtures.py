@@ -21,6 +21,15 @@ def frame_code(rgb, width=320):
 
 
 PROFILES = {
+    "h264": ("H.264 High", "h264-high", ["-c:v", "libx264", "-preset", "veryfast",
+             "-crf", "18", "-profile:v", "high", "-pix_fmt", "yuv420p", "-g", "60",
+             "-bf", "2"], {"codec_name": "h264", "profile": "High", "pix_fmt": "yuv420p",
+             "codec_tag_string": "avc1", "has_b_frames": 2}),
+    "hevc": ("HEVC Main", "hevc-main", ["-c:v", "libx265", "-preset", "veryfast",
+             "-crf", "20", "-pix_fmt", "yuv420p", "-g", "60", "-bf", "2", "-tag:v", "hvc1",
+             "-x265-params", "pools=4:frame-threads=2"], {"codec_name": "hevc",
+             "profile": "Main", "pix_fmt": "yuv420p", "codec_tag_string": "hvc1",
+             "has_b_frames": 2}),
     "prores": ("ProRes HQ", "prores-hq", ["-c:v", "prores_ks", "-profile:v", "3",
                "-pix_fmt", "yuv422p10le"], {"codec_name": "prores", "profile": "HQ",
                "pix_fmt": "yuv422p10le"}),

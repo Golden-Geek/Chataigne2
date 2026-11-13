@@ -311,13 +311,23 @@ try {
 		await makeOutput(mirrorHD.reference, fixtures.cases[0], 'Q06 independent shared output')
 	);
 	await transport({ kind: 'Loop', looping: true });
-	await transport({ kind: 'Seek', position_ms: 1000 });
 	for (const output of outputs.slice(0, 2))
 		await wait(
 			async () => (await edit({ kind: 'InspectVideoSource', reference: output.reference })).status,
-			(value) => value.state === 'Ready' && !value.error,
-			'full-size File decoded'
+			(value) =>
+				value.state === 'Ready' &&
+				!value.error &&
+				value.duration_ms === output.fixture.duration_seconds * 1000,
+			'full-size File decoded with declared duration'
 		);
+	// Unknown duration deliberately bounds authored Current Position to zero.
+	await wait(
+		async () => (await edit({ kind: 'InspectVideo', media })).snapshot,
+		(value) => value.ready,
+		'shared transport duration ready before held seek'
+	);
+	const heldSeek = (await transport({ kind: 'Seek', position_ms: 1000 })).snapshot;
+	assert.equal(heldSeek.settings.position_ms, 1000, 'held seek accepted after duration readiness');
 	for (const output of outputs.slice(0, 2))
 		await wait(
 			async () => (await edit({ kind: 'InspectVideoFrame', reference: output.reference })).frame,
@@ -355,6 +365,7 @@ try {
 		observations,
 		outputs,
 		checkpoints,
+		heldSeek,
 		errors,
 		consumerDirectories: consumers.map((value) => value.root),
 		scope:
@@ -382,12 +393,20 @@ try {
 try {
 	report.videoSourceBindings = sourceBindings.finish();
 	report.nativeDiagnostics = await inspectNativeDiagnostics(native.app.pid, native.log(), {
-		requireSoftwareUpload: !fixtures.codec.startsWith('HAP'),
+		requireSoftwareUpload: fixtures.codec === 'ProRes HQ',
 		requireVideoFrames: true,
 		requireSourceBudget: true,
 		requireSourceUploads: true
 	});
 	assertQ06SourceUploads(fixtures.codec, report.nativeDiagnostics.sourceGpu);
+	if (fixtures.codec === 'H.264 High' || fixtures.codec === 'HEVC Main') {
+		assert.equal(
+			report.nativeDiagnostics.uploadBytes,
+			0,
+			'resident decode has no CPU pixel uploads'
+		);
+		assert(report.nativeDiagnostics.residentVideoFrameUses > 0, 'actual resident frames required');
+	}
 } catch (error) {
 	await writeFile(
 		path.join(directory, 'diagnostic-failure.json'),

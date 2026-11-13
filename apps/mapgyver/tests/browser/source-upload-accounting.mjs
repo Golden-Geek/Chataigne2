@@ -5,9 +5,23 @@ const kinds = ['software', 'hap'];
 // Q06 HAP has two shared GPU publishers. ProRes shares HD; UHD uploads in the renderer.
 export function assertQ06SourceUploads(codec, budget) {
 	assert(
-		['ProRes HQ', 'HAP', 'HAP Alpha', 'HAP Q'].includes(codec),
+		['H.264 High', 'HEVC Main', 'ProRes HQ', 'HAP', 'HAP Alpha', 'HAP Q'].includes(codec),
 		'supported numbered Q06 codec required'
 	);
+	if (codec === 'H.264 High' || codec === 'HEVC Main') {
+		const groups = budget.maximum_observed_classes;
+		// Retiring generations may overlap; both files must have actual admitted HW storage.
+		for (const kind of ['decoder_pools', 'hardware_producers']) {
+			assert(groups[kind].allocations >= 2, 'two resident file sources required');
+			assert(groups[kind].bytes > 0);
+		}
+		for (const kind of ['software_producers', 'hap_producers'])
+			assert.deepEqual(groups[kind], { allocations: 0, bytes: 0 });
+		assert(budget.upload_budgets.length > 0, 'measured lifetime counters required');
+		for (const entry of budget.upload_budgets)
+			for (const kind of kinds) assert.deepEqual(entry.uploads[kind], { calls: 0, bytes: 0 });
+		return;
+	}
 	const hap = codec.startsWith('HAP');
 	const kind = hap ? 'hap' : 'software';
 	const allocation = hap ? 'hap_producers' : 'software_producers';

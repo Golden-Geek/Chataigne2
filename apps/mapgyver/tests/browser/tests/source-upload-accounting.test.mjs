@@ -9,6 +9,37 @@ import {
 const first = '76f39a00-2bfb-4567-a28b-006cf031a1ae';
 const second = '135d4930-c077-4fd6-ae55-a66d09477bb5';
 
+test('resident Q06 requires actual hardware pools and rejects CPU fallback or unmeasured uploads', () => {
+	for (const codec of ['H.264 High', 'HEVC Main']) {
+		const budget = {
+			maximum_observed_classes: {
+				decoder_pools: { allocations: 2, bytes: 80000000 },
+				hardware_producers: { allocations: 2, bytes: 20000000 },
+				software_producers: { allocations: 0, bytes: 0 },
+				hap_producers: { allocations: 0, bytes: 0 }
+			},
+			upload_budgets: [
+				{ uploads: { software: { calls: 0, bytes: 0 }, hap: { calls: 0, bytes: 0 } } }
+			]
+		};
+		assertQ06SourceUploads(codec, budget);
+		for (const mutate of [
+			(value) => value.maximum_observed_classes.decoder_pools.allocations--,
+			(value) => value.maximum_observed_classes.hardware_producers.allocations--,
+			(value) => (value.maximum_observed_classes.hardware_producers.bytes = 0),
+			(value) => value.maximum_observed_classes.software_producers.allocations++,
+			(value) => value.maximum_observed_classes.hap_producers.bytes++,
+			(value) => (value.upload_budgets.length = 0),
+			(value) => value.upload_budgets[0].uploads.software.calls++,
+			(value) => value.upload_budgets[0].uploads.hap.bytes++
+		]) {
+			const wrong = structuredClone(budget);
+			mutate(wrong);
+			assert.throws(() => assertQ06SourceUploads(codec, wrong));
+		}
+	}
+});
+
 test('Q06 checks codec-specific payloads and rejects absent, expanded or mixed HAP uploads', () => {
 	for (const codec of ['ProRes HQ', 'HAP', 'HAP Alpha', 'HAP Q']) {
 		const hap = codec.startsWith('HAP');
