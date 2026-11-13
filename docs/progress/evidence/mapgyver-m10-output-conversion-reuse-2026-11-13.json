@@ -29,5 +29,47 @@
 		"executable": "target/debug/deps/golden_video-7e86c453fb7761c1.exe",
 		"executable_sha256": "28526d27bed530aec37218f3955241d4dec7f42365ede72c63502361b1106a61"
 	},
-	"remaining": "Push, rebuild the ordinary app/probe and run the existing Intel workload once to measure the conversion change. Prior pass-reuse cohort remains HD49.09/4K26.38 observed updates/s,2.73% definite visible misses and HD publication-copy p95 upper69.32ms;4K p95 is unbounded. No changed performance claim here. NVIDIA awaits a fresh supported overlay-Off observation; Computer Use requires unavailable node_repl. All original codec/repeated/age/resource/path/CPU/plane/pool/in-flight scope and final M09 Q03/Q05 remain required.4 stays sole Active;88/106 (83%),M10 5/8,8/15 phases unchanged; M14 follows4 acceptance."
+	"ordinary_app_cohort": {
+		"base_commit": "1de65bdfea6f4cc4e5928478208f569e9bb0d6e1",
+		"adapter": "dxgi:00000000:000156b6",
+		"pid": 26460,
+		"exit_code": 0,
+		"builds": "Normal default app build0 in36.87s and receiver probe build0 in40.72s, inspected before the single existing workload. All recorded concurrent compile inputs and workload scripts match the pass-reuse baseline. Five executable-local FFmpeg libraries match the pinned bundle.",
+		"binary_sha256": "a99a8db394d68293efe7b4acdcebaae0d6530aebf2ca291836f2337eb3664a0a",
+		"probe_sha256": "cc889e43e183aa12e0cdd3b6c4175d1e89ced95574c660a8c7854df6349ff082",
+		"workload": "Same hashed ProResHQ1080p60 +4K30 files, shared HD Reference, three authored outputs and default Screen/preview.30s warmup,120s visible,60s minimized,60s receivers disconnected. Three independent held-frame images pass;136 Ready/Playing observations,0 page errors, normal exit0.",
+		"reuse": "Visible7171 submissions record48389 rendered/23321 reused passes.28619 accepted versioned Spout sends include11748 reused conversions (41.05%);6740 actual window Presents have0 conversion reuses. All16459 FrameCpu rows have wall intervals, and82045 Output rows carry explicit boolean reuse evidence. Reused rows have no conversion interval/window identity. Due sends, not skip counts, remain the cadence observations.",
+		"visible": {
+			"observed_source_publications_per_second": [57.37119335010698, 25.870343575120827],
+			"maximum_definite_deadline_miss_fraction": 0.004442593363876163,
+			"maximum_observed_deadline_miss_fraction": 0.012078300708038317,
+			"hd_publication_copy_p95_upper_ms": 40.4372,
+			"uhd_publication_copy_p95_upper_ms": 66.2075,
+			"age_limits": "HD p95 meets50ms for this one sample;4K p95 still exceeds50ms. All accepted images remain in the bounds:77/7161 HD and210/7116 UHD missing receiver completions keep p99/max unbounded. No finite-subset pass or full-path/decoded pixel-PTS proof.",
+			"cpu_wall_upper_p95_ms": 4.2604,
+			"renderer_context_p95_ms": 22.20234375,
+			"render_partition_p95_ms": 9.650625,
+			"output_partition_p95_ms": 11.058697916666667,
+			"partition_limit": "Same-context spans include waits/scheduling/feed gaps, not isolated shader work or a complete critical path."
+		},
+		"minimized": "HD59.6767/4K30.0049 observed publications/s; definite misses0.1388%, maximum observed misses0.2220%. HD/UHD p95 upper38.0346/46.3366ms meet50ms for this phase. HD has0 missing images; UHD has2/3598, keeping its maximum unbounded.",
+		"disconnected": "HD58.9433/4K29.9878 observed publications/s; definite/observed misses0.3885%. Independent receiver age remains unbounded by design after disconnection.",
+		"comparison": "Pass-reuse baseline was HD49.0919/4K26.3784 publications/s,2.7346% definite visible misses,HD p95 upper69.3247ms and unbounded4K p95. Current HD cadence/age and deadline observations improve; visible4K throughput is slightly lower, not an improvement claim. One operational sample does not establish causality or a production series. Earlier failures remain retained.",
+		"resources": "284 source-GPU snapshots across6 complete captures: one shared HD software producer,24883200-byte lifetime peak and0 decoder/hardware/HAP source classes. Every terminal capture reports native uninitialized and zero source-GPU/plan/owned texel allocations;0 ring drops/clock failures/duration cutoff.",
+		"report": "target/q06-conversion-reuse-intel-2026-11-13/sample.json",
+		"report_sha256": "30e2a9b7181f1f2f25733a8d8bb1248a0ff9a29a45b6f2ae37612b51b7a84d18",
+		"audit": "target/q06-conversion-reuse-intel-2026-11-13/audit.json",
+		"audit_sha256": "0dfd20682b3e278313df1a77451a12ec600c1bbe59a88fc989a5bf194d96ceeb",
+		"execution_inputs": "target/q06-conversion-reuse-intel-2026-11-13/execution-inputs.json",
+		"execution_inputs_sha256": "b15c0953a758d0cc613f5a703cddee4c43acc2c2883405867a7f6dd54f41e30a",
+		"reuse_counts": "target/q06-conversion-reuse-intel-2026-11-13/conversion-reuse-observations.json",
+		"reuse_counts_sha256": "057d58e9ba9a4376da8504774b104d32fab36d8a2d53f10d3daa6fb0962c16d7",
+		"log": "target/q06-conversion-reuse-intel-2026-11-13.log",
+		"log_sha256": "d862516db7cd2b1f0af4554492016ae5c3762243d7aa2b0a47b5fe2bfdc99416",
+		"app_build_log": "target/m10-conversion-cohort-app-build-2026-11-13.log",
+		"app_build_log_sha256": "d105316c8fa5cf4f2f8f1f89179f48a9501625e1327be7f14964f7919b99fd7d",
+		"probe_build_log": "target/m10-conversion-cohort-probe-build-2026-11-13.log",
+		"probe_build_log_sha256": "911d34a09397832d7be83e1c4e4c317915800d7c156f025f5640be279f0e5b53"
+	},
+	"remaining": "First-pass integration is not accepted: visible4K p95 upper66.2075ms exceeds50ms, and full cadence/resource/path/format/repeated/decoded pixel-PTS scope remains. Next complete the already-required continuous Video pixel/PTS witness in the existing independent SDK consumer; held images and metadata publication age do not substitute for that correctness evidence. Retain the failed4K timing return item for a concrete source/render change rather than another unchanged sampler run. Current code already uses4 bounded software decode threads and2 renderer submissions in flight; its measured-worse4K GPU-bridge path remains parked. NVIDIA awaits a fresh supported overlay-Off observation; Computer Use requires unavailable node_repl. All original plane/pool/in-flight requirements and final M09 Q03/Q05 remain.4 stays sole Active;88/106 (83%),M10 5/8,8/15 phases unchanged; M14 follows4 acceptance."
 }
