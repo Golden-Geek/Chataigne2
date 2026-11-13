@@ -6,7 +6,11 @@ import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
 
-export async function inspectNativeDiagnostics(pid, appLog) {
+export async function inspectNativeDiagnostics(
+	pid,
+	appLog,
+	{ requireSoftwareUpload = true, requireVideoFrames = false } = {}
+) {
 	const directory = process.env.MAPGYVER_NATIVE_DIAGNOSTICS;
 	if (!directory) return null;
 	assert(
@@ -18,7 +22,9 @@ export async function inspectNativeDiagnostics(pid, appLog) {
 	assert(names.length > 0, 'the actual app must create an owned capture');
 	const captures = [];
 	const counts = {};
-	let uploadBytes = 0;
+	let uploadBytes = 0,
+		videoFrameUses = 0,
+		residentVideoFrameUses = 0;
 	const sourceUploads = new Map();
 	for (const name of names.sort()) {
 		const file = path.join(directory, name);
@@ -44,6 +50,10 @@ export async function inspectNativeDiagnostics(pid, appLog) {
 				assert.equal(kinds.length, 1);
 				const kind = kinds[0];
 				counts[kind] = (counts[kind] ?? 0) + 1;
+				if (kind === 'SourceUse' && row.event[kind].frame) {
+					videoFrameUses++;
+					if (!row.event[kind].software_upload) residentVideoFrameUses++;
+				}
 				if (kind === 'ImageUpload') uploadBytes += row.event[kind].bytes;
 				const upload = row.event[kind].software_upload;
 				if (upload) {
@@ -86,16 +96,23 @@ export async function inspectNativeDiagnostics(pid, appLog) {
 	for (const kind of ['FrameCpu', 'Output', 'Gpu', 'SourceUse']) {
 		assert(counts[kind] > 0, `real playback must emit ${kind}`);
 	}
-	assert(uploadBytes > 0);
-	assert(
-		(counts.ImageUpload ?? 0) > 0 || sourceUploads.size > 0,
-		'actual CPU upload evidence required'
-	);
+	if (requireSoftwareUpload) {
+		assert(uploadBytes > 0);
+		assert(
+			(counts.ImageUpload ?? 0) > 0 || sourceUploads.size > 0,
+			'actual CPU upload evidence required'
+		);
+	}
+	if (requireVideoFrames) assert(videoFrameUses > 0, 'actual timestamped Video uses required');
 	return {
 		captures,
 		counts,
 		uploadBytes,
 		observedSourceUploads: sourceUploads.size,
+		videoFrameUses,
+		residentVideoFrameUses,
+		requireSoftwareUpload,
+		requireVideoFrames,
 		scope:
 			'Completed actual-app event capture, ring health and native retirement; no sustained-performance, per-format allowance or source-age acceptance.'
 	};

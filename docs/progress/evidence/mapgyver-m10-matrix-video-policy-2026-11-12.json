@@ -337,6 +337,34 @@
 		"validation": "Existing678 app/696 engine tests and strict native-feature lint remain valid for unchanged runtime/Rust code. Updated JS/Python fixture syntax/Prettier and root/Core Cargo formatting pass; no third GPU run in this batch.",
 		"remaining": "The explicit Matrix enabled/disabled native case was added after this32-image run and has syntax checks only. Verify that additional case on NVIDIA, run the complete same fixture on Intel, then finish the original requirement-by-requirement M10/7 audit. Earlier failures remain evidence. No FPS/latency/source-age/sustained/per-format or M10/4 resource-budget qualification is inferred."
 	},
+	"native_enabled_and_resident_path": {
+		"date": "2026-11-13",
+		"gate_accepted": false,
+		"nvidia": {
+			"result": "pass",
+			"exit_code": 0,
+			"pid": 22844,
+			"raw": "target/m10-matrix-policy-nvidia-enabled-2026-11-13/matrix-video-policy.json",
+			"sha256": "749d8771a5bb8018329dde789064e0c4045600dd0a31a5e5c29af2ce060f7b9e",
+			"scope": "All nine pairs,34 SDK images including Matrix disable/re-enable, moving outgoing/manual/reactivation, shared Layer Stop, independent copy/reload and zero-resource retirement. Normal exit0."
+		},
+		"intel": {
+			"result": "failed",
+			"exit_code": 1,
+			"pid": 29124,
+			"raw": "target/m10-matrix-policy-intel-complete-2026-11-13.log",
+			"sha256": "ddbb820f6d0b34940623da71495fa45d2b27a66a36dc6b9bea1834f0c42cbf7e",
+			"finding": "Reached the final post-shutdown diagnostics assertion after all policy/image/retirement assertions completed. The helper required uploadBytes>0, but this resident decode path has285 timestamped Video uses, all without software uploads. No complete report was written; preserve this run as failed rather than infer full acceptance."
+		},
+		"correction": "Diagnostic inspection now keeps CPU upload evidence mandatory by default for existing playback/sustained callers. Only the Matrix policy fixture permits resident decode and requires actual timestamped Video uses instead. Pixel4/255 tolerance, deadlines, all ring/retirement checks and M10/4 budgets are unchanged. Persist full failed report if post-shutdown diagnostic inspection fails again.",
+		"offline_validation": {
+			"result": "pass",
+			"raw": "target/m10-matrix-policy-path-aware-diagnostics-2026-11-13.json",
+			"sha256": "4d3447d9cd16df9933a1579ab0ab3a43d7df394f4f04188f1ce6812a446557d0",
+			"scope": "Both six-capture sets pass complete-capture/ring-health/zero-native-retirement and timestamped Video checks. Intel285 resident uses/zero uploads passes policy mode but is still rejected by default CPU-required mode; NVIDIA285 software uses/1646592bytes passes both. No hardware rerun in this batch."
+		},
+		"remaining": "Commit/push this corrected path-specific qualification boundary, then rerun Intel once with unchanged production binaries and finish the original acceptance audit. Two GPU runs were used; no third here."
+	},
 	"remaining": [
 		"Complete configured shared/multi-Layer interruption and all-caller/copy/reload audit",
 		"Verify both GPUs' actual native moving incoming/outgoing images, policies, manual transport, shared clock, enabled/Stop lifecycle and retirement after software prerequisites"

@@ -604,7 +604,19 @@ try {
 	await native.close();
 }
 report.normalShutdown = true;
-report.nativeDiagnostics = await inspectNativeDiagnostics(native.app.pid, native.log());
+try {
+	// Policy correctness accepts resident decode; upload budgets belong to M10/4.
+	report.nativeDiagnostics = await inspectNativeDiagnostics(native.app.pid, native.log(), {
+		requireSoftwareUpload: false,
+		requireVideoFrames: true
+	});
+} catch (error) {
+	await writeFile(
+		path.join(directory, 'diagnostic-failure.json'),
+		JSON.stringify({ ...report, result: 'failed', error: String(error) }, null, 2)
+	);
+	throw error;
+}
 await writeFile(path.join(directory, 'matrix-video-policy.json'), JSON.stringify(report, null, 2));
 console.log(
 	JSON.stringify({
