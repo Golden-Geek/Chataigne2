@@ -1,10 +1,13 @@
-use super::super::{DecodeError, DecodeState, DecodedFrame, Decoder, FrameStorage, ffmpeg};
+use super::super::{DecodeError, DecodeState, DecodedFrame, Decoder, DecoderKind, FrameStorage, ffmpeg};
 use super::HapFrame;
 impl Decoder {
     pub(in crate::decode) fn receive_hap(&mut self) -> Result<Option<DecodedFrame>, DecodeError> {
         if self.state == DecodeState::Ended {
             return Ok(None);
         }
+        let DecoderKind::Hap(budget) = &self.kind else {
+            return Err(DecodeError::UnsupportedCodec);
+        };
         for _ in 0..self.limits.max_packets_per_frame {
             let mut packet = ffmpeg::Packet::empty();
             match packet.read(&mut self.input) {
@@ -21,6 +24,7 @@ impl Decoder {
                     let frame = HapFrame::decode(
                         packet.data().ok_or_else(|| DecodeError::Hap("empty packet".into()))?,
                         extent,
+                        budget,
                     )?;
                     return Ok(Some(DecodedFrame {
                         timestamp,

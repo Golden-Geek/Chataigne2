@@ -1,5 +1,6 @@
 #[cfg(all(windows, feature = "native-video"))]
 use super::*;
+mod hap;
 
 #[test]
 #[cfg(all(windows, feature = "native-video"))]
@@ -13,7 +14,7 @@ fn prepared_lookahead_is_reused_once_and_invalidated_by_seek_eof_and_previous_pr
                 &root.join(name),
                 DecodeLimits {
                     max_pixels: 4096 * 2160,
-                    max_software_frame_bytes: 64 * 1024 * 1024,
+                    max_cpu_frame_bytes: 64 * 1024 * 1024,
                     max_packet_bytes: 1024 * 1024,
                     max_packets_per_frame: 256,
                     software_threads: SoftwareDecodeThreads::One,

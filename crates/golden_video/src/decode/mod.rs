@@ -28,9 +28,9 @@ pub use d3d11::{D3d11Frame, D3d11Storage};
 pub struct DecodeLimits {
     /// Maximum number of pixels admitted by both stream metadata and libavcodec.
     pub max_pixels: u64,
-    /// Maximum allocated software decoded-plane payload, including idle pool buffers.
+    /// Maximum CPU frame payload: software planes/idle buffers or compressed HAP blocks.
     /// Scaler, published images, codec-private state and demux allocations are separate.
-    pub max_software_frame_bytes: u64,
+    pub max_cpu_frame_bytes: u64,
     /// Maximum compressed packet payload accepted from the demuxer.
     pub max_packet_bytes: usize,
     /// Maximum packets inspected while producing a single frame.
@@ -188,15 +188,20 @@ pub struct Decoder {
 
 enum DecoderKind {
     Software(Box<software_pool::Allocator>),
-    Hap,
+    Hap(crate::image::ImageStorageBudget),
     #[cfg(all(windows, feature = "d3d11"))]
     D3d11(d3d11::HardwareDevice),
 }
 impl DecoderKind {
+    fn hap(bytes: u64) -> Result<Self, DecodeError> {
+        crate::image::ImageStorageBudget::new(bytes)
+            .map(Self::Hap)
+            .map_err(|_| DecodeError::InvalidLimits)
+    }
     fn configure(&self, context: &mut ffmpeg::codec::context::Context) -> Result<(), DecodeError> {
         match self {
             Self::Software(allocator) => allocator.configure(context),
-            Self::Hap => {
+            Self::Hap(_) => {
                 let _ = context;
                 Ok(())
             }
@@ -206,7 +211,7 @@ impl DecoderKind {
     }
     fn frame(&self, image: ffmpeg::frame::Video) -> Result<FrameStorage, DecodeError> {
         match self {
-            Self::Hap => Err(DecodeError::UnsupportedCodec),
+            Self::Hap(_) => Err(DecodeError::UnsupportedCodec),
             Self::Software(_) => {
                 // Validate the actual format before exposing CPU planes, independently of
                 // the requested backend. No unexpected hardware pointer reaches a scaler.
@@ -253,11 +258,9 @@ impl Decoder {
                     .id()
                     == ffmpeg::codec::Id::HAP
                 {
-                    DecoderKind::Hap
+                    DecoderKind::hap(limits.max_cpu_frame_bytes)?
                 } else {
-                    DecoderKind::Software(Box::new(software_pool::Allocator::new(
-                        limits.max_software_frame_bytes,
-                    )?))
+                    DecoderKind::Software(Box::new(software_pool::Allocator::new(limits.max_cpu_frame_bytes)?))
                 },
             )
         })
@@ -271,7 +274,7 @@ impl Decoder {
     ) -> Result<Self, DecodeError> {
         if limits.max_pixels == 0
             || limits.max_pixels > i64::MAX as u64
-            || limits.max_software_frame_bytes == 0
+            || limits.max_cpu_frame_bytes == 0
             || limits.max_packet_bytes == 0
             || limits.max_packets_per_frame == 0
         {
@@ -292,7 +295,7 @@ impl Decoder {
             return Err(ffmpeg::Error::InvalidData.into());
         }
         let kind = create_device(&input, index)?;
-        let decoder = if matches!(kind, DecoderKind::Hap) {
+        let decoder = if matches!(kind, DecoderKind::Hap(_)) {
             None
         } else {
             Some(open_decoder(&input, index, limits, &kind, limits.max_pixels)?)
@@ -338,28 +341,32 @@ impl Decoder {
     pub fn info(&self) -> &StreamInfo {
         &self.info
     }
-    /// Actual software decoded-plane inventory, including idle pool storage. The observer
-    /// does not retain pixels; native/HAP decoders have no software plane pool.
-    pub fn software_frame_budget(&self) -> Option<crate::image::ImageStorageBudget> {
+    /// CPU decoded payload inventory: software planes/idle pool storage or compressed HAP
+    /// blocks. Observers do not retain storage; resident hardware decode returns None.
+    pub fn cpu_frame_budget(&self) -> Option<crate::image::ImageStorageBudget> {
         match &self.kind {
             DecoderKind::Software(allocator) => Some(allocator.budget.clone()),
-            _ => None,
+            DecoderKind::Hap(budget) => Some(budget.clone()),
+            #[cfg(all(windows, feature = "d3d11"))]
+            DecoderKind::D3d11(_) => None,
         }
     }
-    /// Tighten allocation-time software plane admission without increasing its ceiling or
+    /// Tighten allocation-time CPU frame admission without increasing its ceiling or
     /// discarding retained frames. The same pool/budget survives codec replacement on seek.
     /// Scaler, published images and codec-private storage require separate owning admission.
-    pub fn tighten_software_frame_limit(&mut self, bytes: u64) -> Result<(), DecodeError> {
+    pub fn tighten_cpu_frame_limit(&mut self, bytes: u64) -> Result<(), DecodeError> {
         if self.state == DecodeState::Failed {
             return Err(DecodeError::ReopenRequired);
         }
-        match &self.kind {
-            DecoderKind::Software(allocator) => allocator.budget.tighten(bytes).map_err(|error| match error {
+        self.cpu_frame_budget()
+            .ok_or(DecodeError::InvalidLimits)?
+            .tighten(bytes)
+            .map_err(|error| match error {
                 crate::image::ImageError::Capacity => DecodeError::LimitExceeded,
                 _ => DecodeError::InvalidLimits,
-            }),
-            _ => Err(DecodeError::InvalidLimits),
-        }
+            })?;
+        self.limits.max_cpu_frame_bytes = bytes;
+        Ok(())
     }
     /// Tighten future frame allocation/admission without increasing the original ceiling.
     /// Owners reserving storage from initial stream dimensions call this before decoding.
@@ -392,7 +399,7 @@ impl Decoder {
     pub fn storage(&self) -> DecodeStorage {
         match self.kind {
             DecoderKind::Software(_) => DecodeStorage::Software,
-            DecoderKind::Hap => DecodeStorage::Hap,
+            DecoderKind::Hap(_) => DecodeStorage::Hap,
             #[cfg(all(windows, feature = "d3d11"))]
             DecoderKind::D3d11(_) => DecodeStorage::D3d11,
         }
@@ -429,7 +436,7 @@ impl Decoder {
         // them per pointer update can starve the latest request. Drained HEVC can emit an
         // old delayed frame after flush, so a drain/EOF discontinuity still gets a new codec.
         // Consumers keep independent frame references across either path.
-        let replacement = if self.state != DecodeState::Reading && !matches!(self.kind, DecoderKind::Hap) {
+        let replacement = if self.state != DecodeState::Reading && !matches!(self.kind, DecoderKind::Hap(_)) {
             match open_decoder(
                 &self.input,
                 self.stream,
@@ -496,7 +503,7 @@ impl Decoder {
     }
 
     fn receive_next(&mut self) -> Result<Option<DecodedFrame>, DecodeError> {
-        if matches!(self.kind, DecoderKind::Hap) {
+        if matches!(self.kind, DecoderKind::Hap(_)) {
             return self.receive_hap();
         }
         if self.state == DecodeState::Ended {

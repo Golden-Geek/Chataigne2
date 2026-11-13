@@ -265,7 +265,7 @@ impl Decoder {
         Self::open_configured(path, limits, interrupt, move |input, index| {
             let stream = input.stream(index).ok_or(ffmpeg::Error::StreamNotFound)?;
             if stream.parameters().id() == ffmpeg::codec::Id::HAP {
-                return Ok(DecoderKind::Hap);
+                return DecoderKind::hap(limits.max_cpu_frame_bytes);
             }
             HardwareDevice::new(adapter, stream.parameters().id(), budget).map(DecoderKind::D3d11)
         })

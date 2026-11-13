@@ -51,12 +51,12 @@ The implemented foundations are:
   private demux/codec allocations. MapGyver ties its software-source limit to the dimensions
   used for its CPU reservation, so later in-band expansion cannot reach oversized conversion.
   Software codecs use the public `get_buffer2` / `AVBufferPool` boundary to reserve decoded
-  plane payload before allocation. `software_frame_budget()` observes actual allocated bytes,
+  plane payload before allocation. `cpu_frame_budget()` observes admitted payload,
   including padding and idle cached buffers; observers retain no pixels. The same pool and
-  non-increasing `tighten_software_frame_limit` survive EOF codec replacement. Buffer free
+  non-increasing `tighten_cpu_frame_limit` survive EOF codec replacement. Buffer free
   callbacks release charges after pool destruction and the final held frame, including partial
   allocation failures. Codecs lacking direct-buffer support are explicitly unsupported. The
-  caller supplies `DecodeLimits::max_software_frame_bytes`; MapGyver tightens this inside its
+  caller supplies `DecodeLimits::max_cpu_frame_bytes`; MapGyver tightens this inside its
   unchanged CPU reservation, leaving separate capacity for conversion and published images.
   This bounds decoded-plane payload, not codec-private storage, heap overhead or scaler scratch.
   `image::ImageStorageBudget` now supplies the shared admission/retirement mechanism for
@@ -69,6 +69,13 @@ The implemented foundations are:
   returns a typed error before exceeding the ceiling and conversion can resume after old
   readers release it. MapGyver assigns the remaining16bytes/pixel+8MiB of its existing source
   reservation to conversion. Codec/scaler-private storage and heap overhead remain separate.
+  The same CPU-frame ceiling covers HAP's reference-decoded compressed blocks. Each shared
+  block allocation owns one storage lease; frame/upload clones add no charge and keep it
+  alive until the last clone drops. Header validation precedes reservation/allocation, and
+  malformed decode releases the pending reservation. HAP keeps one budget across EOF/seek;
+  exhausted decoders require reopen. MapGyver tightens it to the three worst-case block
+  payloads already included in its source reservation, preserving the separate packet
+  allowance. This adds no pixel expansion, decoder pool, frame queue or transfer.
   [Pinned Windows dependency and checks](../../tools/mapgyver/ffmpeg/README.md) describe the
   current boundary and remaining hardware/worker/package integration.
 - `plan/` validates the complete submitted dependency graph and caller-supplied limits, then

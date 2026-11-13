@@ -60,7 +60,7 @@ impl Run {
             &self.file,
             DecodeLimits {
                 max_pixels: 16384 * 16384,
-                max_software_frame_bytes: MAX_BYTES,
+                max_cpu_frame_bytes: MAX_BYTES,
                 max_packet_bytes: 16 * 1024 * 1024,
                 max_packets_per_frame: 256,
                 software_threads: golden_video::decode::SoftwareDecodeThreads::One,
@@ -79,7 +79,7 @@ impl Run {
         worker: &WorkerContext<(), ()>,
         owner: uuid::Uuid,
         hardware: &Hardware,
-        decoder: Decoder,
+        mut decoder: Decoder,
         cpu_lease: Option<Arc<Lease>>,
     ) -> Result<(), Failure> {
         let compressed = decoder.storage() == DecodeStorage::Hap;
@@ -102,6 +102,11 @@ impl Run {
                     .map_err(|error| Failure(VideoSourceError::new(VideoSourceErrorKind::Capacity, error)))?,
             ),
         };
+        if compressed {
+            // The source charge already includes three worst-case compressed blocks and
+            // a separate packet allowance. Held upload clones share each block's charge.
+            decoder.tighten_cpu_frame_limit(cpu_lease.bytes - 16 * 1024 * 1024)?;
+        }
         let mut reader = Reader::new(decoder)?;
         self.control
             .channel_duration(self.reference.channel, owner, reader.duration)?;

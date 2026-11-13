@@ -1,14 +1,14 @@
 //! Timestamp sampling and bounded decode turns on an owning file worker.
 use super::failure::Failure;
 use golden_video::{
-    decode::{DecodedFrame, Decoder, SoftwareImageConverter, TimeBase},
+    decode::{ConversionError, DecodeStorage, DecodedFrame, Decoder, SoftwareImageConverter, TimeBase},
     image::ImageData,
 };
 use std::time::Duration;
 
 pub(super) struct Reader {
     decoder: Decoder,
-    converter: SoftwareImageConverter,
+    converter: Option<SoftwareImageConverter>,
     prepared: Option<(i64, ImageData)>,
     current: Option<DecodedFrame>,
     next: Option<DecodedFrame>,
@@ -27,10 +27,21 @@ struct PreviousProbe {
     distance: i64,
 }
 
+fn convert_frame(converter: &mut Option<SoftwareImageConverter>, frame: &DecodedFrame) -> Result<ImageData, Failure> {
+    let converter = converter.as_mut().ok_or_else(|| {
+        if frame.hap_frame().is_some() {
+            ConversionError::CompressedStorage
+        } else {
+            ConversionError::HardwareStorage
+        }
+    })?;
+    Ok(converter.convert(frame)?)
+}
+
 #[derive(serde::Serialize)]
 pub(super) struct CpuLayouts {
-    decoder_pool: Option<golden_video::image::ImageStorageAllocation>,
-    conversion_storage: golden_video::image::ImageStorageAllocation,
+    decoded_storage: Option<golden_video::image::ImageStorageAllocation>,
+    conversion_storage: Option<golden_video::image::ImageStorageAllocation>,
     current: Option<golden_video::decode::SoftwareFrameLayout>,
     lookahead: Option<golden_video::decode::SoftwareFrameLayout>,
     scratch: Option<golden_video::decode::SoftwareFrameLayout>,
@@ -49,11 +60,14 @@ pub(super) fn duration(ticks: i64, base: TimeBase) -> Result<Duration, String> {
 impl Reader {
     pub fn cpu_layouts(&self) -> CpuLayouts {
         CpuLayouts {
-            decoder_pool: self.decoder.software_frame_budget().map(|budget| budget.snapshot()),
-            conversion_storage: self.converter.storage_budget().snapshot(),
+            decoded_storage: self.decoder.cpu_frame_budget().map(|budget| budget.snapshot()),
+            conversion_storage: self
+                .converter
+                .as_ref()
+                .map(|converter| converter.storage_budget().snapshot()),
             current: self.current.as_ref().and_then(DecodedFrame::software_layout),
             lookahead: self.next.as_ref().and_then(DecodedFrame::software_layout),
-            scratch: self.converter.scratch_layout(),
+            scratch: self.converter.as_ref().and_then(SoftwareImageConverter::scratch_layout),
             prepared_image_bytes: self.prepared.as_ref().map_or(0, |(_, image)| image.pixels().len()),
             current_hap_bytes: self
                 .current
@@ -85,14 +99,19 @@ impl Reader {
             info.time_base,
         )?;
         let origin = info.start.unwrap_or(0);
-        let conversion_bytes = u64::from(info.width)
-            .checked_mul(u64::from(info.height))
-            .and_then(|pixels| pixels.checked_mul(16))
-            .and_then(|bytes| bytes.checked_add(8 * 1024 * 1024))
-            .ok_or("Video conversion storage overflow")?;
+        let converter = if decoder.storage() == DecodeStorage::Software {
+            let bytes = u64::from(info.width)
+                .checked_mul(u64::from(info.height))
+                .and_then(|pixels| pixels.checked_mul(16))
+                .and_then(|bytes| bytes.checked_add(8 * 1024 * 1024))
+                .ok_or("Video conversion storage overflow")?;
+            Some(SoftwareImageConverter::new(bytes)?)
+        } else {
+            None
+        };
         Ok(Self {
             decoder,
-            converter: SoftwareImageConverter::new(conversion_bytes)?,
+            converter,
             prepared: None,
             current: None,
             next: None,
@@ -127,7 +146,7 @@ impl Reader {
         {
             return Ok(image);
         }
-        Ok(self.converter.convert(frame)?)
+        convert_frame(&mut self.converter, frame)
     }
     /// Convert the already-decoded lookahead while the selected frame uploads on the GPU.
     /// One prepared image replaces the next; no decoded frame or image queue is added.
@@ -144,7 +163,7 @@ impl Reader {
             return Ok(());
         }
         if self.prepared.as_ref().is_none_or(|(stamp, _)| *stamp != timestamp) {
-            self.prepared = Some((timestamp, self.converter.convert(frame)?));
+            self.prepared = Some((timestamp, convert_frame(&mut self.converter, frame)?));
         }
         Ok(())
     }

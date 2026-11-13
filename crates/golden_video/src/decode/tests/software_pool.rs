@@ -24,7 +24,7 @@ fn actual_plane_payloads_include_idle_pool_storage_and_outlive_the_decoder() {
         "prores-alpha.mov",
     ] {
         let mut decoder = Decoder::open(&fixture(name), limits()).unwrap();
-        let budget = decoder.software_frame_budget().unwrap();
+        let budget = decoder.cpu_frame_budget().unwrap();
         assert_eq!(budget.snapshot().retained_bytes, 0);
         let retained = decoder.next_frame().unwrap().unwrap();
         let original_pixels = retained.software_image().unwrap().data(0).to_vec();
@@ -55,15 +55,15 @@ fn allocation_rejection_is_typed_precedes_payload_and_poisoned_owner_requires_re
         Decoder::open(
             &fixture("prores.mov"),
             DecodeLimits {
-                max_software_frame_bytes: 0,
+                max_cpu_frame_bytes: 0,
                 ..limits()
             }
         ),
         Err(DecodeError::InvalidLimits)
     ));
     let mut decoder = Decoder::open(&fixture("prores.mov"), limits()).unwrap();
-    let budget = decoder.software_frame_budget().unwrap();
-    decoder.tighten_software_frame_limit(1).unwrap();
+    let budget = decoder.cpu_frame_budget().unwrap();
+    decoder.tighten_cpu_frame_limit(1).unwrap();
     assert!(matches!(decoder.next_frame(), Err(DecodeError::LimitExceeded)));
     assert_eq!(
         budget.snapshot().peak_bytes,
@@ -74,7 +74,7 @@ fn allocation_rejection_is_typed_precedes_payload_and_poisoned_owner_requires_re
     assert!(matches!(decoder.next_frame(), Err(DecodeError::ReopenRequired)));
     assert!(matches!(decoder.seek_before(0), Err(DecodeError::ReopenRequired)));
     assert!(matches!(
-        decoder.tighten_software_frame_limit(1),
+        decoder.tighten_cpu_frame_limit(1),
         Err(DecodeError::ReopenRequired)
     ));
 }
@@ -82,32 +82,32 @@ fn allocation_rejection_is_typed_precedes_payload_and_poisoned_owner_requires_re
 #[test]
 fn tightening_and_codec_replacement_preserve_the_same_pool_without_invalidating_frames() {
     let mut decoder = Decoder::open(&fixture("prores.mov"), limits()).unwrap();
-    let budget = decoder.software_frame_budget().unwrap();
+    let budget = decoder.cpu_frame_budget().unwrap();
     let retained = decoder.next_frame().unwrap().unwrap();
     let pixels = retained.software_image().unwrap().data(0).to_vec();
     while decoder.next_frame().unwrap().is_some() {}
     let allocated = budget.snapshot();
     assert!(matches!(
-        decoder.tighten_software_frame_limit(0),
+        decoder.tighten_cpu_frame_limit(0),
         Err(DecodeError::InvalidLimits)
     ));
     assert!(matches!(
-        decoder.tighten_software_frame_limit(allocated.limit_bytes + 1),
+        decoder.tighten_cpu_frame_limit(allocated.limit_bytes + 1),
         Err(DecodeError::InvalidLimits)
     ));
     assert!(matches!(
-        decoder.tighten_software_frame_limit(allocated.retained_bytes - 1),
+        decoder.tighten_cpu_frame_limit(allocated.retained_bytes - 1),
         Err(DecodeError::LimitExceeded)
     ));
     assert_eq!(budget.snapshot(), allocated, "failed tightening is atomic");
-    decoder.tighten_software_frame_limit(allocated.retained_bytes).unwrap();
+    decoder.tighten_cpu_frame_limit(allocated.retained_bytes).unwrap();
     for _ in 0..8 {
         decoder.seek_before(0).unwrap();
         assert_eq!(decoder.next_frame().unwrap().unwrap().timestamp(), retained.timestamp());
         while decoder.next_frame().unwrap().is_some() {}
         assert_eq!(budget.snapshot().retained_bytes, allocated.retained_bytes);
         assert_eq!(budget.snapshot().allocations, allocated.allocations);
-        assert_eq!(budget.snapshot(), decoder.software_frame_budget().unwrap().snapshot());
+        assert_eq!(budget.snapshot(), decoder.cpu_frame_budget().unwrap().snapshot());
         assert_eq!(retained.software_image().unwrap().data(0), pixels);
     }
     drop(decoder);
@@ -122,8 +122,8 @@ fn partial_plane_failure_keeps_allocated_cached_bytes_charged_until_pool_destruc
     let first = baseline.next_frame().unwrap().unwrap();
     let bytes = buffers(&first).values().sum::<u64>();
     let mut decoder = Decoder::open(&fixture("prores.mov"), limits()).unwrap();
-    decoder.tighten_software_frame_limit(bytes - 1).unwrap();
-    let budget = decoder.software_frame_budget().unwrap();
+    decoder.tighten_cpu_frame_limit(bytes - 1).unwrap();
+    let budget = decoder.cpu_frame_budget().unwrap();
     assert!(matches!(decoder.next_frame(), Err(DecodeError::LimitExceeded)));
     let partial = budget.snapshot();
     assert!(partial.retained_bytes > 0 && partial.retained_bytes < bytes);

@@ -11,7 +11,7 @@ fn open(name: &str) -> Decoder {
         &fixture(name),
         DecodeLimits {
             max_pixels: 4096 * 2160,
-            max_software_frame_bytes: 64 * 1024 * 1024,
+            max_cpu_frame_bytes: 64 * 1024 * 1024,
             max_packet_bytes: 16 * 1024 * 1024,
             max_packets_per_frame: 32,
             software_threads: crate::decode::SoftwareDecodeThreads::One,
@@ -111,7 +111,12 @@ fn hardware_hap_blocks_sample_convert_alpha_odd_extents_and_retire_on_both_gpus(
         }
         // HAP RGB is opaque even in BC1's three-color palette mode.
         let packet = [8, 0, 0, 0xAB, 0, 0, 0, 0, 255, 255, 255, 255];
-        let frame = HapFrame::decode(&packet, Extent2D::new(4, 4).unwrap()).unwrap();
+        let frame = HapFrame::decode(
+            &packet,
+            Extent2D::new(4, 4).unwrap(),
+            &crate::image::ImageStorageBudget::new(16).unwrap(),
+        )
+        .unwrap();
         let budget = GpuFrameBudget::new(1024 * 1024);
         let mut producer = GpuFramePublisher::new_hap(&frame, adapter.id, &budget, None).unwrap();
         let dummy = prepared_image(descriptor(2, ColorEncoding::Srgb, AlphaMode::Straight), &[0; 8]);
@@ -153,7 +158,12 @@ fn hardware_hap_chromatic_alpha_and_ycocg_scales_match_known_blocks_on_both_gpus
             block.extend_from_slice(&[0; 4]);
             let mut packet = vec![block.len() as u8, 0, 0, tag];
             packet.extend(block);
-            let frame = HapFrame::decode(&packet, Extent2D::new(4, 4).unwrap()).unwrap();
+            let frame = HapFrame::decode(
+                &packet,
+                Extent2D::new(4, 4).unwrap(),
+                &crate::image::ImageStorageBudget::new(16).unwrap(),
+            )
+            .unwrap();
             let mut rgb = [
                 f64::from(((color >> 11) << 3) | ((color >> 11) >> 2)) / 255.0,
                 f64::from((((color >> 5) & 63) << 2) | (((color >> 5) & 63) >> 4)) / 255.0,

@@ -217,7 +217,7 @@ fn hardware_gpu_frames_import_actual_intel_decoder_without_cpu_conversion() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/decode/tests/fixtures");
     let limits = DecodeLimits {
         max_pixels: 4096 * 2160,
-        max_software_frame_bytes: 64 * 1024 * 1024,
+        max_cpu_frame_bytes: 64 * 1024 * 1024,
         max_packet_bytes: 1024 * 1024,
         max_packets_per_frame: 128,
         software_threads: crate::decode::SoftwareDecodeThreads::One,

@@ -1,6 +1,7 @@
 //! HAP reference decode preserves GPU block compression. It never expands pixels to RGBA.
 use super::DecodeError;
 use crate::Extent2D;
+use crate::image::{ImageStorageBudget, StorageLease};
 use std::{
     ffi::{c_uint, c_ulong, c_void},
     sync::Arc,
@@ -34,7 +35,11 @@ impl HapFormat {
 pub struct HapFrame {
     extent: Extent2D,
     format: HapFormat,
-    blocks: Arc<Vec<u8>>,
+    storage: Arc<BlockStorage>,
+}
+struct BlockStorage {
+    blocks: Box<[u8]>,
+    _reservation: StorageLease,
 }
 impl HapFrame {
     /// Visible coded image size.
@@ -47,9 +52,9 @@ impl HapFrame {
     }
     /// Complete tightly packed block rows, not decompressed CPU pixels.
     pub fn blocks(&self) -> &[u8] {
-        &self.blocks
+        &self.storage.blocks
     }
-    pub(crate) fn decode(packet: &[u8], extent: Extent2D) -> Result<Self, DecodeError> {
+    pub(crate) fn decode(packet: &[u8], extent: Extent2D, budget: &ImageStorageBudget) -> Result<Self, DecodeError> {
         let length = c_ulong::try_from(packet.len()).map_err(|_| DecodeError::LimitExceeded)?;
         let mut count = 0;
         let mut format = 0;
@@ -90,6 +95,7 @@ impl HapFrame {
         };
         let expected = format.byte_len(extent).ok_or(DecodeError::LimitExceeded)?;
         let capacity = c_ulong::try_from(expected).map_err(|_| DecodeError::LimitExceeded)?;
+        let reservation = budget.reserve(expected).ok_or(DecodeError::LimitExceeded)?;
         let mut blocks = Vec::new();
         blocks
             .try_reserve_exact(expected)
@@ -118,7 +124,10 @@ impl HapFrame {
         Ok(Self {
             extent,
             format,
-            blocks: Arc::new(blocks),
+            storage: Arc::new(BlockStorage {
+                blocks: blocks.into_boxed_slice(),
+                _reservation: reservation,
+            }),
         })
     }
 }
