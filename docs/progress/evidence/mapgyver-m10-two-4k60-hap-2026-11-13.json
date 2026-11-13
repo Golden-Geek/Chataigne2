@@ -1,0 +1,439 @@
+{
+	"date": "2026-11-13",
+	"gate": "M10/4",
+	"accepted": false,
+	"deliverable": "First ordinary-app verification of original two4K60 HAP performance workload after8d16f1d4 software support. Both distinct files and shared Reference retain exact held pixels; compressed payload attribution and zero native/source GPU retirement pass. Original sustained timing fails; no acceptance or unchanged retry.",
+	"run": {
+		"directory": "target\\q06-hap-two-4k60-intel-2026-11-13",
+		"pid": 25536,
+		"adapter": {
+			"key": "dxgi:00000000:000156b6",
+			"index": 0,
+			"description": "Intel(R) Graphics"
+		},
+		"ac_line_status": 1,
+		"controller_exit_code": 0,
+		"strict_audit_exit_code": 0,
+		"sampling": "One30s-warmed120s visible sample,60s minimized,60s receiver-disconnected; not the required three independent samples. Four explicit60Hz outputs, including retained default Screen, two continuous independent SDK receivers and one held shared Reference output.",
+		"software_prerequisites": "Terminal54 Python+22 Node cases, controller syntax/Prettier and root/Core formatting; all55 runtime/build inputs unchanged before startup.73 exact execution inputs recorded. No CPU-heavy work during timed phases.",
+		"hashes": {
+			"sample.json": "04d3c07d685de318d625f531414d661dd533b2376c62a69a3cee8cf44a6abe23",
+			"audit.json": "271bbfc0ead99d4f65ec95317c763abe3158195ebf31a40d7979e3d7a564142b",
+			"execution-inputs.json": "e67cc2195bdf473e7303b10a22ae8ede82bf0626aa26b8fe42cd3737e02f4c46",
+			"controller.log": "e6d0314a9e832d8d3c716485c84e67460d3241b9e360733f632b3c6f80c95050"
+		},
+		"fixture_manifest": "target/q06-hap-two-4k60-numbered-2026-11-13/fixtures.json",
+		"fixture_manifest_sha256": "ddc8c3fde8b1c217cd8d35201dada91f4e673fd4331cece4973cf9ec9d486e0f",
+		"fixtures": [
+			{
+				"id": "uhd-a",
+				"width": 3840,
+				"height": 2160,
+				"rate": 60,
+				"frames": 240,
+				"frame_code_offset": 0,
+				"sha256": "831d1f3ba21a1807b7c0e5e980d87c35eae3aaf50dd461aa15c423c4688ee31c",
+				"verified_frame_codes": [
+					0,
+					1,
+					31,
+					239
+				]
+			},
+			{
+				"id": "uhd-b",
+				"width": 3840,
+				"height": 2160,
+				"rate": 60,
+				"frames": 240,
+				"frame_code_offset": 2048,
+				"sha256": "124a490a458afb235284e908dfad935e3e3d8e6bb00fbc8585f28515f094af6f",
+				"verified_frame_codes": [
+					2048,
+					2049,
+					2079,
+					2287
+				]
+			}
+		]
+	},
+	"functional": {
+		"held": [
+			{
+				"label": "held-0",
+				"code": 60,
+				"height": 2160,
+				"retired": true,
+				"width": 3840
+			},
+			{
+				"label": "held-1",
+				"code": 2108,
+				"height": 2160,
+				"retired": true,
+				"width": 3840
+			},
+			{
+				"label": "held-2",
+				"code": 60,
+				"height": 2160,
+				"retired": true,
+				"width": 3840
+			}
+		],
+		"pixel_pts": {
+			"matched": 14045,
+			"invalid": 0,
+			"mismatched": 0,
+			"missing_with_receivers": 1152
+		},
+		"pixel_scope": "Exact accepted SDK image versions and actual prepared output texture/File stream. Each visible file covers240 distinct PTS/codes; missing witnesses remain unverified and disconnected phase has no receiver pixel proof. No decoded-fps or full-presentation claim.",
+		"source_gpu": {
+			"snapshots": 280,
+			"peak_admitted_bytes": 207360032,
+			"maximum_observed_classes": {
+				"decoder_pools": {
+					"allocations": 0,
+					"bytes": 0
+				},
+				"hardware_producers": {
+					"allocations": 0,
+					"bytes": 0
+				},
+				"hap_producers": {
+					"allocations": 2,
+					"bytes": 207360032
+				},
+				"software_producers": {
+					"allocations": 0,
+					"bytes": 0
+				}
+			},
+			"upload_budgets": [
+				{
+					"id": "f7bee4f8-9091-4618-8bba-ef8dfc94335f",
+					"uploads": {
+						"software": {
+							"calls": 0,
+							"bytes": 0
+						},
+						"hap": {
+							"calls": 31146,
+							"bytes": 129168691200
+						}
+					}
+				}
+			]
+		},
+		"attribution": {
+			"observed": {
+				"software": {
+					"calls": 0,
+					"bytes": 0
+				},
+				"hap": {
+					"calls": 31146,
+					"bytes": 129168691200
+				}
+			},
+			"measured_lifetime_totals": {
+				"software": {
+					"calls": 0,
+					"bytes": 0
+				},
+				"hap": {
+					"calls": 31146,
+					"bytes": 129168691200
+				}
+			},
+			"missing": {
+				"software": {
+					"calls": 0,
+					"bytes": 0
+				},
+				"hap": {
+					"calls": 0,
+					"bytes": 0
+				}
+			},
+			"budget_lifetimes": 1,
+			"complete_cpu_payload_attribution": true,
+			"complete_cpu_payload_pts_attribution": true,
+			"unknown_cpu_pts_rows": 0,
+			"unknown_reasons": []
+		},
+		"channels": [
+			{
+				"files": [
+					"D:\\Projects\\Dev\\Chataigne2\\target\\q06-hap-two-4k60-numbered-2026-11-13\\hap-uhd-a-3840x2160-60.mov"
+				],
+				"submissions": 15583,
+				"hap": {
+					"calls": 15583,
+					"bytes": 64625817600
+				},
+				"rendered_publication_versions": 5374,
+				"duplicate_submitted_windows": 0
+			},
+			{
+				"files": [
+					"D:\\Projects\\Dev\\Chataigne2\\target\\q06-hap-two-4k60-numbered-2026-11-13\\hap-uhd-b-3840x2160-60.mov"
+				],
+				"submissions": 15563,
+				"hap": {
+					"calls": 15563,
+					"bytes": 64542873600
+				},
+				"rendered_publication_versions": 5356,
+				"duplicate_submitted_windows": 0
+			}
+		],
+		"payload_scope": "BC1 compressed4,147,200bytes per actual source upload; no software RGBA or renderer CPU raster expansion. Submission/decoder counts do not establish unique presented60fps.",
+		"retirement": {
+			"capture_controls": 5,
+			"final_all_native_and_shared_source_bytes_zero": true,
+			"plan_objects_created": 37,
+			"plan_objects_released": 37
+		}
+	},
+	"observed_resources": {
+		"snapshots": 280,
+		"adapter_samples": 270,
+		"process_private_peak_bytes": 916090880,
+		"largest_single_control_plus_shared_source_snapshot_bytes": 801708840,
+		"per_control_native_peaks": [
+			{
+				"capture": "native-25536-13db0834-b8f3-4b2e-aa65-96450429c418.jsonl",
+				"bytes": 0
+			},
+			{
+				"capture": "native-25536-55d9aff2-0dd3-4a22-9e8e-e348c1d0bef5.jsonl",
+				"bytes": 0
+			},
+			{
+				"capture": "native-25536-9c9543ce-7264-469c-a311-344a34eb1910.jsonl",
+				"bytes": 594348808
+			},
+			{
+				"capture": "native-25536-a3db753b-33ba-48b0-9cda-c3d3bab590ca.jsonl",
+				"bytes": 0
+			},
+			{
+				"capture": "native-25536-b5cb07f6-b78a-4b7f-b1bc-9b39b984df87.jsonl",
+				"bytes": 84883208
+			}
+		],
+		"sum_control_observed_native_peaks_plus_shared_source_peak_bytes": 886592048,
+		"dxgi_local_observed_peak_bytes": 1133830144,
+		"dxgi_nonlocal_observed_peak_bytes": 0,
+		"allocation_scope": "Source budget is shared across renderer captures and counted once. Native inventory is per control; sum of observed control peaks is conservative for sampled owners only, not a continuous process-wide peak or proof of all transient/opaque driver allocations."
+	},
+	"phases": [
+		{
+			"phase": "sample",
+			"seconds": 120.0508155,
+			"deadlines": [
+				{
+					"output": 2,
+					"expected_slots": 7203,
+					"definite_misses": 2202,
+					"definite_miss_fraction": 0.30570595585172844
+				},
+				{
+					"output": 3,
+					"expected_slots": 7203,
+					"definite_misses": 2202,
+					"definite_miss_fraction": 0.30570595585172844
+				},
+				{
+					"output": 4,
+					"expected_slots": 7203,
+					"definite_misses": 2202,
+					"definite_miss_fraction": 0.30570595585172844
+				},
+				{
+					"output": 5,
+					"expected_slots": 7203,
+					"definite_misses": 2202,
+					"definite_miss_fraction": 0.30570595585172844
+				}
+			],
+			"cpu_wall_p95_p99_ms": [
+				1.8577,
+				2.1162
+			],
+			"renderer_one_context_p95_p99_ms": [
+				38.463489583333335,
+				40.21041666666667
+			],
+			"publication_to_independent_copy_age": [
+				{
+					"output": 3,
+					"p95_upper_ms": null,
+					"unbounded_images": 372,
+					"scope": "An outward upper bound above50ms is inconclusive, not proof of actual latency above50ms."
+				},
+				{
+					"output": 4,
+					"p95_upper_ms": null,
+					"unbounded_images": 557,
+					"scope": "An outward upper bound above50ms is inconclusive, not proof of actual latency above50ms."
+				}
+			],
+			"source_observed_publications": [
+				{
+					"file": "D:\\Projects\\Dev\\Chataigne2\\target\\q06-hap-two-4k60-numbered-2026-11-13\\hap-uhd-a-3840x2160-60.mov",
+					"publications": 2308,
+					"rate": 19.225192185387527
+				},
+				{
+					"file": "D:\\Projects\\Dev\\Chataigne2\\target\\q06-hap-two-4k60-numbered-2026-11-13\\hap-uhd-b-3840x2160-60.mov",
+					"publications": 2348,
+					"rate": 19.55838442430239
+				}
+			]
+		},
+		{
+			"phase": "minimized",
+			"seconds": 60.0550953,
+			"deadlines": [
+				{
+					"output": 2,
+					"expected_slots": 3603,
+					"definite_misses": 996,
+					"definite_miss_fraction": 0.27643630308076605
+				},
+				{
+					"output": 3,
+					"expected_slots": 3603,
+					"definite_misses": 996,
+					"definite_miss_fraction": 0.27643630308076605
+				},
+				{
+					"output": 4,
+					"expected_slots": 3603,
+					"definite_misses": 996,
+					"definite_miss_fraction": 0.27643630308076605
+				},
+				{
+					"output": 5,
+					"expected_slots": 3603,
+					"definite_misses": 996,
+					"definite_miss_fraction": 0.27643630308076605
+				}
+			],
+			"cpu_wall_p95_p99_ms": [
+				1.1419,
+				1.3293
+			],
+			"renderer_one_context_p95_p99_ms": [
+				36.371510416666666,
+				37.3775
+			],
+			"publication_to_independent_copy_age": [
+				{
+					"output": 3,
+					"p95_upper_ms": 99.72240000000001,
+					"unbounded_images": 81,
+					"scope": "An outward upper bound above50ms is inconclusive, not proof of actual latency above50ms."
+				},
+				{
+					"output": 4,
+					"p95_upper_ms": null,
+					"unbounded_images": 142,
+					"scope": "An outward upper bound above50ms is inconclusive, not proof of actual latency above50ms."
+				}
+			],
+			"source_observed_publications": [
+				{
+					"file": "D:\\Projects\\Dev\\Chataigne2\\target\\q06-hap-two-4k60-numbered-2026-11-13\\hap-uhd-a-3840x2160-60.mov",
+					"publications": 1251,
+					"rate": 20.830871947679682
+				},
+				{
+					"file": "D:\\Projects\\Dev\\Chataigne2\\target\\q06-hap-two-4k60-numbered-2026-11-13\\hap-uhd-b-3840x2160-60.mov",
+					"publications": 1228,
+					"rate": 20.447890289169187
+				}
+			]
+		},
+		{
+			"phase": "receiver-disconnected",
+			"seconds": 60.0510802,
+			"deadlines": [
+				{
+					"output": 2,
+					"expected_slots": 3603,
+					"definite_misses": 1048,
+					"definite_miss_fraction": 0.2908687205106855
+				},
+				{
+					"output": 3,
+					"expected_slots": 3603,
+					"definite_misses": 1049,
+					"definite_miss_fraction": 0.29114626699972246
+				},
+				{
+					"output": 4,
+					"expected_slots": 3603,
+					"definite_misses": 1049,
+					"definite_miss_fraction": 0.29114626699972246
+				},
+				{
+					"output": 5,
+					"expected_slots": 3603,
+					"definite_misses": 1049,
+					"definite_miss_fraction": 0.29114626699972246
+				}
+			],
+			"cpu_wall_p95_p99_ms": [
+				2.0717,
+				2.6245
+			],
+			"renderer_one_context_p95_p99_ms": [
+				37.59072916666667,
+				39.02557291666667
+			],
+			"publication_to_independent_copy_age": [
+				{
+					"output": 3,
+					"p95_upper_ms": null,
+					"unbounded_images": 2555,
+					"scope": "An outward upper bound above50ms is inconclusive, not proof of actual latency above50ms."
+				},
+				{
+					"output": 4,
+					"p95_upper_ms": null,
+					"unbounded_images": 2555,
+					"scope": "An outward upper bound above50ms is inconclusive, not proof of actual latency above50ms."
+				}
+			],
+			"source_observed_publications": [
+				{
+					"file": "D:\\Projects\\Dev\\Chataigne2\\target\\q06-hap-two-4k60-numbered-2026-11-13\\hap-uhd-a-3840x2160-60.mov",
+					"publications": 1218,
+					"rate": 20.282732566066315
+				},
+				{
+					"file": "D:\\Projects\\Dev\\Chataigne2\\target\\q06-hap-two-4k60-numbered-2026-11-13\\hap-uhd-b-3840x2160-60.mov",
+					"publications": 1192,
+					"rate": 19.8497678314869
+				}
+			]
+		}
+	],
+	"resource_report": {
+		"path": "target\\q06-hap-two-4k60-intel-2026-11-13\\resource-summary.json",
+		"sha256": "4755f98a2807a4f38a22b0f2d8ffde10bfa2acdeac9b082e227ba4f3b08e12cc"
+	},
+	"remaining": "Original0.1% deadline gate fails (roughly28-31% definite misses); original50ms age is not established. Local GPU span is not complete cross-context critical path. All declared profiles, independent repeated series, complete age/resource/path and recovery scope remain required; HAPAlpha/Q two4K60 are not qualified by HAP1. Current Intel failures and earlier ordinary standard results remain. Pending0.5% proposal is unapplied and insufficient.",
+	"next": "No unchanged Intel rerun or new profiler. Resume viable NVIDIA qualification only after supported desktop host/session reconnection, verified sky API and fresh native OverlayOff observation before startup; first exact next workload is existing H.264High HD60+4K30 through the current ordinary controller, before committing to its full repeated series. The existing two4K60 HAP files are ready for that adapter after the prerequisite. M14 remains after M10/4 acceptance; Q03/fullQ05 remain M09.",
+	"progress": {
+		"accepted_gates": 88,
+		"total_gates": 106,
+		"percent": 83,
+		"m10": "5/8",
+		"phases": "8/15",
+		"sole_active_gate": "M10/4"
+	}
+}
