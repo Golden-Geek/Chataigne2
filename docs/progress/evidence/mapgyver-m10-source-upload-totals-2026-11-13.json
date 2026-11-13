@@ -2,7 +2,7 @@
 	"date": "2026-11-13",
 	"gate": "M10/4",
 	"accepted": false,
-	"result": "complete_source_worker_payload_totals_implemented_and_native_verified",
+	"result": "source_worker_payload_totals_verified_native_and_ordinary_app",
 	"deliverable": "Golden's existing source GPU budget optionally counts actual software RGBA and compressed HAP payload API calls/bytes, including completed images that no renderer samples. The coherent counters survive every producer/image retirement. Clones retain one budget UUID; capture consumers select cumulative totals instead of summing repeated snapshots. Hardware GPU copies add no CPU payload. Ordinary budgets report unmeasured counters and perform no per-frame accounting lock.",
 	"ownership": "Golden frames/budget owns opt-in lifetime counters and overflow; GpuFramePublisher records only actual payload calls after admission. Existing MapGyver preview-host diagnostics opt in before the first source admission. The existing native JSONL capture serializes that same snapshot on its I/O thread. The bounded consumer helper validates monotonic pairs and deduplicates budget identities across out-of-order files. No new registry, worker, polling owner, authored setting, renderer readback or product limit.",
 	"measurement": "Counters describe actual API submissions, not GPU completion, displayed frames or PTS uniqueness. Fixed setup constants are excluded from Video payload totals. Existing software API timestamps close before optional accounting. Source-worker counters exclude render-thread ImageStream uploads, which retain their existing ImageUpload events. Totals span the budget lifetime, not exact sample-phase endpoints or individual source channels.",
@@ -32,5 +32,25 @@
 		"test_binary_sha256": "00797e2d543ab4bc3dab2fdfca2c5a0b7bd8597ca4c25f01fd40e1501f815f85",
 		"logs": "The manifest pins all eight software/strict/build/native logs plus compiler/product input hashes and Cargo.lock."
 	},
-	"next": "Push this bounded source-worker total slice, then build ordinary app/probe and verify factory opt-in, final complete totals and snapshot deduplication in the existing fixed Q06 actual-app workload. It is an accounting check; no unchanged performance improvement is inferred. CPU planes/pools, per-channel PTS/upload attribution, all format/repeated/age/critical-path/NVIDIA/M09 scope remain.4 sole Active,88/106 (83%),M10 5/8; M14 follows4 acceptance."
+	"ordinary_app": {
+		"commit": "7b630654d6f2e12589ca37c126a2144c1ab17132",
+		"prerequisites": "Current source hashes match the verified software/strict/native inputs. Ordinary app and receiver probe builds exit0 before startup,63.48/77.20s wrapper. Existing Q06 files/windows unchanged; current collector, helper, shader, DLL, executable, lock, hardware and dirty-input identities are retained.",
+		"pid": 33412,
+		"adapter": "dxgi:00000000:000156b6",
+		"process_exit": 0,
+		"correctness_audit_exit": 0,
+		"accounting": "280 sparse snapshots across5 complete captures share one budget UUID bd8b1449-83c1-4cff-95d6-25db255775ea. Diagnostics opt in before admission; cumulative counters survive renderer/source recreation. Final software totals15925 calls/132088320000bytes equal15925 tight1920x1080 RGBA payloads. HAP totals0, without overflow. Budget-ID deduplication returns one lifetime total instead of summing repeated observations.",
+		"previous_gap": "Only13927 unique source-worker upload identities appear in renderer-use rows. Actual lifetime counters therefore include1998 additional submissions/16572211200bytes absent from those observations. This verifies the intended accounting gap. It does not prove unique original PTS or exact phase-boundary throughput.",
+		"resources": "Peak remains one24883200-byte HD three-slot software publisher, with decoder/hardware/HAP classes0 for this workload. Every terminal capture has zero source/native/plan owners. Counters remain available after zero storage. Direct render-thread ImageStream uploads retain separate ImageUpload events and are not silently added to the source-worker totals.",
+		"pixels_health": "18990 exact SDK-version pixel/PTS witnesses match,0 invalid markers/mismatches. Visible HD6140/6340,UHD5718/6309; minimized HD3567/3569,UHD3565/3568.796 visible/minimized images remain unverified; receiver-disconnected images have no witness by design.135 Ready/Playing observations,3 held SDK code images,0 page errors and normal owned shutdown/ring health pass.",
+		"timing_limits": "No performance pass or causal comparison. This instrumented cohort's renderer-witnessed visible HD/UHD publications are43.25/28.97 per second; these are not complete decoder/source submission rates. Visible HD p95 publication-to-copy upper199.095ms exceeds50ms, UHD remains unbounded. Definite deadline miss lower bounds11.8962% visible,0.9159% minimized,0.3331% disconnected exceed0.1%. Minimized HD/UHD p95 upper34.6692/41.4292ms meets50ms for this cohort. Prior failures and passing narrower observations remain preserved; the cause of this cohort's different timing is unproven.",
+		"report": "target/q06-source-upload-totals-intel-2026-11-13/sample.json",
+		"report_sha256": "a7d986857833e5179f392bd0f322f5fb6c64571e03ec60f0961fc12f7fd4785a",
+		"audit": "target/q06-source-upload-totals-intel-2026-11-13/audit.json",
+		"audit_sha256": "a66698abd25874c659399f92381a6a505c7e497f1bb8a1edf25a0cd1d0422097",
+		"inputs": "target/q06-source-upload-totals-intel-2026-11-13/execution-inputs.json",
+		"inputs_sha256": "0e706ed4a0d9c7f18b4929ee5bdb719c067bc555a995120febac03fa7f8cc1a0",
+		"log_sha256": "bf577330c626310dcf85809b38c7506d92d7cf32dcefb42838422fce016c4830"
+	},
+	"next": "The single ordinary-app accounting cohort is complete; no unchanged timing retry. Next expose the declared CPU source admission and actual decoded-plane/scaler layouts at the existing File/Decoder ownership boundary, keeping opaque FFmpeg/driver allocations explicitly separate. Per-channel PTS/upload attribution and every format/repeated/age/critical-path/NVIDIA/M09 requirement remain. Cumulative performance effort is not reset.4 sole Active,88/106 (83%),M10 5/8; M14 follows4 acceptance."
 }
