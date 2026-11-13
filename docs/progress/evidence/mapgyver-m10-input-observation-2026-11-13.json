@@ -23,8 +23,24 @@
 		"native_log_sha256": "0c9dd366b9c8087e16ba2cabe7f50d8b64524f9f9d7770b8308a875d8d39ad22",
 		"cache_log_sha256": "596dc9cf8ee2b7cd94cc1a29de01f635c4117e4aaf852713e74a7035be06f5b9"
 	},
-	"limits": "This proves and closes the reproduced per-input deferred-read race. It does not prove that all1737 missing current samples in the earlier ordinary cohort had this cause, eliminate capture-time clock/stream contention, qualify NVIDIA, establish ordinary frame age/rates or close M10/4. Existing CPU/private-pool, codec/profile/repeated/resource/critical-path/NVIDIA/M09 requirements and historical timing failures remain unchanged. No new ordinary timing cohort was run in this slice.",
+	"ordinary_verification": {
+		"commit": "7d0cfa2d3072d290bbaf9b1bf704a328c86bea15",
+		"prerequisites": "Current default ordinary app and separate native-qualification probe builds exit0 before startup. Existing998 software tests, both-package strict, D3D11-only strict and Intel native regression prerequisites remain verified. Fresh hardware observation confirms AC power and non-software Intel dxgi:00000000:000156b6; no NVIDIA startup/reset or desktop input.",
+		"cohort": "PID33696, same1080p60/4K30 ProRes files,30s warmup/120s visible/60s minimized/60s receiver-disconnected. Ordinary process and strict source-attribution/pixel audit exit0.136 observations,3 held output checks,3 source bindings/two authored channels and5 complete capture footers; zero page errors, diagnostic drops or clock loss.",
+		"sampling": "976/16317 source-use observations have no current sample (5.9815%), compared with1737/15960 (10.8835%) before eager capture. No sampled-but-not-imported versions. This single changed cohort does not isolate the cause of every remaining miss or a causal timing effect; clock/stream contention or source readiness remains possible.",
+		"accounting": "All16246 source-worker HD RGBA API uploads/134750822400bytes reconcile with independent lifetime counters and exact PTS/channel bindings; zero missing rows or duplicate submitted windows. Renderer UHD CPU uploads remain separate:8090calls/268406784000bytes with complete PTS/channel attribution. Source API intervals wholly within visible/minimized/disconnected phases observe60.0059/59.9750/59.9813calls/s; these are not full decoder rates. HAP has no payload in this workload. Source peak24883200bytes; latest source/native/plan resources return to zero.",
+		"pixels_timing": "20784 exact pixel/PTS witnesses match;0 mismatch/invalid,713 visible/minimized accepted images remain unverified. Visible HD p95 publication-to-copy upper44.9792ms meets50ms for this single cohort; UHD p95 remains unbounded. Minimized HD/UHD upper38.1545/45.8042ms meets50ms only for this cohort. Definite deadline-miss lower bounds0.222130% visible/0.194229% minimized/0.305301% disconnected still exceed the unchanged0.1% gate. No overall timing/production acceptance.",
+		"artifacts": {
+			"root": "target/q06-input-observation-intel-2026-11-13",
+			"sample_sha256": "3cd3e080eb6f4282d3ee84812d3854cde77d6ef8cb1f5df7eb910a9a7ee84924",
+			"audit_sha256": "67f345e839df95fee9f5bde956fa8bffbb55d7f9803f6686441c5b7220dd044e",
+			"execution_inputs_sha256": "850927b0173a56b397ba001c96a2d70f35556ab7f2c754da041dd78542355c7b",
+			"accounting_summary_sha256": "b829d4026aa4b0c2113bb76793743723121022011c404f100e0eaaf03e0d8fc2"
+		},
+		"decision_pending": "After cumulative day-scale timing work, explicitly proposed Intel-only first-pass deadline allowance<=0.5% rather than0.1%, retaining age/resource/correctness/all-codec/repeated and NVIDIA gates. No answer/approval yet; original0.1% remains binding. No unchanged rerun while pending. Continue bounded CPU resource ownership within M10/4, without phase hopping."
+	},
+	"limits": "The regression closes the reproduced per-input deferred-read race. The separate ordinary cohort verifies source accounting and matching sampled pixels but does not assign all missing samples to that race, eliminate capture-time contention/readiness limits, qualify NVIDIA or close M10/4. Existing CPU/private-pool, codec/profile/repeated/resource/critical-path/NVIDIA/M09 requirements and historical timing failures remain unchanged.",
 	"manifest": "target/m10-input-observation-inputs-2026-11-13.json",
 	"manifest_sha256": "afc9c8221031bb138bb71f1d571da573f6fb3b9dd989b4c972226fbd6771d9a3",
-	"next": "Push the coherent input capture, then build the ordinary app/probe and run one changed source-accounting cohort to measure current-sample misses under the verified fix. If misses remain before uploads, retain clock/stream contention as the bounded next action. Do not infer a causal timing pass or reset cumulative performance effort.4 sole Active,88/106 (83%),M10 5/8; M14 follows4 acceptance."
+	"next": "Checkpoint the ordinary verification, then complete bounded CPU frame/conversion pool ownership within the same M10/4 gate. Timing investigation returns only after the pending explicit Intel-gate decision or a new reproducer that changes an owning product implementation; no unchanged retry/new profiler.4 sole Active,88/106 (83%),M10 5/8; M14 still follows4 acceptance."
 }
