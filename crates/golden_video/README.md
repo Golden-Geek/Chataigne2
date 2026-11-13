@@ -50,6 +50,15 @@ The implemented foundations are:
   EOF/seek codec replacement. It does not retroactively free retained frames or account for
   private demux/codec allocations. MapGyver ties its software-source limit to the dimensions
   used for its CPU reservation, so later in-band expansion cannot reach oversized conversion.
+  Software codecs use the public `get_buffer2` / `AVBufferPool` boundary to reserve decoded
+  plane payload before allocation. `software_frame_budget()` observes actual allocated bytes,
+  including padding and idle cached buffers; observers retain no pixels. The same pool and
+  non-increasing `tighten_software_frame_limit` survive EOF codec replacement. Buffer free
+  callbacks release charges after pool destruction and the final held frame, including partial
+  allocation failures. Codecs lacking direct-buffer support are explicitly unsupported. The
+  caller supplies `DecodeLimits::max_software_frame_bytes`; MapGyver tightens this inside its
+  unchanged CPU reservation, leaving separate capacity for conversion and published images.
+  This bounds decoded-plane payload, not codec-private storage, heap overhead or scaler scratch.
   [Pinned Windows dependency and checks](../../tools/mapgyver/ffmpeg/README.md) describe the
   current boundary and remaining hardware/worker/package integration.
 - `plan/` validates the complete submitted dependency graph and caller-supplied limits, then

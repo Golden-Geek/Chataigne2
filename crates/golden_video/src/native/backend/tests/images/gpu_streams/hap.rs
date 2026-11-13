@@ -11,6 +11,7 @@ fn open(name: &str) -> Decoder {
         &fixture(name),
         DecodeLimits {
             max_pixels: 4096 * 2160,
+            max_software_frame_bytes: 64 * 1024 * 1024,
             max_packet_bytes: 16 * 1024 * 1024,
             max_packets_per_frame: 32,
             software_threads: crate::decode::SoftwareDecodeThreads::One,

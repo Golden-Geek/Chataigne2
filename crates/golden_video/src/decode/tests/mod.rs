@@ -2,10 +2,12 @@ use super::*;
 mod admission;
 mod parallelism;
 mod profiles;
+mod software_pool;
 
 fn limits() -> DecodeLimits {
     DecodeLimits {
         max_pixels: 4096 * 2160,
+        max_software_frame_bytes: 64 * 1024 * 1024,
         max_packet_bytes: 8 * 1024 * 1024,
         max_packets_per_frame: 128,
         software_threads: crate::decode::SoftwareDecodeThreads::One,
@@ -40,7 +42,7 @@ fn software_storage_cannot_expose_foreign_hardware_pixel_pointers() {
     let mut frame = ffmpeg::frame::Video::empty();
     frame.set_format(ffmpeg::format::Pixel::D3D11);
     assert!(matches!(
-        DecoderKind::Software.frame(frame),
+        DecoderKind::Software(Box::new(crate::decode::software_pool::Allocator::new(16).unwrap())).frame(frame),
         Err(DecodeError::UnsupportedHardware)
     ));
 }

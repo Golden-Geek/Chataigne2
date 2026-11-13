@@ -28,7 +28,7 @@ pub(super) fn configuration(
     kind: &DecoderKind,
     limit: SoftwareDecodeThreads,
 ) -> ffmpeg::codec::threading::Config {
-    let capable = matches!(kind, DecoderKind::Software)
+    let capable = matches!(kind, DecoderKind::Software(_))
         && ffmpeg::decoder::find(context.id()).is_some_and(|codec| {
             codec
                 .capabilities()

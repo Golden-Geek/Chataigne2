@@ -60,6 +60,7 @@ impl Run {
             &self.file,
             DecodeLimits {
                 max_pixels: 16384 * 16384,
+                max_software_frame_bytes: MAX_BYTES,
                 max_packet_bytes: 16 * 1024 * 1024,
                 max_packets_per_frame: 256,
                 software_threads: golden_video::decode::SoftwareDecodeThreads::One,

@@ -132,8 +132,8 @@ impl Budget {
         *self.used.lock().unwrap()
     }
     fn reserve(self: &Arc<Self>, pixels: u64) -> Result<Lease, String> {
-        // Two retained decoded frames, scaler storage, latest RGBA and an upload observer.
-        // This bounds our admitted storage, not every internal libavcodec allocation.
+        // Decoded planes get 24 bytes/pixel + 8 MiB; the remaining reservation covers
+        // scaler/tight images/observers, separately from codec-private allocations.
         let bytes = pixels
             .checked_mul(40)
             .and_then(|bytes| bytes.checked_add(16 * 1024 * 1024))
@@ -146,6 +146,15 @@ impl Budget {
             .reserve(pixels)
             .map_err(|error| Failure(VideoSourceError::new(VideoSourceErrorKind::Capacity, error)))?;
         decoder.tighten_pixel_limit(pixels)?;
+        if decoder.software_frame_budget().is_some() {
+            // Keep decoded pools inside the source reservation, leaving sixteen bytes
+            // per pixel plus 8 MiB for scaler scratch, tight images and observers.
+            let planes = pixels
+                .checked_mul(24)
+                .and_then(|bytes| bytes.checked_add(8 * 1024 * 1024))
+                .ok_or("Video decoded-plane storage overflow")?;
+            decoder.tighten_software_frame_limit(planes)?;
+        }
         Ok(lease)
     }
     fn reserve_bytes(self: &Arc<Self>, bytes: u64) -> Result<Lease, String> {
@@ -505,6 +514,7 @@ impl Run {
             &self.file,
             DecodeLimits {
                 max_pixels: 16384 * 16384,
+                max_software_frame_bytes: MAX_BYTES,
                 max_packet_bytes: 16 * 1024 * 1024,
                 max_packets_per_frame: 256,
                 software_threads: golden_video::decode::SoftwareDecodeThreads::Four,

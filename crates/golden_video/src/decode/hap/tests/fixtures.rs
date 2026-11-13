@@ -152,6 +152,7 @@ fn real_hap_mov_preserves_blocks_timestamps_seek_and_retained_frame_without_pixe
     {
         let limits = DecodeLimits {
             max_pixels: 4096 * 2160,
+            max_software_frame_bytes: 64 * 1024 * 1024,
             max_packet_bytes: 16 * 1024 * 1024,
             max_packets_per_frame: 32,
             software_threads: crate::decode::SoftwareDecodeThreads::One,

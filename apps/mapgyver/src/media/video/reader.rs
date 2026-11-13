@@ -29,6 +29,7 @@ struct PreviousProbe {
 
 #[derive(serde::Serialize)]
 pub(super) struct CpuLayouts {
+    decoder_pool: Option<golden_video::decode::SoftwareFrameAllocation>,
     current: Option<golden_video::decode::SoftwareFrameLayout>,
     lookahead: Option<golden_video::decode::SoftwareFrameLayout>,
     scratch: Option<golden_video::decode::SoftwareFrameLayout>,
@@ -47,6 +48,7 @@ pub(super) fn duration(ticks: i64, base: TimeBase) -> Result<Duration, String> {
 impl Reader {
     pub fn cpu_layouts(&self) -> CpuLayouts {
         CpuLayouts {
+            decoder_pool: self.decoder.software_frame_budget().map(|budget| budget.snapshot()),
             current: self.current.as_ref().and_then(DecodedFrame::software_layout),
             lookahead: self.next.as_ref().and_then(DecodedFrame::software_layout),
             scratch: self.converter.scratch_layout(),

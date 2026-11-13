@@ -8,6 +8,7 @@ fn software_source_admission_rejects_in_band_growth_before_oversized_conversion(
         &path,
         DecodeLimits {
             max_pixels: 16384 * 16384,
+            max_software_frame_bytes: MAX_BYTES,
             max_packet_bytes: 16 * 1024 * 1024,
             max_packets_per_frame: 256,
             software_threads: golden_video::decode::SoftwareDecodeThreads::Four,
@@ -18,6 +19,9 @@ fn software_source_admission_rejects_in_band_growth_before_oversized_conversion(
     assert!(decoder.info().duration.is_some_and(|duration| duration > 0));
     let budget = Arc::new(Budget::default());
     let lease = budget.admit_software(&mut decoder).unwrap();
+    let planes = decoder.software_frame_budget().unwrap();
+    assert_eq!(planes.snapshot().limit_bytes, 64 * 48 * 24 + 8 * 1024 * 1024);
+    assert!(planes.snapshot().limit_bytes < lease.bytes);
     let mut converter = golden_video::decode::SoftwareImageConverter::default();
     let mut rejected = false;
     let mut frames = 0;
@@ -49,6 +53,7 @@ fn software_source_admission_rejects_in_band_growth_before_oversized_conversion(
         "in-band expansion must not reach conversion outside the admitted shape"
     );
     drop(decoder);
+    assert_eq!(planes.snapshot().retained_bytes, 0);
     drop(lease);
     assert_eq!(budget.snapshot().retained_bytes, 0);
 }

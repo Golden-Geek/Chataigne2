@@ -10,10 +10,12 @@ mod hap;
 mod image;
 mod layout;
 mod parallelism;
+mod software_pool;
 pub use hap::{HapFormat, HapFrame};
 pub use image::{ConversionError, SoftwareImageConverter};
 pub use layout::{SoftwareFrameLayout, SoftwarePlaneLayout};
 pub use parallelism::SoftwareDecodeThreads;
+pub use software_pool::{SoftwareFrameAllocation, SoftwareFrameBudget};
 mod timing;
 pub use timing::{StreamTiming, probe_timing_with_interrupt};
 #[cfg(all(windows, feature = "d3d11"))]
@@ -26,6 +28,9 @@ pub use d3d11::{D3d11Frame, D3d11Storage};
 pub struct DecodeLimits {
     /// Maximum number of pixels admitted by both stream metadata and libavcodec.
     pub max_pixels: u64,
+    /// Maximum allocated software decoded-plane payload, including idle pool buffers.
+    /// Scaler, published images, codec-private state and demux allocations are separate.
+    pub max_software_frame_bytes: u64,
     /// Maximum compressed packet payload accepted from the demuxer.
     pub max_packet_bytes: usize,
     /// Maximum packets inspected while producing a single frame.
@@ -136,6 +141,9 @@ pub enum DecodeError {
     /// The selected stream's codec has no available decoder in this build.
     #[error("no decoder is available for this video codec")]
     UnsupportedCodec,
+    /// The codec cannot use the allocation-controlled software frame pool.
+    #[error("codec cannot provide allocation-controlled software frames")]
+    UnsupportedSoftwareStorage,
     /// Invalid reference-coded HAP payload, distinct from unsupported texture variants.
     #[error("HAP: {0}")]
     Hap(String),
@@ -179,7 +187,7 @@ pub struct Decoder {
 }
 
 enum DecoderKind {
-    Software,
+    Software(Box<software_pool::Allocator>),
     Hap,
     #[cfg(all(windows, feature = "d3d11"))]
     D3d11(d3d11::HardwareDevice),
@@ -187,7 +195,8 @@ enum DecoderKind {
 impl DecoderKind {
     fn configure(&self, context: &mut ffmpeg::codec::context::Context) -> Result<(), DecodeError> {
         match self {
-            Self::Software | Self::Hap => {
+            Self::Software(allocator) => allocator.configure(context),
+            Self::Hap => {
                 let _ = context;
                 Ok(())
             }
@@ -198,7 +207,7 @@ impl DecoderKind {
     fn frame(&self, image: ffmpeg::frame::Video) -> Result<FrameStorage, DecodeError> {
         match self {
             Self::Hap => Err(DecodeError::UnsupportedCodec),
-            Self::Software => {
+            Self::Software(_) => {
                 // Validate the actual format before exposing CPU planes, independently of
                 // the requested backend. No unexpected hardware pointer reaches a scaler.
                 let descriptor = unsafe { ffmpeg::ffi::av_pix_fmt_desc_get(image.format().into()) };
@@ -246,7 +255,9 @@ impl Decoder {
                 {
                     DecoderKind::Hap
                 } else {
-                    DecoderKind::Software
+                    DecoderKind::Software(Box::new(software_pool::Allocator::new(
+                        limits.max_software_frame_bytes,
+                    )?))
                 },
             )
         })
@@ -260,6 +271,7 @@ impl Decoder {
     ) -> Result<Self, DecodeError> {
         if limits.max_pixels == 0
             || limits.max_pixels > i64::MAX as u64
+            || limits.max_software_frame_bytes == 0
             || limits.max_packet_bytes == 0
             || limits.max_packets_per_frame == 0
         {
@@ -326,6 +338,26 @@ impl Decoder {
     pub fn info(&self) -> &StreamInfo {
         &self.info
     }
+    /// Actual software decoded-plane inventory, including idle pool storage. The observer
+    /// does not retain pixels; native/HAP decoders have no software plane pool.
+    pub fn software_frame_budget(&self) -> Option<SoftwareFrameBudget> {
+        match &self.kind {
+            DecoderKind::Software(allocator) => Some(allocator.budget.clone()),
+            _ => None,
+        }
+    }
+    /// Tighten allocation-time software plane admission without increasing its ceiling or
+    /// discarding retained frames. The same pool/budget survives codec replacement on seek.
+    /// Scaler, published images and codec-private storage require separate owning admission.
+    pub fn tighten_software_frame_limit(&mut self, bytes: u64) -> Result<(), DecodeError> {
+        if self.state == DecodeState::Failed {
+            return Err(DecodeError::ReopenRequired);
+        }
+        match &self.kind {
+            DecoderKind::Software(allocator) => allocator.budget.tighten(bytes),
+            _ => Err(DecodeError::InvalidLimits),
+        }
+    }
     /// Tighten future frame allocation/admission without increasing the original ceiling.
     /// Owners reserving storage from initial stream dimensions call this before decoding.
     /// Retained frames keep their storage; invalid requests leave this decoder unchanged.
@@ -356,7 +388,7 @@ impl Decoder {
     /// Stable storage contract chosen at open, without decoding a frame or parsing a label.
     pub fn storage(&self) -> DecodeStorage {
         match self.kind {
-            DecoderKind::Software => DecodeStorage::Software,
+            DecoderKind::Software(_) => DecodeStorage::Software,
             DecoderKind::Hap => DecodeStorage::Hap,
             #[cfg(all(windows, feature = "d3d11"))]
             DecoderKind::D3d11(_) => DecodeStorage::D3d11,
@@ -368,7 +400,7 @@ impl Decoder {
     pub fn software_decode_threads(&self) -> Option<usize> {
         self.decoder
             .as_ref()
-            .filter(|_| matches!(self.kind, DecoderKind::Software))
+            .filter(|_| matches!(self.kind, DecoderKind::Software(_)))
             .map(|decoder| decoder.threading().count)
     }
 
@@ -443,6 +475,10 @@ impl Decoder {
             return Err(DecodeError::ReopenRequired);
         }
         let result = self.receive_next();
+        let result = result.map_err(|error| match &self.kind {
+            DecoderKind::Software(allocator) => allocator.failure(error),
+            _ => error,
+        });
         #[cfg(all(windows, feature = "d3d11"))]
         let result = result.map_err(|error| {
             if let DecoderKind::D3d11(device) = &self.kind {
