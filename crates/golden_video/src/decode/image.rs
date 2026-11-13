@@ -29,7 +29,11 @@ pub enum ConversionError {
 /// Worker-local reusable software scaler. Output is straight-alpha sRGB RGBA8.
 #[derive(Default)]
 pub struct SoftwareImageConverter {
-    scaler: Option<Context>,
+    conversion: Option<Conversion>,
+}
+struct Conversion {
+    scaler: Context,
+    output: ffmpeg::frame::Video,
 }
 impl SoftwareImageConverter {
     /// Convert supported SDR frames explicitly. HDR/wide-gamut metadata is rejected rather
@@ -52,12 +56,12 @@ impl SoftwareImageConverter {
         }
         let failed = ConversionError::Failed;
         let extent = Extent2D::new(input.width(), input.height()).map_err(|e| failed(e.to_string()))?;
-        if self.scaler.as_ref().is_none_or(|s| {
-            let d = s.input();
+        if self.conversion.as_ref().is_none_or(|conversion| {
+            let d = conversion.scaler.input();
             d.format != input.format() || d.width != input.width() || d.height != input.height()
         }) {
-            self.scaler = Some(
-                Context::get(
+            self.conversion = Some(Conversion {
+                scaler: Context::get(
                     input.format(),
                     input.width(),
                     input.height(),
@@ -67,9 +71,10 @@ impl SoftwareImageConverter {
                     Flags::BILINEAR,
                 )
                 .map_err(|e| failed(e.to_string()))?,
-            );
+                output: ffmpeg::frame::Video::empty(),
+            });
         }
-        let scaler = self.scaler.as_mut().unwrap();
+        let Conversion { scaler, output } = self.conversion.as_mut().unwrap();
         // SAFETY: live uniquely owned SwsContext and FFmpeg's static coefficient table.
         // RGB output is full range; input full/limited range is read from the actual frame.
         let color = unsafe {
@@ -88,8 +93,9 @@ impl SoftwareImageConverter {
         if color < 0 {
             return Err(failed("software Video colorspace setup failed".into()));
         }
-        let mut output = ffmpeg::frame::Video::empty();
-        scaler.run(input, &mut output).map_err(|e| failed(e.to_string()))?;
+        // FFmpeg allocates this scratch frame on first use. It stays worker-local; only the
+        // separately owned tight pixels escape, so the next conversion cannot alter a reader.
+        scaler.run(input, output).map_err(|e| failed(e.to_string()))?;
         let row = input.width() as usize * 4;
         let mut pixels = Vec::with_capacity(row * input.height() as usize);
         let table = match transfer {
@@ -145,3 +151,6 @@ fn bt709_table() -> &'static [u8; 256] {
         })
     })
 }
+
+#[cfg(test)]
+mod tests;

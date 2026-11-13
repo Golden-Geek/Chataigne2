@@ -29,6 +29,10 @@ The implemented foundations are:
   count or enabling frame threading are rejected. HAP keeps its compressed parser and native
   hardware decode stays serial. This preserves decoded-frame queue semantics; third-party
   scratch/stack memory remains separate from retained-frame admission and must be observed.
+  Software colour conversion retains one worker-local RGBA scratch frame for the current
+  input format/extent. Published tight images own separate immutable bytes, so retained readers
+  survive scratch reuse and layout changes; this removes repeated scratch allocation without
+  adding a frame queue or changing the source storage allowance.
   [Pinned Windows dependency and checks](../../tools/mapgyver/ffmpeg/README.md) describe the
   current boundary and remaining hardware/worker/package integration.
 - `plan/` validates the complete submitted dependency graph and caller-supplied limits, then

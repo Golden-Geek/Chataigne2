@@ -1,0 +1,36 @@
+{
+	"date": "2026-11-13",
+	"gate": "M10/4",
+	"accepted": false,
+	"result": "worker_local_software_conversion_scratch_reuse_verified",
+	"deliverable": "Golden SoftwareImageConverter retains one FFmpeg RGBA scratch frame with its current scaler instead of allocating that full frame for every conversion. Format/extent changes replace the pair. Returned tight ImageData bytes remain independently owned and immutable. No new queue, worker, texture, larger allowance or app/UI policy.",
+	"ownership": "crates/golden_video/src/decode/image.rs owns conversion and scratch lifetime; its adjacent image/tests fixture verifies actual storage and escaped-image ownership. MapGyver's existing File worker and CPU storage reservation own the converter and its already-admitted scratch storage.",
+	"software": {
+		"app": "678 passed,0 failed,7 ignored;48.75s",
+		"video": "303 passed,0 failed,66 ignored;2.88s",
+		"regression": "24 independent returned images survive later conversions, RGBA/BGRA changes,65x4/33x3 padded extents and converter shutdown. For every unchanged contract, the actual FFmpeg scratch data address remains the same. Exact all-pixel RGB and variable alpha checks pass. Existing SDR transfer/color,10-bit/alpha profiles and bounded decoder/seek tests pass.",
+		"log": "target/m10-conversion-scratch-software-2026-11-13.log",
+		"log_sha256": "4a8f4955b581a4ea63595db3da4876cf2dcd0ba8d8c70086bae76c91d546c224",
+		"strict": "Both-package all-target native-qualification clippy with warnings denied exits0;40.74s wrapper,37.80s Cargo.",
+		"strict_log": "target/m10-conversion-scratch-strict-2026-11-13.log",
+		"strict_log_sha256": "1dea74dd99508e0a9c277427ce89ed3984c028429e69ae71aaf132bf64b30f2f",
+		"format": "Root and Golden Core Cargo formatting and owned whitespace checks pass; no generated protocol or UI contract changes."
+	},
+	"native": {
+		"prerequisites": "Terminal full software and strict success inspected before this one native invocation.",
+		"command": "with-ffmpeg.ps1 test --locked -p MapGyver --lib --features native-qualification hardware_file_worker_steps_exactly_and_falls_back_without_losing_its_clock -- --ignored --nocapture --test-threads=1",
+		"result": "1 passed,0 failed;0.35s fixture,2.50s wrapper;exit0",
+		"adapter": "dxgi:00000000:000156b6",
+		"scope": "Existing Intel File-worker regression verifies resident H.264, zero-GPU-budget H.264 CPU fallback and software ProRes/source-worker GPU publication through six exact forward/reverse coordinates, seek and Stop. Resident storage156688bytes, zero-budget GPU bytes0, ProRes three-slot publisher36864bytes. Every source/worker/pool owner retires within the unchanged deadline. This fixture verifies native publication/transport/retirement, not independent GPU pixel accuracy or sustained cadence.",
+		"log": "target/m10-conversion-scratch-native-2026-11-13.log",
+		"log_sha256": "f870be06e58493cc1ca2893df8360e068787a941ae1599339229824dad0fa768"
+	},
+	"inputs": {
+		"base_commit": "bc5320555a703176e41c1f09639ea8b75e0e2fdd",
+		"manifest": "target/m10-conversion-scratch-inputs-2026-11-13.json",
+		"manifest_sha256": "cb277db96093b36ca1c50d5a6f754083974fdc2921265d4b1427bc552881f450",
+		"app_test_binary_sha256": "142184ab50b82479d9f961b2e1d61f2fd55c2f8db809636b7ca1bd56a458d7e7",
+		"video_test_binary_sha256": "a926ae3f8877cdf98aa08c91ab48edb577e3b3d6bf749fb4bf32f0515ac5610e"
+	},
+	"next": "Build the ordinary app/probe and measure this actual source-path change once with the existing fixed Intel continuous-code workload. Keep the previous failed distributions and all missing witnesses. No performance gain is claimed yet.4 remains the sole Active gate,88/106 (83%),M10 5/8. All original codec/repeated/age/resource/CPU/plane/pool/GPU-critical-path/NVIDIA and M09 scope remains; M14 follows4 acceptance."
+}
