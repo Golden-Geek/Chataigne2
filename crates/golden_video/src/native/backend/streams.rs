@@ -16,14 +16,14 @@ pub(super) fn update(
     token: CompletionToken,
     recorder: Option<&Recorder>,
 ) {
-    if target.image_sequence.get().is_none() {
+    if target.source_sequence.get().is_none() {
         // A new allocation has no defined pixels until the first successful publication.
         unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
         target.last_write.set(Some(token));
-        target.image_sequence.set(Some(0));
+        target.source_sequence.set(Some(0));
     }
     if let Some(sample) = stream.sample()
-        && target.image_sequence.get() != Some(sample.sequence)
+        && target.source_sequence.get() != Some(sample.sequence)
     {
         if let Some(image) = sample.image {
             let begin = recorder.and_then(Recorder::stamp);
@@ -60,7 +60,7 @@ pub(super) fn update(
             target.image_visible.set(0);
             target.timed_frame.set(None);
         }
-        target.image_sequence.set(Some(sample.sequence));
+        target.source_sequence.set(Some(sample.sequence));
         target.last_write.set(Some(token));
     }
     if let Some(recorder) = recorder {

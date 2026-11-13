@@ -237,8 +237,10 @@ pool/constant-buffer charge is not measured driver residency, padding or native-
 
 Native generations retain compatible texture/view sets through a device-local weak index in
 `native/backend/resources.rs`. Mutable storage is keyed by logical role and complete descriptor;
-all its writes remain ordered on the same immediate context. Source sequence/availability state
-is revalidated by each generation before drawing, including clears for missing inputs. Immutable
+Image/GPU inputs additionally require the exact stream lifetime. Their copied sequence and
+pixel metadata belong to the allocation, so a temporarily unavailable sample during a compatible
+rebuild retains the prior pixels and tags together. A different stream starts cold; explicit
+withdrawals still clear. All writes remain ordered on the same immediate context. Immutable
 images share storage by exact prepared payload and descriptor, across logical input IDs. Each
 uploaded texture pins that payload lease, preventing address reuse while a cache entry can be
 upgraded; equal app asset IDs alone do not establish equal content. Expired weak entries are

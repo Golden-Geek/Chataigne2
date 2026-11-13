@@ -119,7 +119,6 @@ pub(super) fn prepare(
         outputs: Default::default(),
         presented_regions: Default::default(),
         input_sequences: Default::default(),
-        stream_sequences: Default::default(),
         gpu_imports: Default::default(),
         canvas_images: Default::default(),
         _demands: None,
@@ -128,11 +127,6 @@ pub(super) fn prepare(
     let device = &native.device.device;
     for external in plan.external_textures() {
         let role = Role::External(external.id);
-        if matches!(&external.source, Some(ExternalSource::GpuFrames(_))) {
-            resources
-                .stream_sequences
-                .insert(external.id, std::cell::Cell::new(None));
-        }
         let texture = match &external.source {
             Some(ExternalSource::Image(image)) => {
                 // The texture retains this exact preparation lease. Its payload address cannot
@@ -152,6 +146,16 @@ pub(super) fn prepare(
                 texture
             }
             Some(ExternalSource::Frames(stream)) => cache.get(
+                Key {
+                    role,
+                    descriptor: external.descriptor,
+                    image: None,
+                    stream: Some(stream.id()),
+                },
+                counts,
+                || Texture::new_sampled(device, external.descriptor),
+            )?,
+            Some(ExternalSource::GpuFrames(stream)) => cache.get(
                 Key {
                     role,
                     descriptor: external.descriptor,

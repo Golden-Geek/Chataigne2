@@ -85,7 +85,6 @@ pub(crate) struct D3d11Resources {
     outputs: BTreeMap<OutputId, Rc<Texture>>,
     presented_regions: BTreeMap<OutputId, Vec<crate::plan::RegionPlacement>>,
     input_sequences: BTreeMap<TextureId, Cell<Option<CopyFrame>>>,
-    stream_sequences: BTreeMap<TextureId, Cell<Option<u64>>>,
     gpu_imports: RefCell<super::frames::Imports>,
     canvas_images: BTreeMap<usize, Rc<Texture>>,
     _demands: Option<SourceDemands>,
@@ -580,11 +579,12 @@ impl D3d11Backend {
         for external in plan.external_textures().iter().filter(|_| !presentation_only) {
             if let Some(ExternalSource::GpuFrames(stream)) = &external.source {
                 resources.gpu_imports.borrow_mut().prune();
-                let sequence = &resources.stream_sequences[&external.id];
                 let target = &resources.textures[&external.id];
+                let sequence = &target.source_sequence;
                 if sequence.get().is_none() {
                     unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
                     target.last_write.set(Some(token));
+                    sequence.set(Some(0));
                 }
                 let sampled = stream.sample_at(input_instant);
                 let requested_sequence = sampled.as_ref().map(|sample| sample.sequence);

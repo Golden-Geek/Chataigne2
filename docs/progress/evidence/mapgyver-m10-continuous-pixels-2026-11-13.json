@@ -31,5 +31,18 @@
 		"app_log_sha256": "21c5f66b4186cfdbc917422a34450de7ba2f5337fd937f20f69dfc974d8b7910",
 		"log_paths": "target/m10-binary-marker-{software,strict,probe,app}-2026-11-13.log"
 	},
-	"next": "Fix GPU input content ownership across compatible resource generations: key storage by actual GPU stream identity and retain its copied sequence/content state on the allocation, so a no-sample rebuild preserves both pixels and metadata. Add a deterministic no-sample rebuild regression, then software/strict and one exact native retry. The investigation starts12:27 UTC, native experiments1/2; do not reset that allowance. Preserve this failed capture. No gate closes:4 sole Active,88/106 (83%),M10 5/8. Prior4K66.21ms timing, all codec/repeated/resource/path/plane/pool/PTS scope, NVIDIA prerequisite and M09 remain open."
+	"rebuild_fix": {
+		"base_commit": "f63116ee7e72a1750423e9a73adb039e90df845c",
+		"behavior": "Image/GPU input allocations are keyed by the exact stream lifetime and retain their actual copied source sequence alongside their pixels/metadata. The per-generation GPU sequence map is removed. A same-stream rebuild without a sample preserves prior content; a different stream cannot inherit it. First-use empty contents and explicit withdrawal still clear. No new texture pool, source lease, frame-loop allocation or budget change.",
+		"software": "678 app/302 Video tests and both-package all-target native-feature strict pass.",
+		"regression": "Existing Intel native cache/pixel fixture passes with deterministic public begin_epoch withholding. It verifies identical allocation reuse and unchanged last-write/image metadata for a same-stream no-sample rebuild, distinct cold storage for a different stream with equal descriptor/logical ID, restoration of old content, subsequent publication/withdrawal and complete source/plan retirement. Actual GPU pixels/counters are checked; no synthetic completion or private forced gate.",
+		"software_log": "target/m10-gpu-rebuild-software-2026-11-13.log",
+		"software_log_sha256": "51d91a1374f125b2d424ab6eed89f1904ccf67217b4eb1116c12aca7a0d7ca8b",
+		"strict_log": "target/m10-gpu-rebuild-strict-2026-11-13.log",
+		"strict_log_sha256": "9abecd821d565b6705939ba1734afcd8119caed201c57bcbc376a0b0214d2732",
+		"native_log": "target/m10-gpu-rebuild-native-regression-2026-11-13.log",
+		"native_log_sha256": "3c8413b69b5580e30fa8beeb3a46ee865db030321809a40374a7802761616827",
+		"exact_retry": "Pending ordinary builds and one continuous capture using this fixed variant. The failed baseline remains above; no full native-capture pass yet."
+	},
+	"next": "Push the verified rebuild fix, build the ordinary app/probe, and perform the one exact continuous native retry. Investigation starts12:27 UTC, cutoff13:27; baseline plus fixed variant only. Preserve the failed capture. No gate closes:4 sole Active,88/106 (83%),M10 5/8. Prior4K66.21ms timing, all codec/repeated/resource/path/plane/pool/PTS scope, NVIDIA prerequisite and M09 remain open."
 }

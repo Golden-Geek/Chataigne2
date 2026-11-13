@@ -236,6 +236,43 @@ fn hardware_intel_render_cache_preserves_pixels_live_changes_and_shared_target_o
         expect(&held.0, &copied.0);
         assert_eq!(held.1, (0, 1));
         assert!(held.2.conversion_reused);
+        let input = Rc::clone(&renderer.resources.as_ref().unwrap().textures[&TextureId::new(1).unwrap()]);
+        let last_write = input.last_write.get();
+        let visible = input.image_visible.get();
+        let epoch = time().epoch();
+        drop(stream.begin_epoch(epoch).unwrap());
+        assert!(
+            stream.sample().is_none(),
+            "normal epoch withholding must supply no sample"
+        );
+        super::gpu_streams::install(&mut renderer, stream.clone());
+        assert!(Rc::ptr_eq(
+            &input,
+            &renderer.resources.as_ref().unwrap().textures[&TextureId::new(1).unwrap()]
+        ));
+        let rebuilt = frame(&mut renderer, time(), false);
+        expect(&rebuilt.0, &copied.0);
+        assert_eq!(
+            input.last_write.get(),
+            last_write,
+            "no-sample rebuild cannot clear retained pixels"
+        );
+        assert_eq!(input.image_visible.get(), visible);
+
+        let different = crate::native::GpuFrameStream::new(stream.descriptor(), adapter.id);
+        drop(different.begin_epoch(epoch).unwrap());
+        let old_plan = renderer.plan.clone();
+        let old = renderer.resources.take().unwrap();
+        super::gpu_streams::install(&mut renderer, different);
+        assert!(!Rc::ptr_eq(
+            &input,
+            &renderer.resources.as_ref().unwrap().textures[&TextureId::new(1).unwrap()]
+        ));
+        expect(&frame(&mut renderer, time(), false).0, &[[0; 4]; 2]);
+        let replaced = renderer.resources.replace(old);
+        renderer.plan = old_plan;
+        expect(&frame(&mut renderer, time(), false).0, &copied.0);
+        drop(replaced);
         assert!(submit(&mut publisher, &source));
         stream.publish(Some(completed(&mut publisher))).unwrap();
         assert_eq!(frame(&mut renderer, time(), false).1, (1, 0));
