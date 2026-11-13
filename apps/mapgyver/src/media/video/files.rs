@@ -31,6 +31,7 @@ const MAX_BYTES: u64 = 768 * 1024 * 1024;
 // until the unchanged 4K workload qualifies the bridge; this does not waive that gate.
 #[cfg(all(windows, feature = "native-video"))]
 const MAX_SOFTWARE_GPU_PIXELS: u64 = 1920 * 1080;
+mod diagnostics;
 #[cfg(all(windows, feature = "native-video"))]
 mod hardware;
 mod pacing;
@@ -79,10 +80,38 @@ impl Stream {
         }
     }
 }
-#[derive(Default)]
+/// Conservative CPU source reservations, including leases held after worker cancellation.
+/// These are admission charges, not measured unique decoder/allocator bytes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct FileCpuAdmission {
+    /// One CPU admission lifetime, shared by retirement observers.
+    pub id: uuid::Uuid,
+    /// Unchanged application CPU source ceiling.
+    pub limit_bytes: u64,
+    /// Current conservative reservations.
+    pub retained_bytes: u64,
+    /// Maximum simultaneous reservations over this lifetime.
+    pub peak_bytes: u64,
+    /// Reservation groups, including old image observers; not active worker count.
+    pub allocations: u64,
+}
 struct Budget {
-    used: Mutex<u64>,
+    used: Mutex<FileCpuAdmission>,
     idle: Condvar,
+}
+impl Default for Budget {
+    fn default() -> Self {
+        Self {
+            used: Mutex::new(FileCpuAdmission {
+                id: uuid::Uuid::new_v4(),
+                limit_bytes: MAX_BYTES,
+                retained_bytes: 0,
+                peak_bytes: 0,
+                allocations: 0,
+            }),
+            idle: Condvar::new(),
+        }
+    }
 }
 struct Lease {
     budget: Arc<Budget>,
@@ -90,11 +119,17 @@ struct Lease {
 }
 impl Drop for Lease {
     fn drop(&mut self) {
-        *self.budget.used.lock().unwrap() -= self.bytes;
+        let mut used = self.budget.used.lock().unwrap();
+        used.retained_bytes -= self.bytes;
+        used.allocations -= 1;
+        drop(used);
         self.budget.idle.notify_all();
     }
 }
 impl Budget {
+    fn snapshot(&self) -> FileCpuAdmission {
+        *self.used.lock().unwrap()
+    }
     fn reserve(self: &Arc<Self>, pixels: u64) -> Result<Lease, String> {
         // Two retained decoded frames, scaler storage, latest RGBA and an upload observer.
         // This bounds our admitted storage, not every internal libavcodec allocation.
@@ -106,10 +141,12 @@ impl Budget {
     }
     fn reserve_bytes(self: &Arc<Self>, bytes: u64) -> Result<Lease, String> {
         let mut used = self.used.lock().map_err(|_| "Video storage budget poisoned")?;
-        if bytes > MAX_BYTES.saturating_sub(*used) {
+        if bytes == 0 || bytes > MAX_BYTES.saturating_sub(used.retained_bytes) {
             return Err("Video file storage capacity retained".into());
         }
-        *used += bytes;
+        used.retained_bytes += bytes;
+        used.peak_bytes = used.peak_bytes.max(used.retained_bytes);
+        used.allocations += 1;
         Ok(Lease {
             budget: self.clone(),
             bytes,
@@ -154,6 +191,10 @@ pub struct FileRetirement {
     budget: Arc<Budget>,
 }
 impl FileRetirement {
+    /// Coherent CPU reservation inventory; separate from GPU or physical/private allocation.
+    pub fn cpu_admission(&self) -> FileCpuAdmission {
+        self.budget.snapshot()
+    }
     /// Workers retain their slot until decoder cleanup has finished.
     pub fn active_workers(&self) -> usize {
         self.pool.metrics().active
@@ -166,7 +207,7 @@ impl FileRetirement {
     }
     /// Admitted CPU/GPU source storage, including old pools and render observers.
     pub fn retained_bytes(&self) -> u64 {
-        let bytes = *self.budget.used.lock().unwrap();
+        let bytes = self.cpu_admission().retained_bytes;
         #[cfg(all(windows, feature = "native-video"))]
         let bytes = bytes
             + self
@@ -186,10 +227,10 @@ impl FileRetirement {
             .budget
             .idle
             .wait_timeout_while(used, deadline.saturating_duration_since(Instant::now()), |used| {
-                *used != 0
+                used.retained_bytes != 0
             })
             .unwrap();
-        if *used != 0 {
+        if used.retained_bytes != 0 {
             return false;
         }
         drop(used);
@@ -508,6 +549,7 @@ impl Run {
                         output.stream = Some(Stream::Software(next.clone()));
                         output.error = None;
                         drop(output);
+                        self.report_cpu_layouts(&reader, &lease, next.descriptor().byte_len().ok());
                         self.changed();
                     }
                 } else {
@@ -535,3 +577,6 @@ impl Drop for Run {
         self.control.release_channel(self.reference.channel, self.owner);
     }
 }
+
+#[cfg(test)]
+mod tests;

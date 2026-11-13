@@ -19,7 +19,7 @@ pub use transport::{MediaTransport, TransportError, TransportSample};
 #[cfg(feature = "video-files")]
 pub(crate) mod files;
 #[cfg(feature = "video-files")]
-pub use files::FileRetirement;
+pub use files::{FileCpuAdmission, FileRetirement};
 #[cfg(feature = "video-files")]
 mod failure;
 #[cfg(feature = "video-files")]

@@ -1,0 +1,36 @@
+{
+	"date": "2026-11-13",
+	"gate": "M10/4",
+	"accepted": false,
+	"result": "cpu_admission_and_actual_software_plane_layouts_verified",
+	"deliverable": "Golden exposes bounded metadata-only software-plane layouts and retained conversion scratch layout. Reports preserve signed strides, actual subsampled rows, minimum row bytes and padded addressed spans, without pixel reads, frame retention or GPU transfers. MapGyver's existing File CPU admission now exposes coherent current/peak/reservation-group counts and identity through retirement observers. Opt-in first-install logs associate that admission with current/lookahead/scaler layouts and any separately retained source CPU image.",
+	"ownership": "Golden decode/layout owns FFmpeg format/plane inspection; Decoder and SoftwareImageConverter expose public getters. MapGyver File owns the unchanged768MiB CPU policy and lease lifetime. Reader projects its owned storage; the File worker logs once on installation only when existing native diagnostics are enabled. No new registry, polling owner, worker, authored setting or UI/protocol declaration.",
+	"limits": "CPU reservations remain conservative admission charges, not measured physical/unique allocations. Plane spans can share backing storage and exclude extra allocator/codec-private storage. Retained CPU image bytes describe the separate source-side image at observation time, not all observers. Palette/hardware/invalid layouts remain absent rather than zero. First-install observations do not establish later dynamic layouts, complete CPU pools, per-channel upload/PTS uniqueness or production qualification.",
+	"software": {
+		"app": "681 passed,0 failed,7 ignored",
+		"video": "309 passed,0 failed,67 ignored",
+		"new_checks": "Three app cases verify coherent concurrent reservation/group/peak counts, unchanged capacity/overflow rejection and actual ImageData-retained admission after manager cancellation until the final observer drops. Four Golden cases verify actual odd YUV420,10-bit,alpha and packed rows, signed bottom-up strides without unsafe negative-stride slices, unknown empty/hardware/palette/invalid metadata and separate scratch/tight immutable output lifetime.",
+		"strict": "Both-package all-target native-qualification strict exits0. After clarifying the diagnostic field name, current both-package strict and current app test-executable build pass before final native verification. Runtime/admission/getter test bodies are unchanged by that label correction.",
+		"format": "Root and Golden Core Cargo formatting and owned whitespace checks pass. No generated UI contracts changed."
+	},
+	"native": {
+		"command": "MAPGYVER_NATIVE_DIAGNOSTICS=<owned test path>; with-ffmpeg.ps1 test --locked -p MapGyver --lib --features native-qualification hardware_file_worker_steps_exactly_and_falls_back_without_losing_its_clock -- --ignored --nocapture --test-threads=1",
+		"adapter": "dxgi:00000000:000156b6; Intel only",
+		"result": "1 passed,0 failed;0.34s fixture,3.96s wrapper; native process and report validation both exit0",
+		"observations": "Three actual first-install JSON reports: resident H.264 has no software planes/scratch and reserves16777216bytes; zero-GPU-budget H.264 fallback reserves16900096bytes, with two YUV420 frame spans9216bytes each, RGBA scratch12288bytes and a separately retained12288-byte CPU image. ProRes GPU publication reserves16900096bytes, with two YUV422p10le frame spans12288bytes each and RGBA scratch12288bytes; its separate upload image is already released at publication, so retained_cpu_image_bytes is absent.",
+		"retirement": "All three routes retain the same CPU budget UUID and unchanged peak through exact forward/reverse/seek/Stop coordinates. Source CPU reservations/groups, workers and GPU pool charges retire to zero under the existing deadline. Native CPU reporting reads metadata only; no independent GPU pixel or sustained timing claim.",
+		"first_attempt": "The first native process already passed. Its outer observation validator then failed because it incorrectly expected the completed ProRes GPU publication to retain a separate CPU image. Preserve that log. Clarify the new diagnostic field as retained_cpu_image_bytes and validate the actual absence on GPU routes. The final compiled/strict/native invocation passes; no admission, pixel or deadline limit was relaxed. Two invocations total.",
+		"first_log": "target/m10-cpu-layout-native-2026-11-13.log",
+		"first_log_sha256": "fa0cb4fc0f504160c67af4a3338e0d9bcacf783d9d14eaf59b7a21a9c52d3299",
+		"passing_log": "target/m10-cpu-layout-native-corrected-2026-11-13.log",
+		"passing_log_sha256": "414bbc8b91a9e15d70a54700ffff5c6d5b28fd754c6f78cd30e6954318ff4510"
+	},
+	"inputs": {
+		"base_commit": "c052e6501d4e0c62815d6267e542c71df54af6bd",
+		"manifest": "target/m10-cpu-layout-inputs-2026-11-13.json",
+		"manifest_sha256": "fa82e5c1b4cb80c9f23f5292dc9f2bab76d5005e56c2e26c67b7e1676c02d467",
+		"app_test_binary_sha256": "4ff85ad7d0b6194c4accb65d58aa29676b4a847f1ca32548d88fa81fdcb24614",
+		"scope": "Manifest pins current compiler/product inputs, Cargo.lock and all six software/strict/build/native logs."
+	},
+	"next": "Push this bounded readout slice. CPU source reservations currently use initial stream dimensions while the software decoder permits a much larger pixel ceiling; inspect a bounded in-band-resolution-change reproducer before treating admission as a complete buffer bound. Fix that source boundary if reproduced, without raising limits. Per-channel/complete CPU-pool/opaque-allocation and every original codec/repeated/age/critical-path/NVIDIA/M09 requirement remains.4 sole Active,88/106 (83%),M10 5/8; M14 follows4 acceptance."
+}

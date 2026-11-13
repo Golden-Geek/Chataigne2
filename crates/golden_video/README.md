@@ -39,6 +39,11 @@ The implemented foundations are:
   totals survive storage retirement and clones share a budget identity. Default playback leaves
   these counters unmeasured and adds no per-frame accounting lock. Totals describe all producers
   in that budget; they do not establish per-channel PTS uniqueness or phase-boundary throughput.
+  `DecodedFrame::software_layout` and `SoftwareImageConverter::scratch_layout` inspect bounded
+  plane metadata without reading pixels, retaining frames or transferring GPU storage. They
+  report actual signed strides, subsampled rows, minimum row bytes and addressed spans. Spans
+  exclude allocator/codec-private storage and do not deduplicate shared backing allocations;
+  unsupported/hardware/palette layouts remain unknown instead of being reported as zero.
   [Pinned Windows dependency and checks](../../tools/mapgyver/ffmpeg/README.md) describe the
   current boundary and remaining hardware/worker/package integration.
 - `plan/` validates the complete submitted dependency graph and caller-supplied limits, then

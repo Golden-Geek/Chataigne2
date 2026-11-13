@@ -154,6 +154,11 @@ impl Run {
                             output.error = None;
                             drop(output);
                             installed = true;
+                            self.report_cpu_layouts(
+                                &reader,
+                                &cpu_lease,
+                                software_image.as_ref().map(|(_, image)| image.pixels().len() as u64),
+                            );
                             eprintln!(
                                 "[mapgyver-video] {} playback: {} on {:?}",
                                 if software {

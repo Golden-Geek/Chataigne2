@@ -8,9 +8,11 @@ use ffmpeg_next as ffmpeg;
 use std::path::Path;
 mod hap;
 mod image;
+mod layout;
 mod parallelism;
 pub use hap::{HapFormat, HapFrame};
 pub use image::{ConversionError, SoftwareImageConverter};
+pub use layout::{SoftwareFrameLayout, SoftwarePlaneLayout};
 pub use parallelism::SoftwareDecodeThreads;
 mod timing;
 pub use timing::{StreamTiming, probe_timing_with_interrupt};
@@ -96,6 +98,12 @@ impl DecodedFrame {
             #[cfg(all(windows, feature = "d3d11"))]
             FrameStorage::D3d11(_) => None,
         }
+    }
+
+    /// Actual software plane/stride spans, without reading pixels or retaining a frame.
+    /// Hardware, compressed or unrepresentable layouts remain absent rather than zero.
+    pub fn software_layout(&self) -> Option<SoftwareFrameLayout> {
+        self.software_image().and_then(SoftwareFrameLayout::inspect)
     }
 
     /// Worker-local hardware frame and its pool lease, without any CPU transfer.

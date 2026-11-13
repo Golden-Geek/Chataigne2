@@ -36,6 +36,13 @@ struct Conversion {
     output: ffmpeg::frame::Video,
 }
 impl SoftwareImageConverter {
+    /// Current worker-owned conversion scratch layout, absent until allocation.
+    /// Reported spans exclude private scaler/allocator storage and published tight images.
+    pub fn scratch_layout(&self) -> Option<super::SoftwareFrameLayout> {
+        self.conversion
+            .as_ref()
+            .and_then(|conversion| super::SoftwareFrameLayout::inspect(&conversion.output))
+    }
     /// Convert supported SDR frames explicitly. HDR/wide-gamut metadata is rejected rather
     /// than silently interpreted as sRGB. Untagged SDR follows the documented BT.709 default.
     pub fn convert(&mut self, frame: &DecodedFrame) -> Result<ImageData, ConversionError> {

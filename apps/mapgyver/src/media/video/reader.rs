@@ -26,6 +26,16 @@ struct PreviousProbe {
     before: i64,
     distance: i64,
 }
+
+#[derive(serde::Serialize)]
+pub(super) struct CpuLayouts {
+    current: Option<golden_video::decode::SoftwareFrameLayout>,
+    lookahead: Option<golden_video::decode::SoftwareFrameLayout>,
+    scratch: Option<golden_video::decode::SoftwareFrameLayout>,
+    prepared_image_bytes: usize,
+    current_hap_bytes: Option<usize>,
+    lookahead_hap_bytes: Option<usize>,
+}
 pub(super) fn duration(ticks: i64, base: TimeBase) -> Result<Duration, String> {
     let nanos = i128::from(ticks) * i128::from(base.numerator) * 1_000_000_000 / i128::from(base.denominator);
     let nanos = u64::try_from(nanos).map_err(|_| "Video timestamp exceeds the admitted timeline")?;
@@ -35,6 +45,24 @@ pub(super) fn duration(ticks: i64, base: TimeBase) -> Result<Duration, String> {
     Ok(Duration::from_nanos(nanos))
 }
 impl Reader {
+    pub fn cpu_layouts(&self) -> CpuLayouts {
+        CpuLayouts {
+            current: self.current.as_ref().and_then(DecodedFrame::software_layout),
+            lookahead: self.next.as_ref().and_then(DecodedFrame::software_layout),
+            scratch: self.converter.scratch_layout(),
+            prepared_image_bytes: self.prepared.as_ref().map_or(0, |(_, image)| image.pixels().len()),
+            current_hap_bytes: self
+                .current
+                .as_ref()
+                .and_then(|frame| frame.hap_frame())
+                .map(|frame| frame.blocks().len()),
+            lookahead_hap_bytes: self
+                .next
+                .as_ref()
+                .and_then(|frame| frame.hap_frame())
+                .map(|frame| frame.blocks().len()),
+        }
+    }
     #[cfg(all(windows, feature = "native-video"))]
     pub(super) fn frame_is_published(&self) -> bool {
         self.current

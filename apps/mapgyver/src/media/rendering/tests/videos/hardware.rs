@@ -60,6 +60,17 @@ fn hardware_file_worker_steps_exactly_and_falls_back_without_losing_its_clock() 
             }
             eprintln!("software source accounting: {pools:?}");
         }
+        let retirement = renderer.video_retirement().unwrap();
+        let cpu = retirement.cpu_admission();
+        let expected_cpu = if resident {
+            16 * 1024 * 1024
+        } else {
+            64 * 48 * 40 + 16 * 1024 * 1024
+        };
+        assert_eq!(cpu.limit_bytes, 768 * 1024 * 1024);
+        assert_eq!(cpu.retained_bytes, expected_cpu);
+        assert_eq!(cpu.peak_bytes, expected_cpu);
+        assert_eq!(cpu.allocations, 1);
         let mut timestamps = vec![current.position_ms];
         while let Some(next) = current.next_ms {
             assert!(timestamps.len() < 10);
@@ -106,6 +117,11 @@ fn hardware_file_worker_steps_exactly_and_falls_back_without_losing_its_clock() 
             "{name}: complete worker and pool retirement"
         );
         assert_eq!(budget.retained_bytes(), 0);
+        let retired_cpu = retirement.cpu_admission();
+        assert_eq!(retired_cpu.id, cpu.id);
+        assert_eq!(retired_cpu.retained_bytes, 0);
+        assert_eq!(retired_cpu.allocations, 0);
+        assert_eq!(retired_cpu.peak_bytes, expected_cpu);
         eprintln!(
             "file worker verified {name}: resident={resident}, gpu_publication={gpu_publication}, {timestamps:?}, retired=0"
         );
