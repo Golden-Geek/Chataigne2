@@ -233,6 +233,70 @@
 		},
 		"limits": "Validation uses the task-local Tauri resource-copy-only override; no DLL packaging/native moving-image proof. UI/protocol declarations are unchanged, with generated-contract tests passing. Full caller/copy/project audit, native policy images/demand/resource retirement and M10/4 production budgets remain required."
 	},
+	"native_nvidia_partial": {
+		"date": "2026-11-13",
+		"accepted": false,
+		"fixture": "apps/mapgyver/tests/browser/native-video-matrix-policy.mjs",
+		"oracle": "apps/mapgyver/tests/native/video_policy_pixels.py; independent BT.709/transfer oracle with unchanged4/255 linear component tolerance",
+		"builds": {
+			"ordinary_default_app": {
+				"exit_code": 0,
+				"log": "target/m10-matrix-native-app-build.log",
+				"sha256": "41a833a5759c56353aec443bdb50d5c75b8295c98e4b89a7c1e61c9a281025da"
+			},
+			"qualification_probe": {
+				"exit_code": 0,
+				"log": "target/m10-matrix-native-probe-build.log",
+				"sha256": "abd69febffc1c825d70073a0556af3ea6954782d3bd5b043f5ebd4870b7c5c78"
+			},
+			"source": "451be032 production code; this qualification slice changes only tests/evidence. Normal resource copying succeeded and the fixture verified all five executable-local pinned DLLs.",
+			"h264_fixture_sha256": "3609e90d2d136d028ef20f5d398cb7c531305511895cf291a7c40f60d7a2a127"
+		},
+		"environment": "NVIDIA GeForce RTX5080 Laptop GPU,dxgi:00000000:00015b86; exact active runtime GPU checked against enumeration. Only the laptop display was connected; this proof uses independent160x120 Spout SDK pixels and makes no physical-display/latency/FPS claim.",
+		"first_run": {
+			"pid": 9844,
+			"test_exit": 1,
+			"raw": "target/m10-matrix-policy-nvidia-2026-11-13/failure.json",
+			"sha256": "85fcede0a18a0d5aff51cb67a60ba774d6fe7ed17503b24da8f48119f2fb23cf",
+			"result": "All nine logical/pixel policy pairs and moving outgoing/manual/reactivation checks reached shared scope, but11 UI edit-session rejections invalidate clean UI qualification. Shared output sampled frame0 instead of3. No full pass."
+		},
+		"second_run": {
+			"pid": 22648,
+			"test_exit": 1,
+			"raw": "target/m10-matrix-policy-nvidia-corrected-2026-11-13/failure.json",
+			"sha256": "27603bceda948c34edfb6373eedb1c938ad9c8ef196fccbbe18a8afd25c4becb",
+			"page_errors": 0,
+			"ui_rejections": 0,
+			"pairs": 9,
+			"successful_oracle_images": 21,
+			"maximum_linear_error": 0.009262163860156993,
+			"moving_outgoing": {
+				"images": 6,
+				"distinct_rgb": 6,
+				"first_alpha": 244,
+				"last_alpha": 102,
+				"clock_playing_during_all_samples": true,
+				"default_stop_at_end_observed": true
+			},
+			"retained_images": 47,
+			"failure": "Shared two-Layer case remained at native frame0 across20 observations/eight seconds; transport itself was Playing at0 with Resume, rather than the expected retained125ms. This disproves mere pixel readiness as the explanation. Shared/copy/project completion remains unqualified.",
+			"shutdown": "Owned app's normal-close exit0 assertion completed in finally; test exits1 on the preserved pixel assertion. Offline diagnostic verification passes for all three complete captures: no duration limit/dropped events, terminal native uninitialized and zero plan/owned-texel allocations. This is app shutdown, not the unexecuted project-New retirement case.",
+			"offline_diagnostics": "target/m10-matrix-policy-nvidia-corrected-2026-11-13/offline-diagnostics.json"
+		},
+		"corrective_decision": "LaunchColumn returns MatrixControlInvoked, acknowledging a typed trigger rather than an acquired Video use. The fixture withdrew the first Matrix without waiting for the second playback receipt. Added an explicit committed snapshot/new launch-id barrier before qualifying a shared consumer. The exact software regression passes and distinguishes trigger acknowledgement from committed ownership; no runtime clock change or relaxed pixel assertion is justified by these two runs. Native validation of this correction remains open.",
+		"corrected_fixture_prerequisites": {
+			"app_tests": 678,
+			"failed": 0,
+			"ignored": 4,
+			"exit_code": 0,
+			"log": "target/m10-matrix-native-contract-tests.log",
+			"strict_lint_exit": 0,
+			"strict_log": "target/m10-matrix-native-contract-clippy.log",
+			"native_qualification_all_targets": true,
+			"syntax_format": "Node syntax, Python compile, Prettier and root/Core Cargo formatting pass. Prior unchanged696-engine suite remains verified."
+		},
+		"return_trigger": "The committed-playback barrier and its software proof are ready. Next qualification batch reruns the exact full NVIDIA fixture in a fresh directory, then Intel after NVIDIA success; preserve the current failed shared case until actual pixels pass. Two native experiments were used here; no third run or final gate credit. Copy/project/all-caller and per-scene retirement scope still applies."
+	},
 	"remaining": [
 		"Complete configured shared/multi-Layer interruption and all-caller/copy/reload audit",
 		"Verify both GPUs' actual native moving incoming/outgoing images, policies, manual transport, shared clock, enabled/Stop lifecycle and retirement after software prerequisites"

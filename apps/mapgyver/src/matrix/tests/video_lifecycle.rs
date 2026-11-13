@@ -479,3 +479,56 @@ fn matrix_layer_visibility_does_not_stop_or_reactivate_its_launched_video() {
         assert_eq!(control.sample().unwrap().position, Duration::from_millis(2500));
     }
 }
+
+#[test]
+fn shared_resume_waits_for_committed_playback_rather_than_only_the_trigger_receipt() {
+    let mut engine = fixture();
+    let source = create(&mut engine, MediaKind::Video);
+    let control = clock(&engine, source.media);
+    control.prepare(Duration::from_millis(250)).unwrap();
+    policy(&mut engine, source.media, VideoEdit::Speed { speed: 0.0 });
+    policy(&mut engine, source.media, VideoEdit::Loop { looping: true });
+    policy(
+        &mut engine,
+        source.media,
+        VideoEdit::OnActivate {
+            policy: VideoOnActivate::Resume,
+        },
+    );
+    let mut matrices = Vec::new();
+    for index in 0..2 {
+        let matrix = create(&mut engine, MediaKind::Matrix);
+        let rows = layers(&mut engine, matrix.media, None, index + 1);
+        let column = columns(&mut engine, matrix.media, 1)[0];
+        for row in rows {
+            assign(&mut engine, matrix.media, layer(row), column, source.media);
+        }
+        let result = edit(
+            &mut engine,
+            matrix.media,
+            MatrixEdit::LaunchColumn {
+                column,
+                mode: LaunchMode::Cut,
+            },
+        );
+        assert!(matches!(result, MediaEditResult::MatrixControlInvoked { .. }));
+        let MediaEditResult::MatrixPlayback { snapshot } =
+            super::super::playback::inspect(&engine, matrix.media).unwrap()
+        else {
+            panic!()
+        };
+        assert_eq!(snapshot.desired_column, Some(column));
+        assert!(snapshot.launch_id.is_some());
+        if index == 0 {
+            policy(&mut engine, source.media, VideoEdit::Seek { position_ms: 125.0 });
+        }
+        matrices.push(matrix.media);
+    }
+    edit(&mut engine, matrices[0], MatrixEdit::ClearPlayback);
+    service(&mut engine);
+    assert!(control.sample().unwrap().playing);
+    assert_eq!(control.sample().unwrap().position, Duration::from_millis(125));
+    edit(&mut engine, matrices[1], MatrixEdit::ClearPlayback);
+    service(&mut engine);
+    assert_eq!(control.sample().unwrap().position, Duration::ZERO);
+}

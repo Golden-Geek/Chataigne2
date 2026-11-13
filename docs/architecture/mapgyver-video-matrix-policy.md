@@ -54,6 +54,13 @@ A failed/discarded receipt applies no Video action. Incoming consumers are
 admitted before outgoing release. Source selection and transport stay in the
 backend; neither a panel query nor a renderer is needed to start playback.
 
+The public launch operation returns `MatrixControlInvoked` for its typed Parameter
+pulse. This is distinct from the later committed playback receipt and acquired
+Video use. Integration callers qualifying another Matrix as an active shared
+consumer wait for its new committed `MatrixPlaybackSnapshot.launch_id` before
+withdrawing the old scope. Pixel checks separately wait for the installed output;
+neither an input acknowledgement nor a transport flag proves a rendered image.
+
 Each launch freezes its selected Cell source, including an empty selection. Editing
 that Cell or launching another Layer cannot adopt its replacement in the old clip.
 Live References along the frozen route still follow their selected canonical owner.
