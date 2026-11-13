@@ -10,7 +10,11 @@ import { openNativeEditor } from './native-editor.mjs';
 import { observeNativeAdapter } from './native-adapter.mjs';
 import { inspectNativeDiagnostics } from './native-diagnostics.mjs';
 import { inspectLocalVideoLibraries } from './video-runtime-libraries.mjs';
-import { assertQ06SourceUploads, SourceStartupCollector } from './source-upload-accounting.mjs';
+import {
+	assertQ06SourceUploads,
+	assertQ06Workload,
+	SourceStartupCollector
+} from './source-upload-accounting.mjs';
 
 const directory = path.resolve(process.argv[2]);
 const fixtures = JSON.parse(await readFile(process.argv[3], 'utf8'));
@@ -19,6 +23,25 @@ const executable = path.resolve(
 );
 const selected = process.env.MAPGYVER_VIDEO_ADAPTER;
 assert(selected && fixtures.cases.length === 2);
+assertQ06Workload(fixtures.cases);
+assert.equal(
+	new Set(fixtures.cases.map((value) => path.resolve(value.file).toLowerCase())).size,
+	2,
+	'two distinct File identities required before native startup'
+);
+for (const fixture of fixtures.cases) {
+	const offset = fixture.frame_code_offset ?? 0;
+	assert(Number.isSafeInteger(offset) && offset >= 0 && offset + fixture.frames <= 4096);
+	assert.equal(fixture.frames, fixture.rate * 4);
+}
+if (fixtures.cases[0].width === fixtures.cases[1].width) {
+	const [first, second] = fixtures.cases;
+	assert(
+		first.frame_code_offset + first.frames <= second.frame_code_offset ||
+			second.frame_code_offset + second.frames <= first.frame_code_offset,
+		'equal-extent files require disjoint visible code ranges'
+	);
+}
 await mkdir(directory, { recursive: true });
 process.env.MAPGYVER_NATIVE_DIAGNOSTICS = path.join(directory, 'native');
 const command = (args) =>
@@ -292,7 +315,13 @@ try {
 		const reference =
 			index === 0
 				? created.reference
-				: (await edit({ kind: 'AddChannel', media, label: 'Q06 4K30' })).reference;
+				: (
+						await edit({
+							kind: 'AddChannel',
+							media,
+							label: `Q06 ${fixture.width} ${fixture.rate}fps`
+						})
+					).reference;
 		await edit({ kind: 'ConfigureVideoFile', reference, file: fixture.file });
 		outputs.push(await makeOutput(reference, fixture, `Q06 ${fixture.width} output`));
 	}
@@ -337,7 +366,14 @@ try {
 	await delay(100);
 	const checkpoints = [];
 	for (const [index, output] of outputs.entries())
-		checkpoints.push(await pixels(output, adapter, `held-${index}`, output.fixture.rate));
+		checkpoints.push(
+			await pixels(
+				output,
+				adapter,
+				`held-${index}`,
+				output.fixture.rate + (output.fixture.frame_code_offset ?? 0)
+			)
+		);
 	for (const output of outputs.slice(0, 2)) await consumer(output, adapter);
 	await transport({ kind: 'Play' });
 	await phase('warmup', 30);
@@ -400,7 +436,7 @@ try {
 		requireSourceBudget: true,
 		requireSourceUploads: true
 	});
-	assertQ06SourceUploads(fixtures.codec, report.nativeDiagnostics.sourceGpu);
+	assertQ06SourceUploads(fixtures.codec, report.nativeDiagnostics.sourceGpu, fixtures.cases);
 	if (fixtures.codec === 'H.264 High' || fixtures.codec === 'HEVC Main') {
 		assert.equal(
 			report.nativeDiagnostics.uploadBytes,

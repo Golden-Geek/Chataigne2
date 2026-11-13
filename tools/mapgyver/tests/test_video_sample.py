@@ -5,9 +5,30 @@ import unittest
 
 AGE = runpy.run_path(str(Path(__file__).parents[1] / "video_sample.py"))["publication_age_lower_bound"]
 UPLOADS = runpy.run_path(str(Path(__file__).parents[1] / "video_sample.py"))["observed_source_uploads"]
+MODULE = runpy.run_path(str(Path(__file__).parents[1] / "video_sample.py"))
 
 
 class PublicationAgeBoundTests(unittest.TestCase):
+    def test_equal_extent_files_keep_distinct_streams_rates_and_payloads(self):
+        bindings = [{"stream": stream, "file": file, "reference": {"channel": stream}}
+                    for stream, file in [('a', 'D:/a.mov'), ('a2', 'd:\\A.mov'), ('b', 'D:/b.mov')]]
+        streams = MODULE['streams_by_file'](bindings)
+        fixture = {'file': 'd:\\a.mov', 'width': 3840, 'height': 2160, 'rate': 60}
+        uploads = [{'stream': stream, 'sequence': index, 'bytes': size, 'rows': 2160, 'row_pitch': 15360}
+                   for index, (stream, size) in enumerate([('a', 100), ('a2', 200), ('b', 900)])]
+        visible = [{'stream': stream, 'sequence': seq} for stream, seq in [('a', 1), ('a', 1), ('a2', 2), ('b', 3)]]
+        selected = streams[MODULE['PureWindowsPath'](fixture['file'])]
+        result = MODULE['source_phase_stats'](fixture, selected, uploads, visible, {}, 2)
+        self.assertEqual(result['streams'], ['a', 'a2'])
+        self.assertEqual(result['observed_upload_calls'], 2)
+        self.assertEqual(result['upload_bytes'], 300)
+        self.assertEqual(result['visible_publication_rate'], 1)
+        missing = MODULE['source_phase_stats'](fixture, set(), uploads, visible, {}, 2)
+        self.assertFalse(missing['source_binding_available'])
+        self.assertEqual(missing['upload_bytes'], 0)
+        with self.assertRaisesRegex(ValueError, 'binding'):
+            MODULE['streams_by_file']([bindings[0], {**bindings[0], 'file': 'D:/b.mov'}])
+
     def test_source_worker_upload_before_publication_does_not_invent_an_age(self):
         self.assertIsNone(AGE({"cpu": {"end": 40}}, {"consumer_api": {"begin": 70}}, 1000,
                               precedes_publication=True))

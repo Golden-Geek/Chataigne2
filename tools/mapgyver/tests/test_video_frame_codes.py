@@ -32,6 +32,20 @@ def result(args):
 
 
 class VideoFrameCodeTests(unittest.TestCase):
+    def test_file_code_offset_rejects_other_file_at_identical_pts_and_extent(self):
+        args = fixture()
+        args[2][3]['frame_code_offset'] = 2048
+        self.assertEqual(result(args)['mismatched_images'], 1)
+        row = args[1][3][0]
+        row['raw_words'][1] = 2049
+        row['raw_words'][6] = (row['raw_words'][6] & 0x00ffffff) | (235 << 24)
+        row['binary_frame_code'] = {'Ok': 2049}
+        self.assertTrue(result(args)['coverage_complete'])
+        args[2][3]['streams'] = {'another-file'}
+        self.assertEqual(result(args)['missing_witnesses'], {'missing_or_mismatched_file_binding': 1})
+        args[2][3]['frame_code_offset'] = 4096
+        with self.assertRaises(ValueError): result(args)
+
     def test_mixed_constant_rates_and_loop_zero_use_original_pts(self):
         for rate, pts in ((24, 41_666_667), (30, 33_333_333), (60, 16_666_667)):
             args = fixture()

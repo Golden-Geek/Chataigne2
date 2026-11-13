@@ -27,9 +27,13 @@ def image_key(image):
     return stamp(image['shared_handle']), frame
 
 
-def analyze_video_age(outputs, uses, layouts, output_sources, receivers, receiver_clocks, window, frames):
+def analyze_video_age(outputs, uses, layouts, output_sources, receivers, receiver_clocks, window, frames,
+                      *, output_streams=None, output_routes=None):
     frequency = stamp(window['frequency'])
     by_token, by_image = defaultdict(list), defaultdict(list)
+    routes = defaultdict(list)
+    for route in output_routes or []:
+        routes[(key(route['generation']), route['output'])].append(route)
     for use in uses:
         by_token[key(use['token'])].append(use)
     for output in outputs:
@@ -59,14 +63,24 @@ def analyze_video_age(outputs, uses, layouts, output_sources, receivers, receive
             if not window['begin_qpc'] <= at < window['end_qpc']:
                 continue
             accepted += 1
-            candidates = [use for use in by_token[token] if layouts.get(use.get('stream')) == layout]
+            candidates = [use for use in by_token[token] if layouts.get(use.get('stream')) == layout
+                          and (output_streams is None or use.get('stream') in output_streams.get(identity, set()))]
+            reason = None
+            if output_routes is not None:
+                generation = frames.get(token, {}).get('generation')
+                facts = routes[(key(generation), identity)] if generation is not None else []
+                textures = {row['texture'] for row in facts if row['texture'] is not None}
+                counts = {row['source_count'] for row in facts}
+                if (len(counts) != 1 or next(iter(counts)) != len(textures) or not textures
+                        or any(row['texture'] is None for row in facts)):
+                    reason = 'missing_or_incomplete_output_sources'
+                candidates = [use for use in candidates if use['texture'] in textures]
             # Equal-sized independent sources are ambiguous. Aliases must retain the same
             # exact producer/publication and frame metadata, not merely a matching timestamp.
             publications = {(use.get('stream'), use['sequence'], key(use.get('frame'))) for use in candidates}
-            reason = None
-            if not candidates or len(publications) != 1:
+            if reason is None and (not candidates or len(publications) != 1):
                 reason = 'missing_or_ambiguous_source'
-            elif any(use.get('frame') is None or use['frame'].get('publication_qpc') is None for use in candidates):
+            elif reason is None and any(use.get('frame') is None or use['frame'].get('publication_qpc') is None for use in candidates):
                 reason = 'missing_file_publication'
             image = image_key(output.get('spout_image'))
             if reason is None and (image is None or len(by_image[(identity, image)]) != 1):
@@ -99,7 +113,8 @@ def analyze_video_age(outputs, uses, layouts, output_sources, receivers, receive
                        'coverage_complete': len(measured) == accepted and accepted > 0})
     return {
         'outputs': result,
-        'scope': ('Q06 distinct-extent, single-source SDK outputs; publication pre-commit through '
+        'scope': ('Q06 single-source SDK outputs, joined by File/stream when supplied; extent-only legacy '
+                  'captures retain ambiguity. Publication pre-commit through '
                   'independent GPU capture completion, including polling delay. Unassignable '
                   'accepted rows contribute an unbounded endpoint in every phase.'),
         'limits': ('unmapped outputs, File publications without valid timestamp tags, decoded Video pixel/PTS validation, '

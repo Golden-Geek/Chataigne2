@@ -8,6 +8,17 @@ MODULE = runpy.run_path(str(Path(__file__).parents[1] / "video_fixtures.py"))
 
 
 class VideoFixtureTests(unittest.TestCase):
+    def test_fixed_workloads_have_distinct_case_names_and_nonoverlapping_codes(self):
+        self.assertEqual(MODULE['WORKLOADS']['standard'],
+                         [('hd', 1920, 1080, 60), ('uhd', 3840, 2160, 30)])
+        performance = MODULE['WORKLOADS']['performance']
+        self.assertEqual([case[1:] for case in performance], [(3840, 2160, 60)] * 2)
+        self.assertEqual(len({case[0] for case in performance}), 2)
+        self.assertTrue(set(range(240)).isdisjoint(range(2048, 2048 + 240)))
+        first, second = (','.join(MODULE['marker_filters'](offset)) for offset in (0, 2048))
+        self.assertIn('bitand(n+0,2048)', first)
+        self.assertIn('bitand(n+2048,2048)', second)
+
     def test_alpha_oracle_rejects_opaque_replacement_and_lost_marker_opacity(self):
         width = 320
         pixels = bytearray(width * 64 * 4)

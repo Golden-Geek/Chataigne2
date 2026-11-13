@@ -419,7 +419,9 @@ Missing clock/acquisition witnesses stay unknown. Diagnostics remain opt-in; the
 does not by itself qualify sustained cadence, full source age or complete decoder/pool costs.
 `tools/mapgyver/video_age.py` consumes those actual imported publication tags with exact SDK
 output versions and independent consumer GPU-completion observations. The controlled Q06
-distinct-extent source mapping rejects ambiguity. Every accepted image contributes to the
+fixture mapping follows receiver shared-image ownership and immutable File/stream bindings;
+age witnesses also require the actual prepared output texture. Equal-sized independent files
+cannot borrow each other's publication or upload counts. Every accepted image contributes to the
 percentile rank, with missing endpoints unbounded; `age_bounds.py` shares the exact outward
 arithmetic with PresentMon. This proves only publication-to-copy bounds for witnessed outputs,
 not decoded Video pixel/PTS identity or display scanout. Software File workers also publish
@@ -434,6 +436,13 @@ elapsed nanoseconds and ticks round outward, and invalid/overflowing clocks stay
 This bounds publication-to-copy without borrowing upload-end time or claiming decode completion;
 the existing age auditor still rejects differing/ambiguous alias metadata. Older CPU captures
 without these tags remain unqualified and cannot be reconstructed by replaying the auditor.
+`tools/mapgyver/video_fixtures.py --workload standard` generates HD60 plus4K30;
+`--workload performance` generates two distinct4K60 files. Each four-second file carries its
+ordinal in a disjoint half of the12-bit visible code range, independently checked by FFmpeg.
+The manifest records per-file offsets and case identities. The ordinary sustained controller
+retains the same shared Reference, independent consumers,60Hz outputs and sampling durations;
+its storage/payload assertions derive from the selected fixed workload. Preparation and
+software checks do not qualify either tier's performance or replace independent repeated runs.
 Hardware/HAP File publishers use the timeline completion correction now; all original resource,
 recovery and performance qualification remains required.
 File workers fall back only for an explicit unsupported native codec/interface or conversion.

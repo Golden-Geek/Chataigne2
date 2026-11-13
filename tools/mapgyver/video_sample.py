@@ -2,7 +2,7 @@
 from collections import Counter, defaultdict
 import argparse
 import json
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import runpy
 
 METRICS = runpy.run_path(str(Path(__file__).with_name("production_qualification.py")))
@@ -43,6 +43,36 @@ def observed_source_uploads(uses):
     return list(uploads.values())
 
 
+def streams_by_file(bindings):
+    """Windows File identities, never resolution, group immutable stream generations."""
+    files, streams = defaultdict(set), {}
+    for binding in bindings:
+        stream, file = binding['stream'], PureWindowsPath(binding['file'])
+        if stream in streams and streams[stream] != binding:
+            raise ValueError('one stream changed its File/channel binding')
+        streams[stream] = binding
+        files[file].add(stream)
+    return files
+
+
+def source_phase_stats(fixture, streams, uploads, visible, frames, seconds):
+    uploads = [row for row in uploads if row['stream'] in streams]
+    distinct = {(use['stream'], use['sequence']) for use in visible if use['stream'] in streams}
+    repeated = Counter((key(frames[key(row['token'])]['generation']), row['stream'], row['sequence'])
+                       for row in uploads if 'token' in row and key(row['token']) in frames)
+    return {'file': fixture['file'], 'streams': sorted(streams), 'source_binding_available': bool(streams),
+            'width': fixture['width'], 'height': fixture['height'], 'requested_fps': fixture['rate'],
+            'visible_publications': len(distinct), 'visible_publication_rate': len(distinct) / seconds,
+            'observed_upload_calls': len(uploads), 'upload_bytes': sum(row['bytes'] for row in uploads),
+            'upload_coverage': 'File-bound observations only; source-worker identities deduplicated across consumers, '
+                               'plus render-thread uploads. Missing bindings/unsampled uploads remain unknown.',
+            'upload_bytes_per_second': sum(row['bytes'] for row in uploads) / seconds,
+            'duplicate_uploads_within_one_resource_generation': sum(count - 1 for count in repeated.values()),
+            'duplicate_scope': 'Render-thread uploads only; repeated source uploads of one PTS require continuous lineage.',
+            'uploaded_rows': sorted({row['rows'] for row in uploads}),
+            'uploaded_row_pitches': sorted({row['row_pitch'] for row in uploads})}
+
+
 def analyze(directory):
     report = json.loads((directory / "sample.json").read_text(encoding="utf-8"))
     events, snapshots, capture_health = defaultdict(list), [], []
@@ -65,6 +95,7 @@ def analyze(directory):
         bindings = VIDEO_SOURCES["bindings_from_log"](report.get("backendLog", ""))
     source_attribution = VIDEO_SOURCES["analyze_source_submissions"](
         events, bindings, [row.get("source_gpu") for row in snapshots], capture_health)
+    file_streams = streams_by_file(bindings)
     frames = {key(row["token"]): row for row in events["FrameCpu"]}
     uploaded = {(key(row["token"]["device"]), row["texture"], row["stream"], row["sequence"]): row
                 for row in events["ImageUpload"]}
@@ -83,6 +114,7 @@ def analyze(directory):
         if use["stream"] is not None and use["sequence"]:
             uses[key(use["token"])].append(use)
     output_sources, receiver_summaries, receiver_frames, receiver_clocks = {}, [], {}, {}
+    output_streams = {}
     receiver_markers, numbered_fixtures = {}, {}
     for index, root in enumerate(report["consumerDirectories"]):
         handles = set()
@@ -106,10 +138,11 @@ def analyze(directory):
         fixture = report["fixtures"]["cases"][index]
         identity = next(iter(ids))
         output_sources[identity] = (fixture["width"], fixture["height"])
+        output_streams[identity] = file_streams[PureWindowsPath(fixture['file'])]
         receiver_frames[identity], receiver_clocks[identity] = copied, clock
         receiver_markers[identity] = marker
         spec = report['fixtures']['frame_code']
-        numbered_fixtures[identity] = {**fixture, 'marker': {
+        numbered_fixtures[identity] = {**fixture, 'streams': output_streams[identity], 'marker': {
             'bits': spec['bits'], 'origin': [spec['x'], spec['y']], 'step': spec['step'],
             'sentinel': [spec['sentinel_x'], spec['y']], 'threshold': spec['threshold']}}
         receiver_summaries.append({"directory": root, "outputs": list(ids), "final": final,
@@ -138,7 +171,8 @@ def analyze(directory):
             api = output["consumer_api"]
             if output["output"] not in output_sources or output["outcome"] != "Accepted" or api is None or not begin <= api["begin"] < end:
                 continue
-            dependencies = [use for use in uses[token] if layouts.get(use["stream"]) == output_sources[output["output"]]]
+            dependencies = [use for use in uses[token] if use['stream'] in output_streams[output['output']]
+                            and layouts.get(use["stream"]) == output_sources[output["output"]]]
             lower = None
             if len(dependencies) == 1:
                 use = dependencies[0]
@@ -150,23 +184,11 @@ def analyze(directory):
                 age_unknown[output["output"]] += 1
             # Unknown ages contribute zero only to this failure lower bound, never a passing age.
             age[output["output"]].append(0.0 if lower is None else lower)
+        uploads = [row for row in all_uploads if row['cpu'] and begin <= row['cpu']['begin'] < end]
+        visible = [use for token in selected_tokens for use in uses[token]]
         for fixture in report["fixtures"]["cases"]:
-            layout = (fixture["width"], fixture["height"])
-            uploads = [row for row in all_uploads if row["cpu"] and begin <= row["cpu"]["begin"] < end
-                       and layouts[row["stream"]] == layout]
-            visible = [use for token in selected_tokens for use in uses[token] if layouts.get(use["stream"]) == layout]
-            distinct = {(use["stream"], use["sequence"]) for use in visible}
-            repeated = Counter((key(frames[key(row["token"])]["generation"]), row["stream"], row["sequence"])
-                               for row in uploads if "token" in row and key(row["token"]) in frames)
-            source_stats.append({"width": layout[0], "height": layout[1], "requested_fps": fixture["rate"],
-                                 "visible_publications": len(distinct), "visible_publication_rate": len(distinct) / seconds,
-                                 "observed_upload_calls": len(uploads), "upload_bytes": sum(row["bytes"] for row in uploads),
-                                 "upload_coverage": "Observed source-worker identities deduplicated across consumers, plus render-thread uploads. Unsampled uploads/final producer counters remain unknown; not complete per-format accounting.",
-                                 "upload_bytes_per_second": sum(row["bytes"] for row in uploads) / seconds,
-                                 "duplicate_uploads_within_one_resource_generation": sum(count - 1 for count in repeated.values()),
-                                 "duplicate_scope": "Render-thread uploads only; source counter observations are deduplicated, and repeated source uploads of one original PTS remain unknown without continuous PTS lineage.",
-                                 "uploaded_rows": sorted({row["rows"] for row in uploads}),
-                                 "uploaded_row_pitches": sorted({row["row_pitch"] for row in uploads})})
+            source_stats.append(source_phase_stats(fixture, file_streams[PureWindowsPath(fixture['file'])],
+                                                   uploads, visible, frames, seconds))
         private = [row["process"]["memory"]["private_bytes"] for row in native if row["process"] and row["process"]["memory"]]
         known = [row["allocations"]["owned_texel_bytes"] for row in native if row["allocations"]["owned_texel_bytes"] is not None]
         results.append({"phase": window["name"], "seconds": seconds, "cpu": cpu, "renderer_gpu": gpu,
@@ -177,7 +199,8 @@ def analyze(directory):
                         "unknown_age_rows_zeroed_only_for_failure_bound": dict(age_unknown),
                         "file_publication_age": VIDEO_AGE['analyze_video_age'](
                             events['Output'], events['SourceUse'], layouts, output_sources,
-                            receiver_frames, receiver_clocks, window, frames),
+                            receiver_frames, receiver_clocks, window, frames, output_streams=output_streams,
+                            output_routes=events['OutputSource']),
                         "process_private_peak": max(private, default=None),
                         "known_native_texel_peak": max(known, default=None),
                         "known_native_scope": "plan/Spout/window inventory, excludes unknown Video decoder/pool accounting",

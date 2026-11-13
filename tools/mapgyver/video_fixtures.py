@@ -69,18 +69,30 @@ def verify_alpha(rgba, width):
     return samples
 
 
-def generate(encoder, directory, codec="prores"):
+WORKLOADS = {
+    "standard": [("hd", 1920, 1080, 60), ("uhd", 3840, 2160, 30)],
+    "performance": [("uhd-a", 3840, 2160, 60), ("uhd-b", 3840, 2160, 60)],
+}
+
+
+def marker_filters(offset):
+    # Disjoint halves of the 12-bit code distinguish files even at identical PTS/extents.
+    return ["drawbox=x=0:y=0:w=320:h=48:color=black:t=fill",
+            "drawbox=x=0:y=16:w=8:h=16:color=white:t=fill"] + [
+        f"drawbox=x={16 + bit * 24}:y=16:w=16:h=16:color=white:t=fill:enable='bitand(n+{offset},{1 << bit})'"
+        for bit in range(12)]
+
+
+def generate(encoder, directory, codec="prores", workload="standard"):
     label, prefix, encoding, expected = PROFILES[codec]
     has_alpha = codec in {"hap_alpha", "prores_alpha"}
     directory.mkdir(parents=True, exist_ok=False)
     cases = []
-    for width, height, rate in [(1920, 1080, 60), (3840, 2160, 30)]:
+    for index, (case_id, width, height, rate) in enumerate(WORKLOADS[workload]):
         frames = rate * 4
-        output = directory / f"{prefix}-{width}x{height}-{rate}.mov"
-        filters = ["drawbox=x=0:y=0:w=320:h=48:color=black:t=fill",
-                   "drawbox=x=0:y=16:w=8:h=16:color=white:t=fill"]
-        filters += [f"drawbox=x={16 + bit * 24}:y=16:w=16:h=16:color=white:t=fill:enable='bitand(n,{1 << bit})'"
-                    for bit in range(12)]
+        offset = index * 2048
+        output = directory / f"{prefix}-{case_id}-{width}x{height}-{rate}.mov"
+        filters = marker_filters(offset)
         if has_alpha:
             # Keep numbered witnesses opaque; the moving picture below has two alpha levels.
             filters += ["format=rgba", "geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':"
@@ -103,7 +115,7 @@ def generate(encoder, directory, codec="prores"):
                 "-pix_fmt", "rgb24", "pipe:1"], timeout=30)
             assert len(pixels) == 320 * 32 * 3
             actual = frame_code(pixels)
-            assert actual == index, (output.name, index, actual)
+            assert actual == index + offset, (output.name, index + offset, actual)
             oracle.append(actual)
         alpha = []
         if has_alpha:
@@ -112,11 +124,13 @@ def generate(encoder, directory, codec="prores"):
                 "-vf", f"crop={width}:64:0:0", "-frames:v", "1", "-f", "rawvideo",
                 "-pix_fmt", "rgba", "pipe:1"], timeout=30)
             alpha = verify_alpha(pixels, width)
-        cases.append({"file": str(output.resolve()), "width": width, "height": height, "rate": rate,
+        cases.append({"id": case_id, "frame_code_offset": offset,
+                      "file": str(output.resolve()), "width": width, "height": height, "rate": rate,
                       "frames": frames, "duration_seconds": 4, "bytes": output.stat().st_size,
                       "sha256": digest(output), "stream": info, "verified_frame_codes": oracle,
                       "verified_alpha_samples": alpha})
-    manifest = {"schema": 1, "codec": label, "encoder": str(encoder), "encoder_sha256": digest(encoder),
+    manifest = {"schema": 2, "workload": workload, "codec": label,
+                "encoder": str(encoder), "encoder_sha256": digest(encoder),
                 "encoder_version": subprocess.check_output([str(encoder), "-version"], text=True).splitlines()[0],
                 "generator_sha256": digest(__file__), "frame_code": {"bits": 12, "x": 24, "y": 24, "step": 24,
                 "sentinel_x": 4, "threshold": 128}, "cases": cases}
@@ -129,8 +143,9 @@ def main():
     parser.add_argument("--encoder", type=Path, required=True)
     parser.add_argument("--directory", type=Path, required=True)
     parser.add_argument("--codec", choices=PROFILES, default="prores")
+    parser.add_argument("--workload", choices=WORKLOADS, default="standard")
     args = parser.parse_args()
-    manifest = generate(args.encoder.resolve(strict=True), args.directory.resolve(), args.codec)
+    manifest = generate(args.encoder.resolve(strict=True), args.directory.resolve(), args.codec, args.workload)
     print(json.dumps({"result": "pass", "cases": len(manifest["cases"]), "directory": str(args.directory)}))
 
 

@@ -1,0 +1,125 @@
+{
+	"date": "2026-11-13",
+	"gate": "M10/4",
+	"accepted": false,
+	"deliverable": "Original Q06 two-4K60 performance-tier fixture/collector prerequisite implemented. Standard HD60+4K30 remains supported. No product runtime, protocol, budget, codec route or sampling-duration change.",
+	"implementation": {
+		"fixtures": "--workload standard or performance; schema2 records workload, distinct case/file identities and per-file frame_code_offset. Four-second files use disjoint 12-bit code ranges, offsets0/2048; FFmpeg independently decodes selected frame codes. Alpha generation is unchanged.",
+		"controller": "Rejects unsupported dimensions/rates, identical File identities, invalid code ranges or overlapping equal-extent marker ranges before native startup. Same shared Reference/three outputs/two continuous receivers, explicit60Hz,30s warmup/120s sample/60s minimized/60s receiver-disconnected. Held checks include each file's offset.",
+		"accounting": "GPU retained-storage and CPU payload assertions derive from actual selected fixed workload. Equal-size HAP aggregate conservation cannot prove two files; strict per-file/PTS attribution remains independently required.",
+		"analysis": "Upload/publication summaries join immutable Windows File/stream bindings instead of resolution. Missing bindings stay unknown. Pixel checks retain exact receiver-image and prepared-output ownership plus expected File stream and offset. Age witnesses also require actual prepared output textures; missing/ambiguous witnesses stay unbounded. Historical offset-free captures retain offset0; extent-only standalone age calls remain conservative."
+	},
+	"verification": {
+		"python": "54 targeted video cases pass",
+		"node": "22 source-budget/upload collector cases pass",
+		"syntax": "Native sustained controller node --check passes",
+		"formatting": "Prettier checks for three touched JavaScript files; root and Golden Core cargo fmt; scoped git diff --check pass",
+		"runtime": "All55 recorded runtime/build inputs in target/m10-hap-storage-final-inputs-2026-11-13.json remain unchanged; existing1010-case runtime/strict/build coverage remains applicable. No Rust recompilation or hardware run in this software slice.",
+		"standard_reanalysis": {
+			"source": "target/q06-prores-alpha-intel-2026-11-13",
+			"report": "target/q06-performance-software-2026-11-13/standard-reanalysis.json",
+			"sha256": "d522102958a86986dad4a46201d1d7c67321f21e053d2f5c395dbbd480cd183e",
+			"matched_images": 20539,
+			"mismatches": 0,
+			"invalid_markers": 0,
+			"strict_cpu_payload_pts_attribution": "complete",
+			"scope": "Unchanged recorded standard cohort replayed with current helper. Original raw capture/audit preserved; no new cohort or performance acceptance."
+		}
+	},
+	"generated_fixture": {
+		"manifest": "target/q06-h264-two-4k60-2026-11-13/fixtures.json",
+		"sha256": "59b838123eaca94d910756f86f3dd536a3665a826f8fe181729bf5f27a3c9ede",
+		"encoder_sha256": "72a489eccd008c2ec2c0a5856c5c75bc3d8bbfa90166c4566865c246445e6aa3",
+		"cases": [
+			{
+				"id": "uhd-a",
+				"width": 3840,
+				"height": 2160,
+				"rate": 60,
+				"frames": 240,
+				"bytes": 26446954,
+				"sha256": "cd05865a46414360cc0268a77faa0b244e2cc43ba842beb6b4a8cc2bafaa5731",
+				"offset": 0,
+				"independent_frame_codes": [
+					0,
+					1,
+					31,
+					239
+				]
+			},
+			{
+				"id": "uhd-b",
+				"width": 3840,
+				"height": 2160,
+				"rate": 60,
+				"frames": 240,
+				"bytes": 26446995,
+				"sha256": "893081fd0e40a4266f8b57889c3612bcb38976cd9b9e4047fb6f2faafdba9fc5",
+				"offset": 2048,
+				"independent_frame_codes": [
+					2048,
+					2049,
+					2079,
+					2287
+				]
+			}
+		],
+		"scope": "Actual encoded files and separate FFmpeg decoding, not native playback/performance evidence."
+	},
+	"source_inputs": [
+		{
+			"path": "apps/mapgyver/tests/browser/native-video-sustained.mjs",
+			"sha256": "f7f91c67008a886b75a8f28a580f05e10b3dc53d564c3eba339528ebdc210040"
+		},
+		{
+			"path": "apps/mapgyver/tests/browser/source-upload-accounting.mjs",
+			"sha256": "f0bbcf328ecebcb31ad99ee17a7c90d275385aed71c9bf68bc2a3a0886e9c41c"
+		},
+		{
+			"path": "apps/mapgyver/tests/browser/tests/source-upload-accounting.test.mjs",
+			"sha256": "f4b39b3a2352c47d116111666baef634ebc4af6b5cafe5d5a34baeeca11976bf"
+		},
+		{
+			"path": "tools/mapgyver/video_fixtures.py",
+			"sha256": "a90f8437f3b56943cedb6064c44fc86a702873967ffedb65631e4c499e6acbf1"
+		},
+		{
+			"path": "tools/mapgyver/video_sample.py",
+			"sha256": "63cf5c76307d1e3bda5425698b91ee330c36f0c2030b254b6312abf2a3ab39a6"
+		},
+		{
+			"path": "tools/mapgyver/video_age.py",
+			"sha256": "5645a646a84e71ec39c7e5204c9199625a231fc46f1a4f2d35e0a67a38f755f9"
+		},
+		{
+			"path": "tools/mapgyver/video_frame_codes.py",
+			"sha256": "8335868940c94a38abed555c589964b0c6d0a666065bb8a08ae43f1fa71e608a"
+		},
+		{
+			"path": "tools/mapgyver/tests/test_video_fixtures.py",
+			"sha256": "80d1e435e13d2e7a9e359369ba573038d8bb1484f22156cd315775b2a8b22ffa"
+		},
+		{
+			"path": "tools/mapgyver/tests/test_video_sample.py",
+			"sha256": "a3593f98f51023e1426c16eb19f45b2da38aa2fdf6653e96d6f7f46e7cb927aa"
+		},
+		{
+			"path": "tools/mapgyver/tests/test_video_age.py",
+			"sha256": "c96d7ccb0fd2739a3a85f11f7eaf145b68892ba228f0626b37902225c4487e20"
+		},
+		{
+			"path": "tools/mapgyver/tests/test_video_frame_codes.py",
+			"sha256": "1f6ef27f622f183a6876d440659a81ae737035a4bdd60d092ce4663297be8bbe"
+		}
+	],
+	"remaining": "M10/4 still requires all declared codec/profile and repeated standard/performance-tier actual-app cadence/age/resource/complete-path/recovery acceptance. Current Intel failures remain; pending0.5% remains unapplied/insufficient. NVIDIA native lane is Blocked on supported Computer Use reconnect followed by fresh overlay-Off observation before startup.",
+	"next": "Push this software prerequisite, then verify the newly supported two-4K60 HAP workload once through the existing actual-app controller on Intel, without new profiler or unchanged standard timing retries. Prerequisite runtime/build inputs and terminal software success must be inspected first. Preserve all numerical budgets and failures; no gate closes from preparation. Native NVIDIA return trigger remains recorded.",
+	"progress": {
+		"accepted_gates": 88,
+		"total_gates": 106,
+		"percent": 83,
+		"m10": "5/8",
+		"phases": "8/15",
+		"sole_active_gate": "M10/4"
+	}
+}

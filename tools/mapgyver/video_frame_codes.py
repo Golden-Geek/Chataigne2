@@ -63,6 +63,9 @@ def analyze_frame_codes(events, receivers, fixtures, contracts, window, frames):
         bits = integer(fixture['marker']['bits'], 'marker bits', 1)
         if bits > 32 or not 0 < integer(fixture['marker']['threshold'], 'threshold') < 255:
             raise ValueError('invalid binary marker count or threshold')
+        offset = integer(fixture.get('frame_code_offset', 0), 'fixture code offset')
+        if offset + count > 1 << bits:
+            raise ValueError('fixture codes exceed the marker range')
         accepted, matched, invalid, mismatched = 0, 0, 0, []
         missing, distinct = Counter(), set()
         for row in events['Output']:
@@ -92,6 +95,8 @@ def analyze_frame_codes(events, receivers, fixtures, contracts, window, frames):
                 elif any(u.get('descriptor', {}).get('extent') != {'width': fixture['width'], 'height': fixture['height']}
                          for u in selected):
                     reason = 'missing_or_mismatched_source_descriptor'
+                elif 'streams' in fixture and any(u['stream'] not in fixture['streams'] for u in selected):
+                    reason = 'missing_or_mismatched_file_binding'
             version = image(row.get('spout_image'))
             if reason is None and (version is None or len(published[(output, version)]) != 1):
                 reason = 'missing_or_ambiguous_output_version'
@@ -120,7 +125,7 @@ def analyze_frame_codes(events, receivers, fixtures, contracts, window, frames):
             ordinal = (pts * rate + 500_000_000) // 1_000_000_000
             if ordinal >= count or abs(pts * rate - ordinal * 1_000_000_000) > rate:
                 raise ValueError('selected PTS is outside the declared numbered fixture')
-            expected = ordinal % (1 << bits)
+            expected = ordinal + offset
             if code != expected:
                 mismatched.append({'token': row['token'], 'image': row['spout_image'], 'pts_nanos': pts,
                                    'expected': expected, 'observed': code, 'receiver_row': witness['row']})

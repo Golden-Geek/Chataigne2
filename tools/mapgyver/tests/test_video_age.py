@@ -29,6 +29,24 @@ def inspect(parts):
 
 
 class VideoAgeTests(unittest.TestCase):
+    def test_equal_extent_files_require_both_file_binding_and_actual_output_route(self):
+        parts = fixture()
+        token = json.dumps(parts['outputs'][0]['token'], sort_keys=True)
+        generation = {'device': 'renderer', 'generation': 1}
+        parts['frames'][token] = {'generation': generation}
+        parts['output_routes'] = [{'generation': generation, 'output': 3, 'texture': 1, 'source_count': 1}]
+        parts['output_streams'] = {3: {'file'}}
+        other = copy.deepcopy(parts['uses'][0])
+        other.update(stream='other-file', texture=2)
+        other['frame']['publication_qpc'] = 49
+        parts['uses'].append(other)
+        parts['layouts']['other-file'] = (1920, 1080)
+        self.assertEqual(inspect(parts)['publication_to_consumer_copy_upper_ms']['p95_upper_ms'], 42)
+        parts['output_routes'][0]['texture'] = 2
+        self.assertFalse(inspect(parts)['coverage_complete'], 'wrong file route must not borrow the expected publication')
+        parts['output_routes'] = []
+        self.assertEqual(inspect(parts)['missing_witnesses'], {'missing_or_incomplete_output_sources': 1})
+
     def test_real_completion_outward_quantization_and_post_api_preemption(self):
         result = inspect(fixture())
         self.assertTrue(result['coverage_complete'])

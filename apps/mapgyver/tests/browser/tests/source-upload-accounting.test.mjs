@@ -8,6 +8,11 @@ import {
 
 const first = '76f39a00-2bfb-4567-a28b-006cf031a1ae';
 const second = '135d4930-c077-4fd6-ae55-a66d09477bb5';
+const standardCases = [
+	{ width: 1920, height: 1080, rate: 60 },
+	{ width: 3840, height: 2160, rate: 30 }
+];
+const performanceCases = Array.from({ length: 2 }, () => ({ width: 3840, height: 2160, rate: 60 }));
 
 test('resident Q06 requires actual hardware pools and rejects CPU fallback or unmeasured uploads', () => {
 	for (const codec of ['H.264 High', 'HEVC Main']) {
@@ -22,7 +27,8 @@ test('resident Q06 requires actual hardware pools and rejects CPU fallback or un
 				{ uploads: { software: { calls: 0, bytes: 0 }, hap: { calls: 0, bytes: 0 } } }
 			]
 		};
-		assertQ06SourceUploads(codec, budget);
+		assertQ06SourceUploads(codec, budget, standardCases);
+		assertQ06SourceUploads(codec, budget, performanceCases);
 		for (const mutate of [
 			(value) => value.maximum_observed_classes.decoder_pools.allocations--,
 			(value) => value.maximum_observed_classes.hardware_producers.allocations--,
@@ -35,7 +41,7 @@ test('resident Q06 requires actual hardware pools and rejects CPU fallback or un
 		]) {
 			const wrong = structuredClone(budget);
 			mutate(wrong);
-			assert.throws(() => assertQ06SourceUploads(codec, wrong));
+			assert.throws(() => assertQ06SourceUploads(codec, wrong, standardCases));
 		}
 	}
 });
@@ -67,7 +73,7 @@ test('Q06 checks codec-specific payloads and rejects absent, expanded or mixed H
 			calls: 2,
 			bytes: 1920 * 1080 * (hap ? (codec === 'HAP' ? 2.5 : 5) : 8)
 		};
-		assertQ06SourceUploads(codec, budget);
+		assertQ06SourceUploads(codec, budget, standardCases);
 		for (const mutate of [
 			(value) => (value.upload_budgets.length = 0),
 			(value) => value.upload_budgets[0].uploads[kind].bytes++,
@@ -77,10 +83,56 @@ test('Q06 checks codec-specific payloads and rejects absent, expanded or mixed H
 		]) {
 			const wrong = structuredClone(budget);
 			mutate(wrong);
-			assert.throws(() => assertQ06SourceUploads(codec, wrong));
+			assert.throws(() => assertQ06SourceUploads(codec, wrong, standardCases));
 		}
 	}
-	assert.throws(() => assertQ06SourceUploads('unknown', {}));
+	assert.throws(() => assertQ06SourceUploads('unknown', {}, standardCases));
+});
+
+test('two-4K60 checks derive retained storage and payload bytes from the actual workload', () => {
+	for (const codec of ['ProRes HQ', 'ProRes 4444', 'HAP', 'HAP Alpha', 'HAP Q']) {
+		const hap = codec.startsWith('HAP');
+		const kind = hap ? 'hap' : 'software';
+		const allocation = hap ? 'hap_producers' : 'software_producers';
+		const pixels = 3840 * 2160;
+		const compressed = codec === 'HAP' ? 0.5 : 1;
+		const bytes = hap ? 2 * (pixels * (12 + compressed) + 16) : pixels * 12;
+		const budget = {
+			peak_admitted_bytes: bytes,
+			maximum_observed_classes: Object.fromEntries(
+				['decoder_pools', 'hardware_producers', 'hap_producers', 'software_producers'].map(
+					(name) => [
+						name,
+						{
+							allocations: name === allocation ? (hap ? 2 : 1) : 0,
+							bytes: name === allocation ? bytes : 0
+						}
+					]
+				)
+			),
+			upload_budgets: [
+				{
+					uploads: {
+						software: { calls: hap ? 0 : 2, bytes: hap ? 0 : 2 * pixels * 4 },
+						hap: { calls: hap ? 2 : 0, bytes: hap ? 2 * pixels * compressed : 0 }
+					}
+				}
+			]
+		};
+		assertQ06SourceUploads(codec, budget, performanceCases);
+		assert.throws(() => assertQ06SourceUploads(codec, budget, standardCases));
+		const expanded = structuredClone(budget);
+		expanded.upload_budgets[0].uploads[kind].bytes++;
+		assert.throws(() => assertQ06SourceUploads(codec, expanded, performanceCases));
+	}
+	assert.throws(() => assertQ06SourceUploads('HAP', {}, [performanceCases[0]]));
+	assert.throws(() =>
+		assertQ06SourceUploads(
+			'HAP',
+			{},
+			performanceCases.map((x) => ({ ...x, rate: 30 }))
+		)
+	);
 });
 
 function binding(stream = first) {
