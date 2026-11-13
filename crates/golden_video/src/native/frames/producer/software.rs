@@ -32,6 +32,7 @@ impl GpuFramePublisher {
             },
             lease,
             wake,
+            budget.upload_accounting(),
         )
     }
 
@@ -87,6 +88,10 @@ impl GpuFramePublisher {
                 .filter(|(begin, end)| end >= begin)
                 .map(|(begin, end)| crate::native::CpuInterval { begin, end }),
         });
+        // Keep optional accounting outside the measured source API interval.
+        if let Some(uploads) = &self.uploads {
+            uploads.record_upload(super::super::budget::UploadKind::Software, image.pixels().len() as u64);
+        }
         Ok(true)
     }
 }

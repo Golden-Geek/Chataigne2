@@ -379,7 +379,8 @@ try {
 try {
 	report.nativeDiagnostics = await inspectNativeDiagnostics(native.app.pid, native.log(), {
 		requireVideoFrames: true,
-		requireSourceBudget: true
+		requireSourceBudget: true,
+		requireSourceUploads: true
 	});
 	if (fixtures.codec === 'ProRes HQ') {
 		const budget = report.nativeDiagnostics.sourceGpu;
@@ -390,6 +391,15 @@ try {
 		assert.equal(budget.peak_admitted_bytes, expected, 'no unobserved extra source-GPU allocation');
 		for (const kind of ['decoder_pools', 'hardware_producers', 'hap_producers'])
 			assert.deepEqual(groups[kind], { allocations: 0, bytes: 0 });
+		const uploads = budget.upload_budgets.filter((entry) => entry.uploads.software.calls > 0);
+		assert.equal(uploads.length, 1, 'one counted HD software publisher budget');
+		assert.equal(
+			uploads[0].uploads.software.bytes,
+			uploads[0].uploads.software.calls * 1920 * 1080 * 4,
+			'actual lifetime bytes include uploads that no renderer sampled'
+		);
+		for (const entry of budget.upload_budgets)
+			assert.deepEqual(entry.uploads.hap, { calls: 0, bytes: 0 });
 	}
 } catch (error) {
 	await writeFile(

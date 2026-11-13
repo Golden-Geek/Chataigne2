@@ -94,6 +94,7 @@ pub struct GpuFramePublisher {
     serial: u64,
     device: Device,
     _lease: Arc<dyn Send + Sync>,
+    uploads: Option<GpuFrameBudget>,
 }
 impl GpuFramePublisher {
     /// Select timestamp-based presentation before sharing or publishing the source stream.
@@ -161,6 +162,7 @@ impl GpuFramePublisher {
             },
             lease,
             wake,
+            budget.upload_accounting(),
         )
     }
     /// Upload/sample reference-decoded HAP blocks on one exact adapter. No CPU pixel decode.
@@ -188,7 +190,14 @@ impl GpuFramePublisher {
             .ok_or(GpuFrameError::Capacity)?;
         let device = Device::new(adapter)?;
         let input = super::hap::HapImage::new(&device, frame)?;
-        Self::assemble(device, descriptor, Conversion::Hap(input), lease, wake)
+        Self::assemble(
+            device,
+            descriptor,
+            Conversion::Hap(input),
+            lease,
+            wake,
+            budget.upload_accounting(),
+        )
     }
     fn assemble(
         device: Device,
@@ -196,6 +205,7 @@ impl GpuFramePublisher {
         conversion: Conversion,
         lease: Arc<dyn Send + Sync>,
         wake: Option<golden_io::WorkerNotifier>,
+        uploads: Option<GpuFrameBudget>,
     ) -> Result<Self, GpuFrameError> {
         let slots = (0..3)
             .map(|index| Slot::new_leased(&device, descriptor, index, Some(lease.clone())))
@@ -215,6 +225,7 @@ impl GpuFramePublisher {
             serial: 0,
             device,
             _lease: lease,
+            uploads,
         })
     }
     /// Stable immutable source binding, shared by every render consumer/generation.
@@ -324,6 +335,9 @@ impl GpuFramePublisher {
             .completion
             .begin(&self.device, self.pending.as_ref().unwrap().token);
         input.upload_draw(&self.device, frame, &self.slots[index].texture)?;
+        if let Some(uploads) = &self.uploads {
+            uploads.record_upload(super::budget::UploadKind::Hap, frame.blocks().len() as u64);
+        }
         Ok(true)
     }
     fn begin(&mut self, input: Input) -> Result<Option<usize>, GpuFrameError> {

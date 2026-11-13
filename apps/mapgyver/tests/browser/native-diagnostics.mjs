@@ -5,15 +5,24 @@ import { createReadStream } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
+import { SourceUploadInventory } from './source-upload-accounting.mjs';
 
 export async function inspectNativeDiagnostics(
 	pid,
 	appLog,
-	{ requireSoftwareUpload = true, requireVideoFrames = false, requireSourceBudget = false } = {}
+	{
+		requireSoftwareUpload = true,
+		requireVideoFrames = false,
+		requireSourceBudget = false,
+		requireSourceUploads = false
+	} = {}
 ) {
 	const directory = process.env.MAPGYVER_NATIVE_DIAGNOSTICS;
 	if (!directory) {
-		assert(!requireSourceBudget, 'required source accounting needs an actual capture');
+		assert(
+			!requireSourceBudget && !requireSourceUploads,
+			'required source accounting needs an actual capture'
+		);
 		return null;
 	}
 	assert(
@@ -29,6 +38,7 @@ export async function inspectNativeDiagnostics(
 		videoFrameUses = 0,
 		residentVideoFrameUses = 0;
 	const sourceUploads = new Map();
+	const uploadInventory = new SourceUploadInventory();
 	const sourceClasses = Object.fromEntries(
 		['decoder_pools', 'hardware_producers', 'hap_producers', 'software_producers'].map((kind) => [
 			kind,
@@ -81,9 +91,12 @@ export async function inspectNativeDiagnostics(
 				assert.equal(row.process.process_id, pid);
 				assert(row.process.memory.private_bytes > 0);
 				assert.equal(row.process_error, null);
-				if (requireSourceBudget) assert(row.source_gpu, 'source budget observation required');
+				if (requireSourceBudget || requireSourceUploads)
+					assert(row.source_gpu, 'source budget observation required');
 				if (row.source_gpu) {
 					const source = row.source_gpu;
+					const recorded = uploadInventory.observe(source);
+					if (requireSourceUploads) assert(recorded, 'complete lifetime upload counters required');
 					const amount = (value) => assert(Number.isSafeInteger(value) && value >= 0);
 					for (const value of [source.limit_bytes, source.retained_bytes, source.peak_bytes])
 						amount(value);
@@ -143,6 +156,8 @@ export async function inspectNativeDiagnostics(
 	if (requireVideoFrames) assert(videoFrameUses > 0, 'actual timestamped Video uses required');
 	if (requireSourceBudget)
 		assert(sourceSnapshots > 0 && sourcePeak > 0, 'actual source allocation required');
+	if (requireSourceUploads)
+		assert(uploadInventory.budgets().length > 0, 'upload budget lifetime required');
 	return {
 		captures,
 		counts,
@@ -153,11 +168,13 @@ export async function inspectNativeDiagnostics(
 		requireSoftwareUpload,
 		requireVideoFrames,
 		requireSourceBudget,
+		requireSourceUploads,
 		sourceGpu: sourceSnapshots
 			? {
 					snapshots: sourceSnapshots,
 					peak_admitted_bytes: sourcePeak,
-					maximum_observed_classes: sourceClasses
+					maximum_observed_classes: sourceClasses,
+					upload_budgets: uploadInventory.budgets()
 				}
 			: null,
 		scope:

@@ -40,7 +40,7 @@ pub use discovery::{DiscoveryError, MAX_DISCOVERY_SENDERS, SpoutDiscovery, Spout
 pub(crate) use frames::budget::AllocationKind;
 pub use frames::{
     GpuFrameAllocation, GpuFrameBudget, GpuFrameBudgetSnapshot, GpuFrameClock, GpuFramePublication, GpuFrameStream,
-    GpuImage,
+    GpuImage, SourceUploadSnapshot, SourceUploadTotals,
 };
 #[cfg(feature = "ffmpeg")]
 pub use frames::{GpuFrameError, GpuFramePublisher};

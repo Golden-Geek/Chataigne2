@@ -3,6 +3,50 @@ use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 
+/// Actual source-worker payload submissions, independent of later renderer sampling.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct SourceUploadTotals {
+    /// Actual payload API calls; GPU completion is observed separately.
+    pub calls: u64,
+    /// Actual bytes passed to those calls; excludes fixed shader/constants setup.
+    pub bytes: u64,
+    /// An exhausted counter invalidates complete accounting instead of wrapping.
+    pub overflowed: bool,
+}
+
+/// Lifetime totals for one budget, shared by all producers and retained after retirement.
+/// Hardware-frame copies do not submit CPU payloads and leave both classes unchanged.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct SourceUploadSnapshot {
+    /// Tight RGBA payload uploaded by software-decoded source workers.
+    pub software: SourceUploadTotals,
+    /// Compressed BC payload uploaded by HAP source workers.
+    pub hap: SourceUploadTotals,
+}
+
+#[cfg(any(feature = "ffmpeg", test))]
+#[derive(Clone, Copy)]
+pub(super) enum UploadKind {
+    Software,
+    Hap,
+}
+
+#[cfg(any(feature = "ffmpeg", test))]
+impl SourceUploadTotals {
+    fn record(&mut self, bytes: u64) {
+        if self.overflowed {
+            return;
+        }
+        match self.calls.checked_add(1).zip(self.bytes.checked_add(bytes)) {
+            Some((calls, bytes)) => {
+                self.calls = calls;
+                self.bytes = bytes;
+            }
+            None => self.overflowed = true,
+        }
+    }
+}
+
 /// Logical payload retained by allocations of one source-storage class.
 /// Shared image/frame observers retain the same allocation rather than adding another count.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
@@ -16,6 +60,8 @@ pub struct GpuFrameAllocation {
 /// A coherent inventory of one shared source budget, including retiring old generations.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct GpuFrameBudgetSnapshot {
+    /// Stable budget lifetime; clones and renderer recreations retain this identity.
+    pub id: uuid::Uuid,
     /// Unchanged admission ceiling shared by every class below.
     pub limit_bytes: u64,
     /// Sum of all four current classes from the same locked observation.
@@ -30,6 +76,8 @@ pub struct GpuFrameBudgetSnapshot {
     pub hap_producers: GpuFrameAllocation,
     /// Three RGBA slots uploaded by a software-source worker.
     pub software_producers: GpuFrameAllocation,
+    /// Opt-in actual upload totals. None means unmeasured, including after retirement.
+    pub uploads: Option<SourceUploadSnapshot>,
 }
 
 #[cfg(any(feature = "ffmpeg", test))]
@@ -60,9 +108,32 @@ impl GpuFrameBudget {
     /// A zero limit deliberately rejects every allocation.
     pub fn new(max_bytes: u64) -> Self {
         Self(Arc::new(Mutex::new(GpuFrameBudgetSnapshot {
+            id: uuid::Uuid::new_v4(),
             limit_bytes: max_bytes,
             ..Default::default()
         })))
+    }
+    /// Create a fresh budget with complete source-worker upload totals from its first use.
+    /// This opt-in adds one short accounting lock after each actual payload submission.
+    /// Ordinary budgets perform no per-frame accounting and report uploads as unmeasured.
+    pub fn new_with_upload_accounting(max_bytes: u64) -> Self {
+        let budget = Self::new(max_bytes);
+        budget.0.lock().unwrap().uploads = Some(SourceUploadSnapshot::default());
+        budget
+    }
+    #[cfg(feature = "ffmpeg")]
+    pub(super) fn upload_accounting(&self) -> Option<Self> {
+        self.snapshot().uploads.map(|_| self.clone())
+    }
+    #[cfg(any(feature = "ffmpeg", test))]
+    pub(super) fn record_upload(&self, kind: UploadKind, bytes: u64) {
+        if let Some(uploads) = &mut self.0.lock().unwrap().uploads {
+            match kind {
+                UploadKind::Software => &mut uploads.software,
+                UploadKind::Hap => &mut uploads.hap,
+            }
+            .record(bytes);
+        }
     }
     /// Known admitted GPU storage still retained by producers, images or in-flight readers.
     pub fn retained_bytes(&self) -> u64 {

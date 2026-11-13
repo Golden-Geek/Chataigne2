@@ -92,3 +92,92 @@ fn concurrent_claims_and_retirement_have_coherent_bounded_snapshots() {
     assert_eq!(budget.snapshot().retained_bytes, 0);
     assert_eq!(total(budget.snapshot()), 0);
 }
+
+#[test]
+fn upload_opt_in_identity_and_retirement_preserve_complete_lifetime_totals() {
+    let disabled = GpuFrameBudget::new(100);
+    disabled.record_upload(UploadKind::Software, 8);
+    assert_eq!(disabled.snapshot().uploads, None, "unmeasured is never zero");
+    let budget = GpuFrameBudget::new_with_upload_accounting(100);
+    let observer = budget.clone();
+    assert_eq!(budget.snapshot().id, observer.snapshot().id);
+    assert_ne!(budget.snapshot().id, disabled.snapshot().id);
+    let lease = budget.claim(24, AllocationKind::SoftwareProducer).unwrap();
+    for _ in 0..3 {
+        budget.record_upload(UploadKind::Software, 8);
+    }
+    observer.record_upload(UploadKind::Hap, 32);
+    let before = budget.snapshot().uploads.unwrap();
+    assert_eq!(
+        before.software,
+        SourceUploadTotals {
+            calls: 3,
+            bytes: 24,
+            overflowed: false
+        }
+    );
+    assert_eq!(
+        before.hap,
+        SourceUploadTotals {
+            calls: 1,
+            bytes: 32,
+            overflowed: false
+        }
+    );
+    drop(lease);
+    drop(budget);
+    assert_eq!(observer.snapshot().retained_bytes, 0);
+    assert_eq!(observer.snapshot().uploads, Some(before));
+}
+
+#[test]
+fn concurrent_upload_snapshots_are_coherent_and_overflow_never_wraps_or_partially_updates() {
+    let budget = GpuFrameBudget::new_with_upload_accounting(64);
+    std::thread::scope(|scope| {
+        for kind in [
+            UploadKind::Software,
+            UploadKind::Hap,
+            UploadKind::Software,
+            UploadKind::Hap,
+        ] {
+            let observer = budget.clone();
+            scope.spawn(move || {
+                for _ in 0..1000 {
+                    observer.record_upload(kind, 8);
+                    let uploads = observer.snapshot().uploads.unwrap();
+                    assert_eq!(uploads.software.bytes, uploads.software.calls * 8);
+                    assert_eq!(uploads.hap.bytes, uploads.hap.calls * 8);
+                    assert!(!uploads.software.overflowed && !uploads.hap.overflowed);
+                }
+            });
+        }
+    });
+    let uploads = budget.snapshot().uploads.unwrap();
+    assert_eq!(uploads.software.calls, 2000);
+    assert_eq!(uploads.hap.calls, 2000);
+    for totals in [
+        SourceUploadTotals {
+            calls: u64::MAX,
+            bytes: 8,
+            overflowed: false,
+        },
+        SourceUploadTotals {
+            calls: 3,
+            bytes: u64::MAX,
+            overflowed: false,
+        },
+    ] {
+        budget.0.lock().unwrap().uploads.as_mut().unwrap().software = totals;
+        budget.record_upload(UploadKind::Software, 8);
+        let exhausted = budget.snapshot().uploads.unwrap().software;
+        assert_eq!(
+            exhausted,
+            SourceUploadTotals {
+                overflowed: true,
+                ..totals
+            }
+        );
+        budget.record_upload(UploadKind::Software, 8);
+        assert_eq!(budget.snapshot().uploads.unwrap().software, exhausted);
+    }
+}

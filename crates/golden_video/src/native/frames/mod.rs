@@ -9,7 +9,9 @@ use std::sync::{
 use std::time::Instant;
 pub(super) mod budget;
 mod reader;
-pub use budget::{GpuFrameAllocation, GpuFrameBudget, GpuFrameBudgetSnapshot};
+pub use budget::{
+    GpuFrameAllocation, GpuFrameBudget, GpuFrameBudgetSnapshot, SourceUploadSnapshot, SourceUploadTotals,
+};
 pub(super) use reader::{Imports, ReadLease};
 #[cfg(feature = "ffmpeg")]
 mod hap;

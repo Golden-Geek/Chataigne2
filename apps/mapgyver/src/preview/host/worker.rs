@@ -109,7 +109,12 @@ fn create(
         // Carve out source storage instead of adding it to renderer target admission.
         let (reserved, _) = file_budget.get_or_insert_with(|| {
             let reserved = (admission / 4).min(768 * 1024 * 1024);
-            (reserved, golden_video::native::GpuFrameBudget::new(reserved))
+            let budget = if std::env::var_os("MAPGYVER_NATIVE_DIAGNOSTICS").is_some_and(|value| !value.is_empty()) {
+                golden_video::native::GpuFrameBudget::new_with_upload_accounting(reserved)
+            } else {
+                golden_video::native::GpuFrameBudget::new(reserved)
+            };
+            (reserved, budget)
         });
         admission
             .checked_sub(*reserved)

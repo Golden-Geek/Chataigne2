@@ -1,0 +1,36 @@
+{
+	"date": "2026-11-13",
+	"gate": "M10/4",
+	"accepted": false,
+	"result": "complete_source_worker_payload_totals_implemented_and_native_verified",
+	"deliverable": "Golden's existing source GPU budget optionally counts actual software RGBA and compressed HAP payload API calls/bytes, including completed images that no renderer samples. The coherent counters survive every producer/image retirement. Clones retain one budget UUID; capture consumers select cumulative totals instead of summing repeated snapshots. Hardware GPU copies add no CPU payload. Ordinary budgets report unmeasured counters and perform no per-frame accounting lock.",
+	"ownership": "Golden frames/budget owns opt-in lifetime counters and overflow; GpuFramePublisher records only actual payload calls after admission. Existing MapGyver preview-host diagnostics opt in before the first source admission. The existing native JSONL capture serializes that same snapshot on its I/O thread. The bounded consumer helper validates monotonic pairs and deduplicates budget identities across out-of-order files. No new registry, worker, polling owner, authored setting, renderer readback or product limit.",
+	"measurement": "Counters describe actual API submissions, not GPU completion, displayed frames or PTS uniqueness. Fixed setup constants are excluded from Video payload totals. Existing software API timestamps close before optional accounting. Source-worker counters exclude render-thread ImageStream uploads, which retain their existing ImageUpload events. Totals span the budget lifetime, not exact sample-phase endpoints or individual source channels.",
+	"software": {
+		"app": "678 passed,0 failed,7 ignored; owning app code unchanged after this run.",
+		"video": "305 passed,0 failed,67 ignored; includes concurrent coherent totals, observer identity/retirement, disabled-is-unknown and overflow without wrapping/partial updates. All305 rerun successfully after keeping accounting outside the existing API interval.",
+		"strict": "Both-package all-target native-feature strict passes; after the test-only fixture correction, Golden all-target ffmpeg/qualification strict and current unit-executable build pass before native retry.",
+		"consumer": "Five Node tests pass: unmeasured, repeated/older aliases, independent budget lifetimes, detached returned snapshots, partial reversals, equal-count byte changes, missing identity, overflow and unsafe values. Collector/helper syntax and Prettier pass.",
+		"format": "Root and Golden Core Cargo formatting and owned whitespace checks pass. No UI/generated protocol change."
+	},
+	"native": {
+		"command": "with-ffmpeg.ps1 test --locked -p golden_video --lib --features ffmpeg,qualification hardware_intel_source_upload_totals_include_unsampled_frames_without_counting_busy_calls -- --ignored --nocapture --test-threads=1",
+		"selection": "Only the non-software Intel vendor0x8086 adapter; no NVIDIA startup or qualification.",
+		"result": "1 passed,0 failed;0.26s fixture,2.07s wrapper;exit0",
+		"proof": "Three actual8-byte RGBA submissions count24 bytes even though all three completed images stay unsampled. Pending/slot-busy attempts and a rejected layout add nothing. Storage remains24bytes until held images drop, then0 while totals survive. Six HAP/HAP Alpha/HAP Q calls respectively count9216/1440/12441600 actual compressed bytes; busy attempts add nothing and exact producer admission/retirement passes. One actual completed NV12 GPU copy retains zero CPU-payload totals.",
+		"baseline": "Preserved exit101 after software, HAP and HAP Alpha assertions pass: the new fixture mistakenly gave existing1920x1080 HAP Q a1MiB allowance. Production correctly rejected it. The corrected test derives the unchanged three-RGBA-slot/block/16-byte-constant charge from the actual first frame:38416/2092/26956816bytes for the three formats. No product budget or acceptance limit increased. Baseline plus corrected variants2/2; no third experiment.",
+		"baseline_log": "target/m10-source-upload-totals-native-2026-11-13.log",
+		"baseline_log_sha256": "1bc7ec3cc90b7181a0a20bdd0ed88ea21cf73c16117fdaa4a06ee6921d9c106f",
+		"passing_log": "target/m10-source-upload-totals-native-corrected-2026-11-13.log",
+		"passing_log_sha256": "c042df47fe3eb67754b8c0787e962553fe4131fc19017daa6d7dd509c78cf6a8",
+		"scope": "Actual payload submissions, busy/rejected behavior, unsampled storage and retirement; not independent pixel correctness, complete per-channel/plane/CPU/driver storage or sustained performance."
+	},
+	"inputs": {
+		"base_commit": "986503324ad7a9c1ff6e87de6a6e5868df808d8a",
+		"manifest": "target/m10-source-upload-totals-inputs-2026-11-13.json",
+		"manifest_sha256": "3ef3129601931bbab3c25522d11859b14a179ecfdc909317c837765529910ac1",
+		"test_binary_sha256": "00797e2d543ab4bc3dab2fdfca2c5a0b7bd8597ca4c25f01fd40e1501f815f85",
+		"logs": "The manifest pins all eight software/strict/build/native logs plus compiler/product input hashes and Cargo.lock."
+	},
+	"next": "Push this bounded source-worker total slice, then build ordinary app/probe and verify factory opt-in, final complete totals and snapshot deduplication in the existing fixed Q06 actual-app workload. It is an accounting check; no unchanged performance improvement is inferred. CPU planes/pools, per-channel PTS/upload attribution, all format/repeated/age/critical-path/NVIDIA/M09 scope remain.4 sole Active,88/106 (83%),M10 5/8; M14 follows4 acceptance."
+}

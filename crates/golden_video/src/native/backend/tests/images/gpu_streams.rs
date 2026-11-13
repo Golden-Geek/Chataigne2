@@ -2,6 +2,7 @@ use super::*;
 mod hap;
 mod hap_external;
 mod software;
+mod upload_accounting;
 use crate::native::frames::tests::{completed, prepared, submit};
 use crate::{
     decode::{D3d11Storage, DecodeLimits, Decoder},

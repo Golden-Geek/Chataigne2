@@ -33,6 +33,12 @@ The implemented foundations are:
   input format/extent. Published tight images own separate immutable bytes, so retained readers
   survive scratch reuse and layout changes; this removes repeated scratch allocation without
   adding a frame queue or changing the source storage allowance.
+  The native source budget can opt into lifetime software RGBA and compressed HAP upload
+  totals before any producer starts. Actual payload calls count even if their completed images
+  are never sampled; busy/rejected calls and resident GPU copies add no CPU payload. Coherent
+  totals survive storage retirement and clones share a budget identity. Default playback leaves
+  these counters unmeasured and adds no per-frame accounting lock. Totals describe all producers
+  in that budget; they do not establish per-channel PTS uniqueness or phase-boundary throughput.
   [Pinned Windows dependency and checks](../../tools/mapgyver/ffmpeg/README.md) describe the
   current boundary and remaining hardware/worker/package integration.
 - `plan/` validates the complete submitted dependency graph and caller-supplied limits, then
