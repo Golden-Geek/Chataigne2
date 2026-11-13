@@ -20,7 +20,12 @@ async function listener() {
 	return socket;
 }
 
-export async function openNativeEditor({ appDataDirectory, windowState, prepareProfile } = {}) {
+export async function openNativeEditor({
+	appDataDirectory,
+	windowState,
+	prepareProfile,
+	onLogData
+} = {}) {
 	assert(
 		!windowState || !appDataDirectory,
 		'Seed window state only in the owned temporary app profile'
@@ -64,10 +69,16 @@ export async function openNativeEditor({ appDataDirectory, windowState, prepareP
 		}
 	);
 	let log = '';
-	for (const stream of [app.stdout, app.stderr])
+	for (const [name, stream] of [
+		['stdout', app.stdout],
+		['stderr', app.stderr]
+	]) {
+		stream.setEncoding('utf8');
 		stream.on('data', (data) => {
 			log = (log + data).slice(-16384);
+			onLogData?.(data, name);
 		});
+	}
 	const exited = new Promise((resolve, reject) => {
 		app.once('error', reject);
 		app.once('close', resolve);

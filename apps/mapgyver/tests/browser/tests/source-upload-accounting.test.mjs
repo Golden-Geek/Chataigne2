@@ -1,9 +1,43 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { SourceUploadInventory } from '../source-upload-accounting.mjs';
+import { SourceBindingCollector, SourceUploadInventory } from '../source-upload-accounting.mjs';
 
 const first = '76f39a00-2bfb-4567-a28b-006cf031a1ae';
 const second = '135d4930-c077-4fd6-ae55-a66d09477bb5';
+
+function binding(stream = first) {
+	return { stream, owner: first, file: 'é😀.mp4', reference: { media: first, channel: stream } };
+}
+
+test('source bindings survive fragmented/interleaved streams and rolling debug-log loss', () => {
+	const collector = new SourceBindingCollector();
+	const line = '[mapgyver-video-source] ' + JSON.stringify(binding()) + '\n';
+	collector.consume(line.slice(0, 17));
+	collector.consume('unrelated output\n', 'stdout');
+	collector.consume(line.slice(17));
+	collector.consume('other logs\n'.repeat(10000));
+	collector.consume(line);
+	const records = collector.finish();
+	assert.deepEqual(records, [binding()]);
+	records[0].file = 'mutated';
+	assert.deepEqual(collector.finish(), [binding()]);
+});
+
+test('source binding capacity, malformed metadata and changed identity fail explicitly', () => {
+	for (const rows of [
+		[binding(), binding(second)],
+		[binding(), { ...binding(), file: 'other' }],
+		[{ stream: first }]
+	]) {
+		const collector = new SourceBindingCollector(1);
+		for (const row of rows)
+			collector.consume('[mapgyver-video-source] ' + JSON.stringify(row) + '\n');
+		assert.throws(() => collector.finish());
+	}
+	const collector = new SourceBindingCollector(1, 30);
+	collector.consume('[mapgyver-video-source] ' + 'x'.repeat(100));
+	assert.throws(() => collector.finish());
+});
 function source(id, softwareCalls, hapCalls) {
 	return {
 		id,

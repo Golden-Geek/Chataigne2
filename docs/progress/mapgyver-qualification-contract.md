@@ -241,6 +241,15 @@ they do not claim hardware-decoder zero-upload behavior. All existing CPU/GPU/fr
 memory-growth/handles and shutdown targets remain operative. Never hide Video cost by lowering
 the retained Q01/Q02 workload or silently enlarging budgets.
 
+`tools/mapgyver/video_sample.py <capture-directory> --require-source-attribution` checks the
+existing SourceSubmission/ImageUpload/SourceUse records against bounded channel/File/worker
+bindings and independent lifetime source-upload counters. The collector retains bindings outside
+its rolling debug-log tail. Missing records/windows, unbound channels, incomplete/lost captures,
+counter overflow, unretired source storage or ambiguous multiple budgets prevent full coverage.
+Legacy captures can still be audited without that flag and retain explicit unknowns. Repeated
+PTS are reported as facts because seeks/loops can repeat them; complete attribution alone proves
+neither the upload allowance nor phase rates, GPU critical path, presentation or performance.
+
 ## Gate outcomes
 
 Use `PASSED_NATIVE`, `FAILED_NATIVE`, `PASSED_DETERMINISTIC`, `SOURCE_ONLY` or `UNAVAILABLE`

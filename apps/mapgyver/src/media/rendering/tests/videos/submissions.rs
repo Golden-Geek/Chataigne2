@@ -103,6 +103,21 @@ fn hardware_intel_file_submissions_attribute_each_channel_before_renderer_sampli
     assert_eq!(budget.retained_bytes(), 0);
     let mut events = Vec::new();
     native.drain_diagnostics(&mut events, NonZeroUsize::new(4096).unwrap());
+    if let Some(directory) = std::env::var_os("MAPGYVER_NATIVE_DIAGNOSTICS").filter(|value| !value.is_empty()) {
+        let transcript = serde_json::json!({
+            "events": events,
+            "source_gpu": budget.snapshot(),
+            "summary": {"diagnostics": native.diagnostics_snapshot(), "duration_limit": false, "events": events.len()},
+            "scope": "Owned finite File-worker attribution fixture; no performance/presentation qualification",
+        });
+        let path = std::path::PathBuf::from(directory).join("file-source-submissions.json");
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)
+            .unwrap();
+        serde_json::to_writer(file, &transcript).unwrap();
+    }
     let mut counts = [0; 3];
     let mut positive_pts = [false; 3];
     let mut software_bytes = 0;

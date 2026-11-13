@@ -1,13 +1,14 @@
 """Audit one Q06 app capture; unknown full-path measurements never become passes."""
 from collections import Counter, defaultdict
+import argparse
 import json
 from pathlib import Path
 import runpy
-import sys
 
 METRICS = runpy.run_path(str(Path(__file__).with_name("production_qualification.py")))
 VIDEO_AGE = runpy.run_path(str(Path(__file__).with_name("video_age.py")))
 VIDEO_PIXELS = runpy.run_path(str(Path(__file__).with_name("video_frame_codes.py")))
+VIDEO_SOURCES = runpy.run_path(str(Path(__file__).with_name("video_submissions.py")))
 
 
 def key(value):
@@ -44,16 +45,26 @@ def observed_source_uploads(uses):
 
 def analyze(directory):
     report = json.loads((directory / "sample.json").read_text(encoding="utf-8"))
-    events, snapshots = defaultdict(list), []
+    events, snapshots, capture_health = defaultdict(list), [], []
     for capture in report["nativeDiagnostics"]["captures"]:
+        observed_events, summary = 0, None
         with open(capture["file"], encoding="utf-8") as source:
             for line in source:
                 row = json.loads(line)
                 if row["kind"] == "diagnostic":
+                    observed_events += 1
                     for kind, value in row["event"].items():
                         events[kind].append(value)
                 elif row["kind"] == "snapshot":
                     snapshots.append(row)
+                elif row["kind"] == "capture_end":
+                    summary = row["summary"]
+        capture_health.append({"summary": summary or {}, "observed_events": observed_events})
+    bindings = report.get("videoSourceBindings")
+    if bindings is None:
+        bindings = VIDEO_SOURCES["bindings_from_log"](report.get("backendLog", ""))
+    source_attribution = VIDEO_SOURCES["analyze_source_submissions"](
+        events, bindings, [row.get("source_gpu") for row in snapshots], capture_health)
     frames = {key(row["token"]): row for row in events["FrameCpu"]}
     uploaded = {(key(row["token"]["device"]), row["texture"], row["stream"], row["sequence"]): row
                 for row in events["ImageUpload"]}
@@ -172,18 +183,28 @@ def analyze(directory):
                         "known_native_scope": "plan/Spout/window inventory, excludes unknown Video decoder/pool accounting",
                         "dxgi": [row["adapter_memory"] for row in native if row["adapter_memory"]]})
     return {"adapter": report["adapter"], "pid": report["pid"], "samples": results,
+            "source_submission_attribution": source_attribution,
             "independent_receivers": receiver_summaries,
-            "scope": "One warmed sample, not the required three independent samples. Renderer GPU is one context. CPU upload end supplies only an inward failure bound. Timestamped CPU/GPU File publication can enclose age outward through an exact independent SDK-copy completion; unmeasured images remain unbounded. This is not continuous decoded Video pixel/PTS or display proof. Unmapped outputs, untagged publications, complete decoder/pool and unsampled-upload coverage remain required."}
+            "scope": "One warmed sample, not the required three independent samples. Renderer GPU is one context. CPU upload end supplies only an inward failure bound. Timestamped CPU/GPU File publication can enclose age outward through an exact independent SDK-copy completion; unmeasured images remain unbounded. This is not continuous decoded Video pixel/PTS or display proof. Unmapped outputs, untagged publications and complete decoder/pool coverage remain required. Source CPU payload attribution is evaluated separately; missing rows/bindings remain incomplete."}
 
 
 if __name__ == "__main__":
-    root = Path(sys.argv[1])
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("directory", type=Path)
+    parser.add_argument("--require-source-attribution", action="store_true",
+                        help="fail on incomplete CPU upload/PTS/channel attribution; does not qualify performance")
+    args = parser.parse_args()
+    root = args.directory
     result = analyze(root)
     (root / "audit.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    if args.require_source_attribution:
+        VIDEO_SOURCES["require_complete_attribution"](result["source_submission_attribution"])
     if any(o['mismatched_images'] or o['invalid_markers'] for s in result['samples']
            for o in s['video_pixel_pts']['outputs']):
         raise ValueError('decoded Video pixels disagree with retained source PTS; see audit.json')
     print(json.dumps({"result": "baseline audited", "adapter": result["adapter"],
+                      "source_upload_attribution_complete": result["source_submission_attribution"]
+                          ["source_worker_cpu_uploads"]["complete_cpu_payload_pts_attribution"],
                       "samples": [{"phase": item["phase"], "sources": item["sources"],
                       "age_lower_bound": item["source_to_output_age_lower_bound_ms"],
                       "deadlines": item["software_output_deadlines"].get("outputs")}
