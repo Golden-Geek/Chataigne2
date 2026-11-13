@@ -32,5 +32,27 @@
 		"app_test_binary_sha256": "142184ab50b82479d9f961b2e1d61f2fd55c2f8db809636b7ca1bd56a458d7e7",
 		"video_test_binary_sha256": "a926ae3f8877cdf98aa08c91ab48edb577e3b3d6bf749fb4bf32f0515ac5610e"
 	},
-	"next": "Build the ordinary app/probe and measure this actual source-path change once with the existing fixed Intel continuous-code workload. Keep the previous failed distributions and all missing witnesses. No performance gain is claimed yet.4 remains the sole Active gate,88/106 (83%),M10 5/8. All original codec/repeated/age/resource/CPU/plane/pool/GPU-critical-path/NVIDIA and M09 scope remains; M14 follows4 acceptance."
+	"ordinary_app": {
+		"commit": "9f4828d7dc21898678002d119d6aae3c2858ac52",
+		"prerequisites": "Both current ordinary app and native receiver probe builds exit0 after inspected software/strict/native regression success. App45.72s Cargo, probe38.62s Cargo. The fixed collector/HLSL/auditor/fixture hashes match the preserved c350b03 cohort. No new measurement implementation or reduced workload.",
+		"pid": 16568,
+		"adapter": "dxgi:00000000:000156b6",
+		"process_exit": 0,
+		"correctness_audit_exit": 0,
+		"pixels": "Visible HD7004/7164 and UHD6608/7097; minimized HD3600/3600 and UHD3600/3600.20812 exact SDK-version pixel/PTS witnesses match,0 invalid markers/mismatches. All7200 minimized accepted images have exact witnesses. Combined visible/minimized observations cover all240 HD/120 UHD source positions.649 visible images remain unverified; receiver-disconnected images have no witness by design.",
+		"rates": "Observed distinct source publications/s: visible HD54.6752/UHD29.9780, minimized HD59.5798/UHD29.9897, disconnected HD58.2794/UHD30.0056. Same-collector prior c350b03 visible HD57.4238/UHD25.9299. These are one cohort per build, not an isolated causal comparison or complete three-sample performance series. No observed duplicate render-thread upload within a resource generation; complete source-worker upload accounting remains unknown.",
+		"age": "All-accepted-image publication-to-independent-copy upper bounds: visible HD p9542.9731ms; visible UHD p95 remains unbounded because489/7097 receiver witnesses are missing. Minimized HD/UHD p9533.8002/42.3604ms and p9936.7240/44.0358ms with complete coverage. Minimized maxima134.6002/86.1365ms. Disconnected age remains unbounded. Prior visible UHD65.7209ms/66.2075ms upper bounds and older failures remain preserved.",
+		"deadlines": "Definite miss lower bounds: visible24/7203=0.3332%, minimized4/3603=0.1110%, disconnected12/3603=0.3331%; each exceeds the unchanged0.1% budget. Largest visible observed miss fraction1.4716%. Missing ages/versions are never discarded from their populations.",
+		"cpu_gpu": "Visible inclusive CPU wall p954.4898ms,p995.0251ms. Renderer context-local span p9522.2999ms; minimized19.0995ms, disconnected22.1088ms. These spans include waits/feed gaps and do not establish isolated GPU work or the complete cross-context critical path.",
+		"health": "135 Ready/Playing observations,3 held SDK code images,0 page errors.283 source-GPU snapshots across6 complete captures retain one24883200-byte HD software publisher; all terminal source/plan/native owners retire to zero. Normal owned app exit and diagnostic ring health pass.",
+		"qualification": "Minimized continuous pixel/PTS coverage and its measured p95/p99 age bounds pass for these two outputs in this one cohort. Overall sustained qualification fails deadlines and leaves visible UHD age, complete resource accounting, other codecs, independent series and GPU critical path open. No fixed acceptance gate closes.",
+		"report": "target/q06-conversion-scratch-intel-2026-11-13/sample.json",
+		"report_sha256": "e81f084d42386689d95731c381cffb5d300bb983323ac3d36bf3a77b46c3f6a6",
+		"audit": "target/q06-conversion-scratch-intel-2026-11-13/audit.json",
+		"audit_sha256": "31009566af20af3f525f30f8837e1c68b7b2beac46d4c33605a41177744586a4",
+		"inputs": "target/q06-conversion-scratch-intel-2026-11-13/execution-inputs.json",
+		"inputs_sha256": "211e5dc751f6ebf6fb882d94bf27370606570677ffe81b1e512af5ef1cc0ec56",
+		"log_sha256": "fbe5654bd0ddf4131d7fe95d44e909918d40ebd3a536a3efb14b5e6e6054d26d"
+	},
+	"next": "One changed-source native cohort is complete; do not repeat unchanged timing probes. Continue the exact M10/4 source-pool/plane/upload-accounting requirement on the existing source/publication boundary. Keep cumulative performance effort, prior failed distributions and missing witnesses visible.4 remains the sole Active gate,88/106 (83%),M10 5/8. All original codec/repeated/age/resource/GPU-critical-path/NVIDIA and M09 scope remains; M14 follows4 acceptance."
 }
