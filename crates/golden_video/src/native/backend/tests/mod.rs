@@ -2,6 +2,7 @@
 pub(in crate::native) mod copy_tap;
 mod envelope;
 mod images;
+mod input_observation;
 mod inputs;
 mod presentation;
 #[cfg(feature = "qualification")]

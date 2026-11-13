@@ -25,6 +25,7 @@ use super::timing::{
     CpuScope, DiagnosticContext, DiagnosticEvent, FrameCpuTrace, GpuTiming, OutputTrace, Recorder, SourceUseTrace,
 };
 use super::{D3d11Config, D3d11Control, InputLimits, NativeFailure, OutputBinding};
+mod input_observation;
 
 mod cache;
 mod presentation;
@@ -576,8 +577,18 @@ impl D3d11Backend {
         let pipeline = &native.pipeline;
         pipeline.begin_frame(time);
         let input_instant = std::time::Instant::now();
-        for external in plan.external_textures().iter().filter(|_| !presentation_only) {
-            if let Some(ExternalSource::GpuFrames(stream)) = &external.source {
+        let sources = if presentation_only {
+            &[][..]
+        } else {
+            plan.external_textures()
+        };
+        let observations = input_observation::capture(sources, input_instant);
+        for (external, observed) in sources.iter().zip(observations) {
+            if let input_observation::Observation::Gpu {
+                stream,
+                sample: sampled,
+            } = observed
+            {
                 resources.gpu_imports.borrow_mut().prune();
                 let target = &resources.textures[&external.id];
                 let sequence = &target.source_sequence;
@@ -586,7 +597,6 @@ impl D3d11Backend {
                     target.last_write.set(Some(token));
                     sequence.set(Some(0));
                 }
-                let sampled = stream.sample_at(input_instant);
                 let requested_sequence = sampled.as_ref().map(|sample| sample.sequence);
                 let requested_position_nanos = sampled
                     .as_ref()
@@ -647,12 +657,12 @@ impl D3d11Backend {
                 }
                 continue;
             }
-            if let Some(ExternalSource::Frames(stream)) = &external.source {
+            if let input_observation::Observation::Image(observed) = observed {
                 streams::update(
                     context,
                     &resources.textures[&external.id],
                     external.id,
-                    stream,
+                    observed,
                     token,
                     recorder,
                 );

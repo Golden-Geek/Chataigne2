@@ -2,27 +2,28 @@
 use windows::Win32::Graphics::Direct3D11::ID3D11DeviceContext;
 
 use crate::TextureId;
-use crate::image::ImageStream;
 use crate::runtime::CompletionToken;
 
 use super::super::texture::Texture;
 use super::super::timing::{DiagnosticEvent, ImageUploadTrace, Recorder, SourceUseTrace};
+use super::input_observation::ImageObservation;
 
 pub(super) fn update(
     context: &ID3D11DeviceContext,
     target: &Texture,
     texture: TextureId,
-    stream: &ImageStream,
+    observed: ImageObservation<'_>,
     token: CompletionToken,
     recorder: Option<&Recorder>,
 ) {
+    let ImageObservation { stream, sample } = observed;
     if target.source_sequence.get().is_none() {
         // A new allocation has no defined pixels until the first successful publication.
         unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
         target.last_write.set(Some(token));
         target.source_sequence.set(Some(0));
     }
-    if let Some(sample) = stream.sample()
+    if let Some(sample) = sample
         && target.source_sequence.get() != Some(sample.sequence)
     {
         if let Some(image) = sample.image {

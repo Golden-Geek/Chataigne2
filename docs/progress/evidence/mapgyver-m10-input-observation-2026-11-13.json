@@ -1,0 +1,30 @@
+{
+	"date": "2026-11-13",
+	"gate": "M10/4",
+	"accepted": false,
+	"result": "captured_instant_window_eviction_reproduced_and_fixed",
+	"base_commit": "4963c708ccef62cb0df4dfa4b353179667d7be70",
+	"deliverable": "Golden's shared native input pass now captures every software/GPU stream observation before uploading or copying any input. GPU observations use one common instant. Subsequent producer-window retirement cannot erase the image already selected for that frame; software pixels and withdrawals also retain their captured versions.",
+	"ownership": "D3d11Backend delegates bounded metadata capture to native/backend/input_observation. The software input updater consumes that observation instead of sampling again. Presentation-only retries still use retained resources and perform no new source capture. The temporary vector is bounded by the compiled external-texture limit; immutable image clones share existing admission. No frame queue, GPU payload, authored setting, readback, global state or polling mechanism is added.",
+	"baseline": {
+		"hypothesis": "The common sampling instant precedes per-input work; a later read can occur after the source has evicted the window that covered that instant. Clock/stream contention is a separate possible cause of the ordinary cohort's missing samples.",
+		"reproducer": "A behavior-preserving extraction initially keeps the existing lazy per-input read. The Intel test publishes a red GPU image for[0,10), selects instant5, then publishes green[10,20) at10 before consuming the observation. The actual stream no longer has a due window at5, and the test fails instead of retaining red. No wall-clock sleep, new profiler or timing workload.",
+		"prerequisites": "683 app/313 Golden Video software tests and both-package all-target native-qualification strict exit0 before native startup.",
+		"native": "Exit101,0.07s: frame observation was deferred until after the due source window expired.",
+		"log": "target/m10-input-observation-baseline-native-2026-11-13.log",
+		"log_sha256": "eb8f6767c3c9856591340dad26e84122d8acedf8561f9022c69a25fb2e1b51b7"
+	},
+	"fixed": {
+		"software": "683 app/315 Golden Video tests pass (998),0 failed;8/69 ignored. Two additional CPU-image tests verify immutable pixel retention/disposal and withdrawal versions despite later publication. Prior33 Golden Time tests remain valid.",
+		"strict": "Both-package all-target native-qualification strict and Golden D3D11-without-FFmpeg strict exit0. Root and Golden Core Cargo formatting and owned whitespace pass. No UI/protocol change.",
+		"native": "After inspected terminal software/strict success, the unchanged Intel regression passes1/1 in0.12s. Even after the original stream evicts the old window, the captured red image retains PTS0 and renders red. A fresh observation selects PTS10 and renders green. All views share the original24-byte three-slot source admission; final retirement is zero.",
+		"cache_regression": "The existing Intel mutable-image/render-cache/live-change/shared-target native pixel regression passes1/1 in0.21s, covering the changed CPU observation/update boundary as well as native cache invalidation and retirement.",
+		"native_log": "target/m10-input-observation-fixed-native-2026-11-13.log",
+		"native_log_sha256": "0c9dd366b9c8087e16ba2cabe7f50d8b64524f9f9d7770b8308a875d8d39ad22",
+		"cache_log_sha256": "596dc9cf8ee2b7cd94cc1a29de01f635c4117e4aaf852713e74a7035be06f5b9"
+	},
+	"limits": "This proves and closes the reproduced per-input deferred-read race. It does not prove that all1737 missing current samples in the earlier ordinary cohort had this cause, eliminate capture-time clock/stream contention, qualify NVIDIA, establish ordinary frame age/rates or close M10/4. Existing CPU/private-pool, codec/profile/repeated/resource/critical-path/NVIDIA/M09 requirements and historical timing failures remain unchanged. No new ordinary timing cohort was run in this slice.",
+	"manifest": "target/m10-input-observation-inputs-2026-11-13.json",
+	"manifest_sha256": "afc9c8221031bb138bb71f1d571da573f6fb3b9dd989b4c972226fbd6771d9a3",
+	"next": "Push the coherent input capture, then build the ordinary app/probe and run one changed source-accounting cohort to measure current-sample misses under the verified fix. If misses remain before uploads, retain clock/stream contention as the bounded next action. Do not infer a causal timing pass or reset cumulative performance effort.4 sole Active,88/106 (83%),M10 5/8; M14 follows4 acceptance."
+}

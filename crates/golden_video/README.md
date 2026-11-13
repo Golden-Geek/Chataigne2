@@ -215,6 +215,12 @@ These are submission facts, not successful completion/publication or unique pres
 Renderer SourceUse always retains the GPU publication stream/version. SoftwareUploadTrace keeps
 the same producer lifetime identity with its separate actual API-upload counter; a withdrawal
 or republished window can advance publication versions without another CPU upload.
+Each native input pass captures all software/GPU stream observations before uploading or
+copying any input. GPU observations use one common sampling instant; later producer-window
+retirement cannot invalidate an already captured immutable image. Software images and explicit
+withdrawals are retained under their captured versions as well. A temporary metadata vector is
+bounded by the compiled external-texture limit and shares existing image admission. No additional
+frame queue or GPU storage is allocated; a source contended at capture still retains prior pixels.
 Compare payload rows with opt-in lifetime budget totals to detect missing attribution.
 MapGyver logs one channel/File/worker-to-stream binding when each instrumented GPU producer or
 direct CPU ImageStream starts. CPU images retain their existing renderer ImageUpload/SourceUse
