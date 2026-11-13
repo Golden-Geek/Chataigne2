@@ -1,6 +1,8 @@
 //! Explicit SDR software conversion on the decoder worker; never a hardware-frame readback.
 use super::{DecodedFrame, ffmpeg};
+use crate::image::ImageStorageBudget;
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor, image::ImageData};
+mod scratch;
 use ffmpeg::{
     software::scaling::{Context, Flags},
     util::color::{Range, Space, TransferCharacteristic as Transfer},
@@ -21,21 +23,36 @@ pub enum ConversionError {
     /// The stream declares a transfer function outside the implemented conversion contract.
     #[error("software Video transfer is not yet supported")]
     UnsupportedTransfer,
+    /// Scratch or retained images exhaust the caller's allocation-time payload ceiling.
+    #[error("software Video image storage capacity retained")]
+    Capacity,
     /// Scaler setup, conversion or output admission failed.
     #[error("{0}")]
     Failed(String),
 }
 
 /// Worker-local reusable software scaler. Output is straight-alpha sRGB RGBA8.
-#[derive(Default)]
 pub struct SoftwareImageConverter {
     conversion: Option<Conversion>,
+    budget: ImageStorageBudget,
 }
 struct Conversion {
     scaler: Context,
     output: ffmpeg::frame::Video,
 }
 impl SoftwareImageConverter {
+    /// Explicit bound shared by scratch and every separately retained output image.
+    /// Codec/scaler-private allocations and heap overhead are separate.
+    pub fn new(max_bytes: u64) -> Result<Self, ConversionError> {
+        Ok(Self {
+            conversion: None,
+            budget: ImageStorageBudget::new(max_bytes).map_err(|_| ConversionError::Capacity)?,
+        })
+    }
+    /// Read-only observer that does not keep scratch or output pixels alive.
+    pub fn storage_budget(&self) -> ImageStorageBudget {
+        self.budget.clone()
+    }
     /// Current worker-owned conversion scratch layout, absent until allocation.
     /// Reported spans exclude private scaler/allocator storage and published tight images.
     pub fn scratch_layout(&self) -> Option<super::SoftwareFrameLayout> {
@@ -63,10 +80,23 @@ impl SoftwareImageConverter {
         }
         let failed = ConversionError::Failed;
         let extent = Extent2D::new(input.width(), input.height()).map_err(|e| failed(e.to_string()))?;
+        if input.width() > 16384 || input.height() > 16384 {
+            return Err(ConversionError::Capacity);
+        }
+        let row = input.width() as usize * 4;
+        let bytes = row
+            .checked_mul(input.height() as usize)
+            .ok_or(ConversionError::Capacity)?;
         if self.conversion.as_ref().is_none_or(|conversion| {
             let d = conversion.scaler.input();
             d.format != input.format() || d.width != input.width() || d.height != input.height()
         }) {
+            // Free obsolete scratch before replacement admission. Output readers retain
+            // their independent bytes and must compete with the replacement's storage.
+            self.conversion = None;
+        }
+        let image_lease = self.budget.reserve(bytes).ok_or(ConversionError::Capacity)?;
+        if self.conversion.is_none() {
             self.conversion = Some(Conversion {
                 scaler: Context::get(
                     input.format(),
@@ -78,7 +108,7 @@ impl SoftwareImageConverter {
                     Flags::BILINEAR,
                 )
                 .map_err(|e| failed(e.to_string()))?,
-                output: ffmpeg::frame::Video::empty(),
+                output: scratch::create(input.width(), input.height(), &self.budget)?,
             });
         }
         let Conversion { scaler, output } = self.conversion.as_mut().unwrap();
@@ -100,11 +130,10 @@ impl SoftwareImageConverter {
         if color < 0 {
             return Err(failed("software Video colorspace setup failed".into()));
         }
-        // FFmpeg allocates this scratch frame on first use. It stays worker-local; only the
-        // separately owned tight pixels escape, so the next conversion cannot alter a reader.
+        // A populated output prevents FFmpeg's wrapper from implicitly allocating scratch.
+        // Only separately owned, already admitted tight pixels escape this worker.
         scaler.run(input, output).map_err(|e| failed(e.to_string()))?;
-        let row = input.width() as usize * 4;
-        let mut pixels = Vec::with_capacity(row * input.height() as usize);
+        let mut pixels = Vec::with_capacity(bytes);
         let table = match transfer {
             Transfer::IEC61966_2_1 => None,
             Transfer::Linear => Some(linear_table()),
@@ -130,6 +159,7 @@ impl SoftwareImageConverter {
             },
             pixels,
         )
+        .and_then(|image| image.with_storage(image_lease))
         .map_err(|e| failed(e.to_string()))
     }
 }

@@ -171,7 +171,7 @@ fn real_hap_mov_preserves_blocks_timestamps_seek_and_retained_frame_without_pixe
             );
             assert!(frame.software_image().is_none());
             assert!(matches!(
-                SoftwareImageConverter::default().convert(&frame),
+                SoftwareImageConverter::new(128 * 1024 * 1024).unwrap().convert(&frame),
                 Err(ConversionError::CompressedStorage)
             ));
             let compressed = frame.hap_frame().unwrap();

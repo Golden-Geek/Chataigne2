@@ -59,6 +59,16 @@ The implemented foundations are:
   caller supplies `DecodeLimits::max_software_frame_bytes`; MapGyver tightens this inside its
   unchanged CPU reservation, leaving separate capacity for conversion and published images.
   This bounds decoded-plane payload, not codec-private storage, heap overhead or scaler scratch.
+  `image::ImageStorageBudget` now supplies the shared admission/retirement mechanism for
+  decoded planes and conversion storage. Snapshots include in-flight reservations; settled
+  observations count owned payload. `SoftwareImageConverter::new(max_bytes)` requires an
+  explicit ceiling shared by one padded RGBA scratch allocation and every retained tight
+  output. Scratch is populated before calling swscale, preventing implicit plane allocation.
+  A layout replacement frees obsolete scratch first; immutable older outputs keep their own
+  typed storage leases, which external `ImageData::retain` calls cannot replace. Capacity
+  returns a typed error before exceeding the ceiling and conversion can resume after old
+  readers release it. MapGyver assigns the remaining16bytes/pixel+8MiB of its existing source
+  reservation to conversion. Codec/scaler-private storage and heap overhead remain separate.
   [Pinned Windows dependency and checks](../../tools/mapgyver/ffmpeg/README.md) describe the
   current boundary and remaining hardware/worker/package integration.
 - `plan/` validates the complete submitted dependency graph and caller-supplied limits, then

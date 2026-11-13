@@ -24,7 +24,7 @@ use crate::{
     runtime::{CompletionToken, DeviceGeneration},
 };
 
-#[cfg(feature = "qualification")]
+#[cfg(any(test, feature = "qualification"))]
 mod pixels;
 #[cfg(feature = "qualification")]
 pub use pixels::ProbePixels;
@@ -180,7 +180,7 @@ impl Drop for SpoutProbe {
 }
 
 struct Session {
-    #[cfg(feature = "qualification")]
+    #[cfg(any(test, feature = "qualification"))]
     readback: Option<pixels::Readback>,
     endpoint: Endpoint,
     receiver: Receiver,
@@ -238,7 +238,7 @@ impl Session {
         let completion = FenceCompletion::new(&device)?;
         let capture = Capture::new(&device, descriptor, native)?;
         Ok(Self {
-            #[cfg(feature = "qualification")]
+            #[cfg(any(test, feature = "qualification"))]
             readback: None,
             endpoint,
             receiver,

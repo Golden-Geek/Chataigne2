@@ -235,7 +235,7 @@ fn hardware_common_codec_sdr_frames_match_independent_linear_pixels_on_both_gpus
                 },
             )
             .unwrap();
-            let mut converter = SoftwareImageConverter::default();
+            let mut converter = SoftwareImageConverter::new(128 * 1024 * 1024).unwrap();
             let mut stream = None;
             let mut count = 0;
             while let Some(frame) = decoder.next_frame().unwrap() {

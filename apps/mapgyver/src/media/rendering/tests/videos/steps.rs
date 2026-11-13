@@ -64,7 +64,7 @@ fn reference_pixels(name: &str) -> Vec<Vec<u8>> {
         },
     )
     .unwrap();
-    let mut converter = SoftwareImageConverter::default();
+    let mut converter = SoftwareImageConverter::new(128 * 1024 * 1024).unwrap();
     let mut pixels = Vec::new();
     while let Some(frame) = decoder.next_frame().unwrap() {
         pixels.push(converter.convert(&frame).unwrap().pixels()[..4].to_vec());

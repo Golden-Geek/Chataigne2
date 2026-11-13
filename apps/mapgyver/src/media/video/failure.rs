@@ -29,6 +29,7 @@ impl From<DecodeError> for Failure {
 impl From<ConversionError> for Failure {
     fn from(error: ConversionError) -> Self {
         let kind = match error {
+            ConversionError::Capacity => VideoSourceErrorKind::Capacity,
             ConversionError::HardwareStorage
             | ConversionError::CompressedStorage
             | ConversionError::UnsupportedMatrix

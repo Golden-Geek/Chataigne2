@@ -21,7 +21,7 @@ fn srgb_linear(byte: u8) -> f64 {
 #[test]
 fn padded_rgba_rows_preserve_all_byte_values_alpha_and_changing_sdr_transfers() {
     use ffmpeg::color::{Range, Space, TransferCharacteristic as Transfer};
-    let mut converter = SoftwareImageConverter::default();
+    let mut converter = SoftwareImageConverter::new(128 * 1024 * 1024).unwrap();
     for transfer in [Transfer::IEC61966_2_1, Transfer::BT709, Transfer::Linear] {
         let mut input = ffmpeg::frame::Video::new(ffmpeg::format::Pixel::RGBA, 65, 4);
         let stride = input.stride(0);
@@ -77,7 +77,7 @@ fn chromatic_high_main10_and_prores4444_preserve_color_alpha_and_exact_timestamp
     ] {
         let mut decoder = Decoder::open(&fixture(name), limits()).unwrap();
         let info = decoder.info().clone();
-        let mut converter = SoftwareImageConverter::default();
+        let mut converter = SoftwareImageConverter::new(128 * 1024 * 1024).unwrap();
         let mut count = 0;
         while let Some(frame) = decoder.next_frame().unwrap() {
             assert!(count < 6);

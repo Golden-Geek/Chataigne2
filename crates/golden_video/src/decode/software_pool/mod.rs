@@ -1,5 +1,6 @@
 //! Public FFmpeg buffer-pool APIs with admission before every new plane allocation.
 use super::{DecodeError, ffmpeg};
+use crate::image::ImageStorageBudget;
 use ffmpeg::ffi;
 use std::{
     ffi::c_void,
@@ -9,11 +10,9 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
 };
-mod budget;
-pub use budget::{SoftwareFrameAllocation, SoftwareFrameBudget};
 
 pub(super) struct Allocator {
-    pub budget: SoftwareFrameBudget,
+    pub budget: ImageStorageBudget,
     pool: Mutex<Option<Pool>>,
     exhausted: AtomicBool,
 }
@@ -34,7 +33,7 @@ impl Allocator {
             return Err(DecodeError::InvalidLimits);
         }
         Ok(Self {
-            budget: SoftwareFrameBudget::new(bytes),
+            budget: ImageStorageBudget::new(bytes).map_err(|_| DecodeError::InvalidLimits)?,
             pool: Mutex::new(None),
             exhausted: AtomicBool::new(false),
         })
@@ -70,7 +69,7 @@ impl Pool {
     unsafe fn new(
         context: *mut ffi::AVCodecContext,
         frame: &ffi::AVFrame,
-        budget: &SoftwareFrameBudget,
+        budget: &ImageStorageBudget,
     ) -> Option<Self> {
         let format = unsafe { (*context).pix_fmt };
         if format as i32 != frame.format {
@@ -183,26 +182,12 @@ unsafe extern "C" fn get_buffer(context: *mut ffi::AVCodecContext, frame: *mut f
 }
 
 unsafe extern "C" fn allocate(opaque: *mut c_void, bytes: usize) -> *mut ffi::AVBufferRef {
-    let budget = unsafe { &*opaque.cast::<SoftwareFrameBudget>() };
+    let budget = unsafe { &*opaque.cast::<ImageStorageBudget>() };
     let Some(lease) = budget.reserve(bytes) else {
         return ptr::null_mut();
     };
-    let data = unsafe { ffi::av_mallocz(bytes) }.cast::<u8>();
-    if data.is_null() {
-        return ptr::null_mut();
-    }
-    let owner = Box::into_raw(Box::new(lease));
-    let buffer = unsafe { ffi::av_buffer_create(data, bytes, Some(free_buffer), owner.cast(), 0) };
-    if buffer.is_null() {
-        unsafe { ffi::av_free(data.cast()) };
-        drop(unsafe { Box::from_raw(owner) });
-    }
-    buffer
-}
-unsafe extern "C" fn free_buffer(opaque: *mut c_void, data: *mut u8) {
-    unsafe { ffi::av_free(data.cast()) };
-    drop(unsafe { Box::from_raw(opaque.cast::<budget::Lease>()) });
+    super::buffer::allocate(lease)
 }
 unsafe extern "C" fn free_pool(opaque: *mut c_void) {
-    drop(unsafe { Box::from_raw(opaque.cast::<SoftwareFrameBudget>()) });
+    drop(unsafe { Box::from_raw(opaque.cast::<ImageStorageBudget>()) });
 }

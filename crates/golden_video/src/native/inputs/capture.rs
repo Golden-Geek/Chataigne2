@@ -19,7 +19,7 @@ impl Capture {
             None => Texture::new(&device.device, descriptor).map(|texture| Self::Rgb(Box::new(texture))),
         }
     }
-    #[cfg(feature = "qualification")]
+    #[cfg(any(test, feature = "qualification"))]
     pub fn rgb(&self) -> Option<&Texture> {
         match self {
             Self::Rgb(image) => Some(image),

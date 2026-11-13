@@ -169,7 +169,7 @@ fn hardware_frames_preserve_adapter_timestamps_seek_and_pool_leases_on_both_gpus
                 );
                 assert!(frame.software_image().is_none());
                 assert!(matches!(
-                    SoftwareImageConverter::default().convert(&frame),
+                    SoftwareImageConverter::new(128 * 1024 * 1024).unwrap().convert(&frame),
                     Err(ConversionError::HardwareStorage)
                 ));
                 let gpu = frame.d3d11_frame().unwrap();

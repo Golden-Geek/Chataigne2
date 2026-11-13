@@ -73,7 +73,7 @@ fn unsupported_color_interpretation_reports_a_typed_conversion_failure() {
     for (name, matrix) in [("h264-bt2020.mp4", true), ("h264-pq.mp4", false)] {
         let mut decoder = Decoder::open(&fixture(name), limits()).unwrap();
         let frame = decoder.next_frame().unwrap().unwrap();
-        let result = SoftwareImageConverter::default().convert(&frame);
+        let result = SoftwareImageConverter::new(128 * 1024 * 1024).unwrap().convert(&frame);
         assert!(if matrix {
             matches!(result, Err(ConversionError::UnsupportedMatrix))
         } else {

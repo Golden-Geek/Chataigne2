@@ -1,5 +1,6 @@
 use super::*;
 use crate::decode::FrameStorage;
+mod storage;
 
 fn input(format: ffmpeg::format::Pixel, width: u32, height: u32, value: u8) -> DecodedFrame {
     let mut image = ffmpeg::frame::Video::new(format, width, height);
@@ -46,7 +47,7 @@ fn check(image: &ImageData, width: u32, height: u32, value: u8) {
 #[test]
 fn scratch_reuses_actual_storage_and_retained_images_survive_format_and_extent_changes() {
     use ffmpeg::format::Pixel;
-    let mut converter = SoftwareImageConverter::default();
+    let mut converter = SoftwareImageConverter::new(128 * 1024 * 1024).unwrap();
     let mut retained = Vec::new();
     for (format, width, height) in [
         (Pixel::RGBA, 65, 4),

@@ -1,4 +1,4 @@
-//! Explicit finite qualification readback; production readiness never maps or exports pixels.
+//! Explicit finite test/qualification readback; production readiness never maps or exports pixels.
 use super::*;
 use windows::Win32::Graphics::{
     Direct3D11::{

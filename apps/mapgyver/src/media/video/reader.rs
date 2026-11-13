@@ -29,7 +29,8 @@ struct PreviousProbe {
 
 #[derive(serde::Serialize)]
 pub(super) struct CpuLayouts {
-    decoder_pool: Option<golden_video::decode::SoftwareFrameAllocation>,
+    decoder_pool: Option<golden_video::image::ImageStorageAllocation>,
+    conversion_storage: golden_video::image::ImageStorageAllocation,
     current: Option<golden_video::decode::SoftwareFrameLayout>,
     lookahead: Option<golden_video::decode::SoftwareFrameLayout>,
     scratch: Option<golden_video::decode::SoftwareFrameLayout>,
@@ -49,6 +50,7 @@ impl Reader {
     pub fn cpu_layouts(&self) -> CpuLayouts {
         CpuLayouts {
             decoder_pool: self.decoder.software_frame_budget().map(|budget| budget.snapshot()),
+            conversion_storage: self.converter.storage_budget().snapshot(),
             current: self.current.as_ref().and_then(DecodedFrame::software_layout),
             lookahead: self.next.as_ref().and_then(DecodedFrame::software_layout),
             scratch: self.converter.scratch_layout(),
@@ -83,9 +85,14 @@ impl Reader {
             info.time_base,
         )?;
         let origin = info.start.unwrap_or(0);
+        let conversion_bytes = u64::from(info.width)
+            .checked_mul(u64::from(info.height))
+            .and_then(|pixels| pixels.checked_mul(16))
+            .and_then(|bytes| bytes.checked_add(8 * 1024 * 1024))
+            .ok_or("Video conversion storage overflow")?;
         Ok(Self {
             decoder,
-            converter: Default::default(),
+            converter: SoftwareImageConverter::new(conversion_bytes)?,
             prepared: None,
             current: None,
             next: None,

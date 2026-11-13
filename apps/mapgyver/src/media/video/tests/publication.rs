@@ -47,7 +47,7 @@ fn superseding_seeks_and_file_incarnations_reject_held_real_decodes_before_strea
     ] {
         let mut decoder = open(name);
         let base = decoder.info().time_base;
-        let mut converter = SoftwareImageConverter::default();
+        let mut converter = SoftwareImageConverter::new(128 * 1024 * 1024).unwrap();
         let mut expected = None;
         while let Some(frame) = decoder.next_frame().unwrap() {
             let time = super::super::reader::duration(frame.timestamp(), base).unwrap();

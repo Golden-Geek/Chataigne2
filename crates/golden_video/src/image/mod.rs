@@ -5,9 +5,12 @@ use thiserror::Error;
 use crate::TextureDescriptor;
 mod atlas;
 mod font;
+mod storage;
 mod stream;
 pub use atlas::ImageAtlas;
 pub use font::FontAtlas;
+pub(crate) use storage::StorageLease;
+pub use storage::{ImageStorageAllocation, ImageStorageBudget};
 pub use stream::{FramePublication, ImageStream, StreamSample};
 
 /// A tightly packed, immutable image. Source storage/color/alpha is explicit;
@@ -16,6 +19,7 @@ pub use stream::{FramePublication, ImageStream, StreamSample};
 pub struct ImageData {
     descriptor: TextureDescriptor,
     pixels: Box<[u8]>,
+    _storage: Option<StorageLease>,
     _lifetime: Option<ImageLifetime>,
 }
 struct ImageLifetime {
@@ -39,6 +43,12 @@ pub enum ImageError {
     /// Tight format-sized texels do not match the declared image extent.
     #[error("image pixels do not match their tightly packed descriptor")]
     Layout,
+    /// CPU image storage limits must be positive and cannot grow after admission.
+    #[error("invalid CPU image storage limit")]
+    StorageLimit,
+    /// Existing allocated images or scratch retain the admitted CPU capacity.
+    #[error("CPU image storage capacity retained")]
+    Capacity,
 }
 
 impl ImageData {
@@ -58,8 +68,20 @@ impl ImageData {
         Ok(Self {
             descriptor,
             pixels: pixels.into_boxed_slice(),
+            _storage: None,
             _lifetime: None,
         })
+    }
+
+    #[cfg(feature = "ffmpeg")]
+    pub(crate) fn with_storage(mut self, storage: StorageLease) -> Result<Self, ImageError> {
+        if storage.bytes() != self.pixels.len() {
+            drop(self);
+            drop(storage);
+            return Err(ImageError::Layout);
+        }
+        self._storage = Some(storage);
+        Ok(self)
     }
 
     /// Retain a producer's admitted storage reservation until the final image observer drops.

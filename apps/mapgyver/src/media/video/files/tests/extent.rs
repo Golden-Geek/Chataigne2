@@ -22,7 +22,7 @@ fn software_source_admission_rejects_in_band_growth_before_oversized_conversion(
     let planes = decoder.software_frame_budget().unwrap();
     assert_eq!(planes.snapshot().limit_bytes, 64 * 48 * 24 + 8 * 1024 * 1024);
     assert!(planes.snapshot().limit_bytes < lease.bytes);
-    let mut converter = golden_video::decode::SoftwareImageConverter::default();
+    let mut converter = golden_video::decode::SoftwareImageConverter::new(128 * 1024 * 1024).unwrap();
     let mut rejected = false;
     let mut frames = 0;
     loop {

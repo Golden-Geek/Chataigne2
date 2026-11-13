@@ -69,7 +69,7 @@ fn decoded_and_converter_layouts_are_explicit_and_tight_published_bytes_stay_sep
         storage: FrameStorage::Software(image),
     };
     let input = frame.software_layout().unwrap();
-    let mut converter = SoftwareImageConverter::default();
+    let mut converter = SoftwareImageConverter::new(128 * 1024 * 1024).unwrap();
     assert!(converter.scratch_layout().is_none());
     let published = converter.convert(&frame).unwrap();
     let scratch = converter.scratch_layout().unwrap();

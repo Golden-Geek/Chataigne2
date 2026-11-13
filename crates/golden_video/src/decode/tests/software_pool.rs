@@ -36,16 +36,16 @@ fn actual_plane_payloads_include_idle_pool_storage_and_outlive_the_decoder() {
         }
         let allocated = budget.snapshot();
         assert_eq!(allocated.retained_bytes, observed.values().sum::<u64>(), "{name}");
-        assert_eq!(allocated.buffers, observed.len() as u64, "{name}");
+        assert_eq!(allocated.allocations, observed.len() as u64, "{name}");
         assert_eq!(allocated.peak_bytes, allocated.retained_bytes);
         assert!(allocated.retained_bytes > retained_payload.values().sum::<u64>());
         drop(decoder);
         assert_eq!(budget.snapshot().retained_bytes, retained_payload.values().sum::<u64>());
-        assert_eq!(budget.snapshot().buffers, retained_payload.len() as u64);
+        assert_eq!(budget.snapshot().allocations, retained_payload.len() as u64);
         assert_eq!(retained.software_image().unwrap().data(0), original_pixels);
         drop(retained);
         assert_eq!(budget.snapshot().retained_bytes, 0, "{name}");
-        assert_eq!(budget.snapshot().buffers, 0, "{name}");
+        assert_eq!(budget.snapshot().allocations, 0, "{name}");
     }
 }
 
@@ -106,7 +106,7 @@ fn tightening_and_codec_replacement_preserve_the_same_pool_without_invalidating_
         assert_eq!(decoder.next_frame().unwrap().unwrap().timestamp(), retained.timestamp());
         while decoder.next_frame().unwrap().is_some() {}
         assert_eq!(budget.snapshot().retained_bytes, allocated.retained_bytes);
-        assert_eq!(budget.snapshot().buffers, allocated.buffers);
+        assert_eq!(budget.snapshot().allocations, allocated.allocations);
         assert_eq!(budget.snapshot(), decoder.software_frame_budget().unwrap().snapshot());
         assert_eq!(retained.software_image().unwrap().data(0), pixels);
     }
@@ -130,5 +130,5 @@ fn partial_plane_failure_keeps_allocated_cached_bytes_charged_until_pool_destruc
     assert_eq!(partial.retained_bytes, partial.peak_bytes);
     drop(decoder);
     assert_eq!(budget.snapshot().retained_bytes, 0);
-    assert_eq!(budget.snapshot().buffers, 0);
+    assert_eq!(budget.snapshot().allocations, 0);
 }

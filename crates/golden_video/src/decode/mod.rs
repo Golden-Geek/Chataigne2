@@ -6,6 +6,7 @@
 
 use ffmpeg_next as ffmpeg;
 use std::path::Path;
+mod buffer;
 mod hap;
 mod image;
 mod layout;
@@ -15,7 +16,6 @@ pub use hap::{HapFormat, HapFrame};
 pub use image::{ConversionError, SoftwareImageConverter};
 pub use layout::{SoftwareFrameLayout, SoftwarePlaneLayout};
 pub use parallelism::SoftwareDecodeThreads;
-pub use software_pool::{SoftwareFrameAllocation, SoftwareFrameBudget};
 mod timing;
 pub use timing::{StreamTiming, probe_timing_with_interrupt};
 #[cfg(all(windows, feature = "d3d11"))]
@@ -340,7 +340,7 @@ impl Decoder {
     }
     /// Actual software decoded-plane inventory, including idle pool storage. The observer
     /// does not retain pixels; native/HAP decoders have no software plane pool.
-    pub fn software_frame_budget(&self) -> Option<SoftwareFrameBudget> {
+    pub fn software_frame_budget(&self) -> Option<crate::image::ImageStorageBudget> {
         match &self.kind {
             DecoderKind::Software(allocator) => Some(allocator.budget.clone()),
             _ => None,
@@ -354,7 +354,10 @@ impl Decoder {
             return Err(DecodeError::ReopenRequired);
         }
         match &self.kind {
-            DecoderKind::Software(allocator) => allocator.budget.tighten(bytes),
+            DecoderKind::Software(allocator) => allocator.budget.tighten(bytes).map_err(|error| match error {
+                crate::image::ImageError::Capacity => DecodeError::LimitExceeded,
+                _ => DecodeError::InvalidLimits,
+            }),
             _ => Err(DecodeError::InvalidLimits),
         }
     }

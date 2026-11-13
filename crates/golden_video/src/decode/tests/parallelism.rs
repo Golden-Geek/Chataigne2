@@ -3,8 +3,14 @@ use ffmpeg::codec::threading::Type;
 
 fn assert_equal_frame(serial: &DecodedFrame, sliced: &DecodedFrame) {
     assert_eq!(serial.timestamp(), sliced.timestamp());
-    let original = SoftwareImageConverter::default().convert(serial).unwrap();
-    let parallel = SoftwareImageConverter::default().convert(sliced).unwrap();
+    let original = SoftwareImageConverter::new(128 * 1024 * 1024)
+        .unwrap()
+        .convert(serial)
+        .unwrap();
+    let parallel = SoftwareImageConverter::new(128 * 1024 * 1024)
+        .unwrap()
+        .convert(sliced)
+        .unwrap();
     assert_eq!(original.descriptor(), parallel.descriptor());
     assert_eq!(original.pixels(), parallel.pixels());
 }

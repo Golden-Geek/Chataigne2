@@ -22,7 +22,7 @@ fn real_common_codecs_sample_exact_timestamps_rewind_after_eof_and_hold_shorter_
         let mut decoder = open();
         let base = decoder.info().time_base;
         let mut reference = Vec::new();
-        let mut converter = SoftwareImageConverter::default();
+        let mut converter = SoftwareImageConverter::new(128 * 1024 * 1024).unwrap();
         while let Some(frame) = decoder.next_frame().unwrap() {
             let time = Duration::from_nanos(
                 u64::try_from(
