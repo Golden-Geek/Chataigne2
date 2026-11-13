@@ -1,0 +1,83 @@
+{
+	"date": "2026-11-13",
+	"gate": "M10/4",
+	"accepted": false,
+	"result": "ordinary_app_source_gpu_accounting_verified_intel_timing_failed",
+	"deliverable": "The ordinary default app's fixed Q06 workload verifies the new source-GPU inventory, exact shared HD publisher cost and zero retirement. The existing sustained fixture now requires these observations instead of treating missing counters as zero. No product runtime or timing/age algorithm changes in this slice.",
+	"software_prerequisites": {
+		"retained": "Pushed0f09c60e runtime:678 MapGyver/292 Golden Video tests, both-package all-target native-feature strict and2/2 native worker checks pass. Only browser qualification/verification code changes here.",
+		"node_parser_tests": "11 passed,0 failed. Required absent captures, missing/incoherent/noninteger/over-capacity counters, decreasing peaks and unretired sources all reject; a valid retained/retired inventory preserves its actual maximum.",
+		"python_auditors": "36 passed,0 failed:16 video_age,13 production_cohort and7 video_sample cases. Existing censoring, clock bounds and failed-deadline handling remain unchanged.",
+		"syntax_format": "Node syntax, Prettier, owned diff whitespace and root/Golden Core Cargo formatting pass. No new Rust DTO or authored UI contract change."
+	},
+	"ordinary_builds": {
+		"app": {
+			"exit_code": 0,
+			"seconds": 64,
+			"sha256": "01187d0d60e7e407a4f1579600193161d757ba91791e1ec8475d3e0eb5a33fd7",
+			"log": "target/m10-source-cohort-app-build-2026-11-13.log",
+			"log_sha256": "a960bd5628a27d484fdbbbb05f8b166d5d164330a2b93a6a449d9d3de198d78b"
+		},
+		"probe": {
+			"exit_code": 0,
+			"seconds": 88,
+			"sha256": "873e5240816be0e1d69d691262c3596cde465dcd4e3ef02b66bf897659442e93",
+			"log": "target/m10-source-cohort-probe-build-2026-11-13.log",
+			"log_sha256": "1a903a7ca14644465f42057debb01af949c576540498a31569fc6da201fac5cb"
+		},
+		"scope": "Normal pinned SDK/resource-copy configuration, app then probe, terminal build success inspected before the cohort. The actual app verifies all five loaded executable-local pinned FFmpeg DLLs; no copy-only override, installer or release."
+	},
+	"intel": {
+		"pid": 33596,
+		"adapter": "dxgi:00000000:000156b6",
+		"exit_code": 0,
+		"report": "target/q06-source-budget-intel-2026-11-13/sample.json",
+		"report_sha256": "957e44c9416ac41df3650a59bd91bf9bb28504509577649a54004f882468df64",
+		"audit": "target/q06-source-budget-intel-2026-11-13/audit.json",
+		"audit_sha256": "a562a9cfefdc522aedb2165897cd1a0884bd737d04eef5175dc2e3dee654af42",
+		"log": "target/q06-source-budget-intel-2026-11-13.log",
+		"log_sha256": "ebf36d9277355201b714f222c59437d8d081f0ad0cdb934f0fa92c234ed78ca3",
+		"execution_inputs": "target/q06-source-budget-intel-2026-11-13/execution-inputs.json",
+		"execution_inputs_sha256": "e12bf82889450e4568d8856bf2230aefe9294b16b6f55a596d5efd559fc926eb",
+		"workload": "Unchanged hashed four-second ProResHQ1080p60 +4K30 files, HD shared Reference, three authored test outputs and existing default Screen/preview.30s warmup,120s visible,60s minimized,60s receivers disconnected. Three independent SDK held-frame code images pass.135 observations retain Ready sources/Playing state, no page errors; normal owned shutdown0.",
+		"source_gpu": "285 snapshots across six complete captures. Exactly one observed software-upload producer,24883200 bytes = three1920x1080 RGBA8 slots, shared across consumers. Lifetime admitted peak is also24883200, excluding an unseen extra source allocation. Decoder/hardware-conversion/HAP classes remain0 for this software-codec workload. Every terminal capture has zero source-GPU bytes as well as native-uninitialized/zero plan/owned-texel storage; no ring drops/clock failures/duration cutoff.",
+		"extra_peak_check": "After the completed run, strengthen the fixture's post-shutdown assertion to require the lifetime peak equal the declared HD group cost. Reinspection of the same completed raw captures passes, source-peak-recheck.json; no second live run. execution-inputs.json retains the exact script hash used by the live capture.",
+		"visible": {
+			"observed_source_publications_per_second": [17.483704806044305, 21.04874799660503],
+			"maximum_definite_deadline_miss_fraction": 0.22556912826207662,
+			"hd_publication_copy_p95_upper_ms": 289.3713,
+			"uhd_publication_copy_p95_upper_ms": null,
+			"uhd_missing_receiver_witnesses": "566/5570; p95 stays unbounded, never a favorable finite subset",
+			"cpu_wall_upper_p95_ms": 4.6013,
+			"renderer_context_p95_ms": 23.82421875,
+			"render_partition_p95_ms": 11.183958333333333,
+			"output_partition_p95_ms": 12.27640625,
+			"private_peak_bytes": 675115008,
+			"legacy_native_inventory_peak_bytes": 317126408
+		},
+		"minimized": {
+			"observed_source_publications_per_second": [31.71942358584307, 26.890744929730477],
+			"maximum_definite_deadline_miss_fraction": 0.13100194282542327,
+			"hd_publication_copy_p95_upper_ms": 381.9213,
+			"uhd_publication_copy_p95_upper_ms": null,
+			"renderer_context_p95_ms": 21.071458333333332
+		},
+		"disconnected": {
+			"observed_source_publications_per_second": [20.947322861370335, 28.88998820705686],
+			"maximum_definite_deadline_miss_fraction": 0.2497918401332223,
+			"receiver_age": "Unbounded by design with receivers disconnected; no age pass.",
+			"renderer_context_p95_ms": 24.238854166666666,
+			"private_peak_bytes": 826712064
+		},
+		"qualification": "Failed timing/cadence/age. Source-GPU inventory/retirement is functionally verified; one completed cohort is not the required independent series. Observed publications are renderer-witnessed identities, not complete decoder throughput. GPU context/partition spans include waits and command-feed gaps and do not isolate shader cost or a cross-context critical path. Legacy native inventory excludes source-GPU accounting; totals are not silently added without deduplicated ownership. CPU scratch/driver physical bytes, exact per-plane/pool/in-flight and complete Video pixel/PTS lineage remain open."
+	},
+	"nvidia_return": {
+		"state": "Pending prerequisite; no new NVIDIA cohort attempted",
+		"missing": "Fresh native overlay-Off observation bracketing the run, required by the unchanged qualification contract. Old observations and absent processes do not prove current Off.",
+		"tool_boundary": "computer-use/SKILL.md links mandatory guidance: Use node_repl JavaScript for all Computer Use actions. Current tool discovery has no node_repl/Computer Use API, so no supported native UI observation was possible. No alternate desktop helper, guessed setting query, process-presence proxy or overlay-state change was used.",
+		"return_trigger": "When supported desktop observation or an authoritative supported query is available, freshly observe Off before and after the exact NVIDIA cohort. Existing user desktop authorization persists; no approval question is pending."
+	},
+	"next_product_action": "Implement dependency-aware reuse of unchanged native render results, preserving time-dependent patterns/envelopes, presentation/visibility changes and output cadence. New source inspection establishes that ordinary Presentation::begin(false) sets every pass true and submit_work executes every such pass, regardless of unchanged input pixels. The completed cohort supplies a retained baseline; avoid another profiler or unchanged timing rerun. Prove pixels, changed-input propagation, temporal/presentation invalidation and generation/completion safety in one bounded Golden implementation slice before native checks. This is a product decision from current code/data, not a proven causal diagnosis of all Intel spans.",
+	"effort_and_limits": "The original timing/sampling issue retains its recorded12h25 effort and parked a2d2c197 sampler. Resource-accounting delivery09:22–09:52 and this09:53 qualification batch do not reset that issue's budget or silently revise acceptance. No throughput optimization is claimed here. All original codec/repeated/age/path/resource requirements and M09 Q03/Q05 remain required.",
+	"progress": "M10/4 alone Active; no new fixed gate accepted.88/106 (83%),M10 5/8 (63%),8/15 phases. M10/7 Accepted; M14 remains after4."
+}

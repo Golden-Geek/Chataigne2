@@ -368,7 +368,32 @@ try {
 	}
 	await native.close();
 }
-report.nativeDiagnostics = await inspectNativeDiagnostics(native.app.pid, native.log());
+try {
+	report.nativeDiagnostics = await inspectNativeDiagnostics(native.app.pid, native.log(), {
+		requireVideoFrames: true,
+		requireSourceBudget: true
+	});
+	if (fixtures.codec === 'ProRes HQ') {
+		const budget = report.nativeDiagnostics.sourceGpu;
+		const groups = budget.maximum_observed_classes;
+		const expected = 1920 * 1080 * 4 * 3;
+		assert.equal(groups.software_producers.allocations, 1, 'one HD publisher for shared users');
+		assert.equal(groups.software_producers.bytes, expected);
+		assert.equal(budget.peak_admitted_bytes, expected, 'no unobserved extra source-GPU allocation');
+		for (const kind of ['decoder_pools', 'hardware_producers', 'hap_producers'])
+			assert.deepEqual(groups[kind], { allocations: 0, bytes: 0 });
+	}
+} catch (error) {
+	await writeFile(
+		path.join(directory, 'diagnostic-failure.json'),
+		JSON.stringify(
+			{ ...report, result: 'failed', error: String(error), backendLog: native.log() },
+			null,
+			2
+		)
+	);
+	throw error;
+}
 report.backendLog = native.log();
 await writeFile(path.join(directory, 'sample.json'), JSON.stringify(report, null, 2));
 console.log(

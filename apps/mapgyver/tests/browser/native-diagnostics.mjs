@@ -9,10 +9,13 @@ import { createInterface } from 'node:readline';
 export async function inspectNativeDiagnostics(
 	pid,
 	appLog,
-	{ requireSoftwareUpload = true, requireVideoFrames = false } = {}
+	{ requireSoftwareUpload = true, requireVideoFrames = false, requireSourceBudget = false } = {}
 ) {
 	const directory = process.env.MAPGYVER_NATIVE_DIAGNOSTICS;
-	if (!directory) return null;
+	if (!directory) {
+		assert(!requireSourceBudget, 'required source accounting needs an actual capture');
+		return null;
+	}
 	assert(
 		!/\[mapgyver-diagnostics\] capture (?:preparation failed|start failed|failed:)/.test(appLog)
 	);
@@ -26,6 +29,14 @@ export async function inspectNativeDiagnostics(
 		videoFrameUses = 0,
 		residentVideoFrameUses = 0;
 	const sourceUploads = new Map();
+	const sourceClasses = Object.fromEntries(
+		['decoder_pools', 'hardware_producers', 'hap_producers', 'software_producers'].map((kind) => [
+			kind,
+			{ allocations: 0, bytes: 0 }
+		])
+	);
+	let sourceSnapshots = 0,
+		sourcePeak = 0;
 	for (const name of names.sort()) {
 		const file = path.join(directory, name);
 		const hash = createHash('sha256');
@@ -34,7 +45,8 @@ export async function inspectNativeDiagnostics(
 		const lines = createInterface({ input: stream, crlfDelay: Infinity });
 		let header, end, lastSnapshot;
 		let events = 0,
-			snapshots = 0;
+			snapshots = 0,
+			previousSourcePeak = 0;
 		for await (const line of lines) {
 			assert(Buffer.byteLength(line) <= 65536, 'bounded metadata row');
 			const row = JSON.parse(line);
@@ -69,6 +81,30 @@ export async function inspectNativeDiagnostics(
 				assert.equal(row.process.process_id, pid);
 				assert(row.process.memory.private_bytes > 0);
 				assert.equal(row.process_error, null);
+				if (requireSourceBudget) assert(row.source_gpu, 'source budget observation required');
+				if (row.source_gpu) {
+					const source = row.source_gpu;
+					const amount = (value) => assert(Number.isSafeInteger(value) && value >= 0);
+					for (const value of [source.limit_bytes, source.retained_bytes, source.peak_bytes])
+						amount(value);
+					assert(source.peak_bytes >= source.retained_bytes);
+					assert(source.peak_bytes <= source.limit_bytes);
+					assert(source.peak_bytes >= previousSourcePeak);
+					previousSourcePeak = source.peak_bytes;
+					let total = 0;
+					for (const [kind, maximum] of Object.entries(sourceClasses)) {
+						const current = source[kind];
+						amount(current.allocations);
+						amount(current.bytes);
+						assert.equal(current.allocations === 0, current.bytes === 0);
+						total += current.bytes;
+						maximum.allocations = Math.max(maximum.allocations, current.allocations);
+						maximum.bytes = Math.max(maximum.bytes, current.bytes);
+					}
+					assert.equal(source.retained_bytes, total);
+					sourcePeak = Math.max(sourcePeak, source.peak_bytes);
+					sourceSnapshots++;
+				}
 				lastSnapshot = row;
 				snapshots++;
 			} else {
@@ -89,6 +125,7 @@ export async function inspectNativeDiagnostics(
 		assert.equal(lastSnapshot.native.initialized, false);
 		assert.equal(lastSnapshot.allocations.plan.live, 0);
 		assert.equal(lastSnapshot.allocations.owned_texel_bytes, 0);
+		if (lastSnapshot.source_gpu) assert.equal(lastSnapshot.source_gpu.retained_bytes, 0);
 		const bytes = (await stat(file)).size;
 		assert(bytes <= header.max_bytes);
 		captures.push({ file, bytes, events, snapshots, sha256: hash.digest('hex') });
@@ -104,6 +141,8 @@ export async function inspectNativeDiagnostics(
 		);
 	}
 	if (requireVideoFrames) assert(videoFrameUses > 0, 'actual timestamped Video uses required');
+	if (requireSourceBudget)
+		assert(sourceSnapshots > 0 && sourcePeak > 0, 'actual source allocation required');
 	return {
 		captures,
 		counts,
@@ -113,6 +152,14 @@ export async function inspectNativeDiagnostics(
 		residentVideoFrameUses,
 		requireSoftwareUpload,
 		requireVideoFrames,
+		requireSourceBudget,
+		sourceGpu: sourceSnapshots
+			? {
+					snapshots: sourceSnapshots,
+					peak_admitted_bytes: sourcePeak,
+					maximum_observed_classes: sourceClasses
+				}
+			: null,
 		scope:
 			'Completed actual-app event capture, ring health and native retirement; no sustained-performance, per-format allowance or source-age acceptance.'
 	};
