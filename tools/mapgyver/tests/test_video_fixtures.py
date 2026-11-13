@@ -16,11 +16,12 @@ class VideoFixtureTests(unittest.TestCase):
             pixels[(y * width + x) * 4 + 3] = alpha
         self.assertEqual([x["actual"] for x in MODULE["verify_alpha"](pixels, width)],
                          [255, 64, 192])
-        for x, y, _ in sites:
-            wrong = pixels.copy()
-            wrong[(y * width + x) * 4 + 3] = 0
-            with self.assertRaises(ValueError):
-                MODULE["verify_alpha"](wrong, width)
+        for x, y, expected in sites:
+            for invalid in {0, 255} - {expected}:
+                wrong = pixels.copy()
+                wrong[(y * width + x) * 4 + 3] = invalid
+                with self.assertRaises(ValueError):
+                    MODULE["verify_alpha"](wrong, width)
         with self.assertRaises(ValueError):
             MODULE["verify_alpha"](pixels[:-1], width)
 

@@ -5,7 +5,9 @@ const kinds = ['software', 'hap'];
 // Q06 HAP has two shared GPU publishers. ProRes shares HD; UHD uploads in the renderer.
 export function assertQ06SourceUploads(codec, budget) {
 	assert(
-		['H.264 High', 'HEVC Main', 'ProRes HQ', 'HAP', 'HAP Alpha', 'HAP Q'].includes(codec),
+		['H.264 High', 'HEVC Main', 'ProRes HQ', 'ProRes 4444', 'HAP', 'HAP Alpha', 'HAP Q'].includes(
+			codec
+		),
 		'supported numbered Q06 codec required'
 	);
 	if (codec === 'H.264 High' || codec === 'HEVC Main') {
@@ -105,8 +107,9 @@ export class SourceUploadInventory {
 }
 
 // Retain bounded startup facts independently of the host's rolling debug-log tail.
-export class SourceBindingCollector {
+export class SourceStartupCollector {
 	#records = new Map();
+	#cpuLayouts = new Map();
 	#pending = new Map();
 	#error;
 	constructor(maxRecords = 4096, maxLine = 16384) {
@@ -116,23 +119,49 @@ export class SourceBindingCollector {
 		this.maxLine = maxLine;
 	}
 	#line(line) {
-		const marker = '[mapgyver-video-source] ';
-		if (!line.includes(marker)) return;
+		const marker = ['[mapgyver-video-source] ', '[mapgyver-video-cpu] '].find((value) =>
+			line.includes(value)
+		);
+		if (!marker) return;
 		try {
 			assert(line.length <= this.maxLine, 'source binding line exceeds its bound');
 			const record = JSON.parse(line.slice(line.indexOf(marker) + marker.length));
 			for (const value of [
-				record.stream,
 				record.owner,
 				record.file,
 				record.reference?.media,
 				record.reference?.channel
 			])
 				assert(typeof value === 'string' && value.length > 0, 'invalid source binding');
+			if (marker === '[mapgyver-video-cpu] ') {
+				assert(Number.isSafeInteger(record.reservation_bytes) && record.reservation_bytes > 0);
+				assert(record.reader && typeof record.reader === 'object');
+				const key = JSON.stringify([
+					record.owner,
+					record.reference.media,
+					record.reference.channel,
+					record.file
+				]);
+				if (!this.#cpuLayouts.has(key)) {
+					assert(
+						this.#records.size + this.#cpuLayouts.size < this.maxRecords,
+						'startup record capacity exhausted'
+					);
+					this.#cpuLayouts.set(key, record);
+				}
+				return;
+			}
+			assert(
+				typeof record.stream === 'string' && record.stream.length > 0,
+				'invalid source stream'
+			);
 			const previous = this.#records.get(record.stream);
 			if (previous) assert.deepEqual(previous, record, 'source binding changed within one stream');
 			else {
-				assert(this.#records.size < this.maxRecords, 'source binding capacity exhausted');
+				assert(
+					this.#records.size + this.#cpuLayouts.size < this.maxRecords,
+					'startup record capacity exhausted'
+				);
 				this.#records.set(record.stream, record);
 			}
 		} catch (error) {
@@ -152,7 +181,11 @@ export class SourceBindingCollector {
 				state.text = '';
 				state.discard = false;
 			} else if (state.text.length > this.maxLine) {
-				if (state.text.includes('[mapgyver-video-source] '))
+				if (
+					['[mapgyver-video-source] ', '[mapgyver-video-cpu] '].some((marker) =>
+						state.text.includes(marker)
+					)
+				)
 					this.#error ??= new Error('source binding line exceeds its bound');
 				state.text = '';
 				state.discard = true;
@@ -166,6 +199,9 @@ export class SourceBindingCollector {
 			state.text = '';
 		}
 		if (this.#error) throw this.#error;
-		return structuredClone([...this.#records.values()]);
+		return structuredClone({
+			bindings: [...this.#records.values()],
+			cpuLayouts: [...this.#cpuLayouts.values()]
+		});
 	}
 }

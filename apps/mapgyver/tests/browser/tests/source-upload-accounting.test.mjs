@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
 	assertQ06SourceUploads,
-	SourceBindingCollector,
+	SourceStartupCollector,
 	SourceUploadInventory
 } from '../source-upload-accounting.mjs';
 
@@ -41,7 +41,7 @@ test('resident Q06 requires actual hardware pools and rejects CPU fallback or un
 });
 
 test('Q06 checks codec-specific payloads and rejects absent, expanded or mixed HAP uploads', () => {
-	for (const codec of ['ProRes HQ', 'HAP', 'HAP Alpha', 'HAP Q']) {
+	for (const codec of ['ProRes HQ', 'ProRes 4444', 'HAP', 'HAP Alpha', 'HAP Q']) {
 		const hap = codec.startsWith('HAP');
 		const kind = hap ? 'hap' : 'software';
 		const allocation = hap ? 'hap_producers' : 'software_producers';
@@ -88,17 +88,48 @@ function binding(stream = first) {
 }
 
 test('source bindings survive fragmented/interleaved streams and rolling debug-log loss', () => {
-	const collector = new SourceBindingCollector();
+	const collector = new SourceStartupCollector();
 	const line = '[mapgyver-video-source] ' + JSON.stringify(binding()) + '\n';
 	collector.consume(line.slice(0, 17));
 	collector.consume('unrelated output\n', 'stdout');
 	collector.consume(line.slice(17));
 	collector.consume('other logs\n'.repeat(10000));
 	collector.consume(line);
-	const records = collector.finish();
+	const records = collector.finish().bindings;
 	assert.deepEqual(records, [binding()]);
 	records[0].file = 'mutated';
-	assert.deepEqual(collector.finish(), [binding()]);
+	assert.deepEqual(collector.finish().bindings, [binding()]);
+});
+
+test('first CPU layout facts survive fragmentation, deduplicate mutable samples and share the startup bound', () => {
+	const cpu = {
+		...binding(),
+		reservation_bytes: 1024,
+		reader: { decoded_storage: { limit_bytes: 512 } }
+	};
+	delete cpu.stream;
+	const line = '[mapgyver-video-cpu] ' + JSON.stringify(cpu) + '\n';
+	const collector = new SourceStartupCollector();
+	collector.consume(line.slice(0, 16));
+	collector.consume('other stream\n', 'stdout');
+	collector.consume(line.slice(16));
+	collector.consume('[mapgyver-video-cpu] ' + JSON.stringify({ ...cpu, reader: {} }) + '\n');
+	const facts = collector.finish();
+	assert.deepEqual(facts.cpuLayouts, [cpu]);
+	facts.cpuLayouts[0].reader = {};
+	assert.deepEqual(collector.finish().cpuLayouts, [cpu]);
+	const bounded = new SourceStartupCollector(1);
+	bounded.consume(line);
+	bounded.consume('[mapgyver-video-source] ' + JSON.stringify(binding()) + '\n');
+	assert.throws(() => bounded.finish());
+	for (const malformed of ['{}', JSON.stringify({ ...cpu, reservation_bytes: -1 })]) {
+		const invalid = new SourceStartupCollector();
+		invalid.consume('[mapgyver-video-cpu] ' + malformed + '\n');
+		assert.throws(() => invalid.finish());
+	}
+	const tooLong = new SourceStartupCollector(1, 30);
+	tooLong.consume(line);
+	assert.throws(() => tooLong.finish());
 });
 
 test('source binding capacity, malformed metadata and changed identity fail explicitly', () => {
@@ -107,12 +138,12 @@ test('source binding capacity, malformed metadata and changed identity fail expl
 		[binding(), { ...binding(), file: 'other' }],
 		[{ stream: first }]
 	]) {
-		const collector = new SourceBindingCollector(1);
+		const collector = new SourceStartupCollector(1);
 		for (const row of rows)
 			collector.consume('[mapgyver-video-source] ' + JSON.stringify(row) + '\n');
 		assert.throws(() => collector.finish());
 	}
-	const collector = new SourceBindingCollector(1, 30);
+	const collector = new SourceStartupCollector(1, 30);
 	collector.consume('[mapgyver-video-source] ' + 'x'.repeat(100));
 	assert.throws(() => collector.finish());
 });

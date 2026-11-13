@@ -33,6 +33,10 @@ PROFILES = {
     "prores": ("ProRes HQ", "prores-hq", ["-c:v", "prores_ks", "-profile:v", "3",
                "-pix_fmt", "yuv422p10le"], {"codec_name": "prores", "profile": "HQ",
                "pix_fmt": "yuv422p10le"}),
+    "prores_alpha": ("ProRes 4444", "prores-4444-alpha", ["-c:v", "prores_ks",
+                     "-profile:v", "4", "-alpha_bits", "16", "-pix_fmt", "yuva444p10le"],
+                     {"codec_name": "prores", "profile": "4444", "pix_fmt": "yuva444p12le",
+                     "codec_tag_string": "ap4h"}),
     "hap": ("HAP", "hap", ["-c:v", "hap", "-format", "hap", "-chunks", "4",
             "-compressor", "snappy", "-pix_fmt", "rgba"], {"codec_name": "hap",
             "codec_tag_string": "Hap1", "pix_fmt": "rgb0"}),
@@ -67,6 +71,7 @@ def verify_alpha(rgba, width):
 
 def generate(encoder, directory, codec="prores"):
     label, prefix, encoding, expected = PROFILES[codec]
+    has_alpha = codec in {"hap_alpha", "prores_alpha"}
     directory.mkdir(parents=True, exist_ok=False)
     cases = []
     for width, height, rate in [(1920, 1080, 60), (3840, 2160, 30)]:
@@ -76,7 +81,7 @@ def generate(encoder, directory, codec="prores"):
                    "drawbox=x=0:y=16:w=8:h=16:color=white:t=fill"]
         filters += [f"drawbox=x={16 + bit * 24}:y=16:w=16:h=16:color=white:t=fill:enable='bitand(n,{1 << bit})'"
                     for bit in range(12)]
-        if codec == "hap_alpha":
+        if has_alpha:
             # Keep numbered witnesses opaque; the moving picture below has two alpha levels.
             filters += ["format=rgba", "geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':"
                         "a='if(lt(Y,48),255,if(lt(X,W/2),64,192))'"]
@@ -101,7 +106,7 @@ def generate(encoder, directory, codec="prores"):
             assert actual == index, (output.name, index, actual)
             oracle.append(actual)
         alpha = []
-        if codec == "hap_alpha":
+        if has_alpha:
             pixels = subprocess.check_output([
                 str(encoder), "-hide_banner", "-loglevel", "error", "-threads", "2", "-i", str(output),
                 "-vf", f"crop={width}:64:0:0", "-frames:v", "1", "-f", "rawvideo",

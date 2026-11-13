@@ -10,7 +10,7 @@ import { openNativeEditor } from './native-editor.mjs';
 import { observeNativeAdapter } from './native-adapter.mjs';
 import { inspectNativeDiagnostics } from './native-diagnostics.mjs';
 import { inspectLocalVideoLibraries } from './video-runtime-libraries.mjs';
-import { assertQ06SourceUploads, SourceBindingCollector } from './source-upload-accounting.mjs';
+import { assertQ06SourceUploads, SourceStartupCollector } from './source-upload-accounting.mjs';
 
 const directory = path.resolve(process.argv[2]);
 const fixtures = JSON.parse(await readFile(process.argv[3], 'utf8'));
@@ -24,9 +24,9 @@ process.env.MAPGYVER_NATIVE_DIAGNOSTICS = path.join(directory, 'native');
 const command = (args) =>
 	execFileSync(executable, args, { encoding: 'utf8', windowsHide: true, timeout: 15000 });
 const hardware = JSON.parse(command(['--role', 'hardware']));
-const sourceBindings = new SourceBindingCollector();
+const sourceStartup = new SourceStartupCollector();
 const native = await openNativeEditor({
-	onLogData: (data, stream) => sourceBindings.consume(data, stream),
+	onLogData: (data, stream) => sourceStartup.consume(data, stream),
 	prepareProfile: async (root) => {
 		const preferences = path.join(root, 'MapGyver');
 		await mkdir(preferences, { recursive: true });
@@ -391,9 +391,11 @@ try {
 	await native.close();
 }
 try {
-	report.videoSourceBindings = sourceBindings.finish();
+	const startup = sourceStartup.finish();
+	report.videoSourceBindings = startup.bindings;
+	report.videoCpuLayouts = startup.cpuLayouts;
 	report.nativeDiagnostics = await inspectNativeDiagnostics(native.app.pid, native.log(), {
-		requireSoftwareUpload: fixtures.codec === 'ProRes HQ',
+		requireSoftwareUpload: fixtures.codec.startsWith('ProRes '),
 		requireVideoFrames: true,
 		requireSourceBudget: true,
 		requireSourceUploads: true
