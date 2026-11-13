@@ -4,16 +4,23 @@ const kinds = ['software', 'hap'];
 
 // Q06 HAP has two shared GPU publishers. ProRes shares HD; UHD uploads in the renderer.
 export function assertQ06SourceUploads(codec, budget) {
-	assert(['ProRes HQ', 'HAP'].includes(codec), 'supported numbered Q06 codec required');
-	const hap = codec === 'HAP';
+	assert(
+		['ProRes HQ', 'HAP', 'HAP Alpha', 'HAP Q'].includes(codec),
+		'supported numbered Q06 codec required'
+	);
+	const hap = codec.startsWith('HAP');
 	const kind = hap ? 'hap' : 'software';
 	const allocation = hap ? 'hap_producers' : 'software_producers';
 	const groups = budget.maximum_observed_classes;
 	assert.equal(groups[allocation].allocations, hap ? 2 : 1, 'one publisher per shared source');
-	// HAP retains one BC1 input, three RGBA outputs and 16 constant bytes per extent.
-	const hdBlocks = (1920 * 1080) / 2;
+	// Each HAP retains one compressed input, three RGBA outputs and 16 constant bytes.
+	const compressedBytesPerPixel = codec === 'HAP' ? 0.5 : 1;
+	const hdBlocks = 1920 * 1080 * compressedBytesPerPixel;
 	const expected = hap
-		? [1920 * 1080, 3840 * 2160].reduce((sum, pixels) => sum + pixels * (4 * 3 + 0.5) + 16, 0)
+		? [1920 * 1080, 3840 * 2160].reduce(
+				(sum, pixels) => sum + pixels * (4 * 3 + compressedBytesPerPixel) + 16,
+				0
+			)
 		: 1920 * 1080 * 4 * 3;
 	assert.equal(groups[allocation].bytes, expected);
 	assert.equal(budget.peak_admitted_bytes, groups[allocation].bytes);

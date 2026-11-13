@@ -27,6 +27,12 @@ PROFILES = {
     "hap": ("HAP", "hap", ["-c:v", "hap", "-format", "hap", "-chunks", "4",
             "-compressor", "snappy", "-pix_fmt", "rgba"], {"codec_name": "hap",
             "codec_tag_string": "Hap1", "pix_fmt": "rgb0"}),
+    "hap_alpha": ("HAP Alpha", "hap-alpha", ["-c:v", "hap", "-format", "hap_alpha",
+                  "-chunks", "4", "-compressor", "snappy", "-pix_fmt", "rgba"],
+                  {"codec_name": "hap", "codec_tag_string": "Hap5", "pix_fmt": "rgba"}),
+    "hap_q": ("HAP Q", "hap-q", ["-c:v", "hap", "-format", "hap_q", "-chunks", "4",
+              "-compressor", "snappy", "-pix_fmt", "rgba"], {"codec_name": "hap",
+              "codec_tag_string": "HapY", "pix_fmt": "rgb0"}),
 }
 
 
@@ -36,6 +42,18 @@ def validate_stream(info, expected, width, height, frames):
             raise ValueError(f"unexpected {key}: {info.get(key)!r}, expected {value!r}")
     if (info["width"], info["height"], int(info["nb_frames"])) != (width, height, frames):
         raise ValueError("unexpected fixture dimensions or frame count")
+
+
+def verify_alpha(rgba, width):
+    if len(rgba) != width * 64 * 4:
+        raise ValueError("unexpected alpha oracle buffer length")
+    samples = []
+    for x, y, expected in [(4, 24, 255), (8, 56, 64), (width - 8, 56, 192)]:
+        actual = rgba[(y * width + x) * 4 + 3]
+        if abs(actual - expected) > 3:
+            raise ValueError(f"alpha at {(x, y)} is {actual}, expected {expected}")
+        samples.append({"x": x, "y": y, "expected": expected, "actual": actual})
+    return samples
 
 
 def generate(encoder, directory, codec="prores"):
@@ -49,6 +67,10 @@ def generate(encoder, directory, codec="prores"):
                    "drawbox=x=0:y=16:w=8:h=16:color=white:t=fill"]
         filters += [f"drawbox=x={16 + bit * 24}:y=16:w=16:h=16:color=white:t=fill:enable='bitand(n,{1 << bit})'"
                     for bit in range(12)]
+        if codec == "hap_alpha":
+            # Keep numbered witnesses opaque; the moving picture below has two alpha levels.
+            filters += ["format=rgba", "geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':"
+                        "a='if(lt(Y,48),255,if(lt(X,W/2),64,192))'"]
         command = [str(encoder), "-hide_banner", "-loglevel", "error", "-n", "-f", "lavfi", "-i",
                    f"testsrc2=size={width}x{height}:rate={rate}", "-vf", ",".join(filters),
                    "-frames:v", str(frames), "-an", *encoding,
@@ -69,9 +91,17 @@ def generate(encoder, directory, codec="prores"):
             actual = frame_code(pixels)
             assert actual == index, (output.name, index, actual)
             oracle.append(actual)
+        alpha = []
+        if codec == "hap_alpha":
+            pixels = subprocess.check_output([
+                str(encoder), "-hide_banner", "-loglevel", "error", "-threads", "2", "-i", str(output),
+                "-vf", f"crop={width}:64:0:0", "-frames:v", "1", "-f", "rawvideo",
+                "-pix_fmt", "rgba", "pipe:1"], timeout=30)
+            alpha = verify_alpha(pixels, width)
         cases.append({"file": str(output.resolve()), "width": width, "height": height, "rate": rate,
                       "frames": frames, "duration_seconds": 4, "bytes": output.stat().st_size,
-                      "sha256": digest(output), "stream": info, "verified_frame_codes": oracle})
+                      "sha256": digest(output), "stream": info, "verified_frame_codes": oracle,
+                      "verified_alpha_samples": alpha})
     manifest = {"schema": 1, "codec": label, "encoder": str(encoder), "encoder_sha256": digest(encoder),
                 "encoder_version": subprocess.check_output([str(encoder), "-version"], text=True).splitlines()[0],
                 "generator_sha256": digest(__file__), "frame_code": {"bits": 12, "x": 24, "y": 24, "step": 24,

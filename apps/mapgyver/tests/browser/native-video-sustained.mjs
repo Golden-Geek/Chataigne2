@@ -283,7 +283,7 @@ try {
 	const created = await edit({
 		kind: 'CreateMedia',
 		media_kind: 'Video',
-		label: 'Q06 ProRes transport'
+		label: `Q06 ${fixtures.codec} transport`
 	});
 	media = created.reference.media;
 	await edit({ kind: 'ConfigureMediaResolution', media, size: { kind: 'Automatic' } });
@@ -382,7 +382,7 @@ try {
 try {
 	report.videoSourceBindings = sourceBindings.finish();
 	report.nativeDiagnostics = await inspectNativeDiagnostics(native.app.pid, native.log(), {
-		requireSoftwareUpload: fixtures.codec !== 'HAP',
+		requireSoftwareUpload: !fixtures.codec.startsWith('HAP'),
 		requireVideoFrames: true,
 		requireSourceBudget: true,
 		requireSourceUploads: true

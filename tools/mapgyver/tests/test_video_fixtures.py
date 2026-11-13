@@ -8,6 +8,22 @@ MODULE = runpy.run_path(str(Path(__file__).parents[1] / "video_fixtures.py"))
 
 
 class VideoFixtureTests(unittest.TestCase):
+    def test_alpha_oracle_rejects_opaque_replacement_and_lost_marker_opacity(self):
+        width = 320
+        pixels = bytearray(width * 64 * 4)
+        sites = [(4, 24, 255), (8, 56, 64), (width - 8, 56, 192)]
+        for x, y, alpha in sites:
+            pixels[(y * width + x) * 4 + 3] = alpha
+        self.assertEqual([x["actual"] for x in MODULE["verify_alpha"](pixels, width)],
+                         [255, 64, 192])
+        for x, y, _ in sites:
+            wrong = pixels.copy()
+            wrong[(y * width + x) * 4 + 3] = 0
+            with self.assertRaises(ValueError):
+                MODULE["verify_alpha"](wrong, width)
+        with self.assertRaises(ValueError):
+            MODULE["verify_alpha"](pixels[:-1], width)
+
     def test_stream_contract_rejects_wrong_codec_layout_and_frame_count(self):
         validate = MODULE["validate_stream"]
         for profile in MODULE["PROFILES"].values():
