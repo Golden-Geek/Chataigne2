@@ -43,5 +43,47 @@
 			}
 		]
 	},
-	"remaining": "No sustained workload rerun or performance acceptance in this implementation slice. The prior source-cohort receipt retains failed Intel timing/age results. Rebuild the ordinary app/probe and run that unchanged workload to measure the actual effect. NVIDIA awaits a fresh supported overlay-Off observation; Computer Use requires unavailable node_repl. All original profiles, repeated series, age/path/CPU/resource/plane/pool/in-flight scope and final M09 Q03/Q05 remain required. M10/4 stays Active;88/106 (83%),M10 5/8,8/15 phases unchanged. M14 follows4 acceptance."
+	"ordinary_app_cohort": {
+		"base_commit": "09cf9ba36caa2440df34faebc78f9cf4fb54f2a3",
+		"adapter": "dxgi:00000000:000156b6",
+		"pid": 8284,
+		"exit_code": 0,
+		"builds": "Normal default MapGyver build0 in82.19s, native receiver probe build0 in68.53s. Prerequisite software/strict/native results inspected before this single existing workload. All recorded concurrent compile inputs match the prior baseline; the script's post-shutdown source-peak assertion was strengthened in the prior milestone, without changing the workload.",
+		"binary_sha256": "713267e457ca09a3b770623cf8c841c672f0917c96aec52ad6bd145879e0d32c",
+		"probe_sha256": "cbf8ef5e72cbe709aaaefa1f3e6e521eb90bc480145ca641d46f1f727240e719",
+		"workload": "Same hashed four-second ProResHQ1080p60 +4K30 files, shared HD Reference, three authored outputs and default Screen/preview.30s warmup,120s visible,60s minimized,60s receivers disconnected. Three independent SDK held-frame images match;135 Ready/Playing observations,0 page errors and normal owned shutdown0.",
+		"render_reuse": "15948 actual FrameCpu rows,0 missing wall intervals. Visible:7006 submissions,45032 rendered and25028 reused logical passes (35.72% reused). Minimized:3595 submissions,25139 rendered/10811 reused. Disconnected:3298 submissions,21593 rendered/11387 reused. Counts prove reuse, not isolated shader work or full-path acceptance.",
+		"visible": {
+			"observed_source_publications_per_second": [49.09194903396789, 26.378385237627473],
+			"maximum_definite_deadline_miss_fraction": 0.027345918933925597,
+			"maximum_observed_deadline_miss_fraction": 0.031232648528595225,
+			"hd_publication_copy_p95_upper_ms": 69.3247,
+			"uhd_publication_copy_p95_upper_ms": null,
+			"age_limits": "HD p95 exceeds50ms;4K p95 stays unbounded (840/6978 missing receiver completions). HD282/7000 missing witnesses also keep p99/max unbounded. Never substitute a finite subset or call a failure lower bound an age pass.",
+			"cpu_wall_upper_p95_ms": 4.2025,
+			"renderer_context_p95_ms": 22.4640625,
+			"render_partition_p95_ms": 9.27171875,
+			"output_partition_p95_ms": 11.912552083333333,
+			"partition_limit": "Outputs are the largest measured partition in6301/7006 batches. These context spans include waits/scheduling/feed gaps; no isolated shader-time or cross-context critical-path claim. Code still unconditionally converts each admitted output."
+		},
+		"minimized": "Observed HD59.6912/4K29.9705 publications/s; maximum definite misses0.2498%. Publication-copy p95 upper bounds31.7275/45.2514ms satisfy50ms for this sample/phase only; missing witnesses keep maximum age unbounded.",
+		"disconnected": "Observed HD44.9593/4K29.9562 publications/s; maximum definite misses8.4906%. Receiver age is unbounded by design after receiver disconnect.",
+		"comparison": "Prior visible source-cohort baseline:HD17.4837/4K21.0487 publications/s,22.5569% definite misses,HD p95 upper289.3713ms. New visible throughput/age improves substantially, but one operational comparison is not the required repeated production series or a controlled causal attribution. Earlier failures remain retained.",
+		"resources": "282 source-GPU snapshots across5 complete captures: exactly one shared HD software producer and24883200-byte lifetime peak; decoder/hardware/HAP source classes0. Every capture ends with native uninitialized and zero source-GPU/plan/owned texel allocations;0 ring drops/clock failures/duration cutoff. Five loaded executable-local FFmpeg libraries match the pinned bundle.",
+		"report": "target/q06-render-reuse-intel-2026-11-13/sample.json",
+		"report_sha256": "13fabaa3eb32ab80f4ce2d0bab41fd2dd11aaca4dc171771f9d7eee1baafdb85",
+		"audit": "target/q06-render-reuse-intel-2026-11-13/audit.json",
+		"audit_sha256": "a890438da4b55fb8cc21a763ced95ecac3554087009af04a12c0be858f91717f",
+		"execution_inputs": "target/q06-render-reuse-intel-2026-11-13/execution-inputs.json",
+		"execution_inputs_sha256": "7f3da76e651132e90f8b18f039c9bc0b304e959b2999403b9913202e5cd304db",
+		"pass_counts": "target/q06-render-reuse-intel-2026-11-13/pass-reuse-observations.json",
+		"pass_counts_sha256": "58eb30b640907dde94bb6bda3100b2fc6dc526e0ee91179bebb075e2544444c0",
+		"log": "target/q06-render-reuse-intel-2026-11-13.log",
+		"log_sha256": "7584ae1f5412bf675d11a5dd19b38a40ebae65e99dfca1bdb5c6fd08a1c7ea91",
+		"app_build_log": "target/m10-render-reuse-cohort-app-build-2026-11-13.log",
+		"app_build_log_sha256": "900d327d8955a6f27ff16b25f389763ccf6189340d502eeed251810ca0c71b52",
+		"probe_build_log": "target/m10-render-reuse-cohort-probe-build-2026-11-13.log",
+		"probe_build_log_sha256": "312ee163e72a11490d47e90a511472b38ad2ea7caac7ca9806ffaedfbeda23d8"
+	},
+	"remaining": "M10/4 is not accepted: visible HD p95 still exceeds50ms and4K p95 is unbounded; complete cadence/deadline qualification remains open. Next product slice: reuse unchanged Spout output conversions, while preserving every due delivery, live changes, generation ownership and retirement. Use current partitions and unconditional conversion code; no new profiler/sampler. NVIDIA awaits a fresh supported overlay-Off observation; Computer Use requires unavailable node_repl. All original profiles, repeated series, age/path/CPU/resource/plane/pool/in-flight scope and final M09 Q03/Q05 remain required. M10/4 stays Active;88/106 (83%),M10 5/8,8/15 phases unchanged. M14 follows4 acceptance."
 }
