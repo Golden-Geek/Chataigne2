@@ -31,6 +31,7 @@ pub mod protocol;
 mod stops;
 mod timeline;
 mod video;
+pub(crate) mod video_refresh;
 mod view;
 pub(crate) use admission::validate_ui_intent;
 pub(crate) use application_axis::capture as capture_application_axis;

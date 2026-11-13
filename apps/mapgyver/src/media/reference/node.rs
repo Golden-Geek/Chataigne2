@@ -32,6 +32,8 @@ node output: super::ReferenceOutputNode = (self.create_output()) (label = "Outpu
 pub struct ReferenceNode {
     #[state(default = RevisionSource::default())]
     revision: RevisionSource,
+    #[state(default = RevisionSource::default())]
+    route_revision: RevisionSource,
 }
 impl ReferenceNode {
     fn create_output(&self) -> super::ReferenceOutputNode {
@@ -122,6 +124,10 @@ impl ReferenceNode {
         let reader = self.revision.reader();
         reader.guard_at(reader.current())
     }
+    pub(crate) fn route_guard(&self) -> RevisionGuard {
+        let reader = self.route_revision.reader();
+        reader.guard_at(reader.current())
+    }
     pub(crate) fn definition(&self, engine: &AppEngine, _channel: ChannelId) -> ChannelDefinition {
         let size = if engine
             .nodes
@@ -158,17 +164,22 @@ impl Node for ReferenceNode {
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&[super::super::composition::PLACEMENT_TYPE]))
     }
-    fn on_param_change(&mut self, _: &mut ProcessCtx, _: NodeId, _: ParamValue) {
+    fn on_param_change(&mut self, _: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
         self.revision.advance();
+        if parameter == self.target.id() || parameter == self.channel.id() {
+            self.route_revision.advance();
+        }
     }
     fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, _: bool) {
         self.revision.advance();
+        self.route_revision.advance();
     }
     fn on_meta_changed(&mut self, _: &mut ProcessCtx, _: NodeId, _: golden_core::node::NodeMetaPatch) {
         self.revision.advance();
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
         self.revision.advance();
+        self.route_revision.advance();
     }
     fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
         crate::parameters::reject_opaque(data)

@@ -30,6 +30,14 @@ pub struct MatrixVideoUse {
     active: bool,
 }
 impl MatrixVideoUse {
+    pub(crate) fn is_current(&self) -> bool {
+        self.control.as_ref().is_some_and(|control| {
+            control
+                .0
+                .lock()
+                .is_ok_and(|state| !state.retired && state.matrix_generation == self.generation)
+        })
+    }
     /// Begin outgoing retention. The last active consumer captures the deactivation policy
     /// and manual-intent fence. Repeated calls are harmless; no clock action happens here.
     pub fn deactivate(&mut self) -> Result<(), String> {

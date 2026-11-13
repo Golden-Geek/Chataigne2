@@ -350,6 +350,16 @@ impl<T: Node> Engine<T> {
                     subscriber,
                     subscription,
                 } => self.apply_remove_event_listener(subscriber, subscription),
+                crate::edit::Edit::BindParamRuntimeRange { node, range } => {
+                    // Reconnect the restored owner's runtime source; this is not authored state.
+                    self.apply_param_runtime_range(
+                        edit_index,
+                        node,
+                        super::super::parameter_feedback::RuntimeRangeUpdate::Bind(range),
+                        request.param_source,
+                        None,
+                    )?;
+                }
                 _ => continue,
             }
             self.complete_edit_requests(request.completions);

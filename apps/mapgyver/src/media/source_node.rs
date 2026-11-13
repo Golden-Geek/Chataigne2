@@ -4,10 +4,15 @@ use crate::app::{AppEngine, AppNode};
 use golden_core::node::{Node, NodeUuid};
 
 /// A real media identity can exist before its first output becomes available.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct MediaSource {
     pub media: MediaId,
     pub channel: Option<ChannelId>,
+}
+pub(crate) enum VideoRoute {
+    Missing,
+    Unavailable,
+    Video(MediaId, std::sync::Arc<super::video::VideoControl>),
 }
 impl MediaSource {
     /// Resolve only selected Video media (including Reference chains), never independent
@@ -15,21 +20,70 @@ impl MediaSource {
     pub fn video_owner(
         self,
         engine: &AppEngine,
-    ) -> Result<Option<(MediaId, std::sync::Arc<super::video::VideoControl>)>, String> {
-        let Some(output) = self.capture(engine, &mut Vec::new())? else {
-            return Ok(None);
-        };
-        let reference = super::reference::Resolver::new(engine).canonical(output)?;
-        let Some(AppNode::Media(node)) = engine
-            .node_id_by_uuid(reference.media.0)
-            .and_then(|id| engine.nodes.get(id))
-        else {
-            return Ok(None);
-        };
-        if !node.node_data().effective_enabled {
-            return Ok(None);
+        guards: &mut Vec<golden_io::RevisionGuard>,
+    ) -> Result<VideoRoute, String> {
+        let mut selection = self;
+        let mut seen = std::collections::HashSet::new();
+        loop {
+            if !seen.insert(selection.media) {
+                return Err("Reference media dependency cycle".into());
+            }
+            let node = engine
+                .node_id_by_uuid(selection.media.0)
+                .and_then(|id| engine.nodes.get(id));
+            let enabled = match node {
+                Some(AppNode::Media(node)) => {
+                    guards.push(node.route_guard());
+                    routing_enabled(engine, node.as_ref())
+                }
+                Some(AppNode::ReferenceMedia(node)) => {
+                    guards.push(node.route_guard());
+                    routing_enabled(engine, node.as_ref())
+                }
+                _ => {
+                    let manager = super::authoring::manager(engine)?;
+                    if let Some(AppNode::MediaManager(manager)) = engine.nodes.get(manager) {
+                        guards.push(manager.membership_guard());
+                    }
+                    return Ok(VideoRoute::Missing);
+                }
+            };
+            if !enabled {
+                return Ok(VideoRoute::Unavailable);
+            }
+            let Some(output) = selection.output(engine)? else {
+                return Ok(VideoRoute::Missing);
+            };
+            let channel = engine
+                .node_id_by_uuid(output.channel.0)
+                .and_then(|id| engine.nodes.get(id));
+            if let Some(AppNode::MediaChannel(channel)) = channel {
+                guards.push(channel.route_guard());
+            }
+            let Some(channel) = channel else {
+                return Ok(VideoRoute::Missing);
+            };
+            if !routing_enabled(engine, channel) {
+                return Ok(VideoRoute::Unavailable);
+            }
+            match node {
+                Some(AppNode::ReferenceMedia(node)) if node.output_reference(engine) == output => {
+                    let Some(media) = node.target() else {
+                        return Ok(VideoRoute::Unavailable);
+                    };
+                    selection = Self {
+                        media,
+                        channel: node.selected_channel(),
+                    };
+                }
+                Some(AppNode::Media(node)) => {
+                    return Ok(node.video_control().map_or(VideoRoute::Unavailable, |control| {
+                        VideoRoute::Video(selection.media, control)
+                    }));
+                }
+                _ => return Ok(VideoRoute::Unavailable),
+            }
         }
-        Ok(node.video_control().map(|control| (reference.media, control)))
     }
     pub fn output(self, engine: &AppEngine) -> Result<Option<ChannelReference>, String> {
         let channel = match self.channel {
@@ -91,6 +145,25 @@ impl MediaSource {
         }
         Ok(None)
     }
+}
+
+fn routing_enabled(engine: &AppEngine, node: &dyn Node) -> bool {
+    if node.node_data().effective_enabled {
+        return true;
+    }
+    if !node.node_data().meta.enabled {
+        return false;
+    }
+    let mut parent = node.node_data().parent;
+    while let Some(id) = parent {
+        let Some(node) = engine.nodes.get(id) else { return false };
+        // Matrix visibility does not implicitly Stop a launched clip or its app demand.
+        if !node.node_data().meta.enabled && !matches!(node, AppNode::MatrixElement(_) | AppNode::MatrixCell(_)) {
+            return false;
+        }
+        parent = node.node_data().parent;
+    }
+    true
 }
 
 /// Resolves an actual Media or Channel node. Media selects its first ordered channel;

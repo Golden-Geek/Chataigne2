@@ -3,6 +3,7 @@ use super::{configuration::Configuration, protocol::*, timeline::Frame};
 use crate::{
     app::{AppEngine, AppNode},
     media::{
+        MediaSource,
         protocol::MediaId,
         video::{MatrixVideoUse, VideoControl},
     },
@@ -10,19 +11,34 @@ use crate::{
 use golden_core::node::Node;
 use std::{
     collections::{HashMap, HashSet},
-    sync::Arc,
+    sync::{Arc, Weak},
     time::{Duration, Instant},
 };
 
 pub(super) struct Prepared {
     rows: HashMap<LayerId, Row>,
+    routes: HashMap<MediaSource, Route>,
+}
+struct Route {
+    owner: Option<(MediaId, Weak<VideoControl>)>,
+    missing: bool,
+    guards: Vec<golden_io::RevisionGuard>,
+}
+impl Route {
+    fn owner(&self) -> Option<VideoOwner> {
+        let (media, control) = self.owner.as_ref()?;
+        Some((*media, control.upgrade()?))
+    }
 }
 type VideoOwner = (MediaId, Arc<VideoControl>);
+#[derive(Clone)]
 struct Row {
     identity: Option<uuid::Uuid>,
     key: Option<Key>,
     duration: Duration,
     source: Option<VideoOwner>,
+    selection: Option<MediaSource>,
+    available: bool,
 }
 #[derive(Clone, Copy, PartialEq, Eq)]
 struct Key {
@@ -36,6 +52,7 @@ struct Active {
     source: VideoOwner,
     lease: MatrixVideoUse,
     order: u64,
+    selection: MediaSource,
 }
 struct Outgoing {
     layer: LayerId,
@@ -49,21 +66,45 @@ pub(super) struct Playback {
     targets: HashMap<LayerId, Option<uuid::Uuid>>,
 }
 impl Prepared {
+    fn retains(&self, row: &Row, active: &Active) -> bool {
+        if !row.available || row.identity != Some(active.identity) || row.key != Some(active.key) {
+            return false;
+        }
+        if let Some(source) = &row.source {
+            return Arc::ptr_eq(&source.1, &active.source.1) && active.lease.is_current();
+        }
+        // A frozen producer can still feed retained pixels after its authored node disappears.
+        row.selection
+            .and_then(|selection| self.routes.get(&selection))
+            .is_some_and(|route| route.missing)
+    }
+    pub fn is_current(&self) -> bool {
+        self.routes
+            .values()
+            .flat_map(|route| &route.guards)
+            .all(golden_io::RevisionGuard::is_current)
+    }
     pub fn empty() -> Arc<Self> {
-        Arc::new(Self { rows: HashMap::new() })
+        Arc::new(Self {
+            rows: HashMap::new(),
+            routes: HashMap::new(),
+        })
     }
     pub fn capture(
         engine: &AppEngine,
         desired: &MatrixPlaybackSnapshot,
         index: &Configuration,
         version: u64,
+        retained: Vec<MediaSource>,
+        epochs: &HashMap<uuid::Uuid, u64>,
+        previous: Option<&Self>,
     ) -> Result<Arc<Self>, String> {
         let overrides = desired
             .layers
             .iter()
             .map(|row| (row.layer, row))
             .collect::<HashMap<_, _>>();
-        let mut sources: HashMap<_, Option<VideoOwner>> = HashMap::new();
+        let mut routes = HashMap::new();
         let mut rows = HashMap::new();
         for &layer in &index.layers {
             let row = overrides.get(&layer);
@@ -71,44 +112,102 @@ impl Prepared {
                 (desired.desired_column, desired.launch_id, desired.transition, false),
                 |row| (row.column, row.launch_id, row.transition, row.individual),
             );
-            let source = match column
-                .and_then(|column| index.cell_nodes.get(&(layer, column)))
-                .and_then(|id| engine.nodes.get(*id))
-            {
-                Some(AppNode::MatrixCell(cell))
-                    if cell.node_data().effective_enabled && cell.settings(engine).enabled =>
-                {
-                    cell.selection(engine)?
-                }
-                _ => None,
-            };
-            let source = if let Some(source) = source {
-                let key = (source.media, source.channel);
-                match sources.entry(key) {
-                    std::collections::hash_map::Entry::Occupied(entry) => entry.get().clone(),
-                    std::collections::hash_map::Entry::Vacant(entry) => {
-                        entry.insert(source.video_owner(engine)?).clone()
-                    }
-                }
+            let frozen = previous.and_then(|plan| plan.rows.get(&layer)).filter(|row| {
+                row.identity == identity
+                    && row
+                        .key
+                        .is_some_and(|key| Some(key.column) == column && key.individual == individual)
+            });
+            let source = if let Some(frozen) = frozen {
+                frozen.selection
             } else {
-                None
+                match column
+                    .and_then(|column| index.cell_nodes.get(&(layer, column)))
+                    .and_then(|id| engine.nodes.get(*id))
+                {
+                    Some(AppNode::MatrixCell(cell))
+                        if cell.node_data().effective_enabled && cell.settings(engine).enabled =>
+                    {
+                        cell.selection(engine)?
+                    }
+                    _ => None,
+                }
             };
+            let selection = source;
+            let source = selection
+                .map(|selection| resolve(engine, &mut routes, selection))
+                .transpose()?
+                .flatten();
             rows.insert(
                 layer,
                 Row {
                     identity,
                     key: column.map(|column| Key {
                         column,
-                        version,
+                        version: identity.and_then(|id| epochs.get(&id)).copied().unwrap_or(version),
                         individual,
                     }),
                     duration: Duration::from_millis(u64::from(transition.duration_ms)),
                     source,
+                    selection,
+                    available: true,
                 },
             );
         }
-        Ok(Arc::new(Self { rows }))
+        for selection in retained {
+            resolve(engine, &mut routes, selection)?;
+        }
+        Ok(Arc::new(Self { rows, routes }))
     }
+    pub fn refresh(
+        &self,
+        engine: &AppEngine,
+        layers: &HashSet<LayerId>,
+        retained: Vec<MediaSource>,
+    ) -> Result<Arc<Self>, String> {
+        let mut rows = self.rows.clone();
+        let mut routes = HashMap::new();
+        for (layer, row) in &mut rows {
+            row.available = layers.contains(layer);
+            row.source = if row.available {
+                row.selection
+                    .map(|selection| resolve(engine, &mut routes, selection))
+                    .transpose()?
+                    .flatten()
+            } else {
+                None
+            };
+        }
+        for selection in retained {
+            resolve(engine, &mut routes, selection)?;
+        }
+        Ok(Arc::new(Self { rows, routes }))
+    }
+    pub fn subscribe(&self, notifier: golden_io::WorkerNotifier) -> Vec<golden_io::RevisionSubscription> {
+        self.routes
+            .values()
+            .flat_map(|route| &route.guards)
+            .map(|guard| guard.subscribe(notifier.clone()))
+            .collect()
+    }
+}
+fn resolve(
+    engine: &AppEngine,
+    routes: &mut HashMap<MediaSource, Route>,
+    selection: MediaSource,
+) -> Result<Option<VideoOwner>, String> {
+    if let std::collections::hash_map::Entry::Vacant(entry) = routes.entry(selection) {
+        let mut guards = Vec::new();
+        let resolved = selection.video_owner(engine, &mut guards)?;
+        let missing = matches!(resolved, crate::media::VideoRoute::Missing);
+        let owner = match resolved {
+            crate::media::VideoRoute::Video(media, control) => Some((media, control)),
+            _ => None,
+        };
+        let owner = owner.map(|(media, control)| (media, Arc::downgrade(&control)));
+        entry.insert(Route { owner, missing, guards });
+    }
+    Ok(routes[&selection].owner())
 }
 impl Playback {
     pub fn accepts(&self, prepared: &Prepared) -> bool {
@@ -143,11 +242,7 @@ impl Playback {
         let mut failure = None;
         for (&layer, row) in &prepared.rows {
             if let Some(existing) = self.active.get(&layer)
-                && row.identity == Some(existing.identity)
-                && row
-                    .source
-                    .as_ref()
-                    .is_some_and(|source| Arc::ptr_eq(&source.1, &existing.source.1))
+                && prepared.retains(row, existing)
             {
                 incoming.insert(layer, self.active.remove(&layer).unwrap());
                 continue;
@@ -163,6 +258,7 @@ impl Playback {
                                 source: source.clone(),
                                 lease,
                                 order,
+                                selection: row.selection.expect("resolved Video selection"),
                             },
                         );
                     }
@@ -227,6 +323,97 @@ impl Playback {
     }
     pub fn next_deadline(&self) -> Option<Instant> {
         self.outgoing.iter().map(|outgoing| outgoing.deadline).min()
+    }
+    pub fn selections(&self) -> Vec<MediaSource> {
+        self.active
+            .values()
+            .chain(self.outgoing.iter().map(|outgoing| &outgoing.active))
+            .map(|active| active.selection)
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect()
+    }
+    pub fn reconcile(&mut self, plan: &Prepared, orders: &HashMap<uuid::Uuid, u64>) -> Result<(), String> {
+        let mut failure = None;
+        let mut replacements = Vec::new();
+        for (&layer, row) in &plan.rows {
+            if self.active.get(&layer).is_some_and(|active| plan.retains(row, active)) {
+                continue;
+            }
+            let next = match (row.identity, row.key, row.source.as_ref(), row.selection) {
+                (Some(identity), Some(key), Some(source), Some(selection)) => {
+                    match source.1.activate_for_matrix(identity) {
+                        Ok(lease) => Some(Active {
+                            identity,
+                            key,
+                            source: source.clone(),
+                            lease,
+                            order: orders.get(&identity).copied().unwrap_or(0),
+                            selection,
+                        }),
+                        Err(error) => {
+                            failure.get_or_insert(error);
+                            None
+                        }
+                    }
+                }
+                _ => None,
+            };
+            replacements.push((layer, next));
+        }
+        let mut outgoing_replacements = Vec::new();
+        for (index, outgoing) in self.outgoing.iter().enumerate() {
+            if plan.rows.get(&outgoing.layer).is_some_and(|row| row.available)
+                && plan
+                    .routes
+                    .get(&outgoing.active.selection)
+                    .is_some_and(|route| route.missing)
+            {
+                continue;
+            }
+            let source = plan
+                .routes
+                .get(&outgoing.active.selection)
+                .filter(|_| plan.rows.get(&outgoing.layer).is_some_and(|row| row.available))
+                .and_then(Route::owner);
+            if source
+                .as_ref()
+                .is_some_and(|source| Arc::ptr_eq(&source.1, &outgoing.active.source.1))
+                && outgoing.active.lease.is_current()
+            {
+                continue;
+            }
+            let next =
+                source
+                    .as_ref()
+                    .and_then(|source| match source.1.activate_for_matrix(outgoing.active.identity) {
+                        Ok(lease) => Some((source.clone(), lease)),
+                        Err(error) => {
+                            failure.get_or_insert(error);
+                            None
+                        }
+                    });
+            outgoing_replacements.push((index, next));
+        }
+        // All incoming uses exist before any old owner can receive a final deactivation.
+        for (layer, next) in replacements {
+            self.active.remove(&layer);
+            if let Some(next) = next {
+                self.active.insert(layer, next);
+            }
+        }
+        for (index, next) in outgoing_replacements.into_iter().rev() {
+            if let Some((source, mut lease)) = next {
+                if let Err(error) = lease.deactivate() {
+                    failure.get_or_insert(error);
+                }
+                self.outgoing[index].active.source = source;
+                self.outgoing[index].active.lease = lease;
+            } else {
+                self.outgoing.remove(index);
+            }
+        }
+        failure.map_or(Ok(()), Err)
     }
     pub fn columns(&self) -> impl Iterator<Item = ColumnId> + '_ {
         self.active

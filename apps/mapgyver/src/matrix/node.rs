@@ -296,6 +296,9 @@ impl Node for ElementNode {
     }
     fn on_node_ready(&mut self, _: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
         self.pulses.ready();
+        if let Some(binding) = self.runtime.get() {
+            binding.invalidate_videos();
+        }
     }
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
         let id = self.id();
@@ -311,6 +314,9 @@ impl Node for ElementNode {
     fn destroy(&mut self, _: &mut ProcessCtx) {
         self.pulses.destroy();
         self.invalidate();
+        if let Some(binding) = self.runtime.get() {
+            binding.invalidate_videos();
+        }
     }
     fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
         crate::parameters::reject_opaque(data)

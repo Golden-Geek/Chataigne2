@@ -61,6 +61,8 @@ pub struct MediaNode {
     pulses: crate::matrix::controls::Pulses,
     #[state(default = RevisionSource::default())]
     membership: RevisionSource,
+    #[state(default = RevisionSource::default())]
+    source_lifecycle: RevisionSource,
     #[state(default = OnceLock::new())]
     matrix_root: OnceLock<golden_core::node::NodeUuid>,
     #[state(default = OnceLock::new())]
@@ -264,6 +266,10 @@ impl MediaNode {
         let reader = self.membership.reader();
         reader.guard_at(reader.current())
     }
+    pub(crate) fn route_guard(&self) -> RevisionGuard {
+        let reader = self.source_lifecycle.reader();
+        reader.guard_at(reader.current())
+    }
     pub(crate) fn matrix_root(&self) -> Option<golden_core::node::NodeUuid> {
         self.matrix_root.get().copied()
     }
@@ -343,9 +349,11 @@ impl Node for MediaNode {
         }
         self.pulses.destroy();
         self.membership.advance();
+        self.source_lifecycle.advance();
     }
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
         self.membership.advance();
+        self.source_lifecycle.advance();
     }
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
         self.pulses.ready();
@@ -384,6 +392,8 @@ impl Node for MediaNode {
         }
     }
     fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
+        self.membership.advance();
+        self.source_lifecycle.advance();
         if !enabled {
             self.pulses.revoke();
         }

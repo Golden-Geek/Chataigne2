@@ -2,7 +2,7 @@
 	"date": "2026-11-12",
 	"gate": "M10/7",
 	"accepted": false,
-	"result": "configured_and_headless_functionally_verified_native_pending",
+	"result": "configured_headless_and_live_routes_functionally_verified_native_pending",
 	"deliverable": "Video-owned On Activate and On Deactivate enum Parameters, generic Inspector metadata, typed public operations, command nodes, named script methods and generated contracts. Editing policies alone does not alter transport.",
 	"defaults": { "on_activate": "PlayFromStart", "on_deactivate": "Stop" },
 	"choices": {
@@ -175,11 +175,68 @@
 		},
 		"limits": "Same task-local resource-copy-only override protects the user's running app and locked FFmpeg DLLs; no packaging/copy proof. No UI/protocol change; retain earlier clean UI checks and current generated-contract tests. No native experiment in this partial slice. Today's immediate Layer Stop behavior remains; M14/10 still requires resolved fading Stop."
 	},
+	"source_lifecycle": {
+		"date": "2026-11-13",
+		"behavior": "Freeze the selected Cell recipe per activation, including unchanged Layers during other launches. Follow live nested Reference targets through focused route/lifecycle revision notifications and the existing bounded token-fenced actor operation service. Apply only after the edit receipt; reject stale recipes before activation. Acquire incoming owners before releasing old uses. Outgoing retargets inherit their existing clip deadline. Missing frozen producers retain existing uses through their visible clip; disabled/unconfigured sources withdraw. Removed Layers release scopes; history restoration reacquires the current Video generation. Matrix Layer/Cell visibility is render suppression rather than an implicit Stop.",
+		"ownership": "Route metadata holds weak canonical owners and revision guards; live clip uses own clocks. Content/color/resolution/manual transport/feedback changes do not recapture routes. No new periodic node work, host service, GPU completion or UI domain policy.",
+		"golden_fix": "History-ready callbacks preserve BindParamRuntimeRange as a runtime registration, alongside existing runtime bindings/listeners. Authored callback edits remain suppressed. This fixes restored Video position feedback without app-side range shims; a generic repeated Undo/Redo regression verifies refreshed bounds and unchanged history.",
+		"software": {
+			"exit_code": 0,
+			"mapgyver_passed": 677,
+			"mapgyver_ignored": 4,
+			"golden_engine_passed": 696,
+			"golden_engine_ignored": 3,
+			"failed": 0,
+			"test_threads": 4,
+			"log": "target/m10-matrix-route-tests-final.log",
+			"new_app_tests": 10,
+			"new_golden_tests": 1,
+			"scope": "All nine nested Reference retarget policy pairs; Video/media/channel/Reference enable; two-Matrix sharing and Undo/Redo; outgoing Reference retarget/deadline; frozen replacement/unrelated Layer launch; deletion/restoration/fresh generation; no route notifications for content/resolution/manual transport; stale-recipe reactivation once; Layer visibility continuity. Generic range restoration and existing complete app/engine/contract suites pass."
+		},
+		"earlier_checks": [
+			{
+				"log": "target/m10-matrix-route-tests.log",
+				"result": "interrupted_no_terminal_result",
+				"limit": "Old handle7659 disappeared across the interruption; no live Cargo/Rust process remained on resume. No passing validation is inferred."
+			},
+			{
+				"log": "target/m10-matrix-route-tests-resumed.log",
+				"exit_code": 101,
+				"passed": 671,
+				"failed": 2,
+				"correction": "Restored range binding was discarded by Golden history replay; fixed at that runtime registration boundary. Re-enable fixture now services the normal bounded actor turn required by source revalidation."
+			},
+			{
+				"log": "target/m10-matrix-route-tests-qualified.log",
+				"exit_code": 101,
+				"passed": 675,
+				"failed": 1,
+				"correction": "Stale-recipe fixture changed Media while retaining a foreign pinned Channel, correctly rejected by backend validation; changed fixture to valid channels of the same Video."
+			},
+			{
+				"log": "target/m10-matrix-route-tests-verified.log",
+				"exit_code": 101,
+				"passed": 675,
+				"failed": 1,
+				"limit": "Same pinned-channel fixture rejection; Golden test binary compiled but Cargo stopped after app failure. No Golden test pass is claimed for this attempt."
+			}
+		],
+		"strict_lint": {
+			"result": "pass",
+			"exit_code": 0,
+			"all_targets": true,
+			"native_qualification": true,
+			"warnings_denied": true,
+			"packages": ["MapGyver", "golden_engine"],
+			"log": "target/m10-matrix-route-clippy.log",
+			"configuration": "Task-local resource-copy-only override; unchanged Rust targets/features"
+		},
+		"limits": "Validation uses the task-local Tauri resource-copy-only override; no DLL packaging/native moving-image proof. UI/protocol declarations are unchanged, with generated-contract tests passing. Full caller/copy/project audit, native policy images/demand/resource retirement and M10/4 production budgets remain required."
+	},
 	"remaining": [
-		"Reconcile selected canonical Video uses on active Cell/Reference/source-enable changes; verify deletion/history/project fences and no stale activation recipe",
 		"Complete configured shared/multi-Layer interruption and all-caller/copy/reload audit",
 		"Verify both GPUs' actual native moving incoming/outgoing images, policies, manual transport, shared clock, enabled/Stop lifecycle and retirement after software prerequisites"
 	],
-	"scope": "Authoring, shared-use boundary, committed Cut/configured activation and renderer-independent outgoing completion are software verified. Full source-lifecycle/caller audit and native M10/7 acceptance remain unfinished. M10/6 stays accepted with its Intel limit; separate M10/4 budgets are unchanged.",
+	"scope": "Authoring, shared-use boundary, committed Cut/configured activation, renderer-independent outgoing completion and live/frozen source lifecycle are software verified. Full caller/project audit and native M10/7 acceptance remain unfinished. M10/6 stays accepted with its Intel limit; separate M10/4 budgets are unchanged.",
 	"architecture": "docs/architecture/mapgyver-video-matrix-policy.md"
 }

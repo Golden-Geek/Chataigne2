@@ -7,7 +7,8 @@ not to a Reference, channel decoder, panel or Golden's codec runtime.
 Authoring provides settings and inspection. Committed Matrix **Cut and configured**
 actions use the runtime leases below. Cut/Stop and hosted scripts share the same
 receipt boundary; configured activation and outgoing completion also work without
-a renderer. Full source-change/recovery and native acceptance remain M10/7 work.
+a renderer. Source lifecycle uses the reconciliation path below; full caller and
+native acceptance remain M10/7 work.
 Changing a setting alone leaves transport as it is.
 
 The public Rust protocol defines `VideoOnActivate` (`PlayFromStart`, `Resume`,
@@ -52,6 +53,29 @@ Final channel; committed work runs after application, including headless callers
 A failed/discarded receipt applies no Video action. Incoming consumers are
 admitted before outgoing release. Source selection and transport stay in the
 backend; neither a panel query nor a renderer is needed to start playback.
+
+Each launch freezes its selected Cell source, including an empty selection. Editing
+that Cell or launching another Layer cannot adopt its replacement in the old clip.
+Live References along the frozen route still follow their selected canonical owner.
+Prepared routes subscribe to focused media/channel lifecycle and Reference-target
+revisions. Color, resolution, transport and ordinary feedback do not recapture routes.
+Route metadata holds weak canonical owners; live clip uses own clocks. Matrix
+Layer/Cell visibility suppresses rendering without implicitly stopping a launched use.
+One coalesced node wake queues a token-fenced request through Golden's existing
+bounded actor-operation service. It prepares metadata and applies transport changes
+only after its edit receipt commits. A stale recipe cannot activate a hidden old
+source on re-enable. Ready incoming uses are acquired before old uses are released.
+
+Reference retargeting switches the active or outgoing canonical use; an outgoing
+replacement inherits its clip's existing deadline. Disabled/unconfigured routes
+withdraw their uses. A missing frozen producer keeps its existing use while the
+clip can still supply retained pixels; deleting an owned Reference must not stop
+the shared Video before the fade ends. No missing route gains a new activation.
+Removed Layers withdraw their scopes. Restoration resolves the same frozen route
+and obtains a fresh use when the Video's retirement generation changed. Golden
+history replay now preserves `BindParamRuntimeRange` as a runtime registration,
+so a restored Video's ranged position can publish feedback again. Authored replay
+edits remain suppressed; this binding does not create history or saved state.
 
 Outgoing consumers follow the existing Matrix frame's clip lifetime. Once a shared
 render-time observation exists, committed transitions advance that same timeline

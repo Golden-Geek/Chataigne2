@@ -16,12 +16,74 @@ struct TransientNode {}
 #[crate::node("transient_feedback_test", from_struct)]
 impl Node for TransientNode {}
 
+#[crate::node("bound_range_feedback_test")]
+#[children(position: f64 = 0.0 (transient_value = true);)]
+struct BoundRangeNode {
+    #[state(default = crate::parameter::RuntimeScalarRange::new(0.0, 10.0).unwrap())]
+    range: crate::parameter::RuntimeScalarRange,
+}
+#[crate::node("bound_range_feedback_test", from_struct)]
+impl Node for BoundRangeNode {
+    fn on_node_ready(&mut self, ctx: &mut crate::process_ctx::ProcessCtx, _: crate::node::NodeCreationContext) {
+        ctx.edits.push_from(
+            self.id(),
+            Edit::BindParamRuntimeRange {
+                node: self.position.id(),
+                range: self.range.clone(),
+            },
+        );
+    }
+}
+
 define_node_enum!(
     enum FeedbackNode {
         Transient(TransientNode),
+        BoundRange(BoundRangeNode),
     }
 );
 impl crate::app::ProjectLifecycle for FeedbackNode {}
+
+#[test]
+fn history_restore_reconnects_runtime_range_registration_without_new_authored_history() {
+    let mut engine = Engine::<FeedbackNode>::new(Folder::new("root").into());
+    engine.add_node(BoundRangeNode::new().into(), None);
+    engine.apply_edits().unwrap();
+    let owner = engine.nodes.get(engine.root).unwrap().node_data().first_child.unwrap();
+    let FeedbackNode::BoundRange(node) = engine.nodes.get(owner).unwrap() else {
+        panic!()
+    };
+    let position = node.position.id();
+    let range = node.range.clone();
+    engine.edits.push(Edit::RemoveNode { node: owner });
+    engine.apply_edits().unwrap();
+    for maximum in [20.0, 30.0] {
+        assert!(engine.undo().unwrap());
+        let history = engine.undo_len();
+        range.set(0.0, maximum).unwrap();
+        engine.edits.push(Edit::RefreshParamRuntimeRange {
+            node: position,
+            guard: None,
+        });
+        engine.apply_edits().unwrap();
+        assert_eq!(
+            engine
+                .nodes
+                .get(position)
+                .unwrap()
+                .engine_param_snapshot()
+                .unwrap()
+                .constraints
+                .range,
+            RangeConstraint::uniform(Some(0.0), Some(maximum))
+        );
+        assert_eq!(engine.undo_len(), history);
+        assert!(
+            engine.redo().unwrap(),
+            "runtime binding must preserve the authored redo entry"
+        );
+        assert!(!engine.nodes.contains(owner));
+    }
+}
 
 fn fixture() -> (Engine<FeedbackNode>, NodeId) {
     let mut engine = Engine::<FeedbackNode>::new(Folder::new("root").into());

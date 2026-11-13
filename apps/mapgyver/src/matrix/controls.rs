@@ -192,6 +192,9 @@ pub(crate) fn apply(
     operation: &str,
     payload: serde_json::Value,
 ) -> Result<serde_json::Value, String> {
+    if operation == "refresh-video" {
+        return super::video_refresh::apply(engine, payload);
+    }
     if operation != "invoke" {
         return Err("unknown Matrix control operation".into());
     }

@@ -15,6 +15,7 @@ use std::sync::{
     Arc, Mutex, OnceLock, Weak,
     atomic::{AtomicBool, Ordering},
 };
+mod reconcile;
 mod timing;
 
 #[derive(Clone, Default)]
@@ -31,6 +32,8 @@ struct Control {
     application_parent: OnceLock<Weak<RevisionSource>>,
     application_definition_parent: OnceLock<Weak<RevisionSource>>,
     dirty: AtomicBool,
+    video_dirty: AtomicBool,
+    video_sources: RevisionSource,
 }
 #[derive(Default)]
 struct State {
@@ -43,6 +46,9 @@ struct State {
     video_deadline: Option<golden_io::DelayedNotifier>,
     video_deadline_armed: bool,
     video_time: Option<timing::Observation>,
+    video_subscriptions: Vec<golden_io::RevisionSubscription>,
+    video_request: Option<uuid::Uuid>,
+    video_owner: Arc<()>,
     configuration: Option<(u64, Arc<super::configuration::Configuration>)>,
     current: MatrixPlaybackSnapshot,
     version: u64,
@@ -62,11 +68,17 @@ struct Pending {
     receipt: EditCompletion,
     version: u64,
     stop: Option<super::stops::Scope>,
+    refresh: bool,
 }
 
 #[derive(Clone)]
 pub(crate) struct RuntimeBinding(Weak<Control>);
 impl RuntimeBinding {
+    pub(crate) fn invalidate_videos(&self) {
+        if let Some(control) = self.0.upgrade() {
+            control.video_sources.advance();
+        }
+    }
     pub(crate) fn sources(&self) -> Option<Vec<ChannelReference>> {
         let control = self.0.upgrade()?;
         let state = control.state.lock().expect("Matrix playback lock poisoned");
@@ -100,6 +112,32 @@ impl RuntimeBinding {
 }
 
 impl PlaybackControl {
+    pub(super) fn prepare_videos(
+        &self,
+        engine: &AppEngine,
+        desired: &MatrixPlaybackSnapshot,
+        index: &super::configuration::Configuration,
+    ) -> Result<Arc<super::video::Prepared>, String> {
+        let (retained, epochs, previous) = {
+            let state = self.0.state.lock().expect("Matrix playback lock poisoned");
+            (
+                state.videos.selections(),
+                state.epochs.clone(),
+                state.video_plan.clone(),
+            )
+        };
+        let plan = super::video::Prepared::capture(
+            engine,
+            desired,
+            index,
+            self.authoring_revision(),
+            retained,
+            &epochs,
+            previous.as_deref(),
+        )?;
+        self.admit_videos(&plan)?;
+        Ok(plan)
+    }
     pub(super) fn admit_videos(&self, plan: &super::video::Prepared) -> Result<(), String> {
         if self
             .0
@@ -145,9 +183,13 @@ impl PlaybackControl {
         } else if !state.video_running
             && let Some(plan) = state.video_plan.clone()
         {
-            let order = state.order;
-            state.video_error = state.videos.commit(&plan, order, std::time::Instant::now()).err();
-            state.video_running = true;
+            if plan.is_current() {
+                let order = state.order;
+                state.video_error = state.videos.commit(&plan, order, std::time::Instant::now()).err();
+                state.video_running = true;
+            } else {
+                self.0.video_dirty.store(true, Ordering::Release);
+            }
         }
         state.advance_videos();
         state.video_error.clone()
@@ -309,8 +351,27 @@ impl PlaybackControl {
                         version,
                         stop,
                         videos,
+                        refresh,
                         ..
                     } = state.pending.take().unwrap();
+                    if refresh {
+                        if let Some(plan) = videos {
+                            if state.video_enabled && plan.is_current() {
+                                let error = {
+                                    let State {
+                                        videos, launch_orders, ..
+                                    } = &mut *state;
+                                    videos.reconcile(&plan, launch_orders).err()
+                                };
+                                state.video_error = error;
+                                state.video_running = true;
+                            }
+                            state.video_plan = Some(plan);
+                            self.watch_videos(&mut state);
+                            state.advance_videos();
+                        }
+                        return state.current.clone();
+                    }
                     state.order = state.order.checked_add(1).expect("Matrix playback order exhausted");
                     let order = state.order;
                     if stop.is_none() && desired.desired_column.is_none() && desired.layers.is_empty() {
@@ -335,11 +396,12 @@ impl PlaybackControl {
                     }
                     state.current = desired;
                     if let Some(plan) = videos {
-                        if state.video_enabled {
+                        if state.video_enabled && plan.is_current() {
                             state.video_error = state.videos.commit(&plan, order, std::time::Instant::now()).err();
                             state.video_running = true;
                         }
                         state.video_plan = Some(plan);
+                        self.watch_videos(&mut state);
                     }
                     let State { videos, cuts, .. } = &mut *state;
                     videos.cut(cuts);
@@ -377,6 +439,7 @@ impl PlaybackControl {
             version: self.authoring_revision(),
             stop,
             videos,
+            refresh: false,
         });
         // Conservative invalidation may also trigger recapture after an aborted request.
         self.0.revision.advance();
@@ -596,8 +659,7 @@ pub(super) fn launch(
     if !control.admits(&desired) {
         return Err("Matrix interrupted mix retains 32 runtime clips; use Cut or wait for completion".into());
     }
-    let videos = super::video::Prepared::capture(engine, &desired, &index, control.authoring_revision())?;
-    control.admit_videos(&videos)?;
+    let videos = control.prepare_videos(engine, &desired, &index)?;
     let event = CustomEvent::from_latest_payload(MATRIX_PLAYBACK_EVENT, Some(parent), &desired)
         .map_err(|error| error.to_string())?;
     engine.edits.push(Edit::EmitCustomEvent { event });
@@ -679,8 +741,7 @@ pub(super) fn launch_cell(
     layers.sort_by_key(|request| request.layer.0.0);
     desired.layers = layers.into();
     desired.request_id = Some(launch);
-    let videos = super::video::Prepared::capture(engine, &desired, &index, control.authoring_revision())?;
-    control.admit_videos(&videos)?;
+    let videos = control.prepare_videos(engine, &desired, &index)?;
     let event = CustomEvent::from_latest_payload(MATRIX_PLAYBACK_EVENT, Some(root_id), &desired)
         .map_err(|error| error.to_string())?;
     engine.edits.push(Edit::EmitCustomEvent { event });

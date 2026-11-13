@@ -34,6 +34,8 @@ pub struct ChannelNode {
     sender_options: golden_core::parameter::ParameterEnumOptions,
     #[state(default = RevisionSource::default())]
     revision: RevisionSource,
+    #[state(default = RevisionSource::default())]
+    source_lifecycle: RevisionSource,
     #[state(default = 0)]
     picture_reload: u64,
     #[state(default = OnceLock::new())]
@@ -249,6 +251,10 @@ impl ChannelNode {
         let reader = self.revision.reader();
         reader.guard_at(reader.current())
     }
+    pub(crate) fn route_guard(&self) -> RevisionGuard {
+        let reader = self.source_lifecycle.reader();
+        reader.guard_at(reader.current())
+    }
     pub(super) fn file_parameter(&self) -> NodeId {
         self.file.id()
     }
@@ -270,6 +276,7 @@ impl ChannelNode {
         self.revision.advance();
         if let Some(control) = self.matrix_playback.get() {
             control.invalidate();
+            control.binding().invalidate_videos();
             control.invalidate_applications();
         }
     }
@@ -296,10 +303,16 @@ impl Node for ChannelNode {
             } else {
                 ctx.clear_node_warning(self.id(), Some("video-policy"));
             }
+            control.request_video_refresh(ctx, self.id(), self.node_data().meta.uuid);
         }
     }
     fn worker_wake_when_disabled(&self) -> bool {
         true
+    }
+    fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
+        if let Some(control) = self.matrix_playback() {
+            control.video_refresh_result(ctx, self.id(), &event);
+        }
     }
     fn on_child_moved(&mut self, ctx: &mut ProcessCtx, child: NodeId, old_parent: NodeId, new_parent: NodeId) {
         if child == self.id() && old_parent != new_parent {
@@ -357,12 +370,14 @@ impl Node for ChannelNode {
         }
     }
     fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
+        self.source_lifecycle.advance();
         self.invalidate();
         if let Some(control) = self.matrix_playback() {
             control.video_enabled(enabled);
         }
     }
     fn destroy(&mut self, ctx: &mut ProcessCtx) {
+        self.source_lifecycle.advance();
         if let Some(binding) = self.video_binding.take() {
             if self.node_data().parent.is_some_and(|parent| ctx.is_destroying(parent)) {
                 binding.retire_media();

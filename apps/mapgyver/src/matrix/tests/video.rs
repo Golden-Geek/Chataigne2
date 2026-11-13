@@ -2,19 +2,19 @@ use super::*;
 use crate::media::video::{VideoControl, protocol::*};
 use std::{sync::Arc, time::Duration};
 
-fn clock(engine: &AppEngine, media: MediaId) -> Arc<VideoControl> {
+pub(super) fn clock(engine: &AppEngine, media: MediaId) -> Arc<VideoControl> {
     let AppNode::Media(node) = engine.nodes.get(engine.node_id_by_uuid(media.0).unwrap()).unwrap() else {
         panic!()
     };
     node.video_control().unwrap()
 }
-fn tick(engine: &mut AppEngine) {
+pub(super) fn tick(engine: &mut AppEngine) {
     engine.run_tick(Duration::from_millis(1)).unwrap();
 }
-fn policy(engine: &mut AppEngine, media: MediaId, edit: VideoEdit) {
+pub(super) fn policy(engine: &mut AppEngine, media: MediaId, edit: VideoEdit) {
     apply(engine, MediaEdit::Video { media, edit });
 }
-fn assign(engine: &mut AppEngine, matrix: MediaId, row: LayerId, column: ColumnId, source: MediaId) {
+pub(super) fn assign(engine: &mut AppEngine, matrix: MediaId, row: LayerId, column: ColumnId, source: MediaId) {
     edit(
         engine,
         matrix,
@@ -26,7 +26,7 @@ fn assign(engine: &mut AppEngine, matrix: MediaId, row: LayerId, column: ColumnI
         },
     );
 }
-fn cut(engine: &mut AppEngine, matrix: MediaId, column: ColumnId) {
+pub(super) fn cut(engine: &mut AppEngine, matrix: MediaId, column: ColumnId) {
     edit(
         engine,
         matrix,
@@ -245,7 +245,7 @@ fn a_cut_video_remains_playing_until_its_actual_outgoing_matrix_frame_finishes()
     assert_eq!(control.settings().unwrap().mode, VideoPlaybackMode::Stopped);
 }
 
-fn configured(engine: &mut AppEngine, matrix: MediaId, column: ColumnId, duration_ms: u32) {
+pub(super) fn configured(engine: &mut AppEngine, matrix: MediaId, column: ColumnId, duration_ms: u32) {
     edit(
         engine,
         matrix,
@@ -269,7 +269,7 @@ fn configured(engine: &mut AppEngine, matrix: MediaId, column: ColumnId, duratio
     );
     tick(engine);
 }
-fn finish_without_capture(engine: &mut AppEngine, control: &VideoControl, mode: VideoPlaybackMode) {
+pub(super) fn finish_without_capture(engine: &mut AppEngine, control: &VideoControl, mode: VideoPlaybackMode) {
     let deadline = std::time::Instant::now() + Duration::from_secs(2);
     while control.settings().unwrap().mode != mode && std::time::Instant::now() < deadline {
         std::thread::sleep(Duration::from_millis(5));
@@ -467,6 +467,9 @@ fn matrix_disable_withdraws_shared_use_and_reenable_applies_the_current_activati
         )
         .success
     );
+    tick(&mut engine);
+    // Source availability can require the normal deferred actor service after re-enable.
+    golden_core::application::service_script_app_operations(&mut engine).unwrap();
     tick(&mut engine);
     assert!(control.sample().unwrap().playing);
     assert_eq!(
