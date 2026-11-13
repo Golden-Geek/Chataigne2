@@ -1,0 +1,33 @@
+{
+	"date": "2026-11-13",
+	"gate": "M10/4",
+	"accepted": false,
+	"result": "persistent_spout_conversion_reuse_functionally_verified_intel",
+	"base_commit": "7431dcde4e9b2b31b85b765f006275483b624332",
+	"deliverable": "Golden reuses unchanged persistent Spout conversion targets, while ordinary output admission and every due SDK send continue. Window back buffers still redraw on every admitted Present. Actual source/converted-target writes invalidate reuse; preparation/device recreation starts cold and direct untracked external inputs remain conservative.",
+	"ownership": "Render and conversion cache entries share one metadata invalidation implementation. They retain IDs and actual completion tokens, without extra GPU storage, source leases or frame-loop allocation. Conversion-target write tokens live on the allocation, so a compatible generation overwriting that target invalidates older cached conversions. Endpoint recovery and completion marking remain unchanged.",
+	"contract": "Rust-owned OutputTrace adds conversion_reused. A reused conversion has no draw interval but still records the actual delivery/API attempt. Both Rust constructors and the existing output-order consumer are updated together. The auditor accepts explicit shared-target reuse only; missing flags, window-reuse claims, conflicting draw evidence or missing accepted API timing never become passes. No UI DTO, authored setting or product policy changes.",
+	"software": {
+		"app": "678 passed,0 failed,7 ignored with MapGyver/native-qualification.",
+		"video": "297 passed,0 failed,66 ignored. Two new pure cases cover independent output entries, source/target overwrites, cold generations and direct known/untracked external inputs; existing render reuse/time/live invariants remain passing.",
+		"strict": "MapGyver and golden_video all-target clippy with MapGyver/native-qualification and -D warnings passed.",
+		"parser": "10 output-order tests passed, including explicit reuse with all actual API calls retained, missing timing, window/conflicting flags and malformed nonboolean rejection. Historical rejected shared-first observations are not reopened or accepted.",
+		"format": "Root and Golden Core cargo fmt and owned diff whitespace checks pass. Backend remains920 lines; no generated UI contract changes.",
+		"log": "target/m10-conversion-reuse-software-2026-11-13.log",
+		"log_sha256": "8b08f6b3e3ce8e2ef3a5ddd5534775aafe02a8fa37109edacc6fa81bf29a9c65",
+		"strict_log": "target/m10-conversion-reuse-strict-2026-11-13.log",
+		"strict_log_sha256": "46fefa9da8b97219251874f89db5a19a349511d57e22ab31f56329f9bd440e40"
+	},
+	"native": {
+		"test": "hardware_intel_render_cache_preserves_pixels_live_changes_and_shared_target_ownership",
+		"adapter": "Explicit Intel hardware selection, vendor0x8086; no NVIDIA qualification claimed.",
+		"exit_code": 0,
+		"result": "First run:1 passed,0 failed. Actual completion and independent staging readbacks match expected premultiplied pixels within2/255. Held converted content reuses while its exact SDK shared-image frame counter advances by1. Every test submission has one accepted due API/image observation. A direct-image generation overwrites only the shared converted target; restoring the old generation reuses its unchanged render pass but correctly reconverts its original pixels. Immutable direct outputs, changed CPU/GPU publications and withdrawals,0/500/1000ms fades, presentation-only live placement and visibility clears remain correct. Source GPU storage and final plan/native owners return0; diagnostics report0 drops.",
+		"scope": "Functional conversion/delivery/ownership check, not a sustained source-age or frame-rate qualification. Window redraw remains the unchanged unconditional admitted-window path; this run does not add a native window-pixel qualification.",
+		"log": "target/m10-conversion-reuse-intel-native-2026-11-13.log",
+		"log_sha256": "fb1a1cbeb5b09b60e280d5cbd1d3f138adc5acdd7d4ba668ff5bbfb02dcb42a8",
+		"executable": "target/debug/deps/golden_video-7e86c453fb7761c1.exe",
+		"executable_sha256": "28526d27bed530aec37218f3955241d4dec7f42365ede72c63502361b1106a61"
+	},
+	"remaining": "Push, rebuild the ordinary app/probe and run the existing Intel workload once to measure the conversion change. Prior pass-reuse cohort remains HD49.09/4K26.38 observed updates/s,2.73% definite visible misses and HD publication-copy p95 upper69.32ms;4K p95 is unbounded. No changed performance claim here. NVIDIA awaits a fresh supported overlay-Off observation; Computer Use requires unavailable node_repl. All original codec/repeated/age/resource/path/CPU/plane/pool/in-flight scope and final M09 Q03/Q05 remain required.4 stays sole Active;88/106 (83%),M10 5/8,8/15 phases unchanged; M14 follows4 acceptance."
+}

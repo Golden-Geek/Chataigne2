@@ -40,6 +40,11 @@ def analyze_output_order(frames, outputs, healthy=True):
                 missing.append(f'output {output} record missing')
                 continue
             conversion, api = interval(row.get('conversion')), interval(row.get('consumer_api'))
+            reused = row.get('conversion_reused', False)
+            if type(reused) is not bool:
+                raise ValueError('invalid conversion reuse flag')
+            if reused and (output != 2 or conversion is not None or row.get('window_present') is not None):
+                missing.append(f'output {output} invalid conversion reuse')
             delivery = interval(row.get('delivery'))
             if wall is not None and any(v is not None and not wall['begin'] <= v['begin'] <= v['end'] <= wall['end']
                                         for v in (conversion, api, delivery)):
@@ -53,9 +58,9 @@ def analyze_output_order(frames, outputs, healthy=True):
                     shared_phases.append(delivery)
             if api is not None:
                 calls.append((output, api))
-                if conversion is None:
+                if conversion is None and not reused:
                     missing.append(f'output {output} conversion timing missing')
-                elif conversion['end'] > api['begin']:
+                elif conversion is not None and conversion['end'] > api['begin']:
                     broken.append(f'output {output} API precedes its conversion')
                 if output in (1, 3) and row.get('window_present') is None:
                     missing.append(f'output {output} native Present identity missing')

@@ -111,6 +111,9 @@ pub struct OutputTrace {
     pub output: OutputId,
     /// Conversion draw submission wall interval.
     pub conversion: Option<CpuInterval>,
+    /// Persistent Spout pixels were already current; the due SDK delivery still ran.
+    /// False also covers windows and rejected admission. Reuse has no conversion interval.
+    pub conversion_reused: bool,
     /// Rejected admission's check interval, or the admitted endpoint's post-conversion delivery
     /// interval. Successful admission is not separately attributed; FrameCpu wall retains it.
     pub delivery: Option<CpuInterval>,

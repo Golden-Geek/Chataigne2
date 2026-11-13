@@ -738,6 +738,7 @@ impl D3d11Backend {
             let mut consumer_api = None;
             let mut window_present = None;
             let mut publication_queue = None;
+            let mut conversion_reused = false;
             let (conversion, delivery, outcome, spout_image) = match admission {
                 Err(super::outputs::Delivery::Busy) if attempt == Admission::Poll => {
                     return Attempt::DeferredWindow;
@@ -749,18 +750,31 @@ impl D3d11Backend {
                     None,
                 ),
                 Ok(mut admitted) => {
-                    let conversion_begin = recorder.and_then(Recorder::stamp);
                     let source = &resources.textures[&output.source];
-                    // Equal extents map texel centres exactly; avoid four-tap interpolation
-                    // while retaining color/alpha conversion. Scaling stays linear.
-                    let target = admitted.render_target(converted);
-                    let filter = if source.descriptor.extent == target.descriptor.extent {
-                        SampleFilter::Nearest
+                    let written = |id| resources.textures[&id].last_write.get();
+                    let mut cache = resources.render_cache.borrow_mut();
+                    conversion_reused = converted
+                        .is_some_and(|target| !cache.needs_conversion(index, target.last_write.get(), written));
+                    let conversion = if conversion_reused {
+                        None
                     } else {
-                        SampleFilter::Linear
+                        let conversion_begin = recorder.and_then(Recorder::stamp);
+                        // Only persistent Spout targets can reuse pixels. Window back buffers
+                        // still draw on each admitted Present, independently of source cadence.
+                        let target = admitted.render_target(converted);
+                        let filter = if source.descriptor.extent == target.descriptor.extent {
+                            SampleFilter::Nearest
+                        } else {
+                            SampleFilter::Linear
+                        };
+                        pipeline.draw(context, source, None, target, 1.0, BlendMode::Normal, filter);
+                        if let Some(target) = converted {
+                            target.last_write.set(Some(token));
+                            cache.converted(index, token, written);
+                        }
+                        recorder.and_then(|recorder| recorder.interval(conversion_begin))
                     };
-                    pipeline.draw(context, source, None, target, 1.0, BlendMode::Normal, filter);
-                    let conversion = recorder.and_then(|recorder| recorder.interval(conversion_begin));
+                    drop(cache);
                     #[cfg(all(test, feature = "qualification"))]
                     if let Some(tap) = &mut native.copy_tap
                         && let Some(converted) = converted
@@ -787,6 +801,7 @@ impl D3d11Backend {
                     token,
                     output: output.id,
                     conversion,
+                    conversion_reused,
                     delivery,
                     consumer_api,
                     outcome: outcome.into(),

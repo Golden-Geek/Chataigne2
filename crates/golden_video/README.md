@@ -254,6 +254,14 @@ untracked external inputs still render. Output conversion, presentation cadence 
 fences remain independent of pass reuse. `FrameCpuTrace` reports rendered/reused logical pass
 counts; these counts do not establish a frame-rate or source-age improvement.
 
+Persistent Spout conversion targets use that same source/target-write invalidation rule.
+An unchanged converted image still goes through ordinary output admission and every due SDK
+delivery, retaining real frame counters, endpoint recovery and completion ownership. Window
+back buffers redraw for each admitted Present; direct untracked external inputs never reuse.
+`OutputTrace::conversion_reused` explicitly distinguishes a reused conversion from missing
+conversion timing. A reused conversion has no draw interval, while its delivery/API observation
+still records the actual attempt. The cache owns metadata only, with no extra texture or lease.
+
 `D3d11Control::allocations_snapshot` separately observes actual committed native owners. Each
 production plan texture carries one metadata release guard after its native texture/views;
 Rc sharing, reused generations and weak cache entries add no charge. Source inventories report

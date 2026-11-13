@@ -263,6 +263,7 @@ impl FixtureSource {
             token,
             output: OutputId::new(1).expect("positive fixture-local output identity"),
             conversion: None,
+            conversion_reused: false,
             delivery: delivery_wall,
             consumer_api,
             outcome,

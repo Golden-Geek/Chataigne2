@@ -5,6 +5,7 @@ use crate::runtime::CompletionToken;
 
 pub(super) struct Cache {
     passes: Vec<Pass>,
+    conversions: Vec<Pass>,
 }
 
 struct Pass {
@@ -33,13 +34,22 @@ impl Cache {
                             layer.opacity_envelope.is_some()
                                 || matches!(layer.source, LayerSource::Pattern(Pattern::Canvas(_)))
                         }),
-                        _ => false,
+                        RenderOperation::Clear(_) | RenderOperation::Sample { .. } => false,
                     } || pass.operation.sources().any(|source| untracked.contains(&source));
                     Pass {
                         sources: pass.operation.sources().map(|source| (source, None)).collect(),
                         written: None,
                         dynamic,
                     }
+                })
+                .collect(),
+            conversions: plan
+                .outputs()
+                .iter()
+                .map(|output| Pass {
+                    sources: vec![(output.source, None)],
+                    written: None,
+                    dynamic: untracked.contains(&output.source),
                 })
                 .collect(),
         }
@@ -51,12 +61,25 @@ impl Cache {
         actual_output: Option<CompletionToken>,
         input: impl Fn(TextureId) -> Option<CompletionToken>,
     ) -> bool {
-        let pass = &self.passes[index];
-        pass.dynamic
-            || pass.written.is_none()
-            // Compatible generations can share an allocation; another writer invalidates us.
-            || pass.written != actual_output
-            || pass.sources.iter().any(|(source, sampled)| *sampled != input(*source))
+        self.passes[index].needs_render(actual_output, input)
+    }
+
+    pub(super) fn needs_conversion(
+        &self,
+        index: usize,
+        actual_output: Option<CompletionToken>,
+        input: impl Fn(TextureId) -> Option<CompletionToken>,
+    ) -> bool {
+        self.conversions[index].needs_render(actual_output, input)
+    }
+
+    pub(super) fn converted(
+        &mut self,
+        index: usize,
+        token: CompletionToken,
+        input: impl Fn(TextureId) -> Option<CompletionToken>,
+    ) {
+        self.conversions[index].rendered(token, input);
     }
 
     pub(super) fn rendered(
@@ -65,11 +88,28 @@ impl Cache {
         token: CompletionToken,
         input: impl Fn(TextureId) -> Option<CompletionToken>,
     ) {
-        let pass = &mut self.passes[index];
-        for (source, sampled) in &mut pass.sources {
+        self.passes[index].rendered(token, input);
+    }
+}
+
+impl Pass {
+    fn needs_render(
+        &self,
+        actual_output: Option<CompletionToken>,
+        input: impl Fn(TextureId) -> Option<CompletionToken>,
+    ) -> bool {
+        self.dynamic
+            || self.written.is_none()
+            // Compatible generations can share an allocation; another writer invalidates us.
+            || self.written != actual_output
+            || self.sources.iter().any(|(source, sampled)| *sampled != input(*source))
+    }
+
+    fn rendered(&mut self, token: CompletionToken, input: impl Fn(TextureId) -> Option<CompletionToken>) {
+        for (source, sampled) in &mut self.sources {
             *sampled = input(*source);
         }
-        pass.written = Some(token);
+        self.written = Some(token);
     }
 }
 

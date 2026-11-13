@@ -79,3 +79,34 @@ class OutputOrderTests(unittest.TestCase):
         result = ANALYZE(frames, rows)
         self.assertFalse(result['ordering_verified'])
         self.assertIn('output 1 API precedes its conversion', result['records'][0]['violations'])
+
+    def test_explicit_shared_conversion_reuse_keeps_the_actual_api_in_the_cohort(self):
+        frames, rows = fixture()
+        rows[1].update(conversion=None, conversion_reused=True)
+        result = ANALYZE(frames, rows)
+        self.assertTrue(result['ordering_verified'])
+        self.assertEqual(result['records'][0]['actual_api_calls'], 3)
+        rows[1]['consumer_api'] = None
+        self.assertFalse(ANALYZE(frames, rows)['ordering_verified'])
+
+    def test_missing_conversion_without_explicit_reuse_remains_unknown(self):
+        frames, rows = fixture()
+        rows[1]['conversion'] = None
+        for flag in (None, False):
+            if flag is not None:
+                rows[1]['conversion_reused'] = flag
+            result = ANALYZE(frames, rows)
+            self.assertFalse(result['ordering_verified'])
+            self.assertIn('output 2 conversion timing missing', result['records'][0]['unknown'])
+
+    def test_reuse_cannot_excuse_window_draws_or_conflicting_conversion_evidence(self):
+        for output, conversion in ((0, None), (1, {'begin': 10, 'end': 15})):
+            frames, rows = fixture()
+            rows[output].update(conversion=conversion, conversion_reused=True)
+            result = ANALYZE(frames, rows)
+            self.assertFalse(result['ordering_verified'])
+            self.assertIn(f'output {output+1} invalid conversion reuse', result['records'][0]['unknown'])
+        frames, rows = fixture()
+        rows[1]['conversion_reused'] = 1
+        with self.assertRaises(ValueError):
+            ANALYZE(frames, rows)

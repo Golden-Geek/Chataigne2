@@ -124,6 +124,64 @@ fn untracked_external_storage_cannot_supply_a_false_cache_hit() {
 }
 
 #[test]
+fn conversions_follow_source_and_actual_target_writes_and_start_cold_per_generation() {
+    let plan = plan(RenderOperation::Composite { layers: vec![layer()] }, true);
+    let mut cache = Cache::new(&plan);
+    let mut contents = contents();
+    contents.insert(id(3), Some(token(1)));
+    assert!(cache.needs_conversion(0, None, |source| contents[&source]));
+    cache.converted(0, token(2), |source| contents[&source]);
+    assert!(!cache.needs_conversion(0, Some(token(2)), |source| contents[&source]));
+    // Another output sharing this source owns its own conversion, even if content matches.
+    assert!(cache.needs_conversion(1, Some(token(2)), |source| contents[&source]));
+    contents.insert(id(3), Some(token(3)));
+    assert!(cache.needs_conversion(0, Some(token(2)), |source| contents[&source]));
+    cache.converted(0, token(4), |source| contents[&source]);
+    assert!(!cache.needs_conversion(0, Some(token(4)), |source| contents[&source]));
+    assert!(cache.needs_conversion(0, Some(token(5)), |source| contents[&source]));
+    let replacement = Cache::new(&plan);
+    assert!(replacement.needs_conversion(0, Some(token(4)), |source| contents[&source]));
+}
+
+#[test]
+fn direct_external_outputs_distinguish_untracked_storage_from_known_held_contents() {
+    let descriptor = TextureDescriptor {
+        extent: Extent2D::new(2, 1).unwrap(),
+        format: PixelFormat::Rgba8Unorm,
+        color_encoding: ColorEncoding::Linear,
+        alpha_mode: AlphaMode::Premultiplied,
+    };
+    for tracked in [false, true] {
+        let plan = RenderPlan {
+            external_textures: vec![ExternalTexture {
+                id: id(1),
+                descriptor,
+                source: tracked.then(|| ExternalSource::Frames(crate::image::ImageStream::new(descriptor))),
+            }],
+            passes: vec![],
+            outputs: vec![PlanOutput {
+                id: OutputId::new(1).unwrap(),
+                source: id(1),
+            }],
+        }
+        .compile(&PlanLimits {
+            max_passes: 1,
+            max_external_textures: 1,
+            max_outputs: 1,
+            max_dependencies: 1,
+            max_texture_dimension: 8,
+            max_texture_bytes: 4096,
+        })
+        .unwrap();
+        let mut cache = Cache::new(&plan);
+        assert!(cache.needs_conversion(0, None, |_| None));
+        cache.converted(0, token(1), |_| None);
+        assert_eq!(cache.needs_conversion(0, Some(token(1)), |_| None), !tracked);
+        assert!(cache.needs_conversion(0, Some(token(1)), |_| Some(token(2))));
+    }
+}
+
+#[test]
 fn envelopes_canvas_and_live_regions_continue_to_evaluate_without_new_source_pixels() {
     let anchor = golden_time::TimeAuthority::new(
         golden_time::SystemClock::new(),
