@@ -7,8 +7,9 @@ not to a Reference, channel decoder, panel or Golden's codec runtime.
 Authoring provides settings and inspection. Committed Matrix **Cut and configured**
 actions use the runtime leases below. Cut/Stop and hosted scripts share the same
 receipt boundary; configured activation and outgoing completion also work without
-a renderer. Source lifecycle uses the reconciliation path below; full caller and
-native acceptance remain M10/7 work.
+a renderer. Source lifecycle uses the reconciliation path below. The
+[M10/7 audit](../progress/evidence/mapgyver-m10-matrix-video-policy-2026-11-12.json)
+records software/caller parity and both-GPU native policy, ownership and retirement acceptance.
 Changing a setting alone leaves transport as it is.
 
 The public Rust protocol defines `VideoOnActivate` (`PlayFromStart`, `Resume`,
@@ -39,7 +40,7 @@ future activations/deactivations. Retirement changes the use generation and clea
 logical bookkeeping, so an old lease cannot act on a restored owner. Decoded/GPU
 frames retain their existing completion owners; a logical clock action fabricates
 no frame completion. Software policy tests use a zero playback rate for exact
-positions; moving native images still require the full Matrix integration checks.
+positions; the native integration fixture separately verifies moving outgoing images.
 Ordinary Play rewinds at forward EOF and reverse zero. Matrix activation resumes
 the exact coordinate instead: Play from Start selects zero even with reverse
 speed; Resume retains an endpoint. Late duration readiness follows the same rule.

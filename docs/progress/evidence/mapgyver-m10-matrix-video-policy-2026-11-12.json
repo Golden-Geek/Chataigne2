@@ -1,8 +1,9 @@
 {
 	"date": "2026-11-12",
 	"gate": "M10/7",
-	"accepted": false,
-	"result": "configured_headless_and_live_routes_functionally_verified_native_pending",
+	"accepted": true,
+	"accepted_date": "2026-11-13",
+	"result": "accepted_software_and_both_gpu_native_policy_lifecycle",
 	"deliverable": "Video-owned On Activate and On Deactivate enum Parameters, generic Inspector metadata, typed public operations, command nodes, named script methods and generated contracts. Editing policies alone does not alter transport.",
 	"defaults": { "on_activate": "PlayFromStart", "on_deactivate": "Stop" },
 	"choices": {
@@ -365,10 +366,68 @@
 		},
 		"remaining": "Commit/push this corrected path-specific qualification boundary, then rerun Intel once with unchanged production binaries and finish the original acceptance audit. Two GPU runs were used; no third here."
 	},
-	"remaining": [
-		"Complete configured shared/multi-Layer interruption and all-caller/copy/reload audit",
-		"Verify both GPUs' actual native moving incoming/outgoing images, policies, manual transport, shared clock, enabled/Stop lifecycle and retirement after software prerequisites"
-	],
-	"scope": "Authoring, shared-use boundary, committed Cut/configured activation, renderer-independent outgoing completion and live/frozen source lifecycle are software verified. Full caller/project audit and native M10/7 acceptance remain unfinished. M10/6 stays accepted with its Intel limit; separate M10/4 budgets are unchanged.",
+	"final_acceptance": {
+		"date": "2026-11-13",
+		"result": "pass",
+		"intel": {
+			"raw": "target/m10-matrix-policy-intel-resident-2026-11-13/matrix-video-policy.json",
+			"sha256": "ac99ea4d403b01271267367836d60776952dc81754b753073f0cf59cb66d6f29",
+			"exit_code": 0,
+			"pid": 25852,
+			"adapter": "dxgi:00000000:000156b6",
+			"pairs": 9,
+			"images": 34,
+			"app_operations": 404,
+			"ui_requests_and_receipts": 1245,
+			"page_errors_and_rejections": 0,
+			"maximum_linear_error": 0.009262163860156991,
+			"moving_outgoing_distinct_rgb": 6,
+			"moving_outgoing_alpha": [248, 127],
+			"diagnostics": "Six completed captures,285 timestamped resident Video uses, zero software uploads, no dropped/clock failures, terminal zero native allocations. Public final status Idle/no Screens/no resources/no error; normal shutdown0."
+		},
+		"nvidia": "The completed34-image report above (PID22844) passes the same native policy/enabled/shared/copy/reload/retirement scope:1240 requests/1240 receipts, zero UI errors/rejections, six distinct moving RGB samples with alpha245→102, then Stop. Path-aware offline reinspection of its six captures also passes;285 timestamped software-upload Video uses. No need to repeat unchanged native policy assertions after changing only optional post-shutdown diagnostics.",
+		"requirement_audit": [
+			{
+				"requirement": "Typed enums/defaults, real generic controls and single-source protocol",
+				"proof": "media/tests/video/policy.rs verifies exact choices/defaults, history and atomic rejection; generated-contract tests and UI check pass. Both native fixtures edit actual generic Inspector enums through all nine pairs."
+			},
+			{
+				"requirement": "Zero/nonzero transitions and explicit Stop/Pause/Nothing timing",
+				"proof": "matrix/tests/video.rs covers all nine Cut and configured renderer-free pairs. Native both-GPU nine-pair activation/deactivation images and six changing outgoing RGB/alpha observations prove retained moving content through fade completion; all deactivation policies share the outgoing-release boundary."
+			},
+			{
+				"requirement": "Interrupted transitions, reactivation and manual transport",
+				"proof": "Controller matrix tests and Matrix stale-wake tests verify exact pending/manual fences; native both-GPU seek survives deferred Stop and reactivation survives the old deadline, with expected independent pixels."
+			},
+			{
+				"requirement": "Deletion, project replacement and old-generation completion",
+				"proof": "media/video/control/tests/matrix.rs retains old leases across retirement/restore and proves stale release cannot act. matrix/tests/video_lifecycle.rs verifies deletion/restoration and frozen-source lifetimes. Both native fixtures save/New/load, prove restored runtime position0 and final zero-resource retirement."
+			},
+			{
+				"requirement": "Shared channels/References/consumers, one canonical clock",
+				"proof": "Nested References/two-Matrix and all-nine live retarget tests verify one canonical use/action and focused source reconciliation. Native committed second Matrix/two-Layer uses retain125ms; clearing first Matrix and stopping one Layer preserve frame3, stopping last resets frame0."
+			},
+			{
+				"requirement": "Matrix enabled and Layer Stop contracts",
+				"proof": "Software disable/re-enable/disabled-trigger and Layer Stop tests plus both-GPU Matrix disable/re-enable/Layer Stop images pass. Current Stop is immediate; M14/10's separately requested fading Stop remains required. Layer visibility does not implicitly stop a launched clock."
+			},
+			{
+				"requirement": "UI/script/headless parity, commands/functions/callback boundary",
+				"proof": "media/tests/scripting/parity/video_policy.rs compares all policy edits/rejections across four public callers. Real hosted named launch script activates after commit without render/query; ordinary Golden Cut/Stop Parameters use the same receipt path. Renderer-free configured/deadline tests and native generic Inspector/public operations verify both boundaries."
+			},
+			{
+				"requirement": "History, independent copies and project reload",
+				"proof": "All-nine authored roundtrips, generic history, duplication and live retarget Undo/Redo pass. Both native independent Video copies preserve Resume/Stop, render their own125ms frame3 while original stays0, then reload policies with transient position0 and render expected frame0."
+			},
+			{
+				"requirement": "Prerequisites, bounded ownership and native retirement",
+				"proof": "678 app/696 engine tests, strict native-feature lint, generated/UI checks and normal app/probe builds pass. Headless use admission rejects the33rd retained use before activation. Both native runs verify exact GPU/local pinned DLLs, independent SDK oracle pixels, no UI errors, final no-demand status and clean bounded diagnostic capture/shutdown."
+			}
+		],
+		"progress": "87→88 accepted fixed gates/106 (82→83%); M10 4→5/8 (50→63%); phase completion remains8/15. No denominator change. M10/4 becomes sole Active before M14.",
+		"limits": "Actual native policy/lifecycle acceptance only. Earlier failed attempts are preserved. No source-age, sustained FPS/latency, per-format/repeated worker, pool/resource-growth or soak budget is accepted by this gate; all M10/4 requirements remain. No physical-display claim."
+	},
+	"remaining": [],
+	"scope": "M10/7 accepted: typed authoring, shared-use boundary, committed Cut/configured activation, renderer-independent outgoing completion, live/frozen lifecycle, caller/history/copy/reload parity and both-GPU native images/retirement. M10/6's Intel allowance and separate M10/4 budgets remain unchanged.",
 	"architecture": "docs/architecture/mapgyver-video-matrix-policy.md"
 }
