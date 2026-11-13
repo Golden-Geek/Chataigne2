@@ -3,9 +3,9 @@
 	"gate": "M10/4",
 	"accepted": false,
 	"base_commit": "df28e82525a5a2b915ca62bceae8b369e986f136",
-	"deliverable": "Existing numbered Q06 fixtures now generate H.264 High8/avc1 and HEVC Main8/hvc1 with two reordered frames. Independent FFmpeg decoding verifies frame codes0/1/31/last at1080p60 and4K30. Existing collector/accounting validation requires actual hardware decoder pools/converters and zero CPU pixel uploads for these resident profiles; software/HAP validators remain covered. Product runtime/protocol/UI are unchanged.",
+	"deliverable": "Numbered H.264 High8/avc1 and HEVC Main8/hvc1 B-frame1080p60+4K30 ordinary cohorts both pass controller and strict resident-source/pixel audits. Independent FFmpeg decoding verifies fixture frame codes0/1/31/last. Collector requires actual hardware decoder pools/converters and zero CPU pixel uploads; existing software/HAP validators remain covered. Product runtime/protocol/UI are unchanged. Timing/resource/repeated qualification remains distinct from successful correctness audits.",
 	"software": "50 Python video-audit cases and20 Node capture/accounting cases pass before native startup. New resident regressions reject missing hardware storage, software/compressed fallback and missing/nonzero upload counters. Node syntax and Prettier pass, including after the setup correction. Existing1010-case runtime/software/strict prerequisite inputs and ordinary/probe binary hashes remain unchanged and verified. Root/Core fmt run before commit.",
-	"setup_correction": "Initial H.264 attempt exits1 before any timed phase: expected held1000ms remains0. Collector sends Seek before awaiting duration; backend VideoControl::bounded_position deliberately clamps to the then-known duration, including zero while unknown. Collector now awaits both declared File durations and shared transport readiness, then asserts the accepted1000ms seek before the unchanged20s exact-frame check. One corrected rerun passes. Original failure/raw captures remain; no runtime behavior, tolerance or deadline is relaxed. This consumes both native experiments in the batch; HEVC native validation is retained for the next batch.",
+	"setup_correction": "Initial H.264 attempt exits1 before any timed phase: expected held1000ms remains0. Collector sends Seek before awaiting duration; backend VideoControl::bounded_position deliberately clamps to the then-known duration, including zero while unknown. Collector now awaits both declared File durations and shared transport readiness, then asserts the accepted1000ms seek before the unchanged20s exact-frame check. One corrected H.264 rerun passes. Original failure/raw captures remain; no runtime behavior, tolerance or deadline is relaxed. The next batch reuses this corrected setup for one successful HEVC cohort without another controller change or native retry.",
 	"h264": {
 		"root": "target/q06-h264-ready-intel-2026-11-13",
 		"pid": 22088,
@@ -50,18 +50,63 @@
 		"summary_sha256": "d27e6118ed4dab13f0a170e1e189986d254e1666cfbb347375b77b985807d5f6",
 		"run_log_sha256": "89757658e86a54203e8c43319956ba05f38b9fef4444cf58d7f89fde9e63106e"
 	},
+	"hevc": {
+		"base_commit": "4178d6363c78de41454461bf1f3a64503ed48fe4",
+		"root": "target/q06-hevc-intel-2026-11-13",
+		"pid": 27788,
+		"adapter": "dxgi:00000000:000156b6",
+		"ac_line_status": 1,
+		"controller_exit": 0,
+		"strict_audit_exit": 0,
+		"phase_seconds_visible_minimized_disconnected": [120.051416, 60.0521308, 60.051403],
+		"held_seek_ms": 1000,
+		"held_frame_codes": [60, 30, 60],
+		"decoder_pool_allocations": 2,
+		"decoder_pool_bytes": 396288000,
+		"hardware_producer_allocations": 2,
+		"hardware_producer_bytes": 139968032,
+		"source_gpu_peak_bytes": 536256032,
+		"resident_source_submissions_hd_uhd": [15987, 8060],
+		"cpu_pixel_upload_bytes": 0,
+		"source_cpu_upload_calls": 0,
+		"pixel_pts_matches": 19737,
+		"visible_minimized_missing_witnesses": 1188,
+		"invalid_markers": 0,
+		"mismatched_markers": 0,
+		"visible_distinct_codes_hd_uhd": [235, 118],
+		"definite_deadline_miss_percent_visible_minimized_disconnected": [
+			4.553658197973067, 0.13877324451845685, 7.049680821537607
+		],
+		"visible_publication_to_copy_p95_upper_ms_hd_uhd": [117.4538, null],
+		"minimized_publication_to_copy_p95_upper_ms_hd_uhd": [40.7918, 75.60740000000001],
+		"visible_cpu_inclusive_wall_p95_p99_ms": [1.5315, 2.0216],
+		"visible_renderer_context_span_p95_p99_ms": [24.458229166666666, 25.736041666666665],
+		"all_capture_process_snapshots": 280,
+		"available_dxgi_observations": 270,
+		"observed_private_peak_bytes": 1710268416,
+		"observed_lifetime_peak_working_set_bytes": 1744535552,
+		"observed_dxgi_local_peak_bytes": 1625804800,
+		"observed_dxgi_nonlocal_peak_bytes": 0,
+		"known_native_texel_peak_bytes": 395283208,
+		"route_and_retirement": "Two actual file/source lifetimes record24047 resident submissions, exact channel/PTS, no unknown frame/clock metadata and no duplicate submitted windows. Actual decoder pools/converters plus source GPU uses and zero worker/render CPU pixel uploads establish the resident route; the zero-CPU allowance does not qualify GPU cadence/completion. Source/native/plan GPU inventories retire to zero with clean capture footers/no dropped rows. All69 execution inputs, including runtime/probe/collector/fixtures, match their prelaunch hashes. No desktop input, NVIDIA startup, driver reset or new instrumentation.",
+		"execution_inputs_sha256": "b0c97fc676675553cb807f2e7720aa250a617ae713a1daeae649cf128cf2d939",
+		"sample_sha256": "42d90a5b568ee18402be49f40184009c40ac0a387ac61458f588728fa33ce181",
+		"audit_sha256": "e86d4a2ca0531177c379d146e85b3a95aa5b82cf0873b2942a097bb6cf5b469a",
+		"summary_sha256": "66c272ea789c349a2e44b7fceeca7dbb7ccd0fc3ff36e551eb6fa30c9c373cc6",
+		"run_log_sha256": "002bf35a142e6cbfad630d8c68c78db1e0afdde7a5804b7c50b9aec9de2ff403"
+	},
 	"fixtures": {
 		"h264_manifest": "target/q06-h264-numbered-2026-11-13/fixtures.json",
 		"h264_manifest_sha256": "8881ad4d6e470667c131a758f17b96b6c480f736925e02959b8a3a01f522a0c7",
 		"hevc_manifest": "target/q06-hevc-numbered-2026-11-13/fixtures.json",
 		"hevc_manifest_sha256": "007893b9349783d414e9a1c7b2257343537741d22637010b3cd7ae6e5684b9a0",
-		"hevc_state": "Fixture encoding, profile/tag/B-frame and independent frame-code verification pass; ordinary native cohort is not run or accepted."
+		"hevc_state": "Fixture encoding/profile/tag/B-frame/independent frame codes and ordinary resident correctness audit pass; original sustained timing/resource/repeated acceptance remains open."
 	},
 	"initial_failure": {
 		"root": "target/q06-h264-intel-2026-11-13",
 		"failure_sha256": "5d74e193effc0cfeb1057ea6da52662fdbdf8e56f82d4e87eccb4d0ff11d6f25",
 		"run_log_sha256": "292eef0f0350f36a0497c76ee5f3ae607d602710582c2b3aa2a47ad830b01ad6"
 	},
-	"limits": "No fixed gate closes. This is one corrected30s-warmed cohort, not the required independent three-sample series. Missing witnesses, skipped/unobserved codes and disconnected pixels/age remain unqualified. H.264 visible/disconnected deadline bounds exceed both original0.1% and pending0.5%; that proposal is unapplied and would not resolve these failures. UHD/visible HD age bounds do not establish50ms; context-local spans are not complete cross-context critical paths. Resource peaks scan all captured startup/warmup/steady/retirement snapshots; unavailable counters stay unknown and separate inventories are not added as disjoint physical memory. The app-owned texture budget differs from physical DXGI usage. Full resource/growth/handle/profile/repeated/performance-tier/recovery qualification remains; opaque SDK internals are not extra acceptance items. Prior HAP/ProRes evidence and NVIDIA overlay-Off return trigger retain scope; Q03/fullQ05 remain M09.",
-	"next": "Push this milestone, then run the prepared HEVC ordinary cohort with corrected readiness ordering. Preserve other declared-profile/transparent/current/repeated/performance-tier requirements, original budgets and all retained debt. No unchanged H.264/HAP/ProRes timing optimization or new profiler. M10/4 alone Active,88/106 (83%),M10 5/8 (63%),8/15 phases; M14 follows4 acceptance."
+	"limits": "No fixed gate closes. Each profile has one30s-warmed cohort, not the required independent three-sample series. Missing witnesses, skipped/unobserved codes and disconnected pixels/age remain unqualified. Both profiles' visible/disconnected deadline bounds exceed original0.1% and pending0.5%; that proposal is unapplied and would not resolve these failures. UHD/visible HD age bounds do not establish50ms; context-local spans are not complete cross-context critical paths. Resource peaks scan all captured startup/warmup/steady/retirement snapshots; unavailable counters stay unknown and separate inventories are not added as disjoint physical memory. App-owned texture budgets differ from physical DXGI usage. Other declared profiles, current software/transparent ProRes, full resource/growth/handle/repeated/performance-tier/recovery qualification remain; opaque SDK internals are not extra acceptance items. Prior HAP/ProRes evidence and NVIDIA overlay-Off return trigger retain scope; Q03/fullQ05 remain M09.",
+	"next": "Push this milestone, then verify the current software ProRes path, including transparent4444 fixtures, against the recently delivered plane/scratch/image CPU admission. The last opaque ordinary ProRes cohort predates those product storage changes; retain its evidence without claiming current resource qualification. Preserve other declared-profile/current/repeated/performance-tier requirements and original budgets. No unchanged resident/HAP timing optimization or new profiler. M10/4 alone Active,88/106 (83%),M10 5/8 (63%),8/15 phases; M14 follows4 acceptance."
 }
