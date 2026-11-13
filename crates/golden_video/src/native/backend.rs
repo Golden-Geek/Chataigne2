@@ -607,9 +607,7 @@ impl D3d11Backend {
                                 target.last_write.set(Some(token));
                                 target.software_upload.set(image.software_upload);
                                 target.timed_frame.set(sample.frame);
-                                target
-                                    .image_visible
-                                    .set(image.software_upload.map_or(sample.sequence, |upload| upload.sequence));
+                                target.image_visible.set(sample.sequence);
                                 sequence.set(Some(sample.sequence));
                             }
                             Ok(None) => {} // Zero-timeout contention retains the prior image.
@@ -639,7 +637,7 @@ impl D3d11Backend {
                         texture: external.id,
                         descriptor: target.descriptor,
                         sequence: target.image_visible.get(),
-                        stream: Some(upload.map_or(stream.id(), |upload| upload.stream)),
+                        stream: Some(stream.id()),
                         publication: None,
                         software_upload: upload,
                         frame: target.timed_frame.get(),

@@ -71,7 +71,6 @@ pub(super) enum Input {
 }
 enum Conversion {
     Software {
-        id: uuid::Uuid,
         sequence: u64,
         clock: Option<crate::native::timing::Clock>,
     },

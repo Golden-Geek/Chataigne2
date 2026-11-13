@@ -212,6 +212,9 @@ including conversions never sampled by a renderer. Optional caller-owned frame w
 full epoch authority/generation and PTS; unknown windows stay absent. Repeated tracing of a
 pending submission adds no row, and queue pressure counts a drop rather than retrying it.
 These are submission facts, not successful completion/publication or unique presented frames.
+Renderer SourceUse always retains the GPU publication stream/version. SoftwareUploadTrace keeps
+the same producer lifetime identity with its separate actual API-upload counter; a withdrawal
+or republished window can advance publication versions without another CPU upload.
 Compare payload rows with opt-in lifetime budget totals to detect missing attribution.
 MapGyver logs one channel/File/worker-to-stream binding when each instrumented GPU producer or
 direct CPU ImageStream starts. CPU images retain their existing renderer ImageUpload/SourceUse

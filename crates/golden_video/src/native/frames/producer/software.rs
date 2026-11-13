@@ -26,7 +26,6 @@ impl GpuFramePublisher {
             Device::new(adapter)?,
             descriptor,
             Conversion::Software {
-                id: uuid::Uuid::new_v4(),
                 sequence: 0,
                 clock: None,
             },
@@ -57,7 +56,7 @@ impl GpuFramePublisher {
         let Some(index) = self.begin(Input::Software { _image: image.clone() })? else {
             return Ok(false);
         };
-        let Conversion::Software { id, sequence, clock } = &mut self.conversion else {
+        let Conversion::Software { sequence, clock } = &mut self.conversion else {
             unreachable!()
         };
         let _mark = self
@@ -78,7 +77,7 @@ impl GpuFramePublisher {
         }
         *sequence = next;
         self.pending.as_mut().unwrap().software_upload = Some(crate::native::SoftwareUploadTrace {
-            stream: *id,
+            stream: self.stream.id(),
             sequence: next,
             row_pitch: image.descriptor().extent.width() * 4,
             rows: image.descriptor().extent.height(),

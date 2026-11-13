@@ -1,6 +1,7 @@
 use super::*;
 mod hap;
 mod hap_external;
+mod identity;
 mod software;
 mod upload_accounting;
 use crate::native::frames::tests::{completed, prepared, submit};
