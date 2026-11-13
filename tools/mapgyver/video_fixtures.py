@@ -20,27 +20,45 @@ def frame_code(rgb, width=320):
     return sum((pixel(24 + bit * 24) > 128) << bit for bit in range(12))
 
 
-def generate(encoder, directory):
+PROFILES = {
+    "prores": ("ProRes HQ", "prores-hq", ["-c:v", "prores_ks", "-profile:v", "3",
+               "-pix_fmt", "yuv422p10le"], {"codec_name": "prores", "profile": "HQ",
+               "pix_fmt": "yuv422p10le"}),
+    "hap": ("HAP", "hap", ["-c:v", "hap", "-format", "hap", "-chunks", "4",
+            "-compressor", "snappy", "-pix_fmt", "rgba"], {"codec_name": "hap",
+            "codec_tag_string": "Hap1", "pix_fmt": "rgb0"}),
+}
+
+
+def validate_stream(info, expected, width, height, frames):
+    for key, value in expected.items():
+        if info.get(key) != value:
+            raise ValueError(f"unexpected {key}: {info.get(key)!r}, expected {value!r}")
+    if (info["width"], info["height"], int(info["nb_frames"])) != (width, height, frames):
+        raise ValueError("unexpected fixture dimensions or frame count")
+
+
+def generate(encoder, directory, codec="prores"):
+    label, prefix, encoding, expected = PROFILES[codec]
     directory.mkdir(parents=True, exist_ok=False)
     cases = []
     for width, height, rate in [(1920, 1080, 60), (3840, 2160, 30)]:
         frames = rate * 4
-        output = directory / f"prores-hq-{width}x{height}-{rate}.mov"
+        output = directory / f"{prefix}-{width}x{height}-{rate}.mov"
         filters = ["drawbox=x=0:y=0:w=320:h=48:color=black:t=fill",
                    "drawbox=x=0:y=16:w=8:h=16:color=white:t=fill"]
         filters += [f"drawbox=x={16 + bit * 24}:y=16:w=16:h=16:color=white:t=fill:enable='bitand(n,{1 << bit})'"
                     for bit in range(12)]
         command = [str(encoder), "-hide_banner", "-loglevel", "error", "-n", "-f", "lavfi", "-i",
                    f"testsrc2=size={width}x{height}:rate={rate}", "-vf", ",".join(filters),
-                   "-frames:v", str(frames), "-an", "-c:v", "prores_ks", "-profile:v", "3",
-                   "-threads", "4", "-pix_fmt", "yuv422p10le", "-color_range", "tv",
+                   "-frames:v", str(frames), "-an", *encoding,
+                   "-threads", "4", "-color_range", "tv",
                    "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", str(output)]
         subprocess.run(command, check=True, timeout=180)
         info = json.loads(subprocess.check_output([
             str(encoder.with_name("ffprobe.exe")), "-v", "error", "-select_streams", "v:0",
             "-show_streams", "-of", "json", str(output)]))["streams"][0]
-        assert (info["codec_name"], info["profile"], info["pix_fmt"]) == ("prores", "HQ", "yuv422p10le")
-        assert (info["width"], info["height"], int(info["nb_frames"])) == (width, height, frames)
+        validate_stream(info, expected, width, height, frames)
         oracle = []
         for index in [0, 1, 31, frames - 1]:
             pixels = subprocess.check_output([
@@ -54,7 +72,7 @@ def generate(encoder, directory):
         cases.append({"file": str(output.resolve()), "width": width, "height": height, "rate": rate,
                       "frames": frames, "duration_seconds": 4, "bytes": output.stat().st_size,
                       "sha256": digest(output), "stream": info, "verified_frame_codes": oracle})
-    manifest = {"schema": 1, "codec": "ProRes HQ", "encoder": str(encoder), "encoder_sha256": digest(encoder),
+    manifest = {"schema": 1, "codec": label, "encoder": str(encoder), "encoder_sha256": digest(encoder),
                 "encoder_version": subprocess.check_output([str(encoder), "-version"], text=True).splitlines()[0],
                 "generator_sha256": digest(__file__), "frame_code": {"bits": 12, "x": 24, "y": 24, "step": 24,
                 "sentinel_x": 4, "threshold": 128}, "cases": cases}
@@ -66,8 +84,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--encoder", type=Path, required=True)
     parser.add_argument("--directory", type=Path, required=True)
+    parser.add_argument("--codec", choices=PROFILES, default="prores")
     args = parser.parse_args()
-    manifest = generate(args.encoder.resolve(strict=True), args.directory.resolve())
+    manifest = generate(args.encoder.resolve(strict=True), args.directory.resolve(), args.codec)
     print(json.dumps({"result": "pass", "cases": len(manifest["cases"]), "directory": str(args.directory)}))
 
 

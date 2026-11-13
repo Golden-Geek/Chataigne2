@@ -1,6 +1,36 @@
 import assert from 'node:assert/strict';
 
 const kinds = ['software', 'hap'];
+
+// Q06 HAP has two shared GPU publishers. ProRes shares HD; UHD uploads in the renderer.
+export function assertQ06SourceUploads(codec, budget) {
+	assert(['ProRes HQ', 'HAP'].includes(codec), 'supported numbered Q06 codec required');
+	const hap = codec === 'HAP';
+	const kind = hap ? 'hap' : 'software';
+	const allocation = hap ? 'hap_producers' : 'software_producers';
+	const groups = budget.maximum_observed_classes;
+	assert.equal(groups[allocation].allocations, hap ? 2 : 1, 'one publisher per shared source');
+	// HAP retains one BC1 input, three RGBA outputs and 16 constant bytes per extent.
+	const hdBlocks = (1920 * 1080) / 2;
+	const expected = hap
+		? [1920 * 1080, 3840 * 2160].reduce((sum, pixels) => sum + pixels * (4 * 3 + 0.5) + 16, 0)
+		: 1920 * 1080 * 4 * 3;
+	assert.equal(groups[allocation].bytes, expected);
+	assert.equal(budget.peak_admitted_bytes, groups[allocation].bytes);
+	for (const [name, group] of Object.entries(groups))
+		if (name !== allocation) assert.deepEqual(group, { allocations: 0, bytes: 0 });
+	const uploads = budget.upload_budgets.filter((entry) => entry.uploads[kind].calls > 0);
+	assert.equal(uploads.length, 1, 'one counted source budget');
+	const total = uploads[0].uploads[kind];
+	if (hap) {
+		// Aggregate conservation only; the strict audit must still join each file/PTS payload.
+		const uhdCalls = (total.bytes / hdBlocks - total.calls) / 3;
+		assert(Number.isSafeInteger(uhdCalls) && uhdCalls > 0 && uhdCalls < total.calls);
+	} else assert.equal(total.bytes, total.calls * 1920 * 1080 * 4);
+	for (const entry of budget.upload_budgets)
+		assert.deepEqual(entry.uploads[hap ? 'software' : 'hap'], { calls: 0, bytes: 0 });
+}
+
 function amount(value) {
 	assert(Number.isSafeInteger(value) && value >= 0, 'safe nonnegative upload amount required');
 	return value;

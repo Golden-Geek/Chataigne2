@@ -1,0 +1,46 @@
+{
+	"date": "2026-11-13",
+	"gate": "M10/4",
+	"accepted": false,
+	"base_commit": "c3d749400c446b77601abe9cc774ff733c146450",
+	"deliverable": "Existing numbered Q06 fixture generator now supports HAP1/BC1 with four Snappy chunks, retaining ProRes HQ as the default. Pinned FFmpeg CLI independently decodes frame markers at0/1/31/last for1080p60 and4K30. The existing collector validates the actual codec-specific source route and payload inventory instead of requiring RGBA uploads from compressed HAP.",
+	"prerequisites": "Current default ordinary app and separate native receiver probe build successfully. All recorded runtime inputs still match the passing1010-case software/strict prerequisite manifest.49 Python video-audit tests and19 Node capture/accounting tests pass; new regressions reject incorrect codec/layout/frame count, missing markers, missing/mixed/incorrect payloads, extra publishers and incoherent peaks. Node syntax, Prettier and root/Core fmt pass. No product runtime/protocol/UI changes in this batch.",
+	"execution": "One Intel AC-powered ordinary-app cohort, PID3044, adapter dxgi:00000000:000156b6:30s warmup,120.0527931s visible,60.0506954s minimized,60.0512388s receiver-disconnected. Two independent SDK receivers and three held frame checks; held codes60/30/60 retire. No desktop input, NVIDIA startup, driver reset or new profiler.",
+	"reconciliation": "The original controller exits1 after playback because its default final assertion requires an RGBA upload. Original run.log and diagnostic-failure.json remain unchanged. Corrected codec-specific validation re-audits the existing completed raw captures; sample.json explicitly records this provenance and original error. This is not a successful original controller exit or a second independent sample. No runtime rerun, fabricated rows or changed budgets.",
+	"route": {
+		"publishers": 2,
+		"logical_source_gpu_peak_bytes": 129600032,
+		"inventory": "Each file shares one HAP publisher: one BC1 input, three RGBA GPU output slots and16 constant bytes per extent. Other source allocation classes remain zero; all source/native/plan allocations retire to zero and capture footers are complete with no dropped rows.",
+		"compressed_uploads": 24367,
+		"compressed_bytes": 50535705600,
+		"hd_uploads": 16242,
+		"hd_bytes": 16839705600,
+		"uhd_uploads": 8125,
+		"uhd_bytes": 33696000000,
+		"rgba_uploads": 0,
+		"strict_attribution": "Exit0: all lifetime bytes/calls reconcile to exact File/channel/PTS records; no missing payload, unknown PTS or duplicate submission windows. Source submissions remain distinct from independent pixel witnesses and display completion."
+	},
+	"pixels": "Visible/minimized:21579 exact independent accepted-image/PTS matches,0 invalid markers,0 mismatches;18 accepted images lack a unique witness and remain unknown. All240 HD and120 UHD loop codes observed. Disconnected pixels/age are unobserved by design, never passes.",
+	"timing": {
+		"deadline_definite_miss_percent_visible_minimized_disconnected": [
+			0.027766208524226016, 0.1664816870144284, 0.1665278934221482
+		],
+		"original_deadline_budget_percent": 0.1,
+		"publication_to_copy_p95_upper_ms_visible_hd_uhd": [32.7685, 59.112],
+		"publication_to_copy_p95_upper_ms_minimized_hd_uhd": [30.1978, 49.9917],
+		"visible_cpu_inclusive_wall_p95_p99_ms": [0.9068, 1.0625],
+		"visible_renderer_context_span_p95_p99_ms": [21.636979166666666, 22.583177083333332],
+		"limits": "Minimized/disconnected definite misses exceed0.1%. Visible UHD outward age bound does not establish50ms; it is not an inward proof of failure. Renderer context spans include waits/feed gaps; complete cross-context critical-path qualification remains open. The pending Intel<=0.5% proposal is not applied. No unchanged timing retry."
+	},
+	"resources": "Observed private peak798294016bytes, known renderer/native texel peak395283208bytes and source logical peak129600032bytes. These preserve their separate scopes; physical decoder/driver allocation sizes and full repeated/resource qualification remain unproven. Existing admission limits and M03 peak-growth failure remain unchanged.",
+	"root": "target/q06-hap-intel-2026-11-13",
+	"fixture_manifest": "target/q06-hap-numbered-2026-11-13/fixtures.json",
+	"fixture_manifest_sha256": "fa38120d1ea9b1c13523cbee77f57c389399c4c53792e2ece301060083a848ce",
+	"execution_inputs_sha256": "155148bc6d949002f1f3c5cce1989af27c79b2b8a1c7b9ec2d30edb7e92b15f8",
+	"reaudit_inputs_sha256": "ed7e3e05d85bf02989a07fc5f99809a258596f55f5f5e07cb42ead9b9ab8684e",
+	"sample_sha256": "46b39e763a3a3fa0043a3d39b9cc0fdb140cd63de27bee7f947e47737df563ac",
+	"audit_sha256": "7707adf8554577e464a53408635cdca2d01fdeffe476d7b76b690e385fdf6df0",
+	"summary_sha256": "dc7dc161acf05a2894f0f9c181e203abefecb324fa4154ef9f8609384e326d24",
+	"remaining": "M10/4 remains the sole Active gate: current HAP Alpha/Q and common-codec sustained cohorts, repeated series/performance tier, original age/deadline/resource/complete-path requirements and retained recovery scope. The contract permits qualifying one named adapter first; NVIDIA's supported overlay-Off prerequisite and debt remain separately visible, not prerequisites for running Intel. Q03/fullQ05 remain M09. Opaque SDK/driver explanations are not additional acceptance items.",
+	"next": "Push this fixture/validator/evidence milestone, then extend the same numbered-file mechanism to HAP Alpha and HAP Q and check their actual ordinary-app compressed routes. No new memory instrumentation or unchanged ProRes/HAP timing retry.88/106 (83%),M10 5/8 (63%),8/15 phases; no fixed gate closes. M14 follows4 acceptance."
+}
