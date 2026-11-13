@@ -12,6 +12,101 @@ fn status(engine: &mut AppEngine, reference: ChannelReference) -> VideoSourceSta
 }
 
 #[test]
+fn in_band_growth_withdraws_failed_frames_and_valid_relink_recovers_without_disturbing_other_sources() {
+    let mut engine = engine();
+    let growing = source(&mut engine, "h264-growing.mp4");
+    let healthy = source(&mut engine, "h264.mp4");
+    let references = [growing, healthy];
+    let routes: Vec<_> = references
+        .iter()
+        .enumerate()
+        .map(|(index, reference)| ChannelRoute {
+            output: OutputId::new(index as u64 + 1).unwrap(),
+            channel: *reference,
+        })
+        .collect();
+    let mut renderer = renderer();
+    renderer.enable_videos(&fixture_root(), None).unwrap();
+    renderer
+        .publish(capture_channels(&engine, &references, 8).unwrap(), routes.clone())
+        .unwrap();
+    wait(|| {
+        references
+            .iter()
+            .all(|reference| pixel(&renderer, *reference).is_some())
+    });
+    let retirement = renderer.video_retirement().unwrap();
+    let old = renderer.videos.as_ref().unwrap().stream(growing).unwrap();
+    let unaffected = renderer.videos.as_ref().unwrap().stream(healthy).unwrap();
+    let healthy_pixel = pixel(&renderer, healthy).unwrap();
+    assert_eq!(status(&mut engine, growing).state, VideoSourceState::Ready);
+    edit(
+        &mut engine,
+        MediaEdit::Video {
+            media: growing.media,
+            edit: VideoEdit::Seek { position_ms: 6000.0 },
+        },
+    );
+    let history = engine.undo_len();
+    wait(|| {
+        renderer.refresh().unwrap();
+        status(&mut engine, growing).error.is_some() && old.sample().unwrap().image.is_none()
+    });
+    let failure = status(&mut engine, growing);
+    assert_eq!(failure.state, VideoSourceState::Recovering);
+    assert!(failure.retrying);
+    assert!(matches!(
+        failure.error.unwrap().kind,
+        VideoSourceErrorKind::Decode | VideoSourceErrorKind::Capacity
+    ));
+    assert!(pixel(&renderer, growing).is_none());
+    assert!(unaffected.sample().unwrap().image.is_some());
+    assert_eq!(pixel(&renderer, healthy), Some(healthy_pixel.clone()));
+    assert_eq!(status(&mut engine, healthy).state, VideoSourceState::Ready);
+    assert_eq!(renderer.snapshot().state, golden_video::runtime::RuntimeState::Running);
+    assert_eq!(engine.undo_len(), history, "worker failure must not author history");
+
+    edit(
+        &mut engine,
+        MediaEdit::ConfigureVideoFile {
+            reference: growing,
+            file: "h264.mp4".into(),
+        },
+    );
+    edit(
+        &mut engine,
+        MediaEdit::Video {
+            media: growing.media,
+            edit: VideoEdit::Seek { position_ms: 0.0 },
+        },
+    );
+    renderer
+        .publish(capture_channels(&engine, &references, 8).unwrap(), routes)
+        .unwrap();
+    wait(|| {
+        renderer.refresh().unwrap();
+        status(&mut engine, growing).state == VideoSourceState::Ready
+            && pixel(&renderer, growing) == Some(healthy_pixel.clone())
+    });
+    let recovered = status(&mut engine, growing);
+    assert!(recovered.error.is_none());
+    assert!(!recovered.retrying);
+    assert!(
+        old.sample().unwrap().image.is_none(),
+        "a retired stream must stay withdrawn"
+    );
+    assert!(unaffected.sample().unwrap().image.is_some());
+    assert_eq!(retirement.active_workers(), 2);
+    close(renderer);
+    assert!(retirement.wait(Duration::from_secs(5)));
+    assert_eq!(retirement.active_workers(), 0);
+    assert_eq!(retirement.retained_bytes(), 0);
+    let admission = retirement.cpu_admission();
+    assert_eq!(admission.retained_bytes, 0);
+    assert_eq!(admission.allocations, 0);
+}
+
+#[test]
 fn missing_corrupt_and_recovered_files_report_scoped_status_without_faulting_healthy_sources_or_history() {
     let root = tempfile::tempdir().unwrap();
     std::fs::copy(fixture_root().join("h264.mp4"), root.path().join("healthy.mp4")).unwrap();

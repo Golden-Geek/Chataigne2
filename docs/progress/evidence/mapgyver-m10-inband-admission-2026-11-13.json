@@ -29,5 +29,17 @@
 		"odd_fixture_sha256": "a4fcd4a65a7e697e7cad07cddfb95a06a21826eefcd9ec221143dd0e2de3bb1d",
 		"generation": "The manifest retains generator/compiler inputs, Cargo.lock, encoder/probe provenance and all six validation logs. Both small fixtures and their generator are delivered with this slice."
 	},
-	"next": "Push the admission fix, then verify the actual File-worker error/withdrawal and valid-file relink recovery for the generated growing file through the existing backend intents. Preserve failed baseline and all original CPU-pool/per-channel/format/repeated/age/GPU-critical-path/NVIDIA/M09 scope. No fixed gate closes:4 sole Active,88/106 (83%),M10 5/8; M14 follows4 acceptance."
+	"worker_recovery": {
+		"base_commit": "918c3019ccfd816b515f29778cc1c3954ab2f986",
+		"result": "Actual backend-intent regression passes. Two real software File workers first publish healthy frames. Seeking the growing source to6000ms rejects its4K allocation under the4224-pixel padded guard; the original stream withdraws its image, source status becomes Recovering with a typed Decode/Capacity error and automatic retry, while the independent healthy stream stays ready with unchanged pixels and the renderer stays Running. Failure does not author undo history. ConfigureVideoFile plus Seek0 relinks the same channel/routes to h264.mp4, restores expected pixels and clears error/retry; the retired stream remains withdrawn. Final workers, CPU reservations/groups and total admitted bytes are zero.",
+		"scope": "Real worker/decoder, backend intents, source status, source pixels and retirement under the null render owner. No native presentation, production timing, hardware-decoder in-band growth or new whole-gate acceptance is claimed. No runtime change beyond918c3019 was required.",
+		"focused": "1 passed in0.02s; target/m10-inband-worker-baseline-2026-11-13.log (this follow-up baseline passes; the original failing over-admission baseline above remains preserved)",
+		"software": "683 app tests pass,0 failed,7 ignored,49.29s. Golden runtime/tests are unchanged; the prior311 Golden tests remain valid. Root and Golden Core Cargo formatting pass.",
+		"strict": "MapGyver all-target native-qualification clippy with warnings denied exits0 in8.39s; no generated UI/protocol changes.",
+		"manifest": "target/m10-inband-worker-inputs-2026-11-13.json",
+		"manifest_sha256": "c9458d06e2fbbfaa3c9775928dba7255e2ddb4beca5c88d5ea9ab1dea88e2e7a",
+		"software_log_sha256": "4d993d9870370770affb1c606806353598cba2be8a9f314431ae796b089f0da3",
+		"strict_log_sha256": "002ffef8e38c4462569843b248fd2f01592fae9be7336dd7f6594bf26ffe0e02"
+	},
+	"next": "Deliver actual per-channel source upload/PTS attribution through the existing producer/diagnostic boundary, preserving complete lifetime totals and explicit unknowns without a new polling/profiler family or unchanged timing retry. Preserve the original failed admission baseline and all CPU-pool/format/repeated/age/GPU-critical-path/NVIDIA/M09 requirements. No fixed gate closes:4 sole Active,88/106 (83%),M10 5/8; M14 follows4 acceptance."
 }
