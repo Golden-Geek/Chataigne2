@@ -1,0 +1,33 @@
+{
+	"date": "2026-11-13",
+	"gate": "M10/4",
+	"accepted": false,
+	"deliverable": "Repaired five version-specific paths in the existing enabled local node_repl MCP configuration. They referenced removed Codex26.1103.4239.0 files; the registered installed package is26.1106.6628.0. Executable, Node runtime, module directory, existing trusted-code path and CLI path now exist. No plugin/permission/approval changes, new server, helper launch or product runtime change.",
+	"local_config": {
+		"path": "C:/Users/bkupe/.codex/config.toml",
+		"fields": ["mcp_servers.node_repl.command", "NODE_REPL_NODE_PATH", "NODE_REPL_NODE_MODULE_DIRS", "NODE_REPL_TRUSTED_CODE_PATHS", "CODEX_CLI_PATH"],
+		"old_package": "OpenAI.Codex_26.1103.4239.0_x64__2p2nqsd0c76g0",
+		"installed_package": "OpenAI.Codex_26.1106.6628.0_x64__2p2nqsd0c76g0",
+		"all_other_config_values_sha256_before_and_after": "91911c9cb9b47e032786f58baa4d97c0600c58a231af1bec98a8cf8022ba5d42",
+		"scope": "Private configuration is not copied into the repository. Only the five existing installation paths changed; every other parsed value is unchanged. The retired js_repl flag is not enabled."
+	},
+	"verification": {
+		"baseline": "Current model tool catalog exposes no node_repl/Computer Use entrypoint. Local server is enabled, but its configured executable/runtime/module/CLI files are absent. Plugin discovery returns no replacement. Installed package is confirmed through Get-AppxPackage. The public CLI plugin-list request times out at30s and is not treated as proof of missing installation.",
+		"mcp_transport": "After path repair, the installed Python MCP SDK initializes the configured server and lists tools successfully: rmcp3.5.1; js,js_add_node_module_dir,js_reset,turn_ended. No custom Computer Use helper protocol is implemented.",
+		"supported_desktop_api": "Called genuine js through the public MCP SDK, initialized @oai/sky as documented, then called sky.list_apps. It returns: Computer Use native pipe is unavailable: failed to connect native pipe: The system cannot find the file specified. (os error2). This is a missing native connection, not a verified desktop/overlay observation. No input action occurs.",
+		"current_host": "Observed process ancestry is Code.exe to codex-goal-recovery.exe to node.exe to codex.exe; the model-facing catalog has not acquired Computer Use after the configuration repair. No Codex/ChatGPT UI automation is attempted."
+	},
+	"native_return_trigger": "Reconnect Computer Use in the current supported desktop host/session, then verify sky.list_apps and a fresh NVIDIA native UI overlay-Off observation before NVIDIA qualification starts. User was asked asynchronously to reconnect when available. No NVIDIA test, driver reset or overlay setting change is performed in this batch; the setting remains unobserved, not assumed Off.",
+	"workflow_constraints": {
+		"skill": "C:/Users/bkupe/.codex/plugins/cache/openai-bundled/computer-use/26.1103.32239/skills/computer-use/SKILL.md",
+		"instruction": "Do not spawn codex-computer-use.exe, search for the helper executable, or build a custom helper protocol client.",
+		"application": "The missing native connection is not bypassed by manually starting the helper or automating the Codex UI. MCP repair is verified separately from desktop restoration and qualification."
+	},
+	"official_references": [
+		"https://learn.chatgpt.com/docs/config-file/config-reference",
+		"https://learn.chatgpt.com/docs/plugins",
+		"https://learn.chatgpt.com/use-cases/use-your-computer-with-codex"
+	],
+	"remaining_software_prerequisite": "The original Q06 performance tier requires two4K60 files and shared consumers. Current generator defines only HD60+4K30; source-upload validation hardcodes HD/4K dimensions. The existing pixel fixture assignment already joins receiver shared-image ownership to ordered fixture cases, while source-rate summaries still group by extent. Prepare the required equal-extent workload with distinct per-file frame markers and unambiguous file/stream attribution; do not run more unchanged Intel timing samples or count preparation as qualification.",
+	"next": "Push this repair/return-trigger checkpoint, then implement the missing two4K60 fixture/collector software prerequisite within M10/4 while native NVIDIA qualification awaits the verified desktop return trigger. Preserve every original codec/profile/series/performance-tier/age/resource/recovery requirement. M10/4 remains the sole Active gate; native prerequisite Blocked, software prerequisite Pending.88/106 (83%),M10 5/8 (63%),8/15 phases; M14 follows4 acceptance."
+}
