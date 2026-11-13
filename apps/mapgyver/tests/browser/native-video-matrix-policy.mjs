@@ -413,6 +413,30 @@ try {
 	assert.equal((await state()).position_ms, 0);
 	await capture('reactivation-survives-old-deadline', 0);
 
+	phase = 'matrix-enabled';
+	const matrixDocument = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
+	const matrixOwner = matrixDocument.nodes.find((node) => node.uuid === primary.media);
+	assert(matrixOwner);
+	await video({ kind: 'Seek', position_ms: 125 });
+	for (const enabled of [false, true]) {
+		assert(
+			(
+				await post('/api/ui/intent', {
+					kind: 'patchMeta',
+					node: matrixOwner.node_id,
+					patch: { enabled }
+				})
+			).success
+		);
+		await wait(
+			state,
+			(value) => value.playing === enabled && value.position_ms === 0,
+			'Matrix enabled transport'
+		);
+		await route(enabled ? primary : source);
+		await capture(enabled ? 'matrix-enabled-reactivation' : 'matrix-disabled-withdrawal', 0);
+	}
+
 	phase = 'shared-matrix-and-layer-stop';
 	await policies('Resume', 'Stop');
 	await video({ kind: 'Seek', position_ms: 125 });
@@ -511,13 +535,19 @@ try {
 		'loaded outgoing Stop'
 	);
 	assert((await post('/api/ui/project-new', {})).ok);
-	await wait(
+	const fresh = (await edit({ kind: 'InspectManager' }, 'screens')).snapshot;
+	assert.equal(fresh.screens.length, 1, 'New preserves the accepted default Screen contract');
+	for (const item of fresh.screens)
+		await edit({ kind: 'RemoveScreen', screen: item.id }, 'screens');
+	const retired = await wait(
 		async () => control({ kind: 'mapgyverRuntimeStatus' }),
 		(value) =>
-			!value.resources ||
-			(value.resources.used_bytes === 0 &&
-				value.resources.in_flight === 0 &&
-				value.resources.retiring === 0),
+			!value.error &&
+			value.screens.length === 0 &&
+			(!value.resources ||
+				(value.resources.used_bytes === 0 &&
+					value.resources.in_flight === 0 &&
+					value.resources.retiring === 0)),
 		'final native retirement'
 	);
 	assert.deepEqual(errors, []);
@@ -536,6 +566,9 @@ try {
 		rejected,
 		projectReload: true,
 		independentCopy: true,
+		matrixEnableVerified: true,
+		freshDefaultsRemoved: fresh.screens.map((item) => item.id),
+		finalRetirement: retired,
 		normalShutdown: false,
 		appSha256: createHash('sha256')
 			.update(

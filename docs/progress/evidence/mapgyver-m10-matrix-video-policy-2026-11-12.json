@@ -297,6 +297,46 @@
 		},
 		"return_trigger": "The committed-playback barrier and its software proof are ready. Next qualification batch reruns the exact full NVIDIA fixture in a fresh directory, then Intel after NVIDIA success; preserve the current failed shared case until actual pixels pass. Two native experiments were used here; no third run or final gate credit. Copy/project/all-caller and per-scene retirement scope still applies."
 	},
+	"native_nvidia_complete": {
+		"date": "2026-11-13",
+		"result": "pass",
+		"gate_accepted": false,
+		"raw": "target/m10-matrix-policy-nvidia-complete-2026-11-13/matrix-video-policy.json",
+		"sha256": "f907889e7105136e879f1c7ad20ece43492ab25d647d205f1fdc73569da8d0e3",
+		"pid": 26772,
+		"adapter": "dxgi:00000000:00015b86",
+		"gpu": "NVIDIA GeForce RTX5080 Laptop GPU",
+		"app_and_probe": "Same SHA-verified fresh451be032 production binaries documented above; only acceptance fixture changes follow9792ed0b. No production clock/color/resource budget change.",
+		"pairs": 9,
+		"independent_sdk_images": 32,
+		"maximum_linear_error": 0.009262163860156993,
+		"linear_tolerance": 0.01568627450980392,
+		"moving_outgoing": {
+			"images": 6,
+			"distinct_rgb": 6,
+			"alpha": [245, 102],
+			"clock_running": true,
+			"stop_after_end": true
+		},
+		"shared": "Committed second Matrix/two-Layer activation retains125ms Resume while the first Matrix is cleared. Stopping one Layer leaves the other and native frame3 running; last Layer Stop returns native frame0. The earlier shared failure is closed for this NVIDIA scope, without a clock patch.",
+		"copy_project": "Independent owned Video copy preserves Resume/Stop, keeps its own125ms playhead while the original stays0, and renders expected native frame3. Save/New/load restores enum policies and File, resets transient playhead0, relaunches and renders frame0, then applies final Stop.",
+		"requests": {
+			"http_app_operations": 396,
+			"ui_sent": 1190,
+			"ui_receipts": 1190,
+			"rejections": 0,
+			"page_errors": 0
+		},
+		"retirement": "After final New, explicitly remove only its fresh default Screen through the public API before requiring zero demand. Final public status is Idle, no error, no Screens/resources. All six completed diagnostic captures pass terminal native-uninitialized, zero plan/owned-texel allocation, bounded ring/no drops/no clock failures checks. App exits normally0.",
+		"prior_committed_run": {
+			"test_exit": 1,
+			"raw": "target/m10-matrix-policy-nvidia-committed-2026-11-13/failure.json",
+			"sha256": "f13bc2a669e72711bb7b84cc9cc6146f6bed0dc7dad37b2f261ae4288e55ca61",
+			"finding": "Shared, Layer Stop, copy and reload passed. Final zero-resource assertion saw the legitimate newly bootstrapped1920x1080 default Screen still rendering. Corrected teardown to explicitly retire that new scope, preserving M13/5 defaults and the zero-resource assertion."
+		},
+		"validation": "Existing678 app/696 engine tests and strict native-feature lint remain valid for unchanged runtime/Rust code. Updated JS/Python fixture syntax/Prettier and root/Core Cargo formatting pass; no third GPU run in this batch.",
+		"remaining": "The explicit Matrix enabled/disabled native case was added after this32-image run and has syntax checks only. Verify that additional case on NVIDIA, run the complete same fixture on Intel, then finish the original requirement-by-requirement M10/7 audit. Earlier failures remain evidence. No FPS/latency/source-age/sustained/per-format or M10/4 resource-budget qualification is inferred."
+	},
 	"remaining": [
 		"Complete configured shared/multi-Layer interruption and all-caller/copy/reload audit",
 		"Verify both GPUs' actual native moving incoming/outgoing images, policies, manual transport, shared clock, enabled/Stop lifecycle and retirement after software prerequisites"
