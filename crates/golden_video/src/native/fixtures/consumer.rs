@@ -20,7 +20,9 @@ use crate::runtime::{CompletionToken, DeviceGeneration};
 use crate::{ColorEncoding, TextureDescriptor};
 use log::GpuLog;
 
+mod binary;
 pub(in crate::native) mod log;
+pub use binary::{BinaryFrameCodeError, BinaryFrameCodeSpec, BinaryMarker};
 
 const INVALID_ARGUMENT: HRESULT = HRESULT(0x80070057_u32 as i32);
 
@@ -93,7 +95,7 @@ struct Counters {
 /// One raw GPU decode and its independently checked side-by-side source markers. Corrupt
 /// rows remain present with their exact raw words and validation errors.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ConsumerFrame {
+pub struct ConsumerFrame<M = CardMarkers> {
     /// Zero-based append-only GPU log row.
     pub row: u32,
     /// Actual capture/decode completion lifetime.
@@ -106,6 +108,14 @@ pub struct ConsumerFrame {
     pub completion_observed_qpc: Option<u64>,
     /// Exact twelve integer words read once after the measurement window.
     pub raw_words: [u32; 12],
+    /// Typed marker interpretation; card fields retain their existing JSON layout.
+    #[serde(flatten)]
+    pub marker: M,
+}
+
+/// Independently checked side-by-side source markers.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CardMarkers {
     /// Left marker checksum result, without clamping or identity/order inference.
     pub left: std::result::Result<CardStamp, MarkerError>,
     /// Right marker checksum result, without clamping or identity/order inference.
@@ -116,6 +126,8 @@ pub struct ConsumerFrame {
 /// aliases are foreign ownership and must not be double-counted as physical allocations.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FixtureConsumerSnapshot {
+    /// Explicit binary pixel contract; absent means the ordinary side-by-side CardStamp mode.
+    pub binary_frame_code: Option<BinaryFrameCodeSpec>,
     /// Consumer/process lifetime.
     pub instance: Uuid,
     /// Selected hardware adapter.
@@ -177,6 +189,7 @@ pub struct FixtureConsumerSnapshot {
 /// Worker-local independent GPU consumer. No pixel data is mapped during tick/poll. Drop
 /// retains SDK aliases, capture and log through actual completion or confirmed device removal.
 pub struct FixtureConsumer {
+    binary_frame_code: Option<BinaryFrameCodeSpec>,
     receiver: Receiver,
     capture: Texture,
     log: GpuLog,
@@ -204,6 +217,16 @@ impl FixtureConsumer {
     /// not receive pixels, clear/map textures, or submit native work during construction.
     pub fn new(config: FixtureConsumerConfig) -> Result<Self> {
         Self::with_marker_shader(config, include_str!("consumer.hlsl"))
+    }
+
+    /// Uses the same capture/log/final-readback path with an explicit binary pixel decoder.
+    pub fn with_binary_frame_code(config: FixtureConsumerConfig, marker: BinaryFrameCodeSpec) -> Result<Self> {
+        marker
+            .validate(config.descriptor.extent)
+            .map_err(|_| Error::from_hresult(INVALID_ARGUMENT))?;
+        let mut consumer = Self::with_marker_shader(config, &marker.shader())?;
+        consumer.binary_frame_code = Some(marker);
+        Ok(consumer)
     }
 
     pub(super) fn with_marker_shader(config: FixtureConsumerConfig, shader: &str) -> Result<Self> {
@@ -237,6 +260,7 @@ impl FixtureConsumer {
         )?;
         let records = Vec::with_capacity(config.max_frames as usize);
         Ok(Self {
+            binary_frame_code: None,
             receiver,
             capture,
             log,
@@ -398,6 +422,7 @@ impl FixtureConsumer {
         let bytes = self.config.descriptor.byte_len().expect("validated UNORM descriptor");
         let log_bytes = self.log.bytes();
         FixtureConsumerSnapshot {
+            binary_frame_code: self.binary_frame_code,
             instance: self.config.instance,
             adapter: self.config.adapter,
             descriptor: self.config.descriptor,
@@ -438,6 +463,26 @@ impl FixtureConsumer {
     /// Ends measurement/tick admission, drains actual GPU work, then performs the one final
     /// staging copy and Map. Call once, after the measurement window; invalid rows are kept.
     pub fn finish(&mut self) -> Result<Vec<ConsumerFrame>> {
+        if self.binary_frame_code.is_some() {
+            return Err(Error::from_hresult(INVALID_ARGUMENT));
+        }
+        self.finish_decoded(|words| CardMarkers {
+            left: CardStamp::from_words(words[..6].try_into().unwrap()),
+            right: CardStamp::from_words(words[6..].try_into().unwrap()),
+        })
+    }
+
+    /// Returns binary codes and raw pixel intensities after the one final readback.
+    pub fn finish_binary(&mut self) -> Result<Vec<ConsumerFrame<BinaryMarker>>> {
+        let marker = self
+            .binary_frame_code
+            .ok_or_else(|| Error::from_hresult(INVALID_ARGUMENT))?;
+        self.finish_decoded(|words| BinaryMarker {
+            binary_frame_code: marker.decode(words),
+        })
+    }
+
+    fn finish_decoded<M>(&mut self, decode: impl Fn([u32; 12]) -> M) -> Result<Vec<ConsumerFrame<M>>> {
         if self.finished {
             return Err(Error::from_hresult(INVALID_ARGUMENT));
         }
@@ -479,8 +524,7 @@ impl FixtureConsumer {
                     receive_begin_qpc: record.receive_begin_qpc,
                     completion_observed_qpc: record.completion_observed_qpc,
                     raw_words,
-                    left: CardStamp::from_words(raw_words[..6].try_into().unwrap()),
-                    right: CardStamp::from_words(raw_words[6..].try_into().unwrap()),
+                    marker: decode(raw_words),
                 });
             })?;
         Ok(frames)

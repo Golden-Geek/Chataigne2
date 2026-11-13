@@ -174,7 +174,15 @@ async function consumer(output, adapter) {
 			'--max-seconds',
 			'600',
 			'--max-frames',
-			'65536'
+			'65536',
+			'--binary-frame-code',
+			JSON.stringify({
+				bits: fixtures.frame_code.bits,
+				origin: [fixtures.frame_code.x, fixtures.frame_code.y],
+				step: fixtures.frame_code.step,
+				sentinel: [fixtures.frame_code.sentinel_x, fixtures.frame_code.y],
+				threshold: fixtures.frame_code.threshold
+			})
 		],
 		{ windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] }
 	);

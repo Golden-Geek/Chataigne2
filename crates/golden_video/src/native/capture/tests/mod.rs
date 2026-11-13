@@ -37,6 +37,12 @@ fn event() -> DiagnosticEvent {
             serial: 1,
         },
         texture: TextureId::new(1).unwrap(),
+        descriptor: crate::TextureDescriptor {
+            extent: crate::Extent2D::new(1, 1).unwrap(),
+            format: crate::PixelFormat::Rgba8Unorm,
+            color_encoding: crate::ColorEncoding::Srgb,
+            alpha_mode: crate::AlphaMode::Straight,
+        },
         sequence: 0,
         stream: None,
         publication: None,

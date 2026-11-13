@@ -262,6 +262,16 @@ back buffers redraw for each admitted Present; direct untracked external inputs 
 conversion timing. A reused conversion has no draw interval, while its delivery/API observation
 still records the actual attempt. The cache owns metadata only, with no extra texture or lease.
 
+Qualification consumers can select `BinaryFrameCodeSpec` to sample an explicitly declared
+black/white code and separate sentinel. The existing append-only twelve-word GPU log retains
+the code and sampled intensities; one final post-window staging readback independently checks
+their agreement. `ConsumerFrame<M>` flattens typed marker payloads, preserving ordinary
+CardStamp JSON fields without interpreting Video codes as cards. Invalid rows remain errors.
+Prepared `OutputSourceTrace` facts declare each output's exact external dependencies and count,
+while `SourceUseTrace` retains actual RGB descriptors and Image/GPU publication identities.
+These opt-in observations support exact SDK-version/retained-PTS joins, including equal-sized
+files and resident frames; incomplete tables or ambiguous versions do not prove provenance.
+
 `D3d11Control::allocations_snapshot` separately observes actual committed native owners. Each
 production plan texture carries one metadata release guard after its native texture/views;
 Rc sharing, reused generations and weak cache entries add no charge. Source inventories report

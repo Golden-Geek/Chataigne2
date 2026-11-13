@@ -90,6 +90,7 @@ pub enum GpuFramePublication {
 /// Fixed-descriptor GPU source with immediate or bounded timestamp-based publication.
 #[derive(Clone)]
 pub struct GpuFrameStream {
+    id: uuid::Uuid,
     descriptor: TextureDescriptor,
     adapter: AdapterId,
     state: Arc<Mutex<State>>,
@@ -108,6 +109,7 @@ impl GpuFrameStream {
     /// Create an empty source; the producer must admit storage before publishing images.
     pub fn new(descriptor: TextureDescriptor, adapter: AdapterId) -> Self {
         Self {
+            id: uuid::Uuid::new_v4(),
             descriptor,
             adapter,
             state: Default::default(),
@@ -115,6 +117,11 @@ impl GpuFrameStream {
             timing: None,
         }
     }
+    /// Opaque publication lifetime, shared by clones and independent of renderer generations.
+    pub fn id(&self) -> uuid::Uuid {
+        self.id
+    }
+
     /// Immutable sampled RGB contract installed with a plan.
     pub fn descriptor(&self) -> TextureDescriptor {
         self.descriptor

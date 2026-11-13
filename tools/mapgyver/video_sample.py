@@ -7,6 +7,7 @@ import sys
 
 METRICS = runpy.run_path(str(Path(__file__).with_name("production_qualification.py")))
 VIDEO_AGE = runpy.run_path(str(Path(__file__).with_name("video_age.py")))
+VIDEO_PIXELS = runpy.run_path(str(Path(__file__).with_name("video_frame_codes.py")))
 
 
 def key(value):
@@ -59,15 +60,23 @@ def analyze(directory):
     source_uploads = observed_source_uploads(events["SourceUse"])
     all_uploads = events["ImageUpload"] + source_uploads
     layouts = {row["stream"]: (row["row_pitch"] // 4, row["rows"]) for row in all_uploads}
+    for use in events['SourceUse']:
+        if use.get('stream') is not None and use.get('descriptor') is not None:
+            extent = use['descriptor']['extent']
+            layout = (extent['width'], extent['height'])
+            if use['stream'] in layouts and layouts[use['stream']] != layout:
+                raise ValueError('source lifetime changed its immutable descriptor')
+            layouts[use['stream']] = layout
     uses = defaultdict(list)
     for use in events["SourceUse"]:
         if use["stream"] is not None and use["sequence"]:
             uses[key(use["token"])].append(use)
     output_sources, receiver_summaries, receiver_frames, receiver_clocks = {}, [], {}, {}
+    receiver_markers, numbered_fixtures = {}, {}
     for index, root in enumerate(report["consumerDirectories"]):
         handles = set()
         final = None
-        copied, clock = [], None
+        copied, clock, marker = [], None, None
         with open(Path(root) / "consumer.jsonl", encoding="utf-8") as source:
             for line in source:
                 row = json.loads(line)
@@ -76,6 +85,7 @@ def analyze(directory):
                     copied.append(row['frame'])
                 elif row['kind'] == 'consumer_config' and row['consumer']['frame_count'] == 'VersionedV1':
                     clock = row.get('qpc_frequency')
+                    marker = row['consumer'].get('binary_frame_code')
                 elif row["kind"] == "consumer_final":
                     final = row
         assert final is not None and handles, "missing independent receiver completion/images"
@@ -86,6 +96,11 @@ def analyze(directory):
         identity = next(iter(ids))
         output_sources[identity] = (fixture["width"], fixture["height"])
         receiver_frames[identity], receiver_clocks[identity] = copied, clock
+        receiver_markers[identity] = marker
+        spec = report['fixtures']['frame_code']
+        numbered_fixtures[identity] = {**fixture, 'marker': {
+            'bits': spec['bits'], 'origin': [spec['x'], spec['y']], 'step': spec['step'],
+            'sentinel': [spec['sentinel_x'], spec['y']], 'threshold': spec['threshold']}}
         receiver_summaries.append({"directory": root, "outputs": list(ids), "final": final,
                                    "scope": "SDK image lineage/copy completion; legacy CardStamp words are not Video frame-code validation"})
     output_ids = sorted({row["output"] for row in events["Output"] if row["spout_image"]})
@@ -144,6 +159,8 @@ def analyze(directory):
         private = [row["process"]["memory"]["private_bytes"] for row in native if row["process"] and row["process"]["memory"]]
         known = [row["allocations"]["owned_texel_bytes"] for row in native if row["allocations"]["owned_texel_bytes"] is not None]
         results.append({"phase": window["name"], "seconds": seconds, "cpu": cpu, "renderer_gpu": gpu,
+                        "video_pixel_pts": VIDEO_PIXELS['analyze_frame_codes'](
+                            events, receiver_frames, numbered_fixtures, receiver_markers, window, frames),
                         "software_output_deadlines": deadlines, "sources": source_stats,
                         "source_to_output_age_lower_bound_ms": {str(output): METRICS["distribution"](values) for output, values in age.items()},
                         "unknown_age_rows_zeroed_only_for_failure_bound": dict(age_unknown),
@@ -163,6 +180,9 @@ if __name__ == "__main__":
     root = Path(sys.argv[1])
     result = analyze(root)
     (root / "audit.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    if any(o['mismatched_images'] or o['invalid_markers'] for s in result['samples']
+           for o in s['video_pixel_pts']['outputs']):
+        raise ValueError('decoded Video pixels disagree with retained source PTS; see audit.json')
     print(json.dumps({"result": "baseline audited", "adapter": result["adapter"],
                       "samples": [{"phase": item["phase"], "sources": item["sources"],
                       "age_lower_bound": item["source_to_output_age_lower_bound_ms"],

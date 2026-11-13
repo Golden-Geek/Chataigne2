@@ -216,9 +216,15 @@ pub fn source(mut args: Arguments) -> io::Result<()> {
 pub fn consumer(mut args: Arguments) -> io::Result<()> {
     let config = FixtureArguments::read(&mut args)?;
     let max_frames: u32 = args.number("max-frames", "65536")?;
+    let marker = args.take("binary-frame-code", "");
+    let marker: Option<golden_video::native::fixtures::BinaryFrameCodeSpec> = if marker.is_empty() {
+        None
+    } else {
+        Some(serde_json::from_str(&marker).map_err(Error::other)?)
+    };
     args.done()?;
     let mut output = writer(&config.directory.join("consumer.jsonl"))?;
-    let mut fixture = FixtureConsumer::new(FixtureConsumerConfig {
+    let fixture_config = FixtureConsumerConfig {
         adapter: config.adapter,
         sender_name: config.name,
         frame_count: golden_video::plan::SpoutFrameCount::VersionedV1,
@@ -228,7 +234,11 @@ pub fn consumer(mut args: Arguments) -> io::Result<()> {
         diagnostics: DiagnosticsConfig {
             capacity: config.capacity,
         },
-    })
+    };
+    let mut fixture = match marker {
+        Some(marker) => FixtureConsumer::with_binary_frame_code(fixture_config, marker),
+        None => FixtureConsumer::new(fixture_config),
+    }
     .map_err(Error::other)?;
     let stop = stop_receiver();
     let started = Instant::now();
@@ -255,9 +265,14 @@ pub fn consumer(mut args: Arguments) -> io::Result<()> {
         thread::sleep(Duration::from_millis(1));
     }
     let readback_started = qpc()?;
-    let frames = fixture.finish().map_err(Error::other)?;
-    for frame in frames {
-        row(&mut output, json!({"kind":"consumer_frame","frame":frame}))?;
+    if marker.is_some() {
+        for frame in fixture.finish_binary().map_err(Error::other)? {
+            row(&mut output, json!({"kind":"consumer_frame","frame":frame}))?;
+        }
+    } else {
+        for frame in fixture.finish().map_err(Error::other)? {
+            row(&mut output, json!({"kind":"consumer_frame","frame":frame}))?;
+        }
     }
     while fixture.drain_diagnostics(&mut trace, NonZeroUsize::new(4096).unwrap()) != 0 {
         diagnostic_rows(&mut output, &mut trace)?;

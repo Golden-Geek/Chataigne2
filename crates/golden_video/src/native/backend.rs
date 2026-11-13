@@ -433,14 +433,21 @@ impl Backend for D3d11Backend {
                 return Err(BackendError::DeviceLost);
             }
             native.inputs.ensure(plan)?;
-            let prepared =
-                resources::prepare(native, plan, generation, &mut counts, self.notify.clone()).map_err(|_| {
-                    if native.device.removed() {
-                        BackendError::DeviceLost
-                    } else {
-                        BackendError::AllocationFailed
-                    }
-                });
+            let prepared = resources::prepare(
+                native,
+                plan,
+                generation,
+                &mut counts,
+                self.notify.clone(),
+                self.diagnostics.as_ref(),
+            )
+            .map_err(|_| {
+                if native.device.removed() {
+                    BackendError::DeviceLost
+                } else {
+                    BackendError::AllocationFailed
+                }
+            });
             native.textures.prune();
             prepared
         })();
@@ -630,8 +637,9 @@ impl D3d11Backend {
                     recorder.push(DiagnosticEvent::SourceUse(SourceUseTrace {
                         token,
                         texture: external.id,
+                        descriptor: target.descriptor,
                         sequence: target.image_visible.get(),
-                        stream: upload.map(|upload| upload.stream),
+                        stream: Some(upload.map_or(stream.id(), |upload| upload.stream)),
                         publication: None,
                         software_upload: upload,
                         frame: target.timed_frame.get(),
@@ -701,6 +709,7 @@ impl D3d11Backend {
                 recorder.push(DiagnosticEvent::SourceUse(SourceUseTrace {
                     token,
                     texture: external.id,
+                    descriptor: target.descriptor,
                     sequence: frame.sequence,
                     stream: None,
                     publication: frame.timing,

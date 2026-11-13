@@ -1,0 +1,35 @@
+{
+	"date": "2026-11-13",
+	"gate": "M10/4",
+	"accepted": false,
+	"result": "continuous_pixel_pts_witness_implemented_native_rebuild_clear_defect_exposed",
+	"deliverable": "The existing independent GPU consumer supports a bounded binary frame-code/sentinel mode. It retains code and sampled intensities in the same append-only12-word log and performs one final post-window readback. CPU and Python independently verify the code. Generic typed marker payloads preserve the ordinary flattened CardStamp JSON fields. Prepared fixed-size OutputSource facts declare complete external-source dependencies; SourceUse retains actual descriptors and Image/GPU lifetime IDs, so equal-sized independent files need not be guessed by dimensions.",
+	"software": "678 app/302 Golden Video tests pass, including5 new binary packing/spec/corruption/serialization cases. Strict both-package all-target native-feature clippy passes.32 Video auditor tests cover exact SDK/PTS joins, mixed24/30/60 rates, loop zero, equal-sized sources, ambiguity, missing/completed/version/corrupt/raw evidence and reversed clocks;147 production auditor tests pass. Node syntax/Prettier and root/Core formatting pass. Both normal app and receiver probe builds exit0.",
+	"native": {
+		"base_commit": "ff07ca6635b8d2c695cee305e449a235c251876a",
+		"adapter": "dxgi:00000000:000156b6",
+		"pid": 28804,
+		"process_exit": 0,
+		"audit_exit": 1,
+		"scope": "First continuous Video-code receiver invocation in the existing fixed ProResHQ1080p60+4K30 workload. Receiver decoding/provenance changed, so no new performance comparison is claimed. Dirty source/HLSL/script hashes and both executable hashes are retained in execution-inputs.json.",
+		"matched": "Visible HD7112/7194 and UHD6954/7165 accepted images match selected original PTS; minimized HD3593/3595 and UHD3588/3593 match.21247 exact SDK-version witnesses match,0 code/PTS mismatches. Missing observations remain unverified; disconnected images have no receiver witness by design. Combined observed codes cover240 HD and120 UHD source frame positions.",
+		"failure": "One minimized HD image is all zero: valid binary log header, absent sentinel, raw code/intensities0. This remains an invalid marker and makes the correctness audit fail; it is not excluded or accepted.",
+		"exact_failure": "Receiver row8945, SDK handle3221226562/frame9141, renderer token9151. This is the first token of resource generation2/revision4. HD external texture14 retains software-upload sequence9058 and PTS3983333334, while requested_sequence is null. Current code clears a generation's GPU target before a successful sample, retaining allocation metadata when no sample is available. The observed black pixels and old metadata reproduce that boundary defect; no production fix or passing retry is claimed here.",
+		"health": "135 Ready/Playing observations,3 held SDK images,0 page errors and normal owned shutdown.285 source-GPU snapshots across5 complete captures retain one24883200-byte shared HD publisher and zero final source/plan/native owners, without telemetry loss. Correctness still fails.",
+		"report": "target/q06-video-code-intel-2026-11-13/sample.json",
+		"report_sha256": "9da0b5dad98802c001da74b599371533e6f3009fbff581b9edf5e009e0c481be",
+		"audit": "target/q06-video-code-intel-2026-11-13/audit.json",
+		"audit_sha256": "be37b5ffaff2ee5cbe06fa0a7622046efe91359770573ee2c8cb01a1ef7ecfcb",
+		"inputs": "target/q06-video-code-intel-2026-11-13/execution-inputs.json",
+		"inputs_sha256": "9f0db89dfb53a43a5b2350493c6e7823ac5b4a26420dbfbb33316a62230a9891",
+		"log_sha256": "7051938b395d26b69e63df98194b0471bd9d861b29185f0817d988b8d2deba27"
+	},
+	"checks": {
+		"software_log_sha256": "d78ec1318a0f97042e1db077798b972f987220217938cd53460b8ec6d1fd25b7",
+		"strict_log_sha256": "68369f6a5910135b499fcd95a3843a968f99907ddd813bdc9890975827273d92",
+		"probe_log_sha256": "c23e69b6e877d432beda594436dfde9b4d10c5f73e55ec01d23a169e6ac71f2a",
+		"app_log_sha256": "21c5f66b4186cfdbc917422a34450de7ba2f5337fd937f20f69dfc974d8b7910",
+		"log_paths": "target/m10-binary-marker-{software,strict,probe,app}-2026-11-13.log"
+	},
+	"next": "Fix GPU input content ownership across compatible resource generations: key storage by actual GPU stream identity and retain its copied sequence/content state on the allocation, so a no-sample rebuild preserves both pixels and metadata. Add a deterministic no-sample rebuild regression, then software/strict and one exact native retry. The investigation starts12:27 UTC, native experiments1/2; do not reset that allowance. Preserve this failed capture. No gate closes:4 sole Active,88/106 (83%),M10 5/8. Prior4K66.21ms timing, all codec/repeated/resource/path/plane/pool/PTS scope, NVIDIA prerequisite and M09 remain open."
+}

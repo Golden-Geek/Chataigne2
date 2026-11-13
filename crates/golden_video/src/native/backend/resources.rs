@@ -105,7 +105,9 @@ pub(super) fn prepare(
     generation: crate::runtime::GenerationInfo,
     counts: &mut PreparationCounts,
     notify: Option<golden_io::WorkerNotifier>,
+    recorder: Option<&crate::native::timing::Recorder>,
 ) -> Result<D3d11Resources> {
+    let mut source_routes = Vec::new();
     native.textures.prune();
     let mut resources = D3d11Resources {
         render_cache: std::cell::RefCell::new(super::cache::Cache::new(plan)),
@@ -215,6 +217,24 @@ pub(super) fn prepare(
             }
         }
         resources.presented_regions.insert(output.id, placements);
+        if recorder.is_some() {
+            let sources = plan
+                .external_textures()
+                .iter()
+                .filter(|source| needed.contains(&source.id));
+            let count = sources.clone().count();
+            let route = |texture| crate::native::timing::OutputSourceTrace {
+                generation,
+                output: output.id,
+                texture,
+                source_count: count,
+            };
+            if count == 0 {
+                source_routes.push(route(None));
+            } else {
+                source_routes.extend(sources.map(|source| route(Some(source.id))));
+            }
+        }
         if !native.outputs.needs_conversion_texture(output.id) {
             continue;
         }
@@ -225,5 +245,10 @@ pub(super) fn prepare(
         );
     }
     resources._demands = Some(native.inputs.demands(plan));
+    if let Some(recorder) = recorder {
+        for route in source_routes {
+            recorder.push(crate::native::timing::DiagnosticEvent::OutputSource(route));
+        }
+    }
     Ok(resources)
 }

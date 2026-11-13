@@ -67,6 +67,7 @@ pub(super) fn update(
         recorder.push(DiagnosticEvent::SourceUse(SourceUseTrace {
             token,
             texture,
+            descriptor: target.descriptor,
             sequence: target.image_visible.get(),
             stream: Some(stream.id()),
             publication: None,

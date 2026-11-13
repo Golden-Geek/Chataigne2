@@ -179,8 +179,10 @@ impl BridgeCapture {
                     receive_begin_qpc: None,
                     completion_observed_qpc: None,
                     raw_words: words,
-                    left: CardStamp::from_words(words[..6].try_into().unwrap()),
-                    right: CardStamp::from_words(words[6..].try_into().unwrap()),
+                    marker: crate::native::fixtures::CardMarkers {
+                        left: CardStamp::from_words(words[..6].try_into().unwrap()),
+                        right: CardStamp::from_words(words[6..].try_into().unwrap()),
+                    },
                 });
             })
             .unwrap();

@@ -175,14 +175,14 @@ fn collect(captured: Captures, submissions: &[FixtureSubmission]) -> serde_json:
             output_mismatches +=
                 usize::from(frame.raw_words[..6] != stages[6..] || frame.raw_words[6..] != stages[6..]);
         }
-        if frame.left != Ok(expected.stamp)
-            || frame.right != Ok(expected.stamp)
+        if frame.marker.left != Ok(expected.stamp)
+            || frame.marker.right != Ok(expected.stamp)
             || frame.raw_words[..6] != words
             || frame.raw_words[6..] != words
         {
             mismatches.push(serde_json::json!({
                 "copy": image, "row": frame.row, "expected": expected.stamp,
-                "left": frame.left, "right": frame.right, "raw_words": frame.raw_words,
+                "left": frame.marker.left, "right": frame.marker.right, "raw_words": frame.raw_words,
             }));
         }
     }

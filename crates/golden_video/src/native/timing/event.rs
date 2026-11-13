@@ -199,9 +199,11 @@ pub struct SourceUseTrace {
     pub token: CompletionToken,
     /// Logical external texture.
     pub texture: TextureId,
+    /// Actual retained RGB texture contract, including sources with no CPU upload.
+    pub descriptor: crate::TextureDescriptor,
     /// Runtime-local publication sequence; zero means the missing-input clear.
     pub sequence: u64,
-    /// Software publication lifetime, absent for native SDK publications.
+    /// Image/GPU publication lifetime, absent for native SDK publications.
     pub stream: Option<uuid::Uuid>,
     /// Exact retained source metadata, absent for missing or uninstrumented publication.
     pub publication: Option<PublicationTiming>,
@@ -328,6 +330,8 @@ pub enum DiagnosticEvent {
     Plan(PlanTrace),
     /// Native resource preparation, joined to the proposed resource and authored identities.
     Preparation(PreparationTrace),
+    /// One bounded prepared output/source dependency, with declared table completeness.
+    OutputSource(OutputSourceTrace),
     /// Exact scheduler slot/admission or final coverage fence.
     Schedule(ScheduleTrace),
     /// Inclusive renderer CPU phases.
@@ -353,6 +357,19 @@ pub struct PlanTrace {
     pub stage: crate::runtime::PlanStage,
     /// Machine QPC observation; clock failure stays absent and increments diagnostic health.
     pub observed_qpc: Option<u64>,
+}
+
+/// Fixed-size prepared dependency fact, emitted only after successful native preparation.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct OutputSourceTrace {
+    /// Exact prepared resources, later joined through FrameCpu's generation.
+    pub generation: crate::runtime::GenerationInfo,
+    /// Native output whose source graph was compiled.
+    pub output: OutputId,
+    /// External texture dependency; None explicitly represents zero external sources.
+    pub texture: Option<TextureId>,
+    /// Number of distinct external dependencies; incomplete tables never prove provenance.
+    pub source_count: usize,
 }
 
 /// Native preparation submission wall time, not GPU execution or complete plan publication age.

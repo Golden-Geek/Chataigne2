@@ -61,9 +61,9 @@ pub use process::{
 pub use selection::{AdapterPreference, AdapterSelectionError, select_adapter, select_from};
 pub use timing::{
     CpuInterval, DiagnosticContext, DiagnosticDelivery, DiagnosticEvent, DiagnosticsConfig, DiagnosticsSnapshot,
-    FrameCpuTrace, GpuSampleStatus, GpuTrace, ImageUploadTrace, OutputQueueBound, OutputTrace, PublicationTiming,
-    ScheduleClock, ScheduleClockError, ScheduleDisposition, ScheduleTrace, SoftwareUploadTrace, SourceCpuTrace,
-    SourceUseTrace, SpoutImageVersion, ThreadCpuDelta, TimedFrameTrace,
+    FrameCpuTrace, GpuSampleStatus, GpuTrace, ImageUploadTrace, OutputQueueBound, OutputSourceTrace, OutputTrace,
+    PublicationTiming, ScheduleClock, ScheduleClockError, ScheduleDisposition, ScheduleTrace, SoftwareUploadTrace,
+    SourceCpuTrace, SourceUseTrace, SpoutImageVersion, ThreadCpuDelta, TimedFrameTrace,
 };
 
 pub(crate) use backend::D3d11Backend;

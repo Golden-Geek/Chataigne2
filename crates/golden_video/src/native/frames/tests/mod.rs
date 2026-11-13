@@ -15,6 +15,11 @@ fn descriptor() -> TextureDescriptor {
 #[test]
 fn gpu_stream_withdrawal_and_contention_are_distinct() {
     let stream = GpuFrameStream::new(descriptor(), AdapterId { low: 1, high: 0 });
+    assert_eq!(stream.id(), stream.clone().id());
+    assert_ne!(
+        stream.id(),
+        GpuFrameStream::new(descriptor(), AdapterId { low: 1, high: 0 }).id()
+    );
     assert_eq!(stream.sample().unwrap().sequence, 0);
     stream.publish(None).unwrap();
     let sample = stream.sample().unwrap();

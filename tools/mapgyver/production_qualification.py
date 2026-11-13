@@ -128,7 +128,7 @@ def outcome(value):
 
 
 def events(rows):
-    result = {name: [] for name in ("Plan", "Preparation", "FrameCpu", "Output", "SourceCpu", "SourceUse", "Gpu", "Schedule")}
+    result = {name: [] for name in ("Plan", "Preparation", "OutputSource", "FrameCpu", "Output", "SourceCpu", "SourceUse", "Gpu", "Schedule")}
     seen = set()
     for row in rows:
         if row["kind"] != "diagnostic":
@@ -142,6 +142,8 @@ def events(rows):
         elif name == "Preparation":
             key = (name, json.dumps(payload["generation"], sort_keys=True),
                    json.dumps(payload.get("wall"), sort_keys=True))
+        elif name == "OutputSource":
+            key = (name, json.dumps(payload['generation'], sort_keys=True), payload['output'], payload['texture'])
         elif name == "Schedule":
             key = (name, json.dumps(payload["device"], sort_keys=True), payload["cadence"],
                    integer(payload["frame_index"], "schedule index"), payload["disposition"] == "Fence",
