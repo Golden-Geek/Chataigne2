@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
-import { createSpatialPointer } from '../pointer.ts';
+import { test } from 'vitest';
+import { createViewportPointer } from '../pointer';
 
 function fixture() {
 	const captures = new Set<number>(),
@@ -15,7 +15,7 @@ function fixture() {
 		hasPointerCapture: (id: number) => captures.has(id),
 		releasePointerCapture: (id: number) => captures.delete(id)
 	};
-	const pointer = createSpatialPointer({
+	const pointer = createViewportPointer({
 		canvas: () => canvas as unknown as SVGSVGElement,
 		extent: () => ({ width: 400, height: 200 }),
 		ghost: (point) => ghosts.push(point),
@@ -51,13 +51,23 @@ function fixture() {
 test('shared Composition/Matrix pointer captures one identity, maps current canvas coordinates and sends the final sample', () => {
 	const f = fixture();
 	assert(
-		f.pointer.start(f.event(30, 40), (point) => {
-			assert.deepEqual(point, { x: 40, y: 40 });
-			return true;
-		})
+		f.pointer.start(
+			f.event(30, 40),
+			() => {},
+			(point) => {
+				assert.deepEqual(point, { x: 40, y: 40 });
+				return true;
+			}
+		)
 	);
 	assert(f.captures.has(1));
-	assert(!f.pointer.start(f.event(40, 40, 2), () => true));
+	assert(
+		!f.pointer.start(
+			f.event(40, 40, 2),
+			() => {},
+			() => true
+		)
+	);
 	f.pointer.move(f.event(40, 50, 2));
 	assert.equal(f.moves.length, 0);
 	f.pointer.move(f.event(50, 60));
@@ -75,9 +85,27 @@ test('shared Composition/Matrix pointer captures one identity, maps current canv
 test('shared pointer rejects invalid starts and retires capture once on cancellation or a lost viewport', () => {
 	for (const lostViewport of [false, true]) {
 		const f = fixture();
-		assert(!f.pointer.start(f.event(30, 40, 1, 1), () => true));
-		assert(!f.pointer.start(f.event(30, 40), () => false));
-		assert(f.pointer.start(f.event(30, 40), () => true));
+		assert(
+			!f.pointer.start(
+				f.event(30, 40, 1, 1),
+				() => {},
+				() => true
+			)
+		);
+		assert(
+			!f.pointer.start(
+				f.event(30, 40),
+				() => {},
+				() => false
+			)
+		);
+		assert(
+			f.pointer.start(
+				f.event(30, 40),
+				() => {},
+				() => true
+			)
+		);
 		if (lostViewport) {
 			f.rect.width = 0;
 			f.pointer.move(f.event(40, 40));
@@ -88,4 +116,54 @@ test('shared pointer rejects invalid starts and retires capture once on cancella
 		assert.equal(f.captures.size, 0);
 		assert.equal(f.ghosts.at(-1), null);
 	}
+});
+
+test('primary hit selects before admission and a denied edit still consumes the hit without capture', () => {
+	for (const admitted of [false, true]) {
+		const f = fixture();
+		let selected = false,
+			consumed = false,
+			prevented = false;
+		const event = f.event(30, 40);
+		event.stopPropagation = () => {
+			consumed = true;
+		};
+		event.preventDefault = () => {
+			prevented = true;
+		};
+		assert.equal(
+			f.pointer.start(
+				event,
+				() => {
+					selected = true;
+				},
+				() => {
+					assert(selected, 'selection is independent of mutation admission');
+					assert(consumed, 'the hit cannot bubble into background deselection');
+					assert.equal(f.captures.size, 0, 'selection precedes capture');
+					return admitted;
+				}
+			),
+			admitted
+		);
+		assert.equal(prevented, true, 'selection retains viewport focus even if editing is refused');
+		assert.equal(f.captures.size, admitted ? 1 : 0);
+		f.pointer.cancel();
+	}
+});
+
+test('secondary, consumed and concurrent hits cannot change selection', () => {
+	const f = fixture();
+	let selections = 0;
+	const select = () => {
+		selections++;
+	};
+	assert(!f.pointer.start(f.event(30, 40, 1, 1), select, () => true));
+	const consumed = Object.assign(f.event(30, 40), { defaultPrevented: true });
+	assert(!f.pointer.start(consumed, select, () => true));
+	assert.equal(selections, 0);
+	assert(f.pointer.start(f.event(30, 40), select, () => true));
+	assert(!f.pointer.start(f.event(30, 40, 2), select, () => true));
+	assert.equal(selections, 1);
+	f.pointer.cancel();
 });

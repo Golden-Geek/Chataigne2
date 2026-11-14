@@ -25,6 +25,95 @@ fn query(selected: NodeUuid) -> CompositionEditorQuery {
 }
 
 #[test]
+fn explicit_owner_selection_clears_retained_children_without_mutating_history() {
+    let mut engine = fixture();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    let owner = create(&mut engine, MediaKind::Composition);
+    let children = add(&mut engine, owner, vec![source; 6]);
+    let document = read(&mut engine, query(owner.media.0)).document;
+    let history = engine.ui_history_state();
+    for selected in [owner.media.0, owner.channel.0] {
+        let page = read(
+            &mut engine,
+            CompositionEditorQuery {
+                document: Some(document),
+                locked: Some(owner),
+                retained: Some(owner),
+                instance: Some(children[5].instance),
+                ..query(selected)
+            },
+        );
+        assert_eq!(page.total, 6);
+        assert!(page.selected.is_none());
+        assert_eq!(
+            page.parameters.len(),
+            4,
+            "no stale off-page child bindings after deselection"
+        );
+    }
+    let mut request = CompositionEditorQuery {
+        document: Some(document),
+        locked: Some(owner),
+        instance: Some(children[5].instance),
+        ..query(source.media.0)
+    };
+    assert_eq!(read(&mut engine, request).selected.unwrap().reference, children[5]);
+    request.selected = Some(children[0].instance.0);
+    assert_eq!(read(&mut engine, request).selected.unwrap().reference, children[0]);
+    request.selected = None;
+    request.instance = None;
+    assert!(
+        read(&mut engine, request).selected.is_none(),
+        "no implicit first-child selection"
+    );
+    assert_eq!(engine.ui_history_state(), history);
+}
+
+#[test]
+fn nested_composition_owner_clears_its_child_even_when_it_is_an_outer_instance() {
+    let mut engine = fixture();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    let inner = create(&mut engine, MediaKind::Composition);
+    add(&mut engine, inner, vec![source]);
+    let outer = create(&mut engine, MediaKind::Composition);
+    let MediaEditResult::InstancesCreated { .. } = edit(
+        &mut engine,
+        outer,
+        CompositionEdit::DropSource {
+            source: inner.media.0,
+            instance: None,
+            copy: true,
+            position: Point { x: 0.0, y: 0.0 },
+        },
+    ) else {
+        panic!()
+    };
+    let reference = inspect(&mut engine, outer).instances[0].definition.source.unwrap();
+    let document = read(&mut engine, query(outer.media.0)).document;
+    let page = read(
+        &mut engine,
+        CompositionEditorQuery {
+            document: Some(document),
+            locked: Some(reference),
+            ..query(source.media.0)
+        },
+    );
+    let retained = page.composition.unwrap().instances[0].reference.instance;
+    let page = read(
+        &mut engine,
+        CompositionEditorQuery {
+            document: Some(document),
+            locked: Some(reference),
+            instance: Some(retained),
+            ..query(reference.media.0)
+        },
+    );
+    assert_eq!(page.channel.unwrap().reference, reference);
+    assert_eq!(page.total, 1);
+    assert!(page.selected.is_none());
+}
+
+#[test]
 fn bounded_pages_resolve_owned_descendants_and_keep_off_page_selection_independent() {
     let mut engine = fixture();
     let source = create(&mut engine, MediaKind::SolidColor);

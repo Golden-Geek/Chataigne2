@@ -15,6 +15,7 @@
 		children,
 		preview,
 		previewLabel,
+		onselectionclear,
 		keyboard: keyboardClient
 	}: {
 		channel: ChannelSnapshot;
@@ -26,6 +27,7 @@
 		children?: Snippet;
 		preview?: PreviewSource | null;
 		previewLabel?: string;
+		onselectionclear?(): void;
 		keyboard?: SpatialKeyboardClient;
 	} = $props();
 	const keyboard = createSpatialKeyboard(() => keyboardClient);
@@ -39,6 +41,7 @@
 	identity={`${appState.session?.projectGeneration ?? 0}:${identity}`}
 	{selection}
 	{label}
+	{onselectionclear}
 	onkeydown={keyboard.keydown}
 	onfocusout={keyboard.finish}
 	native>

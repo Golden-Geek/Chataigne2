@@ -107,6 +107,7 @@ export {
 export { default as Viewport2D } from './components/viewport/Viewport2D.svelte';
 export { default as ViewportHandle } from './components/viewport/ViewportHandle.svelte';
 export { pointBounds, type ViewBounds } from './components/viewport/geometry';
+export { createViewportPointer } from './components/viewport/pointer';
 export { default as Outliner } from './components/panels/outliner/OutlinerPanel.svelte';
 export { default as OutlinerItem } from './components/panels/outliner/OutlinerItem.svelte';
 export type {

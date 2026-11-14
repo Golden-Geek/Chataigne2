@@ -12,7 +12,7 @@
 	import { previewKey } from '../preview/identity';
 	import { instanceDisplay } from './presentation';
 	import rotateCursor from './rotate-cursor.svg';
-	import { createSpatialPointer } from '../spatial/pointer';
+	import { createViewportPointer } from 'golden_ui';
 	let {
 		composition,
 		presentation = null,
@@ -52,7 +52,7 @@
 	);
 	let canvas: SVGSVGElement;
 	let ghost = $state<Point | null>(null);
-	const pointer = createSpatialPointer({
+	const pointer = createViewportPointer({
 		canvas: () => canvas,
 		extent: () => composition.canvas,
 		ghost: (at) => {
@@ -64,21 +64,23 @@
 	});
 	function down(event: PointerEvent, item: InstanceSnapshot, mode: InstanceGeometryMode) {
 		if (disabled) return;
-		pointer.start(event, (at) => {
-			const handle: InstanceHandle = {
-				mode,
-				origin: {
-					...item.definition.transform,
-					position: [...item.definition.transform.position],
-					scale: [...item.definition.transform.scale],
-					pivot: [...item.definition.transform.pivot]
-				},
-				start: at
-			};
-			if (!start(item.reference, handle)) return false;
-			select(item.reference.instance);
-			return true;
-		});
+		pointer.start(
+			event,
+			() => select(item.reference.instance),
+			(at) => {
+				const handle: InstanceHandle = {
+					mode,
+					origin: {
+						...item.definition.transform,
+						position: [...item.definition.transform.position],
+						scale: [...item.definition.transform.scale],
+						pivot: [...item.definition.transform.pivot]
+					},
+					start: at
+				};
+				return start(item.reference, handle);
+			}
+		);
 	}
 	$effect(() => {
 		if (!active) pointer.cancel();
@@ -123,8 +125,8 @@
 				aria-label={`Select ${item.label}`}
 				aria-disabled={disabled}
 				onpointerdown={(event) => down(event, item, 'Translate')}
-				onclick={() => {
-					if (!disabled) select(item.reference.instance);
+				onclick={(event) => {
+					if (!disabled && event.detail === 0) select(item.reference.instance);
 				}}
 				onkeydown={(event) => {
 					if (!disabled && (event.key === 'Enter' || event.key === ' ')) {

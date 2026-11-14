@@ -49,7 +49,7 @@
 	const selection = useDocumentSelection(),
 		preview = usePreview();
 	$effect(() => {
-		if (instance) selectedInstance = instance.reference.instance;
+		selectedInstance = view.page?.selected?.reference.instance ?? null;
 	});
 	$effect(() => {
 		if (view.page?.composition && props.page >= pages) {
@@ -212,12 +212,15 @@
 				{actions}
 				{channel}
 				{composition}
-				selected={instance?.reference.instance ?? null}
+				selected={selectedInstance}
 				disabled={busy}
 				active={gestureState.active}
 				select={(id) => {
-					selectedInstance = id;
-					if (id) selection.select(id);
+					if (selection.select(id)) selectedInstance = id;
+				}}
+				onselectionclear={() => {
+					if (gestureState.active) return;
+					if (selection.select(channel.reference.media)) selectedInstance = null;
 				}}
 				start={(reference, handle) => owner.start(reference, handle)}
 				move={(point) => gesture.move(point)}

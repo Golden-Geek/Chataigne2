@@ -1,21 +1,23 @@
-import type { Point } from '../media/generated/Point';
+import type { ViewPoint } from './geometry';
 
 interface Client {
-	canvas(): SVGSVGElement | undefined;
+	canvas(): Element | undefined;
 	extent(): { width: number; height: number };
-	ghost(point: Point | null): void;
-	move(point: Point): void;
+	ghost(point: ViewPoint | null): void;
+	move(point: ViewPoint): void;
 	finish(): void;
 	stop(): void;
 }
 
-/** Shared native-canvas pointer capture; adapters own typed targets and backend intents. */
-export function createSpatialPointer(client: Client) {
+/** Select a primary hit before edit admission; adapters own target identities and mutations. */
+export function createViewportPointer(client: Client) {
 	let pointer: number | null = null;
-	function point(event: PointerEvent): Point | null {
+	function point(event: PointerEvent): ViewPoint | null {
 		const rect = client.canvas()?.getBoundingClientRect();
 		if (!rect || rect.width <= 0 || rect.height <= 0) return null;
 		const extent = client.extent();
+		if (!(extent.width > 0 && extent.height > 0 && Number.isFinite(extent.width + extent.height)))
+			return null;
 		return {
 			x: ((event.clientX - rect.left) / rect.width) * extent.width,
 			y: ((event.clientY - rect.top) / rect.height) * extent.height
@@ -34,12 +36,16 @@ export function createSpatialPointer(client: Client) {
 		get active() {
 			return pointer !== null;
 		},
-		start(event: PointerEvent, begin: (point: Point) => boolean) {
+		start(event: PointerEvent, select: () => void, begin: (point: ViewPoint) => boolean) {
 			const at = point(event),
 				canvas = client.canvas();
-			if (!canvas || event.button !== 0 || pointer !== null || !at || !begin(at)) return false;
-			event.preventDefault();
+			if (!canvas || event.defaultPrevented || event.button !== 0 || pointer !== null || !at)
+				return false;
 			event.stopPropagation();
+			// Keep the viewport's focus when selection replaces a hit control, even if editing is refused.
+			event.preventDefault();
+			select();
+			if (!begin(at)) return false;
 			pointer = event.pointerId;
 			client.ghost(at);
 			canvas.setPointerCapture(pointer);

@@ -15,6 +15,19 @@ gesture path. Its keyboard/accessibility click fallback cannot reselect a Surfac
 mouse-up. See the [M14 selection inventory](../progress/mapgyver-m14-selection.md) for remaining
 editor adapters, hover and native acceptance; this public input contract alone does not qualify them.
 
+Golden's public `createViewportPointer` owns coordinate projection, primary-hit consumption
+and pointer capture/cancel. It selects a hit before calling the adapter's edit admission;
+refused edits retain selection and viewport focus without acquiring capture. Composition and
+Matrix consume this helper directly; the former app-local pointer copy is removed. Adapters
+retain typed target identities and backend mutations.
+
+Composition's query distinguishes an explicitly selected edited owner from an absent or
+unrelated selection. A selected owner has no selected child, even with an old retained hint
+or when a nested Composition is itself an outer instance. The query does not invent a first
+child. The adapter follows authoritative page selection and publishes direct pointer choices
+immediately, without letting parameter projection receipts reselect an old child. Broader
+cross-editor selection retention and hover remain in M14/1's acceptance inventory.
+
 [Screen output cadence](mapgyver-output-cadence.md) is authored independently of editor input
 and the native preview's 60 FPS consumer. Shared clocks and endpoint pacing belong in Golden.
 

@@ -7,7 +7,7 @@
 	import { displayRect } from './rect-presentation';
 	import type { LayerPresentation } from './layer-gesture';
 	import type { CellPresentation } from './cell-gesture';
-	import { createSpatialPointer } from './pointer';
+	import { createViewportPointer } from 'golden_ui';
 	import { SPATIAL_RESIZE_HANDLES } from './handles';
 	let {
 		objects,
@@ -40,7 +40,7 @@
 	} = $props();
 	let svg: SVGSVGElement;
 	let ghost = $state<Point | null>(null);
-	const pointer = createSpatialPointer({
+	const pointer = createViewportPointer({
 		canvas: () => svg,
 		extent: () => canvas,
 		ghost: (at) => {
@@ -61,11 +61,11 @@
 	);
 	function down(event: PointerEvent, object: LayoutRect, mode: RectGeometryMode) {
 		if (disabled) return;
-		pointer.start(event, (at) => {
-			if (!start(object.id, mode, at)) return false;
-			select(object.id);
-			return true;
-		});
+		pointer.start(
+			event,
+			() => select(object.id),
+			(at) => start(object.id, mode, at)
+		);
 	}
 	$effect(() => {
 		if (!active) pointer.cancel();
@@ -114,7 +114,7 @@
 				}}
 				onclick={(event) => {
 					event.stopPropagation();
-					if (!disabled) select(object.id);
+					if (!disabled && event.detail === 0) select(object.id);
 				}}
 				onkeydown={(event) => {
 					if (!disabled && (event.key === 'Enter' || event.key === ' ')) {
@@ -133,8 +133,8 @@
 			data-layout-cell={kind === 'Cell' ? object.id : undefined}
 			label={`Move ${object.label}`}
 			aria-disabled={disabled && !active}
-			onclick={() => {
-				if (!disabled) select(object.id);
+			onclick={(event) => {
+				if (!disabled && event.detail === 0) select(object.id);
 			}}
 			onpointerdown={(event) => down(event, object, 'Translate')} />{/if}
 {/each}

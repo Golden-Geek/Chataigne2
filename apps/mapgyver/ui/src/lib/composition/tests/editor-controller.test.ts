@@ -76,6 +76,33 @@ function deferred() {
 	return { promise, resolve, reject };
 }
 
+test('owner selection accepts no child and removes the old off-page controls without inventing a first child', async () => {
+	const host = session(),
+		state = createCompositionEditorState();
+	let clear = false;
+	const editor = new CompositionEditorController(
+		() => host,
+		state,
+		async () => {
+			const value = reply();
+			assert.equal(value.kind, 'CompositionEditor');
+			if (value.kind !== 'CompositionEditor') throw new Error('unexpected fixture reply');
+			if (clear) value.page.selected = null;
+			return value;
+		}
+	);
+	editor.refresh(query('off-page'));
+	await flush();
+	assert.equal(editor.instance?.reference.instance, 'off-page');
+	assert.equal(editor.composition?.instances.length, 2);
+	clear = true;
+	editor.refresh({ ...query('owner'), instance: 'off-page' });
+	await flush();
+	assert.equal(editor.instance, null);
+	assert.equal(editor.composition?.instances.length, 1);
+	assert.equal(editor.composition?.instances[0].reference.instance, 'visible');
+});
+
 test('each panel owns one bounded active read and one latest replacement, without catalog reads', async () => {
 	const host = session(),
 		pending = deferred(),

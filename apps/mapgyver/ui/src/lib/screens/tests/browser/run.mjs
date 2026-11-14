@@ -77,12 +77,44 @@ try {
 	await page.keyboard.up('Space');
 	assert.equal(await owner.textContent(), 'A', 'pan does not select or clear');
 	assert.equal(await page.getByLabel('Geometry starts').textContent(), '0');
+	await page.getByRole('button', { name: 'Show Composition', exact: true }).click();
+	const composition = page.getByLabel('Composition view', { exact: true });
+	const move = page.getByRole('button', { name: 'Move Item A', exact: true });
+	const item = await point(move);
+	await page.mouse.move(item.x, item.y);
+	await page.mouse.down();
+	assert.equal(
+		await owner.textContent(),
+		'Item A',
+		'unavailable-source hit selects even when edit admission is denied'
+	);
+	assert.equal(await composition.locator('[data-instance-handle="Translate"]').count(), 1);
+	await page.mouse.up();
+	const compositionZone = await composition.locator('.active-zone').boundingBox();
+	assert(compositionZone);
+	await page.mouse.move(
+		compositionZone.x + compositionZone.width / 2,
+		compositionZone.y + compositionZone.height * 0.8
+	);
+	await page.mouse.down();
+	assert.equal(
+		await owner.textContent(),
+		'composition',
+		'Composition background resolves its owner before release'
+	);
+	assert.equal(await composition.locator('[data-instance-handle="Translate"]').count(), 0);
+	await page.mouse.up();
+	await move.click();
+	assert.equal(await owner.textContent(), 'Item A');
+	await page.keyboard.press('Escape');
+	assert.equal(await owner.textContent(), 'composition');
+	assert.equal(await composition.locator('[data-instance-handle="Translate"]').count(), 0);
 	assert.deepEqual(errors, []);
 	console.log(
 		JSON.stringify({
 			result: 'pass',
 			scope:
-				'DOM Screen primary-down/background/idle Escape/keyboard/pan and selected-only handles; no native pixel or full M14 acceptance'
+				'DOM Screen and Composition primary-down/background/idle Escape, denied-edit selection and selected gizmo clearing; no native pixel or full M14 acceptance'
 		})
 	);
 } finally {

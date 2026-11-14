@@ -21,6 +21,7 @@
 		disabled,
 		active,
 		select,
+		onselectionclear,
 		start,
 		move,
 		finish,
@@ -34,6 +35,7 @@
 		disabled: boolean;
 		active: boolean;
 		select(id: InstanceId): void;
+		onselectionclear(): void;
 		start(reference: InstanceReference, handle: InstanceHandle): boolean;
 		move(point: Point): void;
 		finish(): void;
@@ -109,6 +111,7 @@
 	canvas={composition.canvas}
 	identity={channel.reference.channel}
 	{selection}
+	{onselectionclear}
 	keyboard={{
 		id: instance?.reference.instance ?? null,
 		disabled,
