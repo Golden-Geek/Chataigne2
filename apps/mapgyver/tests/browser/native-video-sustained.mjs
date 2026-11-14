@@ -374,7 +374,7 @@ try {
 				output.fixture.rate + (output.fixture.frame_code_offset ?? 0)
 			)
 		);
-	for (const output of outputs.slice(0, 2)) await consumer(output, adapter);
+	for (const output of outputs) await consumer(output, adapter);
 	await transport({ kind: 'Play' });
 	await phase('warmup', 30);
 	await phase('sample', 120);
@@ -405,7 +405,7 @@ try {
 		errors,
 		consumerDirectories: consumers.map((value) => value.root),
 		scope:
-			'One independent 30s-warmed120s sample per invocation plus60s minimized and60s receiver disconnected. Continuous SDK consumers record exact shared-image versions; their legacy CardStamp checksum is not a Video frame-code oracle. Held full-resolution output frame codes are checked separately. Three independent samples and complete age/resource/format qualification remain required.'
+			'One independent 30s-warmed120s sample per invocation plus60s minimized and60s receiver disconnected. Every declared Video output, including the shared Reference, has an independent continuous SDK receiver. Receivers follow declared output order, not unique-file order. Exact image versions and numbered pixels are audited separately from legacy CardStamp words. Three independent samples and complete age/resource/format qualification remain required.'
 	};
 } catch (error) {
 	await writeFile(

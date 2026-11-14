@@ -441,7 +441,11 @@ without these tags remain unqualified and cannot be reconstructed by replaying t
 ordinal in a disjoint half of the12-bit visible code range, independently checked by FFmpeg.
 The manifest records per-file offsets and case identities. The ordinary sustained controller
 retains the same shared Reference, independent consumers,60Hz outputs and sampling durations;
-its storage/payload assertions derive from the selected fixed workload. Preparation and
+every declared Video output, including the shared Reference, has its own continuous receiver.
+Receiver creation follows declared output order; canonical File metadata may repeat across
+References. The auditor joins actual shared-image owners and rejects duplicate native output
+owners or noncanonical fixture claims. Older captures with only two receivers explicitly retain
+their unobserved Reference coverage gap. Storage/payload assertions derive from the fixed workload. Preparation and
 software checks do not qualify either tier's performance or replace independent repeated runs.
 Hardware/HAP File publishers use the timeline completion correction now; all original resource,
 recovery and performance qualification remains required.

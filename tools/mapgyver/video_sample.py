@@ -73,6 +73,27 @@ def source_phase_stats(fixture, streams, uploads, visible, frames, seconds):
             'uploaded_row_pitches': sorted({row['row_pitch'] for row in uploads})}
 
 
+def receiver_fixture(report, index, owners, assigned):
+    """Bind each independent output to its canonical File, including repeated References."""
+    if len(owners) != 1:
+        raise ValueError('missing or ambiguous shared-image owner')
+    identity = next(iter(owners))
+    if identity in assigned:
+        raise ValueError('independent output receivers resolved to the same native output')
+    if not 0 <= index < len(report['outputs']):
+        raise ValueError('receiver has no declared output')
+    declared = report['outputs'][index]['fixture']
+    candidates = [case for case in report['fixtures']['cases']
+                  if PureWindowsPath(case['file']) == PureWindowsPath(declared['file'])]
+    if len(candidates) != 1:
+        raise ValueError('output has no unique canonical fixture')
+    fixture = candidates[0]
+    if (any(declared[field] != fixture[field] for field in ('width', 'height', 'rate', 'frames', 'sha256'))
+            or declared.get('frame_code_offset', 0) != fixture.get('frame_code_offset', 0)):
+        raise ValueError('declared output disagrees with canonical fixture')
+    return identity, fixture
+
+
 def analyze(directory):
     report = json.loads((directory / "sample.json").read_text(encoding="utf-8"))
     events, snapshots, capture_health = defaultdict(list), [], []
@@ -134,9 +155,7 @@ def analyze(directory):
         assert final is not None and handles, "missing independent receiver completion/images"
         ids = {row["output"] for row in events["Output"] if row["spout_image"]
                and row["spout_image"]["shared_handle"] in handles}
-        assert len(ids) == 1, "ambiguous shared-image owner"
-        fixture = report["fixtures"]["cases"][index]
-        identity = next(iter(ids))
+        identity, fixture = receiver_fixture(report, index, ids, receiver_frames)
         output_sources[identity] = (fixture["width"], fixture["height"])
         output_streams[identity] = file_streams[PureWindowsPath(fixture['file'])]
         receiver_frames[identity], receiver_clocks[identity] = copied, clock
@@ -146,6 +165,8 @@ def analyze(directory):
             'bits': spec['bits'], 'origin': [spec['x'], spec['y']], 'step': spec['step'],
             'sentinel': [spec['sentinel_x'], spec['y']], 'threshold': spec['threshold']}}
         receiver_summaries.append({"directory": root, "outputs": list(ids), "final": final,
+                                   "declared_sender": report['outputs'][index]['sender'],
+                                   "fixture_file": fixture['file'],
                                    "scope": "SDK image lineage/copy completion; legacy CardStamp words are not Video frame-code validation"})
     output_ids = sorted({row["output"] for row in events["Output"] if row["spout_image"]})
     results = []
@@ -208,6 +229,15 @@ def analyze(directory):
     return {"adapter": report["adapter"], "pid": report["pid"], "samples": results,
             "source_submission_attribution": source_attribution,
             "independent_receivers": receiver_summaries,
+            "continuous_output_coverage": {
+                "declared_video_outputs": len(report['outputs']),
+                "independent_output_receivers": len(receiver_frames),
+                "all_declared_outputs_observed": len(receiver_frames) == len(report['outputs']) > 0,
+                "unobserved_declared_outputs": [
+                    {"sender": output['sender'], "reference": output['reference']}
+                    for output in report['outputs'][len(report['consumerDirectories']):]],
+                "scope": "Declared Video outputs only; completeness also requires healthy native/receiver traces, "
+                         "exact pixel/PTS and age witnesses. Source-free outputs retain cadence-only scope."},
             "scope": "One warmed sample, not the required three independent samples. Renderer GPU is one context. CPU upload end supplies only an inward failure bound. Timestamped CPU/GPU File publication can enclose age outward through an exact independent SDK-copy completion; unmeasured images remain unbounded. This is not continuous decoded Video pixel/PTS or display proof. Unmapped outputs, untagged publications and complete decoder/pool coverage remain required. Source CPU payload attribution is evaluated separately; missing rows/bindings remain incomplete."}
 
 

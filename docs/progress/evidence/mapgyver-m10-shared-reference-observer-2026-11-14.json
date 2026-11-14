@@ -1,0 +1,52 @@
+{
+	"date": "2026-11-14",
+	"gate": "M10/4",
+	"accepted": false,
+	"deliverable": "Existing Q06 controller now records an independent continuous SDK receiver for all three declared Video outputs, including the shared Reference. Auditor resolves fixtures in output order against canonical Files instead of indexing unique fixture cases; repeated Reference Files and equal-extent independent Files remain distinct.",
+	"validation": {
+		"python_cases": 57,
+		"node_cases": 22,
+		"node_syntax": "pass",
+		"prettier": "pass",
+		"root_and_core_cargo_fmt": "pass",
+		"scoped_diff_check": "pass",
+		"faults": "Three-receiver/two-file mapping, disjoint equal-extent codes, missing/ambiguous/duplicate native owners, missing output metadata, mutated metadata and ambiguous canonical Files.",
+		"existing_cohort_reanalysis": {
+			"root": "target/q06-h264-nvidia-2026-11-14",
+			"result": "pass;21608 connected pixel/PTS matches,0 bad/missing; complete resident/source attribution",
+			"continuous_coverage": "Old raw cohort correctly remains3 declared Video outputs,2 continuous receivers,1 unobserved shared Reference. Original capture/audit preserved.",
+			"report": "target/q06-shared-reference-software-2026-11-14/standard-reanalysis.json",
+			"sha256": "b868ff6f80a37d80fe7009ef532453e2d17a5c85d714155c8198caece8c61b18"
+		}
+	},
+	"source_inputs": [
+		{
+			"path": "apps/mapgyver/tests/browser/native-video-sustained.mjs",
+			"sha256": "c6ffcf067fd9c90fd49f6fa24ab6fcf74dfedc8ff6cb354ddb0c6f38b891448f"
+		},
+		{
+			"path": "tools/mapgyver/video_sample.py",
+			"sha256": "01778781679bcf01a3bd29864932066715aba7e08af9397367b9f463b7d8be6d"
+		},
+		{
+			"path": "tools/mapgyver/tests/test_video_sample.py",
+			"sha256": "c26dd5def38d9d46c7ef8ba438bfc3ac6ff50b851e6c14e512ddb5b34afcccef"
+		},
+		{
+			"path": "docs/architecture/mapgyver-video.md",
+			"sha256": "21deeb569a24a37ba573a4f323463e0ab4348a20b73c0628fd58ffe682119787"
+		}
+	],
+	"runtime": "No Rust/product/protocol change. Existing55 runtime/build inputs and1010-case/strict/build coverage remain applicable. Third receiver changes the qualification workload; native three-receiver acceptance is still required.",
+	"desktop": "Current supported capture returned NVIDIA window metadata with a VSCode image. That image is rejected as native setting evidence and is not used for input. The completed NVIDIA cohort used the user's fresh explicit native Settings Off confirmation, not that image. A fresh supported native observation/query remains prerequisite before further NVIDIA qualification.",
+	"remaining": "Continuous shared Reference native pixel/PTS/age verification, original4K30 publication-age50ms, complete GPU critical path, full profile/independent-series/performance-tier/resource/recovery acceptance. All numerical budgets and previous failures retained.",
+	"next": "Checkpoint this software prerequisite before a native three-receiver run; resolve fresh reliable native OverlayOff observation/query and retained qualification decisions first. User was asked whether to implement M14 next while all M10 qualification stays unfinished/release-blocking; absent an answer, keep current acceptance-first order.",
+	"progress": {
+		"accepted": 88,
+		"total": 106,
+		"percent": 83,
+		"m10": "5/8",
+		"phases": "8/15",
+		"sole_active_gate": "M10/4"
+	}
+}
