@@ -1,0 +1,299 @@
+{
+	"date": "2026-11-14",
+	"gate": "M10/4",
+	"accepted": false,
+	"deliverable": "First viable named NVIDIA ordinary-app H.264High HD60+4K30 cohort: original output-deadline and CPU bounds pass, all connected receiver pixel/PTS witnesses match, resident route has zero CPU raster uploads and retires cleanly. Whole-gate age/full-path/repeated/profile/shared-consumer qualification remains open.",
+	"run": {
+		"directory": "target\\q06-h264-nvidia-2026-11-14",
+		"pid": 22140,
+		"adapter": {
+			"key": "dxgi:00000000:00015b86",
+			"index": 1,
+			"description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+		},
+		"controller_exit_code": 0,
+		"strict_audit_exit_code": 0,
+		"sampling": "One30s-warmed120s visible sample plus60s minimized and60s receiver-disconnected. This is not three independent samples or the complete first-pass codec set.",
+		"input_manifest": "target\\q06-h264-nvidia-2026-11-14\\execution-inputs.json",
+		"inputs": 75,
+		"runtime_build_inputs_verified_unchanged": 55,
+		"software": "Current committed54 Python+22 Node helper checks, runtime1010-case/strict/build coverage apply to unchanged inputs. No Rust/product/UI/protocol change.",
+		"overlay": {
+			"setting": "Off",
+			"observed_utc": "2026-11-14 07:33:03 UTC",
+			"method": "Fresh direct user observation in native NVIDIA App Settings/Features, after user manually opened Settings; user explicitly confirms 'it's off' before NVIDIA probe/test startup.",
+			"native_context": {
+				"window_id": 68116,
+				"window_title": "NVIDIA",
+				"app": "process:C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\CEF\\NVIDIA App.exe",
+				"page": "https://nvfile/C:/Program%20Files/NVIDIA%20Corporation/NVIDIA%20App/www/index.html#/nvapp/preferences",
+				"observed_controls": [
+					"Settings",
+					"Features",
+					"NVIDIA overlay",
+					"Enable and open overlay"
+				],
+				"scope": "Supported sky get_window_state confirms the actual native page/control context. Its accessibility tree does not explicitly print the switch's Off value; the explicit state comes from the user's direct native UI check."
+			},
+			"setting_changed": false,
+			"restoration_required": false,
+			"source": "Current user message 'it's off', following 'Settings open'; no DLL/process absence inference."
+		},
+		"hashes": {
+			"sample.json": "512a318a5ede4e7b26e4881b6106137037dde90bdc151550269793045f601b93",
+			"audit.json": "efebc5f53eddaa8e6b035660c1d0ad4e54b8ec3c26e785bf00a87e50c1999e2c",
+			"execution-inputs.json": "742d94895e99b86dc2a7232b3f382b8bc7ac3a426f446112b37efc3f1713caad",
+			"controller.log": "8092f8395b661807ca3cdb0236063d0493a2296eacaac3494dffb2f9656a2bda",
+			"overlay-observation.json": "6496e4a2274df1151c64822f01f2cdefca28296f114d681853f20c59634dc467"
+		}
+	},
+	"held": [
+		{
+			"label": "held-0",
+			"code": 60,
+			"height": 1080,
+			"retired": true,
+			"width": 1920
+		},
+		{
+			"label": "held-1",
+			"code": 30,
+			"height": 2160,
+			"retired": true,
+			"width": 3840
+		},
+		{
+			"label": "held-2",
+			"code": 60,
+			"height": 1080,
+			"retired": true,
+			"width": 1920
+		}
+	],
+	"pixel_pts": {
+		"matched_connected_images": 21608,
+		"missing_connected_witnesses": 0,
+		"invalid_or_mismatched": 0,
+		"scope": "Both direct File outputs have complete accepted-version pixel/PTS coverage while receivers are connected. Shared Reference is held-pixel verified only, not continuously observed; disconnected phase has no receiver image proof."
+	},
+	"resident_source_storage": {
+		"snapshots": 282,
+		"peak_admitted_bytes": 529344032,
+		"maximum_observed_classes": {
+			"decoder_pools": {
+				"allocations": 2,
+				"bytes": 389376000
+			},
+			"hardware_producers": {
+				"allocations": 2,
+				"bytes": 139968032
+			},
+			"hap_producers": {
+				"allocations": 0,
+				"bytes": 0
+			},
+			"software_producers": {
+				"allocations": 0,
+				"bytes": 0
+			}
+		},
+		"upload_budgets": [
+			{
+				"id": "c6154cbb-5e4e-4167-987b-1ae5aa923fe6",
+				"uploads": {
+					"software": {
+						"calls": 0,
+						"bytes": 0
+					},
+					"hap": {
+						"calls": 0,
+						"bytes": 0
+					}
+				}
+			}
+		]
+	},
+	"resident_source_submissions": 24369,
+	"cpu_uploads": {
+		"observed": {
+			"software": {
+				"calls": 0,
+				"bytes": 0
+			},
+			"hap": {
+				"calls": 0,
+				"bytes": 0
+			}
+		},
+		"measured_lifetime_totals": {
+			"software": {
+				"calls": 0,
+				"bytes": 0
+			},
+			"hap": {
+				"calls": 0,
+				"bytes": 0
+			}
+		},
+		"missing": {
+			"software": {
+				"calls": 0,
+				"bytes": 0
+			},
+			"hap": {
+				"calls": 0,
+				"bytes": 0
+			}
+		},
+		"budget_lifetimes": 1,
+		"complete_cpu_payload_attribution": true,
+		"complete_cpu_payload_pts_attribution": true,
+		"unknown_cpu_pts_rows": 0,
+		"unknown_reasons": []
+	},
+	"resources": {
+		"snapshots": 282,
+		"dxgi_samples": 272,
+		"per_control_native_observed_peaks": [
+			84883208,
+			0,
+			395283208,
+			0,
+			0
+		],
+		"sum_observed_native_control_peaks_plus_shared_source_peak": 1009510448,
+		"process_private_observed_peak": 1578356736,
+		"dxgi_local_observed_peak": 1430847488,
+		"scope": "Native inventory is per control, shared source budget counted once. Sum of sampled control peaks is conservative for sampled owners; not continuous process-wide transient/opaque driver coverage. DXGI driver usage differs from the unchanged1GiB app-owned live/retiring texel budget.",
+		"retirement_all_controls_zero": true,
+		"plan_objects_created_released": [
+			36,
+			36
+		]
+	},
+	"phases": [
+		{
+			"phase": "sample",
+			"seconds": 120.0536152,
+			"worst_observed_output_miss_fraction": 0.00041649312786339027,
+			"deadline_budget_fraction": 0.001,
+			"output_deadline_budget_met": true,
+			"cpu_wall_p95_p99_ms": [
+				0.6329,
+				0.7242
+			],
+			"renderer_context_span_p95_p99_ms": [
+				5.339008,
+				11.185472
+			],
+			"gpu_scope": "One renderer context only; does not prove complete source-to-output GPU critical path.",
+			"publication_to_copy_age": [
+				{
+					"output": 3,
+					"extent": [
+						1920,
+						1080
+					],
+					"p95_upper_ms": 35.8203,
+					"unbounded_images": 0,
+					"coverage_complete": true
+				},
+				{
+					"output": 4,
+					"extent": [
+						3840,
+						2160
+					],
+					"p95_upper_ms": 59.3588,
+					"unbounded_images": 0,
+					"coverage_complete": true
+				}
+			]
+		},
+		{
+			"phase": "minimized",
+			"seconds": 60.0520045,
+			"worst_observed_output_miss_fraction": 0.0,
+			"deadline_budget_fraction": 0.001,
+			"output_deadline_budget_met": true,
+			"cpu_wall_p95_p99_ms": [
+				0.5184,
+				0.8433
+			],
+			"renderer_context_span_p95_p99_ms": [
+				4.312864,
+				9.3752
+			],
+			"gpu_scope": "One renderer context only; does not prove complete source-to-output GPU critical path.",
+			"publication_to_copy_age": [
+				{
+					"output": 3,
+					"extent": [
+						1920,
+						1080
+					],
+					"p95_upper_ms": 29.016800000000003,
+					"unbounded_images": 0,
+					"coverage_complete": true
+				},
+				{
+					"output": 4,
+					"extent": [
+						3840,
+						2160
+					],
+					"p95_upper_ms": 58.7843,
+					"unbounded_images": 0,
+					"coverage_complete": true
+				}
+			]
+		},
+		{
+			"phase": "receiver-disconnected",
+			"seconds": 60.0551121,
+			"worst_observed_output_miss_fraction": 0.0002775464890369137,
+			"deadline_budget_fraction": 0.001,
+			"output_deadline_budget_met": true,
+			"cpu_wall_p95_p99_ms": [
+				0.5346,
+				0.8305
+			],
+			"renderer_context_span_p95_p99_ms": [
+				3.761568,
+				13.336672
+			],
+			"gpu_scope": "One renderer context only; does not prove complete source-to-output GPU critical path.",
+			"publication_to_copy_age": [
+				{
+					"output": 3,
+					"extent": [
+						1920,
+						1080
+					],
+					"p95_upper_ms": null,
+					"unbounded_images": 3602,
+					"coverage_complete": false
+				},
+				{
+					"output": 4,
+					"extent": [
+						3840,
+						2160
+					],
+					"p95_upper_ms": null,
+					"unbounded_images": 3602,
+					"coverage_complete": false
+				}
+			]
+		}
+	],
+	"remaining": "Original50ms publication-to-independent-copy age remains unqualified for4K30: finite p95 outward bounds59.3588ms visible/58.7843ms minimized exceed50; they do not prove actual latency above50ms. HD p95 bounds35.8203/29.0168ms meet50 for this cohort. Complete GPU critical path, continuous shared Reference witnesses, complete resource/profile/repeated/performance-tier/recovery acceptance remain. No threshold/metric origin changed. Earlier Intel failures preserved; pending0.5% proposal remains unapplied.",
+	"next": "Preserve this first NVIDIA cohort and close the existing shared Reference continuous-observer software gap before another native sample. Keep one Active M10/4 gate and every original requirement; no repeated series until remaining qualification decisions/prerequisites are resolved. M14 stays after4 absent explicit user execution-order revision.",
+	"progress": {
+		"accepted_gates": 88,
+		"total_gates": 106,
+		"overall_percent": 83,
+		"m10": "5/8",
+		"phases": "8/15"
+	}
+}
