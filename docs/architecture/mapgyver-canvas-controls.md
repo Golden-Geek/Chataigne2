@@ -28,6 +28,19 @@ child. The adapter follows authoritative page selection and publishes direct poi
 immediately, without letting parameter projection receipts reselect an old child. Broader
 cross-editor selection retention and hover remain in M14/1's acceptance inventory.
 
+Matrix Layer and Cell spatial adapters use the same background/idle-Escape callback. The
+Layer view selects its Matrix media owner; the Cell view selects its Layer owner while
+keeping that Layer open. Backend Matrix queries distinguish explicit owner selection from
+retained child hints and resolve owned Cell descendants through the existing bounded owner
+walk. An unlocked nested Matrix or Composition retains its edited domain when its own media
+owner is selected, rather than navigating to its outer Composition placement.
+
+Golden's public `selectedEditorItem` resolves a current selected identity against bounded
+visible definitions and one independently queried off-page definition. Cached geometry cannot
+invent selection after clearing it or override a newer pointer choice. Matrix adapters keep
+their existing project/session fences; Cell selection observes raw authoritative pages rather
+than parameter-projected copies, so geometry receipts cannot restore a stale selected Cell.
+
 [Screen output cadence](mapgyver-output-cadence.md) is authored independently of editor input
 and the native preview's 60 FPS consumer. Shared clocks and endpoint pacing belong in Golden.
 

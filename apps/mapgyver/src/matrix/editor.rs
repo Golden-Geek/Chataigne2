@@ -54,6 +54,21 @@ fn owner(engine: &AppEngine, selected: Option<NodeUuid>) -> Option<Owner> {
     None
 }
 
+/// A recognized Matrix owner/other item explicitly clears Cell focus; an unrelated
+/// object leaves the caller's retained content hint available.
+pub(super) fn cell_selection(
+    engine: &AppEngine,
+    media: MediaId,
+    layer: LayerId,
+    selected: Option<NodeUuid>,
+) -> Option<Option<CellId>> {
+    let owner = owner(engine, selected).filter(|owner| owner.media == media)?;
+    Some(match owner.focus {
+        Some(Focus::Cell(parent, _, node)) if parent == layer => Some(CellId(node)),
+        _ => None,
+    })
+}
+
 pub(crate) fn inspect(engine: &AppEngine, query: MatrixEditorQuery) -> Result<MatrixEditorPage, String> {
     if (query.locked.is_some() || query.retained.is_some()) && query.document.is_none() {
         return Err("Matrix bindings require a document identity".into());
@@ -91,6 +106,13 @@ pub(crate) fn inspect(engine: &AppEngine, query: MatrixEditorQuery) -> Result<Ma
     let same = matches && query.retained == Some(media);
     let mut selection = if same { query.selection } else { None };
     let mut selected_node = if same { query.node } else { None };
+    if followed
+        .as_ref()
+        .is_some_and(|owner| owner.media == media && owner.focus.is_none())
+    {
+        selection = None;
+        selected_node = None;
+    }
     if let Some(focus) = followed
         .filter(|owner| owner.media == media)
         .and_then(|owner| owner.focus)

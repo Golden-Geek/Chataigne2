@@ -9,6 +9,39 @@ import type { MatrixEditorQuery } from '../../media/generated/MatrixEditorQuery'
 import type { MatrixSelection } from '../../media/generated/MatrixSelection';
 import type { MatrixViewRow } from '../../media/generated/MatrixViewRow';
 
+test('clearing spatial selection is immediate while cached Matrix content waits for the owner reply', async () => {
+	const host = connection(),
+		state = matrixState();
+	let calls = 0,
+		resolve!: (value: MediaEditResult) => void;
+	const pending = new Promise<MediaEditResult>((yes) => {
+		resolve = yes;
+	});
+	const old = { item: { kind: 'Layer' as const, id: 'old-layer' }, column: null };
+	const owner = new MatrixController(
+		() => host,
+		state,
+		async () => {
+			calls++;
+			return calls === 1 ? snapshot('matrix', 0, old) : calls === 2 ? pending : snapshot();
+		}
+	);
+	owner.observe(query('old-layer'));
+	await flush();
+	const content = owner.window;
+	assert(content);
+	owner.select(null, null);
+	assert.deepEqual(state.selected, { item: null, column: null });
+	assert.equal(owner.window, content, 'deselection does not discard the current view');
+	owner.observe(query('matrix'));
+	resolve(snapshot());
+	await flush();
+	await flush();
+	assert.equal(state.selected, null);
+	assert.equal(owner.window?.media, 'matrix');
+	owner.dispose();
+});
+
 test('spatial Layer receipts update only matching bounded and independent selections while held reads stay fenced', async () => {
 	const host = connection(),
 		state = matrixState();

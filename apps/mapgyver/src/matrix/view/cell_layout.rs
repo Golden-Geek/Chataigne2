@@ -72,22 +72,8 @@ pub(crate) fn inspect(engine: &AppEngine, query: MatrixCellLayoutQuery) -> Resul
     for &node in cells.iter().skip(page.start as usize).take(query.count as usize) {
         page.cells.push(cell(engine, query.media, query.layer, node)?);
     }
-    let mut next = query.node.and_then(|uuid| engine.node_id_by_uuid(uuid));
-    for _ in 0..64 {
-        let Some(node) = next.and_then(|id| engine.nodes.get(id)) else {
-            break;
-        };
-        if let AppNode::MatrixCell(_) = node {
-            if node.node_data().parent == Some(row.node) {
-                page.selected_id = Some(CellId(node.node_data().meta.uuid));
-            }
-            break;
-        }
-        if matches!(node, AppNode::MatrixElement(_) | AppNode::Media(_)) {
-            break;
-        }
-        next = node.node_data().parent;
-    }
+    page.selected_id =
+        super::super::editor::cell_selection(engine, query.media, query.layer, query.node).unwrap_or(query.selected);
     if let Some(id) = page.selected_id.and_then(|cell| engine.node_id_by_uuid(cell.0))
         && engine
             .nodes

@@ -34,6 +34,74 @@ fn content(engine: &AppEngine, page: MatrixCellLayoutPage) -> serde_json::Value 
 }
 
 #[test]
+fn cell_focus_follows_owned_descendants_and_explicit_layer_or_matrix_owners_clear_old_hints() {
+    let mut engine = fixture();
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    let row = layer(layers(&mut engine, matrix.media, None, 1)[0]);
+    let axes = columns(&mut engine, matrix.media, 2);
+    let mut cells = Vec::new();
+    for column in axes {
+        let MediaEditResult::MatrixMediaCreated { cell, media } = edit(
+            &mut engine,
+            matrix.media,
+            MatrixEdit::CreateCellMedia {
+                layer: row,
+                column,
+                media_kind: MediaKind::SolidColor,
+            },
+        ) else {
+            panic!()
+        };
+        cells.push((cell, media));
+    }
+    let query = MatrixCellLayoutQuery {
+        media: matrix.media,
+        layer: row,
+        selected: Some(cells[0].0),
+        node: None,
+        start: 0,
+        count: 1,
+    };
+    let owned = engine.node_id_by_uuid(cells[1].1.0).unwrap();
+    let descendant = engine.nodes.get(owned).unwrap().node_data().first_child.unwrap();
+    let descendant = engine.nodes.get(descendant).unwrap().node_data().meta.uuid;
+    let history = engine.ui_history_state();
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let selected = crate::matrix::inspect_cells(
+        &engine,
+        MatrixCellLayoutQuery {
+            node: Some(descendant),
+            ..query
+        },
+    )
+    .unwrap();
+    assert_eq!(selected.selected_id, Some(cells[1].0));
+    assert_eq!(selected.selected.unwrap().view.cell.id, cells[1].0);
+    assert_eq!(
+        selected.cells.len(),
+        1,
+        "off-page focus does not expand the bounded page"
+    );
+    for owner in [row.0, matrix.media.0, matrix.channel.0] {
+        let page = crate::matrix::inspect_cells(
+            &engine,
+            MatrixCellLayoutQuery {
+                node: Some(owner),
+                ..query
+            },
+        )
+        .unwrap();
+        assert!(page.selected_id.is_none() && page.selected.is_none());
+        assert!(page.row.is_some() && page.context.is_some());
+        assert_eq!(page.total, 2);
+        assert_eq!(page.cells.len(), 1);
+        assert_eq!(page.parameters.len(), 2, "no old selected Cell bindings remain");
+    }
+    assert_eq!(engine.ui_history_state(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+}
+
+#[test]
 fn layer_cell_layout_pages_only_authored_cells_and_keeps_selected_definitions_independent_through_history_and_load() {
     let mut engine = fixture();
     let media = create(&mut engine, MediaKind::Matrix).media;

@@ -77,7 +77,23 @@ pub(in crate::media) fn inspect(engine: &AppEngine, query: SpatialEditorQuery) -
     if !binding.document_matches {
         return Ok(binding);
     }
-    let Some(target) = query.locked.or(followed).or(query.retained.filter(|_| matches)) else {
+    // A nested media also represents its outer instance. Background owner selection
+    // keeps the current edited domain instead of navigating to that outer placement.
+    let retained_owner = query.retained.filter(|target| {
+        matches
+            && query.selected.is_some_and(|selected| match target {
+                SpatialEditorTarget::Composition { reference } => {
+                    selected == reference.media.0 || selected == reference.channel.0
+                }
+                SpatialEditorTarget::Matrix { media } => selected == media.0,
+            })
+    });
+    let Some(target) = query
+        .locked
+        .or(retained_owner)
+        .or(followed)
+        .or(query.retained.filter(|_| matches))
+    else {
         return Ok(binding);
     };
     binding.target = Some(target);

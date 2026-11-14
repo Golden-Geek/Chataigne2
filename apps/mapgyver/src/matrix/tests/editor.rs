@@ -20,6 +20,29 @@ fn query(selected: NodeUuid) -> MatrixEditorQuery {
 }
 
 #[test]
+fn matrix_owner_selection_clears_retained_axes_and_off_page_focus_without_changing_content() {
+    let mut engine = fixture();
+    let matrix = create(&mut engine, MediaKind::Matrix);
+    let items = layers(&mut engine, matrix.media, None, 6);
+    let first = read(&mut engine, query(layer(items[5]).0));
+    let history = engine.ui_history_state();
+    for owner in [matrix.media.0, matrix.channel.0] {
+        let mut request = retained(&first, owner);
+        request.locked = Some(matrix.media);
+        request.viewport.row_count = 4;
+        let page = read(&mut engine, request);
+        assert_eq!(page.media, Some(matrix.media));
+        assert!(page.node.is_none() && page.selection.is_none());
+        let snapshot = page.snapshot.unwrap();
+        assert_eq!(snapshot.row_total, 6);
+        assert_eq!(snapshot.rows.len(), 4);
+        assert!(snapshot.selected.is_none());
+        assert_eq!(page.parameters.len(), 4);
+    }
+    assert_eq!(engine.ui_history_state(), history);
+}
+
+#[test]
 fn layer_bindings_are_bounded_and_include_the_independent_off_page_selection() {
     let mut engine = fixture();
     let matrix = create(&mut engine, MediaKind::Matrix);

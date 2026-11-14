@@ -161,6 +161,57 @@ fn locked_missing_bindings_recover_with_undo_load_and_rename_without_crossing_do
 }
 
 #[test]
+fn nested_edited_owner_selection_retains_its_domain_without_locking_or_authoring_changes() {
+    use crate::media::composition::protocol::CompositionEdit;
+    for kind in [MediaKind::Matrix, MediaKind::Composition] {
+        let mut engine = fixture();
+        let outer = create(&mut engine, MediaKind::Composition);
+        let MediaEditResult::InstancesCreated { instances } = apply(
+            &mut engine,
+            MediaEdit::Composition {
+                reference: outer,
+                edit: CompositionEdit::CreateMedia {
+                    media_kind: kind,
+                    label: None,
+                    position: golden_video::plan::Point { x: 0.0, y: 0.0 },
+                },
+            },
+        ) else {
+            panic!()
+        };
+        let media = MediaId(instances[0].instance.0);
+        let MediaEditResult::Channels { page } = apply(
+            &mut engine,
+            MediaEdit::InspectChannels {
+                query: MediaChannelsQuery {
+                    media,
+                    start: 0,
+                    count: 1,
+                },
+            },
+        ) else {
+            panic!()
+        };
+        let initial = read(&mut engine, request(page.channels[0].reference.channel.0));
+        let mut query = SpatialEditorQuery {
+            document: Some(initial.document),
+            retained: initial.target,
+            ..request(media.0)
+        };
+        let history = engine.ui_history_state();
+        let shown = read(&mut engine, query);
+        assert_eq!(shown.target, initial.target);
+        assert!(shown.present && shown.document_matches);
+        query.selected = Some(outer.media.0);
+        assert_eq!(
+            read(&mut engine, query).target,
+            Some(SpatialEditorTarget::Composition { reference: outer })
+        );
+        assert_eq!(engine.ui_history_state(), history);
+    }
+}
+
+#[test]
 fn composition_instances_keep_their_owner_but_their_channels_can_enter_nested_spatial_content() {
     use crate::media::composition::protocol::CompositionEdit;
     let mut engine = fixture();

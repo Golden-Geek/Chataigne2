@@ -33,6 +33,18 @@ control is replaced. The browser test reproduces and verifies this focus correct
 manually focusing the viewport before Escape. Physical clicks cannot reselect through the
 keyboard/accessibility click fallback.
 
+Matrix Layer background-down and idle Escape select the Matrix media owner; Cell layout selects
+its Layer owner without leaving that Layer. Explicit backend owners clear retained Layer/Cell
+hints, while owned Cell descendants resolve to their containing Cell. Both queries preserve
+bounded visible pages and independent off-page definitions without authoring or history changes.
+Unlocked nested Matrix/Composition owner selection now preserves the edited domain instead of
+following the nested media's outer Composition placement.
+
+Golden's public `selectedEditorItem` matches the current selected identity against bounded visible
+and independently queried definitions. Matrix controls update immediately on a new pointer choice
+or deselection; an old cached definition cannot restore handles. Cell selection follows raw
+authoritative pages, so parameter projection copies cannot restore the previous selected Cell.
+
 ## Applicable editor inventory
 
 | Editor / owner | Current scope | Exact remaining work |
@@ -40,9 +52,9 @@ keyboard/accessibility click fallback.
 | Golden `Viewport2D` | Browser verified primary-down/idle Escape, child/text/tool isolation, navigation and camera lifetime | Complete independent-editor, capture/cancel and app adapter acceptance |
 | Screen Warping / Screen | Pointer-down Surface selection, background-owner callback, idle Escape and selected-only DOM handles verified | Hover contour/native overlay agreement; actual workbench/Inspector, overlapping hits, off-page and active-gesture Escape checks |
 | Surface Source / Surface | Existing crop editor uses Golden viewport | Explicit crop-control selection/deselection, owner behavior, hover and selected-only native/DOM controls |
-| Composition / Composition media | Root/nested explicit owner clears old hints without first-child selection; shared clear and immediate pointer choice; denied-edit/natural Escape focus browser checks pass | Actual Inspector/native/independent-editor and snapshot fencing; check unlocked nested spatial-target navigation separately from the locked-query test; unselected Move markers, hover and selected-only presentation remain unfinished |
-| Matrix Layer spatial / Matrix media | Consumes shared Golden selection-before-admission/capture helper | Wire shared clear, reconcile backend selected-row policy and immediate selection projection, hover/native/DOM checks |
-| Matrix Cell spatial / Layer | Consumes shared Golden selection-before-admission/capture helper | Explicit owner/no-Cell behavior, shared clear, hover and selected-only controls, active/outgoing/off-page cases |
+| Composition / Composition media | Root/nested explicit owner clears old hints without first-child selection; shared clear and immediate pointer choice; denied-edit/natural Escape focus browser checks pass; unlocked nested owner retains edited content | Actual Inspector/native/independent-editor and snapshot fencing; unselected Move markers, hover and selected-only presentation remain unfinished |
+| Matrix Layer spatial / Matrix media | Shared clear selects Matrix owner; explicit no-child backend projection, immediate controls and cached-definition clearing; denied-edit/idle-Escape DOM checks pass | Hover, actual adapter/Inspector/native checks, independent-editor and active-gesture behavior |
+| Matrix Cell spatial / Layer | Shared clear selects Layer without leaving it; backend resolves owned descendants and explicit no-Cell focus; bounded off-page selection and immediate control clearing; DOM checks pass | Hover, actual adapter/Inspector/native checks, active/outgoing/off-page interaction acceptance |
 | Golden graph canvases | Existing graph gestures select nodes; idle Escape currently only attempts gesture/connection cancellation | Reconcile background/idle Escape, selected-only control/hover policy and owner adapters; preserve multi-selection, locked nodes and ports |
 | Dashboard, curve and watcher projection canvases | Specialized Golden canvases must be reviewed | Resolve applicable authored-object/point selection versus read-only projection, then verify specialized tool/focus behavior; no exemption claimed |
 | Media Preview / Matrix grid | Preview is not the spatial placement editor; grid has its own selection | Confirm applicable owner/child manipulation paths, including read-only preview and virtualized selection; no qualification claimed from classification |
@@ -53,19 +65,24 @@ Inspector transactions, native pixels, GPU parity, all editor selection policies
 ## Validation
 
 - `cargo test --locked -p MapGyver --features native-qualification --lib -- --test-threads=4`:
-  686 pass,8 ignored. New cases verify root/channel owner clears, stale off-page hints, retained
-  locked content, no implicit first child, history preservation and an actual nested owned Composition.
+  689 pass,8 ignored. New Matrix cases verify media/channel/Layer owner clears, owned Cell
+  descendants, bounded independent off-page focus, nested edited-domain retention and unchanged
+  history/project data. Prior Composition/Screen cases retain their acceptance scope.
 - Strict all-target MapGyver Clippy passes with `native-qualification` and `-D warnings`.
 - `npm run check:mapgyver`:0 errors,0 warnings, including the typed expanded app fixture.
-- Composition/spatial Node suites:36 pass, including clearing an old off-page selection without
-  losing visible content. Golden viewport suites:11 pass, including moved capture/cancel tests and
-  new selection-before-admission/denied-edit/secondary/consumed/concurrent-hit cases.
+- Matrix/spatial Node suites:59 pass, including immediate owner clearing while a backend reply
+  is held, bounded geometry and reader/session/project/history fencing. Golden viewport/selection
+  suites:14 pass, including cached-definition clearing, off-page identity and capture/admission.
+- The previous36 Composition/spatial Node cases retain their unchanged source scope.
 - The prior40 Screen unit passes retain their unchanged source scope.
 - Golden viewport browser runner: passes new down-before-release and idle Escape/text/tool
   checks plus existing zoom anchoring, intermediate wheel frames, pan/camera/reduced-motion tests.
-- Expanded app browser runner: passes real `SurfaceHandles`, `CompositionPreview` and Golden
+- Expanded app browser runner: passes real `SurfaceHandles`, `CompositionPreview`, Matrix
+  `RectLayoutControls`/`SpatialViewport` and Golden
   viewport selection, unavailable-source/invalid geometry, denied-edit selection, selected gizmo
-  clearing, owner callbacks, natural idle Escape focus, keyboard and pan. No native GPU credit.
+  clearing, owner callbacks, natural idle Escape focus, keyboard and pan. Both Matrix modes
+  verify down-before-up selection, refused-edit selection and no stale cached handles after clear.
+  These are control/callback fixtures, not full Matrix adapter/Inspector or native GPU credit.
 - `npm run lint --workspace mapgyver-ui` and scoped shared Prettier: pass.
 - Production UI build and ordinary/native-fixture Cargo build: exit0. The desktop build
   explicitly rebuilt its embedded UI. Root/Core formatting and scoped diff checks complete delivery.
@@ -76,18 +93,21 @@ or native failure is inferred from that coordinate mistake. The first new Rust f
 the required document identity and created a Reference instead of an owned nested Composition;
 corrected fixtures pass without relaxing document validation. Rust query behavior changes here;
 wire DTOs/generated contracts remain unchanged and their existing tests pass.
+The first Matrix test compile used a channel-reference field on a `MediaId`; the corrected
+fixture uses its typed UUID. No runtime API or acceptance requirement changed to make it pass.
 
 Logs live under `target/m14-selection-*-2026-11-14.log` and
-`target/m14-composition-*-2026-11-14.log`. Latest desktop build log SHA256:
-`5205dcf8508736cf6d2375c38519153dc59a6fcf3fb6905dcb6cfa87a05a6502`.
+`target/m14-composition-*-2026-11-14.log`.
+`target/m14-matrix-*-2026-11-14.log` holds the current Matrix validation cycle. Latest desktop
+build log SHA256:
+`f045c082c60ce7721e6d8ff99d5dd91d9948d174cf2af329742625c023734b37`.
 Built ordinary app SHA256:
-`05c82270eb824aee22459f9cbb09b43230c400691bd9b726d63e8b966dde2c6e`;
+`ee948abc4d4e87c400079eb043f7d6c1428fa98c7f421013e8aa7b3a3df8bf16`;
 native fixture SHA256:
-`e21156ad8bd61ab3070e967ce91eb40bf6586915fd2393d84c510d118bd58e8b`.
+`ea9d734b63dce51ee54af59403226e2be76548005bb5d88f5d8df0473fbfd67b`.
 These replace the debug binaries from the historical M10 build receipt; refresh coherent
 qualification inputs on return. Existing Video evidence retains its original source/build scope.
 
-Next deliverable: Matrix Layer/Cell background and idle-Escape owner selection through the shared
-contract, with backend selection/content separation and immediate controls. Then continue Source,
-graph, hover and the full native/Inspector/independent-editor inventory above. No completed slice
+Next deliverable: Surface Source crop-control selection and owner/clear behavior through the shared
+contract. Then continue graph, hover and the full native/Inspector/independent-editor inventory above. No completed slice
 or passing software suite substitutes for whole-gate acceptance.

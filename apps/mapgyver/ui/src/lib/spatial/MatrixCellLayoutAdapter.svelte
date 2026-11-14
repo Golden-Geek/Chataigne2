@@ -3,7 +3,7 @@
 	import { observeEditor } from 'golden_ui/store/editor-observation.svelte';
 	import { usePanelVisibility } from 'golden_ui/dockview/panel-visibility.svelte';
 	import { projectCellLayoutPage } from './parameter-projection';
-	import { appState, IconButton } from 'golden_ui';
+	import { appState, IconButton, selectedEditorItem } from 'golden_ui';
 	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
 	import { invokeMediaEdit } from '../media/operations';
 	import { MEDIA_NAMESPACE } from '../media/generated/constants';
@@ -62,9 +62,12 @@
 		),
 		layer = $derived(page?.row?.item.layer),
 		selected = $derived(
-			(geometry.activeCell
-				? page?.cells.find((cell) => cell.view.cell.id === geometry.activeCell)
-				: null) ?? page?.selected
+			selectedEditorItem(
+				geometry.activeCell ?? props.cell,
+				page?.cells ?? [],
+				page?.selected,
+				(cell) => cell.view.cell.id
+			)
 		);
 	const cells = $derived(
 		page
@@ -113,8 +116,9 @@
 		untrack(() => props.onlabel(label));
 	});
 	$effect(() => {
-		const selectedId = page?.selected_id;
-		if (page)
+		const canonical = reader.page;
+		const selectedId = canonical?.selected_id;
+		if (canonical)
 			untrack(() => {
 				if (selectedId !== props.cell) props.oncell(selectedId ?? null);
 			});
@@ -124,8 +128,10 @@
 		props.onlabel(null);
 	});
 	function select(id: string) {
-		props.oncell(id);
-		selection.select(id);
+		if (selection.select(id)) props.oncell(id);
+	}
+	function clear() {
+		if (!geometry.state.active && selection.select(props.layer)) props.oncell(null);
 	}
 	function start(id: string, mode: RectGeometryMode, point: Point) {
 		const object = objects.find((object) => object.id === id);
@@ -186,6 +192,7 @@
 				channel={page.context}
 				canvas={layer.size}
 				selection={bounds}
+				onselectionclear={clear}
 				keyboard={{
 					id: selected?.view.cell.id ?? null,
 					disabled: reader.busy,

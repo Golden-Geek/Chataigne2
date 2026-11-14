@@ -109,12 +109,46 @@ try {
 	await page.keyboard.press('Escape');
 	assert.equal(await owner.textContent(), 'composition');
 	assert.equal(await composition.locator('[data-instance-handle="Translate"]').count(), 0);
+	for (const kind of ['Layer', 'Cell']) {
+		await page.getByRole('button', { name: `Show Matrix ${kind}`, exact: true }).click();
+		const matrix = page.getByLabel('Matrix fixture', { exact: true });
+		const handles = matrix.locator(
+			kind === 'Layer' ? '[data-matrix-layer-resize]' : '[data-matrix-cell-resize]'
+		);
+		assert.equal(await handles.count(), 0, 'retained geometry cannot invent a selection');
+		const rectangle = matrix.getByRole('button', { name: 'Select Rect B', exact: true });
+		const at = await point(rectangle);
+		await page.mouse.move(at.x, at.y);
+		await page.mouse.down();
+		assert.equal(
+			await owner.textContent(),
+			'Rect B',
+			'Matrix selection precedes release and refused edit'
+		);
+		assert.equal(await handles.count(), 8);
+		await page.mouse.up();
+		const area = await matrix.locator('.active-zone').boundingBox();
+		assert(area);
+		await page.mouse.move(area.x + area.width / 2, area.y + area.height * 0.8);
+		await page.mouse.down();
+		assert.equal(await owner.textContent(), kind === 'Layer' ? 'matrix' : 'layer-owner');
+		assert.equal(
+			await handles.count(),
+			0,
+			'cached selected definition cannot restore cleared handles'
+		);
+		await page.mouse.up();
+		await rectangle.click();
+		await page.keyboard.press('Escape');
+		assert.equal(await owner.textContent(), kind === 'Layer' ? 'matrix' : 'layer-owner');
+		assert.equal(await handles.count(), 0);
+	}
 	assert.deepEqual(errors, []);
 	console.log(
 		JSON.stringify({
 			result: 'pass',
 			scope:
-				'DOM Screen and Composition primary-down/background/idle Escape, denied-edit selection and selected gizmo clearing; no native pixel or full M14 acceptance'
+				'DOM Screen/Composition/Matrix Layer/Cell primary-down/background/idle Escape, denied-edit selection and cached-definition control clearing; no native pixel or full M14 acceptance'
 		})
 	);
 } finally {

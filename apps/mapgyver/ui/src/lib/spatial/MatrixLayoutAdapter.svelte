@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { appState, IconButton } from 'golden_ui';
+	import { appState, IconButton, selectedEditorItem } from 'golden_ui';
 	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
 	import { createMatrixEditor } from '../matrix/editor.svelte';
 	import { useDocumentSelection } from '../selection.svelte';
@@ -67,11 +67,12 @@
 	);
 	const geometry = createLayerEditor(owner, () => props.present);
 	const selected = $derived(
-		(geometry.activeLayer
-			? snapshot?.rows.find((row) => row.item.id.id === geometry.activeLayer)
-			: null) ??
-			snapshot?.selected?.row ??
-			null
+		selectedEditorItem(
+			geometry.activeLayer ?? owner.view.selected?.item?.id,
+			snapshot?.rows ?? [],
+			snapshot?.selected?.row,
+			(row) => row.item.id.id
+		)
 	);
 	const rows = $derived(snapshot ? matrixLayerPaintRows(snapshot, selected) : []);
 	const selectedDisplay = $derived(
@@ -115,6 +116,14 @@
 	);
 	const pages = $derived(Math.max(1, Math.ceil((snapshot?.row_total ?? 0) / SPATIAL_PAGE_SIZE)));
 	const selection = useDocumentSelection();
+	function select(id: string) {
+		const item = rows.find((row) => row.item.id.id === id)?.item.id;
+		if (item && selection.select(id)) owner.controller.select(item, null);
+	}
+	function clear() {
+		if (!geometry.state.active && selection.select(props.media))
+			owner.controller.select(null, null);
+	}
 	function start(id: string, mode: RectGeometryMode, point: Point) {
 		const object = objects.find((object) => object.id === id);
 		return (
@@ -172,6 +181,7 @@
 				channel={snapshot.final_output}
 				{canvas}
 				selection={bounds}
+				onselectionclear={clear}
 				keyboard={{
 					id: selected?.item.id.id ?? null,
 					disabled: owner.busy,
@@ -184,7 +194,7 @@
 							!start(id, mode, { x: 0, y: 0 })
 						)
 							return false;
-						selection.select(id);
+						select(id);
 						return true;
 					},
 					move: (point) => geometry.gesture.move(point),
@@ -201,7 +211,7 @@
 					{canvas}
 					selected={selected?.item.id.id ?? null}
 					disabled={owner.busy}
-					select={(uuid) => selection.select(uuid)}
+					{select}
 					active={geometry.state.active}
 					{start}
 					move={(point) => geometry.gesture.move(point)}

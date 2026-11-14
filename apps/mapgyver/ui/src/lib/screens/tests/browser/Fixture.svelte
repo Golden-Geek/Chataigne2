@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Viewport2D } from 'golden_ui';
+	import { Viewport2D, selectedEditorItem } from 'golden_ui';
+	import SpatialViewport from '../../../spatial/SpatialViewport.svelte';
+	import RectLayoutControls from '../../../spatial/RectLayoutControls.svelte';
+	import type { LayoutRect } from '../../../spatial/rect-presentation';
 	import CompositionPreview from '../../../composition/CompositionPreview.svelte';
 	import { providePreview } from '../../../preview/context.svelte';
 	import type { CompositionSnapshot } from '../../../media/generated/CompositionSnapshot';
@@ -41,6 +44,7 @@
 	};
 	let selected = $state<string | null>(null);
 	let compositionMode = $state(false);
+	let matrixKind = $state<'Layer' | 'Cell' | null>(null);
 	const preview = providePreview();
 	onMount(preview.mount);
 	const channel: ChannelSnapshot = {
@@ -72,6 +76,31 @@
 			}
 		}))
 	};
+	const matrixChannel: ChannelSnapshot = {
+		reference: { media: 'matrix', channel: 'matrix-output' },
+		label: 'Matrix',
+		definition: {
+			source: {
+				kind: 'Matrix',
+				output: {
+					kind: 'Final',
+					definition: { canvas: composition.canvas, empty_cell: 'Transparent' }
+				}
+			},
+			size: { kind: 'Automatic' },
+			fit_mode: 'Fit'
+		}
+	};
+	const rectangles: LayoutRect[] = ['Rect A', 'Rect B'].map((id, index) => ({
+		id,
+		label: id,
+		position: [40 + index * 200, 80],
+		size: { width: 80, height: 60 },
+		enabled: true
+	}));
+	const matrixSelected = $derived(
+		selectedEditorItem(selected, rectangles, rectangles[0], (item) => item.id)
+	);
 	let inspected = $state('screen');
 	let edits = $state(0);
 	function select(id: string | null) {
@@ -85,11 +114,48 @@
 <button
 	onclick={() => {
 		compositionMode = true;
+		matrixKind = null;
 		selected = null;
 		inspected = 'composition';
 	}}>Show Composition</button>
+{#each ['Layer', 'Cell'] as kind}
+	<button
+		onclick={() => {
+			matrixKind = kind === 'Layer' ? 'Layer' : 'Cell';
+			selected = null;
+			inspected = matrixKind === 'Layer' ? 'matrix' : 'layer-owner';
+		}}>Show Matrix {kind}</button>
+{/each}
 <main>
-	{#if compositionMode}
+	{#if matrixKind}
+		<SpatialViewport
+			channel={matrixChannel}
+			canvas={composition.canvas}
+			selection={null}
+			identity={matrixKind}
+			label="Matrix fixture"
+			preview={null}
+			onselectionclear={() => {
+				selected = null;
+				inspected = matrixKind === 'Layer' ? 'matrix' : 'layer-owner';
+			}}>
+			<RectLayoutControls
+				objects={rectangles}
+				canvas={composition.canvas}
+				kind={matrixKind}
+				selected={matrixSelected?.id ?? null}
+				disabled={false}
+				active={false}
+				select={(id) => {
+					selected = id;
+					inspected = id;
+				}}
+				start={() => false}
+				move={() => {}}
+				finish={() => {}}
+				stop={() => {}} />
+		</SpatialViewport>
+	{:else if compositionMode}
 		<CompositionPreview
 			{channel}
 			{composition}
