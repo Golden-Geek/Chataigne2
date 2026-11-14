@@ -9,6 +9,7 @@ METRICS = runpy.run_path(str(Path(__file__).with_name("production_qualification.
 VIDEO_AGE = runpy.run_path(str(Path(__file__).with_name("video_age.py")))
 VIDEO_PIXELS = runpy.run_path(str(Path(__file__).with_name("video_frame_codes.py")))
 VIDEO_SOURCES = runpy.run_path(str(Path(__file__).with_name("video_submissions.py")))
+VIDEO_GPU = runpy.run_path(str(Path(__file__).with_name("video_gpu_path.py")))
 
 
 def key(value):
@@ -177,6 +178,9 @@ def analyze(directory):
         seconds = (end - begin) / frequency
         selected, cpu = METRICS["cpu_metrics"](events["FrameCpu"], window, frequency)
         gpu = METRICS["gpu_metrics"](selected, events["Gpu"], renderer=True)
+        gpu_path = VIDEO_GPU['analyze_video_gpu_path'](
+            selected, events, bindings, frequency, METRICS['distribution'],
+            healthy=bool(capture_health) and all(VIDEO_SOURCES['capture_complete'](row) for row in capture_health))
         deadlines = METRICS["DEADLINES"]["analyze_deadlines"](events["Schedule"], events["Output"], window, frequency, tuple(output_ids))
         deadlines.pop("slots", None)
         if "late_examples" in deadlines:
@@ -213,6 +217,7 @@ def analyze(directory):
         private = [row["process"]["memory"]["private_bytes"] for row in native if row["process"] and row["process"]["memory"]]
         known = [row["allocations"]["owned_texel_bytes"] for row in native if row["allocations"]["owned_texel_bytes"] is not None]
         results.append({"phase": window["name"], "seconds": seconds, "cpu": cpu, "renderer_gpu": gpu,
+                        "file_gpu_path": gpu_path,
                         "video_pixel_pts": VIDEO_PIXELS['analyze_frame_codes'](
                             events, receiver_frames, numbered_fixtures, receiver_markers, window, frames),
                         "software_output_deadlines": deadlines, "sources": source_stats,

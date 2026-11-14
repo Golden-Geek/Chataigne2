@@ -22,10 +22,12 @@ def percentile(values, percent):
     return ordered[(len(ordered) * percent + 99) // 100 - 1]
 
 
-def path_lower_bound(bounds, spans, frequency):
+def path_lower_bound(bounds, spans, frequency, *, include_context_gaps=True):
     # A local duration loses at most one GPU-counter tick to endpoint quantization.
     durations = [Fraction(0) if span is None else max(Fraction(0), span[0] - span[1]) for span in spans]
     candidates = [*durations]
+    if not include_context_gaps:
+        return max(candidates)
     for first, (_, collected) in enumerate(bounds):
         for last, (submitted, _) in enumerate(bounds):
             if first != last:
@@ -38,7 +40,8 @@ def path_lower_bound(bounds, spans, frequency):
     return max(candidates)
 
 
-def analyze_gpu_path(frames, native, frequency, distribution, *, healthy):
+def analyze_gpu_path(frames, native, frequency, distribution, *, healthy, resolve_dependencies=None,
+                     include_context_gaps=True):
     if type(frequency) is not int or frequency <= 0:
         raise ValueError('invalid GPU-path QPC frequency')
 
@@ -87,17 +90,20 @@ def analyze_gpu_path(frames, native, frequency, distribution, *, healthy):
     records, upper, lower, serial = [], [], [], []
     for frame in frames:
         missing, dependencies = [], []
-        for texture in (1, 2):
-            use = uses.get((key(frame['token']), texture))
-            publication = use.get('publication') if use else None
-            source = sources.get(key(publication['source_token'])) if publication else None
-            context = source.get('context', {}).get('Source', {}) if source else {}
-            if not source or not use.get('sequence', 0) \
-                    or context.get('texture') != texture \
-                    or context.get('renderer_device') != frame['token']['device']:
-                missing.append(f'exact source {texture} dependency missing/foreign')
-            else:
-                dependencies.append((source, source['context']))
+        if resolve_dependencies is not None:
+            dependencies, missing = resolve_dependencies(frame, uses, sources)
+        else:
+            for texture in (1, 2):
+                use = uses.get((key(frame['token']), texture))
+                publication = use.get('publication') if use else None
+                source = sources.get(key(publication['source_token'])) if publication else None
+                context = source.get('context', {}).get('Source', {}) if source else {}
+                if not source or not use.get('sequence', 0) \
+                        or context.get('texture') != texture \
+                        or context.get('renderer_device') != frame['token']['device']:
+                    missing.append(f'exact source {texture} dependency missing/foreign')
+                else:
+                    dependencies.append((source, source['context']))
         bounds, spans = [], []
         for cpu, context in [(frame, 'Renderer'), *dependencies]:
             bound, span, reason = enclosure(cpu, context)
@@ -116,7 +122,7 @@ def analyze_gpu_path(frames, native, frequency, distribution, *, healthy):
             # One CPU-counter tick covers endpoint quantization; do not round a bound down.
             value = Fraction((end - begin + 1) * 1000, frequency)
             upper.append(value)
-            minimum = path_lower_bound(bounds, spans, frequency)
+            minimum = path_lower_bound(bounds, spans, frequency, include_context_gaps=include_context_gaps)
             if minimum > value:
                 raise ValueError('GPU-path lower bound exceeds its complete CPU enclosure')
             lower.append(minimum)
@@ -143,8 +149,9 @@ def analyze_gpu_path(frames, native, frequency, distribution, *, healthy):
             'upper_bound_sufficient_for_gpu_target': bool(sufficient),
             'definite_failure_lower_bound_exceeds_budget': bool(failed),
             'cpu_endpoint_quantization_allowance_ticks': 1,
-            'cpu_gap_quantization_allowance_ticks': 2,
+            'cpu_gap_quantization_allowance_ticks': 2 if include_context_gaps else 0,
             'gpu_duration_quantization_allowance_ticks': 1,
+            'failure_lower_bound_includes_context_gaps': include_context_gaps,
             'observed_within_target': True if sufficient else False if failed else None, 'records': records,
             'scope': 'both exact retained app source-worker GPU batches and renderer/output batch, before first marker submission through last successful query collection',
             'limitations': ['CPU enclosure includes GPU queues, command-feed gaps, retained-frame age and collection delay',

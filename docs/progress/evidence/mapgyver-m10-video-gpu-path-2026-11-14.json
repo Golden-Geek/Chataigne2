@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-14",
+  "gate": "M10/4",
+  "result": "Existing Video auditor now reports exact producer-to-renderer GPU-path coverage; no native GPU-path gate accepted",
+  "owner": "tools/mapgyver Video workload analysis, reusing production_gpu_path rational enclosure calculations",
+  "joining": [
+    "Actual observed renderer/output batch plus exact resource generation selects its complete output-source texture table",
+    "Retained texture origin joins exact SourceSubmission and SourceCpu token, FrameProducer stream, File binding and immutable descriptor",
+    "Aliases/References charge one producer token; equal-extent independent Files keep distinct origins",
+    "Missing routes, origins, CPU/query observations and unhealthy capture stay unqualified; duplicate identities are rejected",
+    "Only proven source-free batches are excluded, with explicit original/excluded/remaining counts"
+  ],
+  "bounds": {
+    "upper": "Existing rational CPU enclosures include all producer/renderer queries, queues, collection delay and retained-frame age; a finite bound above budget is inconclusive",
+    "lower": "Largest valid local GPU span minus counter uncertainty; intentional Video frame holding and context-span sums cannot establish a GPU execution failure",
+    "gpu_clocks": "Independent origins are never aligned",
+    "legacy": "Existing live-source analysis retains its original context-gap behavior and passes its unchanged tests",
+    "limits": "Uninstrumented render-thread File uploads and foreign/unbound sources remain explicitly incomplete; no original budget changed"
+  },
+  "software": {
+    "command": "python -m unittest tools.mapgyver.tests.test_production_gpu_path tools.mapgyver.tests.test_video_gpu_path tools.mapgyver.tests.test_video_sample tools.mapgyver.tests.test_video_submissions tools.mapgyver.tests.test_video_frame_codes tools.mapgyver.tests.test_video_age tools.mapgyver.tests.test_video_fixtures",
+    "passed": 81,
+    "exit_code": 0,
+    "new_cases": "Exact tokens, shared aliases, equal extents, held 30fps content, independent renderer reuse, real slow local spans, generation/route integrity, absent/foreign origins, disjoint/missing queries, capture health, source-free denominators and duplicate identities",
+    "formatting": "Root/Core cargo fmt and scoped diff check; no Rust source changed in this slice"
+  },
+  "retained_capture_reanalysis": {
+    "source": "target/q06-h264-nvidia-2026-11-14",
+    "artifact": "target/m10-video-gpu-path-reanalysis-2026-11-14.json",
+    "sha256": "02a1349c644155addaf5fa46eba20d2de7b48d29c0c8816280da7185e78928f7",
+    "exit_code": 0,
+    "phases": [
+      { "phase": "sample", "expected": 7202, "covered": 0, "within_target": null },
+      { "phase": "minimized", "expected": 3603, "covered": 0, "within_target": null },
+      { "phase": "receiver-disconnected", "expected": 3602, "covered": 0, "within_target": null }
+    ],
+    "preserved": "Exact comparison verifies unchanged pixel/PTS, age, cadence, CPU and renderer-only GPU evidence against original audit; original two-of-three Reference observation gap matches prior observer receipt. Missing producer timing in old data cannot become a GPU-path pass. Original raw data/audit were not overwritten."
+  },
+  "logs": {
+    "target/m10-video-gpu-path-software-final-2026-11-14.log": "280c462263aaf704badf105685178ed8b6357ee798a592601cb626add1584bce",
+    "target/m10-video-gpu-path-reanalysis-2026-11-14.log": "43876d374f7c19b3ab98dafb818d79bdbf9bf7f7bbd791b39c1411ad1ce46a69"
+  },
+  "remaining": "Coherently rebuild ordinary app/native fixture and collect new three-receiver timing/lineage data after a reliable fresh native Overlay Off observation. All original age, complete-path, profile/repeated/performance-tier/resource/recovery acceptance remains; producer observations and software analysis alone close no gate.",
+  "acceptance": { "closed_gates": 0, "accepted": 88, "total": 106, "overall_percent": 83, "m10": "5/8", "active": "M10/4" }
+}

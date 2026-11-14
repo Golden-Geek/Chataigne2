@@ -456,6 +456,15 @@ including compatible resource reuse, and withdrawal clears that origin. Disabled
 create no diagnostic queries or CPU timing scopes. Queue/query pressure reports missing data
 without delaying admission; removal and terminal drain leave uncollected queries explicit.
 These source observations are prerequisites for full-path analysis, not a critical-path pass.
+The existing Video auditor joins actual output-generation texture routes to retained source
+tokens, matching producer CPU/query rows, File bindings and immutable descriptors. Aliases
+share one producer charge; equal-sized independent Files remain distinct. Missing routes or
+origins stay in the denominator; only proven source-free batches are excluded and counted.
+It reuses the existing rational CPU-enclosure bounds without aligning independent GPU clocks.
+Intentional File-frame retention can loosen the upper bound but cannot prove slow GPU
+execution: the Video failure bound uses the largest valid local span with counter uncertainty,
+not retention gaps or summed context durations. Uninstrumented render-thread uploads remain
+explicitly incomplete. Full-path coverage and original timing limits still require native data.
 Hardware/HAP File publishers use the timeline completion correction now; all original resource,
 recovery and performance qualification remains required.
 File workers fall back only for an explicit unsupported native codec/interface or conversion.
