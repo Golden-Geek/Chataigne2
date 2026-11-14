@@ -55,6 +55,17 @@ current work before selecting the new high-priority gates at the next product bo
 Earlier M10/1–2 evidence retains its tested scope; it does not verify the changed controls or
 reported seek regression. This planning amendment adds four pending gates and implements nothing.
 
+**User execution-order revision, 2026-11-14:** implement **M14 next**, after the accepted
+M10/1,2,5,6,7 functional contracts. M10/4 remains unfinished and release-blocking, with every
+original age, complete GPU-path, shared-consumer, profile/repeated/performance-tier, memory,
+retirement and recovery requirement retained. This explicitly supersedes gate-4-before-M14
+ordering above and below; it accepts no gate and changes no budget. Return M10/4 at a scheduled
+qualification boundary after M14 or for a reproduced blocker on the active product path,
+using its recorded binaries/source identities and the original environment prerequisites.
+Keep exactly one gate Active; start with M14/1 selection/hover. Then finish extended codecs,
+subtitles and retained acceptance before M09. The user also freshly observed native NVIDIA
+Overlay Off on this date; record that observation with any actual run, not as qualification.
+
 ## Entry, order and delivery
 
 1. Read AGENTS.md, this plan and the compact status page. Reconcile the checkout, current
@@ -69,14 +80,13 @@ reported seek regression. This planning amendment adds four pending gates and im
 4. Execute the revision in this order: **M04 ownership/Resolution/Reference → M04 Media Preview
    and M05 navigation/Screen interaction → M06 Composition → M08 reusable app-control boundary
    and M07 Matrix redesign together → delivered M11/M12/M13 functional contracts →
-   M10 first-pass Video (1 → 2 → 5 → 6 → 7 → 4 acceptance) → M14 feedback (1–10) →
+   M10 functional Video (1 → 2 → 5 → 6 → 7, accepted) → M14 feedback (1–10) →
    M10/3 DXV/WebP → M10/8 subtitles →
    remaining acceptance closure → M09 final qualification**.
    M08's shared configuration/runtime contract precedes dependent Matrix app controls; this
    dependency does not authorize two active gates. Deliver their coherent slices sequentially.
-   M10/1 common-codec Video and M10/2 HAP are accepted for their tested scopes. Retain the
-   current M10/4 batch, then select **M10/5 transport Parameters** at the next product boundary,
-   followed by smooth seek and Matrix policy before complete first-pass recovery/performance.
+   M10/1,2,5,6,7 are accepted for their tested scopes. The 2026-11-14 user revision selects
+   M14 now while M10/4 qualification stays in the explicit return queue and blocks M09.
    M13/4's existing failed numerical evidence remains historical under the user's acceptance
    above; do not requalify that scope without new feedback or a reproduced dependency defect.
    Retain every unfinished M12/M13 and qualification gate; this priority change awards no acceptance.
@@ -1152,7 +1162,9 @@ remain outside this plan.
 ### M14 — Apply the 2026-11-08 feedback after first-pass Video
 
 Source: the user's editor, Composition, Screen and Matrix feedback in this chat.
-Execute **after M10/1,2,4–7**, before M10/3 DXV/WebP, M10/8 subtitles and final qualification.
+Execute **now, after accepted M10/1,2,5,6,7**, under the explicit 2026-11-14 user revision;
+retain all unfinished M10/4 qualification as release-blocking. M14 precedes M10/3 DXV/WebP,
+M10/8 subtitles and final qualification.
 The ten gates below cover every requested behavior; incorporation implements nothing and accepts no gate.
 
 Golden owns reusable 2D selection/input, viewport animation, workbench context menus and
