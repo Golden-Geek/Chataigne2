@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-14",
+  "gate": "M10/4",
+  "result": "Ordinary app and native fixture coherently rebuilt with producer timing; next native cohort awaits fresh Overlay Off observation",
+  "base_commit": "549c93fb8a739337965a5ac64a04d312f6c84b55",
+  "command": "cargo build --locked -p MapGyver --features native-qualification --bin MapGyver --bin native_qualification",
+  "exit_code": 0,
+  "build_seconds": 103,
+  "input_scope": "3142 tracked/unignored workspace build/runtime/controller source and selected asset hashes; no source snapshot. Concurrent unrelated changes remain unstaged but their selected compile inputs are hashed.",
+  "changed_during_build": 0,
+  "input_membership_and_hashes_unchanged_after_root_core_formatting": true,
+  "binaries": {
+    "target/debug/MapGyver.exe": "9e1dce65ecc3d7b56ef7574c145f0e255b86a5bbed1ffb272d3853d0755e433c",
+    "target/debug/native_qualification.exe": "d2c11c8fed23cb924a476bc295d8e8e52639ebcd12d576e942b7cf12c89ba486"
+  },
+  "ffmpeg": "All five pinned SDK DLLs exist in target/debug and match SDK SHA256 values; static staging verification, not a newly launched playback claim",
+  "receipt": "target/m10-producer-timing-build-2026-11-14.json",
+  "receipt_sha256": "5235d50ef4b2a8aca7653017d889c267a98c1125a8fb761fffa8c7f1ed30efe2",
+  "build_log": "target/m10-producer-timing-build-2026-11-14.log",
+  "build_log_sha256": "e2d6f7c44e5398874a07ddaad3a7d97e29b53918b39122309dc5ac9f384907bf",
+  "prerequisites": "Producer milestone1344e148:684 app+327 Golden software cases, strict all-target/without-FFmpeg lint and two explicit Intel native identity/disabled-mode/retirement checks. Auditor549c93fb:81 Python cases and retained-capture comparison. Earlier default-concurrency script-capacity failure remains recorded and unfixed.",
+  "return_trigger": "A fresh direct native NVIDIA Settings Off observation or reliable supported authoritative query, recorded before starting the next NVIDIA probe/test. Original contract requires future runs to observe again; current sky image mismatches metadata and vendor agent status is not the global enabled setting. User has been asked for this observation; no new permissions or settings change required.",
+  "next": "Run existing native-video-sustained controller with three continuous receivers and the original H264 HD60/4K30 fixtures, then require exact source attribution and inspect full GPU-path, pixel/PTS, age, cadence, resource and retirement results. Coherent source/binary hashes must still match before startup. All remaining profile/repeated/performance-tier/recovery work stays queued.",
+  "acceptance": { "closed_gates": 0, "accepted": 88, "total": 106, "overall_percent": 83, "m10": "5/8", "active": "M10/4" }
+}
