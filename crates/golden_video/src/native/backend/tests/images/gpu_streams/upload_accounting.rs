@@ -32,6 +32,10 @@ fn hardware_intel_source_upload_totals_include_unsampled_frames_without_counting
             "busy calls cannot retrace the pending upload"
         );
         let image = completed(&mut publisher);
+        assert!(
+            image.submission.is_none(),
+            "CPU upload accounting alone must not enable GPU queries"
+        );
         assert!(!publisher.trace_pending_submission(&sink, None));
         let interval = image.software_upload.unwrap().cpu.unwrap();
         assert!(interval.end >= interval.begin);

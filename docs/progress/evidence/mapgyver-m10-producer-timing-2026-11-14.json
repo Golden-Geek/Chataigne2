@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-14",
+  "gate": "M10/4",
+  "result": "Producer timing and retained-origin prerequisite verified; complete-path qualification remains open",
+  "baseline": {
+    "capture": "target/q06-h264-nvidia-2026-11-14",
+    "source_submissions": 24369,
+    "matching_source_cpu_rows": 0,
+    "matching_source_gpu_rows": 0,
+    "gpu_contexts": ["Renderer"],
+    "decision": "Existing renderer-only timing cannot establish the complete GPU path"
+  },
+  "implementation": {
+    "owner": "Golden Video native immutable-frame producer; MapGyver File worker enables the existing optional sink",
+    "context": "FrameProducer identifies the source stream independently of renderer subscriptions",
+    "queries": "Existing two-slot GPU timing pool, nonblocking reads authorized only by actual source completion",
+    "cpu": "Existing CPU wall/thread scope encloses source conversion/upload, diagnostic markers and existing completion signal",
+    "identity": "Opt-in immutable producer token follows completed images, retained renderer pixels and compatible resource reuse; withdrawal clears it",
+    "disabled": "No producer query pool, CPU scope or diagnostic identity allocation without explicit enablement",
+    "pressure_and_loss": "Existing bounded recorder/query pressure and terminal abandonment remain explicit; no extra flush, wait or admission dependency"
+  },
+  "software": {
+    "command": "cargo test --locked -p golden_video -p MapGyver --features MapGyver/native-qualification --lib -- --test-threads=4",
+    "exit_code": 0,
+    "mapgyver": { "passed": 684, "ignored": 8 },
+    "golden_video": { "passed": 327, "ignored": 69 },
+    "strict_clippy_all_targets": "Passed for both owning crates with MapGyver/native-qualification",
+    "strict_clippy_without_ffmpeg": "Passed for golden_video --no-default-features --features d3d11 --lib",
+    "retained_failure": "The preceding default-concurrency rerun passed 683 app tests and failed hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection with Script app-operation lifetime capacity exhausted. The initial default-concurrency suite passed; final four-worker suites pass. No script-capacity fix or cause is claimed.",
+    "formatting": "Root and golden_core workspace cargo fmt; scoped diff check"
+  },
+  "native": {
+    "adapter": "Explicit Intel vendor 0x8086; no NVIDIA qualification or desktop input",
+    "test_binary_sha256": "8156cdfdd10ae3e81c9c6a1ceac2e1f86e5f4372be3b56ca4cb51773c9b25068",
+    "identity_test": "hardware_intel_gpu_publication_identity_is_independent_of_upload_version",
+    "identity_exit_code": 0,
+    "identity_assertions": "Valid producer GPU query and CPU interval share exact completion token/context; six retained uses across two renderers preserve it, including compatible reuse; withdrawal clears it; exactly one submission, zero recorder drops/queued rows and zero final source allocation",
+    "disabled_test": "hardware_intel_source_upload_totals_include_unsampled_frames_without_counting_busy_calls",
+    "disabled_exit_code": 0,
+    "disabled_assertions": "CPU-only upload timing leaves diagnostic identity disabled; unsampled/busy software and all three HAP payload totals remain exact and retire to zero"
+  },
+  "logs": {
+    "target/m10-producer-query-software-final-2026-11-14.log": "cd504a056403534caf11a898ff6940ac667eb83ec0406fa6df18ab266230d4c0",
+    "target/m10-producer-query-software-bounded-2026-11-14.log": "7dd4d6a97d8ade25e6f73d7548c17d6d6929461b7b65d02cbe5041a72891038b",
+    "target/m10-producer-query-clippy-final-2026-11-14.log": "534873459d93d3bfa75aeb127abf8d3147bd9254e7bc1c77d29c3ff289f464cd",
+    "target/m10-producer-query-no-ffmpeg-2026-11-14.log": "c31bb8739ea8adf7a147e8804527d052d6c84b521fcdffe31d54fd9ddfdab581",
+    "target/m10-producer-query-native-identity-2026-11-14.log": "1a30c228b85f719e6f62316bb75187b80d92efe4c66a64516851fa8fffc5b054",
+    "target/m10-producer-query-native-disabled-2026-11-14.log": "0c7ca8ecbe34ed315b93a3d99a25f97151c1d032a11e4df702b41d02a4f1dbaa"
+  },
+  "remaining": "Join exact producer/query tokens through actual renderer/output dependencies in the existing Video auditor; preserve missing/invalid observations. Then rebuild coherent app/probe inputs and validate all three continuous receivers after a reliable fresh native Overlay Off observation. Original age, complete-path, profile/series/performance-tier/resource/recovery requirements remain. Existing cohorts retain their original source/build scope.",
+  "acceptance": { "closed_gates": 0, "accepted": 88, "total": 106, "overall_percent": 83, "m10": "5/8", "active": "M10/4" }
+}

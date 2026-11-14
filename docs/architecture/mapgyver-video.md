@@ -447,6 +447,15 @@ References. The auditor joins actual shared-image owners and rejects duplicate n
 owners or noncanonical fixture claims. Older captures with only two receivers explicitly retain
 their unobserved Reference coverage gap. Storage/payload assertions derive from the fixed workload. Preparation and
 software checks do not qualify either tier's performance or replace independent repeated runs.
+File publishers can opt into the same bounded native GPU-query pool and diagnostic queue as
+the renderer. `FrameProducer` identifies the immutable source stream, independently of renderer
+subscriptions. CPU scopes enclose the conversion/upload, diagnostic markers and existing
+completion signal; the existing source fence alone authorizes nonblocking query collection.
+The completed image carries its exact producer token into each renderer's retained pixels,
+including compatible resource reuse, and withdrawal clears that origin. Disabled publishers
+create no diagnostic queries or CPU timing scopes. Queue/query pressure reports missing data
+without delaying admission; removal and terminal drain leave uncollected queries explicit.
+These source observations are prerequisites for full-path analysis, not a critical-path pass.
 Hardware/HAP File publishers use the timeline completion correction now; all original resource,
 recovery and performance qualification remains required.
 File workers fall back only for an explicit unsupported native codec/interface or conversion.

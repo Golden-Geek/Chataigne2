@@ -243,7 +243,11 @@ impl Run {
                             if hardware.submission_sink.is_some() {
                                 self.report_source(publisher.as_ref().unwrap().stream().id());
                             }
-                            if std::env::var_os("MAPGYVER_NATIVE_DIAGNOSTICS").is_some_and(|value| !value.is_empty()) {
+                            if let Some(sink) = &hardware.submission_sink {
+                                publisher.as_mut().unwrap().enable_diagnostics(sink)?;
+                            } else if std::env::var_os("MAPGYVER_NATIVE_DIAGNOSTICS")
+                                .is_some_and(|value| !value.is_empty())
+                            {
                                 publisher.as_mut().unwrap().record_software_upload_timing();
                             }
                         }

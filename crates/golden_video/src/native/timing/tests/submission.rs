@@ -14,6 +14,29 @@ fn descriptor() -> crate::TextureDescriptor {
 }
 
 #[test]
+fn immutable_frame_producer_context_roundtrips_independently_from_renderer_bindings() {
+    let stream = Uuid::new_v4();
+    let context = DiagnosticContext::FrameProducer { stream };
+    let encoded = serde_json::to_value(context).unwrap();
+    assert_eq!(encoded, serde_json::json!({ "FrameProducer": { "stream": stream } }));
+    assert_eq!(serde_json::from_value::<DiagnosticContext>(encoded).unwrap(), context);
+    let source_token = CompletionToken {
+        device: DeviceGeneration::new(Uuid::new_v4(), 1),
+        serial: 17,
+    };
+    let timing = PublicationTiming {
+        source_token,
+        receive_begin_qpc: None,
+        publication_qpc: None,
+        spout_image: None,
+    };
+    let copy: PublicationTiming = serde_json::from_str(&serde_json::to_string(&timing).unwrap()).unwrap();
+    assert_eq!(copy, timing);
+    assert_eq!(copy.source_token.device, source_token.device);
+    assert!(copy.receive_begin_qpc.is_none() && copy.spout_image.is_none());
+}
+
+#[test]
 fn source_submission_frames_preserve_authority_pts_windows_and_unknown_publication() {
     let mut authority =
         TimeAuthority::new(SystemClock::new(), ShowPosition::from_nanos(0), PlaybackRate::NORMAL).unwrap();

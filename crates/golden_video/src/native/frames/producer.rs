@@ -25,6 +25,7 @@ use windows::{
     Win32::Graphics::Direct3D11::*,
     core::{Error, HRESULT, Interface},
 };
+mod diagnostics;
 mod software;
 mod submission;
 
@@ -93,6 +94,7 @@ pub struct GpuFramePublisher {
     completion: FenceCompletion,
     generation: DeviceGeneration,
     serial: u64,
+    diagnostics: Option<diagnostics::ProducerDiagnostics>,
     device: Device,
     _lease: Arc<dyn Send + Sync>,
     uploads: Option<GpuFrameBudget>,
@@ -224,6 +226,7 @@ impl GpuFramePublisher {
             completion,
             generation: DeviceGeneration::new(uuid::Uuid::new_v4(), 1),
             serial: 0,
+            diagnostics: None,
             device,
             _lease: lease,
             uploads,
@@ -292,9 +295,16 @@ impl GpuFramePublisher {
         let Conversion::Video { input, shader, .. } = &self.conversion else {
             unreachable!()
         };
-        let _mark = self
-            .completion
-            .begin(&self.device, self.pending.as_ref().unwrap().token);
+        let token = self.pending.as_ref().unwrap().token;
+        let _cpu = self
+            .diagnostics
+            .as_ref()
+            .map(|diagnostics| diagnostics.cpu_scope(token));
+        let _mark = self.completion.begin(&self.device, token);
+        let _gpu = self
+            .diagnostics
+            .as_mut()
+            .map(|diagnostics| diagnostics.gpu.begin(&self.device.context, token));
         let extent = self.stream.descriptor().extent;
         unsafe {
             self.device.context.CopySubresourceRegion(
@@ -332,9 +342,16 @@ impl GpuFramePublisher {
         let Conversion::Hap(input) = &self.conversion else {
             unreachable!()
         };
-        let _mark = self
-            .completion
-            .begin(&self.device, self.pending.as_ref().unwrap().token);
+        let token = self.pending.as_ref().unwrap().token;
+        let _cpu = self
+            .diagnostics
+            .as_ref()
+            .map(|diagnostics| diagnostics.cpu_scope(token));
+        let _mark = self.completion.begin(&self.device, token);
+        let _gpu = self
+            .diagnostics
+            .as_mut()
+            .map(|diagnostics| diagnostics.gpu.begin(&self.device.context, token));
         input.upload_draw(&self.device, frame, &self.slots[index].texture)?;
         if let Some(uploads) = &self.uploads {
             uploads.record_upload(super::budget::UploadKind::Hap, frame.blocks().len() as u64);
@@ -345,6 +362,9 @@ impl GpuFramePublisher {
         self.healthy()?;
         if self.pending.is_some() {
             return Ok(None);
+        }
+        if let Some(diagnostics) = &mut self.diagnostics {
+            diagnostics.poll(&self.device.context);
         }
         let serial = self.serial.checked_add(1).ok_or(GpuFrameError::Capacity)?;
         let mut free = None;
@@ -372,6 +392,10 @@ impl GpuFramePublisher {
     }
     fn completed(&mut self) -> windows::core::Result<bool> {
         let completed = self.completion.completed(&self.device, self.generation)?;
+        if let Some(diagnostics) = &mut self.diagnostics {
+            diagnostics.completed = completed;
+            diagnostics.poll(&self.device.context);
+        }
         Ok(self
             .pending
             .as_ref()
@@ -388,6 +412,7 @@ impl GpuFramePublisher {
         unsafe { slot.mutex.ReleaseSync(1)? };
         Ok(Some(GpuImage {
             software_upload: pending.software_upload,
+            submission: self.diagnostics.as_ref().map(|_| Arc::new(pending.token)),
             surface: slot.surface.clone(),
             adapter: self.device.adapter,
             fault: self.fault.clone(),
@@ -408,6 +433,9 @@ impl Drop for GpuFramePublisher {
             }
             // A wait/error never fabricates completion or frees an in-flight pool slot.
             std::thread::sleep(Duration::from_millis(1));
+        }
+        if let Some(diagnostics) = &mut self.diagnostics {
+            diagnostics.finish(&self.device.context);
         }
     }
 }

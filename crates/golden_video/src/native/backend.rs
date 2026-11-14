@@ -22,7 +22,8 @@ use super::outputs::scheduling::{Admission, Attempt, OutputSchedule};
 use super::pipeline::{FIXED_BUFFER_BYTES, Pipeline};
 use super::texture::Texture;
 use super::timing::{
-    CpuScope, DiagnosticContext, DiagnosticEvent, FrameCpuTrace, GpuTiming, OutputTrace, Recorder, SourceUseTrace,
+    CpuScope, DiagnosticContext, DiagnosticEvent, FrameCpuTrace, GpuTiming, OutputTrace, PublicationTiming, Recorder,
+    SourceUseTrace,
 };
 use super::{D3d11Config, D3d11Control, InputLimits, NativeFailure, OutputBinding};
 mod input_observation;
@@ -616,6 +617,7 @@ impl D3d11Backend {
                                 native.gpu_uses.last().unwrap().1.copy_to(&native.device, target);
                                 target.last_write.set(Some(token));
                                 target.software_upload.set(image.software_upload);
+                                target.gpu_submission.set(image.submission.as_deref().copied());
                                 target.timed_frame.set(sample.frame);
                                 target.image_visible.set(sample.sequence);
                                 sequence.set(Some(sample.sequence));
@@ -624,6 +626,7 @@ impl D3d11Backend {
                             Err(error) => {
                                 image.fail(error.code().0);
                                 target.software_upload.set(None);
+                                target.gpu_submission.set(None);
                                 target.timed_frame.set(None);
                                 target.image_visible.set(0);
                                 unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
@@ -633,6 +636,7 @@ impl D3d11Backend {
                         }
                     } else {
                         target.software_upload.set(None);
+                        target.gpu_submission.set(None);
                         target.timed_frame.set(None);
                         target.image_visible.set(0);
                         unsafe { context.ClearRenderTargetView(&target.rtv, &[0.0; 4]) };
@@ -648,7 +652,12 @@ impl D3d11Backend {
                         descriptor: target.descriptor,
                         sequence: target.image_visible.get(),
                         stream: Some(stream.id()),
-                        publication: None,
+                        publication: target.gpu_submission.get().map(|source_token| PublicationTiming {
+                            source_token,
+                            receive_begin_qpc: None,
+                            publication_qpc: None,
+                            spout_image: None,
+                        }),
                         software_upload: upload,
                         frame: target.timed_frame.get(),
                         requested_sequence,

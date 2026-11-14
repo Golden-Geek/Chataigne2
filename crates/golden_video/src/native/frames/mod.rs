@@ -41,6 +41,8 @@ impl Fault {
 #[derive(Clone)]
 pub struct GpuImage {
     pub(super) software_upload: Option<super::SoftwareUploadTrace>,
+    // Share opt-in diagnostic identity across immutable image clones.
+    pub(super) submission: Option<Arc<crate::runtime::CompletionToken>>,
     surface: Arc<Surface>,
     adapter: AdapterId,
     fault: Arc<Fault>,

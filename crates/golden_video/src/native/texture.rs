@@ -20,6 +20,7 @@ pub(super) struct Texture {
     pub(super) source_sequence: std::cell::Cell<Option<u64>>,
     pub(super) image_visible: std::cell::Cell<u64>,
     pub(super) software_upload: std::cell::Cell<Option<super::SoftwareUploadTrace>>,
+    pub(super) gpu_submission: std::cell::Cell<Option<crate::runtime::CompletionToken>>,
     pub(super) timed_frame: std::cell::Cell<Option<super::TimedFrameTrace>>,
     /// Last commands writing these pixels, shared across compatible resource generations.
     pub(super) last_write: std::cell::Cell<Option<crate::runtime::CompletionToken>>,
@@ -183,6 +184,7 @@ impl Texture {
             source_sequence: std::cell::Cell::new(None),
             image_visible: std::cell::Cell::new(0),
             software_upload: std::cell::Cell::new(None),
+            gpu_submission: std::cell::Cell::new(None),
             timed_frame: std::cell::Cell::new(None),
             last_write: std::cell::Cell::new(None),
             _image_lease: None,

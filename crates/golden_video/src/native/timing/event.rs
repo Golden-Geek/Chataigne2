@@ -18,6 +18,11 @@ pub struct DiagnosticsConfig {
 pub enum DiagnosticContext {
     /// The renderer's immediate context; the row token identifies its device lifetime.
     Renderer,
+    /// Independently owned immutable-frame conversion/upload context.
+    FrameProducer {
+        /// Publication lifetime shared by all renderer consumers.
+        stream: Uuid,
+    },
     /// An independently owned source worker/device.
     Source {
         /// Exact subscription identity, including replacement on the same renderer device.
@@ -314,7 +319,7 @@ pub struct ImageUploadTrace {
     pub cpu: Option<CpuInterval>,
 }
 
-/// Source SDK/copy CPU wall observations for one source-context batch.
+/// Source SDK/copy/conversion CPU observations for one source-context batch.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct SourceCpuTrace {
     /// Source-context batch identity, distinct from renderer-device completion.

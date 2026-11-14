@@ -59,9 +59,16 @@ impl GpuFramePublisher {
         let Conversion::Software { sequence, clock } = &mut self.conversion else {
             unreachable!()
         };
-        let _mark = self
-            .completion
-            .begin(&self.device, self.pending.as_ref().unwrap().token);
+        let token = self.pending.as_ref().unwrap().token;
+        let _cpu = self
+            .diagnostics
+            .as_ref()
+            .map(|diagnostics| diagnostics.cpu_scope(token));
+        let _mark = self.completion.begin(&self.device, token);
+        let _gpu = self
+            .diagnostics
+            .as_mut()
+            .map(|diagnostics| diagnostics.gpu.begin(&self.device.context, token));
         let begin = clock.and_then(|clock| clock.stamp());
         // SAFETY: validated tight RGBA8 storage, exact descriptor, keyed ownership of a free
         // slot, source-worker context. No earlier GPU reader can still own this slot.
