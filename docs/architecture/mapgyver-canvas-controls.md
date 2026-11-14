@@ -6,6 +6,15 @@ pointer and animation lifetimes. Native preview underlays remain owned by the de
 MapGyver supplies contextual action snippets to the same toolbar; Composition, Screen
 Warping and Surface Source no longer need duplicated navigation or internal title bars.
 
+`Viewport2D.onselectionclear` dispatches an unconsumed primary background pointer-down or
+idle Escape. Navigation capture, child controls, text editing and consumed tool keys retain
+ownership; selection no longer waits for a later click. The adapter chooses the edited owner
+and updates the shared workbench selection. Screen Warping selects ordinary Surface hits on
+pointer-down without opening a geometry edit; Alt-drag and corner capture keep their existing
+gesture path. Its keyboard/accessibility click fallback cannot reselect a Surface on physical
+mouse-up. See the [M14 selection inventory](../progress/mapgyver-m14-selection.md) for remaining
+editor adapters, hover and native acceptance; this public input contract alone does not qualify them.
+
 [Screen output cadence](mapgyver-output-cadence.md) is authored independently of editor input
 and the native preview's 60 FPS consumer. Shared clocks and endpoint pacing belong in Golden.
 

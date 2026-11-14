@@ -117,7 +117,7 @@
 		{nativeFrame}
 		aspect={extent ? extent.width / extent.height : 16 / 9}
 		identity={documentIdentity}
-		onbackgroundclick={() => {
+		onselectionclear={() => {
 			if (disabled) return;
 			corner = null;
 			select(null);
@@ -126,6 +126,7 @@
 			if (event.key === 'Escape' && corner) {
 				keyboard.cancel();
 				corner = null;
+				select(null);
 				event.preventDefault();
 			} else if (keyboard.keydown(event, inputAvailable ? keyboardTarget : null)) {
 				event.preventDefault();

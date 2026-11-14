@@ -82,11 +82,28 @@ try {
 	const background = page.getByLabel('Background clicks');
 	const beforeBackground = Number(await background.textContent());
 	const backgroundRect = await box(active);
-	await page.mouse.click(
+	await page.mouse.move(
 		backgroundRect.x + backgroundRect.width / 2,
 		backgroundRect.y + backgroundRect.height / 2
 	);
+	await page.mouse.down();
+	assert.equal(
+		Number(await background.textContent()),
+		beforeBackground + 1,
+		'select before release'
+	);
+	await page.mouse.up();
 	assert.equal(Number(await background.textContent()), beforeBackground + 1);
+	const clears = page.getByLabel('Escape clears');
+	await view.focus();
+	await page.keyboard.press('Escape');
+	assert.equal(await clears.textContent(), '1');
+	await page.getByRole('textbox', { name: 'Viewport text' }).focus();
+	await page.keyboard.press('Escape');
+	assert.equal(await clears.textContent(), '1', 'text editing retains Escape');
+	await handle.focus();
+	await page.keyboard.press('Escape');
+	assert.equal(await clears.textContent(), '1', 'specialized consumed Escape is preserved');
 	await view.focus();
 	await page.keyboard.down('Space');
 	await page.mouse.click(

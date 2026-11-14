@@ -5,6 +5,7 @@
 	let native = $state(false);
 	let edits = $state(0);
 	let backgrounds = $state(0);
+	let clears = $state(0);
 	let document = $state({
 		id: 'fixture',
 		aspect: 2,
@@ -32,11 +33,15 @@
 	}}>Change document</button>
 <output aria-label="Domain edit starts">{edits}</output>
 <output aria-label="Background clicks">{backgrounds}</output>
+<output aria-label="Escape clears">{clears}</output>
 <main style:width={narrow ? '32rem' : '50rem'}>
 	<Viewport2D
 		aspect={document.aspect}
 		identity={document.id}
-		onbackgroundclick={() => backgrounds++}
+		onselectionclear={(event) => {
+			if (event.type === 'pointerdown') backgrounds++;
+			else clears++;
+		}}
 		{native}
 		selection={document.selection}
 		label="Test viewport">
@@ -44,6 +49,9 @@
 			x={0.35}
 			y={0.4}
 			label="Test handle"
+			onkeydown={(event) => {
+				if (event.key === 'Escape') event.preventDefault();
+			}}
 			onpointerdown={() => {
 				edits += 1;
 				replaceSnapshot();
@@ -54,6 +62,7 @@
 			aria-label="Test selection"
 			style:left={`${document.selection.x * 100}%`}>
 		</div>
+		<input aria-label="Viewport text" style:position="absolute" style:top="0.2rem" />
 	</Viewport2D>
 </main>
 

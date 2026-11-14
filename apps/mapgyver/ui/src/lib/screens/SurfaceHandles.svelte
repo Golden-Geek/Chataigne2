@@ -93,8 +93,13 @@
 		};
 	}
 	function down(event: PointerEvent, reference: SurfaceReference, corner: number | null) {
-		if (disabled || event.button !== 0 || pointer !== null || (!event.altKey && corner === null))
+		if (disabled || event.button !== 0 || pointer !== null) return;
+		if (corner === null && !event.altKey) {
+			event.preventDefault();
+			event.stopPropagation();
+			select(reference.surface);
 			return;
+		}
 		const origin = point(event);
 		const surface = screen.surfaces.find((item) => item.reference.surface === reference.surface);
 		if (!origin || !surface) return;
@@ -216,7 +221,7 @@
 			onpointerdown={(event) => down(event, item.reference, null)}
 			onclick={(event) => {
 				event.stopPropagation();
-				if (!disabled) select(item.reference.surface);
+				if (!disabled && event.detail === 0) select(item.reference.surface);
 			}}
 			onkeydown={(event) => {
 				if (!disabled && (event.key === 'Enter' || event.key === ' ')) {
@@ -245,7 +250,11 @@
 				onpointerdown={(event) => down(event, item.reference, index)}
 				onclick={(event) => {
 					event.stopPropagation();
-					if (!disabled && (item.reference.surface !== selected || index !== selectedCorner))
+					if (
+						!disabled &&
+						event.detail === 0 &&
+						(item.reference.surface !== selected || index !== selectedCorner)
+					)
 						pickCorner(item.reference.surface, index);
 				}}
 				onkeydown={(event) => {

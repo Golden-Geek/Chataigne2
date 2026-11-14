@@ -11,7 +11,7 @@
 		label = '2D editor view',
 		native = false,
 		nativeFrame = false,
-		onbackgroundclick,
+		onselectionclear,
 		onkeydown: onEditorKeyDown,
 		onfocusout,
 		children,
@@ -25,8 +25,8 @@
 		native?: boolean;
 		/** An installed underlay owns the image frame and surrounding canvas paint. */
 		nativeFrame?: boolean;
-		/** Unconsumed primary clicks after navigation/child controls have handled input. */
-		onbackgroundclick?(event: MouseEvent): void;
+		/** Unconsumed background primary-down or idle Escape; adapters resolve their edited owner. */
+		onselectionclear?(event: PointerEvent | KeyboardEvent): void;
 		onkeydown?(event: KeyboardEvent): void;
 		onfocusout?(event: FocusEvent): void;
 		children: Snippet;
@@ -121,6 +121,12 @@
 			event.altKey
 		)
 			return;
+		if (event.key === 'Escape' && !isControl(event.target) && onselectionclear) {
+			event.preventDefault();
+			event.stopPropagation();
+			onselectionclear(event);
+			return;
+		}
 		if (event.code === 'Space') {
 			if (event.target instanceof Element && event.target.closest('button, a, [role="button"]'))
 				return;
@@ -181,14 +187,14 @@
 		event.preventDefault();
 		event.stopPropagation();
 	}}
-	onclick={(event) => {
+	onpointerdown={(event) => {
 		if (
 			!event.defaultPrevented &&
 			event.button === 0 &&
 			!isControl(event.target) &&
 			!(event.target instanceof Element && event.target.closest('button, a, [role="button"]'))
 		)
-			onbackgroundclick?.(event);
+			onselectionclear?.(event);
 	}}
 	onpointermove={(event) => {
 		if (drag?.id === event.pointerId) {
