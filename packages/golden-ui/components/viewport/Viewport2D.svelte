@@ -181,6 +181,13 @@
 	{onfocusout}
 	onpointerdowncapture={down}
 	onclickcapture={(event) => {
+		// Keyboard selection can replace its target with controls in the same flush.
+		if (
+			event.detail === 0 &&
+			event.target instanceof Element &&
+			event.target.closest('[data-viewport-selection-target]')
+		)
+			element.focus({ preventScroll: true });
 		if (!suppressClick) return;
 		suppressClick = false;
 		if (event.detail === 0) return;

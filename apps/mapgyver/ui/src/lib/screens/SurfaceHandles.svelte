@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import { ViewportHandle } from 'golden_ui';
+	import { ViewportHandle, viewportContour } from 'golden_ui';
 	import { capturePreviewPointer, type OverlayPrimitive } from 'golden_video_ui';
 	import { handleOverlays, imageFrameOverlay, overlayRem, quadOverlay } from './overlays';
 	import type { ScreenSnapshot } from './generated/ScreenSnapshot';
@@ -50,6 +50,7 @@
 		editing: boolean;
 	} | null>(null);
 	let ghost = $state<Point | null>(null);
+	let hovered = $state<SurfaceId | null>(null);
 	const visible = $derived(screen.surfaces.slice(0, 128));
 	const handles = $derived(
 		[selected].flatMap((id, index, all) => {
@@ -66,6 +67,7 @@
 				quadOverlay(surfaceQuad(item, presentation, extent), rem, {
 					hit: item.reference.surface,
 					selected: item.reference.surface === selected,
+					hovered: item.reference.surface === hovered,
 					enabled: item.definition.enabled,
 					valid: item.mapping_valid
 				})
@@ -205,6 +207,15 @@
 	onlostpointercapture={cancel}>
 	{#each visible as item (item.reference.surface)}
 		<polygon
+			use:viewportContour={{
+				selected: item.reference.surface === selected,
+				enabled: item.definition.enabled,
+				valid: item.mapping_valid,
+				onhover: (value) => {
+					if (value) hovered = item.reference.surface;
+					else if (hovered === item.reference.surface) hovered = null;
+				}
+			}}
 			data-native-hit-id={item.reference.surface}
 			data-surface-drop-target={item.reference.surface}
 			data-source-drop-object={item.reference.surface}
@@ -293,25 +304,6 @@
 		pointer-events: all;
 	}
 	polygon {
-		fill: transparent;
-		stroke: #a2b0c5;
-		stroke-width: 0.0625rem;
-		vector-effect: non-scaling-stroke;
 		cursor: pointer;
-	}
-	polygon.selected {
-		fill: #78aafa18;
-		stroke: #70aaff;
-		stroke-width: 0.125rem;
-	}
-	polygon.inactive {
-		stroke-dasharray: 0.3rem 0.2rem;
-	}
-	polygon.invalid {
-		fill: transparent;
-		stroke: #ff5364;
-	}
-	polygon.invalid.selected {
-		fill: #a51d2c18;
 	}
 </style>

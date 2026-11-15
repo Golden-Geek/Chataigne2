@@ -13,7 +13,20 @@ and updates the shared workbench selection. Screen Warping selects ordinary Surf
 pointer-down without opening a geometry edit; Alt-drag and corner capture keep their existing
 gesture path. Its keyboard/accessibility click fallback cannot reselect a Surface on physical
 mouse-up. See the [M14 selection inventory](../progress/mapgyver-m14-selection.md) for remaining
-editor adapters, hover and native acceptance; this public input contract alone does not qualify them.
+editor adapters and native acceptance; this public input contract alone does not qualify them.
+
+Golden's public `viewportContour` owns hover lifetime and contour presentation. Its pure
+`viewportContourAppearance` provides the same colors and rem widths to DOM controls and native
+overlay projection. Screen, Source, Composition and Matrix consume it without hover selection,
+handle admission or domain edits. Native preview's existing enter/leave forwarding drives the
+same action; there is no additional input transport. Press/capture loss/leave/blur, owner
+replacement and disposal clear hover. Invalid contours retain their warning color.
+
+Only selected objects expose transform gizmos. When source bounds are unavailable, Golden's
+`ViewportTarget` places a small selection-only outline at the known pivot; it does not invent
+media bounds or resize controls. Keyboard activation retains viewport focus before selection
+replaces that target, so Escape continues to inspect the owner. Known bounds use the object's
+contour directly. App adapters still own geometry, selection identities and authored operations.
 
 Golden graph canvases use their existing `onGraphSelectionChange([], [])` contract for primary
 background-down and idle Escape, with no repeated mouse-up clear. Alchemist and State Machine
@@ -40,7 +53,7 @@ unrelated selection. A selected owner has no selected child, even with an old re
 or when a nested Composition is itself an outer instance. The query does not invent a first
 child. The adapter follows authoritative page selection and publishes direct pointer choices
 immediately, without letting parameter projection receipts reselect an old child. Broader
-cross-editor selection retention and hover remain in M14/1's acceptance inventory.
+cross-editor selection retention remains in M14/1's acceptance inventory.
 
 Matrix Layer and Cell spatial adapters use the same background/idle-Escape callback. The
 Layer view selects its Matrix media owner; the Cell view selects its Layer owner while
@@ -83,7 +96,7 @@ backend compositing order. Reordering these bounded keyed controls preserves SVG
 pointer capture and never changes authored order, source routing or history ownership.
 
 Unselected Surfaces have a thin transparent outline and no handles or hover fill. Selection
-adds a light fill, stronger outline and handles. Invalid mapping retains a red outline with
+adds a light fill, stronger outline and handles; hover only strengthens the contour. Invalid mapping retains a red outline with
 only a light selected fill; unrelated areas remain clear.
 
 Screen authoring tracks the history identity represented by its projected geometry. After

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import { ViewportHandle } from 'golden_ui';
+	import { ViewportHandle, ViewportTarget, viewportContour } from 'golden_ui';
 	import type { RectGeometryMode } from '../media/generated/RectGeometryMode';
 	import type { Point } from '../media/generated/Point';
 	import type { LayoutRect } from './rect-presentation';
@@ -13,6 +13,7 @@
 		objects,
 		presentation = null,
 		kind,
+		identity,
 		canvas,
 		selected,
 		disabled,
@@ -27,6 +28,7 @@
 		objects: LayoutRect[];
 		presentation?: LayerPresentation | CellPresentation | null;
 		kind: 'Layer' | 'Cell';
+		identity?: string;
 		canvas: { width: number; height: number };
 		selected: string | null;
 		disabled: boolean;
@@ -95,6 +97,11 @@
 	{#each paintOrder as object (object.id)}
 		{#if object.size}
 			<rect
+				use:viewportContour={{
+					selected: selected === object.id,
+					enabled: object.enabled,
+					identity
+				}}
 				data-layer-id={kind === 'Layer' ? object.id : undefined}
 				data-layout-cell={kind === 'Cell' ? object.id : undefined}
 				x={object.position[0]}
@@ -127,17 +134,29 @@
 </svg>
 
 {#each displayed as object (object.id)}
-	{#if !object.size}<ViewportHandle
+	{#if !object.size && object.id !== selected}<ViewportTarget
+			{identity}
 			x={object.position[0] / canvas.width}
 			y={object.position[1] / canvas.height}
 			data-layout-cell={kind === 'Cell' ? object.id : undefined}
-			label={`Move ${object.label}`}
+			label={`Select ${object.label}`}
+			enabled={object.enabled}
 			aria-disabled={disabled && !active}
 			onclick={(event) => {
 				if (!disabled && event.detail === 0) select(object.id);
 			}}
 			onpointerdown={(event) => down(event, object, 'Translate')} />{/if}
 {/each}
+
+{#if item && !item.size}
+	<ViewportHandle
+		x={item.position[0] / canvas.width}
+		y={item.position[1] / canvas.height}
+		data-layout-cell={kind === 'Cell' ? item.id : undefined}
+		label={`Move ${item.label}`}
+		aria-disabled={disabled && !active}
+		onpointerdown={(event) => down(event, item!, 'Translate')} />
+{/if}
 
 {#if item?.size}
 	{#each SPATIAL_RESIZE_HANDLES as handle (handle.name)}
@@ -174,18 +193,6 @@
 	}
 	rect {
 		pointer-events: all;
-		fill: transparent;
-		stroke: var(--gc-color-border);
-		stroke-width: 0.06rem;
-		vector-effect: non-scaling-stroke;
 		cursor: move;
-	}
-	rect.selected,
-	rect:focus {
-		stroke: var(--gc-color-focus);
-		stroke-width: 0.12rem;
-	}
-	rect.inactive {
-		stroke-dasharray: 0.3rem 0.2rem;
 	}
 </style>

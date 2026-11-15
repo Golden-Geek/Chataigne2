@@ -1,4 +1,5 @@
 import type { OverlayPrimitive } from 'golden_video_ui';
+import { viewportContourAppearance } from 'golden_ui/components/viewport/contour.ts';
 import type { Point } from './generated/Point';
 
 const color = (hex: string): [number, number, number, number] => [
@@ -32,8 +33,15 @@ export function imageFrameOverlay(rem: number): OverlayPrimitive {
 export function quadOverlay(
 	corners: readonly Point[],
 	rem: number,
-	{ selected = false, enabled = true, valid = true, hit = null as string | null } = {}
+	{
+		selected = false,
+		hovered = false,
+		enabled = true,
+		valid = true,
+		hit = null as string | null
+	} = {}
 ): OverlayPrimitive {
+	const appearance = viewportContourAppearance({ selected, hovered, enabled, valid });
 	return {
 		hit,
 		shape: {
@@ -45,10 +53,10 @@ export function quadOverlay(
 				[number, number]
 			]
 		},
-		fill: color(selected ? (!valid ? 'a51d2c18' : '78aafa18') : '00000000'),
-		stroke: color(!valid ? 'ff5364' : selected ? '70aaff' : 'a2b0c5'),
-		width: (selected ? 0.125 : 0.0625) * rem,
-		dash: enabled ? null : [0.3 * rem, 0.2 * rem]
+		fill: color(appearance.fill),
+		stroke: color(appearance.stroke),
+		width: appearance.width * rem,
+		dash: appearance.dash ? [appearance.dash[0] * rem, appearance.dash[1] * rem] : null
 	};
 }
 

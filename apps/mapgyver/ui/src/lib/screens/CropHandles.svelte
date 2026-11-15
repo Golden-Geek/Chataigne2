@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import { ViewportHandle } from 'golden_ui';
+	import { ViewportHandle, viewportContour } from 'golden_ui';
 	import { capturePreviewPointer, type OverlayPrimitive } from 'golden_video_ui';
 	import { overlayRem } from './overlays';
 	import { cropOverlays } from './crop-overlays';
@@ -46,10 +46,11 @@
 		moved: boolean;
 	} | null = null;
 	let ghost = $state<Point | null>(null);
+	let hovered = $state(false);
 	const corners = $derived(cropCorners(surface, presentation));
 	const bounds = $derived(pointBounds(corners)!);
 	$effect(() => {
-		onoverlays(cropOverlays(corners, selected, ghost, overlayRem()));
+		onoverlays(cropOverlays(corners, selected, ghost, overlayRem(), hovered));
 	});
 	$effect(() => {
 		if (!selected) cancel();
@@ -146,6 +147,12 @@
 		if (event.pointerId === drag?.id) cancel();
 	}}>
 	<rect
+		use:viewportContour={{
+			selected,
+			onhover: (value) => {
+				hovered = value;
+			}
+		}}
 		data-native-hit-id="crop"
 		role="button"
 		tabindex="0"
@@ -200,16 +207,7 @@
 		pointer-events: none;
 	}
 	rect {
-		fill: transparent;
-		stroke: #a2b0c5;
-		stroke-width: 0.0625rem;
-		vector-effect: non-scaling-stroke;
 		cursor: move;
 		pointer-events: all;
-	}
-	.selected {
-		fill: #78aafa18;
-		stroke: #70aaff;
-		stroke-width: 0.125rem;
 	}
 </style>

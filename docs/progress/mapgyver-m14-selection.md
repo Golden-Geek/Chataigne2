@@ -84,22 +84,47 @@ with its specialized adapter.
 
 ## Applicable editor inventory
 
+Screen, Source, Composition and Matrix now share Golden's contour action and pure paint
+projection. Hover changes only the outline, preserving selection, geometry, handle admission,
+disabled dashes and invalid red cues. Native Screen/Source declarations consume the same paint;
+the existing native enter/leave path supplies hover. Press/leave/cancel/capture loss/blur and
+disposal clear it; explicit Composition/Matrix owner identity replacement clears retained hover.
+Actual native input/pixels remain unqualified for this new scope.
+
+Unselected Composition items no longer expose Move gizmos. Known bounds use their actual
+contour; unavailable Composition/Matrix bounds retain a selection-only square at the known
+pivot. Selection reveals only that item's real controls, with no invented source size. A new
+keyboard test reproduced focus loss when a selection target was replaced; the shared viewport
+now retains focus before keyboard activation, preserving immediate idle Escape in both editors.
+
 | Editor / owner | Current scope | Exact remaining work |
 | --- | --- | --- |
 | Golden `Viewport2D` | Browser verified primary-down/idle Escape, child/text/tool isolation, navigation and camera lifetime | Complete independent-editor, capture/cancel and app adapter acceptance |
-| Screen Warping / Screen | Pointer-down Surface selection, background-owner callback, idle Escape and selected-only DOM handles verified | Hover contour/native overlay agreement; actual workbench/Inspector, overlapping hits, off-page and active-gesture Escape checks |
-| Surface Source / Surface | Shared typed Crop Parameter selection, owner clearing, selected-only DOM/native declarations; browser capture/cancel and ordinary-host Inspector/history checks | Hover, actual native pixel/hit agreement, two-editor/offscreen and project/snapshot interaction acceptance |
-| Composition / Composition media | Root/nested explicit owner clears old hints without first-child selection; shared clear and immediate pointer choice; denied-edit/natural Escape focus browser checks pass; unlocked nested owner retains edited content | Actual Inspector/native/independent-editor and snapshot fencing; unselected Move markers, hover and selected-only presentation remain unfinished |
-| Matrix Layer spatial / Matrix media | Shared clear selects Matrix owner; explicit no-child backend projection, immediate controls and cached-definition clearing; denied-edit/idle-Escape DOM checks pass | Hover, actual adapter/Inspector/native checks, independent-editor and active-gesture behavior |
-| Matrix Cell spatial / Layer | Shared clear selects Layer without leaving it; backend resolves owned descendants and explicit no-Cell focus; bounded off-page selection and immediate control clearing; DOM checks pass | Hover, actual adapter/Inspector/native checks, active/outgoing/off-page interaction acceptance |
+| Screen Warping / Screen | Pointer-down/owner/idle Escape and selected-only DOM handles; shared contour hover and matching native paint declarations verified | Actual native input/pixel and workbench/Inspector agreement, overlapping hits, off-page and active-gesture Escape checks |
+| Surface Source / Surface | Shared typed Crop Parameter selection, owner clearing, selected-only controls; shared hover/native paint declarations; browser capture/cancel and earlier ordinary-host Inspector/history checks | Actual current native pixel/hit agreement, two-editor/offscreen and project/snapshot interaction acceptance |
+| Composition / Composition media | Root/nested explicit owner clears old hints; immediate choice/clear and unlocked nested owner retention; selected-only gizmos, actual-bounds hover and unavailable-bounds selection target; pointer/keyboard replacement focus verified | Actual Inspector/native/independent-editor and snapshot acceptance; overlap/off-page and full active-gesture behavior |
+| Matrix Layer spatial / Matrix media | Shared owner clear and no-child projection, immediate controls/cached-definition clearing; shared hover, selected-only controls and keyboard/pointer unavailable-bounds selection verified | Actual adapter/Inspector/native checks, independent-editor and active-gesture behavior |
+| Matrix Cell spatial / Layer | Shared Layer-owner clear without navigation; backend descendant/off-page selection; shared hover, selected-only controls and unavailable-bounds keyboard/pointer selection verified | Actual adapter/Inspector/native checks, active/outgoing/off-page interaction acceptance |
 | Golden graph canvases | Browser verifies primary-down nodes/edges, immediate background/idle-Escape empty selection, selected-only resize/hover, modifier/marquee/pan/text/finder isolation; captured cancellation/focus/identity/lifecycle boundaries and pending-work preservation; Spatializer owner callback wired and consumers typecheck | Actual domain Inspector/native/independent-editor/offscreen/permission and specialized custom-world capture acceptance |
 | Dashboard, curve and watcher projection canvases | Specialized Golden canvases must be reviewed | Resolve applicable authored-object/point selection versus read-only projection, then verify specialized tool/focus behavior; no exemption claimed |
 | Media Preview / Matrix grid | Preview is not the spatial placement editor; grid has its own selection | Confirm applicable owner/child manipulation paths, including read-only preview and virtualized selection; no qualification claimed from classification |
 
 This inventory retains the complete gate. DOM callback fixtures do not establish actual
-Inspector transactions, native pixels, GPU parity, all editor selection policies or hover.
+Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Contour slice (2026-11-15):15 Golden viewport unit cases and78 Screen/Composition/Matrix cases
+pass. The expanded production browser fixture verifies hover without selection/fill/handles,
+known/unavailable bounds, only selected gizmos, invalid cues, native Screen hover declarations,
+pointer-down-before-release, keyboard replacement focus and Source cancellation. Golden's full
+viewport browser regression also passes with0 page errors. Both app typechecks report0/0;
+MapGyver lint, scoped shared formatting, both production UI builds and root/Core formatting pass.
+Logs: `target/m14-contour-*-2026-11-15.log`, with final browser receipt
+`m14-contour-browser-focus-2026-11-15.log`. Earlier failure after keyboard target replacement is
+retained in `m14-contour-browser-final-2026-11-15.log`. No Rust/DTO or native binary changed;
+the current UI bundles include this slice, while debug binaries below retain earlier embedded UI.
+No new native GPU or whole-gate acceptance is inferred.
 
 - `cargo test --locked -p MapGyver --features native-qualification --lib -- --test-threads=4`:
   689 pass,8 ignored. New Matrix cases verify media/channel/Layer owner clears, owned Cell
@@ -197,7 +222,6 @@ native fixture SHA256:
 These replace the debug binaries from the historical M10 build receipt; refresh coherent
 qualification inputs on return. Existing Video evidence retains its original source/build scope.
 
-Next deliverable: shared MapGyver contour hover and selected-only controls, including unselected
-Composition Move markers, then complete
-the full native/Inspector/independent-editor inventory above. No completed slice
+Next deliverable: finish the specialized-editor selection inventory, then verify current actual
+Inspector/native/independent-editor behavior with coherent rebuilt binaries. No completed slice
 or passing software suite substitutes for whole-gate acceptance.

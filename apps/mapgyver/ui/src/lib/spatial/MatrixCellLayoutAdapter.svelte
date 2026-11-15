@@ -218,6 +218,7 @@
 				previewLabel={selected?.label}
 				{actions}>
 				<RectLayoutControls
+					identity={props.layer}
 					{objects}
 					presentation={geometry.presentation}
 					kind="Cell"

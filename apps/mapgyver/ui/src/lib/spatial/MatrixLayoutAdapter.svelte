@@ -205,6 +205,7 @@
 				label="Matrix Layer layout view"
 				{actions}>
 				<RectLayoutControls
+					identity={snapshot.final_output.reference.channel}
 					{objects}
 					presentation={geometry.presentation}
 					kind="Layer"

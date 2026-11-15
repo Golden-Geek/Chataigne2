@@ -35,7 +35,20 @@ try {
 	};
 	const a = await point(first),
 		b = await point(second);
+	const idleStroke = await first.evaluate((element) => getComputedStyle(element).stroke);
 	await page.mouse.move(a.x, a.y);
+	assert.equal(await first.getAttribute('data-viewport-hovered'), 'true');
+	assert.notEqual(await first.evaluate((element) => getComputedStyle(element).stroke), idleStroke);
+	assert.equal(await owner.textContent(), 'screen', 'hover cannot select');
+	assert.equal(await page.getByRole('group', { name: /Warp handles for/ }).count(), 0);
+	/** @type {import('golden_video_ui').OverlayPrimitive[]} */
+	const overlayValues = JSON.parse(
+		(await page.getByLabel('Native overlays').textContent()) ?? '[]'
+	);
+	const hoverOverlay = overlayValues.find((entry) => entry.hit === 'A');
+	assert(hoverOverlay);
+	assert.equal(hoverOverlay.fill[3], 0, 'native hover cannot fill');
+	assert.deepEqual(hoverOverlay.stroke, [192 / 255, 216 / 255, 1, 1]);
 	await page.mouse.down();
 	assert.equal(await owner.textContent(), 'A', 'pointer down selects before release');
 	assert.equal(
@@ -79,9 +92,12 @@ try {
 	assert.equal(await page.getByLabel('Geometry starts').textContent(), '0');
 	await page.getByRole('button', { name: 'Show Composition', exact: true }).click();
 	const composition = page.getByLabel('Composition view', { exact: true });
-	const move = page.getByRole('button', { name: 'Move Item A', exact: true });
+	assert.equal(await composition.getByRole('button', { name: /^Move / }).count(), 0);
+	const move = page.getByRole('button', { name: 'Select Item A', exact: true });
 	const item = await point(move);
 	await page.mouse.move(item.x, item.y);
+	assert.equal(await move.getAttribute('data-viewport-hovered'), 'true');
+	assert.equal(await owner.textContent(), 'composition');
 	await page.mouse.down();
 	assert.equal(
 		await owner.textContent(),
@@ -109,6 +125,33 @@ try {
 	await page.keyboard.press('Escape');
 	assert.equal(await owner.textContent(), 'composition');
 	assert.equal(await composition.locator('[data-instance-handle="Translate"]').count(), 0);
+	await move.focus();
+	await page.keyboard.press('Enter');
+	assert.equal(await owner.textContent(), 'Item A');
+	await page.keyboard.press('Escape');
+	assert.equal(
+		await owner.textContent(),
+		'composition',
+		'keyboard target replacement retains viewport focus'
+	);
+	await page.getByRole('button', { name: 'Toggle source bounds', exact: true }).click();
+	assert.equal(
+		await composition.locator('.viewport-target').count(),
+		0,
+		'known bounds need no pivot selection marker'
+	);
+	assert.equal(await composition.getByRole('button', { name: /^Move / }).count(), 0);
+	const known = composition.getByRole('button', { name: 'Select Item B', exact: true });
+	await known.hover();
+	assert.equal(await known.getAttribute('data-viewport-hovered'), 'true');
+	assert.equal(await owner.textContent(), 'composition');
+	assert.equal(await composition.locator('[data-instance-handle]').count(), 0);
+	await known.click();
+	assert.equal(await composition.locator('[data-instance-handle="Translate"]').count(), 1);
+	assert.equal(await composition.locator('[data-instance-handle="Resize"]').count(), 8);
+	assert.equal(await composition.getByRole('button', { name: /^Move / }).count(), 1);
+	await page.keyboard.press('Escape');
+	assert.equal(await composition.locator('[data-instance-handle]').count(), 0);
 	for (const kind of ['Layer', 'Cell']) {
 		await page.getByRole('button', { name: `Show Matrix ${kind}`, exact: true }).click();
 		const matrix = page.getByLabel('Matrix fixture', { exact: true });
@@ -119,6 +162,9 @@ try {
 		const rectangle = matrix.getByRole('button', { name: 'Select Rect B', exact: true });
 		const at = await point(rectangle);
 		await page.mouse.move(at.x, at.y);
+		assert.equal(await rectangle.getAttribute('data-viewport-hovered'), 'true');
+		assert.equal(await handles.count(), 0, 'hover cannot introduce resize handles');
+		assert.equal(await owner.textContent(), kind === 'Layer' ? 'matrix' : 'layer-owner');
 		await page.mouse.down();
 		assert.equal(
 			await owner.textContent(),
@@ -142,6 +188,34 @@ try {
 		await page.keyboard.press('Escape');
 		assert.equal(await owner.textContent(), kind === 'Layer' ? 'matrix' : 'layer-owner');
 		assert.equal(await handles.count(), 0);
+		const unavailable = matrix.getByRole('button', { name: 'Select Missing bounds', exact: true });
+		assert.equal(await matrix.getByRole('button', { name: /^Move / }).count(), 0);
+		await unavailable.hover();
+		assert.equal(await unavailable.getAttribute('data-viewport-hovered'), 'true');
+		assert.equal(await handles.count(), 0);
+		await unavailable.focus();
+		await page.keyboard.press('Enter');
+		assert.equal(
+			await owner.textContent(),
+			'Missing bounds',
+			'unavailable geometry remains keyboard selectable'
+		);
+		assert.equal(
+			await matrix.getByRole('button', { name: 'Move Missing bounds', exact: true }).count(),
+			1
+		);
+		assert.equal(await handles.count(), 0, 'unknown size cannot invent resize controls');
+		await page.keyboard.press('Escape');
+		await unavailable.hover();
+		await page.mouse.down();
+		assert.equal(
+			await owner.textContent(),
+			'Missing bounds',
+			'missing bounds select before release'
+		);
+		await page.mouse.up();
+		await page.keyboard.press('Escape');
+		assert.equal(await matrix.getByRole('button', { name: /^Move / }).count(), 0);
 	}
 	await page.getByRole('button', { name: 'Show Surface Source', exact: true }).click();
 	const source = page.getByLabel('Surface source view', { exact: true });
@@ -150,6 +224,9 @@ try {
 	assert.equal(await corners.count(), 0, 'Surface owner has no selected crop controls');
 	const at = await point(crop);
 	await page.mouse.move(at.x, at.y);
+	assert.equal(await crop.getAttribute('data-viewport-hovered'), 'true');
+	assert.equal(await corners.count(), 0, 'crop hover cannot introduce corners');
+	assert.equal(await owner.textContent(), 'A');
 	await page.mouse.down();
 	assert.equal(
 		await owner.textContent(),
@@ -249,7 +326,7 @@ try {
 		JSON.stringify({
 			result: 'pass',
 			scope:
-				'DOM Screen/Source/Composition/Matrix primary-down/background/idle Escape, denied-edit selection, selected controls and Source capture/cancel; no native pixel or full M14 acceptance'
+				'DOM Screen/Source/Composition/Matrix hover, selected-only controls, unavailable/known source bounds, primary-down/background/idle Escape, denied-edit selection and Source capture/cancel; native hover declarations; no native pixel or full M14 acceptance'
 		})
 	);
 } finally {

@@ -7,11 +7,12 @@ export function cropOverlays(
 	corners: readonly Point[],
 	selected: boolean,
 	ghost: Point | null,
-	rem: number
+	rem: number,
+	hovered = false
 ): OverlayPrimitive[] {
 	return [
 		imageFrameOverlay(rem),
-		quadOverlay(corners, rem, { selected, hit: 'crop' }),
+		quadOverlay(corners, rem, { selected, hovered, hit: 'crop' }),
 		...(selected
 			? corners.flatMap((point, index) => handleOverlays(point, rem, false, false, `crop:${index}`))
 			: []),

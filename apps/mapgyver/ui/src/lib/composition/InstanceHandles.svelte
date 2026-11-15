@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import { ViewportHandle } from 'golden_ui';
+	import { ViewportHandle, ViewportTarget, viewportContour } from 'golden_ui';
 	import type { CompositionSnapshot } from '../media/generated/CompositionSnapshot';
 	import type { InstanceId } from '../media/generated/InstanceId';
 	import type { InstanceReference } from '../media/generated/InstanceReference';
@@ -113,6 +113,11 @@
 			: null}
 		{#if extent}
 			<polygon
+				use:viewportContour={{
+					selected: item.reference.instance === selected,
+					enabled: item.definition.enabled,
+					identity: composition.reference.channel
+				}}
 				data-instance-drop-target={item.reference.instance}
 				data-source-drop-object={item.reference.instance}
 				points={instanceDisplay(item, extent, presentation)
@@ -139,6 +144,11 @@
 	{#if instance && handles}
 		{#if selectedExtent && !visible.some((item) => item.reference.instance === instance.reference.instance)}
 			<polygon
+				use:viewportContour={{
+					selected: true,
+					enabled: instance.definition.enabled,
+					identity: composition.reference.channel
+				}}
 				class="selected"
 				data-instance-drop-target={instance.reference.instance}
 				data-source-drop-object={instance.reference.instance}
@@ -152,15 +162,23 @@
 </svg>
 
 {#each visible as item (item.reference.instance)}
-	{#if item.reference.instance !== selected}
-		<ViewportHandle
+	{@const extent = item.definition.source
+		? owner.statuses.get(previewKey({ kind: 'Channel', reference: item.definition.source }))?.extent
+		: null}
+	{#if item.reference.instance !== selected && !extent}
+		<ViewportTarget
+			identity={composition.reference.channel}
+			enabled={item.definition.enabled}
 			x={item.definition.transform.position[0] / composition.canvas.width}
 			y={item.definition.transform.position[1] / composition.canvas.height}
-			label={`Move ${item.label}`}
+			label={`Select ${item.label}`}
 			data-instance-drop-target={item.reference.instance}
 			data-source-drop-object={item.reference.instance}
 			aria-disabled={disabled && !active}
-			onpointerdown={(event) => down(event, item, 'Translate')} />
+			onpointerdown={(event) => down(event, item, 'Translate')}
+			onclick={(event) => {
+				if (!disabled && event.detail === 0) select(item.reference.instance);
+			}} />
 	{/if}
 {/each}
 {#if instance && handles}
@@ -221,17 +239,6 @@
 		pointer-events: all;
 	}
 	polygon {
-		fill: #78aafa08;
-		stroke: #a2b0c5;
-		stroke-width: 0.1rem;
-		vector-effect: non-scaling-stroke;
 		cursor: move;
-	}
-	polygon.selected {
-		fill: #78aafa12;
-		stroke: #70aaff;
-	}
-	polygon.inactive {
-		stroke-dasharray: 0.3rem 0.2rem;
 	}
 </style>
