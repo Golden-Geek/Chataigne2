@@ -5,6 +5,7 @@
 	import NodeInspector from '../NodeInspector.svelte';
 	import SelectNodeButton from '../../../common/SelectNodeButton.svelte';
 	import AnimationCurveNodeEditor from '../../../common/AnimationCurveNodeEditor.svelte';
+	import { createCurveInspectorSelection } from './curve-selection.svelte';
 
 	let { node, level, defaultHeader, defaultContent }: NodeInspectorComponentProps = $props();
 
@@ -22,6 +23,24 @@
 	let selected_key_id = $state<NodeId | null>(null);
 	let selected_key_ids = $state<NodeId[]>([]);
 	let selected_curve_owner_key_ids = $state<NodeId[]>([]);
+	const selection = createCurveInspectorSelection({
+		get session() {
+			return session;
+		},
+		get owner() {
+			return liveNode;
+		},
+		read: () => ({
+			key: selected_key_id,
+			keys: selected_key_ids,
+			segments: selected_curve_owner_key_ids
+		}),
+		write: (value) => {
+			selected_key_id = value.key;
+			selected_key_ids = value.keys;
+			selected_curve_owner_key_ids = value.segments;
+		}
+	});
 
 	const same_node_id_array = (left: NodeId[], right: NodeId[]): boolean => {
 		if (left.length !== right.length) {
@@ -127,7 +146,11 @@
 
 {#snippet curveContent()}
 	<div class="animation-curve-node-inspector">
-		<div class="curve-editor">
+		<div
+			class="curve-editor"
+			onpointerdowncapture={selection.arm}
+			onkeydowncapture={selection.arm}
+			oncontextmenucapture={selection.arm}>
 			<AnimationCurveNodeEditor
 				curveNode={liveNode}
 				bind:selected_key_id

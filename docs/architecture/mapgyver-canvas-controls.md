@@ -22,6 +22,17 @@ dispatches plain background-down and tool-first/idle Escape with shared text/con
 guards. `Viewport2D`, Dashboard and Matrix grid consume these reusable selection mechanisms;
 adapters supply explicit owners and tool cancellation.
 
+Golden's Inspector registry can opt a specialized editor into `anchorSelection`. A selection
+of its descendants keeps that editor mounted while the workbench still selects the actual
+document nodes. Inline curves use this hook for key/easing selection and their embedded typed
+Inspector; pointer-down no longer destroys the canvas holding capture. Parameter Watchers and
+raw data retain the selected Parameter, with an anchored Watcher below the editor to avoid
+moving its canvas during input. Explicit Inspector locks keep their document/UUID boundary.
+Ownership projection caches immutable selection arrays against published graph deltas, so live
+unrelated Parameter updates do not rescan large selections. The curve adapter publishes only
+input-owned changes and rejects replaced session/project/snapshot/selection scopes. Its existing
+large canvas/input controller still needs separate background/Escape/cancellation work in M14/1.
+
 Matrix grid uses those actions for Cells, row/column/group headers and their labels, alongside
 the shared contour hover. Background/idle Escape select the Matrix media owner. Grid coordinates
 and an explicit document focus identity publish together, so clearing or moving between Column

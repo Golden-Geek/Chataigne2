@@ -2,7 +2,8 @@
 	import { untrack, type Snippet } from 'svelte';
 	import NodeDataInspector from './NodeDataInspector.svelte';
 	import NodeInspector from './NodeInspector.svelte';
-	import { resolveNodeInspector } from './node-inspector-registry';
+	import { resolveNodeInspector, nodeInspectorRegistryVersion } from './node-inspector-registry';
+	import { createInspectorSelectionOwner } from './selection-owner';
 
 	import { appState } from '../../../store/workbench.svelte.ts';
 	import {
@@ -10,7 +11,7 @@
 		writePanelPersistedState
 	} from '../../../dockview/panel-persistence';
 	import type { PanelProps, PanelState } from '../../../dockview/panel-types.ts';
-	import type { NodeId } from '../../../types';
+	import type { NodeId, UiNodeDto } from '../../../types';
 	import { slide } from 'svelte/transition';
 	import { getContainerColorForNode, getIconURLForNode } from '../../../store/node-types';
 	import { sendPatchMetaIntent } from '../../../store/ui-intents';
@@ -36,8 +37,9 @@
 
 	let session = $derived(appState.session);
 	let graphState = $derived(session?.graph.state ?? null);
-	let selectedNodes = $derived(session?.getSelectedNodes() ?? []);
-	let selectedNode = $derived(selectedNodes.length === 1 ? selectedNodes[0] : null);
+	const selectionOwner = createInspectorSelectionOwner(
+		(node) => resolveNodeInspector(node)?.anchorSelection === true
+	);
 
 	let inspectorLocked = $state(false);
 	let lockedNodeUuid = $state<string | null>(null);
@@ -57,7 +59,13 @@
 				? (graphState?.nodesById.getByUuid(lockedNodeUuid)?.node_id ?? null)
 				: null;
 		}
-		return selectedNode?.node_id ?? null;
+		return (
+			selectionOwner.read(
+				graphState,
+				session?.selectedNodesIds ?? [],
+				nodeInspectorRegistryVersion()
+			) ?? null
+		);
 	});
 	let node = $derived.by(() => {
 		if (inspectedNodeId === null || !graphState) {
@@ -66,6 +74,13 @@
 		return graphState.nodesById.get(inspectedNodeId) ?? null;
 	});
 	let inspectedNodes = $derived(node ? [node] : []);
+	let selectedNode = $derived.by(() => {
+		if (inspectorLocked) return node;
+		const ids = session?.selectedNodesIds ?? [];
+		return ids.length === 1 ? (graphState?.nodesById.get(ids[0]) ?? null) : null;
+	});
+	let dataInspectedNodes = $derived(selectedNode ? [selectedNode] : inspectedNodes);
+	let watcherNode = $derived(selectedNode?.data.kind === 'parameter' ? selectedNode : null);
 
 	let iconURL = $derived(node ? getIconURLForNode(node) : null);
 	let headerAccentColor = $derived(
@@ -242,7 +257,7 @@
 		persistState({ dataInspectorCollapsed });
 	};
 
-	let selectedWatcherParamKey = $derived(node && node.data.kind === 'parameter' ? node.uuid : null);
+	let selectedWatcherParamKey = $derived(watcherNode?.uuid ?? null);
 	let selectedWatcherSettings = $derived(
 		selectedWatcherParamKey ? (watcherSettingsByParam[selectedWatcherParamKey] ?? {}) : {}
 	);
@@ -580,16 +595,22 @@
 			</div>
 		{/if}
 
+		{#snippet parameterWatcher(target: UiNodeDto)}
+			<div class="watcher-wrapper">
+				<Watcher
+					node={target}
+					persistedSettings={selectedWatcherSettings}
+					onSettingsChange={persistWatcherSettingsForSelectedParam} />
+			</div>
+		{/snippet}
 		<div class="inspector-content">
-			{#if node.data.kind === 'parameter'}
-				<div class="watcher-wrapper">
-					<Watcher
-						{node}
-						persistedSettings={selectedWatcherSettings}
-						onSettingsChange={persistWatcherSettingsForSelectedParam} />
-				</div>
+			{#if watcherNode && watcherNode.node_id === node.node_id}
+				{@render parameterWatcher(watcherNode)}
 			{/if}
 			<NodeInspector nodes={inspectedNodes} level={0} />
+			{#if watcherNode && watcherNode.node_id !== node.node_id}
+				{@render parameterWatcher(watcherNode)}
+			{/if}
 		</div>
 
 		<div class="data-inspector {dataInspectorCollapsed ? 'collapsed' : ''}">
@@ -608,7 +629,7 @@
 			</div>
 			{#if !dataInspectorCollapsed}
 				<div class="data-inspector-content" transition:slide|local={{ duration: 200 }}>
-					<NodeDataInspector nodes={inspectedNodes} />
+					<NodeDataInspector nodes={dataInspectedNodes} />
 				</div>
 			{/if}
 		</div>

@@ -31,6 +31,8 @@ export interface NodeInspectorPanelHeaderComponentProps {
 }
 
 export interface NodeInspectorEntry {
+	/** Keep this editor mounted while its descendants drive the workbench/embedded Inspector. */
+	anchorSelection?: boolean;
 	component?: any;
 	panelHeaderComponent?: any;
 	/** Filter ordinary child rendering without replacing the generic Inspector. */
@@ -52,12 +54,14 @@ interface NodeInspectorMatcherEntry {
 
 const builtinNodeInspectorRegistry: NodeInspectorRegistry = {
 	script: { component: ScriptNodeInspector },
-	animation_curve: { component: AnimationCurveNodeInspector },
+	animation_curve: { component: AnimationCurveNodeInspector, anchorSelection: true },
 	gradient: { component: GradientNodeInspector }
 };
 
 const customNodeInspectorRegistry = new Map<string, NodeInspectorEntry>();
 const customNodeInspectorMatchers: NodeInspectorMatcherEntry[] = [];
+let registryVersion = 0;
+export const nodeInspectorRegistryVersion = () => registryVersion;
 
 const normalizeInspectorKey = (key: string): string => key.trim();
 
@@ -67,6 +71,7 @@ export const registerNodeInspector = (key: string, entry: NodeInspectorEntry): v
 		throw new Error('Node inspector registration requires a non-empty node type or item kind.');
 	}
 	customNodeInspectorRegistry.set(normalizedKey, entry);
+	registryVersion++;
 };
 
 export const registerNodeInspectors = (entries: NodeInspectorRegistry): void => {
@@ -88,6 +93,7 @@ export const registerNodeInspectorMatcher = (
 		(candidate) => candidate.key === normalizedKey
 	);
 	const registration = { key: normalizedKey, matcher, entry };
+	registryVersion++;
 	if (existingIndex >= 0) {
 		customNodeInspectorMatchers[existingIndex] = registration;
 		return;
@@ -97,9 +103,11 @@ export const registerNodeInspectorMatcher = (
 
 export const unregisterNodeInspector = (key: string): void => {
 	customNodeInspectorRegistry.delete(normalizeInspectorKey(key));
+	registryVersion++;
 };
 
 export const unregisterNodeInspectorMatcher = (key: string): void => {
+	registryVersion++;
 	const normalizedKey = normalizeInspectorKey(key);
 	const existingIndex = customNodeInspectorMatchers.findIndex(
 		(candidate) => candidate.key === normalizedKey
@@ -110,6 +118,7 @@ export const unregisterNodeInspectorMatcher = (key: string): void => {
 };
 
 export const clearCustomNodeInspectors = (): void => {
+	registryVersion++;
 	customNodeInspectorRegistry.clear();
 	customNodeInspectorMatchers.splice(0);
 };
