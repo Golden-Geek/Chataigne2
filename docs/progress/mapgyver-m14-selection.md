@@ -107,8 +107,7 @@ capture release, drops queued writes and immediately removes local previews. Sub
 settles before its pinned edit session ends. Late/foreign input cannot complete canceled work.
 Pan cancellation restores its basis; scope replacement stops stale input. Unchanged owner UUID
 projection prevents ordinary live graph publications from canceling a valid drag.
-The existing oversized editor/controller still needs further cohesive decomposition; the
-bounded Canvas2D renderer and new terminal/types modules do not close the full acceptance gate.
+The bounded editor/Canvas2D decomposition described below does not close the full acceptance gate.
 
 Curve geometry now shares Golden's ordinary Inspector value-access rule. Read-only, disabled
 or externally controlled typed Parameters remain selectable, while their complete geometry
@@ -117,14 +116,13 @@ after permission loss; remove/duplicate actions honor document permissions. A ke
 the plot keeps its typed Inspector and can still be edited there. Replacing the Curve owner
 resets retained camera bounds without recentering ordinary live Parameter updates. Constants,
 value conversion, key-model projection and easing evaluation have been extracted into focused
-modules; their existing behavior and every easing kind remain covered. The editor/controller
-is still oversized and requires further cohesive splits.
+modules; their existing behavior and every easing kind remain covered.
 
 The Curve Canvas2D renderer is now a326-line DOM/lifecycle host over shared model/frame types.
 Paint779, grid398, samples298 and theme199 lines form bounded modules. Painting returns both
 bounds and hit geometry from one frame; the host owns sizing, theme observation, input forwarding
 and publication. No new selection store, compatibility type alias or authored setting was added.
-This closes the renderer's structural debt only; the remaining oversized editor/controller stays explicit.
+The editor/controller is separately decomposed below; neither split accepts actual-host behavior.
 
 Pending Curve draw/create/paste/easing commands now capture their original owner, session and
 document before awaiting an edit-session acknowledgement. A reproduced draw previously fitted
@@ -139,8 +137,8 @@ projection events instead of guessing the first new key or polling. A concurrent
 ignored. Admitted creation finishes initialization on its original owner even after the view
 changes, with current access checks before each write; later paste entries are not submitted
 into the replacement view. Scoped preview cleanup preserves newer previews. Geometry admission
-also refuses to join an existing edit session while command creation is pending. The4786-line
-editor/controller still needs further cohesive decomposition and actual-host acceptance.
+also refuses to join an existing edit session while command creation is pending. Actual-host
+acceptance remains required after the subsequent controller decomposition.
 
 Matrix Parameter control subtrees now admit ordinary Curve CRUD in the actual backend. Previously
 Matrix's ancestry guard rejected real key creation with `app_intent_rejected` / “Use Matrix
@@ -163,8 +161,13 @@ Gesture/session ownership is now extracted into focused `curve/edit-gesture.svel
 one scheduled frame retains the latest key and Bezier samples. Terminal input takes its edit
 session and current pending writes before closure. Creation/easing commands use the same typed
 writer and current access/coercion rules. The editor retains geometry and presentation adapters.
-This removes scattered scope/session/queue bookkeeping, but the4615-line component remains
-oversized and requires the remaining cohesive splits. No new app behavior or whole gate is claimed.
+The remaining controller is now split into13 focused editor modules: transient state/context,
+model, selection, previews, constraints, insertion, sculpting, camera, hits, drawing, commands
+and pointer dispatch. The component falls from4615 to687 lines; every new module is at most737.
+Typed narrow factory contexts retain canonical document/parent bindings and avoid runtime import
+cycles. The11 lifecycle effects remain in their original order at the component boundary.
+Review of177 moved initializers found no behavior changes after accounting for context prefixes
+and formatting. No new app behavior or whole gate is claimed by this structural cleanup.
 
 ## Applicable editor inventory
 
@@ -191,7 +194,7 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Matrix Cell spatial / Layer | Shared Layer-owner clear without navigation; backend descendant/off-page selection; shared hover, selected-only controls and unavailable-bounds keyboard/pointer selection verified | Actual adapter/Inspector/native checks, active/outgoing/off-page interaction acceptance |
 | Golden graph canvases | Browser verifies primary-down nodes/edges, immediate background/idle-Escape empty selection, selected-only resize/hover, modifier/marquee/pan/text/finder isolation; captured cancellation/focus/identity/lifecycle boundaries and pending-work preservation; Spatializer owner callback wired and consumers typecheck | Actual domain Inspector/native/independent-editor/offscreen/permission and specialized custom-world capture acceptance |
 | Golden Dashboard / edited page | Primary-down widget/background selection; selected-only resize zones; border hover; per-page tool-first/idle-owner Escape; free/ordered move/resize and marquee/pan cancellation, nested keyboard and two-editor isolation verified in production browser fixture | Actual workbench/Inspector, permission/offscreen/project and current-host acceptance remain open; unrelated Dashboard backend edits are preserved |
-| Animation curves / curve and key nodes | Shared key/easing/field and embedded typed Inspector; background/idle owner, tool-first cancel, selected-only Bezier/contour hover, permission/offscreen/locked-owner checks; bounded renderer; delayed draw/create/paste owner/document fencing, exact creation receipt and original-owner completion without selection theft | Finish oversized editor/controller decomposition and complete actual backend/history/native and full lifetime acceptance; renderer and extracted modules stay under1000 lines |
+| Animation curves / curve and key nodes | Shared key/easing/field and embedded typed Inspector; background/idle owner, tool-first cancel, selected-only Bezier/contour hover, permission/offscreen/locked-owner checks; bounded editor/renderer; delayed draw/create/paste owner/document fencing, exact creation receipt and original-owner completion without selection theft | Fix connected pointer ownership and complete actual backend/history/native and full lifetime acceptance; all editor/renderer modules stay under1000 lines |
 | Watcher projection canvases | `WatcherProjectionCanvas` renders buffer samples/latest points without pointer, key or mutation callbacks; it has no authored canvas targets | Read-only projection applicability resolved from source. Ordinary Inspector owns its settings; retain panel focus/lifetime checks in actual workbench acceptance |
 | Media Preview / followed or locked media | `MediaPreviewPanel` renders `ChannelPreview`/`NativePreview` without authored geometry targets; toolbar changes preview choice, not object placement | Read-only image applicability resolved from source. Existing follow/lock/routing requirements stay intact; actual cross-panel/native qualification remains open |
 | Matrix grid / Matrix, Layer, Column and Cell | Shared primary-down/keyboard selection and hover for Cells/headers/labels; background/idle owner clear; immediate focus and stale-reply fencing; connected Golden browser fixture verifies controls, rename/launch, disabled input, independent drag cancellation and listener disposal | Actual backend/Inspector-driven selection, native drag/pixels, virtualized/offscreen/project and independent real-panel acceptance remain open |
@@ -200,6 +203,23 @@ This inventory retains the complete gate. DOM callback fixtures do not establish
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Full controller decomposition (2026-11-15):64 focused cases, four typechecks0/0, scoped formatting,
+app lint, both production UI builds and root/Core formatting pass. Production Inspector browser
+reports0 page errors and retains all three620×330 frame hashes, captured input, metadata refresh,
+typed access, offscreen/locked Inspector and pending-command cases. A read-only TypeScript review
+compares177 moved function/derived initializers and11 effects againstc5a77a18; only context
+qualification and formatting differ. The command/menu module uses `.svelte.ts` for its derived
+menu state; the first browser attempt caught the incorrect plain-TS extension before correction.
+Logs: `target/m14-curve-editor-*-2026-11-15.log`.
+
+The coherent ordinary rebuild's unchanged connected regression still fails before movement:
+`captured:false, focused:true, activeTag:CANVAS`. Exact created identity, initialized typed Inspector
+and one history item pass; later drag/Escape/history cases remain unexecuted. Receipt:
+`target/m14-curve-editor-connected-2026-11-15/failure.json`; normal owned-host shutdown is retained.
+No new runtime probe, native/GPU cohort, Rust or protocol change was introduced. Source readability
+debt is closed for these editor/renderer files; M14/1 and the full actual-host/native inventory
+remain unaccepted. M14 0/10,88/106 (83%).
 
 Curve gesture ownership extraction (2026-11-15):64 focused cases, production Inspector browser
 and four typechecks0/0 pass. Existing frame hashes, selection/capture/cancel, metadata refresh,
@@ -237,9 +257,9 @@ shuts down normally. This is one post-press observation, not proof that no trans
 DOM lifetime transition occurred. Later movement/history acceptance remains unexecuted.
 The test scene, executable, inputs and deadlines are unchanged; no profiler or alternate
 environment was introduced. Stop extending this runtime investigation. Next deliver the
-remaining focused Curve input/controller decomposition under the same M14/1 gate, preserving
-this exact failing acceptance check and revisiting ownership when the extracted source provides
-a justified fix. The parked cache attempt remains untouched; no gate is accepted by this check.
+focused Curve input/controller decomposition under the same M14/1 gate was completed next.
+Preserve this exact failing acceptance check and revisit ownership when the extracted source
+provides a justified fix. The parked cache attempt remains untouched; no gate is accepted by this check.
 
 Matrix/Curve backend slice (2026-11-15): the full current MapGyver library suite passes
 692 tests with5 ignored; strict `cargo clippy --locked -p MapGyver --lib --tests -- -D warnings`
@@ -299,7 +319,7 @@ same-environment browser frame comparisons, not universal cross-platform image g
 GPU acceptance. Logs: `target/m14-curve-renderer-*-2026-11-15.log`; final browser receipt includes
 the three frame hashes. No source snapshots or image archives were added.
 This is the bounded structural/qualification batch following four product slices, not a new app
-capability or whole-gate acceptance. The large editor/controller and actual backend/history/native
+capability or whole-gate acceptance. Actual backend/history/native
 inventory remain. M14/1 Active, M14 0/10, overall88/106 (83%); M10 Pending/release-blocking.
 
 Curve model/access slice (2026-11-15):43 focused Curve/Inspector/viewport cases pass, covering
@@ -320,7 +340,7 @@ four app/Golden fixture typechecks report0 errors/0 warnings. Shared/app formatt
 production UI builds and root/Core formatting pass. Logs: `target/m14-curve-model-*-2026-11-15.log`;
 final unit/browser logs include `-final-`. No Rust/wire DTO or native executable changed.
 Mock transport and Canvas2D evidence do not qualify actual backend history, native/GPU pixels
-or every lifetime case. Existing oversized controller/renderer code remains explicit debt.
+or every lifetime case. The subsequent bounded controller/renderer split does not expand this scope.
 No fixed gate closes: M14/1 Active, M14 0/10, overall88/106 (83%); M10 still Pending/release-blocking.
 
 Curve input slice (2026-11-15):28 focused Curve/Inspector/viewport unit cases pass. The production
@@ -504,15 +524,20 @@ Prior ordinary checkpoint rebuild after parking the unproven cache attempt:
 `35e7ce1c0df6106c7f7cab323c3efeb98734c278b7a978ed755e4c52eda16da1`;
 build log SHA256 `cd5a81086ee1e15d9835b48a3070418dfe9b9b1bfa0933daf1873759fad7bda1`
 (`target/m14-curve-backend-build-checkpoint-2026-11-15.log`).
-Current ordinary build with extracted gesture/session ownership:
+Prior ordinary build with extracted gesture/session ownership:
 `da152e1196b46d896672520433e62ce78752b83a286efceeb54f68cd5ca2bcfc`;
 build log SHA256 `579e35ba8dae93d7ca82fdf8e050ad54695206cac9d8f45927bd1041009c4604`
 (`target/m14-curve-gesture-build-mapgyver-2026-11-15.log`). Its connected result is the failing
-gesture receipt above. The native fixture remains older: these are not a coherent new ordinary/
+gesture receipt above.
+Current ordinary build with the complete controller decomposition:
+`aea3e6ecc8f360f1a9dc4b418a33062378f001f75442902a8ec11f6c39649dc3`;
+build log SHA256 `693d5fddb8afd64c84cc86e97cd1bf6b49c4f01804c94994fe6932e0a56f7f18`
+(`target/m14-curve-editor-build-mapgyver-2026-11-15.log`). Its connected result is the failing
+editor receipt above. The native fixture remains older: these are not a coherent new ordinary/
 native qualification pair. Refresh both inputs before native acceptance; Video evidence keeps
 its original source/build scope.
 
-Next deliverable: finish the remaining focused Curve input/controller decomposition and fix
-the captured-pointer loss exposed by the existing connected case, then actual backend/history/Inspector/native and
+Next deliverable: fix the captured-pointer loss exposed by the existing connected case from
+the extracted ownership paths, then actual backend/history/Inspector/native and
 independent-editor lifetime acceptance with coherent rebuilt binaries. No completed slice
 or passing software suite substitutes for whole-gate acceptance.

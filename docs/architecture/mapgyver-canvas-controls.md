@@ -39,8 +39,7 @@ Escape cancels tools first, and cancel/lost capture/blur/disposal discard unsent
 previews without completing a marquee or drawing. Submitted writes settle before their pinned
 session ends. Scope replacement and foreign local selection stop stale queued writes; ordinary
 live parameter publications retain capture. Idle Escape reuses `clearViewportSelection`.
-The existing oversized model/render components still need further cohesive decomposition;
-the extracted types and terminal controller do not exempt them from the readability requirement.
+The specialized editor and renderer are composed from bounded modules under `common/curve`.
 
 Golden's `parameter-value-access` owns the value-access rule shared by the ordinary Inspector
 and specialized Curve gestures. Typed read-only, enabled and control metadata remain authoritative;
@@ -51,7 +50,7 @@ Read-only targets remain selectable. The selected key's typed Inspector remains 
 navigation moves the key outside the canvas. Curve owner replacement resets retained camera
 bounds; live parameter publications preserve them. Curve constants/value projection, key-model
 reading and compiled easing evaluation now live in focused modules under `common/curve`;
-model projection never mutates document nodes. Controller decomposition remains open.
+model projection never mutates document nodes.
 
 `AnimationCurveCanvas` is now a DOM/lifecycle host. Its props derive from the typed
 `CurveCanvasFrame`; shared Curve model types replace the former partial duplicate declarations.
@@ -59,7 +58,7 @@ model projection never mutates document nodes. Controller decomposition remains 
 the exact painted geometry. `canvas-samples` owns clipped/adaptive/discontinuous sampling,
 `canvas-grid` owns axis/grid presentation, and `canvas-theme` resolves CSS tokens. The host
 retains canvas sizing, theme observation, event forwarding and projection publication. These
-renderer files stay below1000 lines; the existing large input/editor controller remains debt.
+renderer files stay below1000 lines.
 
 Golden's `editor-operation-scope` separates a pending command's view lifetime from its original
 document lifetime. Host, project, snapshot, loading, owner removal and disposal invalidate the
@@ -97,8 +96,14 @@ key/Bezier frame samples and edit-session handoff. `parameter-writer` owns curre
 coercion and unsettled writes for both gestures and pending commands. The terminal input controller
 retires tools, flushes or discards samples and waits for those writes before closing the pinned
 session. The editor supplies geometry/projection adapters instead of holding that bookkeeping.
-The remaining large component still needs further decomposition; this split does not qualify
-its unresolved connected capture failure.
+`AnimationCurveNodeEditor` is the687-line composition/lifecycle host. Focused editor factories
+own model projection, selection, previews, constraints, insertion, sculpting, camera, hits,
+drawing, commands and pointer dispatch; each consumes a typed interface limited to its dependencies.
+The context exposes lazy references so mutually dependent projections do not create runtime import
+cycles. Document and parent selection bindings stay canonical; `editor-state` holds only transient
+presentation/input state. Effects stay at the composition boundary in their original order.
+All editor modules are below1000 lines. This structural split does not qualify the unresolved
+connected capture failure or actual backend/history/native behavior.
 
 Matrix grid uses those actions for Cells, row/column/group headers and their labels, alongside
 the shared contour hover. Background/idle Escape select the Matrix media owner. Grid coordinates
