@@ -5,6 +5,7 @@ import { chromium } from 'playwright-core';
 import { checkCurveInput } from './input.mjs';
 import { checkCurvePermissions } from './permissions.mjs';
 import { checkCurvePaint } from './paint.mjs';
+import { checkCurveOperations, checkCurveDisposal } from './operations.mjs';
 const configFile = fileURLToPath(new URL('./vite.config.ts', import.meta.url));
 await build({ configFile, logLevel: 'warn' });
 const server = await preview({ configFile, logLevel: 'warn' });
@@ -126,6 +127,7 @@ try {
 	);
 	await checkCurvePermissions(page, canvas, selected, points);
 	await checkCurveInput(page, canvas, selected, points);
+	await checkCurveOperations(page, canvas);
 	await page.getByRole('button', { name: 'Open locked editors', exact: true }).click();
 	await page.getByRole('button', { name: 'Select Curve B key 0', exact: true }).click();
 	assert.equal(await primary.locator('canvas.curve-canvas').count(), 1);
@@ -149,13 +151,14 @@ try {
 	await canvas.focus();
 	await page.keyboard.press('Escape');
 	assert.equal(await selected.textContent(), 'Curve A', 'primary Escape has independent ownership');
+	await checkCurveDisposal(page, canvas);
 	assert.deepEqual(errors, []);
 	console.log(
 		JSON.stringify({
 			result: 'pass',
 			paintEvidence,
 			scope:
-				'Curve model/access: readonly/disabled/controlled and mixed edit refusal, live permission loss, protected removal, offscreen typed Inspector; shared selection, capture/cancel, hover and independent locked owners; backend/native qualification remains open'
+				'Curve operations: delayed draw/create/paste owner and snapshot fencing, exact creation receipt, original-owner completion without selection theft and disposal; typed access/offscreen Inspector, shared selection, capture/cancel, hover and locked owners; backend/native qualification remains open'
 		})
 	);
 } finally {

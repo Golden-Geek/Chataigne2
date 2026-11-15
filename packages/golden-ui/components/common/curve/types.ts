@@ -1,5 +1,4 @@
 import type { NodeId, ParamValue, UiNodeDto, UiParamConstraints } from '../../../types';
-import type { UiEditSession } from '../../../store/ui-intents';
 
 export type CurveEasingKind =
 	| 'linear'
@@ -205,9 +204,7 @@ export interface BezierEasingPreview {
 	in_value: number;
 }
 
-export interface PendingCreateTarget {
-	known_key_ids: Set<NodeId>;
-	created_key_id: NodeId | null;
+export interface CurveCreatePlan {
 	position: number;
 	value: number;
 	split_easing: PendingSplitEasing | null;
@@ -216,7 +213,6 @@ export interface PendingCreateTarget {
 		key_id: NodeId;
 		values: Record<string, ParamValue>;
 	}>;
-	edit_session: UiEditSession | null;
 }
 
 export interface PendingSplitEasing {

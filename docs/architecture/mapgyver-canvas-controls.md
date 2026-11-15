@@ -61,6 +61,21 @@ the exact painted geometry. `canvas-samples` owns clipped/adaptive/discontinuous
 retains canvas sizing, theme observation, event forwarding and projection publication. These
 renderer files stay below1000 lines; the existing large input/editor controller remains debt.
 
+Golden's `editor-operation-scope` separates a pending command's view lifetime from its original
+document lifetime. Host, project, snapshot, loading, owner removal and disposal invalidate the
+document lease; changing the edited owner permanently prevents new submissions from that view.
+Already submitted work may settle on its original document, while a changed selection suppresses
+late selection feedback. The Curve adapter captures the owner identity and edit-session host
+before awaiting Begin for drawing, creation, paste and easing commands.
+
+The focused `curve/creation` controller matches the exact created-node ID/UUID from the backend
+receipt and observes typed child projection events. It never guesses the first new key or polls
+for completion. Initialization uses the original owner's keys even after the view changes; each
+remaining write checks the document lease and current parameter access. Clipboard sequences stop
+before submitting another key after view replacement. Owned preview cleanup preserves newer
+preview objects, and a late creation cannot steal the user's newer selection. This changes no
+authored schema or domain defaults; actual backend/history/native acceptance remains separate.
+
 Matrix grid uses those actions for Cells, row/column/group headers and their labels, alongside
 the shared contour hover. Background/idle Escape select the Matrix media owner. Grid coordinates
 and an explicit document focus identity publish together, so clearing or moving between Column

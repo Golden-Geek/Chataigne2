@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { createCurveOperations, type CurveOperation } from './curve/operations';
+	import { createCurveCreation } from './curve/creation.svelte';
 	import { curveGeometryParameters, curveParametersWritable } from './curve/admission';
 	import {
 		CURVE_NODE_TYPE,
@@ -72,8 +74,6 @@
 	import { appState } from '../../store/workbench.svelte';
 	import {
 		createUiEditSession,
-		sendCreateUserItemIntent,
-		sendFitAnimationCurvePathIntent,
 		sendRemoveNodesIntent,
 		sendSetParamIntent,
 		type UiEditSession
@@ -101,7 +101,7 @@
 		BezierHandleControl,
 		BezierHandleVisual,
 		BezierEasingPreview,
-		PendingCreateTarget,
+		CurveCreatePlan,
 		PendingSplitEasing,
 		AddKeyOptions,
 		ActiveKeyDrag,
@@ -163,8 +163,14 @@
 	let hover_bezier_handle = $state<BezierHandleRef | null>(null);
 	let drag_preview_by_key_id = $state<Map<NodeId, DragPreview>>(new Map());
 	let easing_drag_preview_by_key_id = $state<Map<NodeId, BezierEasingPreview>>(new Map());
-	let pending_create_target = $state<PendingCreateTarget | null>(null);
-	let adding_key = $state(false);
+	const curveOperations = createCurveOperations({
+		get session() {
+			return session;
+		},
+		get owner() {
+			return liveNode;
+		}
+	});
 	let fixed_view_bounds = $state<CurveViewBounds | null>(null);
 	let input_view_owner: string | null | undefined;
 	let canvas_element = $state<HTMLCanvasElement | null>(null);
@@ -258,10 +264,15 @@
 
 	const set_param_value = async (
 		ref: ParamNodeRef | undefined,
-		value: ParamValue
+		value: ParamValue,
+		scope?: CurveOperation
 	): Promise<void> => {
 		const operation = (async (): Promise<void> => {
-			if (!ref || !curveParametersWritable(graphNodesById, [ref])) {
+			if (
+				(scope && !scope.documentCurrent()) ||
+				!ref ||
+				!curveParametersWritable(graphNodesById, [ref])
+			) {
 				return;
 			}
 			const current = to_param_ref(graphNodesById?.get(ref.node_id));
@@ -282,11 +293,15 @@
 		await operation;
 	};
 
-	const set_numeric_param = async (ref: ParamNodeRef | undefined, value: number): Promise<void> => {
+	const set_numeric_param = async (
+		ref: ParamNodeRef | undefined,
+		value: number,
+		scope?: CurveOperation
+	): Promise<void> => {
 		if (!Number.isFinite(value)) {
 			return;
 		}
-		await set_param_value(ref, { kind: 'float', value });
+		await set_param_value(ref, { kind: 'float', value }, scope);
 	};
 
 	const clamp_curve_position_to_active_range = (position: number): number => {
@@ -1416,7 +1431,8 @@
 
 	const apply_easing_param_values = async (
 		key: ParsedCurveKey | undefined,
-		values: Record<string, ParamValue>
+		values: Record<string, ParamValue>,
+		scope?: CurveOperation
 	): Promise<void> => {
 		if (!key?.easing || Object.keys(values).length === 0) {
 			return;
@@ -1424,13 +1440,13 @@
 		const params = key.easing.params;
 		const next_kind = values[DECL_KIND];
 		if (next_kind) {
-			await set_param_value(params[DECL_KIND], next_kind);
+			await set_param_value(params[DECL_KIND], next_kind, scope);
 		}
 		for (const [decl_id, value] of Object.entries(values)) {
 			if (decl_id === DECL_KIND) {
 				continue;
 			}
-			await set_param_value(params[decl_id], value);
+			await set_param_value(params[decl_id], value, scope);
 		}
 	};
 
@@ -1488,17 +1504,28 @@
 			return false;
 		}
 
-		const edit_session = createUiEditSession(label, 'curve-easing-kind');
-		await edit_session.begin();
+		const scope = curveOperations.capture();
+		if (!scope) return false;
+		const edit_session = createUiEditSession(label, 'curve-easing-kind', scope.host);
 		try {
+			await edit_session.begin();
+			if (!scope.current() || !edit_session.active) return false;
 			for (const key of target_keys) {
-				await apply_easing_param_values(key, {
-					[DECL_KIND]: enum_param_value(easing_kind)
-				});
+				await apply_easing_param_values(
+					key,
+					{
+						[DECL_KIND]: enum_param_value(easing_kind)
+					},
+					scope
+				);
 			}
-			return true;
+			return scope.documentCurrent();
 		} finally {
-			await edit_session.end();
+			try {
+				await edit_session.end();
+			} finally {
+				scope.release();
+			}
 		}
 	};
 
@@ -1574,19 +1601,6 @@
 		];
 	});
 
-	const resolve_pending_create_key = (pending: PendingCreateTarget): ParsedCurveKey | null => {
-		if (pending.created_key_id !== null) {
-			return parsed_key_by_id.get(pending.created_key_id) ?? null;
-		}
-		for (const key of parsed_keys) {
-			if (pending.known_key_ids.has(key.node_id)) {
-				continue;
-			}
-			return key;
-		}
-		return null;
-	};
-
 	const bezier_preview_from_param_values = (
 		values: Record<string, ParamValue> | null | undefined
 	): BezierEasingPreview | null => {
@@ -1614,10 +1628,7 @@
 		};
 	};
 
-	const sync_pending_create_previews = (
-		pending: PendingCreateTarget,
-		created_key_id: NodeId
-	): void => {
+	const sync_pending_create_previews = (pending: CurveCreatePlan, created_key_id: NodeId): void => {
 		set_drag_preview(created_key_id, pending.position, pending.value);
 
 		const sync_bezier_preview = (
@@ -1649,40 +1660,6 @@
 		}
 	};
 
-	const clear_pending_create_previews = (
-		pending: PendingCreateTarget,
-		created_key_id: NodeId
-	): void => {
-		clear_drag_preview(created_key_id);
-
-		const clear_if_bezier_preview = (
-			key_id: NodeId,
-			values: Record<string, ParamValue> | null | undefined
-		): void => {
-			if (!bezier_preview_from_param_values(values)) {
-				return;
-			}
-			clear_easing_drag_preview(key_id);
-		};
-
-		if (pending.split_easing) {
-			clear_if_bezier_preview(
-				pending.split_easing.source_start_key_id,
-				pending.split_easing.left_param_values
-			);
-			clear_if_bezier_preview(created_key_id, pending.split_easing.right_param_values);
-			for (const update of pending.split_easing.preserved_aligned_handle_updates ?? []) {
-				clear_if_bezier_preview(update.key_id, update.values);
-			}
-		} else {
-			clear_if_bezier_preview(created_key_id, pending.easing_values);
-		}
-
-		for (const update of pending.existing_easing_updates) {
-			clear_if_bezier_preview(update.key_id, update.values);
-		}
-	};
-
 	const has_easing_param_targets = (
 		key: ParsedCurveKey | undefined,
 		values: Record<string, ParamValue> | null | undefined
@@ -1703,14 +1680,15 @@
 	};
 
 	const pending_create_targets_ready = (
-		pending: PendingCreateTarget,
-		created_key: ParsedCurveKey
+		pending: CurveCreatePlan,
+		created_key: ParsedCurveKey,
+		keys: Map<NodeId, ParsedCurveKey>
 	): boolean => {
 		if (!created_key.position_param || !created_key.value_param) {
 			return false;
 		}
 		if (pending.split_easing) {
-			const source_key = parsed_key_by_id.get(pending.split_easing.source_start_key_id);
+			const source_key = keys.get(pending.split_easing.source_start_key_id);
 			if (!has_easing_param_targets(source_key, pending.split_easing.left_param_values)) {
 				return false;
 			}
@@ -1718,7 +1696,7 @@
 				return false;
 			}
 			for (const update of pending.split_easing.preserved_aligned_handle_updates ?? []) {
-				if (!has_easing_param_targets(parsed_key_by_id.get(update.key_id), update.values)) {
+				if (!has_easing_param_targets(keys.get(update.key_id), update.values)) {
 					return false;
 				}
 			}
@@ -1727,12 +1705,72 @@
 			return false;
 		}
 		for (const update of pending.existing_easing_updates) {
-			if (!has_easing_param_targets(parsed_key_by_id.get(update.key_id), update.values)) {
+			if (!has_easing_param_targets(keys.get(update.key_id), update.values)) {
 				return false;
 			}
 		}
 		return true;
 	};
+	const creation = createCurveCreation({
+		ready: pending_create_targets_ready,
+		preview(plan, key) {
+			const ids = new Set([
+				key.node_id,
+				...plan.existing_easing_updates.map((value) => value.key_id),
+				...(plan.split_easing
+					? [
+							plan.split_easing.source_start_key_id,
+							...(plan.split_easing.preserved_aligned_handle_updates ?? []).map(
+								(value) => value.key_id
+							)
+						]
+					: [])
+			]);
+			const beforeKeys = new Map([...ids].map((id) => [id, drag_preview_by_key_id.get(id)]));
+			const beforeEasing = new Map(
+				[...ids].map((id) => [id, easing_drag_preview_by_key_id.get(id)])
+			);
+			sync_pending_create_previews(plan, key.node_id);
+			const keys = new Map<NodeId, DragPreview>(),
+				easing = new Map<NodeId, BezierEasingPreview>();
+			for (const id of ids) {
+				const keyPreview = drag_preview_by_key_id.get(id),
+					easingPreview = easing_drag_preview_by_key_id.get(id);
+				if (keyPreview && keyPreview !== beforeKeys.get(id)) keys.set(id, keyPreview);
+				if (easingPreview && easingPreview !== beforeEasing.get(id)) easing.set(id, easingPreview);
+			}
+			return () => {
+				clear_drag_previews_if_unchanged(keys);
+				clear_easing_drag_previews_if_unchanged(easing);
+			};
+		},
+		async initialize(scope, plan, key, keys) {
+			await set_numeric_param(key.position_param, plan.position, scope);
+			await set_numeric_param(key.value_param, plan.value, scope);
+			if (plan.split_easing) {
+				await apply_easing_param_values(
+					keys.get(plan.split_easing.source_start_key_id),
+					plan.split_easing.left_param_values,
+					scope
+				);
+				await apply_easing_param_values(key, plan.split_easing.right_param_values, scope);
+				for (const update of plan.split_easing.preserved_aligned_handle_updates ?? []) {
+					await apply_easing_param_values(keys.get(update.key_id), update.values, scope);
+				}
+			} else if (plan.easing_values) {
+				await apply_easing_param_values(key, plan.easing_values, scope);
+			}
+			for (const update of plan.existing_easing_updates) {
+				await apply_easing_param_values(keys.get(update.key_id), update.values, scope);
+			}
+		},
+		select(scope, key) {
+			if (!scope.selectionCurrent()) return;
+			set_single_selected_key(key.node_id);
+			const node = scope.host.graph.state.nodesById.get(key.node_id);
+			if (node) scope.host.requestNodeSelection([{ node_id: node.node_id, uuid: node.uuid }]);
+		}
+	});
 
 	$effect(() => {
 		if (typeof window === 'undefined') {
@@ -1810,69 +1848,6 @@
 		if (hover_curve_owner_key_id !== null && !available_key_ids.has(hover_curve_owner_key_id)) {
 			hover_curve_owner_key_id = null;
 		}
-	});
-
-	$effect.pre(() => {
-		const pending = pending_create_target;
-		if (!pending) {
-			return;
-		}
-		const created_key = resolve_pending_create_key(pending);
-		if (!created_key) {
-			return;
-		}
-		if (pending.created_key_id !== created_key.node_id) {
-			pending_create_target = {
-				...pending,
-				created_key_id: created_key.node_id
-			};
-		}
-		if (
-			selected_key_id !== created_key.node_id ||
-			selected_key_ids.length !== 1 ||
-			selected_key_ids[0] !== created_key.node_id
-		) {
-			set_single_selected_key(created_key.node_id);
-		}
-		sync_pending_create_previews(pending, created_key.node_id);
-	});
-
-	$effect(() => {
-		const pending = pending_create_target;
-		if (!pending) {
-			return;
-		}
-		const created_key = resolve_pending_create_key(pending);
-		if (!created_key || !pending_create_targets_ready(pending, created_key)) {
-			return;
-		}
-		pending_create_target = null;
-		void (async () => {
-			try {
-				await set_numeric_param(created_key.position_param, pending.position);
-				await set_numeric_param(created_key.value_param, pending.value);
-				if (pending.split_easing) {
-					await apply_easing_param_values(
-						parsed_key_by_id.get(pending.split_easing.source_start_key_id),
-						pending.split_easing.left_param_values
-					);
-					await apply_easing_param_values(created_key, pending.split_easing.right_param_values);
-					for (const update of pending.split_easing.preserved_aligned_handle_updates ?? []) {
-						await apply_easing_param_values(parsed_key_by_id.get(update.key_id), update.values);
-					}
-				} else if (pending.easing_values) {
-					await apply_easing_param_values(created_key, pending.easing_values);
-				}
-				for (const update of pending.existing_easing_updates) {
-					await apply_easing_param_values(parsed_key_by_id.get(update.key_id), update.values);
-				}
-			} finally {
-				clear_pending_create_previews(pending, created_key.node_id);
-				if (pending.edit_session) {
-					await pending.edit_session.end();
-				}
-			}
-		})();
 	});
 
 	const canvas_local_point = (
@@ -2189,26 +2164,13 @@
 	};
 
 	const commit_curve_draw = async (points: RecordedCurveDrawPoint[]): Promise<void> => {
-		if (points.length < 2) {
-			return;
-		}
-		const edit_session = createUiEditSession('Draw Curve', 'curve-draw');
-		await edit_session.begin();
-		try {
-			await sendFitAnimationCurvePathIntent(
-				liveNode.node_id,
-				points.map((point) => ({
-					position: point.position,
-					value: point.value
-				})),
-				{
-					max_value_error: curve_draw_fit_value_error(),
-					max_keys: CURVE_DRAW_FIT_MAX_KEYS
-				}
-			);
-		} finally {
-			await edit_session.end();
-		}
+		await curveOperations.draw(
+			points.map(({ position, value }) => ({ position, value })),
+			{
+				max_value_error: curve_draw_fit_value_error(),
+				max_keys: CURVE_DRAW_FIT_MAX_KEYS
+			}
+		);
 	};
 
 	const sanitize_view_bounds = (bounds: CurveViewBounds): CurveViewBounds | null => {
@@ -3466,6 +3428,8 @@
 			!session ||
 			session.status !== 'connected' ||
 			session.loading.visible ||
+			session.hasActiveEditSession ||
+			creation.busy ||
 			session.projectGeneration === null ||
 			graphNodesById?.get(liveNode.node_id)?.uuid !== liveNode.uuid ||
 			!curveParametersWritable(graphNodesById, parameters)
@@ -4285,73 +4249,75 @@
 	const add_key_at = async (
 		position: number,
 		value: number,
-		options: AddKeyOptions = {}
-	): Promise<void> => {
-		if (!key_creatable_item || adding_key) {
-			return;
+		options: AddKeyOptions = {},
+		existingScope?: CurveOperation
+	): Promise<ParsedCurveKey | null> => {
+		const scope = existingScope ?? curveOperations.capture(),
+			item = key_creatable_item;
+		if (!scope || !item || creation.busy || !scope.current()) {
+			if (!existingScope) scope?.release();
+			return null;
 		}
-		const clamped = clamp_curve_point_to_active_range(position, value);
-		let target_value = clamped.value;
-		let split_easing: PendingSplitEasing | null = null;
-		let easing_values = options.easing_values ?? null;
-		let existing_easing_updates = options.existing_easing_updates ?? [];
-		if (options.preserve_curve_shape) {
-			const split_source = find_split_source_segment(
-				clamped.position,
-				options.preferred_owner_key_id ?? null
-			);
-			if (split_source) {
-				const sampled_value = sample_compiled_curve(compiled_curve, clamped.position);
-				if (sampled_value !== null && Number.isFinite(sampled_value)) {
-					target_value = clamp_curve_value_to_active_range(sampled_value);
+		try {
+			const clamped = clamp_curve_point_to_active_range(position, value);
+			let target_value = clamped.value;
+			let split_easing: PendingSplitEasing | null = null;
+			let easing_values = options.easing_values ?? null;
+			let existing_easing_updates = options.existing_easing_updates ?? [];
+			if (options.preserve_curve_shape) {
+				const split_source = find_split_source_segment(
+					clamped.position,
+					options.preferred_owner_key_id ?? null
+				);
+				if (split_source) {
+					const sampled_value = sample_compiled_curve(compiled_curve, clamped.position);
+					if (sampled_value !== null && Number.isFinite(sampled_value)) {
+						target_value = clamp_curve_value_to_active_range(sampled_value);
+					}
+					split_easing = build_split_easing(
+						split_source.start,
+						split_source.end,
+						clamped.position,
+						target_value
+					);
 				}
-				split_easing = build_split_easing(
-					split_source.start,
-					split_source.end,
-					clamped.position,
-					target_value
-				);
-			}
-		} else {
-			const split_source = find_split_source_segment(
-				clamped.position,
-				options.preferred_owner_key_id ?? null
-			);
-			if (split_source) {
-				split_easing = build_middle_insert_easing(
-					split_source.start,
-					split_source.end,
-					clamped.position,
-					target_value
-				);
 			} else {
-				const extension = build_endpoint_extension_easing(clamped.position, target_value);
-				if (extension.new_key_easing_values) {
-					easing_values = extension.new_key_easing_values;
-				}
-				if (extension.existing_easing_updates.length > 0) {
-					existing_easing_updates = extension.existing_easing_updates;
+				const split_source = find_split_source_segment(
+					clamped.position,
+					options.preferred_owner_key_id ?? null
+				);
+				if (split_source) {
+					split_easing = build_middle_insert_easing(
+						split_source.start,
+						split_source.end,
+						clamped.position,
+						target_value
+					);
+				} else {
+					const extension = build_endpoint_extension_easing(clamped.position, target_value);
+					if (extension.new_key_easing_values) {
+						easing_values = extension.new_key_easing_values;
+					}
+					if (extension.existing_easing_updates.length > 0) {
+						existing_easing_updates = extension.existing_easing_updates;
+					}
 				}
 			}
-		}
-		const edit_session = createUiEditSession('Add Curve Key', 'curve-key-add');
-		await edit_session.begin();
-		adding_key = true;
-		pending_create_target = {
-			known_key_ids: new Set(parsed_keys.map((entry) => entry.node_id)),
-			created_key_id: null,
-			position: clamped.position,
-			value: target_value,
-			split_easing,
-			easing_values,
-			existing_easing_updates,
-			edit_session
-		};
-		const created = await sendCreateUserItemIntent(liveNode.node_id, key_creatable_item);
-		adding_key = false;
-		if (!created.success) {
-			pending_create_target = null;
-			await edit_session.end();
+
+			return await creation.create(
+				scope,
+				item,
+				{
+					position: clamped.position,
+					value: target_value,
+					split_easing,
+					easing_values,
+					existing_easing_updates
+				},
+				existingScope === undefined
+			);
+		} finally {
+			if (!existingScope) scope.release();
 		}
 	};
 
@@ -4367,15 +4333,6 @@
 				.map((entry) => entry.node_id);
 		}
 		return selected_key_id === null ? [] : [selected_key_id];
-	};
-
-	const wait_pending_key_create = async (): Promise<void> => {
-		const deadline = Date.now() + 550;
-		while (pending_create_target !== null && Date.now() <= deadline) {
-			await new Promise((resolve) => {
-				setTimeout(resolve, 16);
-			});
-		}
 	};
 
 	const remove_key_ids = async (key_ids: readonly NodeId[]): Promise<boolean> => {
@@ -4526,17 +4483,28 @@
 	const apply_clipboard_entries_at_anchor = async (
 		entries: CurveClipboardKey[]
 	): Promise<boolean> => {
-		if (entries.length === 0) {
-			return false;
+		if (entries.length === 0) return false;
+		const scope = curveOperations.capture();
+		if (!scope) return false;
+		const anchor = key_anchor_point(),
+			copied = JSON.parse(JSON.stringify(entries)) as CurveClipboardKey[];
+		let last: ParsedCurveKey | null = null;
+		try {
+			for (const entry of copied) {
+				if (!scope.current()) return false;
+				last = await add_key_at(
+					anchor.position + entry.position_offset,
+					anchor.value + entry.value_offset,
+					{ easing_values: entry.easing_values },
+					scope
+				);
+				if (!last) return false;
+			}
+			if (last && scope.selectionCurrent()) creation.select(scope, last);
+			return scope.documentCurrent();
+		} finally {
+			scope.release();
 		}
-		const anchor = key_anchor_point();
-		for (const entry of entries) {
-			await add_key_at(anchor.position + entry.position_offset, anchor.value + entry.value_offset, {
-				easing_values: entry.easing_values
-			});
-			await wait_pending_key_create();
-		}
-		return true;
 	};
 
 	const copy_selected_keys_to_clipboard = (): boolean => {
@@ -4715,6 +4683,7 @@
 		session?.status;
 		session?.loading.visible;
 		const scope_owner = input_owner_uuid;
+		untrack(() => curveOperations.observe());
 		if (input_view_owner !== scope_owner)
 			untrack(() => {
 				input_view_owner = scope_owner;
@@ -4743,14 +4712,10 @@
 	});
 	$effect(() => {
 		return () => {
+			curveOperations.dispose();
 			input.cancel();
 			discard_queued_drag();
 			cancel_view_bounds_animation();
-			const pending = pending_create_target;
-			pending_create_target = null;
-			if (pending?.edit_session) {
-				void pending.edit_session.end();
-			}
 		};
 	});
 </script>

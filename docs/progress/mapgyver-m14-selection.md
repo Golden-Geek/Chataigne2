@@ -124,7 +124,23 @@ The Curve Canvas2D renderer is now a326-line DOM/lifecycle host over shared mode
 Paint779, grid398, samples298 and theme199 lines form bounded modules. Painting returns both
 bounds and hit geometry from one frame; the host owns sizing, theme observation, input forwarding
 and publication. No new selection store, compatibility type alias or authored setting was added.
-This closes the renderer's structural debt only; the4821-line editor/controller stays explicit.
+This closes the renderer's structural debt only; the remaining oversized editor/controller stays explicit.
+
+Pending Curve draw/create/paste/easing commands now capture their original owner, session and
+document before awaiting an edit-session acknowledgement. A reproduced draw previously fitted
+Curve B after starting on A and switching owners while Begin was held. The corrected path
+discards that unsent draw. Golden's reusable operation lease separates permanently lost view
+ownership from the document lifetime, allowing already submitted original-document work to
+settle without selecting into a replacement view. Host/project/snapshot/loading/disconnect,
+owner removal and disposal invalidate the document lease; foreign selection suppresses feedback.
+
+The extracted creation controller uses the exact created-node ID/UUID receipt and typed graph
+projection events instead of guessing the first new key or polling. A concurrent decoy key is
+ignored. Admitted creation finishes initialization on its original owner even after the view
+changes, with current access checks before each write; later paste entries are not submitted
+into the replacement view. Scoped preview cleanup preserves newer previews. Geometry admission
+also refuses to join an existing edit session while command creation is pending. The4786-line
+editor/controller still needs further cohesive decomposition and actual-host acceptance.
 
 ## Applicable editor inventory
 
@@ -151,7 +167,7 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Matrix Cell spatial / Layer | Shared Layer-owner clear without navigation; backend descendant/off-page selection; shared hover, selected-only controls and unavailable-bounds keyboard/pointer selection verified | Actual adapter/Inspector/native checks, active/outgoing/off-page interaction acceptance |
 | Golden graph canvases | Browser verifies primary-down nodes/edges, immediate background/idle-Escape empty selection, selected-only resize/hover, modifier/marquee/pan/text/finder isolation; captured cancellation/focus/identity/lifecycle boundaries and pending-work preservation; Spatializer owner callback wired and consumers typecheck | Actual domain Inspector/native/independent-editor/offscreen/permission and specialized custom-world capture acceptance |
 | Golden Dashboard / edited page | Primary-down widget/background selection; selected-only resize zones; border hover; per-page tool-first/idle-owner Escape; free/ordered move/resize and marquee/pan cancellation, nested keyboard and two-editor isolation verified in production browser fixture | Actual workbench/Inspector, permission/offscreen/project and current-host acceptance remain open; unrelated Dashboard backend edits are preserved |
-| Animation curves / curve and key nodes | Shared key/easing/field and embedded typed Inspector; background/idle owner, tool-first cancel, selected-only Bezier/contour hover, live dragging, permission/offscreen/scope and locked-owner checks; bounded renderer with matching painted/hit geometry and exact per-state pixel parity | Finish oversized editor/controller decomposition and complete actual backend/history/native and full lifetime acceptance; renderer and extracted modules stay under1000 lines |
+| Animation curves / curve and key nodes | Shared key/easing/field and embedded typed Inspector; background/idle owner, tool-first cancel, selected-only Bezier/contour hover, permission/offscreen/locked-owner checks; bounded renderer; delayed draw/create/paste owner/document fencing, exact creation receipt and original-owner completion without selection theft | Finish oversized editor/controller decomposition and complete actual backend/history/native and full lifetime acceptance; renderer and extracted modules stay under1000 lines |
 | Watcher projection canvases | `WatcherProjectionCanvas` renders buffer samples/latest points without pointer, key or mutation callbacks; it has no authored canvas targets | Read-only projection applicability resolved from source. Ordinary Inspector owns its settings; retain panel focus/lifetime checks in actual workbench acceptance |
 | Media Preview / followed or locked media | `MediaPreviewPanel` renders `ChannelPreview`/`NativePreview` without authored geometry targets; toolbar changes preview choice, not object placement | Read-only image applicability resolved from source. Existing follow/lock/routing requirements stay intact; actual cross-panel/native qualification remains open |
 | Matrix grid / Matrix, Layer, Column and Cell | Shared primary-down/keyboard selection and hover for Cells/headers/labels; background/idle owner clear; immediate focus and stale-reply fencing; connected Golden browser fixture verifies controls, rename/launch, disabled input, independent drag cancellation and listener disposal | Actual backend/Inspector-driven selection, native drag/pixels, virtualized/offscreen/project and independent real-panel acceptance remain open |
@@ -160,6 +176,18 @@ This inventory retains the complete gate. DOM callback fixtures do not establish
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Curve pending-operation slice (2026-11-15):57 focused operation/Curve/Inspector/viewport unit
+cases pass, including permanent view loss, host/project/snapshot/loading/disconnect/owner-removal/
+disposal retirement and selection-only feedback suppression. The production Inspector/Canvas
+browser fixture reproduces the original wrong-owner draw, then passes delayed draw/paste owner
+replacement, valid draw and two-key paste, snapshot replacement, exact creation with a concurrent
+decoy, original-owner initialization without selection theft, and disposal. Existing access,
+offscreen typed editing, capture/cancel, hover and locked-owner checks still pass with0 page
+errors. This is a production UI fixture with a mock transport, not actual backend/history/native
+acceptance. Four typechecks report0 errors/0 warnings; formatting, both UI builds and root/Core
+formatting pass. Logs: `target/m14-curve-operation-*-2026-11-15.log`; the baseline log retains
+the wrong-owner assertion failure. No whole gate closes: M14/1 Active, M14 0/10,88/106 (83%).
 
 Curve renderer structural slice (2026-11-15):48 focused Curve/Inspector/viewport cases pass.
 New sampling tests cover visible bounds, screen/value alignment, segment ownership, owner-free
@@ -383,6 +411,6 @@ native fixture SHA256:
 These replace the debug binaries from the historical M10 build receipt; refresh coherent
 qualification inputs on return. Existing Video evidence retains its original source/build scope.
 
-Next deliverable: resolve and deliver inline curve selection/input ownership with its embedded
-Inspector, then current actual Inspector/native/independent-editor behavior with coherent rebuilt binaries. No completed slice
+Next deliverable: finish the remaining Curve controller split and current actual backend/history/
+Inspector/native and independent-editor lifetime acceptance with coherent rebuilt binaries. No completed slice
 or passing software suite substitutes for whole-gate acceptance.
