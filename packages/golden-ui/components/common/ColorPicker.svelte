@@ -274,8 +274,8 @@
 				onpointerdown={(e: PointerEvent) => {
 					(e.target as HTMLElement).setPointerCapture(e.pointerId);
 					dragTarget = 'area';
-					handleArea(e, true);
 					notifyStartEdit();
+					handleArea(e, true);
 					dragging = true;
 				}}
 				onpointermove={(e: PointerEvent) => handleArea(e)}
@@ -303,8 +303,8 @@
 					onpointerdown={(e: PointerEvent) => {
 						(e.target as HTMLElement).setPointerCapture(e.pointerId);
 						dragTarget = 'slider';
-						handleSlider(e, true);
 						notifyStartEdit();
+						handleSlider(e, true);
 					}}
 					onpointermove={(e) => handleSlider(e)}
 					onpointerup={() => {
@@ -323,8 +323,8 @@
 					onpointerdown={(e: PointerEvent) => {
 						(e.target as HTMLElement).setPointerCapture(e.pointerId);
 						dragTarget = 'alpha';
-						handleAlpha(e, true);
 						notifyStartEdit();
+						handleAlpha(e, true);
 					}}
 					onpointermove={(e: PointerEvent) => handleAlpha(e)}
 					onpointerup={() => {

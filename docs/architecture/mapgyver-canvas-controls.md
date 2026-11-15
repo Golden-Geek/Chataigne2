@@ -36,6 +36,24 @@ that same input basis. A same-turn metadata update cannot replay the previous wo
 over a newly selected key. A newer foreign selection still wins; current topology is checked
 before publishing, and ordinary projection does not write authored data.
 
+`inspector/editor-selection` now owns that bridge for both Curve and Gradient. Each adapter
+supplies a bounded hierarchy projection, typed local signature and current-node resolution;
+the bridge owns input admission and host/document/selection fencing. Gradient's registry entry
+anchors its editor while real stops or their Parameter children drive the workbench Inspector.
+Background/idle Escape inspect the Gradient owner without choosing an implicit first stop.
+Stop markers use the public `selectOnPress` action for pointer and keyboard selection; hover
+changes only their unselected contour.
+
+Gradient captures the stable editor surface so sorting stop markers does not replace its capture
+target. Pointer cancel, lost capture, blur, access/topology/selection loss, snapshot replacement
+and disposal retire input without completing armed deletion. Normal release alone may remove
+the stop after current UUID/access checks; submitted writes settle before the pinned history
+group ends. Pending closure prevents a new gesture from joining it. Color-popup Escape stays
+local to its editor, and its existing double-click command survives capture retargeting.
+The shared ColorPicker starts edit ownership before its first pointer sample is published.
+The production Inspector fixture verifies these software boundaries; actual backend/history
+and native-host acceptance remain separate.
+
 Curve background-down and idle Escape now inspect the Curve owner through that adapter.
 Golden's focused `curve/input` controller separates release from cancellation for key/Bezier/
 segment edits, marquee, drawing and pan. It retires ownership before releasing capture;

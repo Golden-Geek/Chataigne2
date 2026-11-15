@@ -6,6 +6,7 @@ import { checkCurveInput } from './input.mjs';
 import { checkCurvePermissions } from './permissions.mjs';
 import { checkCurvePaint } from './paint.mjs';
 import { checkCurveOperations, checkCurveDisposal } from './operations.mjs';
+import { checkGradient } from './gradient.mjs';
 const configFile = fileURLToPath(new URL('./vite.config.ts', import.meta.url));
 await build({ configFile, logLevel: 'warn' });
 const server = await preview({ configFile, logLevel: 'warn' });
@@ -152,13 +153,14 @@ try {
 	await page.keyboard.press('Escape');
 	assert.equal(await selected.textContent(), 'Curve A', 'primary Escape has independent ownership');
 	await checkCurveDisposal(page, canvas);
+	await checkGradient(page, `http://127.0.0.1:${server.httpServer.address().port}`);
 	assert.deepEqual(errors, []);
 	console.log(
 		JSON.stringify({
 			result: 'pass',
 			paintEvidence,
 			scope:
-				'Curve operations: delayed draw/create/paste owner and snapshot fencing, exact creation receipt, original-owner completion without selection theft and disposal; typed access/offscreen Inspector, shared selection, capture/cancel, hover and locked owners; backend/native qualification remains open'
+				'Curve operations, typed access/offscreen Inspector, shared selection, capture/cancel and locked owners; Gradient shared stop/field/owner selection, captured cancel versus normal release, permissions, document/disposal and independent locked editors; backend/native qualification remains open'
 		})
 	);
 } finally {

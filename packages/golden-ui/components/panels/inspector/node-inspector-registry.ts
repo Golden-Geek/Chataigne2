@@ -55,7 +55,7 @@ interface NodeInspectorMatcherEntry {
 const builtinNodeInspectorRegistry: NodeInspectorRegistry = {
 	script: { component: ScriptNodeInspector },
 	animation_curve: { component: AnimationCurveNodeInspector, anchorSelection: true },
-	gradient: { component: GradientNodeInspector }
+	gradient: { component: GradientNodeInspector, anchorSelection: true }
 };
 
 const customNodeInspectorRegistry = new Map<string, NodeInspectorEntry>();

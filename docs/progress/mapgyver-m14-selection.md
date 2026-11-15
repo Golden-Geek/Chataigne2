@@ -176,6 +176,22 @@ cycles. The11 lifecycle effects remain in their original order at the component 
 Review of177 moved initializers found no behavior changes after accounting for context prefixes
 and formatting. No new app behavior or whole gate is claimed by this structural cleanup.
 
+Gradient is now included in the original “every 2D-like editor” inventory. This corrects an
+omission without changing the ten fixed M14 gates or overall denominator. It shares Curve's
+extracted `inspector/editor-selection` bridge and the public press/keyboard selection action.
+Real stop/field selection keeps the Gradient owner mounted; background and idle Escape inspect
+the owner, with no automatic first-stop selection. Hover changes only an unselected marker's
+contour. The existing typed stop Inspector, color popup and interpolation tools remain usable.
+
+Gradient's captured input now distinguishes cancellation from release. Previously pointercancel
+ran the release handler and could submit armed deletion. The stable editor owns capture while
+markers reorder. Cancel/lost capture/blur, access or topology/selection loss, snapshot replacement
+and disposal retire the gesture without deleting; only normal release can complete deletion.
+Current host, document, owner/stop/Parameter UUIDs, ancestry and typed access fence writes.
+Submitted writes settle in their pinned group; another gesture cannot join a pending closure.
+Color-popup Escape belongs to its own editor. Captured double-click color opening and its first
+grouped sample are verified; ColorPicker now notifies Begin before publishing that sample.
+
 ## Applicable editor inventory
 
 Screen, Source, Composition and Matrix now share Golden's contour action and pure paint
@@ -202,6 +218,7 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Golden graph canvases | Browser verifies primary-down nodes/edges, immediate background/idle-Escape empty selection, selected-only resize/hover, modifier/marquee/pan/text/finder isolation; captured cancellation/focus/identity/lifecycle boundaries and pending-work preservation; Spatializer owner callback wired and consumers typecheck | Actual domain Inspector/native/independent-editor/offscreen/permission and specialized custom-world capture acceptance |
 | Golden Dashboard / edited page | Primary-down widget/background selection; selected-only resize zones; border hover; per-page tool-first/idle-owner Escape; free/ordered move/resize and marquee/pan cancellation, nested keyboard and two-editor isolation verified in production browser fixture | Actual workbench/Inspector, permission/offscreen/project and current-host acceptance remain open; unrelated Dashboard backend edits are preserved |
 | Animation curves / curve and key nodes | Shared key/easing/field and embedded typed Inspector; background/idle owner, tool-first cancel, selected-only Bezier/contour hover, permission/offscreen/locked-owner checks; bounded editor/renderer; delayed draw/create/paste owner/document fencing, exact creation receipt and original-owner completion without selection theft | Fix connected pointer ownership and complete actual backend/history/native and full lifetime acceptance; all editor/renderer modules stay under1000 lines |
+| Gradient / Gradient owner and stops | Shared stop/field/owner selection and anchored typed Inspector; primary-down/keyboard/hover; stable capture, cancel versus release, access/document/disposal and pending-Begin ownership; independent locked editors and local color-tool Escape verified in production Inspector browser | Actual backend/history/copy/reload and independent real-panel/native-host acceptance; no full gate is inferred from the transport fixture |
 | Watcher projection canvases | `WatcherProjectionCanvas` renders buffer samples/latest points without pointer, key or mutation callbacks; it has no authored canvas targets | Read-only projection applicability resolved from source. Ordinary Inspector owns its settings; retain panel focus/lifetime checks in actual workbench acceptance |
 | Media Preview / followed or locked media | `MediaPreviewPanel` renders `ChannelPreview`/`NativePreview` without authored geometry targets; toolbar changes preview choice, not object placement | Read-only image applicability resolved from source. Existing follow/lock/routing requirements stay intact; actual cross-panel/native qualification remains open |
 | Matrix grid / Matrix, Layer, Column and Cell | Shared primary-down/keyboard selection and hover for Cells/headers/labels; background/idle owner clear; immediate focus and stale-reply fencing; connected Golden browser fixture verifies controls, rename/launch, disabled input, independent drag cancellation and listener disposal | Actual backend/Inspector-driven selection, native drag/pixels, virtualized/offscreen/project and independent real-panel acceptance remain open |
@@ -210,6 +227,24 @@ This inventory retains the complete gate. DOM callback fixtures do not establish
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Gradient selection/cancellation (2026-11-15):66 focused unit cases pass, including Gradient
+ownership, typed-field projection, foreign-target rejection and topology/cache scope. Four
+typechecks report0 errors/0 warnings. The combined production Inspector browser passes with0
+page errors and all three existing Curve paint hashes unchanged. Gradient checks cover selection
+before pointer-up, stable capture, foreign pointer rejection, Enter/idle Escape, unselected hover,
+background owner, typed-field focus, pointercancel/Escape/lost capture/blur/access/snapshot/disposal
+without armed deletion, normal-release deletion intent, pending Begin/closure admission, disabled
+Parameter selection, two locked editors, color opening/first grouped sample and editor-local Escape.
+Its document/disposal controls are invoked out of band during capture, avoiding an accidental
+normal pointer release; snapshot generation is explicitly checked. Locked identities come from
+the current fixture graph. These corrected fixture assumptions are not production workarounds.
+Logs: `target/m14-gradient-*-2026-11-15.log`. Actual Gradient backend/history/copy/reload and native
+acceptance remain Pending. This transport fixture does not establish actual deletion/history.
+Scoped Prettier/app lint, both production UI builds and root/Core formatting pass. Gradient's
+component is858 lines; the shared selection bridge, projections and new fixtures remain under1000.
+No native/GPU cohort or new Curve connected variant was run; its prior capture failure remains
+in the return queue. M14/1 stays Active, M14 0/10,88/106 (83%).
 
 Selection ordering correction (2026-11-15): the production Inspector guard first fails on
 same-turn graph refresh/key selection, then passes after the adapter correction, including a
@@ -554,15 +589,23 @@ Prior ordinary build with the complete controller decomposition:
 build log SHA256 `693d5fddb8afd64c84cc86e97cd1bf6b49c4f01804c94994fe6932e0a56f7f18`
 (`target/m14-curve-editor-build-mapgyver-2026-11-15.log`). Its connected result is the failing
 editor receipt above.
-Current ordinary build with the selection ordering correction:
+Prior ordinary build with the selection ordering correction:
 `75e836dbde6685286bf4b563b388f1600f834598864d2082934f6172b5ca9319`;
 build log SHA256 `7dc53aef88f3e99174792e0696c9d4a84acea7b5d0b9fde6756882a2cede5f5a`
 (`target/m14-curve-selection-race-build-mapgyver-2026-11-15.log`). Its connected result is the failing
-selection-race receipt above. The native fixture remains older: these are not a coherent new ordinary/
+selection-race receipt above.
+Current ordinary build with Gradient/shared-bridge input:
+`25988ac43752937acaa9f653f13b3aeb58a23360fd11f5571632c3d1068aa106`;
+build log SHA256 `3311cf24845b0be8996aaa2e0cbd2f1562be74e593ffdea9f914066b9b3b4234`
+(`target/m14-gradient-build-mapgyver-2026-11-15.log`). The connected Curve failure above retains
+its earlier binary scope; no new connected/native qualification is inferred from this rebuild.
+The native fixture remains older: these are not a coherent new ordinary/
 native qualification pair. Refresh both inputs before native acceptance; Video evidence keeps
 its original source/build scope.
 
-Next deliverable: fix the captured-pointer loss exposed by the existing connected case from
-the extracted ownership paths, then actual backend/history/Inspector/native and
-independent-editor lifetime acceptance with coherent rebuilt binaries. No completed slice
-or passing software suite substitutes for whole-gate acceptance.
+Next deliverable: validate the delivered Gradient behavior against the actual app/backend and
+history, then retain the complete actual-host/native inventory. Curve capture is Pending within
+M14/1: return for a source-supported ownership correction or the required actual-host/native
+acceptance; the existing receipt does not identify which terminal boundary fired. Do not extend
+the stopped runtime investigation with unchanged variants or restore its failed cache stash.
+No completed slice or passing software suite substitutes for whole-gate acceptance.

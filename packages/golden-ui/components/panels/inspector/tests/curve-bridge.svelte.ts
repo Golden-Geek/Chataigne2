@@ -2,10 +2,8 @@ import { flushSync } from 'svelte';
 import { IdentifiedNodeMap } from '../../../../store/graph-node-index';
 import { VersionedNodeMap } from '../../../../store/graph-index';
 import { fixtureNode } from '../../../../tests/browser/fixture/session';
-import {
-	createCurveInspectorSelection,
-	type CurveSelectionHost
-} from '../nodes/curve-selection.svelte';
+import { createCurveInspectorSelection } from '../nodes/curve-selection.svelte';
+import type { InspectorEditorSelectionHost } from '../editor-selection.svelte';
 import type { CurveSelection } from '../nodes/curve-selection';
 import type { NodeId } from '../../../../types';
 
@@ -32,7 +30,7 @@ export function curveBridgeFixture() {
 	let ids = $state.raw<NodeId[]>([1]);
 	const writes: NodeId[][] = [];
 	const host = {
-		status: 'connected' as CurveSelectionHost['status'],
+		status: 'connected' as InspectorEditorSelectionHost['status'],
 		loading: { visible: false },
 		projectGeneration: 1 as number | null,
 		snapshotGeneration: 1,

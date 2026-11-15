@@ -1,5 +1,11 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { appState } from '../../../../store/workbench.svelte';
+	import { canEditParameterValue } from '../../../../store/parameter-value-access';
+	import { createEditorScopeObserver } from '../../../../store/editor-scope';
+	import { clearViewportSelection, selectOnPress } from '../../../viewport/selection';
+	import { createInspectorEditorSelection } from '../editor-selection.svelte';
+	import { createGradientSelectionProjection, gradientSelectionNodes } from './gradient-selection';
 	import {
 		sendCreateUserItemByTypeIntent,
 		sendRemoveNodeIntent,
@@ -43,6 +49,22 @@
 	let liveNode: UiNodeDto = $derived(session?.graph.state.nodesById.get(node.node_id) ?? node);
 
 	let selected_stop_id = $state<NodeId | null>(null);
+	const selection = createInspectorEditorSelection({
+		get session() {
+			return session;
+		},
+		get owner() {
+			return liveNode;
+		},
+		read: () => ({ stop: selected_stop_id }),
+		write: (value) => {
+			selected_stop_id = value.stop;
+		},
+		empty: () => ({ stop: null as NodeId | null }),
+		signature: (value) => String(value.stop),
+		project: createGradientSelectionProjection(),
+		resolve: gradientSelectionNodes
+	});
 	let color_editor_stop_id = $state<NodeId | null>(null);
 	let picker_color = $state<Color>({ r: 0, g: 0, b: 0, a: 1 });
 
@@ -55,8 +77,78 @@
 	let dragStartY = 0;
 	let dragMoved = false;
 	let dragSession: ReturnType<typeof createUiEditSession> | null = null;
+	type EditScope = {
+		host: NonNullable<typeof session>;
+		project: number;
+		snapshot: number;
+		owner: string;
+		stop: NodeId;
+		stopUuid: string;
+		parameter: NodeId;
+		parameterUuid: string;
+	};
+	let dragScope = $state.raw<EditScope | null>(null);
+	let releasedStop: EditScope | null = null;
+	let colorScope: EditScope | null = null;
+	let dragWrites = new Set<Promise<unknown>>();
+	let colorWrites = new Set<Promise<unknown>>();
+	let closingEdits = 0;
+	const settleEdits = (work: Promise<unknown>): void => {
+		closingEdits++;
+		void work.then(
+			() => {
+				closingEdits--;
+			},
+			(error) => {
+				closingEdits--;
+				console.error('Gradient edit closure failed', error);
+			}
+		);
+	};
 	let remove_armed_stop_id = $state<NodeId | null>(null);
 	let color_session: ReturnType<typeof createUiEditSession> | null = null;
+	const captureScope = (stop: StopData, parameter: NodeId | null): EditScope | null => {
+		const current = session,
+			target = parameter === null ? null : graphNodesById?.get(parameter);
+		const stopNode = graphNodesById?.get(stop.id);
+		if (
+			!current ||
+			current.status !== 'connected' ||
+			current.loading.visible ||
+			current.projectGeneration === null ||
+			!target ||
+			!stopNode ||
+			graphNodesById?.get(liveNode.node_id)?.uuid !== liveNode.uuid ||
+			current.graph.state.parentById.get(stop.id) !== liveNode.node_id ||
+			current.graph.state.parentById.get(target.node_id) !== stop.id ||
+			!canEditParameterValue(target)
+		)
+			return null;
+		return {
+			host: current,
+			project: current.projectGeneration,
+			snapshot: current.snapshotGeneration,
+			owner: liveNode.uuid,
+			stop: stop.id,
+			stopUuid: stopNode.uuid,
+			parameter: target.node_id,
+			parameterUuid: target.uuid
+		};
+	};
+	const scopeCurrent = (scope: EditScope): boolean =>
+		session === scope.host &&
+		session.status === 'connected' &&
+		!session.loading.visible &&
+		session.projectGeneration === scope.project &&
+		session.snapshotGeneration === scope.snapshot &&
+		liveNode.uuid === scope.owner &&
+		graphNodesById?.get(liveNode.node_id)?.uuid === scope.owner &&
+		selected_stop_id === scope.stop &&
+		graphNodesById?.get(scope.stop)?.uuid === scope.stopUuid &&
+		session.graph.state.parentById.get(scope.stop) === liveNode.node_id &&
+		session.graph.state.parentById.get(scope.parameter) === scope.stop &&
+		graphNodesById?.get(scope.parameter)?.uuid === scope.parameterUuid &&
+		canEditParameterValue(graphNodesById?.get(scope.parameter));
 
 	const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 
@@ -199,19 +291,13 @@
 	});
 
 	$effect(() => {
-		if (stops.length === 0) {
+		if (selected_stop_id !== null && !stops.some((stop) => stop.id === selected_stop_id))
 			selected_stop_id = null;
-			return;
-		}
-		if (selected_stop_id === null || !stops.some((stop) => stop.id === selected_stop_id)) {
-			selected_stop_id = stops[0].id;
-		}
 	});
 
 	$effect(() => {
-		if (color_editor_stop_id !== null && !stops.some((stop) => stop.id === color_editor_stop_id)) {
-			color_editor_stop_id = null;
-		}
+		if (color_editor_stop_id !== null && (!colorScope || !scopeCurrent(colorScope)))
+			untrack(closeColorEditor);
 	});
 
 	const positionFromClientX = (clientX: number): number => {
@@ -226,15 +312,21 @@
 	};
 
 	const setStopPosition = (stop: StopData, position: number): void => {
-		if (!stop.positionParamId) {
+		if (!stop.positionParamId || !dragScope || !scopeCurrent(dragScope)) {
 			return;
 		}
 		const value: ParamValue = { kind: 'float', value: clamp01(position) };
-		void sendSetParamIntent(stop.positionParamId, value, 'Coalesce');
+		const pending = dragWrites,
+			write = sendSetParamIntent(stop.positionParamId, value, 'Coalesce');
+		pending.add(write);
+		void write.finally(() => pending.delete(write));
 	};
 
 	const cycleInterpolation = (stop: StopData): void => {
-		if (!stop.interpolationParamId) {
+		if (
+			!stop.interpolationParamId ||
+			!canEditParameterValue(graphNodesById?.get(stop.interpolationParamId))
+		) {
 			return;
 		}
 		const currentIndex = INTERPOLATIONS.indexOf(
@@ -247,13 +339,15 @@
 
 	const openColorEditor = (stop: StopData): void => {
 		selected_stop_id = stop.id;
+		colorScope = captureScope(stop, stop.colorParamId);
+		if (!colorScope) return;
 		picker_color = ColorUtil.fromArray(stop.color);
 		color_editor_stop_id = stop.id;
 	};
 
 	const applyStopColor = (color: Color): void => {
 		const stop = stops.find((entry) => entry.id === color_editor_stop_id);
-		if (!stop?.colorParamId) {
+		if (!stop?.colorParamId || !colorScope || !scopeCurrent(colorScope)) {
 			return;
 		}
 		const array = ColorUtil.toArray(color);
@@ -261,36 +355,54 @@
 			kind: 'color',
 			value: [array[0] ?? 0, array[1] ?? 0, array[2] ?? 0, array[3] ?? 1]
 		};
-		void sendSetParamIntent(stop.colorParamId, value, 'Coalesce');
+		const pending = colorWrites,
+			write = sendSetParamIntent(stop.colorParamId, value, 'Coalesce');
+		pending.add(write);
+		void write.finally(() => pending.delete(write));
 	};
 
 	// Controlled ColorPicker: it only emits via onchange (it does not write back the bound value
 	// when an onchange is provided), so we feed the new color back in and push it to the param.
 	const onPickerChange = (color: Color): void => {
+		if (!color_session || !colorScope || !scopeCurrent(colorScope)) return;
 		picker_color = color;
 		applyStopColor(color);
 	};
 
 	const onColorStartEdit = (): void => {
-		color_session = createUiEditSession('Edit gradient stop color');
+		if (
+			!colorScope ||
+			!scopeCurrent(colorScope) ||
+			colorScope.host.hasActiveEditSession ||
+			closingEdits > 0
+		)
+			return;
+		color_session = createUiEditSession(
+			'Edit gradient stop color',
+			'gradient-color',
+			colorScope.host
+		);
 		void color_session.begin();
 	};
 
 	const onColorEndEdit = (): void => {
-		if (color_session) {
-			void color_session.end();
-			color_session = null;
-		}
+		const edit = color_session,
+			writes = colorWrites;
+		color_session = null;
+		colorWrites = new Set();
+		if (edit || writes.size > 0) settleEdits(Promise.allSettled(writes).then(() => edit?.end()));
 	};
 
 	const closeColorEditor = (): void => {
 		onColorEndEdit();
 		color_editor_stop_id = null;
+		colorScope = null;
 	};
 
 	// Esc closes the color popup.
 	$effect(() => {
-		if (color_editor_stop_id === null) {
+		const editor = editorEl;
+		if (color_editor_stop_id === null || !editor) {
 			return;
 		}
 		const onKeyDown = (event: KeyboardEvent): void => {
@@ -300,8 +412,8 @@
 				closeColorEditor();
 			}
 		};
-		window.addEventListener('keydown', onKeyDown, true);
-		return () => window.removeEventListener('keydown', onKeyDown, true);
+		editor.addEventListener('keydown', onKeyDown, true);
+		return () => editor.removeEventListener('keydown', onKeyDown, true);
 	});
 
 	const addStopAt = async (position: number): Promise<void> => {
@@ -318,7 +430,12 @@
 	};
 
 	const onDragMove = (event: PointerEvent): void => {
-		if (dragStopId === null || dragPointerId !== event.pointerId) {
+		if (
+			dragStopId === null ||
+			dragPointerId !== event.pointerId ||
+			!dragScope ||
+			!scopeCurrent(dragScope)
+		) {
 			return;
 		}
 		const stop = stops.find((entry) => entry.id === dragStopId);
@@ -331,7 +448,7 @@
 				return;
 			}
 			dragMoved = true;
-			dragSession = createUiEditSession('Move gradient stop');
+			dragSession = createUiEditSession('Move gradient stop', 'gradient-stop', dragScope.host);
 			void dragSession.begin();
 		}
 		// Dragged far enough below the ribbon arms removal (committed on release while still armed).
@@ -347,53 +464,104 @@
 	const endDrag = (): void => {
 		window.removeEventListener('pointermove', onDragMove);
 		window.removeEventListener('pointerup', onDragEnd);
-		window.removeEventListener('pointercancel', onDragEnd);
+		window.removeEventListener('pointercancel', onDragCancel);
 	};
 
-	const onDragEnd = (event: PointerEvent): void => {
-		if (dragPointerId !== null && event.pointerId !== dragPointerId) {
-			return;
+	const finishDrag = (commit: boolean, pointer?: number): boolean => {
+		if (dragPointerId === null || (pointer !== undefined && pointer !== dragPointerId)) {
+			return false;
 		}
-		const stopId = dragStopId;
-		const removeOnRelease = stopId !== null && remove_armed_stop_id === stopId;
-		if (dragMoved && dragSession) {
-			void dragSession.end();
-		}
+		const scope = dragScope,
+			edit = dragSession,
+			writes = dragWrites,
+			pointerId = dragPointerId;
+		const removeOnRelease = commit && scope !== null && remove_armed_stop_id === scope.stop;
+		releasedStop = commit && !dragMoved && scope && scopeCurrent(scope) ? scope : null;
 		dragSession = null;
+		dragScope = null;
+		dragWrites = new Set();
 		dragStopId = null;
 		dragPointerId = null;
 		dragMoved = false;
 		remove_armed_stop_id = null;
 		endDrag();
-		if (removeOnRelease && stopId !== null) {
-			void sendRemoveNodeIntent(stopId);
-		}
+		if (editorEl?.hasPointerCapture(pointerId)) editorEl.releasePointerCapture(pointerId);
+		settleEdits(
+			(async () => {
+				await Promise.allSettled(writes);
+				if (
+					removeOnRelease &&
+					scope &&
+					scopeCurrent(scope) &&
+					graphNodesById?.get(scope.stop)?.meta.user_permissions.can_remove_and_duplicate
+				)
+					await sendRemoveNodeIntent(scope.stop);
+				await edit?.end();
+			})()
+		);
+		return true;
+	};
+	const onDragEnd = (event: PointerEvent): void => {
+		finishDrag(true, event.pointerId);
+	};
+	const onDragCancel = (event: PointerEvent): void => {
+		finishDrag(false, event.pointerId);
 	};
 
 	const onHandlePointerDown = (event: PointerEvent, stop: StopData): void => {
+		if (event.button !== 0 || dragScope) return;
 		event.stopPropagation();
 		event.preventDefault();
-		(event.currentTarget as HTMLElement).focus();
-		selected_stop_id = stop.id;
+		editorEl?.focus();
 		if (event.altKey) {
 			cycleInterpolation(stop);
 			return;
 		}
+		if (!session || session.hasActiveEditSession || closingEdits > 0) return;
+		dragScope = captureScope(stop, stop.positionParamId);
+		if (!dragScope) return;
 		dragStopId = stop.id;
 		dragPointerId = event.pointerId;
 		dragStartX = event.clientX;
 		dragStartY = event.clientY;
 		dragMoved = false;
-		// Window-level listeners keep the drag alive even when the handle's DOM node is reordered
-		// or recreated by stop re-sorting, and when the pointer moves faster than the element.
+		// Capture belongs to the stable editor, not a handle moved by stop sorting.
+		editorEl?.setPointerCapture(event.pointerId);
 		window.addEventListener('pointermove', onDragMove);
 		window.addEventListener('pointerup', onDragEnd);
-		window.addEventListener('pointercancel', onDragEnd);
+		window.addEventListener('pointercancel', onDragCancel);
 	};
 
 	// Drop any lingering drag listeners if the editor unmounts mid-drag.
 	$effect(() => {
-		return () => endDrag();
+		const blur = () => {
+			finishDrag(false);
+		};
+		window.addEventListener('blur', blur);
+		return () => {
+			window.removeEventListener('blur', blur);
+			finishDrag(false);
+			closeColorEditor();
+		};
+	});
+	$effect(() => {
+		if (dragScope && !scopeCurrent(dragScope)) untrack(() => finishDrag(false));
+	});
+	const observeScope = createEditorScopeObserver(() => {
+		finishDrag(false);
+		releasedStop = null;
+		closeColorEditor();
+	});
+	$effect(() => {
+		const scope = {
+			host: session,
+			project: session?.projectGeneration ?? null,
+			snapshot: session?.snapshotGeneration ?? 0,
+			status: session?.status ?? 'disconnected',
+			loading: session?.loading.visible ?? true,
+			owner: liveNode.uuid
+		};
+		untrack(() => observeScope(scope));
 	});
 
 	const onTrackDoubleClick = (event: MouseEvent): void => {
@@ -406,18 +574,21 @@
 	const onEditorFocusOut = (event: FocusEvent): void => {
 		if (!editorEl?.contains(event.relatedTarget as Node | null)) {
 			is_editor_focused = false;
+			finishDrag(false);
 		}
 	};
 
 	const removeSelectedStop = async (): Promise<boolean> => {
-		if (selected_stop_id === null) {
+		if (
+			selected_stop_id === null ||
+			!graphNodesById?.get(selected_stop_id)?.meta.user_permissions.can_remove_and_duplicate
+		) {
 			return false;
 		}
 		return sendRemoveNodeIntent(selected_stop_id);
 	};
 
-	// Delete the selected stop only while this editor holds focus, mirroring curve-key deletion —
-	// local selection never changes the app node selection, so the inspector stays put.
+	// Typed Inspector focus shares the real stop selection without replacing the edited owner.
 	$effect(() => {
 		const unregister = registerCommandHandler(
 			'edit.deleteSelection',
@@ -443,9 +614,35 @@
 {/snippet}
 
 {#snippet gradientContent()}
+	<!-- The composite editing surface owns keyboard navigation and captured input. -->
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
 	<div
 		class="gradient-node-inspector"
 		bind:this={editorEl}
+		role="application"
+		aria-label="Gradient editor"
+		tabindex="0"
+		onpointerdowncapture={selection.arm}
+		onkeydowncapture={selection.arm}
+		onkeydown={(event) =>
+			clearViewportSelection(event, { cancel: () => finishDrag(false), clear: selection.clear })}
+		onlostpointercapture={onDragCancel}
+		ondblclick={(event) => {
+			// Pointer capture retargets the browser's click sequence to this stable surface.
+			if (event.target !== editorEl || event.altKey || !releasedStop || !scopeCurrent(releasedStop))
+				return;
+			const stop = stops.find((value) => value.id === releasedStop?.stop);
+			if (stop) openColorEditor(stop);
+		}}
+		onpointerdown={(event) => {
+			if (event.target instanceof Element && event.target.closest('.gradient-preview'))
+				clearViewportSelection(event, {
+					clear: () => {
+						selection.clear();
+						editorEl?.focus();
+					}
+				});
+		}}
 		onfocusin={() => (is_editor_focused = true)}
 		onfocusout={onEditorFocusOut}>
 		<div class="gradient-preview">
@@ -460,6 +657,13 @@
 					<button
 						type="button"
 						class="gradient-stop-handle"
+						data-node-id={stop.id}
+						use:selectOnPress={{
+							disabled: dragScope !== null,
+							select: () => {
+								selected_stop_id = stop.id;
+							}
+						}}
 						class:selected={stop.id === selected_stop_id}
 						class:removing={stop.id === remove_armed_stop_id}
 						style:left={`${(clamp01(stop.position) * 100).toFixed(2)}%`}
@@ -480,7 +684,13 @@
 
 		{#if color_editor_stop_id !== null}
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
-			<div class="gradient-color-popup-backdrop" onpointerdown={closeColorEditor}></div>
+			<div
+				class="gradient-color-popup-backdrop"
+				onpointerdown={(event) => {
+					event.stopPropagation();
+					closeColorEditor();
+				}}>
+			</div>
 			<div class="gradient-color-popup" role="dialog" aria-label="Stop color">
 				<div class="gradient-color-popup-header">
 					<span>Stop color</span>
@@ -561,6 +771,9 @@
 
 	.gradient-stop-handle:active {
 		cursor: grabbing;
+	}
+	.gradient-stop-handle:not(.selected):hover {
+		box-shadow: 0 0 0 0.1rem var(--gc-color-text-secondary, #aaa);
 	}
 
 	.gradient-stop-handle.selected {
