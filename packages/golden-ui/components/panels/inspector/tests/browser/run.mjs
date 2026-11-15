@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { build, preview } from 'vite';
 import { chromium } from 'playwright-core';
+import { checkCurveInput } from './input.mjs';
 const configFile = fileURLToPath(new URL('./vite.config.ts', import.meta.url));
 await build({ configFile, logLevel: 'warn' });
 const server = await preview({ configFile, logLevel: 'warn' });
@@ -120,6 +121,7 @@ try {
 		'0',
 		'selection does not mutate Parameters'
 	);
+	await checkCurveInput(page, canvas, selected, points);
 	await page.getByRole('button', { name: 'Open locked editors', exact: true }).click();
 	await page.getByRole('button', { name: 'Select Curve B key 0', exact: true }).click();
 	assert.equal(await primary.locator('canvas.curve-canvas').count(), 1);
@@ -133,12 +135,22 @@ try {
 		'Curve B key 0',
 		'another editor cannot steal external selection'
 	);
+	await page.getByLabel('Other curve Inspector').locator('canvas.curve-canvas').focus();
+	await page.keyboard.press('Escape');
+	assert.equal(
+		await selected.textContent(),
+		'Curve B',
+		'locked comparison Escape resolves its own owner'
+	);
+	await canvas.focus();
+	await page.keyboard.press('Escape');
+	assert.equal(await selected.textContent(), 'Curve A', 'primary Escape has independent ownership');
 	assert.deepEqual(errors, []);
 	console.log(
 		JSON.stringify({
 			result: 'pass',
 			scope:
-				'curve Inspector owner anchoring, real key pointer-down/capture, multi/field/external selection and locked editors; input cancellation and native qualification remain open'
+				'curve Inspector owner anchoring, background/idle Escape, real capture, tool-first Escape and cancel/loss/blur boundaries, multi/field/external selection and locked editors; native qualification remains open'
 		})
 	);
 } finally {

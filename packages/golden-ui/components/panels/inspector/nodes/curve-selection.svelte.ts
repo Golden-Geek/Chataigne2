@@ -90,6 +90,23 @@ export function createCurveInspectorSelection(context: Context) {
 		});
 	});
 	return {
+		clear() {
+			const session = context.session,
+				owner = context.owner;
+			if (
+				!session ||
+				session.status !== 'connected' ||
+				session.loading.visible ||
+				session.projectGeneration === null ||
+				session.graph.state.nodesById.get(owner.node_id)?.uuid !== owner.uuid
+			)
+				return;
+			const empty: CurveSelection = { key: null, keys: [], segments: [] };
+			signature = curveSelectionSignature(empty);
+			context.write(empty);
+			session.selectNodes([owner.node_id], 'REPLACE');
+			if (input) input.selected = session.selectedNodesIds;
+		},
 		arm(event: Event) {
 			const session = context.session;
 			if (

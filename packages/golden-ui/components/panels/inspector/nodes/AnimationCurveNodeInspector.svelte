@@ -153,6 +153,7 @@
 			oncontextmenucapture={selection.arm}>
 			<AnimationCurveNodeEditor
 				curveNode={liveNode}
+				onselectionclear={selection.clear}
 				bind:selected_key_id
 				bind:selected_key_ids
 				bind:selected_curve_owner_key_ids

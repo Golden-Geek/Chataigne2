@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
+	import { createCurveInput, curveInputEvents } from './curve/input';
 	import { appState } from '../../store/workbench.svelte';
 	import {
 		createUiEditSession,
@@ -15,379 +17,52 @@
 	import ContextMenu from './ContextMenu.svelte';
 	import type { ContextMenuAnchor, ContextMenuItem } from './context-menu';
 
-	type CurveEasingKind =
-		| 'linear'
-		| 'bezier'
-		| 'hold'
-		| 'steps'
-		| 'shape'
-		| 'perlinNoise'
-		| 'elastic'
-		| 'bounce'
-		| 'random'
-		| 'script';
-	type CurveStepMode = 'stepSize' | 'numSteps';
-	type CurvePhaseMode = 'frequency' | 'numPhases';
-	type CurveShape = 'sine' | 'triangle' | 'saw' | 'reverseSaw' | 'square';
-
-	interface ParamNodeRef {
-		node_id: NodeId;
-		value: ParamValue;
-		enabled: boolean;
-		constraints: UiParamConstraints;
-	}
-
-	interface CurveRangeConstraint {
-		x_min: number;
-		x_max: number;
-		y_min: number;
-		y_max: number;
-	}
-
-	interface CurveRangeState {
-		bounds: CurveRangeConstraint;
-		active: boolean;
-		range_node: UiNodeDto | null;
-	}
-
-	interface ParsedEasing {
-		node_id: NodeId;
-		kind: CurveEasingKind;
-		params: Record<string, ParamNodeRef>;
-	}
-
-	interface ParsedCurveKey {
-		node_id: NodeId;
-		position: number;
-		value: number;
-		source_index: number;
-		position_param?: ParamNodeRef;
-		value_param?: ParamNodeRef;
-		easing?: ParsedEasing;
-	}
-
-	interface EasingKindOption {
-		value: CurveEasingKind;
-		label: string;
-	}
-
-	interface CubicPolynomial {
-		a: number;
-		b: number;
-		c: number;
-		d: number;
-	}
-
-	type CompiledSegmentEasing =
-		| { kind: 'linear' }
-		| { kind: 'elastic' }
-		| { kind: 'bounce' }
-		| { kind: 'hold' }
-		| {
-				kind: 'bezier';
-				x: CubicPolynomial;
-				y: CubicPolynomial;
-				start_position: number;
-				inv_span: number;
-		  }
-		| { kind: 'steps'; steps: number }
-		| {
-				kind: 'shape';
-				shape: CurveShape;
-				amplitude: number;
-				phase_cycles: number;
-				fade_in: number;
-				fade_out: number;
-		  }
-		| {
-				kind: 'perlinNoise';
-				frequency: number;
-				amplitude: number;
-				octaves: number;
-				fade_in: number;
-				fade_out: number;
-				phase: number;
-				seed: number;
-		  }
-		| {
-				kind: 'random';
-				frequency: number;
-				fade_in: number;
-				fade_out: number;
-				seed: number;
-		  }
-		| { kind: 'script'; source: string };
-
-	interface CompiledCurveSegment {
-		start_position: number;
-		end_position: number;
-		start_value: number;
-		end_value: number;
-		value_delta: number;
-		inv_span: number;
-		easing: CompiledSegmentEasing;
-	}
-
-	interface CompiledCurveKey {
-		node_id: NodeId;
-		position: number;
-		value: number;
-		easing?: ParsedEasing;
-	}
-
-	interface CompiledCurve {
-		keys: CompiledCurveKey[];
-		segments: CompiledCurveSegment[];
-	}
-
-	interface CanvasTransform {
-		plot_left: number;
-		plot_top: number;
-		plot_width: number;
-		plot_height: number;
-		x_min: number;
-		x_max: number;
-		y_min: number;
-		y_max: number;
-		key_screen_points: Map<NodeId, { x: number; y: number }>;
-		curve_screen_x: Float64Array;
-		curve_screen_y: Float64Array;
-		curve_owner_key_ids: Array<NodeId | null>;
-	}
-
-	interface DragPreview {
-		position: number;
-		value: number;
-	}
-
-	type BezierHandleKind = 'out' | 'in';
-	type BezierHandleAlignmentState = 'single' | 'aligned' | 'unlocked';
-
-	interface BezierHandleRef {
-		key_id: NodeId;
-		kind: BezierHandleKind;
-	}
-
-	interface BezierHandleSegment {
-		start_key_id: NodeId;
-		end_key_id: NodeId;
-		key_id: NodeId;
-		start_position: number;
-		start_value: number;
-		end_position: number;
-		end_value: number;
-		span: number;
-		out_position: number;
-		out_value: number;
-		in_position: number;
-		in_value: number;
-		out_curve_position: number;
-		out_curve_value: number;
-		in_curve_position: number;
-		in_curve_value: number;
-		params: Record<string, ParamNodeRef>;
-	}
-
-	interface BezierHandleControl {
-		ref: BezierHandleRef;
-		anchor_key_id: NodeId;
-		anchor_position: number;
-		anchor_value: number;
-		handle_position: number;
-		handle_value: number;
-		segment_start_position: number;
-		segment_end_position: number;
-		span: number;
-		params: Record<string, ParamNodeRef>;
-	}
-
-	interface BezierHandleVisual {
-		anchor_key_id: NodeId;
-		key_id: NodeId;
-		kind: BezierHandleKind;
-		anchor_position: number;
-		anchor_value: number;
-		handle_position: number;
-		handle_value: number;
-		alignment_state: BezierHandleAlignmentState;
-	}
-
-	interface BezierEasingPreview {
-		out_position: number;
-		out_value: number;
-		in_position: number;
-		in_value: number;
-	}
-
-	interface PendingCreateTarget {
-		known_key_ids: Set<NodeId>;
-		created_key_id: NodeId | null;
-		position: number;
-		value: number;
-		split_easing: PendingSplitEasing | null;
-		easing_values: Record<string, ParamValue> | null;
-		existing_easing_updates: Array<{
-			key_id: NodeId;
-			values: Record<string, ParamValue>;
-		}>;
-		edit_session: UiEditSession | null;
-	}
-
-	interface PendingSplitEasing {
-		source_start_key_id: NodeId;
-		source_end_key_id: NodeId;
-		left_param_values: Record<string, ParamValue>;
-		right_param_values: Record<string, ParamValue>;
-		preserved_aligned_handle_updates?: Array<{
-			key_id: NodeId;
-			values: Record<string, ParamValue>;
-		}>;
-	}
-
-	interface AddKeyOptions {
-		preserve_curve_shape?: boolean;
-		preferred_owner_key_id?: NodeId | null;
-		easing_values?: Record<string, ParamValue> | null;
-		existing_easing_updates?: Array<{
-			key_id: NodeId;
-			values: Record<string, ParamValue>;
-		}>;
-	}
-
-	interface ActiveKeyDrag {
-		pointer_id: number;
-		anchor_key_id: NodeId;
-		anchor_start_position: number;
-		anchor_start_value: number;
-		origins: Array<{ key_id: NodeId; position: number; value: number }>;
-		position_delta_constraint: KeyDragPositionConstraint | null;
-		bezier_alignment_constraints: KeyDragBezierAlignmentConstraint[];
-		touched_bezier_key_ids: Set<NodeId>;
-	}
-
-	interface KeyDragPositionConstraint {
-		min_delta_position: number;
-		max_delta_position: number;
-	}
-
-	interface KeyDragBezierAlignmentConstraint {
-		anchor_key_id: NodeId;
-		previous_key_id: NodeId;
-		next_key_id: NodeId;
-		previous_owner_key_id: NodeId;
-		anchor_owner_key_id: NodeId;
-		left_span: number;
-		right_span: number;
-		previous_out_vector_x: number;
-		previous_out_vector_y: number;
-		in_vector_x: number;
-		in_vector_y: number;
-		out_vector_x: number;
-		out_vector_y: number;
-		next_in_vector_x: number;
-		next_in_vector_y: number;
-	}
-
-	interface ActiveBezierHandleDrag {
-		pointer_id: number;
-		ref: BezierHandleRef;
-		opposite_ref: BezierHandleRef | null;
-		opposite_length: number;
-		touched_key_ids: Set<NodeId>;
-	}
-
-	interface CurveSegmentHit {
-		owner_key_id: NodeId;
-		curve_position: number;
-		curve_value: number;
-	}
-
-	interface CurveOppositeAlignment {
-		anchor_key_id: NodeId;
-		opposite_ref: BezierHandleRef;
-		opposite_length: number;
-	}
-
-	interface ActiveCurveDrag {
-		pointer_id: number;
-		owner_key_id: NodeId;
-		start_screen_x: number;
-		start_curve_position: number;
-		start_curve_value: number;
-		segment: BezierHandleSegment;
-		normalized_t: number;
-		base_out_curve_position: number;
-		base_out_curve_value: number;
-		base_in_curve_position: number;
-		base_in_curve_value: number;
-		out_length: number;
-		in_length: number;
-		start_opposite_alignment: CurveOppositeAlignment | null;
-		end_opposite_alignment: CurveOppositeAlignment | null;
-		touched_key_ids: Set<NodeId>;
-	}
-
-	interface ActiveCanvasPan {
-		pointer_id: number;
-		start_screen_x: number;
-		start_screen_y: number;
-		start_bounds: CurveViewBounds;
-	}
-
-	interface RecordedCurveDrawPoint {
-		bucket: number;
-		position: number;
-		value: number;
-	}
-
-	interface ActiveCurveDraw {
-		pointer_id: number;
-		points: RecordedCurveDrawPoint[];
-		path_buckets: number[];
-	}
-
-	type CurveContextMenuTarget =
-		| { kind: 'key'; key_id: NodeId }
-		| { kind: 'curve'; key_id: NodeId }
-		| { kind: 'all' };
-
-	interface CanvasPrimaryDownSample {
-		time_stamp: number;
-		screen_x: number;
-		screen_y: number;
-	}
-
-	type SelectionMode = 'replace' | 'add' | 'toggle';
-
-	interface ActiveBoxSelection {
-		pointer_id: number;
-		start_screen_x: number;
-		start_screen_y: number;
-		current_screen_x: number;
-		current_screen_y: number;
-		mode: SelectionMode;
-	}
-
-	interface ScreenRect {
-		left: number;
-		right: number;
-		top: number;
-		bottom: number;
-	}
-
-	interface CanvasSelectionRect {
-		left: number;
-		top: number;
-		width: number;
-		height: number;
-	}
-
-	interface CurveViewBounds {
-		x_min: number;
-		x_max: number;
-		y_min: number;
-		y_max: number;
-	}
+	import type {
+		CurveEasingKind,
+		CurveStepMode,
+		CurvePhaseMode,
+		CurveShape,
+		ParamNodeRef,
+		CurveRangeConstraint,
+		CurveRangeState,
+		ParsedEasing,
+		ParsedCurveKey,
+		EasingKindOption,
+		CubicPolynomial,
+		CompiledSegmentEasing,
+		CompiledCurveSegment,
+		CompiledCurveKey,
+		CompiledCurve,
+		CanvasTransform,
+		DragPreview,
+		BezierHandleKind,
+		BezierHandleAlignmentState,
+		BezierHandleRef,
+		BezierHandleSegment,
+		BezierHandleControl,
+		BezierHandleVisual,
+		BezierEasingPreview,
+		PendingCreateTarget,
+		PendingSplitEasing,
+		AddKeyOptions,
+		ActiveKeyDrag,
+		KeyDragPositionConstraint,
+		KeyDragBezierAlignmentConstraint,
+		ActiveBezierHandleDrag,
+		CurveSegmentHit,
+		CurveOppositeAlignment,
+		ActiveCurveDrag,
+		ActiveCanvasPan,
+		RecordedCurveDrawPoint,
+		ActiveCurveDraw,
+		CurveContextMenuTarget,
+		CanvasPrimaryDownSample,
+		SelectionMode,
+		ActiveBoxSelection,
+		ScreenRect,
+		CanvasSelectionRect,
+		CurveViewBounds
+	} from './curve/types';
 
 	let {
 		curveNode,
@@ -398,7 +73,8 @@
 		showNumbers = true,
 		showBounds = true,
 		constrainKeysToNeighbors = true,
-		canvasHeight = 'min(26rem, 38vh)'
+		canvasHeight = 'min(26rem, 38vh)',
+		onselectionclear
 	}: {
 		curveNode: UiNodeDto;
 		selected_key_id?: NodeId | null;
@@ -409,6 +85,7 @@
 		showBounds?: boolean;
 		constrainKeysToNeighbors?: boolean;
 		canvasHeight?: string;
+		onselectionclear?: () => void;
 	} = $props();
 
 	const CURVE_NODE_TYPE = 'animation_curve';
@@ -483,6 +160,10 @@
 
 	let session = $derived(appState.session);
 	let graphNodesById = $derived(session?.graph.state.nodesById ?? null);
+	let input_owner_uuid = $derived(graphNodesById?.get(curveNode.node_id)?.uuid ?? null);
+	let input_selection_identity = $derived(
+		JSON.stringify([selected_key_ids, selected_curve_owner_key_ids])
+	);
 	let liveNode: UiNodeDto = $derived(
 		session?.graph.state.nodesById.get(curveNode.node_id) ?? curveNode
 	);
@@ -505,6 +186,13 @@
 	let active_curve_draw = $state<ActiveCurveDraw | null>(null);
 	let drag_edit_session = $state<UiEditSession | null>(null);
 	let drag_edit_session_begin_promise: Promise<void> | null = null;
+	let drag_input_scope: {
+		host: NonNullable<typeof session>;
+		project: number | null;
+		snapshot: number;
+		owner: string;
+		selection: string;
+	} | null = null;
 	let hover_curve_position = $state<{ position: number; value: number } | null>(null);
 	let is_canvas_focused = $state(false);
 	let curve_context_menu_open = $state(false);
@@ -3714,20 +3402,7 @@
 		return ordered_node_ids(selected);
 	};
 
-	const finish_box_selection = (pointer_id?: number): void => {
-		const active = active_box_selection;
-		if (!active) {
-			return;
-		}
-		if (pointer_id !== undefined && active.pointer_id !== pointer_id) {
-			return;
-		}
-
-		const release_pointer_id = pointer_id ?? active.pointer_id;
-		if (canvas_element && canvas_element.hasPointerCapture(release_pointer_id)) {
-			canvas_element.releasePointerCapture(release_pointer_id);
-		}
-
+	const complete_box_selection = (active: ActiveBoxSelection): void => {
 		const rect = box_selection_rect(active);
 		const drag_size = Math.max(rect.right - rect.left, rect.bottom - rect.top);
 		const drag_threshold = Math.max(3, rem_base_px * 0.24);
@@ -3737,7 +3412,6 @@
 				set_single_selected_key(null);
 				set_single_selected_curve_owner_key(null);
 			}
-			active_box_selection = null;
 			return;
 		}
 
@@ -3754,7 +3428,6 @@
 			selected_key_ids = next_key_selection;
 			selected_key_id = next_key_selection[0] ?? null;
 			clear_selected_curve_owner_keys();
-			active_box_selection = null;
 			return;
 		}
 		if (active.mode === 'replace' || curve_hits.length > 0) {
@@ -3765,7 +3438,6 @@
 			curve_hits,
 			active.mode
 		);
-		active_box_selection = null;
 	};
 
 	const nearest_bezier_handle = (
@@ -4241,6 +3913,10 @@
 	};
 
 	const flush_queued_drag = (): void => {
+		if (!drag_scope_current()) {
+			queued_drag_targets = null;
+			return;
+		}
 		if (!queued_drag_targets || queued_drag_targets.size === 0) {
 			return;
 		}
@@ -4461,6 +4137,10 @@
 	};
 
 	const flush_queued_bezier_handle = (): void => {
+		if (!drag_scope_current()) {
+			queued_bezier_handle_targets = null;
+			return;
+		}
 		if (!queued_bezier_handle_targets || queued_bezier_handle_targets.size === 0) {
 			return;
 		}
@@ -4511,128 +4191,47 @@
 		ensure_drag_commit_frame();
 	};
 
-	const begin_drag_edit_session = (label: string, prefix: string): void => {
-		const edit_session = createUiEditSession(label, prefix);
+	const drag_scope_current = (): boolean => {
+		const scope = drag_input_scope;
+		return (
+			!!scope &&
+			session === scope.host &&
+			session.status === 'connected' &&
+			!session.loading.visible &&
+			session.projectGeneration === scope.project &&
+			session.snapshotGeneration === scope.snapshot &&
+			liveNode.uuid === scope.owner &&
+			input_selection_identity === scope.selection &&
+			graphNodesById?.get(liveNode.node_id)?.uuid === scope.owner
+		);
+	};
+	const discard_queued_drag = (): void => {
+		if (drag_commit_raf_id !== 0 && typeof window !== 'undefined') {
+			window.cancelAnimationFrame(drag_commit_raf_id);
+		}
+		drag_commit_raf_id = 0;
+		queued_drag_targets = null;
+		queued_bezier_handle_targets = null;
+	};
+	const begin_drag_edit_session = (label: string, prefix: string): boolean => {
+		if (
+			!session ||
+			session.status !== 'connected' ||
+			session.loading.visible ||
+			session.projectGeneration === null ||
+			graphNodesById?.get(liveNode.node_id)?.uuid !== liveNode.uuid
+		)
+			return false;
+		drag_input_scope = {
+			host: session,
+			project: session.projectGeneration,
+			snapshot: session.snapshotGeneration,
+			owner: liveNode.uuid,
+			selection: input_selection_identity
+		};
+		const edit_session = createUiEditSession(label, prefix, session);
 		drag_edit_session = edit_session;
 		drag_edit_session_begin_promise = edit_session.begin();
-	};
-
-	const finish_drag = (pointer_id?: number): void => {
-		let did_finish = false;
-		const drag_previews_to_clear = new Map<NodeId, DragPreview>();
-		const easing_previews_to_clear = new Map<NodeId, BezierEasingPreview>();
-		if (active_drag && (pointer_id === undefined || active_drag.pointer_id === pointer_id)) {
-			flush_queued_drag();
-			flush_queued_bezier_handle();
-			for (const entry of active_drag.origins) {
-				const preview = drag_preview_by_key_id.get(entry.key_id);
-				if (preview) {
-					drag_previews_to_clear.set(entry.key_id, preview);
-				}
-			}
-			for (const key_id of active_drag.touched_bezier_key_ids) {
-				const preview = easing_drag_preview_by_key_id.get(key_id);
-				if (preview) {
-					easing_previews_to_clear.set(key_id, preview);
-				}
-			}
-			const release_pointer_id = pointer_id ?? active_drag.pointer_id;
-			if (canvas_element && canvas_element.hasPointerCapture(release_pointer_id)) {
-				canvas_element.releasePointerCapture(release_pointer_id);
-			}
-			active_drag = null;
-			did_finish = true;
-		}
-		if (
-			active_bezier_handle_drag &&
-			(pointer_id === undefined || active_bezier_handle_drag.pointer_id === pointer_id)
-		) {
-			flush_queued_bezier_handle();
-			for (const key_id of active_bezier_handle_drag.touched_key_ids) {
-				const preview = easing_drag_preview_by_key_id.get(key_id);
-				if (preview) {
-					easing_previews_to_clear.set(key_id, preview);
-				}
-			}
-			hover_bezier_handle = null;
-			const release_pointer_id = pointer_id ?? active_bezier_handle_drag.pointer_id;
-			if (canvas_element && canvas_element.hasPointerCapture(release_pointer_id)) {
-				canvas_element.releasePointerCapture(release_pointer_id);
-			}
-			active_bezier_handle_drag = null;
-			did_finish = true;
-		}
-		if (
-			active_curve_drag &&
-			(pointer_id === undefined || active_curve_drag.pointer_id === pointer_id)
-		) {
-			flush_queued_bezier_handle();
-			for (const key_id of active_curve_drag.touched_key_ids) {
-				const preview = easing_drag_preview_by_key_id.get(key_id);
-				if (preview) {
-					easing_previews_to_clear.set(key_id, preview);
-				}
-			}
-			hover_bezier_handle = null;
-			const release_pointer_id = pointer_id ?? active_curve_drag.pointer_id;
-			if (canvas_element && canvas_element.hasPointerCapture(release_pointer_id)) {
-				canvas_element.releasePointerCapture(release_pointer_id);
-			}
-			active_curve_drag = null;
-			did_finish = true;
-		}
-		if (did_finish && drag_edit_session) {
-			const edit_session = drag_edit_session;
-			const begin_promise = drag_edit_session_begin_promise;
-			drag_edit_session = null;
-			drag_edit_session_begin_promise = null;
-			void (async () => {
-				if (begin_promise) {
-					await begin_promise;
-				}
-				if (pending_param_write_promises.size > 0) {
-					await Promise.allSettled([...pending_param_write_promises]);
-				}
-				clear_drag_previews_if_unchanged(drag_previews_to_clear);
-				clear_easing_drag_previews_if_unchanged(easing_previews_to_clear);
-				await edit_session.end();
-			})();
-		} else if (did_finish) {
-			clear_drag_previews_if_unchanged(drag_previews_to_clear);
-			clear_easing_drag_previews_if_unchanged(easing_previews_to_clear);
-		}
-	};
-
-	const finish_canvas_pan = (pointer_id?: number): void => {
-		if (!active_canvas_pan) {
-			return;
-		}
-		if (pointer_id !== undefined && active_canvas_pan.pointer_id !== pointer_id) {
-			return;
-		}
-		const release_pointer_id = pointer_id ?? active_canvas_pan.pointer_id;
-		if (canvas_element && canvas_element.hasPointerCapture(release_pointer_id)) {
-			canvas_element.releasePointerCapture(release_pointer_id);
-		}
-		active_canvas_pan = null;
-	};
-
-	const finish_curve_draw = (pointer_id?: number, commit = true): boolean => {
-		if (!active_curve_draw) {
-			return false;
-		}
-		if (pointer_id !== undefined && active_curve_draw.pointer_id !== pointer_id) {
-			return false;
-		}
-		const release_pointer_id = pointer_id ?? active_curve_draw.pointer_id;
-		if (canvas_element && canvas_element.hasPointerCapture(release_pointer_id)) {
-			canvas_element.releasePointerCapture(release_pointer_id);
-		}
-		const points = active_curve_draw.points;
-		active_curve_draw = null;
-		if (commit) {
-			void commit_curve_draw(points);
-		}
 		return true;
 	};
 
@@ -4804,7 +4403,7 @@
 	};
 
 	const on_canvas_pointer_down = (event: PointerEvent): void => {
-		if (!interaction_transform || !canvas_element) {
+		if (input.active || !interaction_transform || !canvas_element) {
 			return;
 		}
 		const point = canvas_local_point(event);
@@ -4932,7 +4531,7 @@
 			const bezier_alignment_constraints =
 				build_key_drag_bezier_alignment_constraints(drag_key_ids);
 
-			begin_drag_edit_session('Move Curve Key', 'curve-key-drag');
+			if (!begin_drag_edit_session('Move Curve Key', 'curve-key-drag')) return;
 			active_drag = {
 				pointer_id: event.pointerId,
 				anchor_key_id: anchor_origin.key_id,
@@ -4981,7 +4580,7 @@
 				}
 			}
 
-			begin_drag_edit_session('Adjust Curve Bezier Handle', 'curve-bezier-drag');
+			if (!begin_drag_edit_session('Adjust Curve Bezier Handle', 'curve-bezier-drag')) return;
 			active_bezier_handle_drag = {
 				pointer_id: event.pointerId,
 				ref: bezier_handle,
@@ -5032,7 +4631,7 @@
 				kind: 'in'
 			});
 
-			begin_drag_edit_session('Sculpt Curve Segment', 'curve-segment-drag');
+			if (!begin_drag_edit_session('Sculpt Curve Segment', 'curve-segment-drag')) return;
 			active_curve_drag = {
 				pointer_id: event.pointerId,
 				owner_key_id: curve_selection,
@@ -5059,6 +4658,9 @@
 		}
 
 		const mode: SelectionMode = additive_selection ? 'add' : 'replace';
+		if (!event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey) {
+			clear_canvas_selection();
+		}
 		active_box_selection = {
 			pointer_id: event.pointerId,
 			start_screen_x: point.x,
@@ -5260,22 +4862,93 @@
 		hover_curve_owner_key_id = nearest_curve_owner_key(point.x, point.y, curve_hit_threshold_px());
 	};
 
-	const on_canvas_pointer_up = (event: PointerEvent): void => {
-		if (finish_curve_draw(event.pointerId, true)) {
-			return;
-		}
-		finish_drag(event.pointerId);
-		finish_canvas_pan(event.pointerId);
-		finish_box_selection(event.pointerId);
+	const clear_canvas_selection = (): void => {
+		clear_selected_keys();
+		clear_selected_curve_owner_keys();
+		onselectionclear?.();
 	};
-	const on_canvas_pointer_cancel = (event: PointerEvent): void => {
-		if (finish_curve_draw(event.pointerId, false)) {
-			return;
+	const input = createCurveInput({
+		get canvas() {
+			return canvas_element;
+		},
+		get key() {
+			return active_drag;
+		},
+		set key(value) {
+			active_drag = value;
+		},
+		get bezier() {
+			return active_bezier_handle_drag;
+		},
+		set bezier(value) {
+			active_bezier_handle_drag = value;
+		},
+		get curve() {
+			return active_curve_drag;
+		},
+		set curve(value) {
+			active_curve_drag = value;
+		},
+		get pan() {
+			return active_canvas_pan;
+		},
+		set pan(value) {
+			active_canvas_pan = value;
+		},
+		get draw() {
+			return active_curve_draw;
+		},
+		set draw(value) {
+			active_curve_draw = value;
+		},
+		get box() {
+			return active_box_selection;
+		},
+		set box(value) {
+			active_box_selection = value;
+		},
+		get keyPreviews() {
+			return drag_preview_by_key_id;
+		},
+		get easingPreviews() {
+			return easing_drag_preview_by_key_id;
+		},
+		flush() {
+			flush_queued_drag();
+			flush_queued_bezier_handle();
+			discard_queued_drag();
+		},
+		discard: discard_queued_drag,
+		takeEdit() {
+			const edit = drag_edit_session
+				? {
+						session: drag_edit_session,
+						begin: drag_edit_session_begin_promise,
+						pending: [...pending_param_write_promises]
+					}
+				: null;
+			drag_edit_session = null;
+			drag_edit_session_begin_promise = null;
+			drag_input_scope = null;
+			return edit;
+		},
+		clearPreviews(keys, easing) {
+			clear_drag_previews_if_unchanged(keys);
+			clear_easing_drag_previews_if_unchanged(easing);
+		},
+		completeBox: complete_box_selection,
+		completeDraw(points) {
+			void commit_curve_draw(points);
+		},
+		restoreView: set_view_bounds_instantly,
+		clearHover() {
+			hover_key_id = null;
+			hover_curve_owner_key_id = null;
+			hover_bezier_handle = null;
+			hover_curve_position = null;
 		}
-		finish_drag(event.pointerId);
-		finish_canvas_pan(event.pointerId);
-		finish_box_selection(event.pointerId);
-	};
+	});
+	const on_canvas_pointer_up = (event: PointerEvent): void => input.finish(event.pointerId);
 	const on_canvas_pointer_leave = (): void => {
 		hover_key_id = null;
 		hover_curve_owner_key_id = null;
@@ -5732,16 +5405,45 @@
 	});
 
 	$effect(() => {
+		const canvas = canvas_element;
+		if (!canvas) return;
+		return curveInputEvents(canvas, {
+			cancel(pointer) {
+				const menu = pointer === undefined && curve_context_menu_open;
+				if (menu) close_curve_context_menu();
+				const retired = input.cancel(pointer);
+				if (retired) last_canvas_primary_down = null;
+				return menu || retired;
+			},
+			clear: clear_canvas_selection
+		});
+	});
+	$effect(() => {
+		session;
+		session?.projectGeneration;
+		session?.snapshotGeneration;
+		session?.status;
+		session?.loading.visible;
+		input_owner_uuid;
+		return () =>
+			untrack(() => {
+				input.cancel();
+				discard_queued_drag();
+				cancel_view_bounds_animation();
+				on_canvas_pointer_leave();
+			});
+	});
+	$effect(() => {
+		const selected = input_selection_identity;
+		untrack(() => {
+			if (drag_input_scope && drag_input_scope.selection !== selected) input.cancel();
+		});
+	});
+	$effect(() => {
 		return () => {
-			if (drag_commit_raf_id !== 0 && typeof window !== 'undefined') {
-				window.cancelAnimationFrame(drag_commit_raf_id);
-				drag_commit_raf_id = 0;
-			}
+			input.cancel();
+			discard_queued_drag();
 			cancel_view_bounds_animation();
-			finish_drag();
-			finish_canvas_pan();
-			finish_curve_draw(undefined, false);
-			finish_box_selection();
 			const pending = pending_create_target;
 			pending_create_target = null;
 			if (pending?.edit_session) {
@@ -5781,7 +5483,6 @@
 				onpointerdown={on_canvas_pointer_down}
 				onpointermove={on_canvas_pointer_move}
 				onpointerup={on_canvas_pointer_up}
-				onpointercancel={on_canvas_pointer_cancel}
 				onpointerleave={on_canvas_pointer_leave}
 				onwheel={on_canvas_wheel}
 				oncontextmenu={on_canvas_context_menu}

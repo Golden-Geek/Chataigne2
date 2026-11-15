@@ -30,8 +30,17 @@ raw data retain the selected Parameter, with an anchored Watcher below the edito
 moving its canvas during input. Explicit Inspector locks keep their document/UUID boundary.
 Ownership projection caches immutable selection arrays against published graph deltas, so live
 unrelated Parameter updates do not rescan large selections. The curve adapter publishes only
-input-owned changes and rejects replaced session/project/snapshot/selection scopes. Its existing
-large canvas/input controller still needs separate background/Escape/cancellation work in M14/1.
+input-owned changes and rejects replaced session/project/snapshot/selection scopes.
+
+Curve background-down and idle Escape now inspect the Curve owner through that adapter.
+Golden's focused `curve/input` controller separates release from cancellation for key/Bezier/
+segment edits, marquee, drawing and pan. It retires ownership before releasing capture;
+Escape cancels tools first, and cancel/lost capture/blur/disposal discard unsent work and local
+previews without completing a marquee or drawing. Submitted writes settle before their pinned
+session ends. Scope replacement and foreign local selection stop stale queued writes; ordinary
+live parameter publications retain capture. Idle Escape reuses `clearViewportSelection`.
+The existing oversized model/render components still need further cohesive decomposition;
+the extracted types and terminal controller do not exempt them from the readability requirement.
 
 Matrix grid uses those actions for Cells, row/column/group headers and their labels, alongside
 the shared contour hover. Background/idle Escape select the Matrix media owner. Grid coordinates

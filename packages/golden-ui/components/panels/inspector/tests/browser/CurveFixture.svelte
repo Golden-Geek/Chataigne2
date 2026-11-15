@@ -3,6 +3,7 @@
 	import { appState } from '../../../../../store/workbench.svelte';
 	import type { ParamValue, UiNodeDto } from '../../../../../types';
 	import type { PanelApi, PanelParams } from '../../../../../dockview/panel-types';
+	import { PERSISTED_PANEL_STATE_KEY } from '../../../../../dockview/panel-persistence';
 	import { createFixtureSession, fixtureNode } from '../../../../../tests/browser/fixture/session';
 	import InspectorPanel from '../../InspectorPanel.svelte';
 	import { auditCurveBridge } from '../curve-bridge.svelte';
@@ -40,6 +41,7 @@
 			[7, 1]
 		]) {
 			const id = base + offset,
+				handleBase = 100 + base * 10 + offset * 5,
 				key = fixtureNode(
 					id,
 					`${label} key ${value}`,
@@ -50,8 +52,17 @@
 				key,
 				param(id + 1, 'Position', 'position', { kind: 'float', value }),
 				param(id + 2, 'Value', 'value', { kind: 'float', value }),
-				fixtureNode(id + 3, 'Easing', [id + 4], 'animation_curve_easing'),
-				param(id + 4, 'Kind', 'kind', { kind: 'enum', value: 'linear' })
+				fixtureNode(
+					id + 3,
+					'Easing',
+					[id + 4, handleBase, handleBase + 1, handleBase + 2, handleBase + 3],
+					'animation_curve_easing'
+				),
+				param(id + 4, 'Kind', 'kind', { kind: 'enum', value: 'bezier' }),
+				param(handleBase, 'Out Position', 'out_position', { kind: 'float', value: 1 / 3 }),
+				param(handleBase + 1, 'Out Value', 'out_value', { kind: 'float', value: 1 / 3 }),
+				param(handleBase + 2, 'In Position', 'in_position', { kind: 'float', value: -1 / 3 }),
+				param(handleBase + 3, 'In Value', 'in_value', { kind: 'float', value: -1 / 3 })
 			);
 			nodes.find((node) => node.node_id === id + 3)!.decl_id = 'easing';
 			references.set(key.meta.label, key);
@@ -63,6 +74,8 @@
 		writes = $state(0),
 		comparison = $state(false);
 	let guardResult = $state('pending');
+	let removals = $state(0);
+	let sequence = 0;
 	const api: PanelApi = {
 		observeVisibility: (listener) => {
 			listener(true);
@@ -76,9 +89,13 @@
 	};
 	function locked(label: string) {
 		return {
-			inspectorLocked: true,
-			inspectorLockedNodeUuid: references.get(label)!.uuid,
-			inspectorLockedDocument: nodes[0].uuid
+			[PERSISTED_PANEL_STATE_KEY]: {
+				inspectorLocked: true,
+				inspectorLockedNodeUuid: fixture.session.graph.state.nodesById.get(
+					references.get(label)!.node_id
+				)!.uuid,
+				inspectorLockedDocument: fixture.session.graph.state.nodesById.get(0)!.uuid
+			}
 		};
 	}
 	function select(label: string) {
@@ -86,7 +103,21 @@
 	}
 	fixture.handleIntent(async (intent) => {
 		edits++;
-		if (intent.kind === 'setParam') writes++;
+		if (intent.kind === 'removeNode' || intent.kind === 'removeNodes') removals++;
+		if (intent.kind === 'setParam') {
+			writes++;
+			const current = fixture.session.graph.state.nodesById.get(intent.node);
+			if (current?.data.kind !== 'parameter') throw Error('Missing Curve Parameter');
+			fixture.session.graph.applyEvent({
+				time: { tick: ++sequence, micro: 0, seq: 0 },
+				kind: {
+					kind: 'paramChanged',
+					param: intent.node,
+					old_value: current.data.param.value,
+					new_value: intent.value
+				}
+			});
+		}
 		return fixture.editAcknowledgement(
 			intent.kind === 'beginEdit' ? true : intent.kind === 'endEdit' ? false : undefined
 		);
@@ -108,6 +139,13 @@
 			guardResult = auditCurveBridge();
 		}}>Run curve guard checks</button>
 	<output aria-label="Curve guard checks">{guardResult}</output>
+	<output aria-label="Curve removal intents">{removals}</output>
+	<button
+		onclick={async () => {
+			fixture.loadNodes(structuredClone(nodes));
+			await fixture.session.refreshSnapshot();
+			select('Curve A');
+		}}>Replace Curve snapshot</button>
 	<output aria-label="Selected curve nodes"
 		>{fixture.session.selectedNodesIds
 			.map((id) => fixture.session.graph.state.nodesById.get(id)?.meta.label)
@@ -151,6 +189,10 @@
 </main>
 
 <style>
+	:global(:root) {
+		--gc-color-curve-handle-out: #fd00fd;
+		--gc-color-curve-handle-in: #00fdfd;
+	}
 	:global(body) {
 		margin: 0;
 		background: #202020;
