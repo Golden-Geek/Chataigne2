@@ -15,6 +15,14 @@ gesture path. Its keyboard/accessibility click fallback cannot reselect a Surfac
 mouse-up. See the [M14 selection inventory](../progress/mapgyver-m14-selection.md) for remaining
 editor adapters, hover and native acceptance; this public input contract alone does not qualify them.
 
+Golden graph canvases use their existing `onGraphSelectionChange([], [])` contract for primary
+background-down and idle Escape, with no repeated mouse-up clear. Alchemist and State Machine
+already resolve that empty selection to their Formula/manager owners; Spatializer's custom world
+now selects its module owner through the same callback, preserving active endpoint ownership.
+Golden owns modifier/marquee/navigation and connection-tool isolation. Selected graph nodes alone
+show resize handles, and unselected valid nodes receive a contour hover cue. Complete native/
+Inspector and active gesture cancellation acceptance remains in the M14 inventory.
+
 Golden's public `createViewportPointer` owns coordinate projection, primary-hit consumption
 and pointer capture/cancel. It selects a hit before calling the adapter's edit admission;
 refused edits retain selection and viewport focus without acquiring capture. Composition and

@@ -61,6 +61,19 @@ Corner selection remains available during metadata refresh: edit admission uses 
 while focus and pointer/keyboard selection remain available. A deterministic busy-state fixture
 reproduced the disabled-button failure and now passes for both primary-down and keyboard input.
 
+Golden graph background-down now publishes empty node/edge selection immediately, with no
+second callback on release. Idle Escape uses that same public selection contract after connection
+cancellation. Text editing, toolbar/finder keys, modifier/marquee selection, middle pan and active
+pointer ownership remain isolated. Only selected standard graph nodes show resize handles;
+unselected valid nodes get a subtle contour hover without handles or selection changes. The
+obsolete mouse-up-only clear flag and its movement bookkeeping are removed. Touched controllers
+and the existing browser runner follow the repository formatter.
+
+No additional owner callback or selection store was introduced. Existing Alchemist/State Machine
+adapters already select their Formula/manager for empty graph selection. Spatializer's custom
+world now selects its module through the same callback, guarded against active endpoint input.
+These are shared Golden/consumer changes; MapGyver has no new graph panel from this slice.
+
 ## Applicable editor inventory
 
 | Editor / owner | Current scope | Exact remaining work |
@@ -71,7 +84,7 @@ reproduced the disabled-button failure and now passes for both primary-down and 
 | Composition / Composition media | Root/nested explicit owner clears old hints without first-child selection; shared clear and immediate pointer choice; denied-edit/natural Escape focus browser checks pass; unlocked nested owner retains edited content | Actual Inspector/native/independent-editor and snapshot fencing; unselected Move markers, hover and selected-only presentation remain unfinished |
 | Matrix Layer spatial / Matrix media | Shared clear selects Matrix owner; explicit no-child backend projection, immediate controls and cached-definition clearing; denied-edit/idle-Escape DOM checks pass | Hover, actual adapter/Inspector/native checks, independent-editor and active-gesture behavior |
 | Matrix Cell spatial / Layer | Shared clear selects Layer without leaving it; backend resolves owned descendants and explicit no-Cell focus; bounded off-page selection and immediate control clearing; DOM checks pass | Hover, actual adapter/Inspector/native checks, active/outgoing/off-page interaction acceptance |
-| Golden graph canvases | Existing graph gestures select nodes; idle Escape currently only attempts gesture/connection cancellation | Reconcile background/idle Escape, selected-only control/hover policy and owner adapters; preserve multi-selection, locked nodes and ports |
+| Golden graph canvases | Browser verifies primary-down nodes/edges, immediate background/idle-Escape empty selection, selected-only resize controls and contour hover; modifier/marquee/middle pan/text/finder/connection isolation; Spatializer owner callback wired and all consumers typecheck | Actual domain Inspector/native/independent-editor/offscreen/permission acceptance. Active node/resize cancellation remains unqualified; `pointercancel` still shares the finish path and needs an explicit cancellation check/fix before acceptance |
 | Dashboard, curve and watcher projection canvases | Specialized Golden canvases must be reviewed | Resolve applicable authored-object/point selection versus read-only projection, then verify specialized tool/focus behavior; no exemption claimed |
 | Media Preview / Matrix grid | Preview is not the spatial placement editor; grid has its own selection | Confirm applicable owner/child manipulation paths, including read-only preview and virtualized selection; no qualification claimed from classification |
 
@@ -133,6 +146,23 @@ loss/Undo, and Save/New/Load. It reports0 page errors and0 rejected crop request
 post-Undo keyboard failure is resolved by keeping corner selection available during refresh;
 geometry admission remains fenced. This browser/host check establishes no native pixel alignment.
 
+Graph slice validation (2026-11-15):60 Golden graph unit tests pass. The graph component/fixture
+Svelte check and both Chataigne/MapGyver app typechecks report0 errors/0 warnings. The production
+Edge browser suite passes its existing movement/socket/async/lifetime checks plus five selection
+groups: down/hover/controls, idle Escape/focus, modifiers/marquee/pan, connection capture/cancel,
+and edges/read-only movement callbacks. The new fixture verifies no duplicate release clear.
+Its old extra move-commit argument was removed to match the existing zero-argument API. The
+corrected Escape dispatch now reaches idle deselection after checking connection cancellation.
+
+Scoped Prettier/syntax checks and both production UI builds pass. One Chataigne build attempt
+lost its generated server index during route analysis; the final isolated build exits0. Its cause
+is unproven, and the failed log is retained. No Rust/runtime DTO changed or native GPU check ran.
+Graph validation logs are `target/m14-graph-*-2026-11-15.log`; the final Chataigne build uses
+`m14-graph-chataigne-build-final-2026-11-15.log`. The graph browser receipt is
+`target/qualification/p11-graph-keyboard-2026-11-15T14-25-29-041Z.jsonl`.
+Current UI bundles include these changes; the Source debug-binary hashes below retain their
+earlier Source scope and do not qualify this graph slice or new native behavior.
+
 Logs live under `target/m14-selection-*-2026-11-14.log` and
 `target/m14-composition-*-2026-11-14.log`.
 `target/m14-matrix-*-2026-11-14.log` holds Matrix validation; current Source results are
@@ -146,7 +176,7 @@ native fixture SHA256:
 These replace the debug binaries from the historical M10 build receipt; refresh coherent
 qualification inputs on return. Existing Video evidence retains its original source/build scope.
 
-Next deliverable: Golden graph background/idle-Escape selection through its public editor owner
-contract, preserving multi-selection, port/connection tools and capture. Then continue hover and
+Next deliverable: complete shared graph active-gesture cancellation, verifying that cancellation
+does not commit pointer previews, then continue MapGyver contour hover/selected-only controls and
 the full native/Inspector/independent-editor inventory above. No completed slice
 or passing software suite substitutes for whole-gate acceptance.

@@ -29,6 +29,16 @@ consumer boundary. Internal owners live under `components/canvas/`:
 Controllers expose reactive getters and explicit operations. The facade supplies narrow scene
 views to camera/editing controllers; geometry receives presentation overlays and a connection
 draft. Backend mutation semantics stay with the consuming domain.
+
+`onGraphSelectionChange` publishes complete node/edge selection. Unmodified primary background
+pointer-down and idle Escape publish empty arrays; the host resolves its edited owner and shared
+Inspector selection. Clearing does not wait for mouse-up or repeat on release. Modifier/marquee
+selection and middle-button pan retain selection. Connection cancellation consumes Escape first;
+text controls, the node finder and active pointer gestures retain their input ownership. Custom
+world hosts can use the same callback without inventing graph nodes for their domain objects.
+Standard graph nodes show resize controls only while selected; unselected valid nodes receive a
+subtle hover contour without changing selection. Ports remain available for connection editing.
+
 Camera scaling uses a world transform; background position/size are direct styles so changing the
 camera does not invalidate inherited custom properties or relayout every node through CSS zoom.
 Below zoom 0.4 and during camera animations, unselected nodes use overview boxes with labels,

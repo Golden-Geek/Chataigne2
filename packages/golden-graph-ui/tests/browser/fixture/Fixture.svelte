@@ -42,6 +42,8 @@
 	let interactionScope = $state.raw<object>({});
 	let keyboardReadOnly = $state(false);
 	let keyboardPolicy = $state(true);
+	let selectionMode = $state(false);
+	let selectionChanges = 0;
 	let moveMode: 'normal' | 'reject' | 'hold' = 'normal';
 	let heldMoves: ((reason?: unknown) => void)[] = [];
 	let connections: {
@@ -179,6 +181,7 @@
 		await new Promise(requestAnimationFrame);
 	};
 	export async function setupKeyboard() {
+		selectionMode = false;
 		acknowledgedConnections = false;
 		collapseMode = 'normal';
 		heldCollapses = [];
@@ -220,6 +223,22 @@
 		);
 		await keyboardFrames();
 	}
+	export async function setupSelection() {
+		await setupKeyboard();
+		selectionMode = true;
+		selectionChanges = 0;
+		graph = adapter.update(
+			graph.nodes.map((node) => ({ ...node, resizable: true, enabled: node.id !== 'c' })),
+			[{ id: 'edge', from: { nodeId: 'a', socketId: 'out' }, to: { nodeId: 'b', socketId: 'in' } }]
+		);
+		options = { ...options, selectedEdgeIds: ['edge'] };
+		await keyboardFrames();
+	}
+	export const selectionInspect = () => ({
+		nodes: options.selectedNodeIds ?? [],
+		edges: options.selectedEdgeIds ?? [],
+		changes: selectionChanges
+	});
 	export async function keyboardMove(key: string, large = false) {
 		const accepted = canvas!.moveSelectionWithKeyboard(key, large);
 		await keyboardFrames();
@@ -351,7 +370,7 @@
 	}
 	export async function repeatMovePreview() {
 		canvas!.previewNodeMoves([{ nodeId: 'a', position: { x: 5, y: 2 } }]);
-		canvas!.commitNodeMovePreview(['a']);
+		canvas!.commitNodeMovePreview();
 		await keyboardFrames();
 	}
 	export async function keyboardPublication(topology = false) {
@@ -509,6 +528,7 @@
 			autoHomeOnMount={false}
 			onNodesMove={keyboardReadOnly ? undefined : acknowledgeMoves}
 			onGraphSelectionChange={(selectedNodeIds, selectedEdgeIds) => {
+				selectionChanges++;
 				options = { ...options, selectedNodeIds, selectedEdgeIds };
 			}}
 			onConnect={keyboardReadOnly ? undefined : captureConnection}
@@ -518,6 +538,9 @@
 			{...options}>
 			{#snippet nodeContent(node)}
 				<span data-fixture-node>{node.label}</span>
+				{#if selectionMode && node.id === 'a'}<input
+						aria-label="Fixture node text"
+						data-no-node-select />{/if}
 			{/snippet}
 			{#snippet nodeHeaderContent(node)}
 				<span data-fixture-header>{node.label}</span>

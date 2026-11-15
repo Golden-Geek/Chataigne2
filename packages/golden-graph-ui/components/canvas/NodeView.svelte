@@ -403,7 +403,7 @@
 			{/if}
 		</div>
 	{/if}
-	{#if node.resizable && node.collapsed !== true}
+	{#if selectedIds.has(node.id) && node.resizable && node.collapsed !== true}
 		<button
 			type="button"
 			class="resize-handle"
@@ -450,6 +450,9 @@
 
 	.node.selected {
 		border-color: var(--ga-selection);
+	}
+	.node:not(.selected):not(.invalid):hover {
+		border-color: color-mix(in srgb, var(--ga-selection) 40%, var(--ga-outline));
 	}
 
 	.node.active {

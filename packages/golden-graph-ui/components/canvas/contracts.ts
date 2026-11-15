@@ -1,63 +1,61 @@
-import type { Snippet } from "svelte";
+import type { Snippet } from 'svelte';
 import type {
-  GraphCamera,
-  GraphConnectionRequest,
-  GraphNode,
-  GraphNodeCreationRequest,
-  GraphNodeMove,
-  GraphNodePosition,
-  GraphPresentationDocument,
-  GraphNodeResize,
-  GraphNodeSize,
-  GraphSocket,
-  GraphSocketRef,
-  GraphViewportInset,
-  GraphWorldBounds,
-  GraphWorldContentContext,
-  GraphWorldNavigation,
-} from "../../types";
+	GraphCamera,
+	GraphConnectionRequest,
+	GraphNode,
+	GraphNodeCreationRequest,
+	GraphNodeMove,
+	GraphNodePosition,
+	GraphPresentationDocument,
+	GraphNodeResize,
+	GraphNodeSize,
+	GraphSocket,
+	GraphSocketRef,
+	GraphViewportInset,
+	GraphWorldBounds,
+	GraphWorldContentContext,
+	GraphWorldNavigation
+} from '../../types';
 
 export interface PanGesture {
-  pointerId: number;
-  startX: number;
-  startY: number;
-  cameraX: number;
-  cameraY: number;
-  moved: boolean;
-  clearSelectionOnClick: boolean;
+	pointerId: number;
+	startX: number;
+	startY: number;
+	cameraX: number;
+	cameraY: number;
 }
 
 export interface NodeDragGesture {
-  pointerId: number;
-  startX: number;
-  startY: number;
-  nodePositions: Record<string, GraphNodePosition>;
+	pointerId: number;
+	startX: number;
+	startY: number;
+	nodePositions: Record<string, GraphNodePosition>;
 }
 
 export interface NodeResizeGesture {
-  pointerId: number;
-  nodeId: string;
-  startX: number;
-  startY: number;
-  startSize: GraphNodeSize;
+	pointerId: number;
+	nodeId: string;
+	startX: number;
+	startY: number;
+	startSize: GraphNodeSize;
 }
 
 export interface SelectionGesture {
-  pointerId: number;
-  startX: number;
-  startY: number;
-  currentX: number;
-  currentY: number;
-  initialSelectedNodeIds: string[];
+	pointerId: number;
+	startX: number;
+	startY: number;
+	currentX: number;
+	currentY: number;
+	initialSelectedNodeIds: string[];
 }
 
 export interface ConnectionDraft {
-  pointerId: number;
-  from: GraphSocketRef;
-  endX: number;
-  endY: number;
-  snapNodeId?: string;
-  snapSocketId?: string;
+	pointerId: number;
+	from: GraphSocketRef;
+	endX: number;
+	endY: number;
+	snapNodeId?: string;
+	snapSocketId?: string;
 }
 
 export const DEFAULT_MIN_ZOOM = 0.2;
@@ -88,86 +86,66 @@ export const TITLE_DOUBLE_CLICK_MS = 300;
 
 export const TITLE_DOUBLE_CLICK_DISTANCE_PX = 6;
 
-export const finiteNumber = (
-  value: number | undefined,
-  fallback: number,
-): number =>
-  typeof value === "number" && Number.isFinite(value) ? value : fallback;
+export const finiteNumber = (value: number | undefined, fallback: number): number =>
+	typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 
-export const clamp = (
-  value: number,
-  minimum: number,
-  maximum: number,
-): number => Math.min(maximum, Math.max(minimum, value));
+export const clamp = (value: number, minimum: number, maximum: number): number =>
+	Math.min(maximum, Math.max(minimum, value));
 
 export interface GraphCanvasProps {
-  /** Host-owned guidance for custom world controls. */
-  interactionHelp?: string;
-  /** Replace this token when a host switches domain lifetimes while reusing its adapter. */
-  interactionScope?: unknown;
-  graphDocument: GraphPresentationDocument;
-  selectedNodeIds?: string[];
-  selectedEdgeIds?: string[];
-  onGraphSelectionChange?: (nodeIds: string[], edgeIds: string[]) => void;
-  onNodeMove?: (
-    nodeId: string,
-    position: GraphNodePosition,
-  ) => void | Promise<void>;
-  onNodesMove?: (moves: GraphNodeMove[]) => void | Promise<void>;
-  onNodeResize?: (resize: GraphNodeResize) => void | Promise<void>;
-  onNodeRename?: (nodeId: string, label: string) => void | Promise<void>;
-  onNodeCollapsedChange?: (
-    nodeId: string,
-    collapsed: boolean,
-  ) => void | Promise<void>;
-  onNodeEnabledChange?: (
-    nodeId: string,
-    enabled: boolean,
-  ) => void | Promise<void>;
-  onConnect?: (connection: GraphConnectionRequest) => void | Promise<void>;
-  canConnect?: (connection: GraphConnectionRequest) => boolean;
-  nodeContent?: Snippet<[GraphNode]>;
-  nodeHeaderContent?: Snippet<[GraphNode]>;
-  inputSocketContent?: Snippet<[GraphNode, GraphSocket]>;
-  outputSocketContent?: Snippet<[GraphNode, GraphSocket]>;
-  worldContent?: Snippet<[GraphWorldContentContext]>;
-  worldNavigation?: GraphWorldNavigation;
-  worldBounds?: GraphWorldBounds;
-  toolbarEnd?: Snippet;
-  onNodeContextMenu?: (event: MouseEvent, nodeId: string) => void;
-  onBackgroundContextMenu?: (
-    event: MouseEvent,
-    position: GraphNodePosition,
-  ) => void;
-  onBackgroundDoubleClick?: (
-    event: MouseEvent,
-    position: GraphNodePosition,
-  ) => void;
-  onCreateRequest?: (request: GraphNodeCreationRequest) => void;
-  routeEdgesAroundNodes?: boolean;
-  socketLabels?: "always" | "hover" | "never";
-  initialCamera?: GraphCamera;
-  onCameraChange?: (camera: GraphCamera) => void;
-  onVisibleNodeIdsChange?: (nodeIds: string[]) => void;
-  viewportInset?: GraphViewportInset;
-  minZoom?: number;
-  maxZoom?: number;
-  autoHomeOnMount?: boolean;
-  emptyLabel?: string;
+	/** Host-owned guidance for custom world controls. */
+	interactionHelp?: string;
+	/** Replace this token when a host switches domain lifetimes while reusing its adapter. */
+	interactionScope?: unknown;
+	graphDocument: GraphPresentationDocument;
+	selectedNodeIds?: string[];
+	selectedEdgeIds?: string[];
+	/** Full replacement selection; empty arrays let the host inspect its edited owner. */
+	onGraphSelectionChange?: (nodeIds: string[], edgeIds: string[]) => void;
+	onNodeMove?: (nodeId: string, position: GraphNodePosition) => void | Promise<void>;
+	onNodesMove?: (moves: GraphNodeMove[]) => void | Promise<void>;
+	onNodeResize?: (resize: GraphNodeResize) => void | Promise<void>;
+	onNodeRename?: (nodeId: string, label: string) => void | Promise<void>;
+	onNodeCollapsedChange?: (nodeId: string, collapsed: boolean) => void | Promise<void>;
+	onNodeEnabledChange?: (nodeId: string, enabled: boolean) => void | Promise<void>;
+	onConnect?: (connection: GraphConnectionRequest) => void | Promise<void>;
+	canConnect?: (connection: GraphConnectionRequest) => boolean;
+	nodeContent?: Snippet<[GraphNode]>;
+	nodeHeaderContent?: Snippet<[GraphNode]>;
+	inputSocketContent?: Snippet<[GraphNode, GraphSocket]>;
+	outputSocketContent?: Snippet<[GraphNode, GraphSocket]>;
+	worldContent?: Snippet<[GraphWorldContentContext]>;
+	worldNavigation?: GraphWorldNavigation;
+	worldBounds?: GraphWorldBounds;
+	toolbarEnd?: Snippet;
+	onNodeContextMenu?: (event: MouseEvent, nodeId: string) => void;
+	onBackgroundContextMenu?: (event: MouseEvent, position: GraphNodePosition) => void;
+	onBackgroundDoubleClick?: (event: MouseEvent, position: GraphNodePosition) => void;
+	onCreateRequest?: (request: GraphNodeCreationRequest) => void;
+	routeEdgesAroundNodes?: boolean;
+	socketLabels?: 'always' | 'hover' | 'never';
+	initialCamera?: GraphCamera;
+	onCameraChange?: (camera: GraphCamera) => void;
+	onVisibleNodeIdsChange?: (nodeIds: string[]) => void;
+	viewportInset?: GraphViewportInset;
+	minZoom?: number;
+	maxZoom?: number;
+	autoHomeOnMount?: boolean;
+	emptyLabel?: string;
 }
 
 export type CanvasProps = GraphCanvasProps &
-  Required<
-    Pick<
-      GraphCanvasProps,
-      | "selectedNodeIds"
-      | "selectedEdgeIds"
-      | "routeEdgesAroundNodes"
-      | "socketLabels"
-      | "viewportInset"
-      | "minZoom"
-      | "maxZoom"
-      | "autoHomeOnMount"
-      | "emptyLabel"
-    >
-  >;
+	Required<
+		Pick<
+			GraphCanvasProps,
+			| 'selectedNodeIds'
+			| 'selectedEdgeIds'
+			| 'routeEdgesAroundNodes'
+			| 'socketLabels'
+			| 'viewportInset'
+			| 'minZoom'
+			| 'maxZoom'
+			| 'autoHomeOnMount'
+			| 'emptyLabel'
+		>
+	>;

@@ -87,6 +87,19 @@ export function createCanvasGestures(
 	const publishSelection = (nodeIds: string[], edgeIds: string[]): void => {
 		props.onGraphSelectionChange?.(nodeIds, edgeIds);
 	};
+	const clearSelection = (): boolean => {
+		if (
+			!props.onGraphSelectionChange ||
+			panGesture ||
+			nodeDragGesture ||
+			nodeResizeGesture ||
+			selectionGesture ||
+			connectionDraft
+		)
+			return false;
+		publishSelection([], []);
+		return true;
+	};
 
 	const updateSelection = (nodeId: string, additive: boolean): void => {
 		const next = additive ? new Set(selectedIds) : new Set<string>();
@@ -164,9 +177,24 @@ export function createCanvasGestures(
 	};
 
 	const startPan = (event: PointerEvent): void => {
-		if (event.button !== 0 && event.button !== 1) {
+		if (
+			event.defaultPrevented ||
+			(event.button !== 0 && event.button !== 1) ||
+			panGesture ||
+			nodeDragGesture ||
+			nodeResizeGesture ||
+			selectionGesture ||
+			connectionDraft
+		) {
 			return;
 		}
+		if (
+			event.target instanceof Element &&
+			event.target.closest(
+				'.toolbar, button, input, select, textarea, a, [role="button"], [contenteditable="true"], [data-no-node-select]'
+			)
+		)
+			return;
 		viewport.container?.focus();
 		viewport.stopAnimation();
 		if (event.button === 0 && event.shiftKey) {
@@ -182,14 +210,13 @@ export function createCanvasGestures(
 			viewport.container?.setPointerCapture(event.pointerId);
 			return;
 		}
+		if (event.button === 0 && !event.ctrlKey && !event.metaKey && !event.altKey) clearSelection();
 		panGesture = {
 			pointerId: event.pointerId,
 			startX: event.clientX,
 			startY: event.clientY,
 			cameraX: viewport.camera.x,
-			cameraY: viewport.camera.y,
-			moved: false,
-			clearSelectionOnClick: event.button === 0
+			cameraY: viewport.camera.y
 		};
 		viewport.container?.setPointerCapture(event.pointerId);
 	};
@@ -420,9 +447,6 @@ export function createCanvasGestures(
 		if (panGesture?.pointerId === event.pointerId) {
 			const deltaX = event.clientX - panGesture.startX;
 			const deltaY = event.clientY - panGesture.startY;
-			if (!panGesture.moved && Math.hypot(deltaX, deltaY) >= 3) {
-				panGesture = { ...panGesture, moved: true };
-			}
 			viewport.setCamera({
 				...viewport.camera,
 				x: panGesture.cameraX + deltaX,
@@ -530,9 +554,6 @@ export function createCanvasGestures(
 			finishSelectionGesture();
 		}
 		if (panGesture?.pointerId === event.pointerId) {
-			if (!panGesture.moved && panGesture.clearSelectionOnClick) {
-				publishSelection([], []);
-			}
 			panGesture = null;
 		}
 		if (nodeDragGesture?.pointerId === event.pointerId) {
@@ -650,6 +671,7 @@ export function createCanvasGestures(
 			return selectionBoxStyle;
 		},
 		updateSelection,
+		clearSelection,
 		selectEdge,
 		selectEdgeWithKeyboard,
 		startPan,

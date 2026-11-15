@@ -343,6 +343,10 @@
 	const selectEndpoint = (endpoint: SpatialEndpoint): void => {
 		session?.selectNode(endpoint.node.node_id, 'REPLACE');
 	};
+	const selectGraphOwner = (): void => {
+		if (activeModule && !interaction.activeEndpointKey)
+			session?.selectNode(activeModule.node_id, 'REPLACE');
+	};
 
 	const startInspectorResize = (event: PointerEvent): void => {
 		event.preventDefault();
@@ -493,6 +497,7 @@
 				<GraphCanvas
 					bind:this={graphCanvas}
 					{graphDocument}
+					onGraphSelectionChange={selectGraphOwner}
 					worldNavigation={endpointNavigation.world}
 					interactionHelp="Use Enter or Space to select an endpoint. Arrow keys move it; Shift moves farther. Arrow keys on a radius handle resize it. Use Add target to create at the view center."
 					worldContent={spatializerWorld}
