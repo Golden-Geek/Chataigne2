@@ -631,6 +631,13 @@ export function createDashboardCamera(context: DashboardCameraContext) {
 		if (pageViewportResizeFrame !== null) cancelAnimationFrame(pageViewportResizeFrame);
 	});
 	return {
+		cancelInteraction(): boolean {
+			if (pageView.pointerId === null && pageViewAnimationFrame === null && pendingFrame === null)
+				return false;
+			pageView = { ...pageView, pointerId: null, lastClient: null };
+			cancelPageViewAnimation();
+			return true;
+		},
 		get navigationState() {
 			return {
 				view: currentPersistedPageView(),

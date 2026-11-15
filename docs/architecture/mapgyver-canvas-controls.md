@@ -42,6 +42,15 @@ and withdraw uncommitted previews without mutation callbacks. Earlier pending op
 retain their lifecycle. This is verified in the production DOM fixture for standard graph gestures;
 actual domain/native/custom-world qualification remains in M14/1.
 
+Golden Dashboard keeps its specialized free/ordered layout controllers. Its focused selection
+module owns widget pointer/keyboard admission and page Escape dispatch; only selected widgets
+mount resize zones, and unselected hover changes the border. Each page's view context routes
+cancellation only to its mounted controllers, including nested marquee and navigation input.
+Escape cancels those tools first, then selects the page owner when idle. Canceled marquees
+restore their prior selection; late pointer release cannot submit the canceled operation.
+Nested keyboard selection stops before reaching an ancestor widget. Run mode and text input
+retain their native keys. Separate page views have independent cancellation registries.
+
 Golden's public `createViewportPointer` owns coordinate projection, primary-hit consumption
 and pointer capture/cancel. It selects a hit before calling the adapter's edit admission;
 refused edits retain selection and viewport focus without acquiring capture. Composition and

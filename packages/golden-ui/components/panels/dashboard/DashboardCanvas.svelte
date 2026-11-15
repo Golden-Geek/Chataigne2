@@ -22,7 +22,11 @@
 		FreeLayoutRect
 	} from './canvas/contracts';
 	import { freeLayoutResizeZones } from './canvas/geometry';
-	import { selectionModeFromEvent, focusClosestPageViewport } from './canvas/dom';
+	import {
+		dashboardWidgetPointerDown,
+		dashboardWidgetKeyDown,
+		dashboardPageKeyDown
+	} from './canvas/selection';
 	import { onDestroy, getContext, setContext, untrack } from 'svelte';
 	import {
 		createDashboardViewContext,
@@ -468,11 +472,7 @@
 	};
 
 	const selectWidgetNodeFromKeyboard = (event: KeyboardEvent): void => {
-		if (event.key !== 'Enter' && event.key !== ' ') {
-			return;
-		}
-		event.preventDefault();
-		selectWidgetNode(selectionModeFromEvent(event));
+		dashboardWidgetKeyDown(event, editMode, selectWidgetNode);
 	};
 
 	const widgetLabelPlacementClass = (labelPlacement: DashboardLabelPlacement | null): string => {
@@ -483,37 +483,16 @@
 	};
 
 	const handleWidgetPointerDown = (event: PointerEvent): void => {
-		focusClosestPageViewport(event.currentTarget);
-		if (!editMode || event.button !== 0) {
-			return;
-		}
-		event.stopPropagation();
-		const selectionMode = selectionModeFromEvent(event);
-		if (supportsFreePlacement) {
-			if (selectionMode !== 'REPLACE') {
-				selectWidgetNode(selectionMode);
-				return;
-			}
-			if (!isSelected) {
-				selectWidgetNode('REPLACE');
-			}
-			beginFreeLayoutMove(event, resolveTransformNodes());
-			return;
-		}
-		if (selectionMode !== 'REPLACE') {
-			event.stopPropagation();
-			selectWidgetNode(selectionMode);
-			return;
-		}
-		if (!isSelected) {
-			selectWidgetNode('REPLACE');
-		}
-		if (supportsOrdering) {
-			beginWidgetMoveInteraction(event);
-			return;
-		}
-		event.stopPropagation();
-		selectWidgetNode('REPLACE');
+		dashboardWidgetPointerDown(event, {
+			editing: editMode,
+			selected: isSelected,
+			select: selectWidgetNode,
+			move: supportsFreePlacement
+				? (event) => beginFreeLayoutMove(event, resolveTransformNodes())
+				: supportsOrdering
+					? beginWidgetMoveInteraction
+					: undefined
+		});
 	};
 
 	onDestroy(() => {
@@ -527,7 +506,7 @@
 			constrainedResizeInteraction !== null
 	);
 	let visibleResizeZones = $derived.by(() => {
-		if (!editMode) {
+		if (!editMode || !isSelected) {
 			return [] as FreeLayoutResizeZone[];
 		}
 		if (supportsFreePlacement) {
@@ -545,6 +524,28 @@
 		}
 		return [] as FreeLayoutResizeZone[];
 	});
+	$effect(() =>
+		dashboardView?.registerCancellation(() => {
+			let handled = marqueeState.cancel();
+			if (freeLayoutInteraction !== null) {
+				void freeLayoutState.edit({ kind: 'cancel' }, resolveTransformNodes);
+				handled = true;
+			}
+			if (widgetMoveInteraction !== null || constrainedResizeInteraction !== null) {
+				void orderedLayoutState.edit({ kind: 'cancel' });
+				handled = true;
+			}
+			if (isPage) handled = camera.cancelInteraction() || handled;
+			return handled;
+		})
+	);
+	function handlePageKeyDown(event: KeyboardEvent) {
+		dashboardPageKeyDown(event, {
+			editing: editMode,
+			cancel: () => dashboardView?.cancelInteraction() ?? false,
+			selectOwner: () => session?.selectNode(liveNode.node_id, 'REPLACE')
+		});
+	}
 	let parentSnapGrid = $derived(getDashboardSnapGrid(graph, parentNode));
 
 	const widgetContent = createDashboardWidgetContent({
@@ -608,9 +609,6 @@
 				class="dashboard-resize-zone {resizeZone.name}"
 				aria-hidden="true"
 				onpointerdown={(event) => {
-					if (!isSelected) {
-						selectWidgetNode('REPLACE');
-					}
 					if (supportsFreePlacement) {
 						beginFreeLayoutResize(event, resizeZone.edges, resolveTransformNodes());
 						return;
@@ -642,6 +640,8 @@
 {/snippet}
 
 {#if isPage}
+	<!-- The focusable page routes editor keys while preserving native widget controls. -->
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div
 		class="gc-dashboard-canvas dashboard-page-viewport"
 		bind:this={pageViewportElement}
@@ -659,6 +659,7 @@
 			isPageViewportFocused = false;
 		}}
 		onwheel={handlePageViewportWheel}
+		onkeydown={handlePageKeyDown}
 		onpointerdown={handlePageViewportPointerDown}>
 		<div class="dashboard-page-scene" style={pageSceneStyle}>
 			<div

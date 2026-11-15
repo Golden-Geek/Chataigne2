@@ -106,13 +106,31 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Matrix Layer spatial / Matrix media | Shared owner clear and no-child projection, immediate controls/cached-definition clearing; shared hover, selected-only controls and keyboard/pointer unavailable-bounds selection verified | Actual adapter/Inspector/native checks, independent-editor and active-gesture behavior |
 | Matrix Cell spatial / Layer | Shared Layer-owner clear without navigation; backend descendant/off-page selection; shared hover, selected-only controls and unavailable-bounds keyboard/pointer selection verified | Actual adapter/Inspector/native checks, active/outgoing/off-page interaction acceptance |
 | Golden graph canvases | Browser verifies primary-down nodes/edges, immediate background/idle-Escape empty selection, selected-only resize/hover, modifier/marquee/pan/text/finder isolation; captured cancellation/focus/identity/lifecycle boundaries and pending-work preservation; Spatializer owner callback wired and consumers typecheck | Actual domain Inspector/native/independent-editor/offscreen/permission and specialized custom-world capture acceptance |
-| Dashboard, curve and watcher projection canvases | Specialized Golden canvases must be reviewed | Resolve applicable authored-object/point selection versus read-only projection, then verify specialized tool/focus behavior; no exemption claimed |
-| Media Preview / Matrix grid | Preview is not the spatial placement editor; grid has its own selection | Confirm applicable owner/child manipulation paths, including read-only preview and virtualized selection; no qualification claimed from classification |
+| Golden Dashboard / edited page | Primary-down widget/background selection; selected-only resize zones; border hover; per-page tool-first/idle-owner Escape; free/ordered move/resize and marquee/pan cancellation, nested keyboard and two-editor isolation verified in production browser fixture | Actual workbench/Inspector, permission/offscreen/project and current-host acceptance remain open; unrelated Dashboard backend edits are preserved |
+| Animation curves / curve and key nodes | Authored point/segment editing with local bound key/multi-key selection driving the embedded key/easing Inspector | Verify shared selection/owner/Escape, selected-only handles and capture/cancel. The existing large editor needs cohesive selection/input extraction before behavior changes; no exemption or acceptance claimed |
+| Watcher projection canvases | `WatcherProjectionCanvas` renders buffer samples/latest points without pointer, key or mutation callbacks; it has no authored canvas targets | Read-only projection applicability resolved from source. Ordinary Inspector owns its settings; retain panel focus/lifetime checks in actual workbench acceptance |
+| Media Preview / followed or locked media | `MediaPreviewPanel` renders `ChannelPreview`/`NativePreview` without authored geometry targets; toolbar changes preview choice, not object placement | Read-only image applicability resolved from source. Existing follow/lock/routing requirements stay intact; actual cross-panel/native qualification remains open |
+| Matrix grid / Matrix, Layer, Column and Cell | Separate authored selection exists; source audit finds row/column and Cell click handlers, with root pointer-down currently tracking only drag origin | Next deliver primary-down and owner/Escape selection through the shared boundary, preserving launch/drag/control/text/virtualization behavior, then qualify actual Inspector and independent panels |
 
 This inventory retains the complete gate. DOM callback fixtures do not establish actual
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Dashboard slice (2026-11-15):90 focused Golden Dashboard/viewport unit cases pass. The existing
+production fixture now has16 selection groups for free/horizontal/vertical primary-down,
+selected-only controls, contour-only hover, owner/keyboard/modifier selection, free/ordered
+move/resize Escape, real browser pointer late-release rejection, marquee foreign/matching cancel
+and blur, navigation cancellation, nested key isolation, two independent editors, and Run mode
+text Enter/Escape. All126 existing gesture/ordered-layout groups pass. The initial selection
+fixture's default overlapping inspection widget covered its target; explicit non-overlapping
+grid data resolves that fixture issue without forcing clicks or changing production hit order.
+Golden fixture and both app typechecks report0/0; scoped lint, both production UI builds and
+root/Core formatting pass. The selection module keeps `DashboardCanvas` below1000 lines.
+Logs are `target/m14-dashboard-*-2026-11-15.log`. Final selection receipt:
+`target/qualification/p11-dashboard-viewport-2026-11-15T17-05-30-420Z.json`;
+existing regression receipt: `p11-dashboard-viewport-2026-11-15T17-02-36-424Z.json` in that directory.
+No current native/actual-app Inspector or whole-gate acceptance is inferred. No Rust/DTO changed.
 
 Contour slice (2026-11-15):15 Golden viewport unit cases and78 Screen/Composition/Matrix cases
 pass. The expanded production browser fixture verifies hover without selection/fill/handles,
@@ -222,6 +240,6 @@ native fixture SHA256:
 These replace the debug binaries from the historical M10 build receipt; refresh coherent
 qualification inputs on return. Existing Video evidence retains its original source/build scope.
 
-Next deliverable: finish the specialized-editor selection inventory, then verify current actual
-Inspector/native/independent-editor behavior with coherent rebuilt binaries. No completed slice
+Next deliverable: Matrix grid primary-down and owner/Escape selection, then curve selection/input
+and current actual Inspector/native/independent-editor behavior with coherent rebuilt binaries. No completed slice
 or passing software suite substitutes for whole-gate acceptance.

@@ -34,11 +34,10 @@
 	cursor: grabbing;
 }
 
-.gc-dashboard-canvas.dashboard-widget-shell:not(.run-mode):hover,
-.gc-dashboard-canvas .dashboard-widget-shell:not(.run-mode):hover {
+.gc-dashboard-canvas.dashboard-widget-shell:not(.run-mode):not(.selected):hover,
+.gc-dashboard-canvas .dashboard-widget-shell:not(.run-mode):not(.selected):hover {
 	border-style: solid;
 	border-color: rgb(from var(--gc-color-panel-outline) r g b / 0.82);
-	background: rgb(from var(--gc-color-background) r g b / 0.08);
 }
 
 .gc-dashboard-canvas.dashboard-widget-shell.selected,

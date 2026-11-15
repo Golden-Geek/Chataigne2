@@ -48,6 +48,11 @@
 	let presentationBudget = $state(512);
 	let canvas = $state<ReturnType<typeof DashboardCanvas>>();
 	let canvasMounted = $state(true);
+	let comparison = $state(false);
+	export async function showComparison(value: boolean) {
+		comparison = value;
+		await settle();
+	}
 	export async function mountCanvas(value: boolean) {
 		canvasMounted = value;
 		await settle();
@@ -806,6 +811,11 @@
 		{/key}
 	{/if}
 </main>
+{#if comparison && data}
+	<aside class="comparison" aria-label="Independent Dashboard editor">
+		<DashboardCanvas node={data.page} {editMode} {presentationBudget} />
+	</aside>
+{/if}
 
 <style>
 	:global(html) {
@@ -821,5 +831,13 @@
 		width: 90vw;
 		height: 90vh;
 		margin: 2rem;
+	}
+	.comparison {
+		position: fixed;
+		inset-block-start: 1rem;
+		inset-inline-end: 1rem;
+		inline-size: 40vw;
+		block-size: 40vh;
+		z-index: 10;
 	}
 </style>

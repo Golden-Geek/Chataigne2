@@ -87,6 +87,14 @@ export function createDashboardMarquee(context: DashboardMarqueeContext) {
 		}
 		session?.selectNode(liveNode.node_id, selectionMode);
 	};
+	const cancel = (): boolean => {
+		if (!surfacePress && !marqueeSelection) return false;
+		const restore = marqueeSelection?.baseSelection;
+		surfacePress = null;
+		marqueeSelection = null;
+		if (restore) session?.selectNodes(restore, 'REPLACE');
+		return true;
+	};
 
 	const beginSurfacePress = (event: PointerEvent, surfaceElement: HTMLElement): void => {
 		const selectionMode = selectionModeFromEvent(event);
@@ -189,11 +197,13 @@ export function createDashboardMarquee(context: DashboardMarqueeContext) {
 		window.addEventListener('pointermove', handlePointerMove);
 		window.addEventListener('pointerup', finishPress);
 		window.addEventListener('pointercancel', finishPress);
+		window.addEventListener('blur', cancel);
 
 		return () => {
 			window.removeEventListener('pointermove', handlePointerMove);
 			window.removeEventListener('pointerup', finishPress);
 			window.removeEventListener('pointercancel', finishPress);
+			window.removeEventListener('blur', cancel);
 		};
 	});
 
@@ -219,6 +229,10 @@ export function createDashboardMarquee(context: DashboardMarqueeContext) {
 			if (!marqueeSelection || event.pointerId !== marqueeSelection.pointerId) {
 				return;
 			}
+			if (event.type === 'pointercancel') {
+				cancel();
+				return;
+			}
 			const completedSelection = {
 				...marqueeSelection,
 				currentClient: [event.clientX, event.clientY] as [number, number]
@@ -230,6 +244,7 @@ export function createDashboardMarquee(context: DashboardMarqueeContext) {
 		window.addEventListener('pointermove', handlePointerMove);
 		window.addEventListener('pointerup', finishSelection);
 		window.addEventListener('pointercancel', finishSelection);
+		window.addEventListener('blur', cancel);
 
 		const previousCursor = document.body.style.cursor;
 		const previousUserSelect = document.body.style.userSelect;
@@ -240,6 +255,7 @@ export function createDashboardMarquee(context: DashboardMarqueeContext) {
 			window.removeEventListener('pointermove', handlePointerMove);
 			window.removeEventListener('pointerup', finishSelection);
 			window.removeEventListener('pointercancel', finishSelection);
+			window.removeEventListener('blur', cancel);
 			document.body.style.cursor = previousCursor;
 			document.body.style.userSelect = previousUserSelect;
 		};
@@ -257,6 +273,7 @@ export function createDashboardMarquee(context: DashboardMarqueeContext) {
 	});
 
 	return {
+		cancel,
 		selectInRect: (element: HTMLElement, rect: FreeLayoutRect, selectionMode: SelectionMode) => {
 			applyMarqueeSelection({
 				surfaceElement: element,

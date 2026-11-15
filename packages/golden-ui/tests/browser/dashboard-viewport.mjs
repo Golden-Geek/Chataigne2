@@ -14,6 +14,7 @@ import { lifecycleChecks } from './dashboard-lifecycle.mjs';
 import { editLifecycleChecks } from './dashboard-edit-lifecycle.mjs';
 import { creationChecks } from './dashboard-creation.mjs';
 import { gestureChecks } from './dashboard-gestures.mjs';
+import { selectionChecks } from './dashboard-selection.mjs';
 import { confirmedChecks } from './dashboard-confirmed.mjs';
 import { orderedChecks } from './dashboard-ordered.mjs';
 import { orderedMoveChecks } from './dashboard-ordered-move.mjs';
@@ -46,6 +47,7 @@ const lifecycleOnly = process.argv.includes('--lifecycle-only');
 const editOnly = process.argv.includes('--edit-only');
 const creationOnly = process.argv.includes('--creation-only');
 const gesturesOnly = process.argv.includes('--gestures-only');
+const selectionOnly = process.argv.includes('--selection-only');
 const confirmedOnly = process.argv.includes('--confirmed-only');
 const orderedOnly = process.argv.includes('--ordered-only');
 const orderedMoveOnly = process.argv.includes('--ordered-move-only');
@@ -66,6 +68,7 @@ const fullRun =
 		editOnly ||
 		creationOnly ||
 		gesturesOnly ||
+		selectionOnly ||
 		confirmedOnly ||
 		orderedOnly ||
 		orderedMoveOnly ||
@@ -217,6 +220,7 @@ const result = {
 	passed: false
 };
 let browser;
+if (selectionOnly) result.scope = 'selection-only';
 const record = (label, details = {}) => {
 	result.cases.push({ label, ...details, passed: true });
 };
@@ -702,6 +706,7 @@ try {
 		if (fullRun || creationOnly) await creationChecks(page, record);
 		await retention('creation');
 		if (fullRun || gesturesOnly) await gestureChecks(page, record);
+		if (fullRun || selectionOnly) await selectionChecks(page, record);
 		await retention('gestures');
 		if (fullRun || confirmedOnly) await confirmedChecks(page, record);
 		await retention('confirmed');

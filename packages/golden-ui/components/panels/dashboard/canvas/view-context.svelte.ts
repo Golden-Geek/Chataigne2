@@ -31,6 +31,8 @@ export interface SurfacePresentationActions {
 	toggleAccordion(id: NodeId): boolean;
 }
 export interface DashboardViewContext {
+	registerCancellation(cancel: () => boolean): () => void;
+	cancelInteraction(): boolean;
 	readonly itemOrder: SurfaceItemOrder;
 	readonly measurements: SurfaceMeasurements;
 	readonly previews: ParameterPreviews | null;
@@ -97,6 +99,7 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 	const actions = new Map<NodeId, SurfacePresentationActions>();
 	const layoutEdits = new Map<NodeId, (command: WidgetLayoutEdit) => Promise<boolean>>();
 	const browsers = new Map<NodeId, SurfaceBrowserActions>();
+	const cancellations = new Set<() => boolean>();
 	let retained = $state.raw<ReadonlyMap<NodeId, readonly NodeId[]>>(new Map());
 	let pageUuid: string | null = null;
 	let previousGraph: GraphState | null = null;
@@ -134,6 +137,7 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 		actions.clear();
 		layoutEdits.clear();
 		browsers.clear();
+		cancellations.clear();
 		previousGraph = null;
 	});
 	const clientRect = (id: NodeId): { rect: FreeLayoutRect; anchor: HTMLElement } | null => {
@@ -258,6 +262,17 @@ export function createDashboardViewContext(context: DashboardViewSource): Dashbo
 		}
 	};
 	return {
+		registerCancellation(cancel) {
+			cancellations.add(cancel);
+			return () => {
+				cancellations.delete(cancel);
+			};
+		},
+		cancelInteraction() {
+			let handled = false;
+			for (const cancel of cancellations) handled = cancel() || handled;
+			return handled;
+		},
 		itemOrder,
 		measurements,
 		get previews() {
