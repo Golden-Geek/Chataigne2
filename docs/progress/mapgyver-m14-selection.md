@@ -210,6 +210,19 @@ and60-minute cumulative investigation limit remain in force; the next implementa
 needs source evidence for the actual cancellation path. Logs: `target/m14-curve-lifetime-*-2026-11-15.log`.
 M14/1 remains Active, M14 0/10, overall88/106 (83%).
 
+Connected capture assertion (2026-11-15): the existing scene now requires the actual primary-down
+pointer capture and keyboard focus before testing movement, reusing the Inspector fixture's
+pointer-ID check. The current ordinary executable fails that earlier requirement with
+`captured:false, focused:true, activeTag:CANVAS`; selection, canvas identity and real creation
+still pass. Receipt: `target/m14-curve-capture-connected-2026-11-15/failure.json`; the owned host
+shuts down normally. This is one post-press observation, not proof that no transient blur or
+DOM lifetime transition occurred. Later movement/history acceptance remains unexecuted.
+The test scene, executable, inputs and deadlines are unchanged; no profiler or alternate
+environment was introduced. Stop extending this runtime investigation. Next deliver the
+remaining focused Curve input/controller decomposition under the same M14/1 gate, preserving
+this exact failing acceptance check and revisiting ownership when the extracted source provides
+a justified fix. The parked cache attempt remains untouched; no gate is accepted by this check.
+
 Matrix/Curve backend slice (2026-11-15): the full current MapGyver library suite passes
 692 tests with5 ignored; strict `cargo clippy --locked -p MapGyver --lib --tests -- -D warnings`
 passes. New public-intent tests cover control-subtree creation, exact creation receipt, one-step
@@ -481,7 +494,7 @@ lifetime receipt above. The native fixture remains older: these are not a cohere
 native qualification pair. Refresh both inputs before native acceptance; Video evidence keeps
 its original source/build scope.
 
-Next deliverable: fix the reproducible first-drag cancellation in the existing connected Curve
-case, then finish controller decomposition and actual backend/history/Inspector/native and
+Next deliverable: finish the remaining focused Curve input/controller decomposition and fix
+the captured-pointer loss exposed by the existing connected case, then actual backend/history/Inspector/native and
 independent-editor lifetime acceptance with coherent rebuilt binaries. No completed slice
 or passing software suite substitutes for whole-gate acceptance.

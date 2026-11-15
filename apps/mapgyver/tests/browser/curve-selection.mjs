@@ -215,6 +215,15 @@ try {
 	const currentBox = await canvas.boundingBox();
 	const x = currentBox.x + currentBox.width * 0.6,
 		y = currentBox.y + currentBox.height * 0.6;
+	await canvas.evaluate((element) =>
+		element.addEventListener(
+			'pointerdown',
+			(event) => {
+				element.dataset.curvePointer = String(event.pointerId);
+			},
+			{ once: true, capture: true }
+		)
+	);
 	await page.mouse.move(x, y);
 	await page.mouse.down();
 	await page
@@ -224,6 +233,16 @@ try {
 	assert(
 		await canvas.evaluate((node, previous) => node === previous, original),
 		'shared selection retains the captured canvas'
+	);
+	const ownership = await canvas.evaluate((element) => ({
+		captured: element.hasPointerCapture(Number(element.dataset.curvePointer)),
+		focused: document.activeElement === element,
+		activeTag: document.activeElement?.tagName,
+		activeClass: document.activeElement?.className
+	}));
+	assert(
+		ownership.captured && ownership.focused,
+		`primary-down retains capture/focus: ${JSON.stringify(ownership)}`
 	);
 	await page.mouse.move(x + 24, y - 12, { steps: 4 });
 	await wait(curveState, (value) => JSON.stringify(value) !== JSON.stringify(after));
