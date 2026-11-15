@@ -32,6 +32,7 @@ mod front_order;
 mod layer_geometry;
 mod layer_settings;
 mod owned_media;
+mod parameter_controls;
 mod parameters;
 mod placement;
 mod playback;

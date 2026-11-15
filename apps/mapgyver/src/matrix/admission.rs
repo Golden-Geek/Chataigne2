@@ -10,8 +10,13 @@ use golden_core::{
 use std::collections::{HashMap, HashSet};
 
 fn owned(engine: &AppEngine, mut id: NodeId) -> bool {
-    // Engine parent links are acyclic. Matrix membership may be nested beneath a group/layer.
+    let original = id;
+    // Parameter controls own their nested editable structure. The declared Parameter itself
+    // and Matrix folders/elements still belong to the app's structural policy.
     while let Some(node) = engine.nodes.get(id) {
+        if id != original && matches!(node, AppNode::Parameter(_)) {
+            return false;
+        }
         if matches!(node, AppNode::Media(media) if media.kind() == MediaKind::Matrix) {
             return true;
         }

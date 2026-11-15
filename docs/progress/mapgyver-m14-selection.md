@@ -142,6 +142,15 @@ into the replacement view. Scoped preview cleanup preserves newer previews. Geom
 also refuses to join an existing edit session while command creation is pending. The4786-line
 editor/controller still needs further cohesive decomposition and actual-host acceptance.
 
+Matrix Parameter control subtrees now admit ordinary Curve CRUD in the actual backend. Previously
+Matrix's ancestry guard rejected real key creation with `app_intent_rejected` / “Use Matrix
+operations to edit Matrix structure and its paired exports.” The guard now recognizes Golden's
+Parameter-control ownership boundary while protecting declared Parameters, Matrix elements and
+paired exports. The connected production UI confirms an exact created-node receipt, initialized
+typed key Inspector and one backend history item. This is a usable creation fix, not full Curve
+input acceptance: the same fixture then selects the key before release and retains its canvas,
+but its first drag opens/closes Begin/End without a Parameter write. That failure remains required.
+
 ## Applicable editor inventory
 
 Screen, Source, Composition and Matrix now share Golden's contour action and pure paint
@@ -176,6 +185,34 @@ This inventory retains the complete gate. DOM callback fixtures do not establish
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Matrix/Curve backend slice (2026-11-15): the full current MapGyver library suite passes
+692 tests with5 ignored; strict `cargo clippy --locked -p MapGyver --lib --tests -- -D warnings`
+passes. New public-intent tests cover control-subtree creation, exact creation receipt, one-step
+initialization Undo/Redo, complete typed Curve model/identity reload, duplicate/move/removal and
+atomic rejection of mixed Matrix/Curve removals and declared-Parameter edits. Sparse reload
+rematerializes declared children, so reload compares the complete typed Curve model and UUIDs;
+Undo/Redo retain exact sparse-project comparison. The initial test assumptions about duplication
+receipts and byte-identical sparse reload were corrected, without changing production codecs.
+
+`apps/mapgyver/tests/browser/curve-selection.mjs` uses the existing ordinary headless host and
+production bundled UI, with public HTTP setup and real workbench input. Run it with
+`MAPGYVER_TEST_BINARY` pointing to the rebuilt ordinary executable and a fresh output directory.
+The retained actual-backend rejection is in `target/m14-curve-backend-ready-2026-11-15/failure.json`.
+After the backend fix, both `target/m14-curve-backend-fixed-2026-11-15/failure.json` and
+`target/m14-curve-backend-final-2026-11-15/failure.json` verify key creation/identity/typed Inspector/
+single history before failing the live-drag requirement. The complete connected suite is **failing**;
+its later UI Undo/Redo assertions have not run. No whole gate or native qualification closes.
+
+A bounded attempt to ignore live ancestor metadata in the selection cache passes58 focused tests
+and existing Inspector browser/type/build checks, but does not fix the connected drag. It is
+**not shipped**: stash `1371a7bda9d03f1f637889dbab90c25c33de4781`
+(`mapgyver-m14-curve-ancestor-cache-unproven-2026-11-15`) holds only that attempt and its unit test.
+Do not automatically restore or repeat this unchanged hypothesis. The original57-case Golden
+implementation remains in the checkout. Current drag investigation began20:15UTC; the observed
+baseline and cache experiment are terminal. Next inspect the existing cancellation paths and make
+a justified implementation decision; do not extend this chain with another probe variant.
+Logs: `target/m14-curve-backend-*-2026-11-15.log`. M14/1 Active, M14 0/10,88/106 (83%).
 
 Curve pending-operation slice (2026-11-15):57 focused operation/Curve/Inspector/viewport unit
 cases pass, including permanent view loss, host/project/snapshot/loading/disconnect/owner-removal/
@@ -402,15 +439,22 @@ Logs live under `target/m14-selection-*-2026-11-14.log` and
 `target/m14-composition-*-2026-11-14.log`.
 `target/m14-matrix-*-2026-11-14.log` holds Matrix validation; current Source results are
 `target/m14-source-*-2026-11-15.log` with retained Rust/Clippy scope in the2026-11-14 Source logs.
-Latest desktop build log SHA256:
+Historical Source desktop build log SHA256:
 `0818509733cba660717301553ade2d170bb6867f75ce2f278a8c63a3791a55f9`.
-Built ordinary app SHA256:
+Historical Source ordinary app SHA256:
 `484879f411c2597e2cc9fda24e6776ceb45453dfcef6d60561b3d86c8cc42a1f`;
-native fixture SHA256:
+retained native fixture SHA256:
 `4b1390515b8c9adc6104f37cec48e884f6fb9dc1f58cc4df965072fc0777d04a`.
-These replace the debug binaries from the historical M10 build receipt; refresh coherent
-qualification inputs on return. Existing Video evidence retains its original source/build scope.
+Current ordinary checkpoint rebuild after parking the unproven cache attempt:
+`35e7ce1c0df6106c7f7cab323c3efeb98734c278b7a978ed755e4c52eda16da1`;
+build log SHA256 `cd5a81086ee1e15d9835b48a3070418dfe9b9b1bfa0933daf1873759fad7bda1`
+(`target/m14-curve-backend-build-checkpoint-2026-11-15.log`). This restores the committed Golden
+UI source and includes the Matrix guard fix. It is not a coherent new ordinary/native pair:
+the native fixture remains older, and the connected failure receipts above retain their own
+earlier build scope. No extra live experiment followed this checkpoint rebuild. Refresh both
+qualification inputs before native acceptance; Video evidence keeps its original source/build scope.
 
-Next deliverable: finish the remaining Curve controller split and current actual backend/history/
-Inspector/native and independent-editor lifetime acceptance with coherent rebuilt binaries. No completed slice
+Next deliverable: fix the reproducible first-drag cancellation in the existing connected Curve
+case, then finish controller decomposition and actual backend/history/Inspector/native and
+independent-editor lifetime acceptance with coherent rebuilt binaries. No completed slice
 or passing software suite substitutes for whole-gate acceptance.

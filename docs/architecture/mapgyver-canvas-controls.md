@@ -76,6 +76,14 @@ before submitting another key after view replacement. Owned preview cleanup pres
 preview objects, and a late creation cannot steal the user's newer selection. This changes no
 authored schema or domain defaults; actual backend/history/native acceptance remains separate.
 
+MapGyver's Matrix admission guard protects Matrix structure and its declared Parameters, while
+Golden owns editable descendants of a Parameter's control subtree. Walking ancestry stops at
+that Parameter boundary for nested control edits. Curve key creation/removal/move/duplication
+therefore use ordinary Golden intents; direct Matrix edits, mixed removals and attempts to remove
+the declared Parameter remain protected. This policy belongs in the backend and applies to every
+generic caller, including the ordinary app's transport. The connected Curve fixture also retains
+an unresolved first-drag cancellation; passing key creation does not establish full input acceptance.
+
 Matrix grid uses those actions for Cells, row/column/group headers and their labels, alongside
 the shared contour hover. Background/idle Escape select the Matrix media owner. Grid coordinates
 and an explicit document focus identity publish together, so clearing or moving between Column
