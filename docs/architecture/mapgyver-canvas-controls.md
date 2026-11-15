@@ -42,6 +42,17 @@ live parameter publications retain capture. Idle Escape reuses `clearViewportSel
 The existing oversized model/render components still need further cohesive decomposition;
 the extracted types and terminal controller do not exempt them from the readability requirement.
 
+Golden's `parameter-value-access` owns the value-access rule shared by the ordinary Inspector
+and specialized Curve gestures. Typed read-only, enabled and control metadata remain authoritative;
+the UI does not change control modes to admit an edit. Curve geometry requires its complete
+parameter group and matching current UUIDs before opening an edit session. It rechecks access
+before queued writes, cancels on revocation and respects document remove/duplicate permission.
+Read-only targets remain selectable. The selected key's typed Inspector remains mounted when
+navigation moves the key outside the canvas. Curve owner replacement resets retained camera
+bounds; live parameter publications preserve them. Curve constants/value projection, key-model
+reading and compiled easing evaluation now live in focused modules under `common/curve`;
+model projection never mutates document nodes. Renderer/controller decomposition remains open.
+
 Matrix grid uses those actions for Cells, row/column/group headers and their labels, alongside
 the shared contour hover. Background/idle Escape select the Matrix media owner. Grid coordinates
 and an explicit document focus identity publish together, so clearing or moving between Column

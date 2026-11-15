@@ -76,6 +76,51 @@
 	let guardResult = $state('pending');
 	let removals = $state(0);
 	let sequence = 0;
+	type AccessMode = 'manual' | 'readonly' | 'disabled' | 'controlled' | 'mixed' | 'protected';
+	let accessMode = $state<AccessMode>('manual');
+	let accessRevision = $state(0);
+	async function changeAccess(mode: AccessMode) {
+		const copy = structuredClone(nodes),
+			byId = new Map(copy.map((node) => [node.node_id, node]));
+		const owned = new Set<number>();
+		const visit = (id: number) => {
+			if (owned.has(id)) return;
+			owned.add(id);
+			for (const child of byId.get(id)?.children ?? []) visit(child);
+		};
+		visit(1);
+		for (const node of copy) {
+			if (!owned.has(node.node_id)) continue;
+			if (mode === 'protected' && node.node_id === 2)
+				node.meta.user_permissions.can_remove_and_duplicate = false;
+			if (node.data.kind !== 'parameter') continue;
+			if (mode === 'readonly' || (mode === 'mixed' && node.node_id === 10))
+				node.data.param.read_only = true;
+			if (mode === 'disabled') node.meta.enabled = false;
+			if (mode === 'controlled')
+				node.data.param.control = { mode: 'expression', spec: { mode: 'expression' } };
+		}
+		fixture.loadNodes(copy);
+		await fixture.session.refreshSnapshot();
+		select('Curve A');
+		accessMode = mode;
+		accessRevision++;
+	}
+	function revokeAccess(controlled: boolean) {
+		const node = fixture.session.graph.state.nodesById.get(4);
+		if (node?.data.kind !== 'parameter') throw Error('Missing Curve value');
+		fixture.session.graph.applyEvent({
+			time: { tick: ++sequence, micro: 0, seq: 0 },
+			kind: controlled
+				? {
+						kind: 'paramControlChanged',
+						param: 4,
+						old_state: node.data.param.control,
+						new_state: { mode: 'expression', spec: { mode: 'expression' } }
+					}
+				: { kind: 'metaChanged', node: 4, patch: { enabled: false } }
+		});
+	}
 	const api: PanelApi = {
 		observeVisibility: (listener) => {
 			listener(true);
@@ -140,6 +185,13 @@
 		}}>Run curve guard checks</button>
 	<output aria-label="Curve guard checks">{guardResult}</output>
 	<output aria-label="Curve removal intents">{removals}</output>
+	<output aria-label="Curve access mode">{accessMode}</output>
+	<output aria-label="Curve access revision">{accessRevision}</output>
+	{#each ['manual', 'readonly', 'disabled', 'controlled', 'mixed', 'protected'] as mode}
+		<button onclick={() => changeAccess(mode as AccessMode)}>Curve access {mode}</button>
+	{/each}
+	<button onclick={() => revokeAccess(false)}>Disable active Curve value</button>
+	<button onclick={() => revokeAccess(true)}>Control active Curve value</button>
 	<button
 		onclick={async () => {
 			fixture.loadNodes(structuredClone(nodes));
@@ -190,6 +242,7 @@
 
 <style>
 	:global(:root) {
+		--gc-color-curve-key-selected: #f100f1;
 		--gc-color-curve-handle-out: #fd00fd;
 		--gc-color-curve-handle-in: #00fdfd;
 	}

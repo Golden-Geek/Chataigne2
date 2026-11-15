@@ -110,6 +110,16 @@ projection prevents ordinary live graph publications from canceling a valid drag
 The existing oversized editor and Canvas2D renderer still need further cohesive decomposition;
 the new terminal/types modules do not close that readability debt or the full acceptance gate.
 
+Curve geometry now shares Golden's ordinary Inspector value-access rule. Read-only, disabled
+or externally controlled typed Parameters remain selectable, while their complete geometry
+group refuses capture and history admission. Current UUID/access checks stop queued writes
+after permission loss; remove/duplicate actions honor document permissions. A key moved outside
+the plot keeps its typed Inspector and can still be edited there. Replacing the Curve owner
+resets retained camera bounds without recentering ordinary live Parameter updates. Constants,
+value conversion, key-model projection and easing evaluation have been extracted into focused
+modules; their existing behavior and every easing kind remain covered. The editor/controller
+and Canvas2D renderer are still oversized and require further cohesive splits.
+
 ## Applicable editor inventory
 
 Screen, Source, Composition and Matrix now share Golden's contour action and pure paint
@@ -135,7 +145,7 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Matrix Cell spatial / Layer | Shared Layer-owner clear without navigation; backend descendant/off-page selection; shared hover, selected-only controls and unavailable-bounds keyboard/pointer selection verified | Actual adapter/Inspector/native checks, active/outgoing/off-page interaction acceptance |
 | Golden graph canvases | Browser verifies primary-down nodes/edges, immediate background/idle-Escape empty selection, selected-only resize/hover, modifier/marquee/pan/text/finder isolation; captured cancellation/focus/identity/lifecycle boundaries and pending-work preservation; Spatializer owner callback wired and consumers typecheck | Actual domain Inspector/native/independent-editor/offscreen/permission and specialized custom-world capture acceptance |
 | Golden Dashboard / edited page | Primary-down widget/background selection; selected-only resize zones; border hover; per-page tool-first/idle-owner Escape; free/ordered move/resize and marquee/pan cancellation, nested keyboard and two-editor isolation verified in production browser fixture | Actual workbench/Inspector, permission/offscreen/project and current-host acceptance remain open; unrelated Dashboard backend edits are preserved |
-| Animation curves / curve and key nodes | Shared key/easing/field and embedded typed Inspector; background-down/idle-owner Escape, tool-first cancel, selected-only Bezier handles and contour-only hover, normal live dragging, cancel/loss/blur/snapshot/late input and independent locked owners verified in the production browser fixture | Finish oversized model/render decomposition and complete actual backend/history/native, offscreen/permission and full lifetime acceptance; new input/types modules are under1000 lines but existing large components remain debt |
+| Animation curves / curve and key nodes | Shared key/easing/field and embedded typed Inspector; background/idle owner, tool-first cancel, selected-only Bezier/contour hover, live dragging, permission refusal/revocation, offscreen typed editing, scope replacement and independent locked owners verified in the production browser fixture | Finish oversized controller/renderer decomposition and complete actual backend/history/native and full lifetime acceptance; extracted modules stay under1000 lines, existing large components remain debt |
 | Watcher projection canvases | `WatcherProjectionCanvas` renders buffer samples/latest points without pointer, key or mutation callbacks; it has no authored canvas targets | Read-only projection applicability resolved from source. Ordinary Inspector owns its settings; retain panel focus/lifetime checks in actual workbench acceptance |
 | Media Preview / followed or locked media | `MediaPreviewPanel` renders `ChannelPreview`/`NativePreview` without authored geometry targets; toolbar changes preview choice, not object placement | Read-only image applicability resolved from source. Existing follow/lock/routing requirements stay intact; actual cross-panel/native qualification remains open |
 | Matrix grid / Matrix, Layer, Column and Cell | Shared primary-down/keyboard selection and hover for Cells/headers/labels; background/idle owner clear; immediate focus and stale-reply fencing; connected Golden browser fixture verifies controls, rename/launch, disabled input, independent drag cancellation and listener disposal | Actual backend/Inspector-driven selection, native drag/pixels, virtualized/offscreen/project and independent real-panel acceptance remain open |
@@ -144,6 +154,27 @@ This inventory retains the complete gate. DOM callback fixtures do not establish
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Curve model/access slice (2026-11-15):43 focused Curve/Inspector/viewport cases pass, covering
+typed model projection without source mutation, current UUID/group admission, every easing kind,
+invalid/duplicate sampling inputs and shared manual/template/control/disabled/read-only access.
+The production Inspector/Canvas2D browser fixture proves key/segment selection before release
+with refused capture/history for read-only, disabled and controlled values; mixed multi-key
+groups refuse as a whole. Live disable/control events cancel queued movement before a write.
+Protected key double activation cannot remove it. Actual selected-key pixels disappear after
+panning offscreen while its real typed Inspector stays editable; its field sends a typed write.
+Repeated permission snapshots wait for a fresh completed revision, including repeated Manual.
+
+The initial integration retained an offscreen camera across owner replacement. Resetting camera
+ownership in the new scope's effect body fixes it; cleanup alone could observe the prior scope.
+Ordinary live updates keep the view and capture, verified by the existing interaction checks.
+The initial extraction omitted a constant module's type import; the corrected module and all
+four app/Golden fixture typechecks report0 errors/0 warnings. Shared/app formatting, both
+production UI builds and root/Core formatting pass. Logs: `target/m14-curve-model-*-2026-11-15.log`;
+final unit/browser logs include `-final-`. No Rust/wire DTO or native executable changed.
+Mock transport and Canvas2D evidence do not qualify actual backend history, native/GPU pixels
+or every lifetime case. Existing oversized controller/renderer code remains explicit debt.
+No fixed gate closes: M14/1 Active, M14 0/10, overall88/106 (83%); M10 still Pending/release-blocking.
 
 Curve input slice (2026-11-15):28 focused Curve/Inspector/viewport unit cases pass. The production
 Inspector/Canvas2D browser fixture verifies immediate background/field owner clearing, tool-first

@@ -18,8 +18,8 @@ export type CurveShape = 'sine' | 'triangle' | 'saw' | 'reverseSaw' | 'square';
 
 export interface ParamNodeRef {
 	node_id: NodeId;
+	uuid: string;
 	value: ParamValue;
-	enabled: boolean;
 	constraints: UiParamConstraints;
 }
 

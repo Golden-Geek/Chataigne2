@@ -1,4 +1,72 @@
 <script lang="ts">
+	import { curveGeometryParameters, curveParametersWritable } from './curve/admission';
+	import {
+		CURVE_NODE_TYPE,
+		KEY_NODE_TYPE,
+		KEY_ITEM_KIND,
+		EASING_NODE_TYPE,
+		RANGE_NODE_TYPE,
+		DECL_EASING,
+		DECL_RANGE,
+		DECL_RANGE_X,
+		DECL_RANGE_Y,
+		DECL_KIND,
+		DECL_OUT_POSITION,
+		DECL_OUT_VALUE,
+		DECL_IN_POSITION,
+		DECL_IN_VALUE,
+		DECL_STEP_MODE,
+		DECL_STEP_SIZE,
+		DECL_NUM_STEPS,
+		DECL_SHAPE,
+		DECL_AMPLITUDE,
+		DECL_PHASE_MODE,
+		DECL_FREQUENCY,
+		DECL_NUM_PHASES,
+		DECL_FADE_IN,
+		DECL_FADE_OUT,
+		DECL_OCTAVES,
+		DECL_PHASE,
+		DECL_SEED,
+		DECL_SCRIPT_SOURCE,
+		CURVE_EPSILON,
+		MAX_PERLIN_OCTAVES,
+		MIN_VIEW_SPAN,
+		MAX_VIEW_SPAN,
+		CURVE_SCULPT_SHIFT_FULL_STRENGTH_PX,
+		CURVE_DRAW_FIT_MAX_ERROR_PX,
+		CURVE_DRAW_FIT_MAX_KEYS,
+		VIEW_BOUNDS_ANIMATION_DURATION_MS,
+		KEY_HIT_RADIUS_REM,
+		CURVE_HIT_RADIUS_REM,
+		BEZIER_HANDLE_HIT_RADIUS_REM,
+		CANVAS_DOUBLE_CLICK_WINDOW_MS,
+		CANVAS_DOUBLE_CLICK_RADIUS_PX,
+		DEFAULT_EASING_KIND_ORDER,
+		EASING_KIND_LABELS
+	} from './curve/constants';
+	import {
+		clamp,
+		finite_or,
+		param_number_value,
+		param_string_value,
+		normalize_easing_kind,
+		normalize_step_mode,
+		normalize_shape,
+		normalize_phase_mode,
+		make_curve_range_constraint,
+		range_bounds_from_value,
+		uniform_bounds_from_constraints,
+		to_param_ref,
+		coerce_param_value_for_ref
+	} from './curve/values';
+	import {
+		cubic_from_points,
+		compile_curve,
+		solve_bezier_t_for_position,
+		sample_compiled_curve
+	} from './curve/evaluation';
+	import { readCurveKeys } from './curve/model';
 	import { untrack } from 'svelte';
 	import { createCurveInput, curveInputEvents } from './curve/input';
 	import { appState } from '../../store/workbench.svelte';
@@ -12,27 +80,18 @@
 	} from '../../store/ui-intents';
 	import { registerCommandHandler } from '../../store/commands.svelte';
 	import { curveClipboardState, type CurveClipboardKey } from '../../store/curve-clipboard.svelte';
-	import type { NodeId, ParamValue, UiNodeDto, UiParamConstraints } from '../../types';
+	import type { NodeId, ParamValue, UiNodeDto } from '../../types';
 	import AnimationCurveCanvas from './AnimationCurveCanvas.svelte';
 	import ContextMenu from './ContextMenu.svelte';
 	import type { ContextMenuAnchor, ContextMenuItem } from './context-menu';
 
 	import type {
 		CurveEasingKind,
-		CurveStepMode,
-		CurvePhaseMode,
-		CurveShape,
 		ParamNodeRef,
 		CurveRangeConstraint,
 		CurveRangeState,
-		ParsedEasing,
 		ParsedCurveKey,
 		EasingKindOption,
-		CubicPolynomial,
-		CompiledSegmentEasing,
-		CompiledCurveSegment,
-		CompiledCurveKey,
-		CompiledCurve,
 		CanvasTransform,
 		DragPreview,
 		BezierHandleKind,
@@ -88,76 +147,6 @@
 		onselectionclear?: () => void;
 	} = $props();
 
-	const CURVE_NODE_TYPE = 'animation_curve';
-	const KEY_NODE_TYPE = 'animation_curve_key';
-	const KEY_ITEM_KIND = 'animation_curve_key';
-	const EASING_NODE_TYPE = 'animation_curve_easing';
-	const RANGE_NODE_TYPE = 'animation_curve_range';
-
-	const DECL_POSITION = 'position';
-	const DECL_VALUE = 'value';
-	const DECL_EASING = 'easing';
-	const DECL_RANGE = 'range';
-	const DECL_RANGE_X = 'x';
-	const DECL_RANGE_Y = 'y';
-	const DECL_KIND = 'kind';
-	const DECL_OUT_POSITION = 'out_position';
-	const DECL_OUT_VALUE = 'out_value';
-	const DECL_IN_POSITION = 'in_position';
-	const DECL_IN_VALUE = 'in_value';
-	const DECL_STEP_MODE = 'step_mode';
-	const DECL_STEP_SIZE = 'step_size';
-	const DECL_NUM_STEPS = 'num_steps';
-	const DECL_SHAPE = 'shape';
-	const DECL_AMPLITUDE = 'amplitude';
-	const DECL_PHASE_MODE = 'phase_mode';
-	const DECL_FREQUENCY = 'frequency';
-	const DECL_NUM_PHASES = 'num_phases';
-	const DECL_FADE_IN = 'fade_in';
-	const DECL_FADE_OUT = 'fade_out';
-	const DECL_OCTAVES = 'octaves';
-	const DECL_PHASE = 'phase';
-	const DECL_SEED = 'seed';
-	const DECL_SCRIPT_SOURCE = 'script_source';
-
-	const CURVE_EPSILON = 1e-12;
-	const MAX_PERLIN_OCTAVES = 12;
-	const MIN_VIEW_SPAN = 1e-6;
-	const MAX_VIEW_SPAN = 1e9;
-	const CURVE_SCULPT_SHIFT_FULL_STRENGTH_PX = 8;
-	const CURVE_DRAW_FIT_MAX_ERROR_PX = 4.5;
-	const CURVE_DRAW_FIT_MAX_KEYS = 12;
-	const VIEW_BOUNDS_ANIMATION_DURATION_MS = 220;
-	const KEY_HIT_RADIUS_REM = 0.7;
-	const CURVE_HIT_RADIUS_REM = 0.7;
-	const BEZIER_HANDLE_HIT_RADIUS_REM = 0.64;
-	const CANVAS_DOUBLE_CLICK_WINDOW_MS = 320;
-	const CANVAS_DOUBLE_CLICK_RADIUS_PX = 7;
-	const DEFAULT_EASING_KIND_ORDER: CurveEasingKind[] = [
-		'linear',
-		'bezier',
-		'hold',
-		'steps',
-		'shape',
-		'perlinNoise',
-		'elastic',
-		'bounce',
-		'random',
-		'script'
-	];
-	const EASING_KIND_LABELS: Record<CurveEasingKind, string> = {
-		linear: 'Linear',
-		bezier: 'Bezier',
-		hold: 'Hold',
-		steps: 'Steps',
-		shape: 'Shape',
-		perlinNoise: 'Perlin Noise',
-		elastic: 'Elastic',
-		bounce: 'Bounce',
-		random: 'Random',
-		script: 'Script'
-	};
-
 	let session = $derived(appState.session);
 	let graphNodesById = $derived(session?.graph.state.nodesById ?? null);
 	let input_owner_uuid = $derived(graphNodesById?.get(curveNode.node_id)?.uuid ?? null);
@@ -177,6 +166,7 @@
 	let pending_create_target = $state<PendingCreateTarget | null>(null);
 	let adding_key = $state(false);
 	let fixed_view_bounds = $state<CurveViewBounds | null>(null);
+	let input_view_owner: string | null | undefined;
 	let canvas_element = $state<HTMLCanvasElement | null>(null);
 	let active_drag = $state<ActiveKeyDrag | null>(null);
 	let active_bezier_handle_drag = $state<ActiveBezierHandleDrag | null>(null);
@@ -186,13 +176,14 @@
 	let active_curve_draw = $state<ActiveCurveDraw | null>(null);
 	let drag_edit_session = $state<UiEditSession | null>(null);
 	let drag_edit_session_begin_promise: Promise<void> | null = null;
-	let drag_input_scope: {
+	let drag_input_scope = $state.raw<{
 		host: NonNullable<typeof session>;
 		project: number | null;
 		snapshot: number;
 		owner: string;
 		selection: string;
-	} | null = null;
+		parameters: ParamNodeRef[];
+	} | null>(null);
 	let hover_curve_position = $state<{ position: number; value: number } | null>(null);
 	let is_canvas_focused = $state(false);
 	let curve_context_menu_open = $state(false);
@@ -215,85 +206,6 @@
 			})) ?? []
 	);
 
-	const clamp = (value: number, min: number, max: number): number =>
-		Math.min(max, Math.max(min, value));
-	const finite_or = (value: number, fallback: number): number =>
-		Number.isFinite(value) ? value : fallback;
-	const param_number_value = (value: ParamValue | undefined, fallback: number): number => {
-		if (!value) {
-			return fallback;
-		}
-		if (value.kind === 'float') {
-			return finite_or(value.value, fallback);
-		}
-		if (value.kind === 'int') {
-			return finite_or(value.value, fallback);
-		}
-		return fallback;
-	};
-	const param_string_value = (value: ParamValue | undefined, fallback: string): string => {
-		if (!value) {
-			return fallback;
-		}
-		if (value.kind === 'enum') {
-			return value.value.trim();
-		}
-		if (value.kind === 'str') {
-			return value.value;
-		}
-		return fallback;
-	};
-	const normalize_easing_kind = (value: string): CurveEasingKind => {
-		const normalized = value.trim().toLowerCase();
-		if (normalized === 'elastic') {
-			return 'elastic';
-		}
-		if (normalized === 'bounce') {
-			return 'bounce';
-		}
-		if (normalized === 'bezier') {
-			return 'bezier';
-		}
-		if (normalized === 'hold') {
-			return 'hold';
-		}
-		if (normalized === 'steps') {
-			return 'steps';
-		}
-		if (normalized === 'shape') {
-			return 'shape';
-		}
-		if (normalized === 'perlinnoise') {
-			return 'perlinNoise';
-		}
-		if (normalized === 'random') {
-			return 'random';
-		}
-		if (normalized === 'script') {
-			return 'script';
-		}
-		return 'linear';
-	};
-	const normalize_step_mode = (value: string): CurveStepMode =>
-		value.trim().toLowerCase() === 'stepsize' ? 'stepSize' : 'numSteps';
-	const normalize_shape = (value: string): CurveShape => {
-		const normalized = value.trim().toLowerCase();
-		if (normalized === 'triangle') {
-			return 'triangle';
-		}
-		if (normalized === 'saw') {
-			return 'saw';
-		}
-		if (normalized === 'reversesaw') {
-			return 'reverseSaw';
-		}
-		if (normalized === 'square') {
-			return 'square';
-		}
-		return 'sine';
-	};
-	const normalize_phase_mode = (value: string): CurvePhaseMode =>
-		value.trim().toLowerCase() === 'numphases' ? 'numPhases' : 'frequency';
 	const shortcut_modifier_active = (event: MouseEvent | PointerEvent): boolean =>
 		event.ctrlKey || event.metaKey;
 	const matches_canvas_double_activation = (
@@ -343,560 +255,18 @@
 					label: EASING_KIND_LABELS[value]
 				}));
 	};
-	const normalize_bounds_pair = (
-		min_candidate: number,
-		max_candidate: number
-	): { min: number; max: number } | null => {
-		if (!Number.isFinite(min_candidate) || !Number.isFinite(max_candidate)) {
-			return null;
-		}
-		const min = Math.min(min_candidate, max_candidate);
-		const max = Math.max(min_candidate, max_candidate);
-		if (max - min <= CURVE_EPSILON) {
-			return null;
-		}
-		return { min, max };
-	};
-	const make_curve_range_constraint = (
-		x_min_candidate: number,
-		x_max_candidate: number,
-		y_min_candidate: number,
-		y_max_candidate: number
-	): CurveRangeConstraint | null => {
-		const x_bounds = normalize_bounds_pair(x_min_candidate, x_max_candidate);
-		const y_bounds = normalize_bounds_pair(y_min_candidate, y_max_candidate);
-		if (!x_bounds || !y_bounds) {
-			return null;
-		}
-		return {
-			x_min: x_bounds.min,
-			x_max: x_bounds.max,
-			y_min: y_bounds.min,
-			y_max: y_bounds.max
-		};
-	};
-	const range_bounds_from_value = (
-		value: ParamValue | undefined
-	): { min: number; max: number } | null => {
-		if (!value || value.kind !== 'vec2') {
-			return null;
-		}
-		return normalize_bounds_pair(value.value[0], value.value[1]);
-	};
-	const uniform_bounds_from_constraints = (
-		constraints: UiParamConstraints | undefined
-	): { min: number; max: number } | null => {
-		const range = constraints?.range;
-		if (!range || range.kind !== 'uniform') {
-			return null;
-		}
-		if (range.min === undefined || range.max === undefined) {
-			return null;
-		}
-		return normalize_bounds_pair(range.min, range.max);
-	};
-
-	const cubic_from_points = (p0: number, p1: number, p2: number, p3: number): CubicPolynomial => ({
-		a: -p0 + 3 * p1 - 3 * p2 + p3,
-		b: 3 * p0 - 6 * p1 + 3 * p2,
-		c: -3 * p0 + 3 * p1,
-		d: p0
-	});
-	const sample_cubic = (poly: CubicPolynomial, t: number): number =>
-		((poly.a * t + poly.b) * t + poly.c) * t + poly.d;
-	const derivative_cubic = (poly: CubicPolynomial, t: number): number =>
-		(3 * poly.a * t + 2 * poly.b) * t + poly.c;
-
-	const smoothstep = (value: number): number => value * value * (3 - 2 * value);
-	const stable_mix_u32 = (value: number): number => {
-		let mixed = value >>> 0;
-		mixed ^= mixed >>> 16;
-		mixed = Math.imul(mixed, 0x7feb352d);
-		mixed ^= mixed >>> 15;
-		mixed = Math.imul(mixed, 0x846ca68b);
-		mixed ^= mixed >>> 16;
-		return mixed >>> 0;
-	};
-	const hash_i32 = (value: number, seed: number): number => {
-		const base = (value | 0) + Math.imul(seed | 0, 0x9e3779b9);
-		return stable_mix_u32(base);
-	};
-	const hash_to_unit = (hash: number): number => (hash >>> 0) / 0xffffffff;
-	const value_noise_1d = (position: number, seed: number): number => {
-		const left = Math.floor(position);
-		const right = left + 1;
-		const local = clamp(position - left, 0, 1);
-		const weight = smoothstep(local);
-		const left_value = hash_to_unit(hash_i32(left, seed)) * 2 - 1;
-		const right_value = hash_to_unit(hash_i32(right, seed)) * 2 - 1;
-		return left_value + (right_value - left_value) * weight;
-	};
-	const fractal_noise_1d = (position: number, octaves: number, seed: number): number => {
-		if (!Number.isFinite(position)) {
-			return 0;
-		}
-
-		let frequency = 1;
-		let amplitude = 1;
-		let total = 0;
-		let normalization = 0;
-		const octave_count = Math.max(1, Math.min(MAX_PERLIN_OCTAVES, Math.round(octaves)));
-		for (let octave = 0; octave < octave_count; octave += 1) {
-			const octave_seed = stable_mix_u32(seed ^ Math.imul(octave + 1, 0x9e3779b9));
-			total += value_noise_1d(position * frequency, octave_seed) * amplitude;
-			normalization += amplitude;
-			frequency *= 2;
-			amplitude *= 0.5;
-		}
-		if (normalization <= CURVE_EPSILON) {
-			return 0;
-		}
-		return total / normalization;
-	};
-	const fade_envelope = (progress: number, fade_in: number, fade_out: number): number => {
-		let envelope = 1;
-		if (fade_in > CURVE_EPSILON) {
-			envelope = Math.min(envelope, clamp(progress / fade_in, 0, 1));
-		}
-		if (fade_out > CURVE_EPSILON) {
-			envelope = Math.min(envelope, clamp((1 - progress) / fade_out, 0, 1));
-		}
-		return clamp(envelope, 0, 1);
-	};
-	const elastic_progress = (progress: number): number => {
-		if (progress <= 0) {
-			return 0;
-		}
-		if (progress >= 1) {
-			return 1;
-		}
-		const oscillation = (progress * 10 - 0.75) * ((Math.PI * 2) / 3);
-		return Math.pow(2, -10 * progress) * Math.sin(oscillation) + 1;
-	};
-	const bounce_progress = (progress: number): number => {
-		if (progress <= 0) {
-			return 0;
-		}
-		if (progress >= 1) {
-			return 1;
-		}
-
-		let t = progress;
-		const n1 = 7.5625;
-		const d1 = 2.75;
-		if (t < 1 / d1) {
-			return n1 * t * t;
-		}
-		if (t < 2 / d1) {
-			t -= 1.5 / d1;
-			return n1 * t * t + 0.75;
-		}
-		if (t < 2.5 / d1) {
-			t -= 2.25 / d1;
-			return n1 * t * t + 0.9375;
-		}
-		t -= 2.625 / d1;
-		return n1 * t * t + 0.984375;
-	};
-	const shape_wave = (shape: CurveShape, phase_cycles: number): number => {
-		const phase = ((phase_cycles % 1) + 1) % 1;
-		if (shape === 'triangle') {
-			return 1 - 4 * Math.abs(phase - 0.5);
-		}
-		if (shape === 'saw') {
-			return 2 * phase - 1;
-		}
-		if (shape === 'reverseSaw') {
-			return 1 - 2 * phase;
-		}
-		if (shape === 'square') {
-			return phase < 0.5 ? 1 : -1;
-		}
-		return Math.sin(phase * Math.PI * 2);
-	};
-
-	const to_param_ref = (candidate: UiNodeDto | undefined): ParamNodeRef | undefined => {
-		if (!candidate || candidate.data.kind !== 'parameter') {
-			return undefined;
-		}
-		return {
-			node_id: candidate.node_id,
-			value: candidate.data.param.value,
-			enabled: candidate.meta.enabled,
-			constraints: candidate.data.param.constraints
-		};
-	};
-
-	const compile_curve = (parsed_keys: ParsedCurveKey[]): CompiledCurve => {
-		const normalized: CompiledCurveKey[] = parsed_keys
-			.filter((key) => Number.isFinite(key.position) && Number.isFinite(key.value))
-			.map((key) => ({
-				node_id: key.node_id,
-				position: key.position,
-				value: key.value,
-				easing: key.easing
-			}))
-			.sort((left, right) => left.position - right.position || left.node_id - right.node_id);
-
-		if (normalized.length > 1) {
-			const deduplicated: CompiledCurveKey[] = [];
-			for (const key of normalized) {
-				const previous = deduplicated[deduplicated.length - 1];
-				if (previous && Math.abs(previous.position - key.position) <= CURVE_EPSILON) {
-					deduplicated[deduplicated.length - 1] = key;
-					continue;
-				}
-				deduplicated.push(key);
-			}
-			normalized.splice(0, normalized.length, ...deduplicated);
-		}
-
-		const segments: CompiledCurveSegment[] = [];
-		for (let index = 0; index + 1 < normalized.length; index += 1) {
-			const start = normalized[index];
-			const end = normalized[index + 1];
-			const span = end.position - start.position;
-			if (span <= CURVE_EPSILON) {
-				continue;
-			}
-
-			const params = start.easing?.params ?? {};
-			const easing_kind =
-				start.easing?.kind ??
-				normalize_easing_kind(param_string_value(params[DECL_KIND]?.value, 'linear'));
-
-			let easing: CompiledSegmentEasing = { kind: 'linear' };
-			if (easing_kind === 'elastic') {
-				easing = { kind: 'elastic' };
-			} else if (easing_kind === 'bounce') {
-				easing = { kind: 'bounce' };
-			} else if (easing_kind === 'hold') {
-				easing = { kind: 'hold' };
-			} else if (easing_kind === 'bezier') {
-				const out_position = param_number_value(params[DECL_OUT_POSITION]?.value, 1 / 3);
-				const out_value = param_number_value(params[DECL_OUT_VALUE]?.value, 1 / 3);
-				const in_position = param_number_value(params[DECL_IN_POSITION]?.value, -1 / 3);
-				const in_value = param_number_value(params[DECL_IN_VALUE]?.value, -1 / 3);
-
-				const value_span = end.value - start.value;
-				let p1x = finite_or(start.position + out_position * span, start.position + span / 3);
-				let p2x = finite_or(end.position + in_position * span, start.position + (span * 2) / 3);
-				const p1y = finite_or(start.value + out_value, start.value + value_span / 3);
-				const p2y = finite_or(end.value + in_value, start.value + (value_span * 2) / 3);
-				p1x = clamp(p1x, start.position, end.position);
-				p2x = clamp(p2x, start.position, end.position);
-				easing = {
-					kind: 'bezier',
-					x: cubic_from_points(start.position, p1x, p2x, end.position),
-					y: cubic_from_points(start.value, p1y, p2y, end.value),
-					start_position: start.position,
-					inv_span: 1 / span
-				};
-			} else if (easing_kind === 'steps') {
-				const step_mode = normalize_step_mode(
-					param_string_value(params[DECL_STEP_MODE]?.value, 'numSteps')
-				);
-				let steps = Math.max(1, param_number_value(params[DECL_NUM_STEPS]?.value, 8));
-				if (step_mode === 'stepSize') {
-					const step_size = Math.max(
-						CURVE_EPSILON,
-						Math.abs(param_number_value(params[DECL_STEP_SIZE]?.value, 0.1))
-					);
-					steps = Math.max(1, Math.ceil(Math.abs(span) / step_size));
-				}
-				easing = {
-					kind: 'steps',
-					steps
-				};
-			} else if (easing_kind === 'shape') {
-				const phase_mode = normalize_phase_mode(
-					param_string_value(params[DECL_PHASE_MODE]?.value, 'frequency')
-				);
-				const shape = normalize_shape(param_string_value(params[DECL_SHAPE]?.value, 'sine'));
-				const amplitude = param_number_value(params[DECL_AMPLITUDE]?.value, 1);
-				const frequency = Math.abs(param_number_value(params[DECL_FREQUENCY]?.value, 1));
-				const num_phases = Math.abs(param_number_value(params[DECL_NUM_PHASES]?.value, 1));
-				const phase_cycles = phase_mode === 'frequency' ? frequency * Math.abs(span) : num_phases;
-				easing = {
-					kind: 'shape',
-					shape,
-					amplitude,
-					phase_cycles,
-					fade_in: Math.max(0, param_number_value(params[DECL_FADE_IN]?.value, 0)),
-					fade_out: Math.max(0, param_number_value(params[DECL_FADE_OUT]?.value, 0))
-				};
-			} else if (easing_kind === 'perlinNoise') {
-				easing = {
-					kind: 'perlinNoise',
-					frequency: Math.abs(param_number_value(params[DECL_FREQUENCY]?.value, 1)),
-					amplitude: param_number_value(params[DECL_AMPLITUDE]?.value, 1),
-					octaves: clamp(param_number_value(params[DECL_OCTAVES]?.value, 4), 1, MAX_PERLIN_OCTAVES),
-					fade_in: Math.max(0, param_number_value(params[DECL_FADE_IN]?.value, 0)),
-					fade_out: Math.max(0, param_number_value(params[DECL_FADE_OUT]?.value, 0)),
-					phase: param_number_value(params[DECL_PHASE]?.value, 0),
-					seed: 0
-				};
-			} else if (easing_kind === 'random') {
-				easing = {
-					kind: 'random',
-					frequency: Math.abs(param_number_value(params[DECL_FREQUENCY]?.value, 6)),
-					fade_in: Math.max(0, param_number_value(params[DECL_FADE_IN]?.value, 0)),
-					fade_out: Math.max(0, param_number_value(params[DECL_FADE_OUT]?.value, 0)),
-					seed: Math.round(param_number_value(params[DECL_SEED]?.value, 0))
-				};
-			} else if (easing_kind === 'script') {
-				easing = {
-					kind: 'script',
-					source: param_string_value(params[DECL_SCRIPT_SOURCE]?.value, '')
-				};
-			}
-
-			segments.push({
-				start_position: start.position,
-				end_position: end.position,
-				start_value: start.value,
-				end_value: end.value,
-				value_delta: end.value - start.value,
-				inv_span: 1 / span,
-				easing
-			});
-		}
-
-		return {
-			keys: normalized,
-			segments
-		};
-	};
-
-	const sample_bezier = (
-		position: number,
-		x: CubicPolynomial,
-		y: CubicPolynomial,
-		start_position: number,
-		inv_span: number
-	): number => {
-		let t = clamp((position - start_position) * inv_span, 0, 1);
-		let converged = false;
-		for (let iteration = 0; iteration < 6; iteration += 1) {
-			const sampled_x = sample_cubic(x, t);
-			const delta = sampled_x - position;
-			if (Math.abs(delta) <= 1e-10) {
-				converged = true;
-				break;
-			}
-			const derivative = derivative_cubic(x, t);
-			if (Math.abs(derivative) <= CURVE_EPSILON) {
-				break;
-			}
-			const next_t = t - delta / derivative;
-			if (!Number.isFinite(next_t)) {
-				break;
-			}
-			t = clamp(next_t, 0, 1);
-		}
-
-		if (!converged) {
-			let low = 0;
-			let high = 1;
-			for (let iteration = 0; iteration < 20; iteration += 1) {
-				const midpoint = (low + high) * 0.5;
-				const sampled_x = sample_cubic(x, midpoint);
-				if (sampled_x <= position) {
-					low = midpoint;
-				} else {
-					high = midpoint;
-				}
-			}
-			t = (low + high) * 0.5;
-		}
-		return sample_cubic(y, t);
-	};
-
-	const solve_bezier_t_for_position = (
-		position: number,
-		x: CubicPolynomial,
-		start_position: number,
-		inv_span: number
-	): number => {
-		let t = clamp((position - start_position) * inv_span, 0, 1);
-		for (let iteration = 0; iteration < 6; iteration += 1) {
-			const sampled_x = sample_cubic(x, t);
-			const delta = sampled_x - position;
-			if (Math.abs(delta) <= 1e-9) {
-				break;
-			}
-			const derivative = derivative_cubic(x, t);
-			if (Math.abs(derivative) <= CURVE_EPSILON) {
-				break;
-			}
-			t = clamp(t - delta / derivative, 0, 1);
-		}
-
-		let low = 0;
-		let high = 1;
-		for (let iteration = 0; iteration < 14; iteration += 1) {
-			const midpoint = (low + high) * 0.5;
-			const sampled_x = sample_cubic(x, midpoint);
-			if (sampled_x <= position) {
-				low = midpoint;
-			} else {
-				high = midpoint;
-			}
-		}
-		return clamp((low + high) * 0.5, 0, 1);
-	};
-
-	const sample_segment = (segment: CompiledCurveSegment, position: number): number => {
-		if (position <= segment.start_position) {
-			return segment.start_value;
-		}
-		if (position >= segment.end_position) {
-			return segment.end_value;
-		}
-
-		const progress = clamp((position - segment.start_position) * segment.inv_span, 0, 1);
-		const linear_value = segment.start_value + segment.value_delta * progress;
-		const easing = segment.easing;
-
-		if (easing.kind === 'linear') {
-			return linear_value;
-		}
-		if (easing.kind === 'elastic') {
-			return segment.start_value + segment.value_delta * elastic_progress(progress);
-		}
-		if (easing.kind === 'bounce') {
-			return segment.start_value + segment.value_delta * bounce_progress(progress);
-		}
-		if (easing.kind === 'hold') {
-			return segment.start_value;
-		}
-		if (easing.kind === 'bezier') {
-			return sample_bezier(position, easing.x, easing.y, easing.start_position, easing.inv_span);
-		}
-		if (easing.kind === 'steps') {
-			const steps = Math.max(1, Math.round(easing.steps));
-			const scaled_progress = progress * steps;
-			const rounded_progress = Math.round(scaled_progress);
-			const snap_tolerance = Number.EPSILON * Math.max(32, Math.abs(scaled_progress) * 64);
-			const step_index = clamp(
-				Math.abs(scaled_progress - rounded_progress) <= snap_tolerance
-					? rounded_progress
-					: Math.floor(scaled_progress),
-				0,
-				steps
-			);
-			const stepped_progress = clamp(step_index / steps, 0, 1);
-			return segment.start_value + segment.value_delta * stepped_progress;
-		}
-		if (easing.kind === 'shape') {
-			const envelope = fade_envelope(progress, easing.fade_in, easing.fade_out);
-			const wave = shape_wave(easing.shape, easing.phase_cycles * progress);
-			return linear_value + easing.amplitude * wave * envelope;
-		}
-		if (easing.kind === 'perlinNoise') {
-			if (easing.frequency <= CURVE_EPSILON || Math.abs(easing.amplitude) <= CURVE_EPSILON) {
-				return linear_value;
-			}
-			const envelope = fade_envelope(progress, easing.fade_in, easing.fade_out);
-			const noise_position = (position - segment.start_position) * easing.frequency + easing.phase;
-			const noise = fractal_noise_1d(noise_position, easing.octaves, easing.seed);
-			return linear_value + noise * easing.amplitude * envelope;
-		}
-		if (easing.kind === 'random') {
-			if (easing.frequency <= CURVE_EPSILON) {
-				return linear_value;
-			}
-			const envelope = fade_envelope(progress, easing.fade_in, easing.fade_out);
-			const bucket = Math.floor((position - segment.start_position) * easing.frequency);
-			const random_progress = hash_to_unit(hash_i32(bucket, easing.seed));
-			const random_value = segment.start_value + segment.value_delta * random_progress;
-			return linear_value + (random_value - linear_value) * envelope;
-		}
-		return linear_value;
-	};
-
-	const sample_compiled_curve = (
-		compiled_curve: CompiledCurve,
-		position: number
-	): number | null => {
-		const keys = compiled_curve.keys;
-		if (keys.length === 0 || !Number.isFinite(position)) {
-			return null;
-		}
-		if (keys.length === 1) {
-			return keys[0].value;
-		}
-		const first = keys[0];
-		const last = keys[keys.length - 1];
-		if (position <= first.position) {
-			return first.value;
-		}
-		if (position >= last.position) {
-			return last.value;
-		}
-
-		const segments = compiled_curve.segments;
-		if (segments.length === 0) {
-			return first.value;
-		}
-
-		let low = 0;
-		let high = segments.length;
-		while (low < high) {
-			const middle = (low + high) >> 1;
-			if (segments[middle].end_position <= position) {
-				low = middle + 1;
-			} else {
-				high = middle;
-			}
-		}
-		const segment_index = Math.min(low, segments.length - 1);
-		return sample_segment(segments[segment_index], position);
-	};
-
-	const coerce_param_value_for_ref = (ref: ParamNodeRef, value: ParamValue): ParamValue | null => {
-		if (ref.value.kind === 'int') {
-			if (value.kind === 'int') {
-				return { kind: 'int', value: Math.round(value.value) };
-			}
-			if (value.kind === 'float') {
-				return { kind: 'int', value: Math.round(value.value) };
-			}
-			return null;
-		}
-		if (ref.value.kind === 'float') {
-			if (value.kind === 'int' || value.kind === 'float') {
-				return { kind: 'float', value: value.value };
-			}
-			return null;
-		}
-		if (ref.value.kind === 'enum') {
-			if (value.kind === 'enum' || value.kind === 'str') {
-				return { kind: 'enum', value: value.value };
-			}
-			return null;
-		}
-		if (ref.value.kind === 'str') {
-			if (value.kind === 'enum' || value.kind === 'str') {
-				return { kind: 'str', value: value.value };
-			}
-			return null;
-		}
-		if (ref.value.kind === value.kind) {
-			return value;
-		}
-		return null;
-	};
 
 	const set_param_value = async (
 		ref: ParamNodeRef | undefined,
 		value: ParamValue
 	): Promise<void> => {
 		const operation = (async (): Promise<void> => {
-			if (!ref) {
+			if (!ref || !curveParametersWritable(graphNodesById, [ref])) {
 				return;
 			}
-			const coerced = coerce_param_value_for_ref(ref, value);
+			const current = to_param_ref(graphNodesById?.get(ref.node_id));
+			if (!current) return;
+			const coerced = coerce_param_value_for_ref(current, value);
 			if (!coerced) {
 				return;
 			}
@@ -1294,141 +664,9 @@
 		return constraints;
 	};
 
-	const override_numeric_param_ref = (
-		ref: ParamNodeRef | undefined,
-		value: number | undefined
-	): ParamNodeRef | undefined => {
-		if (!ref || value === undefined || !Number.isFinite(value)) {
-			return ref;
-		}
-		if (ref.value.kind === 'int') {
-			return {
-				...ref,
-				value: { kind: 'int', value: Math.round(value) }
-			};
-		}
-		if (ref.value.kind === 'float') {
-			return {
-				...ref,
-				value: { kind: 'float', value }
-			};
-		}
-		return ref;
-	};
-
-	let parsed_keys = $derived.by((): ParsedCurveKey[] => {
-		const nodes_by_id = graphNodesById;
-		if (!nodes_by_id || liveNode.node_type !== CURVE_NODE_TYPE) {
-			return [];
-		}
-
-		const parsed: ParsedCurveKey[] = [];
-		for (let source_index = 0; source_index < liveNode.children.length; source_index += 1) {
-			const child_id = liveNode.children[source_index];
-			const key_node = nodes_by_id.get(child_id);
-			if (!key_node || key_node.node_type !== KEY_NODE_TYPE) {
-				continue;
-			}
-
-			let position_param: ParamNodeRef | undefined;
-			let value_param: ParamNodeRef | undefined;
-			let easing: ParsedEasing | undefined;
-
-			for (const key_child_id of key_node.children) {
-				const key_child = nodes_by_id.get(key_child_id);
-				if (!key_child) {
-					continue;
-				}
-				const decl_id = key_child.decl_id;
-				if (decl_id === DECL_POSITION) {
-					position_param = to_param_ref(key_child);
-					continue;
-				}
-				if (decl_id === DECL_VALUE) {
-					value_param = to_param_ref(key_child);
-					continue;
-				}
-				if (decl_id === DECL_EASING && key_child.node_type === EASING_NODE_TYPE) {
-					const easing_params: Record<string, ParamNodeRef> = {};
-					for (const easing_child_id of key_child.children) {
-						const easing_child = nodes_by_id.get(easing_child_id);
-						const param_ref = to_param_ref(easing_child);
-						if (!easing_child || !param_ref) {
-							continue;
-						}
-						easing_params[easing_child.decl_id] = param_ref;
-					}
-					easing = {
-						node_id: key_child.node_id,
-						kind: normalize_easing_kind(
-							param_string_value(easing_params[DECL_KIND]?.value, 'linear')
-						),
-						params: easing_params
-					};
-				}
-			}
-
-			const easing_preview = easing_drag_preview_by_key_id.get(key_node.node_id);
-			if (easing && easing.kind === 'bezier' && easing_preview) {
-				const next_params: Record<string, ParamNodeRef> = { ...easing.params };
-				const next_out_position = override_numeric_param_ref(
-					easing.params[DECL_OUT_POSITION],
-					easing_preview.out_position
-				);
-				if (next_out_position) {
-					next_params[DECL_OUT_POSITION] = next_out_position;
-				}
-				const next_out_value = override_numeric_param_ref(
-					easing.params[DECL_OUT_VALUE],
-					easing_preview.out_value
-				);
-				if (next_out_value) {
-					next_params[DECL_OUT_VALUE] = next_out_value;
-				}
-				const next_in_position = override_numeric_param_ref(
-					easing.params[DECL_IN_POSITION],
-					easing_preview.in_position
-				);
-				if (next_in_position) {
-					next_params[DECL_IN_POSITION] = next_in_position;
-				}
-				const next_in_value = override_numeric_param_ref(
-					easing.params[DECL_IN_VALUE],
-					easing_preview.in_value
-				);
-				if (next_in_value) {
-					next_params[DECL_IN_VALUE] = next_in_value;
-				}
-				easing = {
-					...easing,
-					params: next_params
-				};
-			}
-
-			let position = param_number_value(position_param?.value, 0);
-			let value = param_number_value(value_param?.value, 0);
-			const drag_preview = drag_preview_by_key_id.get(key_node.node_id);
-			if (drag_preview) {
-				position = drag_preview.position;
-				value = drag_preview.value;
-			}
-
-			parsed.push({
-				node_id: key_node.node_id,
-				position,
-				value,
-				source_index,
-				position_param,
-				value_param,
-				easing
-			});
-		}
-
-		parsed.sort(
-			(left, right) => left.position - right.position || left.source_index - right.source_index
-		);
-		return parsed;
-	});
+	let parsed_keys = $derived(
+		readCurveKeys(graphNodesById, liveNode, drag_preview_by_key_id, easing_drag_preview_by_key_id)
+	);
 
 	let parsed_key_by_id = $derived.by(
 		(): Map<NodeId, ParsedCurveKey> => new Map(parsed_keys.map((entry) => [entry.node_id, entry]))
@@ -2241,7 +1479,12 @@
 					key.easing.params[DECL_KIND] !== undefined &&
 					key.easing.kind !== easing_kind
 			);
-		if (target_keys.length === 0) {
+		if (
+			target_keys.length === 0 ||
+			target_keys.some(
+				(key) => !curveParametersWritable(graphNodesById, [key.easing!.params[DECL_KIND]])
+			)
+		) {
 			return false;
 		}
 
@@ -4202,7 +3445,8 @@
 			session.snapshotGeneration === scope.snapshot &&
 			liveNode.uuid === scope.owner &&
 			input_selection_identity === scope.selection &&
-			graphNodesById?.get(liveNode.node_id)?.uuid === scope.owner
+			graphNodesById?.get(liveNode.node_id)?.uuid === scope.owner &&
+			curveParametersWritable(graphNodesById, scope.parameters)
 		);
 	};
 	const discard_queued_drag = (): void => {
@@ -4213,13 +3457,18 @@
 		queued_drag_targets = null;
 		queued_bezier_handle_targets = null;
 	};
-	const begin_drag_edit_session = (label: string, prefix: string): boolean => {
+	const begin_drag_edit_session = (
+		label: string,
+		prefix: string,
+		parameters: ParamNodeRef[]
+	): boolean => {
 		if (
 			!session ||
 			session.status !== 'connected' ||
 			session.loading.visible ||
 			session.projectGeneration === null ||
-			graphNodesById?.get(liveNode.node_id)?.uuid !== liveNode.uuid
+			graphNodesById?.get(liveNode.node_id)?.uuid !== liveNode.uuid ||
+			!curveParametersWritable(graphNodesById, parameters)
 		)
 			return false;
 		drag_input_scope = {
@@ -4227,7 +3476,8 @@
 			project: session.projectGeneration,
 			snapshot: session.snapshotGeneration,
 			owner: liveNode.uuid,
-			selection: input_selection_identity
+			selection: input_selection_identity,
+			parameters
 		};
 		const edit_session = createUiEditSession(label, prefix, session);
 		drag_edit_session = edit_session;
@@ -4530,8 +3780,15 @@
 				: null;
 			const bezier_alignment_constraints =
 				build_key_drag_bezier_alignment_constraints(drag_key_ids);
-
-			if (!begin_drag_edit_session('Move Curve Key', 'curve-key-drag')) return;
+			const parameters = curveGeometryParameters(
+				drag_key_ids.map((id) => parsed_key_by_id.get(id)),
+				bezier_alignment_constraints.flatMap((constraint) => [
+					bezier_param_refs_by_key_id(constraint.previous_owner_key_id),
+					bezier_param_refs_by_key_id(constraint.anchor_owner_key_id)
+				])
+			);
+			if (!parameters || !begin_drag_edit_session('Move Curve Key', 'curve-key-drag', parameters))
+				return;
 			active_drag = {
 				pointer_id: event.pointerId,
 				anchor_key_id: anchor_origin.key_id,
@@ -4580,7 +3837,18 @@
 				}
 			}
 
-			if (!begin_drag_edit_session('Adjust Curve Bezier Handle', 'curve-bezier-drag')) return;
+			const parameters = curveGeometryParameters(
+				[],
+				[
+					control.params,
+					...(opposite_ref ? [bezier_param_refs_by_key_id(opposite_ref.key_id)] : [])
+				]
+			);
+			if (
+				!parameters ||
+				!begin_drag_edit_session('Adjust Curve Bezier Handle', 'curve-bezier-drag', parameters)
+			)
+				return;
 			active_bezier_handle_drag = {
 				pointer_id: event.pointerId,
 				ref: bezier_handle,
@@ -4631,7 +3899,20 @@
 				kind: 'in'
 			});
 
-			if (!begin_drag_edit_session('Sculpt Curve Segment', 'curve-segment-drag')) return;
+			const parameters = curveGeometryParameters(
+				[],
+				[
+					segment.params,
+					...[start_opposite_alignment, end_opposite_alignment].flatMap((alignment) =>
+						alignment ? [bezier_param_refs_by_key_id(alignment.opposite_ref.key_id)] : []
+					)
+				]
+			);
+			if (
+				!parameters ||
+				!begin_drag_edit_session('Sculpt Curve Segment', 'curve-segment-drag', parameters)
+			)
+				return;
 			active_curve_drag = {
 				pointer_id: event.pointerId,
 				owner_key_id: curve_selection,
@@ -5099,7 +4380,10 @@
 
 	const remove_key_ids = async (key_ids: readonly NodeId[]): Promise<boolean> => {
 		const ids = ordered_node_ids(key_ids);
-		if (ids.length === 0) {
+		if (
+			ids.length === 0 ||
+			ids.some((id) => !graphNodesById?.get(id)?.meta.user_permissions.can_remove_and_duplicate)
+		) {
 			return false;
 		}
 		const id_set = new Set(ids);
@@ -5272,6 +4556,12 @@
 	};
 
 	const duplicate_selected_keys = async (): Promise<boolean> => {
+		if (
+			selected_key_ids_ordered().some(
+				(id) => !graphNodesById?.get(id)?.meta.user_permissions.can_remove_and_duplicate
+			)
+		)
+			return false;
 		return apply_clipboard_entries_at_anchor(selected_keys_as_clipboard_entries());
 	};
 
@@ -5424,7 +4714,12 @@
 		session?.snapshotGeneration;
 		session?.status;
 		session?.loading.visible;
-		input_owner_uuid;
+		const scope_owner = input_owner_uuid;
+		if (input_view_owner !== scope_owner)
+			untrack(() => {
+				input_view_owner = scope_owner;
+				fixed_view_bounds = null;
+			});
 		return () =>
 			untrack(() => {
 				input.cancel();
@@ -5438,6 +4733,13 @@
 		untrack(() => {
 			if (drag_input_scope && drag_input_scope.selection !== selected) input.cancel();
 		});
+	});
+	let active_parameter_access = $derived(
+		drag_input_scope === null ||
+			curveParametersWritable(graphNodesById, drag_input_scope.parameters)
+	);
+	$effect(() => {
+		if (!active_parameter_access) untrack(() => input.cancel());
 	});
 	$effect(() => {
 		return () => {

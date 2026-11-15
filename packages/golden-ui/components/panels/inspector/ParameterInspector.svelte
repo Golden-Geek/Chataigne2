@@ -11,6 +11,7 @@
 		UiUserContextCandidate
 	} from '../../../types';
 	import { appState } from '../../../store/workbench.svelte';
+	import { parameterValueReadOnly } from '../../../store/parameter-value-access';
 	import {
 		createUiEditSession,
 		sendPatchMetaIntent,
@@ -100,9 +101,7 @@
 	let currentControlMode: UiParameterControlMode = $derived(param?.control?.mode ?? 'manual');
 	let contextPreview = $derived(resolveParameterContextPreview(liveNode));
 	let canEditControl = $derived(Boolean(param && enabled && !readOnly));
-	let valueEditorReadOnly = $derived(
-		readOnly || (currentControlMode !== 'manual' && currentControlMode !== 'templateText')
-	);
+	let valueEditorReadOnly = $derived(parameterValueReadOnly(param));
 	let controlMenuOpen = $state(false);
 	let controlMenuTrigger: HTMLButtonElement | null = $state(null);
 	let controlInfo = $state<UiParamControlInfo | null>(null);
