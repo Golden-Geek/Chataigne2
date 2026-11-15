@@ -308,6 +308,15 @@
 	<output aria-label="Curve last created key">{lastCreated}</output>
 	<output aria-label="Curve created position">{createdPosition}</output>
 	<output aria-label="Curve command result">{commandResult}</output>
+	<button
+		onclick={() =>
+			fixture.session.startLoadingOperation({
+				activeStep: 'curve-test',
+				title: 'Background metadata',
+				message: 'Unchanged input lifetime',
+				progress: 1,
+				visible: false
+			})}>Refresh Curve loading metadata</button>
 	<button onclick={() => runCurveCommand('edit.copy')}>Copy Curve keys</button>
 	<button onclick={() => runCurveCommand('edit.paste')}>Paste Curve keys</button>
 	<button

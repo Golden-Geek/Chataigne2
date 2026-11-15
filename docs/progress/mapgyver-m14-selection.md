@@ -151,6 +151,13 @@ typed key Inspector and one backend history item. This is a usable creation fix,
 input acceptance: the same fixture then selects the key before release and retains its canvas,
 but its first drag opens/closes Begin/End without a Parameter write. That failure remains required.
 
+Curve's lifetime effect now uses Golden's semantic `createEditorScopeObserver` rather than
+canceling on every reactive dependency cleanup. The observer compares session, project, snapshot,
+connection state, loading visibility and owner. Hidden loading-metadata replacement preserves an
+admitted pointer and its queued edits; real lifetime changes still retire it. Selection/access
+revocation and final disposal retain their separate cancellation paths. This is a verified
+metadata-refresh correction; the connected first-drag failure is still reproduced.
+
 ## Applicable editor inventory
 
 Screen, Source, Composition and Matrix now share Golden's contour action and pure paint
@@ -185,6 +192,23 @@ This inventory retains the complete gate. DOM callback fixtures do not establish
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Curve lifetime slice (2026-11-15):64 focused Golden cases pass, including repeated equal-scope
+wrappers and each real lifetime boundary. The production Inspector browser retains capture across
+a hidden loading-metadata refresh and then submits live typed writes; existing cancellation,
+permission, offscreen, exact creation/paste and disposal checks still pass with0 page errors.
+Four typechecks report0 errors/0 warnings; app/shared formatting, both UI builds and root/Core
+formatting pass. The unchanged Rust ownership slice retains692 passing tests/5 ignored and
+strict Clippy evidence. No Rust or protocol behavior changed in this UI slice.
+
+The existing connected run `target/m14-curve-lifetime-connected-2026-11-15/failure.json` remains
+**failing** at live drag after successful real key creation. The semantic observer does not resolve
+that failure; later connected owner-Escape/Undo/Redo assertions remain unexecuted. This source
+correction is supported by its captured metadata-refresh regression, not by a claim that it fixes
+the connected failure. No extra probe variant or native/GPU cohort was added. The20:15UTC start
+and60-minute cumulative investigation limit remain in force; the next implementation decision
+needs source evidence for the actual cancellation path. Logs: `target/m14-curve-lifetime-*-2026-11-15.log`.
+M14/1 remains Active, M14 0/10, overall88/106 (83%).
 
 Matrix/Curve backend slice (2026-11-15): the full current MapGyver library suite passes
 692 tests with5 ignored; strict `cargo clippy --locked -p MapGyver --lib --tests -- -D warnings`
@@ -445,14 +469,17 @@ Historical Source ordinary app SHA256:
 `484879f411c2597e2cc9fda24e6776ceb45453dfcef6d60561b3d86c8cc42a1f`;
 retained native fixture SHA256:
 `4b1390515b8c9adc6104f37cec48e884f6fb9dc1f58cc4df965072fc0777d04a`.
-Current ordinary checkpoint rebuild after parking the unproven cache attempt:
+Prior ordinary checkpoint rebuild after parking the unproven cache attempt:
 `35e7ce1c0df6106c7f7cab323c3efeb98734c278b7a978ed755e4c52eda16da1`;
 build log SHA256 `cd5a81086ee1e15d9835b48a3070418dfe9b9b1bfa0933daf1873759fad7bda1`
-(`target/m14-curve-backend-build-checkpoint-2026-11-15.log`). This restores the committed Golden
-UI source and includes the Matrix guard fix. It is not a coherent new ordinary/native pair:
-the native fixture remains older, and the connected failure receipts above retain their own
-earlier build scope. No extra live experiment followed this checkpoint rebuild. Refresh both
-qualification inputs before native acceptance; Video evidence keeps its original source/build scope.
+(`target/m14-curve-backend-build-checkpoint-2026-11-15.log`).
+Current ordinary build with the Matrix guard and semantic Curve lifetime observer:
+`df3e3b7290027e834eaf3d82acc28d949b2ddb40529b27bd00f99617acd2ceb2`;
+build log SHA256 `c9e3904c876191ac180b1f5228c25ae5c3e15a02e1f289face543390ab519c1b`
+(`target/m14-curve-lifetime-build-mapgyver-2026-11-15.log`). Its connected result is the failing
+lifetime receipt above. The native fixture remains older: these are not a coherent new ordinary/
+native qualification pair. Refresh both inputs before native acceptance; Video evidence keeps
+its original source/build scope.
 
 Next deliverable: fix the reproducible first-drag cancellation in the existing connected Curve
 case, then finish controller decomposition and actual backend/history/Inspector/native and

@@ -84,6 +84,14 @@ the declared Parameter remain protected. This policy belongs in the backend and 
 generic caller, including the ordinary app's transport. The connected Curve fixture also retains
 an unresolved first-drag cancellation; passing key creation does not establish full input acceptance.
 
+Golden's `createEditorScopeObserver` compares the host, project/snapshot generation, connection,
+loading visibility and owner identity explicitly. Curve input uses this semantic transition to
+cancel its tool; reactive effect cleanup is reserved for disposal. Replacing a loading-metadata
+object while visibility stays false therefore preserves capture and queued edits. Real scope,
+selection and parameter-access replacement still cancel, and component disposal retires input.
+The production Inspector fixture verifies a hidden metadata refresh during a captured drag.
+The separate connected first-drag failure remains unresolved after this correction.
+
 Matrix grid uses those actions for Cells, row/column/group headers and their labels, alongside
 the shared contour hover. Background/idle Escape select the Matrix media owner. Grid coordinates
 and an explicit document focus identity publish together, so clearing or moving between Column

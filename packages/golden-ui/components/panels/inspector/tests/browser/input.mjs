@@ -231,6 +231,16 @@ export async function checkCurveInput(page, canvas, selected, points) {
 	await settle();
 	assert.equal(await writes(), initial, 'replaced scope cannot receive old input');
 	await beginKey();
+	await page
+		.getByRole('button', { name: 'Refresh Curve loading metadata', exact: true })
+		.dispatchEvent('click');
+	await settle();
+	assert(
+		await canvas.evaluate((element) =>
+			element.hasPointerCapture(Number(element.dataset.inputPointer))
+		),
+		'hidden loading metadata cannot cancel an unchanged input lifetime'
+	);
 	await page.mouse.move(points[0].x + 10, points[0].y - 10);
 	await settle();
 	const firstWrite = await writes();

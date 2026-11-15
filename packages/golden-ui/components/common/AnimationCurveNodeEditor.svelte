@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createCurveOperations, type CurveOperation } from './curve/operations';
 	import { createCurveCreation } from './curve/creation.svelte';
+	import { createEditorScopeObserver } from '../../store/editor-scope';
 	import { curveGeometryParameters, curveParametersWritable } from './curve/admission';
 	import {
 		CURVE_NODE_TYPE,
@@ -4676,25 +4677,30 @@
 			clear: clear_canvas_selection
 		});
 	});
+	const observeInputScope = createEditorScopeObserver(() => {
+		input.cancel();
+		discard_queued_drag();
+		cancel_view_bounds_animation();
+		on_canvas_pointer_leave();
+	});
 	$effect(() => {
-		session;
-		session?.projectGeneration;
-		session?.snapshotGeneration;
-		session?.status;
-		session?.loading.visible;
-		const scope_owner = input_owner_uuid;
-		untrack(() => curveOperations.observe());
+		const scope = {
+			host: session,
+			project: session?.projectGeneration ?? null,
+			snapshot: session?.snapshotGeneration ?? 0,
+			status: session?.status ?? 'disconnected',
+			loading: session?.loading.visible ?? true,
+			owner: input_owner_uuid
+		};
+		const scope_owner = scope.owner;
+		untrack(() => {
+			curveOperations.observe();
+			observeInputScope(scope);
+		});
 		if (input_view_owner !== scope_owner)
 			untrack(() => {
 				input_view_owner = scope_owner;
 				fixed_view_bounds = null;
-			});
-		return () =>
-			untrack(() => {
-				input.cancel();
-				discard_queued_drag();
-				cancel_view_bounds_animation();
-				on_canvas_pointer_leave();
 			});
 	});
 	$effect(() => {
