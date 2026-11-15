@@ -31,6 +31,10 @@ moving its canvas during input. Explicit Inspector locks keep their document/UUI
 Ownership projection caches immutable selection arrays against published graph deltas, so live
 unrelated Parameter updates do not rescan large selections. The curve adapter publishes only
 input-owned changes and rejects replaced session/project/snapshot/selection scopes.
+Before projecting a new graph publication, it settles a valid pending local selection against
+that same input basis. A same-turn metadata update cannot replay the previous workbench owner
+over a newly selected key. A newer foreign selection still wins; current topology is checked
+before publishing, and ordinary projection does not write authored data.
 
 Curve background-down and idle Escape now inspect the Curve owner through that adapter.
 Golden's focused `curve/input` controller separates release from cancellation for key/Bezier/

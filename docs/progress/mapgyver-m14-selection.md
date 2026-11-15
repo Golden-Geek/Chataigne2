@@ -156,6 +156,13 @@ admitted pointer and its queued edits; real lifetime changes still retire it. Se
 revocation and final disposal retain their separate cancellation paths. This is a verified
 metadata-refresh correction; the connected first-drag failure is still reproduced.
 
+The selection adapter now settles admitted local selection before projecting a graph refresh.
+Previously a same-turn owner metadata update replayed the old workbench owner over the newly
+selected key, before its outbound selection effect ran. The production Inspector regression
+reproduces that failure before the correction. The corrected adapter publishes once against its
+captured host/document/selection basis and checks current topology; a newer foreign selection
+still wins. This is a verified ordering correction, not a fix for the connected capture failure.
+
 Gesture/session ownership is now extracted into focused `curve/edit-gesture.svelte.ts` and
 `curve/parameter-writer.ts` modules. Admission pins the host and document/selection/access basis;
 one scheduled frame retains the latest key and Bezier samples. Terminal input takes its edit
@@ -203,6 +210,19 @@ This inventory retains the complete gate. DOM callback fixtures do not establish
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Selection ordering correction (2026-11-15): the production Inspector guard first fails on
+same-turn graph refresh/key selection, then passes after the adapter correction, including a
+newer foreign-selection case. All existing browser behavior and frame hashes remain unchanged,
+with0 page errors.64 focused unit cases, four typechecks0/0, scoped formatting/app lint, both UI
+builds and root/Core formatting pass. Logs: `target/m14-curve-selection-race-*-2026-11-15.log`;
+the intentional failing baseline is retained separately.
+The rebuilt ordinary app's unchanged connected regression still fails `captured:false, focused:true`
+after exact creation, one history step and typed Inspector pass. Receipt:
+`target/m14-curve-selection-race-connected-2026-11-15/failure.json`; host shutdown is normal.
+Later connected movement/Escape/history remain unexecuted. No new connected scene, native/GPU
+cohort, Rust/protocol change or cache-stash restoration occurred. M14/1 remains Active/unaccepted,
+M14 0/10,88/106 (83%).
 
 Full controller decomposition (2026-11-15):64 focused cases, four typechecks0/0, scoped formatting,
 app lint, both production UI builds and root/Core formatting pass. Production Inspector browser
@@ -529,11 +549,16 @@ Prior ordinary build with extracted gesture/session ownership:
 build log SHA256 `579e35ba8dae93d7ca82fdf8e050ad54695206cac9d8f45927bd1041009c4604`
 (`target/m14-curve-gesture-build-mapgyver-2026-11-15.log`). Its connected result is the failing
 gesture receipt above.
-Current ordinary build with the complete controller decomposition:
+Prior ordinary build with the complete controller decomposition:
 `aea3e6ecc8f360f1a9dc4b418a33062378f001f75442902a8ec11f6c39649dc3`;
 build log SHA256 `693d5fddb8afd64c84cc86e97cd1bf6b49c4f01804c94994fe6932e0a56f7f18`
 (`target/m14-curve-editor-build-mapgyver-2026-11-15.log`). Its connected result is the failing
-editor receipt above. The native fixture remains older: these are not a coherent new ordinary/
+editor receipt above.
+Current ordinary build with the selection ordering correction:
+`75e836dbde6685286bf4b563b388f1600f834598864d2082934f6172b5ca9319`;
+build log SHA256 `7dc53aef88f3e99174792e0696c9d4a84acea7b5d0b9fde6756882a2cede5f5a`
+(`target/m14-curve-selection-race-build-mapgyver-2026-11-15.log`). Its connected result is the failing
+selection-race receipt above. The native fixture remains older: these are not a coherent new ordinary/
 native qualification pair. Refresh both inputs before native acceptance; Video evidence keeps
 its original source/build scope.
 

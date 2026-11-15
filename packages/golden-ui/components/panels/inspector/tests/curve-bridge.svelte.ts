@@ -27,6 +27,7 @@ export function curveBridgeFixture() {
 			[20, 0]
 		])
 	};
+	let publishedGraph = $state.raw(graph);
 	let local = $state<CurveSelection>({ key: null, keys: [], segments: [] });
 	let ids = $state.raw<NodeId[]>([1]);
 	const writes: NodeId[][] = [];
@@ -35,7 +36,11 @@ export function curveBridgeFixture() {
 		loading: { visible: false },
 		projectGeneration: 1 as number | null,
 		snapshotGeneration: 1,
-		graph: { state: graph },
+		graph: {
+			get state() {
+				return publishedGraph;
+			}
+		},
 		get selectedNodesIds() {
 			return ids;
 		},
@@ -78,6 +83,14 @@ export function curveBridgeFixture() {
 		change(next: CurveSelection) {
 			local = next;
 			flushSync();
+		},
+		refreshAndChange(next: CurveSelection, external?: NodeId[]) {
+			const nodesById = publishedGraph.nodesById.fork();
+			nodesById.set(owner.node_id, { ...owner, meta: { ...owner.meta, label: 'Refreshed' } });
+			publishedGraph = { ...publishedGraph, nodesById };
+			local = next;
+			if (external) ids = external;
+			flushSync();
 		}
 	};
 }
@@ -105,6 +118,29 @@ export function auditCurveBridge() {
 		);
 	} finally {
 		f.dispose();
+	}
+	const refreshed = curveBridgeFixture();
+	try {
+		refreshed.arm();
+		refreshed.refreshAndChange({ key: 2, keys: [2], segments: [] });
+		check(
+			refreshed.ids.join() === '2' && refreshed.local.keys.join() === '2',
+			'graph refresh cannot replace an admitted same-turn key selection with the old owner'
+		);
+		check(refreshed.writes.length === 1, 'same-turn selection publishes once');
+	} finally {
+		refreshed.dispose();
+	}
+	const foreign = curveBridgeFixture();
+	try {
+		foreign.arm();
+		foreign.refreshAndChange({ key: 2, keys: [2], segments: [] }, [20]);
+		check(
+			foreign.ids.join() === '20' && foreign.writes.length === 0,
+			'same-turn foreign selection retains priority over pending local input'
+		);
+	} finally {
+		foreign.dispose();
 	}
 	for (const boundary of ['project', 'snapshot', 'disconnect', 'loading'] as const) {
 		const f = curveBridgeFixture();

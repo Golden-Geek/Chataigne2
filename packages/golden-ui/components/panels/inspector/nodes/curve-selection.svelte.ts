@@ -38,9 +38,37 @@ export function createCurveInspectorSelection(context: Context) {
 		owner: string;
 		selected: readonly NodeId[];
 	} | null = null;
+	const publish = (
+		selected: CurveSelection,
+		session: CurveSelectionHost | null,
+		owner: UiNodeDto
+	) => {
+		const next = curveSelectionSignature(selected);
+		if (
+			next === signature ||
+			!session ||
+			session.status !== 'connected' ||
+			session.loading.visible ||
+			session.projectGeneration === null ||
+			!input ||
+			input.session !== session ||
+			input.project !== session.projectGeneration ||
+			input.snapshot !== session.snapshotGeneration ||
+			input.owner !== owner.uuid ||
+			input.selected !== session.selectedNodesIds
+		)
+			return;
+		const nodes = curveSelectionNodes(session.graph.state, owner.node_id, selected);
+		if (!nodes) return;
+		signature = next;
+		session.selectNodes(nodes, 'REPLACE');
+		input.selected = session.selectedNodesIds;
+	};
 	$effect(() => {
 		const session = context.session,
 			owner = context.owner;
+		// A graph publication must not replay the pre-input selection over an admitted local edit.
+		untrack(() => publish(context.read(), session, owner));
 		const selected = projection.read(
 			session?.graph.state ?? null,
 			session?.selectedNodesIds ?? [],
@@ -66,28 +94,7 @@ export function createCurveInspectorSelection(context: Context) {
 		const selected = context.read(),
 			session = context.session,
 			owner = context.owner;
-		untrack(() => {
-			const next = curveSelectionSignature(selected);
-			if (
-				next === signature ||
-				!session ||
-				session.status !== 'connected' ||
-				session.loading.visible ||
-				session.projectGeneration === null ||
-				!input ||
-				input.session !== session ||
-				input.project !== session.projectGeneration ||
-				input.snapshot !== session.snapshotGeneration ||
-				input.owner !== owner.uuid ||
-				input.selected !== session.selectedNodesIds
-			)
-				return;
-			const nodes = curveSelectionNodes(session.graph.state, owner.node_id, selected);
-			if (!nodes) return;
-			signature = next;
-			session.selectNodes(nodes, 'REPLACE');
-			input.selected = session.selectedNodesIds;
-		});
+		untrack(() => publish(selected, session, owner));
 	});
 	return {
 		clear() {
