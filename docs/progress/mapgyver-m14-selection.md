@@ -158,6 +158,14 @@ admitted pointer and its queued edits; real lifetime changes still retire it. Se
 revocation and final disposal retain their separate cancellation paths. This is a verified
 metadata-refresh correction; the connected first-drag failure is still reproduced.
 
+Gesture/session ownership is now extracted into focused `curve/edit-gesture.svelte.ts` and
+`curve/parameter-writer.ts` modules. Admission pins the host and document/selection/access basis;
+one scheduled frame retains the latest key and Bezier samples. Terminal input takes its edit
+session and current pending writes before closure. Creation/easing commands use the same typed
+writer and current access/coercion rules. The editor retains geometry and presentation adapters.
+This removes scattered scope/session/queue bookkeeping, but the4615-line component remains
+oversized and requires the remaining cohesive splits. No new app behavior or whole gate is claimed.
+
 ## Applicable editor inventory
 
 Screen, Source, Composition and Matrix now share Golden's contour action and pure paint
@@ -192,6 +200,16 @@ This inventory retains the complete gate. DOM callback fixtures do not establish
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Curve gesture ownership extraction (2026-11-15):64 focused cases, production Inspector browser
+and four typechecks0/0 pass. Existing frame hashes, selection/capture/cancel, metadata refresh,
+permissions, pending operations and locked-owner behavior are unchanged. App/shared formatting,
+both UI builds and root/Core formatting pass. Logs: `target/m14-curve-gesture-*-2026-11-15.log`.
+The coherently rebuilt ordinary app's existing connected check still fails at the same
+`captured:false, focused:true` assertion after successful real creation. Receipt:
+`target/m14-curve-gesture-connected-2026-11-15/failure.json`. That required check is unchanged;
+no new scene, parameter or runtime probe was introduced. No Rust/protocol behavior changed,
+and no native/GPU acceptance is inferred. M14/1 Active, M14 0/10,88/106 (83%).
 
 Curve lifetime slice (2026-11-15):64 focused Golden cases pass, including repeated equal-scope
 wrappers and each real lifetime boundary. The production Inspector browser retains capture across
@@ -486,11 +504,11 @@ Prior ordinary checkpoint rebuild after parking the unproven cache attempt:
 `35e7ce1c0df6106c7f7cab323c3efeb98734c278b7a978ed755e4c52eda16da1`;
 build log SHA256 `cd5a81086ee1e15d9835b48a3070418dfe9b9b1bfa0933daf1873759fad7bda1`
 (`target/m14-curve-backend-build-checkpoint-2026-11-15.log`).
-Current ordinary build with the Matrix guard and semantic Curve lifetime observer:
-`df3e3b7290027e834eaf3d82acc28d949b2ddb40529b27bd00f99617acd2ceb2`;
-build log SHA256 `c9e3904c876191ac180b1f5228c25ae5c3e15a02e1f289face543390ab519c1b`
-(`target/m14-curve-lifetime-build-mapgyver-2026-11-15.log`). Its connected result is the failing
-lifetime receipt above. The native fixture remains older: these are not a coherent new ordinary/
+Current ordinary build with extracted gesture/session ownership:
+`da152e1196b46d896672520433e62ce78752b83a286efceeb54f68cd5ca2bcfc`;
+build log SHA256 `579e35ba8dae93d7ca82fdf8e050ad54695206cac9d8f45927bd1041009c4604`
+(`target/m14-curve-gesture-build-mapgyver-2026-11-15.log`). Its connected result is the failing
+gesture receipt above. The native fixture remains older: these are not a coherent new ordinary/
 native qualification pair. Refresh both inputs before native acceptance; Video evidence keeps
 its original source/build scope.
 

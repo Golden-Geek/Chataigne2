@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { createCurveOperations, type CurveOperation } from './curve/operations';
 	import { createCurveCreation } from './curve/creation.svelte';
+	import { createCurveParameterWriter } from './curve/parameter-writer';
+	import { createCurveEditGesture } from './curve/edit-gesture.svelte';
 	import { createEditorScopeObserver } from '../../store/editor-scope';
 	import { curveGeometryParameters, curveParametersWritable } from './curve/admission';
 	import {
@@ -60,8 +62,7 @@
 		make_curve_range_constraint,
 		range_bounds_from_value,
 		uniform_bounds_from_constraints,
-		to_param_ref,
-		coerce_param_value_for_ref
+		to_param_ref
 	} from './curve/values';
 	import {
 		cubic_from_points,
@@ -73,12 +74,7 @@
 	import { untrack } from 'svelte';
 	import { createCurveInput, curveInputEvents } from './curve/input';
 	import { appState } from '../../store/workbench.svelte';
-	import {
-		createUiEditSession,
-		sendRemoveNodesIntent,
-		sendSetParamIntent,
-		type UiEditSession
-	} from '../../store/ui-intents';
+	import { createUiEditSession, sendRemoveNodesIntent } from '../../store/ui-intents';
 	import { registerCommandHandler } from '../../store/commands.svelte';
 	import { curveClipboardState, type CurveClipboardKey } from '../../store/curve-clipboard.svelte';
 	import type { NodeId, ParamValue, UiNodeDto } from '../../types';
@@ -181,16 +177,6 @@
 	let active_box_selection = $state<ActiveBoxSelection | null>(null);
 	let active_canvas_pan = $state<ActiveCanvasPan | null>(null);
 	let active_curve_draw = $state<ActiveCurveDraw | null>(null);
-	let drag_edit_session = $state<UiEditSession | null>(null);
-	let drag_edit_session_begin_promise: Promise<void> | null = null;
-	let drag_input_scope = $state.raw<{
-		host: NonNullable<typeof session>;
-		project: number | null;
-		snapshot: number;
-		owner: string;
-		selection: string;
-		parameters: ParamNodeRef[];
-	} | null>(null);
 	let hover_curve_position = $state<{ position: number; value: number } | null>(null);
 	let is_canvas_focused = $state(false);
 	let curve_context_menu_open = $state(false);
@@ -199,12 +185,8 @@
 	let last_canvas_primary_down = $state<CanvasPrimaryDownSample | null>(null);
 
 	let interaction_transform = $state<CanvasTransform | null>(null);
-	let queued_drag_targets: Map<NodeId, DragPreview> | null = null;
-	let queued_bezier_handle_targets: Map<NodeId, BezierEasingPreview> | null = null;
-	let drag_commit_raf_id = 0;
 	let view_bounds_animation_frame = 0;
 	let view_bounds_animation_target: CurveViewBounds | null = null;
-	let pending_param_write_promises: Set<Promise<void>> = new Set();
 	let active_curve_draw_points = $derived.by(
 		() =>
 			active_curve_draw?.points.map((point) => ({
@@ -263,47 +245,15 @@
 				}));
 	};
 
-	const set_param_value = async (
-		ref: ParamNodeRef | undefined,
-		value: ParamValue,
-		scope?: CurveOperation
-	): Promise<void> => {
-		const operation = (async (): Promise<void> => {
-			if (
-				(scope && !scope.documentCurrent()) ||
-				!ref ||
-				!curveParametersWritable(graphNodesById, [ref])
-			) {
-				return;
-			}
-			const current = to_param_ref(graphNodesById?.get(ref.node_id));
-			if (!current) return;
-			const coerced = coerce_param_value_for_ref(current, value);
-			if (!coerced) {
-				return;
-			}
-			if ((coerced.kind === 'float' || coerced.kind === 'int') && !Number.isFinite(coerced.value)) {
-				return;
-			}
-			await sendSetParamIntent(ref.node_id, coerced, 'Coalesce');
-		})();
-		pending_param_write_promises.add(operation);
-		void operation.finally(() => {
-			pending_param_write_promises.delete(operation);
-		});
-		await operation;
-	};
-
-	const set_numeric_param = async (
-		ref: ParamNodeRef | undefined,
-		value: number,
-		scope?: CurveOperation
-	): Promise<void> => {
-		if (!Number.isFinite(value)) {
-			return;
-		}
-		await set_param_value(ref, { kind: 'float', value }, scope);
-	};
+	const parameterWriter = createCurveParameterWriter({
+		get nodes() {
+			return graphNodesById;
+		},
+		key: (id) => parsed_key_by_id.get(id),
+		bezier: (id) => bezier_param_refs_by_key_id(id)
+	});
+	const set_param_value = parameterWriter.write;
+	const set_numeric_param = parameterWriter.numeric;
 
 	const clamp_curve_position_to_active_range = (position: number): number => {
 		const active_range = active_curve_range_constraint;
@@ -3118,25 +3068,6 @@
 		return targets;
 	};
 
-	const flush_queued_drag = (): void => {
-		if (!drag_scope_current()) {
-			queued_drag_targets = null;
-			return;
-		}
-		if (!queued_drag_targets || queued_drag_targets.size === 0) {
-			return;
-		}
-		for (const [key_id, target] of queued_drag_targets.entries()) {
-			const key = parsed_key_by_id.get(key_id);
-			if (!key) {
-				continue;
-			}
-			void set_numeric_param(key.position_param, target.position);
-			void set_numeric_param(key.value_param, target.value);
-		}
-		queued_drag_targets = null;
-	};
-
 	const bezier_param_refs_by_key_id = (key_id: NodeId): Record<string, ParamNodeRef> | null => {
 		const nodes_by_id = graphNodesById;
 		if (!nodes_by_id) {
@@ -3342,113 +3273,31 @@
 		};
 	};
 
-	const flush_queued_bezier_handle = (): void => {
-		if (!drag_scope_current()) {
-			queued_bezier_handle_targets = null;
-			return;
+	const editGesture = createCurveEditGesture({
+		get session() {
+			return session;
+		},
+		get nodes() {
+			return graphNodesById;
+		},
+		get owner() {
+			return liveNode;
+		},
+		get selection() {
+			return input_selection_identity;
+		},
+		get busy() {
+			return creation.busy;
+		},
+		writer: parameterWriter,
+		cancel() {
+			input.cancel();
 		}
-		if (!queued_bezier_handle_targets || queued_bezier_handle_targets.size === 0) {
-			return;
-		}
-		const targets = queued_bezier_handle_targets;
-		queued_bezier_handle_targets = null;
-
-		const send_if_changed = (ref: ParamNodeRef | undefined, value: number): void => {
-			if (!ref || !Number.isFinite(value)) {
-				return;
-			}
-			const current = param_number_value(ref.value, value);
-			if (Math.abs(current - value) <= 1e-9) {
-				return;
-			}
-			void set_numeric_param(ref, value);
-		};
-
-		for (const [key_id, preview] of targets.entries()) {
-			const easing_params = bezier_param_refs_by_key_id(key_id);
-			if (!easing_params) {
-				continue;
-			}
-			send_if_changed(easing_params[DECL_OUT_POSITION], preview.out_position);
-			send_if_changed(easing_params[DECL_OUT_VALUE], preview.out_value);
-			send_if_changed(easing_params[DECL_IN_POSITION], preview.in_position);
-			send_if_changed(easing_params[DECL_IN_VALUE], preview.in_value);
-		}
-	};
-
-	const ensure_drag_commit_frame = (): void => {
-		if (drag_commit_raf_id !== 0 || typeof window === 'undefined') {
-			return;
-		}
-		drag_commit_raf_id = window.requestAnimationFrame(() => {
-			drag_commit_raf_id = 0;
-			flush_queued_drag();
-			flush_queued_bezier_handle();
-		});
-	};
-
-	const queue_drag_commit = (targets: Map<NodeId, DragPreview>): void => {
-		queued_drag_targets = targets;
-		ensure_drag_commit_frame();
-	};
-
-	const queue_bezier_handle_commit = (targets: Map<NodeId, BezierEasingPreview>): void => {
-		queued_bezier_handle_targets = targets;
-		ensure_drag_commit_frame();
-	};
-
-	const drag_scope_current = (): boolean => {
-		const scope = drag_input_scope;
-		return (
-			!!scope &&
-			session === scope.host &&
-			session.status === 'connected' &&
-			!session.loading.visible &&
-			session.projectGeneration === scope.project &&
-			session.snapshotGeneration === scope.snapshot &&
-			liveNode.uuid === scope.owner &&
-			input_selection_identity === scope.selection &&
-			graphNodesById?.get(liveNode.node_id)?.uuid === scope.owner &&
-			curveParametersWritable(graphNodesById, scope.parameters)
-		);
-	};
-	const discard_queued_drag = (): void => {
-		if (drag_commit_raf_id !== 0 && typeof window !== 'undefined') {
-			window.cancelAnimationFrame(drag_commit_raf_id);
-		}
-		drag_commit_raf_id = 0;
-		queued_drag_targets = null;
-		queued_bezier_handle_targets = null;
-	};
-	const begin_drag_edit_session = (
-		label: string,
-		prefix: string,
-		parameters: ParamNodeRef[]
-	): boolean => {
-		if (
-			!session ||
-			session.status !== 'connected' ||
-			session.loading.visible ||
-			session.hasActiveEditSession ||
-			creation.busy ||
-			session.projectGeneration === null ||
-			graphNodesById?.get(liveNode.node_id)?.uuid !== liveNode.uuid ||
-			!curveParametersWritable(graphNodesById, parameters)
-		)
-			return false;
-		drag_input_scope = {
-			host: session,
-			project: session.projectGeneration,
-			snapshot: session.snapshotGeneration,
-			owner: liveNode.uuid,
-			selection: input_selection_identity,
-			parameters
-		};
-		const edit_session = createUiEditSession(label, prefix, session);
-		drag_edit_session = edit_session;
-		drag_edit_session_begin_promise = edit_session.begin();
-		return true;
-	};
+	});
+	const begin_drag_edit_session = editGesture.begin;
+	const queue_drag_commit = editGesture.queueKeys;
+	const queue_bezier_handle_commit = editGesture.queueBezier;
+	const discard_queued_drag = editGesture.discard;
 
 	const update_bezier_handle_drag_preview = (
 		drag: ActiveBezierHandleDrag,
@@ -4160,24 +4009,11 @@
 			return easing_drag_preview_by_key_id;
 		},
 		flush() {
-			flush_queued_drag();
-			flush_queued_bezier_handle();
+			editGesture.flush();
 			discard_queued_drag();
 		},
 		discard: discard_queued_drag,
-		takeEdit() {
-			const edit = drag_edit_session
-				? {
-						session: drag_edit_session,
-						begin: drag_edit_session_begin_promise,
-						pending: [...pending_param_write_promises]
-					}
-				: null;
-			drag_edit_session = null;
-			drag_edit_session_begin_promise = null;
-			drag_input_scope = null;
-			return edit;
-		},
+		takeEdit: editGesture.take,
 		clearPreviews(keys, easing) {
 			clear_drag_previews_if_unchanged(keys);
 			clear_easing_drag_previews_if_unchanged(easing);
@@ -4702,19 +4538,6 @@
 				input_view_owner = scope_owner;
 				fixed_view_bounds = null;
 			});
-	});
-	$effect(() => {
-		const selected = input_selection_identity;
-		untrack(() => {
-			if (drag_input_scope && drag_input_scope.selection !== selected) input.cancel();
-		});
-	});
-	let active_parameter_access = $derived(
-		drag_input_scope === null ||
-			curveParametersWritable(graphNodesById, drag_input_scope.parameters)
-	);
-	$effect(() => {
-		if (!active_parameter_access) untrack(() => input.cancel());
 	});
 	$effect(() => {
 		return () => {

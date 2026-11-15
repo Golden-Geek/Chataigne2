@@ -92,6 +92,14 @@ selection and parameter-access replacement still cancel, and component disposal 
 The production Inspector fixture verifies a hidden metadata refresh during a captured drag.
 The separate connected first-drag failure remains unresolved after this correction.
 
+Curve `edit-gesture` owns gesture admission, captured document/selection/access scope, latest
+key/Bezier frame samples and edit-session handoff. `parameter-writer` owns current typed access/
+coercion and unsettled writes for both gestures and pending commands. The terminal input controller
+retires tools, flushes or discards samples and waits for those writes before closing the pinned
+session. The editor supplies geometry/projection adapters instead of holding that bookkeeping.
+The remaining large component still needs further decomposition; this split does not qualify
+its unresolved connected capture failure.
+
 Matrix grid uses those actions for Cells, row/column/group headers and their labels, alongside
 the shared contour hover. Background/idle Escape select the Matrix media owner. Grid coordinates
 and an explicit document focus identity publish together, so clearing or moving between Column
