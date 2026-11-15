@@ -51,7 +51,15 @@ Read-only targets remain selectable. The selected key's typed Inspector remains 
 navigation moves the key outside the canvas. Curve owner replacement resets retained camera
 bounds; live parameter publications preserve them. Curve constants/value projection, key-model
 reading and compiled easing evaluation now live in focused modules under `common/curve`;
-model projection never mutates document nodes. Renderer/controller decomposition remains open.
+model projection never mutates document nodes. Controller decomposition remains open.
+
+`AnimationCurveCanvas` is now a DOM/lifecycle host. Its props derive from the typed
+`CurveCanvasFrame`; shared Curve model types replace the former partial duplicate declarations.
+`canvas-paint` consumes one draw frame and returns both bounds text and the hit transform from
+the exact painted geometry. `canvas-samples` owns clipped/adaptive/discontinuous sampling,
+`canvas-grid` owns axis/grid presentation, and `canvas-theme` resolves CSS tokens. The host
+retains canvas sizing, theme observation, event forwarding and projection publication. These
+renderer files stay below1000 lines; the existing large input/editor controller remains debt.
 
 Matrix grid uses those actions for Cells, row/column/group headers and their labels, alongside
 the shared contour hover. Background/idle Escape select the Matrix media owner. Grid coordinates

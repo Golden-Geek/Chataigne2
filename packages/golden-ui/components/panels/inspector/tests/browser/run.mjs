@@ -4,6 +4,7 @@ import { build, preview } from 'vite';
 import { chromium } from 'playwright-core';
 import { checkCurveInput } from './input.mjs';
 import { checkCurvePermissions } from './permissions.mjs';
+import { checkCurvePaint } from './paint.mjs';
 const configFile = fileURLToPath(new URL('./vite.config.ts', import.meta.url));
 await build({ configFile, logLevel: 'warn' });
 const server = await preview({ configFile, logLevel: 'warn' });
@@ -25,6 +26,7 @@ try {
 	const original = await canvas.elementHandle();
 	assert(original);
 	const selected = page.getByLabel('Selected curve nodes');
+	const paintEvidence = await checkCurvePaint(page, canvas, selected);
 	await page.getByRole('button', { name: 'Run curve guard checks', exact: true }).click();
 	assert.equal(await page.getByLabel('Curve guard checks').textContent(), 'pass');
 	await page.getByRole('button', { name: 'Select Curve A key 0', exact: true }).click();
@@ -151,6 +153,7 @@ try {
 	console.log(
 		JSON.stringify({
 			result: 'pass',
+			paintEvidence,
 			scope:
 				'Curve model/access: readonly/disabled/controlled and mixed edit refusal, live permission loss, protected removal, offscreen typed Inspector; shared selection, capture/cancel, hover and independent locked owners; backend/native qualification remains open'
 		})

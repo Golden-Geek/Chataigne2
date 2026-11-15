@@ -107,8 +107,8 @@ capture release, drops queued writes and immediately removes local previews. Sub
 settles before its pinned edit session ends. Late/foreign input cannot complete canceled work.
 Pan cancellation restores its basis; scope replacement stops stale input. Unchanged owner UUID
 projection prevents ordinary live graph publications from canceling a valid drag.
-The existing oversized editor and Canvas2D renderer still need further cohesive decomposition;
-the new terminal/types modules do not close that readability debt or the full acceptance gate.
+The existing oversized editor/controller still needs further cohesive decomposition; the
+bounded Canvas2D renderer and new terminal/types modules do not close the full acceptance gate.
 
 Curve geometry now shares Golden's ordinary Inspector value-access rule. Read-only, disabled
 or externally controlled typed Parameters remain selectable, while their complete geometry
@@ -118,7 +118,13 @@ the plot keeps its typed Inspector and can still be edited there. Replacing the 
 resets retained camera bounds without recentering ordinary live Parameter updates. Constants,
 value conversion, key-model projection and easing evaluation have been extracted into focused
 modules; their existing behavior and every easing kind remain covered. The editor/controller
-and Canvas2D renderer are still oversized and require further cohesive splits.
+is still oversized and requires further cohesive splits.
+
+The Curve Canvas2D renderer is now a326-line DOM/lifecycle host over shared model/frame types.
+Paint779, grid398, samples298 and theme199 lines form bounded modules. Painting returns both
+bounds and hit geometry from one frame; the host owns sizing, theme observation, input forwarding
+and publication. No new selection store, compatibility type alias or authored setting was added.
+This closes the renderer's structural debt only; the4821-line editor/controller stays explicit.
 
 ## Applicable editor inventory
 
@@ -145,7 +151,7 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Matrix Cell spatial / Layer | Shared Layer-owner clear without navigation; backend descendant/off-page selection; shared hover, selected-only controls and unavailable-bounds keyboard/pointer selection verified | Actual adapter/Inspector/native checks, active/outgoing/off-page interaction acceptance |
 | Golden graph canvases | Browser verifies primary-down nodes/edges, immediate background/idle-Escape empty selection, selected-only resize/hover, modifier/marquee/pan/text/finder isolation; captured cancellation/focus/identity/lifecycle boundaries and pending-work preservation; Spatializer owner callback wired and consumers typecheck | Actual domain Inspector/native/independent-editor/offscreen/permission and specialized custom-world capture acceptance |
 | Golden Dashboard / edited page | Primary-down widget/background selection; selected-only resize zones; border hover; per-page tool-first/idle-owner Escape; free/ordered move/resize and marquee/pan cancellation, nested keyboard and two-editor isolation verified in production browser fixture | Actual workbench/Inspector, permission/offscreen/project and current-host acceptance remain open; unrelated Dashboard backend edits are preserved |
-| Animation curves / curve and key nodes | Shared key/easing/field and embedded typed Inspector; background/idle owner, tool-first cancel, selected-only Bezier/contour hover, live dragging, permission refusal/revocation, offscreen typed editing, scope replacement and independent locked owners verified in the production browser fixture | Finish oversized controller/renderer decomposition and complete actual backend/history/native and full lifetime acceptance; extracted modules stay under1000 lines, existing large components remain debt |
+| Animation curves / curve and key nodes | Shared key/easing/field and embedded typed Inspector; background/idle owner, tool-first cancel, selected-only Bezier/contour hover, live dragging, permission/offscreen/scope and locked-owner checks; bounded renderer with matching painted/hit geometry and exact per-state pixel parity | Finish oversized editor/controller decomposition and complete actual backend/history/native and full lifetime acceptance; renderer and extracted modules stay under1000 lines |
 | Watcher projection canvases | `WatcherProjectionCanvas` renders buffer samples/latest points without pointer, key or mutation callbacks; it has no authored canvas targets | Read-only projection applicability resolved from source. Ordinary Inspector owns its settings; retain panel focus/lifetime checks in actual workbench acceptance |
 | Media Preview / followed or locked media | `MediaPreviewPanel` renders `ChannelPreview`/`NativePreview` without authored geometry targets; toolbar changes preview choice, not object placement | Read-only image applicability resolved from source. Existing follow/lock/routing requirements stay intact; actual cross-panel/native qualification remains open |
 | Matrix grid / Matrix, Layer, Column and Cell | Shared primary-down/keyboard selection and hover for Cells/headers/labels; background/idle owner clear; immediate focus and stale-reply fencing; connected Golden browser fixture verifies controls, rename/launch, disabled input, independent drag cancellation and listener disposal | Actual backend/Inspector-driven selection, native drag/pixels, virtualized/offscreen/project and independent real-panel acceptance remain open |
@@ -154,6 +160,27 @@ This inventory retains the complete gate. DOM callback fixtures do not establish
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Curve renderer structural slice (2026-11-15):48 focused Curve/Inspector/viewport cases pass.
+New sampling tests cover visible bounds, screen/value alignment, segment ownership, owner-free
+extension lines and step/hold vertical discontinuities; grid formatting and CSS theme fallback/
+override behavior remain covered. All existing production Inspector browser interactions,
+selected-only/hover paint, permission refusal/revocation, offscreen typed editing, cancellation
+and independent locked-owner checks pass with0 page errors. Four app/Golden fixture typechecks
+report0 errors/0 warnings; shared/app formatting, both UI builds and root/Core formatting pass.
+
+Before/after owner and keyboard-cleared owner Canvas2D frames match exactly at620×330.
+The initial fixture incorrectly expected those two different lifecycle states to equal each
+other; they already differ in the existing renderer and are retained separately. Their respective
+RGBA SHA256 values are `4c5e4f57b57b492f075cb7202dbeac47b3d987cb13752fd5ffdb858b91fb145f`
+and `4579169103f9d6c68f4b149379c8a7e2e26590007d14b33780da9814fe50a69c`, identical before
+and after extraction. The selected-key frame changes paint and records its own hash. These are
+same-environment browser frame comparisons, not universal cross-platform image goldens or native
+GPU acceptance. Logs: `target/m14-curve-renderer-*-2026-11-15.log`; final browser receipt includes
+the three frame hashes. No source snapshots or image archives were added.
+This is the bounded structural/qualification batch following four product slices, not a new app
+capability or whole-gate acceptance. The large editor/controller and actual backend/history/native
+inventory remain. M14/1 Active, M14 0/10, overall88/106 (83%); M10 Pending/release-blocking.
 
 Curve model/access slice (2026-11-15):43 focused Curve/Inspector/viewport cases pass, covering
 typed model projection without source mutation, current UUID/group admission, every easing kind,
