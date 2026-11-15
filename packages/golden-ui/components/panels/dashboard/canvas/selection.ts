@@ -1,5 +1,6 @@
 import type { SelectionMode } from '../../../../store/workbench.svelte';
 import { focusClosestPageViewport, selectionModeFromEvent } from './dom';
+import { clearViewportSelection } from '../../../viewport/selection';
 
 const isTextEntry = (target: EventTarget | null) =>
 	target instanceof Element &&
@@ -51,17 +52,9 @@ export function dashboardPageKeyDown(
 		selectOwner(): void;
 	}
 ) {
-	if (
-		!context.editing ||
-		event.defaultPrevented ||
-		event.key !== 'Escape' ||
-		event.ctrlKey ||
-		event.metaKey ||
-		event.altKey ||
-		isTextEntry(event.target)
-	)
-		return;
-	event.preventDefault();
-	event.stopPropagation();
-	if (!context.cancel()) context.selectOwner();
+	clearViewportSelection(event, {
+		disabled: !context.editing,
+		cancel: context.cancel,
+		clear: context.selectOwner
+	});
 }

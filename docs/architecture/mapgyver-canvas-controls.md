@@ -15,6 +15,20 @@ gesture path. Its keyboard/accessibility click fallback cannot reselect a Surfac
 mouse-up. See the [M14 selection inventory](../progress/mapgyver-m14-selection.md) for remaining
 editor adapters and native acceptance; this public input contract alone does not qualify them.
 
+Golden's public `selectOnPress` action admits primary-down target selection and keyboard/
+accessibility activation, ignoring later physical clicks and nested controls. It leaves native
+drag admission intact and unregisters its listeners on disposal. `clearViewportSelection`
+dispatches plain background-down and tool-first/idle Escape with shared text/control/modifier
+guards. `Viewport2D`, Dashboard and Matrix grid consume these reusable selection mechanisms;
+adapters supply explicit owners and tool cancellation.
+
+Matrix grid uses those actions for Cells, row/column/group headers and their labels, alongside
+the shared contour hover. Background/idle Escape select the Matrix media owner. Grid coordinates
+and an explicit document focus identity publish together, so clearing or moving between Column
+Groups does not wait for a query receipt; older focus replies remain fenced. Coordinate-only
+transfer operations may retain their existing focus. The backend still resolves ownership and
+explicit no-child selection; UI code does not create domain defaults or authored history.
+
 Golden's public `viewportContour` owns hover lifetime and contour presentation. Its pure
 `viewportContourAppearance` provides the same colors and rem widths to DOM controls and native
 overlay projection. Screen, Source, Composition and Matrix consume it without hover selection,

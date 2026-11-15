@@ -67,7 +67,7 @@ export function createMatrixEditor(query: () => MatrixEditorQuery) {
 				(intent.kind === 'RemoveItem' || intent.kind === 'RemoveColumn') &&
 				parent
 			) {
-				if (selectParent(parent)) controller.select(null, null);
+				if (selectParent(parent)) controller.select(null, null, null);
 			}
 			return result;
 		},

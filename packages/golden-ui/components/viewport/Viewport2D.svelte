@@ -4,6 +4,7 @@
 	import { CanvasToolbar, canvasNavigationCommand } from 'golden_graph_ui';
 	import { fitSize, frameBounds, type ViewBounds, type ViewCamera } from './geometry';
 	import { createZoomMotion } from './zoom-motion';
+	import { clearViewportSelection } from './selection';
 	let {
 		aspect,
 		identity,
@@ -121,10 +122,11 @@
 			event.altKey
 		)
 			return;
-		if (event.key === 'Escape' && !isControl(event.target) && onselectionclear) {
-			event.preventDefault();
-			event.stopPropagation();
-			onselectionclear(event);
+		if (
+			onselectionclear &&
+			!isControl(event.target) &&
+			clearViewportSelection(event, { clear: () => onselectionclear?.(event) })
+		) {
 			return;
 		}
 		if (event.code === 'Space') {
@@ -195,13 +197,8 @@
 		event.stopPropagation();
 	}}
 	onpointerdown={(event) => {
-		if (
-			!event.defaultPrevented &&
-			event.button === 0 &&
-			!isControl(event.target) &&
-			!(event.target instanceof Element && event.target.closest('button, a, [role="button"]'))
-		)
-			onselectionclear?.(event);
+		if (!isControl(event.target) && onselectionclear)
+			clearViewportSelection(event, { clear: () => onselectionclear?.(event) });
 	}}
 	onpointermove={(event) => {
 		if (drag?.id === event.pointerId) {

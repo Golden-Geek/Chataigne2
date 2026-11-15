@@ -82,6 +82,16 @@ submit mutation callbacks. Previously submitted optimistic work remains pending 
 acknowledgement/rejection. Normal release still commits once. Custom-world capture policy remains
 with its specialized adapter.
 
+Matrix grid now consumes Golden's public `selectOnPress` and `clearViewportSelection` alongside
+shared contour hover. Cells, row/column/group headers and their labels select before release;
+physical clicks cannot select again. Keyboard/accessibility activation, nested triggers, rename,
+double-click launch, text keys, disabled input and per-grid drag cancellation retain ownership.
+Background/idle Escape inspect the Matrix owner. `Viewport2D` and Dashboard reuse the same
+clearing helper. The Matrix controller publishes explicit focus and coordinates together,
+including same-coordinate Group changes and owner clearing; pending older reads cannot restore
+the old focus. Coordinate-only transfer updates keep their existing focus contract. Existing
+backend explicit-owner/no-child handling is reused without a DTO or Rust change.
+
 ## Applicable editor inventory
 
 Screen, Source, Composition and Matrix now share Golden's contour action and pure paint
@@ -110,12 +120,30 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Animation curves / curve and key nodes | Authored point/segment editing with local bound key/multi-key selection driving the embedded key/easing Inspector | Verify shared selection/owner/Escape, selected-only handles and capture/cancel. The existing large editor needs cohesive selection/input extraction before behavior changes; no exemption or acceptance claimed |
 | Watcher projection canvases | `WatcherProjectionCanvas` renders buffer samples/latest points without pointer, key or mutation callbacks; it has no authored canvas targets | Read-only projection applicability resolved from source. Ordinary Inspector owns its settings; retain panel focus/lifetime checks in actual workbench acceptance |
 | Media Preview / followed or locked media | `MediaPreviewPanel` renders `ChannelPreview`/`NativePreview` without authored geometry targets; toolbar changes preview choice, not object placement | Read-only image applicability resolved from source. Existing follow/lock/routing requirements stay intact; actual cross-panel/native qualification remains open |
-| Matrix grid / Matrix, Layer, Column and Cell | Separate authored selection exists; source audit finds row/column and Cell click handlers, with root pointer-down currently tracking only drag origin | Next deliver primary-down and owner/Escape selection through the shared boundary, preserving launch/drag/control/text/virtualization behavior, then qualify actual Inspector and independent panels |
+| Matrix grid / Matrix, Layer, Column and Cell | Shared primary-down/keyboard selection and hover for Cells/headers/labels; background/idle owner clear; immediate focus and stale-reply fencing; connected Golden browser fixture verifies controls, rename/launch, disabled input, independent drag cancellation and listener disposal | Actual backend/Inspector-driven selection, native drag/pixels, virtualized/offscreen/project and independent real-panel acceptance remain open |
 
 This inventory retains the complete gate. DOM callback fixtures do not establish actual
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Grid slice (2026-11-15):60 Matrix/spatial and90 Golden Dashboard/viewport unit cases pass,
+including immediate explicit focus changes with identical coordinates and held older/latest
+replies. The expanded production browser fixture verifies pointer-down-before-release without
+duplicate selection, unselected contour hover, header bodies/labels, Enter/Space, owner clearing,
+late release, active nested Stop, rename/cancel on selected and unselected rows, double-click
+launch, disabled input, two-grid drag cancellation and detached listener cleanup. It uses a
+connected public Golden session, not the actual backend Inspector. All142 Dashboard selection/
+gesture/ordered groups and the shared viewport browser regression pass. Both app and Golden
+fixture typechecks report0/0; app/shared lint, both production UI builds and root/Core formatting
+pass. Logs: `target/m14-grid-*-2026-11-15.log`; final combined browser receipt is
+`m14-grid-browser-final-2026-11-15.log`. Dashboard receipt:
+`target/qualification/p11-dashboard-viewport-2026-11-15T17-37-02-255Z.json`.
+Fixture IDs now follow the shared loader's fresh UUIDs. Non-wrapping result rows keep selected
+names from moving the test grid between clicks; cell presses use visible body space around Add
+Media. Earlier binding/rename failures remain in their logs. The temporary focus experiment was
+reverted. Current bundles include these changes; debug executables still embed the earlier UI.
+No new native GPU, actual backend/Inspector or whole-gate acceptance is inferred.
 
 Dashboard slice (2026-11-15):90 focused Golden Dashboard/viewport unit cases pass. The existing
 production fixture now has16 selection groups for free/horizontal/vertical primary-down,
@@ -240,6 +268,6 @@ native fixture SHA256:
 These replace the debug binaries from the historical M10 build receipt; refresh coherent
 qualification inputs on return. Existing Video evidence retains its original source/build scope.
 
-Next deliverable: Matrix grid primary-down and owner/Escape selection, then curve selection/input
-and current actual Inspector/native/independent-editor behavior with coherent rebuilt binaries. No completed slice
+Next deliverable: resolve and deliver inline curve selection/input ownership with its embedded
+Inspector, then current actual Inspector/native/independent-editor behavior with coherent rebuilt binaries. No completed slice
 or passing software suite substitutes for whole-gate acceptance.

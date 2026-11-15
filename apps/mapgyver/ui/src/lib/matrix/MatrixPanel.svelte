@@ -181,24 +181,29 @@
 					}}
 					edit={(value) => owner.edit(value)}
 					selectRow={(row) => {
-						controller.select(row.item.id, view.selected?.column ?? null);
+						controller.select(row.item.id, view.selected?.column ?? null, row.item.id.id);
 						selectDocumentNode(row.item.id.id);
 					}}
 					selectColumn={(column) => {
-						controller.select(view.selected?.item ?? null, column.id);
+						controller.select(view.selected?.item ?? null, column.id, column.id);
 						selectDocumentNode(column.id);
 					}}
 					selectedGroup={view.node}
+					clearSelection={() => {
+						if (!matrixWindow) return;
+						controller.select(null, null, null);
+						selectDocumentNode(matrixWindow.media);
+					}}
 					selectGroup={(group) => {
-						controller.select(null, null);
+						controller.select(null, null, group.id);
 						selectDocumentNode(group.id);
 					}}
 					select={(row, column) => {
-						controller.select(row.item.id, column.id);
 						const cell = matrixWindow?.cells.find(
 							(cell) =>
 								cell.cell.layer === row.item.id.id && cell.cell.definition.column === column.id
 						);
+						controller.select(row.item.id, column.id, cell?.cell.id ?? row.item.id.id);
 						selectDocumentNode(cell?.cell.id ?? row.item.id.id);
 					}}
 					drop={async (row, column, source, copy) => {
@@ -211,7 +216,7 @@
 							copy
 						});
 						if (result?.kind === 'MatrixMediaCreated') {
-							controller.select(row.item.id, column.id);
+							controller.select(row.item.id, column.id, result.cell);
 							selectDocumentNode(result.cell);
 						}
 					}}

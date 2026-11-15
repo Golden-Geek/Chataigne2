@@ -32,17 +32,17 @@ export function gridActions(
 		const result = await owner.edit(edit);
 		if (result?.kind === 'MatrixMediaCreated') select(result.media);
 		if (result?.kind === 'MatrixColumnGroupCreated') {
-			owner.controller.select(null, null);
+			owner.controller.select(null, null, result.group);
 			select(result.group);
 		}
 		if (result?.kind === 'MatrixCreated') {
 			const item = result.items[0];
 			const column = result.columns[0];
 			if (item) {
-				owner.controller.select(item, null);
+				owner.controller.select(item, null, item.id);
 				select(item.id);
 			} else if (column) {
-				owner.controller.select(null, column);
+				owner.controller.select(null, column, column);
 				select(column);
 			}
 		}

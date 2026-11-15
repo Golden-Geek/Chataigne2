@@ -115,9 +115,11 @@ export class MatrixController<S extends EditorConnection> {
 		this.state.selected = selection;
 		this.state.node = node;
 	}
-	select(item: MatrixItemId | null, column: string | null) {
-		if (sameSelection(this.state.selected, { item, column })) return;
+	// Coordinate-only updates retain focus; explicit workbench choices publish their identity together.
+	select(item: MatrixItemId | null, column: string | null, node: string | null = this.state.node) {
+		if (sameSelection(this.state.selected, { item, column }) && node === this.state.node) return;
 		this.state.selected = { item, column };
+		this.state.node = node;
 		this.refresh();
 	}
 	setViewport(viewport: MatrixViewport) {

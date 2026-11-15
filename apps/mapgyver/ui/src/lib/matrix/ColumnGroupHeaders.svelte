@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { selectOnPress, viewportContour } from 'golden_ui';
 	import GridLabel from './GridLabel.svelte';
 	import ParameterTrigger from './ParameterTrigger.svelte';
 	import { gridSize, groupHeaderRow } from './viewport';
@@ -7,6 +8,7 @@
 	import type { MatrixRenderStatus } from '../preview/generated/MatrixRenderStatus';
 	import type { ApplicationRuntimeSnapshot } from '../media/generated/ApplicationRuntimeSnapshot';
 	let {
+		identity,
 		groups,
 		requested,
 		observation,
@@ -26,6 +28,7 @@
 		edit,
 		drag
 	}: {
+		identity: string;
 		groups: ColumnGroupSnapshot[];
 		requested: string[];
 		observation: MatrixRenderStatus | null;
@@ -68,6 +71,8 @@
 				{@const last = Math.min(end, group.axis_start + group.axis_count)}
 				<div
 					class="band"
+					use:selectOnPress={{ disabled, select: () => select(group) }}
+					use:viewportContour={{ selected: selected === group.id, identity }}
 					role="columnheader"
 					tabindex="0"
 					data-column-group-id={group.id}

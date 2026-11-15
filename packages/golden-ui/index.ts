@@ -108,6 +108,7 @@ export { default as Viewport2D } from './components/viewport/Viewport2D.svelte';
 export { default as ViewportHandle } from './components/viewport/ViewportHandle.svelte';
 export { default as ViewportTarget } from './components/viewport/ViewportTarget.svelte';
 export { viewportContour, viewportContourAppearance } from './components/viewport/contour';
+export { selectOnPress, clearViewportSelection } from './components/viewport/selection';
 export { pointBounds, type ViewBounds } from './components/viewport/geometry';
 export { createViewportPointer } from './components/viewport/pointer';
 export { selectedEditorItem } from './store/editor-selection';

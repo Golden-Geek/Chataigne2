@@ -118,11 +118,11 @@
 	const selection = useDocumentSelection();
 	function select(id: string) {
 		const item = rows.find((row) => row.item.id.id === id)?.item.id;
-		if (item && selection.select(id)) owner.controller.select(item, null);
+		if (item && selection.select(id)) owner.controller.select(item, null, id);
 	}
 	function clear() {
 		if (!geometry.state.active && selection.select(props.media))
-			owner.controller.select(null, null);
+			owner.controller.select(null, null, null);
 	}
 	function start(id: string, mode: RectGeometryMode, point: Point) {
 		const object = objects.find((object) => object.id === id);

@@ -1,5 +1,11 @@
 <script lang="ts">
-	import { IconButton, registerCommandHandler } from 'golden_ui';
+	import {
+		IconButton,
+		registerCommandHandler,
+		selectOnPress,
+		viewportContour,
+		clearViewportSelection
+	} from 'golden_ui';
 	import SourceDropZone from '../media/SourceDropZone.svelte';
 	import playIcon from 'golden_ui/style/icons/play.svg';
 	import addIcon from 'golden_ui/style/icons/node/add.svg';
@@ -40,6 +46,7 @@
 		selectRow,
 		selectColumn,
 		selectGroup,
+		clearSelection,
 		selectedGroup,
 		trigger,
 		drop,
@@ -63,6 +70,7 @@
 		selectRow(row: MatrixViewRow): void;
 		selectColumn(column: ColumnSnapshot): void;
 		selectGroup(group: ColumnGroupSnapshot): void;
+		clearSelection(): void;
 		selectedGroup: string | null;
 		trigger(row: MatrixViewRow, column: ColumnSnapshot): void;
 		drop(row: MatrixViewRow, column: ColumnSnapshot, source: string, copy: boolean): void;
@@ -93,8 +101,10 @@
 	);
 	let element: HTMLDivElement;
 	let dragging = $state<GridDrag | null>(null);
+	let cellDragging = $state(false);
 	let highlighted: HTMLElement | null = null;
 	let dragIdentity = '';
+	const documentIdentity = $derived(JSON.stringify([snapshot.project, snapshot.media]));
 	let dragFromControl = false;
 	function clearDropHint() {
 		highlighted?.removeAttribute('data-matrix-drop-position');
@@ -103,10 +113,11 @@
 	function endDrag() {
 		clearDropHint();
 		dragging = null;
+		cellDragging = false;
 		dragFromControl = false;
 	}
 	$effect(() => {
-		const identity = JSON.stringify([snapshot.project, snapshot.media]);
+		const identity = documentIdentity;
 		if (identity !== dragIdentity) {
 			dragIdentity = identity;
 			endDrag();
@@ -137,6 +148,7 @@
 		event.stopPropagation();
 		event.dataTransfer.effectAllowed = 'all';
 		event.dataTransfer.setData(CELL_DRAG_TYPE, JSON.stringify(source));
+		cellDragging = true;
 	}
 	function cellTarget(event: DragEvent) {
 		if (
@@ -147,19 +159,6 @@
 			return null;
 		const target = event.target.closest<HTMLElement>('[data-cell-drop]');
 		return target && element.contains(target) ? target : null;
-	}
-	function selectHeader(event: MouseEvent | KeyboardEvent, select: () => void) {
-		if (disabled) return;
-		if (event instanceof KeyboardEvent) {
-			if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return;
-			event.preventDefault();
-			event.stopPropagation();
-		} else if (
-			event.target instanceof Element &&
-			event.target.closest('button, input, select, textarea, [role="slider"]')
-		)
-			return;
-		select();
 	}
 	function dropAt(
 		event: DragEvent
@@ -288,6 +287,18 @@
 		}
 	}
 	function navigate(event: KeyboardEvent) {
+		if (
+			clearViewportSelection(event, {
+				disabled,
+				clear: clearSelection,
+				cancel: () => {
+					if (!dragging && !cellDragging) return false;
+					endDrag();
+					return true;
+				}
+			})
+		)
+			return;
 		// Alt+Paste is a specialized Reference action; ordinary clipboard keys use Golden commands.
 		if (event.altKey) transferKey(event);
 		if (event.target !== element) return;
@@ -371,6 +382,8 @@
 			onpointerdown={(event) => {
 				dragFromControl =
 					event.target instanceof Element && !!event.target.closest('[data-matrix-row-controls]');
+				if (!dragFromControl && clearViewportSelection(event, { disabled, clear: clearSelection }))
+					element.focus({ preventScroll: true });
 			}}
 			oncontextmenu={context}
 			ondragover={(event) => {
@@ -447,6 +460,7 @@
 					{disabled}
 					menu={createMenu} />
 				<ColumnGroupHeaders
+					identity={documentIdentity}
 					groups={snapshot.column_groups}
 					requested={snapshot.requested_column_groups}
 					{observation}
@@ -477,8 +491,11 @@
 							data-column-id={column.id}
 							aria-selected={selected?.column === column.id}
 							class:selected={selected?.column === column.id}
-							onclick={(event) => selectHeader(event, () => selectColumn(column))}
-							onkeydown={(event) => selectHeader(event, () => selectColumn(column))}
+							use:selectOnPress={{ disabled, select: () => selectColumn(column) }}
+							use:viewportContour={{
+								selected: selected?.column === column.id,
+								identity: documentIdentity
+							}}
 							aria-colindex={column.axis_index + 2}
 							class:requested={snapshot.playback.desired_column === column.id}
 							class:installed={observation?.installed?.columns.includes(column.id) === true}
@@ -541,8 +558,12 @@
 							aria-label={row.item.label}
 							aria-selected={selected?.item?.id === row.item.id.id}
 							class:selected={selected?.item?.id === row.item.id.id}
-							onclick={(event) => selectHeader(event, () => selectRow(row))}
-							onkeydown={(event) => selectHeader(event, () => selectRow(row))}
+							use:selectOnPress={{ disabled, select: () => selectRow(row) }}
+							use:viewportContour={{
+								selected: selected?.item?.id === row.item.id.id,
+								enabled: row.item.settings.enabled,
+								identity: documentIdentity
+							}}
 							style:left={`${projection.left}rem`}
 							title={row.item.label}>
 							<div class="row-title" style:padding-inline-start={`${row.depth * 0.8}rem`}>
@@ -592,7 +613,12 @@
 									aria-colindex={column.axis_index + 2}
 									class:selected={selected?.item?.id === row.item.id.id &&
 										selected?.column === column.id}
-									onclick={() => select(row, column)}
+									use:selectOnPress={{ disabled, select: () => select(row, column) }}
+									use:viewportContour={{
+										selected:
+											selected?.item?.id === row.item.id.id && selected?.column === column.id,
+										identity: documentIdentity
+									}}
 									ondblclick={() => {
 										if (row.item.id.kind === 'Layer') trigger(row, column);
 									}}

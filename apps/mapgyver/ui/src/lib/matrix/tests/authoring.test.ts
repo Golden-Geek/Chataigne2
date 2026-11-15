@@ -9,6 +9,42 @@ import type { MatrixEditorQuery } from '../../media/generated/MatrixEditorQuery'
 import type { MatrixSelection } from '../../media/generated/MatrixSelection';
 import type { MatrixViewRow } from '../../media/generated/MatrixViewRow';
 
+test('explicit focus changes publish immediately even with unchanged coordinates and stale replies cannot restore them', async () => {
+	const host = connection(),
+		state = matrixState();
+	const older = deferred<MediaEditResult>(),
+		latest = deferred<MediaEditResult>();
+	let calls = 0;
+	const controller = new MatrixController(
+		() => host,
+		state,
+		async () => {
+			calls++;
+			return calls === 1 ? snapshot() : calls === 2 ? older.promise : latest.promise;
+		}
+	);
+	controller.observe(query());
+	await flush();
+	controller.select(null, null, 'group-old');
+	assert.equal(state.node, 'group-old');
+	controller.select(null, null, 'group-new');
+	assert.equal(state.node, 'group-new');
+	controller.select(null, null, null);
+	assert.equal(state.node, null);
+	assert.deepEqual(state.selected, { item: null, column: null });
+	const stale = snapshot();
+	if (stale.kind !== 'MatrixEditor') throw Error();
+	stale.page.node = 'group-old';
+	older.resolve(stale);
+	await flush();
+	assert.equal(calls, 3, 'one active/latest read is retained');
+	assert.equal(state.node, null, 'older focus cannot reappear while the owner reply is pending');
+	latest.resolve(snapshot());
+	await flush();
+	assert.equal(state.node, null);
+	controller.dispose();
+});
+
 test('clearing spatial selection is immediate while cached Matrix content waits for the owner reply', async () => {
 	const host = connection(),
 		state = matrixState();

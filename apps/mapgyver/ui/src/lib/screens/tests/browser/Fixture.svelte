@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import GridFixture from '../../../matrix/tests/browser/GridFixture.svelte';
 	import { Viewport2D, selectedEditorItem } from 'golden_ui';
 	import SpatialViewport from '../../../spatial/SpatialViewport.svelte';
 	import RectLayoutControls from '../../../spatial/RectLayoutControls.svelte';
@@ -50,6 +51,7 @@
 	let nativeOverlays = $state('[]');
 	let matrixKind = $state<'Layer' | 'Cell' | null>(null);
 	let sourceMode = $state(false);
+	let gridMode = $state(false);
 	let cropEditing = $state(false);
 	let cropBusy = $state(false);
 	let cropFinishes = $state(0),
@@ -147,49 +149,61 @@
 	}
 </script>
 
-<output aria-label="Inspected owner">{inspected}</output>
-<output aria-label="Native overlays" hidden>{nativeOverlays}</output>
-<button
-	onclick={() => {
-		extentAvailable = !extentAvailable;
-	}}>Toggle source bounds</button>
-<output aria-label="Geometry starts">{edits}</output>
-<output aria-label="Crop finishes">{cropFinishes}</output>
-<output aria-label="Crop stops">{cropStops}</output>
-<output aria-label="Crop moves">{cropMoves}</output>
-<button
-	onclick={() => {
-		sourceMode = true;
-		selected = null;
-		inspected = 'A';
-	}}>Show Surface Source</button>
-<button
-	onclick={() => {
-		cropEditing = !cropEditing;
-	}}>Toggle crop editing</button>
-<button
-	onclick={() => {
-		cropBusy = !cropBusy;
-	}}>Toggle crop metadata busy</button>
-<button
-	onclick={() => {
-		sourceMode = false;
-		compositionMode = true;
-		matrixKind = null;
-		selected = null;
-		inspected = 'composition';
-	}}>Show Composition</button>
-{#each ['Layer', 'Cell'] as kind}
+<div class="fixture-toolbar">
+	<output aria-label="Inspected owner">{inspected}</output>
+	<button
+		onclick={() => {
+			gridMode = true;
+		}}>Show Matrix grid</button>
+	<output aria-label="Native overlays" hidden>{nativeOverlays}</output>
+	<button
+		onclick={() => {
+			extentAvailable = !extentAvailable;
+		}}>Toggle source bounds</button>
+	<output aria-label="Geometry starts">{edits}</output>
+	<output aria-label="Crop finishes">{cropFinishes}</output>
+	<output aria-label="Crop stops">{cropStops}</output>
+	<output aria-label="Crop moves">{cropMoves}</output>
+	<button
+		onclick={() => {
+			sourceMode = true;
+			gridMode = false;
+			selected = null;
+			inspected = 'A';
+		}}>Show Surface Source</button>
+	<button
+		onclick={() => {
+			cropEditing = !cropEditing;
+		}}>Toggle crop editing</button>
+	<button
+		onclick={() => {
+			cropBusy = !cropBusy;
+		}}>Toggle crop metadata busy</button>
 	<button
 		onclick={() => {
 			sourceMode = false;
-			matrixKind = kind === 'Layer' ? 'Layer' : 'Cell';
+			compositionMode = true;
+			matrixKind = null;
 			selected = null;
-			inspected = matrixKind === 'Layer' ? 'matrix' : 'layer-owner';
-		}}>Show Matrix {kind}</button>
-{/each}
+			inspected = 'composition';
+		}}>Show Composition</button>
+	{#each ['Layer', 'Cell'] as kind}
+		<button
+			onclick={() => {
+				sourceMode = false;
+				matrixKind = kind === 'Layer' ? 'Layer' : 'Cell';
+				selected = null;
+				inspected = matrixKind === 'Layer' ? 'matrix' : 'layer-owner';
+			}}>Show Matrix {kind}</button>
+	{/each}
+</div>
 <main>
-	{#if sourceMode}
+	{#if gridMode}
+		<GridFixture
+			onselect={(id) => {
+				inspected = id;
+			}} />
+	{:else if sourceMode}
 		<SurfaceSourcePreview
 			surface={cropSurface}
 			selected={selected === 'crop-origin' || selected === 'crop-size'}
@@ -293,6 +307,14 @@
 </main>
 
 <style>
+	.fixture-toolbar {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+	}
+	output {
+		white-space: nowrap;
+		overflow: hidden;
+	}
 	main {
 		width: 36rem;
 		height: 30rem;

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { selectOnPress } from 'golden_ui';
 	let {
 		label,
 		selected,
@@ -62,8 +63,8 @@
 	<button
 		{disabled}
 		aria-pressed={selected}
+		use:selectOnPress={{ select, disabled }}
 		title={`Select ${label}`}
-		onclick={select}
 		ondblclick={start}>{label}</button>
 {/if}
 

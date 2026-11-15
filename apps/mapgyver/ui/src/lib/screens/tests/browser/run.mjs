@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { build, preview } from 'vite';
 import { chromium } from 'playwright-core';
+import { gridSelectionChecks } from '../../../matrix/tests/browser/selection.mjs';
 
 const configFile = fileURLToPath(new URL('./vite.config.ts', import.meta.url));
 await build({ configFile, logLevel: 'warn' });
@@ -19,7 +20,10 @@ try {
 	const page = await browser.newPage({ viewport: { width: 1000, height: 800 } });
 	/** @type {string[]} */
 	const errors = [];
-	page.on('pageerror', (error) => errors.push(error.message));
+	page.on('pageerror', (error) => {
+		errors.push(error.message);
+		console.error('Fixture page error:', error.message);
+	});
 	await page.goto(`http://127.0.0.1:${address.port}`);
 	const view = page.getByLabel('Warp fixture', { exact: true });
 	const owner = page.getByLabel('Inspected owner');
@@ -321,12 +325,13 @@ try {
 	assert.equal(await page.getByLabel('Crop finishes').textContent(), '1');
 	assert.equal(await page.getByLabel('Crop stops').textContent(), '1');
 	assert(Number(await page.getByLabel('Crop moves').textContent()) >= 2);
+	await gridSelectionChecks(page);
 	assert.deepEqual(errors, []);
 	console.log(
 		JSON.stringify({
 			result: 'pass',
 			scope:
-				'DOM Screen/Source/Composition/Matrix hover, selected-only controls, unavailable/known source bounds, primary-down/background/idle Escape, denied-edit selection and Source capture/cancel; native hover declarations; no native pixel or full M14 acceptance'
+				'DOM Screen/Source/Composition/Matrix spatial hover/selected controls and Matrix grid primary-down/owner clearing, rename/launch/control/drag isolation, independent grids and action disposal; native overlay declarations; no native pixel or full M14 acceptance'
 		})
 	);
 } finally {
