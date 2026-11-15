@@ -11,6 +11,9 @@
 	import CropHandles from './CropHandles.svelte';
 	let {
 		surface,
+		selected,
+		select,
+		onselectionclear,
 		presentation = null,
 		disabled,
 		start,
@@ -19,6 +22,9 @@
 		stop
 	}: {
 		surface: SurfaceSnapshot;
+		selected: boolean;
+		select(handle: 'origin' | 'size'): boolean;
+		onselectionclear(): void;
 		presentation?: SurfacePresentation | null;
 		disabled: boolean;
 		start(handle: SurfaceHandle): boolean;
@@ -27,6 +33,7 @@
 		stop(): void;
 	} = $props();
 	const owner = usePreview();
+	let cropControls = $state<{ keydown(event: KeyboardEvent): void }>();
 	let overlays = $state<OverlayPrimitive[]>([]);
 	let nativeFrame = $state(false);
 	function presentationChanged(painted: boolean) {
@@ -44,9 +51,12 @@
 </script>
 
 {#snippet controls()}
-	{#key surface.reference.surface + source}
+	{#key `${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}:${source}`}
 		<CropHandles
+			bind:this={cropControls}
 			{surface}
+			{selected}
+			{select}
 			{presentation}
 			onoverlays={setOverlays}
 			crop={surface.definition.crop}
@@ -63,7 +73,9 @@
 		nativeFrame={identity !== null && nativeFrame}
 		aspect={extent ? extent.width / extent.height : 16 / 9}
 		identity={`${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}`}
-		selection={pointBounds(cropCorners(surface, presentation))}
+		selection={selected ? pointBounds(cropCorners(surface, presentation)) : null}
+		{onselectionclear}
+		onkeydown={(event) => cropControls?.keydown(event)}
 		label="Surface source view"
 		native={identity !== null}>
 		{#if identity}

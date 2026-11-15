@@ -826,6 +826,8 @@ try {
 			(v) => v === 'false'
 		);
 		const cropSvg = cropPanel.getByRole('group', { name: 'Source crop controls', exact: true });
+		await cropSvg.getByRole('button', { name: 'Select source crop', exact: true }).focus();
+		await page.keyboard.press('Enter');
 		await gesture(
 			'Surface Source crop',
 			cropSvg,

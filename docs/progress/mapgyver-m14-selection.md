@@ -1,6 +1,6 @@
 # M14/1 editor selection and hover
 
-Updated 2026-11-14. Golden owns reusable input/capture/selection dispatch; app adapters resolve
+Updated 2026-11-15. Golden owns reusable input/capture/selection dispatch; app adapters resolve
 their edited owners and shared Inspector selection. M14/1 remains **Active, unaccepted**.
 Overall acceptance stays88/106 (83%); no new fixed gate is closed by this slice.
 
@@ -45,13 +45,29 @@ and independently queried definitions. Matrix controls update immediately on a n
 or deselection; an old cached definition cannot restore handles. Cell selection follows raw
 authoritative pages, so parameter projection copies cannot restore the previous selected Cell.
 
+Surface Source uses the existing backend-bound Crop Origin/Size Parameters as its selected
+objects, with Surface as edited owner. A body press selects Origin; corner press or keyboard
+activation selects Size. Background-down/idle Escape inspect Surface and hide crop handles.
+Selection is shared with the ordinary Inspector, including its direct Parameter editor; there
+is no extra local selection store. The selectable unselected contour remains available without
+a source. Native overlay declarations withdraw corner paint/hit IDs alongside DOM controls.
+
+The crop keeps native capture and gesture admission on press, while sending geometry samples
+only after movement. Click release sends no geometry intent. Escape during capture cancels and
+consumes the key; a subsequent idle Escape clears selection. Window blur, selection loss and
+project/source lifetime replacement stop the owned interaction. The browser fixture covers
+refused edit admission, natural focus, typed keyboard selection, capture/cancel and final samples.
+Corner selection remains available during metadata refresh: edit admission uses the busy state,
+while focus and pointer/keyboard selection remain available. A deterministic busy-state fixture
+reproduced the disabled-button failure and now passes for both primary-down and keyboard input.
+
 ## Applicable editor inventory
 
 | Editor / owner | Current scope | Exact remaining work |
 | --- | --- | --- |
 | Golden `Viewport2D` | Browser verified primary-down/idle Escape, child/text/tool isolation, navigation and camera lifetime | Complete independent-editor, capture/cancel and app adapter acceptance |
 | Screen Warping / Screen | Pointer-down Surface selection, background-owner callback, idle Escape and selected-only DOM handles verified | Hover contour/native overlay agreement; actual workbench/Inspector, overlapping hits, off-page and active-gesture Escape checks |
-| Surface Source / Surface | Existing crop editor uses Golden viewport | Explicit crop-control selection/deselection, owner behavior, hover and selected-only native/DOM controls |
+| Surface Source / Surface | Shared typed Crop Parameter selection, owner clearing, selected-only DOM/native declarations; browser capture/cancel and ordinary-host Inspector/history checks | Hover, actual native pixel/hit agreement, two-editor/offscreen and project/snapshot interaction acceptance |
 | Composition / Composition media | Root/nested explicit owner clears old hints without first-child selection; shared clear and immediate pointer choice; denied-edit/natural Escape focus browser checks pass; unlocked nested owner retains edited content | Actual Inspector/native/independent-editor and snapshot fencing; unselected Move markers, hover and selected-only presentation remain unfinished |
 | Matrix Layer spatial / Matrix media | Shared clear selects Matrix owner; explicit no-child backend projection, immediate controls and cached-definition clearing; denied-edit/idle-Escape DOM checks pass | Hover, actual adapter/Inspector/native checks, independent-editor and active-gesture behavior |
 | Matrix Cell spatial / Layer | Shared clear selects Layer without leaving it; backend resolves owned descendants and explicit no-Cell focus; bounded off-page selection and immediate control clearing; DOM checks pass | Hover, actual adapter/Inspector/native checks, active/outgoing/off-page interaction acceptance |
@@ -96,18 +112,41 @@ wire DTOs/generated contracts remain unchanged and their existing tests pass.
 The first Matrix test compile used a channel-reference field on a `MediaId`; the corrected
 fixture uses its typed UUID. No runtime API or acceptance requirement changed to make it pass.
 
+Surface Source's later slice runs86 backend Screen tests (all pass), including typed Crop
+Parameter/Surface owner resolution with bounded bindings and unchanged project/history. No
+runtime Rust/DTO changed in that slice; the earlier689 full-suite passes retain their scope.
+Its41 Screen Node cases pass, including native selected-only handle/hit withdrawal. The expanded
+browser fixture passes Source owner clearing, keyboard selection, denied editing, capture/cancel
+and final samples in addition to Screen/Composition/Matrix. Source typecheck is0/0 and app lint,
+strict all-target Clippy and rebuilt ordinary/native binaries pass. Updated native alignment and
+gesture fixture setup explicitly selects crop controls; syntax/format checks do not requalify
+their native pixels or timing.
+
+The ordinary-host Source fixture now uses the default Screen and current bounded reference
+widgets, waits for fonts and enabled controls, and selects real Crop Parameters before handle/
+Inspector checks. Its no-history baseline waits for the preceding Inspector group to close;
+the initial assertion included that still-closing group. No history requirement was weakened.
+The final2026-11-15 ordinary-host run passes actual down-before-release Inspector/control
+selection, background/idle-Escape Surface inspection, no authored/history changes from selection,
+all four crop handles, origin/clamping, live Inspector feedback before release, Escape, source
+loss/Undo, and Save/New/Load. It reports0 page errors and0 rejected crop requests. The initial
+post-Undo keyboard failure is resolved by keeping corner selection available during refresh;
+geometry admission remains fenced. This browser/host check establishes no native pixel alignment.
+
 Logs live under `target/m14-selection-*-2026-11-14.log` and
 `target/m14-composition-*-2026-11-14.log`.
-`target/m14-matrix-*-2026-11-14.log` holds the current Matrix validation cycle. Latest desktop
-build log SHA256:
-`f045c082c60ce7721e6d8ff99d5dd91d9948d174cf2af329742625c023734b37`.
+`target/m14-matrix-*-2026-11-14.log` holds Matrix validation; current Source results are
+`target/m14-source-*-2026-11-15.log` with retained Rust/Clippy scope in the2026-11-14 Source logs.
+Latest desktop build log SHA256:
+`0818509733cba660717301553ade2d170bb6867f75ce2f278a8c63a3791a55f9`.
 Built ordinary app SHA256:
-`ee948abc4d4e87c400079eb043f7d6c1428fa98c7f421013e8aa7b3a3df8bf16`;
+`484879f411c2597e2cc9fda24e6776ceb45453dfcef6d60561b3d86c8cc42a1f`;
 native fixture SHA256:
-`ea9d734b63dce51ee54af59403226e2be76548005bb5d88f5d8df0473fbfd67b`.
+`4b1390515b8c9adc6104f37cec48e884f6fb9dc1f58cc4df965072fc0777d04a`.
 These replace the debug binaries from the historical M10 build receipt; refresh coherent
 qualification inputs on return. Existing Video evidence retains its original source/build scope.
 
-Next deliverable: Surface Source crop-control selection and owner/clear behavior through the shared
-contract. Then continue graph, hover and the full native/Inspector/independent-editor inventory above. No completed slice
+Next deliverable: Golden graph background/idle-Escape selection through its public editor owner
+contract, preserving multi-selection, port/connection tools and capture. Then continue hover and
+the full native/Inspector/independent-editor inventory above. No completed slice
 or passing software suite substitutes for whole-gate acceptance.

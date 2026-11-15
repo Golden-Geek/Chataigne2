@@ -64,6 +64,15 @@
 	const { view, controller, gestureState, gesture } = owner;
 	const screen = $derived(owner.screen),
 		surface = $derived(owner.surface);
+	const cropParameters = $derived(
+		controller.page?.parameters.find((binding) => binding.surface === surface?.reference.surface)
+	);
+	const cropSelected = $derived(
+		!!cropParameters &&
+			[cropParameters.crop_origin, cropParameters.crop_size].includes(
+				appState.session?.selectedNodeUuid ?? ''
+			)
+	);
 	function persist() {
 		writePanelPersistedState(panelApi, { ...choice });
 	}
@@ -116,6 +125,15 @@
 	function fitSurface(mode: SurfaceFitMode) {
 		if (!surface || gestureState.active) return;
 		void controller.edit({ kind: 'FitSurface', reference: surface.reference, mode });
+	}
+	function selectCrop(handle: 'origin' | 'size') {
+		if (gestureState.active || !cropParameters) return false;
+		return selection.select(
+			handle === 'origin' ? cropParameters.crop_origin : cropParameters.crop_size
+		);
+	}
+	function clearCrop() {
+		if (!gestureState.active && surface) selection.select(surface.reference.surface);
 	}
 </script>
 
@@ -201,6 +219,9 @@
 			<SurfaceSourcePreview
 				presentation={owner.presentation}
 				{surface}
+				selected={cropSelected}
+				select={selectCrop}
+				onselectionclear={clearCrop}
 				disabled={controller.busy}
 				start={(handle) => gesture.start(surface.reference, handle)}
 				move={(point) => gesture.move(point)}

@@ -10,6 +10,7 @@
 	import type { ChannelSnapshot } from '../../../media/generated/ChannelSnapshot';
 	import type { InstanceSnapshot } from '../../../media/generated/InstanceSnapshot';
 	import SurfaceHandles from '../../SurfaceHandles.svelte';
+	import SurfaceSourcePreview from '../../SurfaceSourcePreview.svelte';
 	import type { ScreenSnapshot } from '../../generated/ScreenSnapshot';
 	import type { SurfaceSnapshot } from '../../generated/SurfaceSnapshot';
 	const screen: ScreenSnapshot = {
@@ -45,6 +46,19 @@
 	let selected = $state<string | null>(null);
 	let compositionMode = $state(false);
 	let matrixKind = $state<'Layer' | 'Cell' | null>(null);
+	let sourceMode = $state(false);
+	let cropEditing = $state(false);
+	let cropBusy = $state(false);
+	let cropFinishes = $state(0),
+		cropStops = $state(0),
+		cropMoves = $state(0);
+	const cropSurface: SurfaceSnapshot = {
+		...screen.surfaces[0],
+		definition: {
+			...screen.surfaces[0].definition,
+			crop: { x: 0.2, y: 0.2, width: 0.6, height: 0.6 }
+		}
+	};
 	const preview = providePreview();
 	onMount(preview.mount);
 	const channel: ChannelSnapshot = {
@@ -111,8 +125,26 @@
 
 <output aria-label="Inspected owner">{inspected}</output>
 <output aria-label="Geometry starts">{edits}</output>
+<output aria-label="Crop finishes">{cropFinishes}</output>
+<output aria-label="Crop stops">{cropStops}</output>
+<output aria-label="Crop moves">{cropMoves}</output>
 <button
 	onclick={() => {
+		sourceMode = true;
+		selected = null;
+		inspected = 'A';
+	}}>Show Surface Source</button>
+<button
+	onclick={() => {
+		cropEditing = !cropEditing;
+	}}>Toggle crop editing</button>
+<button
+	onclick={() => {
+		cropBusy = !cropBusy;
+	}}>Toggle crop metadata busy</button>
+<button
+	onclick={() => {
+		sourceMode = false;
 		compositionMode = true;
 		matrixKind = null;
 		selected = null;
@@ -121,13 +153,42 @@
 {#each ['Layer', 'Cell'] as kind}
 	<button
 		onclick={() => {
+			sourceMode = false;
 			matrixKind = kind === 'Layer' ? 'Layer' : 'Cell';
 			selected = null;
 			inspected = matrixKind === 'Layer' ? 'matrix' : 'layer-owner';
 		}}>Show Matrix {kind}</button>
 {/each}
 <main>
-	{#if matrixKind}
+	{#if sourceMode}
+		<SurfaceSourcePreview
+			surface={cropSurface}
+			selected={selected === 'crop-origin' || selected === 'crop-size'}
+			disabled={cropBusy}
+			select={(handle) => {
+				selected = handle === 'origin' ? 'crop-origin' : 'crop-size';
+				inspected = selected;
+				return true;
+			}}
+			onselectionclear={() => {
+				selected = null;
+				inspected = 'A';
+			}}
+			start={() => {
+				if (!cropEditing) return false;
+				edits++;
+				return true;
+			}}
+			move={() => {
+				cropMoves++;
+			}}
+			finish={() => {
+				cropFinishes++;
+			}}
+			stop={() => {
+				cropStops++;
+			}} />
+	{:else if matrixKind}
 		<SpatialViewport
 			channel={matrixChannel}
 			canvas={composition.canvas}

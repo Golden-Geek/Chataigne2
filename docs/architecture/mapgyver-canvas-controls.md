@@ -41,6 +41,20 @@ invent selection after clearing it or override a newer pointer choice. Matrix ad
 their existing project/session fences; Cell selection observes raw authoritative pages rather
 than parameter-projected copies, so geometry receipts cannot restore a stale selected Cell.
 
+Surface Source selects the Surface's actual Crop Origin Parameter for the crop body and Crop
+Size Parameter for its corners. Their backend-projected UUID bindings drive shared workbench/
+Inspector selection and selected-only DOM/native controls; no second selection store or authored
+crop node is invented. The retained edited owner is the Surface: background-down or idle Escape
+selects that Surface and withdraws corner paint and native corner hit IDs, retaining the crop's
+selectable contour. Keyboard activation selects the same typed Parameters without opening an edit.
+An active drag consumes Escape to cancel before the shared viewport can deselect; a subsequent
+idle Escape clears selection. Native pointer capture and project/source lifetime fencing remain
+at the existing preview boundary. Pointer-down retains gesture admission through selection
+refreshes, while geometry samples wait for actual movement. Releasing without movement closes
+the owned group without sending a geometry intent.
+Metadata refresh may block geometry editing without disabling pointer/keyboard selection of a
+corner; a disabled native button would lose selection between focus and keyboard activation.
+
 [Screen output cadence](mapgyver-output-cadence.md) is authored independently of editor input
 and the native preview's 60 FPS consumer. Shared clocks and endpoint pacing belong in Golden.
 

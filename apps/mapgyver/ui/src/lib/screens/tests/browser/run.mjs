@@ -143,12 +143,113 @@ try {
 		assert.equal(await owner.textContent(), kind === 'Layer' ? 'matrix' : 'layer-owner');
 		assert.equal(await handles.count(), 0);
 	}
+	await page.getByRole('button', { name: 'Show Surface Source', exact: true }).click();
+	const source = page.getByLabel('Surface source view', { exact: true });
+	const crop = source.getByRole('button', { name: 'Select source crop', exact: true });
+	const corners = source.getByRole('button', { name: /^Crop corner/ });
+	assert.equal(await corners.count(), 0, 'Surface owner has no selected crop controls');
+	const at = await point(crop);
+	await page.mouse.move(at.x, at.y);
+	await page.mouse.down();
+	assert.equal(
+		await owner.textContent(),
+		'crop-origin',
+		'crop selects its typed Parameter before release/refused edit'
+	);
+	assert.equal(await corners.count(), 4);
+	await page.mouse.move(at.x + 8, at.y + 3);
+	assert.equal(await owner.textContent(), 'crop-origin', 'refused drag preserves selection');
+	await page.mouse.up();
+	assert.equal(await page.getByLabel('Geometry starts').textContent(), '0');
+	const area = await source.locator('.active-zone').boundingBox();
+	assert(area);
+	await page.mouse.move(area.x + area.width * 0.1, area.y + area.height * 0.85);
+	await page.mouse.down();
+	assert.equal(
+		await owner.textContent(),
+		'A',
+		'crop background inspects Surface owner before release'
+	);
+	assert.equal(await corners.count(), 0);
+	await page.mouse.up();
+	await crop.click();
+	await page.keyboard.press('Escape');
+	assert.equal(await owner.textContent(), 'A');
+	assert.equal(await corners.count(), 0);
+	await crop.focus();
+	await page.keyboard.press('Enter');
+	assert.equal(await owner.textContent(), 'crop-origin');
+	assert.equal(await corners.count(), 4);
+	const corner = await point(corners.first());
+	await page.mouse.move(corner.x, corner.y);
+	await page.mouse.down();
+	assert.equal(await owner.textContent(), 'crop-size');
+	await page.mouse.up();
+	await crop.focus();
+	await page.keyboard.press('Enter');
+	await page.getByRole('button', { name: 'Toggle crop metadata busy', exact: true }).click();
+	await corners.first().focus();
+	await page.keyboard.press('Enter');
+	assert.equal(
+		await owner.textContent(),
+		'crop-size',
+		'metadata refresh cannot block keyboard selection'
+	);
+	await crop.focus();
+	await page.keyboard.press('Enter');
+	await page.mouse.move(corner.x, corner.y);
+	await page.mouse.down();
+	assert.equal(
+		await owner.textContent(),
+		'crop-size',
+		'metadata refresh cannot block primary-down selection'
+	);
+	await page.mouse.up();
+	assert.equal(await page.getByLabel('Geometry starts').textContent(), '0');
+	await page.getByRole('button', { name: 'Toggle crop metadata busy', exact: true }).click();
+	await page.getByRole('button', { name: 'Toggle crop editing', exact: true }).click();
+	await crop.focus();
+	await page.keyboard.press('Enter');
+	await corners.first().focus();
+	await page.keyboard.press('Enter');
+	assert.equal(
+		await owner.textContent(),
+		'crop-size',
+		'keyboard activation selects the size Parameter without an edit'
+	);
+	await page.mouse.move(at.x, at.y);
+	await page.mouse.down();
+	await page.mouse.move(at.x + 12, at.y + 6);
+	await page.keyboard.press('Escape');
+	assert.equal(
+		await page.getByLabel('Crop stops').textContent(),
+		'1',
+		'first Escape cancels the captured edit'
+	);
+	assert.equal(await owner.textContent(), 'crop-origin', 'cancel preserves tool selection');
+	assert.equal(await corners.count(), 4);
+	await page.mouse.up();
+	assert.equal(
+		await page.getByLabel('Crop finishes').textContent(),
+		'0',
+		'cancel cannot commit on release'
+	);
+	await page.keyboard.press('Escape');
+	assert.equal(await owner.textContent(), 'A', 'idle Escape then deselects the crop');
+	assert.equal(await corners.count(), 0);
+	await page.mouse.move(at.x, at.y);
+	await page.mouse.down();
+	await page.mouse.move(at.x + 18, at.y + 9);
+	await page.mouse.up();
+	assert.equal(await page.getByLabel('Crop finishes').textContent(), '1');
+	assert.equal(await page.getByLabel('Crop stops').textContent(), '1');
+	assert(Number(await page.getByLabel('Crop moves').textContent()) >= 2);
 	assert.deepEqual(errors, []);
 	console.log(
 		JSON.stringify({
 			result: 'pass',
 			scope:
-				'DOM Screen/Composition/Matrix Layer/Cell primary-down/background/idle Escape, denied-edit selection and cached-definition control clearing; no native pixel or full M14 acceptance'
+				'DOM Screen/Source/Composition/Matrix primary-down/background/idle Escape, denied-edit selection, selected controls and Source capture/cancel; no native pixel or full M14 acceptance'
 		})
 	);
 } finally {

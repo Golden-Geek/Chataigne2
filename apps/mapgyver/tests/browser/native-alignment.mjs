@@ -204,6 +204,11 @@ try {
 	await view
 		.locator('.native-preview[data-preview-state="available"][data-preview-installed="true"]')
 		.waitFor();
+	if (sourceEditor) {
+		await view.getByRole('button', { name: 'Select source crop', exact: true }).focus();
+		await page.keyboard.press('Enter');
+		await view.getByRole('button', { name: 'Crop corner 1', exact: true }).waitFor();
+	}
 	await view.getByRole('button', { name: 'Home view', exact: true }).click();
 	await delay(250);
 	// Install only after startup navigation and native preview readiness. Observe actual native

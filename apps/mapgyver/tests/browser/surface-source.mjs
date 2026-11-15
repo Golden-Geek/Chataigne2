@@ -53,6 +53,7 @@ export async function verifySurfaceSourceUi({
 			}
 		}
 		if (!nativePage) await page.goto(base);
+		await page.evaluate(() => document.fonts.ready.then(() => undefined));
 		const tab = page.getByRole('tab').filter({ hasText: /^Surface Source(?::|$)/ });
 		const screenTab = page.getByRole('tab').filter({ hasText: /^Screens$/ });
 		const panel = page.locator('section[aria-label="Surface Source"]');
@@ -60,8 +61,15 @@ export async function verifySurfaceSourceUi({
 		const inspector = page.locator('.inspector');
 		const controls = screenParameterControls(page);
 		await screenTab.click();
-		await tree.getByRole('button', { name: 'Add child item', exact: true }).click();
-		let snapshot = await wait(screens, (value) => value.screens.length === 1);
+		let snapshot = await screens();
+		if (snapshot.screens.length === 0) {
+			await tree
+				.getByTitle('Create Screen', { exact: true })
+				.getByRole('button', { name: 'Add child item', exact: true })
+				.click();
+			snapshot = await wait(screens, (value) => value.screens.length === 1);
+		}
+		assert.equal(snapshot.screens.length, 1, 'fresh host has its normal default Screen');
 		const first = snapshot.screens[0].surfaces[0];
 		await tree
 			.locator('[data-node-id]')
@@ -96,6 +104,10 @@ export async function verifySurfaceSourceUi({
 		assert(sourceMedia);
 		const source = sourceMedia.channels[0];
 		await controls.fields(surfaceParameterLabels, wait);
+		const initialSourceLabel = await controls
+			.parameter('Source media')
+			.locator('.choice-trigger')
+			.getAttribute('title');
 		const undo = () => page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 		const redo = () => page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 		const definition = async () => (await screens()).screens[0].surfaces[0].definition;
@@ -116,8 +128,8 @@ export async function verifySurfaceSourceUi({
 		stage = 'generic source references and ordinary Surface Parameters';
 		await controls.reference('Source media', sourceMedia.label, sourceMedia.label);
 		await wait(
-			() => controls.parameter('Source media').locator('.reference-editor.link-linked').count(),
-			(count) => count === 1
+			() => controls.parameter('Source media').locator('.choice-trigger').getAttribute('title'),
+			(label) => label === sourceMedia.label
 		);
 		await remember();
 		await controls.reference('Source channel', sourceMedia.label, source.label);
@@ -188,16 +200,8 @@ export async function verifySurfaceSourceUi({
 		}
 		assert.deepEqual(await screens(), snapshot);
 		await wait(
-			() =>
-				controls
-					.parameter('Source media')
-					.locator(
-						first.definition.source
-							? '.reference-editor.link-linked'
-							: '.reference-editor.link-empty'
-					)
-					.count(),
-			(count) => count === 1
+			() => controls.parameter('Source media').locator('.choice-trigger').getAttribute('title'),
+			(label) => label === initialSourceLabel
 		);
 		for (let depth = initialDepth; depth < configuredDepth; depth++) {
 			await redo();
@@ -218,9 +222,61 @@ export async function verifySurfaceSourceUi({
 			);
 		}
 		const svg = panel.getByRole('group', { name: 'Source crop controls', exact: true });
+		stage = 'shared crop selection and Surface owner inspection';
+		await ready();
+		const selectionSnapshot = await wait(screens, () => !history.active_edit_session);
+		const selectionDepth = history.undo_len;
+		const handles = panel.getByRole('button', { name: /^Crop corner/ });
+		assert.equal(await handles.count(), 0, 'the edited Surface owner has no selected crop handles');
+		const cropHit = svg.getByRole('button', { name: 'Select source crop', exact: true });
+		const cropBounds = await cropHit.boundingBox();
+		assert(cropBounds);
+		await page.mouse.move(
+			cropBounds.x + cropBounds.width / 2,
+			cropBounds.y + cropBounds.height / 2
+		);
+		await page.mouse.down();
+		await wait(
+			() => inspector.locator('.inspector-header .title-text').first().innerText(),
+			(value) => value === 'Crop origin'
+		);
+		assert.equal(await handles.count(), 4, 'real shared selection updates controls before release');
+		await page.mouse.up();
+		await ready();
+		const area = await panel.locator('.active-zone').boundingBox();
+		assert(area);
+		await page.mouse.move(area.x + area.width * 0.9, area.y + area.height * 0.85);
+		await page.mouse.down();
+		await wait(
+			() => inspector.locator('.inspector-header .title-text').first().innerText(),
+			(value) => value === first.label
+		);
+		assert.equal(
+			await handles.count(),
+			0,
+			'background-down restores owner inspection without stale handles'
+		);
+		await page.mouse.up();
+		await cropHit.focus();
+		await page.keyboard.press('Enter');
+		await wait(
+			() => handles.count(),
+			(count) => count === 4
+		);
+		await page.keyboard.press('Escape');
+		await wait(
+			() => inspector.locator('.inspector-header .title-text').first().innerText(),
+			(value) => value === first.label
+		);
+		assert.equal(await handles.count(), 0);
+		assert.deepEqual(await wait(screens, () => !history.active_edit_session), selectionSnapshot);
+		assert.equal(history.undo_len, selectionDepth, 'selection alone does not author crop geometry');
 		async function begin(index) {
 			const value = await crop();
 			await ready();
+			// Selection is a real Crop Parameter; activating its contour opens controls without editing.
+			await svg.getByRole('button', { name: 'Select source crop', exact: true }).focus();
+			await page.keyboard.press('Enter');
 			await wait(
 				async () =>
 					Object.fromEntries(
@@ -313,7 +369,13 @@ export async function verifySurfaceSourceUi({
 				handle ? handle.y + handle.height / 2 : box.y + point.y * box.height
 			);
 			await page.mouse.down();
-			await wait(screens, () => history.active_edit_session);
+			await wait(
+				() =>
+					panel
+						.getByRole('button', { name: 'Crop pointer', exact: true, includeHidden: true })
+						.count(),
+				(count) => count === 1
+			);
 			const started = await svg.boundingBox();
 			assert(
 				started &&
@@ -468,6 +530,17 @@ export async function verifySurfaceSourceUi({
 		await redo();
 		await wait(crop, (value) => near(value, clamped.screens[0].surfaces[0].definition.crop));
 		stage = 'Inspector crop feedback before pointer release';
+		await ready();
+		await wait(
+			() => panel.getByRole('button', { name: 'Crop corner 1', exact: true }).isEnabled(),
+			Boolean
+		);
+		await panel.getByRole('button', { name: 'Crop corner 1', exact: true }).focus();
+		await page.keyboard.press('Enter');
+		await wait(
+			() => page.locator('.inspector-header .title-text').first().innerText(),
+			(value) => value === 'Crop size'
+		);
 		before = await screens();
 		const cropBeforeSlider = before.screens[0].surfaces[0].definition.crop;
 		await panel.getByRole('button', { name: 'Zoom in', exact: true }).click();
@@ -559,8 +632,8 @@ export async function verifySurfaceSourceUi({
 		await tree.getByRole('button', { name: first.label, exact: true }).click();
 		await tab.click();
 		await wait(
-			() => controls.parameter('Source channel').locator('.reference-editor.link-missing').count(),
-			(value) => value === 1
+			() => controls.parameter('Source channel').locator('.choice-trigger').getAttribute('title'),
+			(label) => label?.endsWith(' (unavailable)')
 		);
 		assert.deepEqual(await screens(), after);
 		await undo();

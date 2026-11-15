@@ -22,6 +22,34 @@ fn read(engine: &mut AppEngine, query: ScreenEditorQuery) -> ScreenEditorPage {
 }
 
 #[test]
+fn source_crop_parameter_selection_keeps_the_surface_owner_and_binding_without_authoring_changes() {
+    let mut engine = fixture();
+    let (_, reference) = create(&mut engine);
+    let initial = read(&mut engine, request(ScreenEditorKind::Surface, reference.surface.0));
+    let bindings = initial.parameters[0].clone();
+    let history = engine.ui_history_state();
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    for selected in [bindings.crop_origin, bindings.crop_size, reference.surface.0] {
+        let page = read(
+            &mut engine,
+            ScreenEditorQuery {
+                document: Some(initial.document),
+                retained: initial.target,
+                ..request(ScreenEditorKind::Surface, selected)
+            },
+        );
+        assert_eq!(page.target, initial.target);
+        assert_eq!(page.surface.unwrap().reference, reference);
+        assert_eq!(page.parameters.len(), 1);
+        assert_eq!(page.parameters[0].crop_origin, bindings.crop_origin);
+        assert_eq!(page.parameters[0].crop_size, bindings.crop_size);
+        assert!(page.screen.unwrap().surfaces.is_empty());
+    }
+    assert_eq!(engine.ui_history_state(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+}
+
+#[test]
 fn editor_targets_follow_descendants_retain_unrelated_selection_and_honor_independent_locks() {
     let mut engine = fixture();
     let (a, surface_a) = create(&mut engine);
