@@ -23,6 +23,12 @@ Golden owns modifier/marquee/navigation and connection-tool isolation. Selected 
 show resize handles, and unselected valid nodes receive a contour hover cue. Complete native/
 Inspector and active gesture cancellation acceptance remains in the M14 inventory.
 
+Graph cancellation now has a separate terminal path from pointer-up commit. Escape, pointercancel,
+lost capture, blur and scope/topology/disposal boundaries retire owned capture before releasing it
+and withdraw uncommitted previews without mutation callbacks. Earlier pending optimistic edits
+retain their lifecycle. This is verified in the production DOM fixture for standard graph gestures;
+actual domain/native/custom-world qualification remains in M14/1.
+
 Golden's public `createViewportPointer` owns coordinate projection, primary-hit consumption
 and pointer capture/cancel. It selects a hit before calling the adapter's edit admission;
 refused edits retain selection and viewport focus without acquiring capture. Composition and

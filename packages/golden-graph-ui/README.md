@@ -33,11 +33,18 @@ draft. Backend mutation semantics stay with the consuming domain.
 `onGraphSelectionChange` publishes complete node/edge selection. Unmodified primary background
 pointer-down and idle Escape publish empty arrays; the host resolves its edited owner and shared
 Inspector selection. Clearing does not wait for mouse-up or repeat on release. Modifier/marquee
-selection and middle-button pan retain selection. Connection cancellation consumes Escape first;
-text controls, the node finder and active pointer gestures retain their input ownership. Custom
+selection and middle-button pan retain selection. Active pointer/connection tools consume Escape
+to cancel before idle deselection; text controls and the node finder retain their keys. Custom
 world hosts can use the same callback without inventing graph nodes for their domain objects.
 Standard graph nodes show resize controls only while selected; unselected valid nodes receive a
 subtle hover contour without changing selection. Ports remain available for connection editing.
+
+Pointer cancellation, lost capture, window blur, scope/topology replacement and disposal retire
+captured gestures without publishing movement, resize, marquee or connection results. Ownership
+is cleared before capture release to make repeated terminal events harmless. Only matching pointer
+identities are retired. Uncommitted geometry hints are discarded; previously submitted optimistic
+edits keep their own acknowledgement/rejection lifecycle. Normal pointer-up remains the committing
+path. Custom world controls retain responsibility for their own capture lifetimes.
 
 Camera scaling uses a world transform; background position/size are direct styles so changing the
 camera does not invalidate inherited custom properties or relayout every node through CSS zoom.

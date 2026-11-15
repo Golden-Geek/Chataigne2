@@ -44,6 +44,8 @@
 	let keyboardPolicy = $state(true);
 	let selectionMode = $state(false);
 	let selectionChanges = 0;
+	let moveRequests = 0,
+		resizeRequests = 0;
 	let moveMode: 'normal' | 'reject' | 'hold' = 'normal';
 	let heldMoves: ((reason?: unknown) => void)[] = [];
 	let connections: {
@@ -108,6 +110,7 @@
 		);
 	};
 	const acknowledgeMoves = async (moves: GraphNodeMove[]) => {
+		moveRequests++;
 		if (moveMode === 'reject') throw new Error('Controlled move rejection');
 		if (moveMode === 'hold')
 			return new Promise<void>((_resolve, reject) => {
@@ -122,6 +125,7 @@
 		);
 	};
 	const acknowledgeResize = async (resize: GraphNodeResize) => {
+		resizeRequests++;
 		graph = adapter.update(
 			graph.nodes.map((node) =>
 				node.id === resize.nodeId
@@ -227,11 +231,13 @@
 		await setupKeyboard();
 		selectionMode = true;
 		selectionChanges = 0;
+		moveRequests = resizeRequests = 0;
 		graph = adapter.update(
 			graph.nodes.map((node) => ({ ...node, resizable: true, enabled: node.id !== 'c' })),
 			[{ id: 'edge', from: { nodeId: 'a', socketId: 'out' }, to: { nodeId: 'b', socketId: 'in' } }]
 		);
 		options = { ...options, selectedEdgeIds: ['edge'] };
+		canvas!.setCamera({ x: 0, y: 64, zoom: 1 });
 		await keyboardFrames();
 	}
 	export const selectionInspect = () => ({
@@ -239,6 +245,20 @@
 		edges: options.selectedEdgeIds ?? [],
 		changes: selectionChanges
 	});
+	export const pointerInspect = () => ({
+		moves: moveRequests,
+		resizes: resizeRequests,
+		connections: connections.length,
+		positions: graph.nodes.map((node) => ({ id: node.id, ...node.position })),
+		sizes: graph.nodes.map((node) => node.size ?? null)
+	});
+	export async function replacePointerTopology() {
+		graph = adapter.update(
+			graph.nodes.filter((node) => node.id !== 'c'),
+			graph.edges
+		);
+		await keyboardFrames();
+	}
 	export async function keyboardMove(key: string, large = false) {
 		const accepted = canvas!.moveSelectionWithKeyboard(key, large);
 		await keyboardFrames();

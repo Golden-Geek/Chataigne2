@@ -15,7 +15,7 @@ import type { CanvasViewport } from './viewport.svelte';
 import type { CanvasGeometry } from './geometry.svelte';
 import type { CanvasEditing } from './editing.svelte';
 import type { CanvasConnectionRequests } from './connections.svelte';
-import { untrack } from 'svelte';
+import { onDestroy, untrack } from 'svelte';
 
 export function createCanvasGestures(
 	props: CanvasProps,
@@ -35,32 +35,13 @@ export function createCanvasGestures(
 	let connectionDraft = $state<ConnectionDraft | null>(null);
 	let sourceIdentity = $derived(props.graphDocument.source);
 	let interactionIdentity = $derived(props.interactionScope);
+	let topologyRevision = $derived(props.graphDocument.revision.topology);
 	let interactionOwner = $derived({
 		scope: interactionIdentity,
-		source: sourceIdentity
+		source: sourceIdentity,
+		topology: topologyRevision
 	});
 	let appliedOwner: unknown;
-	$effect.pre(() => {
-		const owner = interactionOwner;
-		untrack(() => {
-			if (owner === appliedOwner) return;
-			appliedOwner = owner;
-			for (const gesture of [
-				panGesture,
-				nodeDragGesture,
-				nodeResizeGesture,
-				selectionGesture,
-				connectionDraft
-			])
-				if (gesture && viewport.container?.hasPointerCapture(gesture.pointerId))
-					viewport.container.releasePointerCapture(gesture.pointerId);
-			panGesture = null;
-			nodeDragGesture = null;
-			nodeResizeGesture = null;
-			selectionGesture = null;
-			connectionDraft = null;
-		});
-	});
 
 	let lastResizePointerDown: {
 		nodeId: string;
@@ -68,6 +49,43 @@ export function createCanvasGestures(
 		x: number;
 		y: number;
 	} | null = null;
+	const cancelPointerGesture = (pointerId?: number): boolean => {
+		const ids = new Set(
+			[panGesture, nodeDragGesture, nodeResizeGesture, selectionGesture, connectionDraft].flatMap(
+				(gesture) =>
+					gesture && (pointerId === undefined || gesture.pointerId === pointerId)
+						? [gesture.pointerId]
+						: []
+			)
+		);
+		if (!ids.size) return false;
+		const clearGeometryPreview =
+			(nodeDragGesture !== null && ids.has(nodeDragGesture.pointerId)) ||
+			(nodeResizeGesture !== null && ids.has(nodeResizeGesture.pointerId));
+		if (panGesture && ids.has(panGesture.pointerId)) panGesture = null;
+		if (nodeDragGesture && ids.has(nodeDragGesture.pointerId)) nodeDragGesture = null;
+		if (nodeResizeGesture && ids.has(nodeResizeGesture.pointerId)) nodeResizeGesture = null;
+		if (selectionGesture && ids.has(selectionGesture.pointerId)) selectionGesture = null;
+		if (connectionDraft && ids.has(connectionDraft.pointerId)) connectionDraft = null;
+		if (clearGeometryPreview) editing.clearPreviews();
+		lastResizePointerDown = null;
+		// Retire ownership before release can dispatch lostpointercapture again.
+		for (const id of ids)
+			if (viewport.container?.hasPointerCapture(id)) viewport.container.releasePointerCapture(id);
+		return true;
+	};
+	$effect.pre(() => {
+		const owner = interactionOwner;
+		untrack(() => {
+			if (owner === appliedOwner) return;
+			appliedOwner = owner;
+			cancelPointerGesture();
+			lastResizePointerDown = null;
+		});
+	});
+	onDestroy(() => {
+		cancelPointerGesture();
+	});
 
 	let selectedIds = $derived(new Set(props.selectedNodeIds));
 
@@ -376,13 +394,6 @@ export function createCanvasGestures(
 		return true;
 	};
 
-	const cancelConnection = (): boolean => {
-		if (!connectionDraft) return false;
-		const id = connectionDraft.pointerId;
-		if (viewport.container?.hasPointerCapture(id)) viewport.container.releasePointerCapture(id);
-		connectionDraft = null;
-		return true;
-	};
 	const finishConnection = (event: PointerEvent, nodeId: string, socket: GraphSocket): void => {
 		if (completeConnection(nodeId, socket)) {
 			event.stopPropagation();
@@ -680,7 +691,7 @@ export function createCanvasGestures(
 		startNodeResize,
 		startConnection,
 		finishConnection,
-		cancelConnection,
+		cancelPointerGesture,
 		handlePointerMove,
 		handlePointerEnd,
 		handleContextMenu,

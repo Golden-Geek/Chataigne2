@@ -134,8 +134,9 @@ export function createCanvasKeyboard(
 	const handleKeydown = (event: KeyboardEvent): boolean => {
 		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return false;
 		if (event.key === 'Escape') {
-			const handled = cancel() || gestures.cancelConnection();
-			if (handled) {
+			const pointerCancelled = gestures.cancelPointerGesture();
+			const endpointCancelled = cancel();
+			if (pointerCancelled || endpointCancelled) {
 				event.preventDefault();
 				event.stopPropagation();
 				return true;

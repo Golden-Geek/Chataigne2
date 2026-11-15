@@ -7,6 +7,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { chromium } from 'playwright-core';
 import { qualifyKeyboardSockets } from './keyboard-sockets.mjs';
 import { qualifyGraphSelection } from './graph-selection.mjs';
+import { qualifyGraphCancellation } from './graph-cancellation.mjs';
 
 const root = fileURLToPath(new URL('./fixture/', import.meta.url));
 const generated = fileURLToPath(new URL('../../../../target/qualification/', import.meta.url));
@@ -184,6 +185,7 @@ try {
 	emit({ kind: 'asynchronous-connections', passed: true });
 	await qualifyKeyboardSockets(page, emit);
 	await qualifyGraphSelection(page, emit);
+	await qualifyGraphCancellation(page, emit);
 	emit({ kind: 'result', passed: true, errors });
 } catch (error) {
 	emit({ kind: 'failure', message: String(error), errors });

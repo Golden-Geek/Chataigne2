@@ -74,6 +74,14 @@ adapters already select their Formula/manager for empty graph selection. Spatial
 world now selects its module through the same callback, guarded against active endpoint input.
 These are shared Golden/consumer changes; MapGyver has no new graph panel from this slice.
 
+Graph pointer cancellation is now separate from commit. Escape first cancels captured input and
+any keyboard connection endpoint without deselecting; the next idle Escape selects the owner.
+Pointercancel/lost capture/blur and scope/topology/disposal boundaries retire matching ownership
+before capture release, discard uncommitted movement/resize/marquee/connection hints, and cannot
+submit mutation callbacks. Previously submitted optimistic work remains pending until its own
+acknowledgement/rejection. Normal release still commits once. Custom-world capture policy remains
+with its specialized adapter.
+
 ## Applicable editor inventory
 
 | Editor / owner | Current scope | Exact remaining work |
@@ -84,7 +92,7 @@ These are shared Golden/consumer changes; MapGyver has no new graph panel from t
 | Composition / Composition media | Root/nested explicit owner clears old hints without first-child selection; shared clear and immediate pointer choice; denied-edit/natural Escape focus browser checks pass; unlocked nested owner retains edited content | Actual Inspector/native/independent-editor and snapshot fencing; unselected Move markers, hover and selected-only presentation remain unfinished |
 | Matrix Layer spatial / Matrix media | Shared clear selects Matrix owner; explicit no-child backend projection, immediate controls and cached-definition clearing; denied-edit/idle-Escape DOM checks pass | Hover, actual adapter/Inspector/native checks, independent-editor and active-gesture behavior |
 | Matrix Cell spatial / Layer | Shared clear selects Layer without leaving it; backend resolves owned descendants and explicit no-Cell focus; bounded off-page selection and immediate control clearing; DOM checks pass | Hover, actual adapter/Inspector/native checks, active/outgoing/off-page interaction acceptance |
-| Golden graph canvases | Browser verifies primary-down nodes/edges, immediate background/idle-Escape empty selection, selected-only resize controls and contour hover; modifier/marquee/middle pan/text/finder/connection isolation; Spatializer owner callback wired and all consumers typecheck | Actual domain Inspector/native/independent-editor/offscreen/permission acceptance. Active node/resize cancellation remains unqualified; `pointercancel` still shares the finish path and needs an explicit cancellation check/fix before acceptance |
+| Golden graph canvases | Browser verifies primary-down nodes/edges, immediate background/idle-Escape empty selection, selected-only resize/hover, modifier/marquee/pan/text/finder isolation; captured cancellation/focus/identity/lifecycle boundaries and pending-work preservation; Spatializer owner callback wired and consumers typecheck | Actual domain Inspector/native/independent-editor/offscreen/permission and specialized custom-world capture acceptance |
 | Dashboard, curve and watcher projection canvases | Specialized Golden canvases must be reviewed | Resolve applicable authored-object/point selection versus read-only projection, then verify specialized tool/focus behavior; no exemption claimed |
 | Media Preview / Matrix grid | Preview is not the spatial placement editor; grid has its own selection | Confirm applicable owner/child manipulation paths, including read-only preview and virtualized selection; no qualification claimed from classification |
 
@@ -163,6 +171,19 @@ Graph validation logs are `target/m14-graph-*-2026-11-15.log`; the final Chataig
 Current UI bundles include these changes; the Source debug-binary hashes below retain their
 earlier Source scope and do not qualify this graph slice or new native behavior.
 
+Graph cancellation audit: the pre-fix browser baseline confirms one move callback and changed
+positions on pointercancel. The corrected production suite verifies movement and resize across
+pointercancel/Escape/lost capture/blur, foreign pointer rejection, source scope/topology/disposal
+replacement, pending optimistic work, concurrent keyboard/pointer tools, pan/marquee/connection
+cancellation and exactly one normal-release commit. It reports0 page errors. The fixture targets
+the visible control and observes its real pointer ID; capture loss is processed with the next
+pointer event. A constructor initialization-order error was corrected before validation passed.
+Final60 graph unit cases, graph component/fixture and both app typechecks (0/0), scoped Prettier,
+and both production UI builds pass. Logs: `target/m14-graph-cancel-*-2026-11-15.log`; the intentional
+failing baseline is retained separately. Final browser receipt:
+`target/qualification/p11-graph-keyboard-2026-11-15T16-18-42-497Z.jsonl`.
+No native GPU or actual domain Inspector acceptance is inferred from these callback/DOM tests.
+
 Logs live under `target/m14-selection-*-2026-11-14.log` and
 `target/m14-composition-*-2026-11-14.log`.
 `target/m14-matrix-*-2026-11-14.log` holds Matrix validation; current Source results are
@@ -176,7 +197,7 @@ native fixture SHA256:
 These replace the debug binaries from the historical M10 build receipt; refresh coherent
 qualification inputs on return. Existing Video evidence retains its original source/build scope.
 
-Next deliverable: complete shared graph active-gesture cancellation, verifying that cancellation
-does not commit pointer previews, then continue MapGyver contour hover/selected-only controls and
+Next deliverable: shared MapGyver contour hover and selected-only controls, including unselected
+Composition Move markers, then complete
 the full native/Inspector/independent-editor inventory above. No completed slice
 or passing software suite substitutes for whole-gate acceptance.

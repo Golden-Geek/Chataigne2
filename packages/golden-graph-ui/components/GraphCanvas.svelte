@@ -324,6 +324,9 @@
 	const startPan = gestures.startPan;
 	const handlePointerMove = gestures.handlePointerMove;
 	const handlePointerEnd = gestures.handlePointerEnd;
+	const handlePointerCancel = (event: PointerEvent) => {
+		gestures.cancelPointerGesture(event.pointerId);
+	};
 	const resetScrollHoverTarget = viewport.resetScrollHoverTarget;
 	const handleWheel = viewport.handleWheel;
 	const handleContextMenu = gestures.handleContextMenu;
@@ -332,6 +335,12 @@
 		if (!keyboard.handleKeydown(event)) gestures.handleKeydown(event);
 	};
 </script>
+
+<svelte:window
+	onblur={() => {
+		keyboard.cancel();
+		gestures.cancelPointerGesture();
+	}} />
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -357,7 +366,8 @@
 	onpointerdown={startPan}
 	onpointermove={handlePointerMove}
 	onpointerup={handlePointerEnd}
-	onpointercancel={handlePointerEnd}
+	onpointercancel={handlePointerCancel}
+	onlostpointercapture={handlePointerCancel}
 	onpointerleave={resetScrollHoverTarget}
 	onkeydown={handleKeydown}
 	onfocusin={(event) => navigation.recordFocus(event.target)}
