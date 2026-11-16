@@ -17,13 +17,15 @@ Then run the explicit finite hardware test:
 cargo test --locked -p MapGyver --features native-qualification --test composition_rendering native_nested_composition_pixels -- --ignored --nocapture
 ```
 
-It checks both available hardware adapters, seventeen scene states and three SDK consumer/device
+It checks both available hardware adapters, nineteen scene states and three SDK consumer/device
 readbacks per state: two outputs share the same root, and the third receives the production
 preview compositor. The preview pass uses the ordinary host's linear premultiplied RGBA8 format.
 The CPU oracle independently inverse-maps the authored transforms and evaluates coverage/blends.
 The added states collapse either/both axes, include signed zero, and restore mirrored/original
 scale while healthy siblings continue through independent outputs and the preview compositor.
 An all-collapsed root then verifies empty-output clearing and complete restoration.
+Media metadata disable/restore states exercise the same authored enable state used by the
+Inspector and public Composition operation, while sibling References retain their shared source.
 
 The shared oracle and owned native fixture live in `../support`. Each intermediate UNORM pass
 propagates the legal integer range from

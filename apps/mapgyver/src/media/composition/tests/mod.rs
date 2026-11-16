@@ -11,6 +11,7 @@ use golden_core::app::{from_sparse_project_json, to_sparse_project_json_pretty};
 mod creation;
 mod degrees;
 mod drop_source;
+mod enabled;
 mod geometry;
 mod owned_media;
 mod parameters;
@@ -211,7 +212,7 @@ fn a_thousand_instances_are_one_forest_and_one_undo_without_source_duplication()
     let instances = add(&mut engine, composition, vec![source; 1000]);
     eprintln!("Composition 1000-instance forest: {:?}", started.elapsed());
     // Each Reference adds its selected Channel Parameter and one identity-only output.
-    assert_eq!(engine.nodes.len(), before + 1000 * 17);
+    assert_eq!(engine.nodes.len(), before + 1000 * 16);
     assert_eq!(engine.undo_len(), history + 1);
     assert_eq!(inspect(&mut engine, composition).instances.len(), 1000);
     assert!(engine.undo().unwrap());

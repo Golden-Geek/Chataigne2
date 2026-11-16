@@ -23,7 +23,7 @@ fn generic_parameter_edits_are_the_only_authored_instance_state_and_roundtrip_wi
         params.push((node.node_data().meta.decl_id.0.clone(), id));
         child = node.node_data().next_sibling;
     }
-    assert_eq!(params.len(), 8);
+    assert_eq!(params.len(), 7);
     assert!(
         engine.nodes.get(root).unwrap().project_encode_data().unwrap().is_null(),
         "No second authored DTO"

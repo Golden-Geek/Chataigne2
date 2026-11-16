@@ -339,18 +339,14 @@ pub(crate) fn capture_channels_with_time(
                 let placement = super::composition::children::placement(engine, id)?;
                 instance_guards.push(placement.guard());
                 let mut definition = super::composition::children::definition(engine, id)?;
-                if node.node_data().effective_enabled && definition.enabled && definition.opacity > 0.0 {
+                if node.node_data().effective_enabled && definition.opacity > 0.0 {
                     definition.source = super::MediaSource {
                         media: super::protocol::MediaId(node.node_data().meta.uuid),
                         channel: placement.output(),
                     }
                     .capture(engine, &mut instance_guards)?;
                 }
-                if node.node_data().effective_enabled
-                    && definition.enabled
-                    && definition.opacity > 0.0
-                    && definition.source.is_some()
-                {
+                if node.node_data().effective_enabled && definition.opacity > 0.0 && definition.source.is_some() {
                     active.push(definition.clone());
                 }
             }

@@ -36,15 +36,10 @@ pub(crate) fn placement(engine: &AppEngine, media: NodeId) -> Result<&PlacementN
     result.ok_or("Composition child media requires Placement".into())
 }
 pub(crate) fn definition(engine: &AppEngine, media: NodeId) -> Result<InstanceDefinition, String> {
-    let uuid = engine
-        .nodes
-        .get(media)
-        .ok_or("media child is missing")?
-        .node_data()
-        .meta
-        .uuid;
+    let node = engine.nodes.get(media).ok_or("media child is missing")?;
+    let uuid = node.node_data().meta.uuid;
     let placement = placement(engine, media)?;
-    let mut definition = placement.definition(MediaId(uuid));
+    let mut definition = placement.definition(MediaId(uuid), node.node_data().meta.enabled);
     definition.source = crate::media::MediaSource {
         media: MediaId(uuid),
         channel: placement.output(),
@@ -57,7 +52,8 @@ pub(crate) fn reference_tree(
     source: Option<crate::media::MediaSource>,
     definition: InstanceDefinition,
 ) -> (NodeTree, InstanceId) {
-    let node = ReferenceNode::from_source(label, source);
+    let mut node = ReferenceNode::from_source(label, source);
+    node.node_data_mut().meta.enabled = definition.enabled;
     let id = InstanceId(node.node_data().meta.uuid);
     let mut definition = definition;
     definition.source = None;

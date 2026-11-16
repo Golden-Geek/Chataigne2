@@ -225,11 +225,85 @@ export async function verifyCompositionUi({
 		await select('Off-page child');
 		await target(main, owners[0]);
 		await widgets.number('Position').waitFor();
+		stage = 'media enabled metadata keeps disabled Composition children visible and editable';
+		assert.equal(
+			await widgets.parameter('Enabled').count(),
+			0,
+			'no duplicate Placement Enabled Parameter'
+		);
+		const initialEnabled = await inspect(owners[0]);
+		const header = page.locator('.inspector[data-panel-id="inspector"] .inspector-header');
+		await header.getByTitle('Node enabled', { exact: true }).click();
+		const disabled = await wait(
+			() => inspect(owners[0]),
+			(value) => !value.instances.at(-1).definition.enabled
+		);
+		await inspector('Off-page child');
+		await selectedChild(main, selected);
+		await widgets.setNumber('Position', 124);
+		await wait(
+			() => inspect(owners[0]),
+			(value) =>
+				!history.active_edit_session &&
+				!value.instances.at(-1).definition.enabled &&
+				value.instances.at(-1).definition.transform.position[0] === 124
+		);
+		await undo();
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, disabled)
+		);
+		await header.getByTitle('Node disabled', { exact: true }).click();
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, initialEnabled)
+		);
+		await undo();
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, disabled)
+		);
+		await undo();
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, initialEnabled)
+		);
+		const enableFromMenu = async (label) => {
+			const manager = page.locator('section[aria-label="Medias"]');
+			const search = manager.locator('input[type="search"]');
+			await search.fill('Off-page child');
+			await manager
+				.getByRole('treeitem', { name: 'Off-page child', exact: true })
+				.getByRole('button', { name: 'Off-page child', exact: true })
+				.click({ button: 'right' });
+			await page.getByRole('menuitem', { name: label, exact: true }).click();
+			await search.fill('');
+		};
+		await enableFromMenu('Disable');
+		await wait(
+			() => inspect(owners[0]),
+			(value) => !value.instances.at(-1).definition.enabled
+		);
+		await inspector('Off-page child');
+		await selectedChild(main, selected);
+		await enableFromMenu('Enable');
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, initialEnabled)
+		);
+		await undo();
+		await undo();
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, initialEnabled)
+		);
 		const before = await inspect(owners[0]);
 		await widgets.setNumber('Position', 123);
 		const changed = await wait(
 			() => inspect(owners[0]),
-			(value) => value.instances.at(-1).definition.transform.position[0] === 123
+			(value) =>
+				!history.active_edit_session &&
+				value.instances.at(-1).definition.transform.position[0] === 123
 		);
 		assert.deepEqual(changed.instances.slice(0, -1), before.instances.slice(0, -1));
 		await undo();
@@ -571,6 +645,7 @@ export async function verifyCompositionUi({
 				lockedPeerSelectionIndependent: true,
 				idleEscapeOwnerAndIdempotence: true,
 				selectionGeometryAndHistoryUnchanged: true,
+				mediaEnabledMetadataAndDisabledEditing: true,
 				independentSelected: selected,
 				panelQueries: requests.length,
 				pageErrors: errors,

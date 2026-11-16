@@ -32,7 +32,7 @@ fn degree_parameters_public_projection_history_and_project_share_one_versioned_c
             degrees as f32
         );
         let json = to_sparse_project_json_pretty(&engine).unwrap();
-        assert!(json.contains("mapgyver.composition.placement.v2"));
+        assert!(json.contains("mapgyver.composition.placement.v3"));
         assert!(json.contains("parameters/rotation_degrees"));
         let mut loaded = from_sparse_project_json::<AppNode>(&json).unwrap();
         loaded.apply_edits().unwrap();
@@ -47,7 +47,7 @@ fn degree_parameters_public_projection_history_and_project_share_one_versioned_c
         assert!(engine.redo().unwrap());
     }
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
-    let old = saved.replace("mapgyver.composition.placement.v2", "mapgyver.composition.placement.v1");
+    let old = saved.replace("mapgyver.composition.placement.v3", "mapgyver.composition.placement.v1");
     let error = match from_sparse_project_json::<AppNode>(&old) {
         Ok(_) => panic!("prior radian Placement must not be interpreted as degrees"),
         Err(error) => error,

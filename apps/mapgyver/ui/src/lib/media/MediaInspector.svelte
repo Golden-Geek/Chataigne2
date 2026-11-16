@@ -30,7 +30,7 @@
 	} = $props();
 	const selection = useDocumentSelection();
 	const parametersOnly = (child: UiNodeDto) =>
-		child.decl_id === 'parameters' || child.node_type === 'mapgyver.composition.placement.v2';
+		child.decl_id === 'parameters' || child.node_type === 'mapgyver.composition.placement.v3';
 	const session = $derived(appState.session);
 	let snapshot = $state<ChannelSnapshot | null>(null),
 		pending = $state(false),

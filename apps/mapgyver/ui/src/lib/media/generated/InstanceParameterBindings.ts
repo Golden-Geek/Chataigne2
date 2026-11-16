@@ -2,4 +2,4 @@
 import type { InstanceId } from "./InstanceId";
 import type { NodeUuid } from "./NodeUuid";
 
-export type InstanceParameterBindings = { instance: InstanceId, position: NodeUuid, scale: NodeUuid, rotation_degrees: NodeUuid, pivot: NodeUuid, opacity: NodeUuid, enabled: NodeUuid, };
+export type InstanceParameterBindings = { instance: InstanceId, position: NodeUuid, scale: NodeUuid, rotation_degrees: NodeUuid, pivot: NodeUuid, opacity: NodeUuid, };

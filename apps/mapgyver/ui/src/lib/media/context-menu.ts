@@ -1,8 +1,43 @@
 import { appState, registerNodeContextMenuContributor } from 'golden_ui';
+import { sendPatchMetaIntent } from 'golden_ui/store/ui-intents';
 import { invokeMediaEdit } from './operations';
 import type { ChannelMoveDirection } from './generated/ChannelMoveDirection';
 
-export function registerChannelContextMenu() {
+export function registerMediaContextMenus() {
+	registerNodeContextMenuContributor('mapgyver.media-enabled', {
+		match: ({ node }) =>
+			node.meta.can_be_disabled &&
+			['mapgyver.media.v11', 'mapgyver.media.reference.v4'].includes(node.node_type),
+		items: ({ node, session, closeMenu }) => {
+			const generation = session?.snapshotGeneration;
+			return [
+				{
+					id: 'mapgyver-media-enabled',
+					label: node.meta.enabled ? 'Disable' : 'Enable',
+					disabled:
+						session?.status !== 'connected' ||
+						session.loading.visible ||
+						session.hasActiveEditSession,
+					action: () => {
+						closeMenu();
+						if (
+							!session ||
+							appState.session !== session ||
+							session.status !== 'connected' ||
+							session.loading.visible ||
+							session.hasActiveEditSession ||
+							session.snapshotGeneration !== generation ||
+							session.getNodeData(node.node_id)?.uuid !== node.uuid
+						)
+							return;
+						void sendPatchMetaIntent(node.node_id, { enabled: !node.meta.enabled }).catch((error) =>
+							console.error('Media enable edit rejected', error)
+						);
+					}
+				}
+			];
+		}
+	});
 	registerNodeContextMenuContributor('mapgyver.channel-order', {
 		match: ({ node }) => node.node_type === 'mapgyver.media.channel.v2',
 		items: ({ node, parentNode, session, closeMenu }) => {

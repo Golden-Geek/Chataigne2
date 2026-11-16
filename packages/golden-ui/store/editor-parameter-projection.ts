@@ -33,7 +33,7 @@ export function editorParameterProjection(
 		const graph = host.graph.state;
 		if (graph.requiresResync) return;
 		const node = graph.nodesById.getByUuid(uuid);
-		if (!node || node.data.kind !== 'parameter') return;
+		if (!node) return;
 		return {
 			host,
 			graph,
@@ -46,7 +46,7 @@ export function editorParameterProjection(
 		kind: K
 	): ValuesByKind[K] | undefined => {
 		const current = lookup(uuid);
-		if (!current) return;
+		if (!current || current.node.data.kind !== 'parameter') return;
 		const { host, graph, node, committed } = current;
 		const parameter =
 			host.editOperations.get(node.node_id, uuid) ??

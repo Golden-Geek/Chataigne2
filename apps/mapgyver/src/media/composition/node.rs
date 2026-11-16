@@ -11,9 +11,9 @@ use golden_core::{
 };
 use golden_io::{RevisionGuard, RevisionSource};
 
-pub const PLACEMENT_TYPE: &str = "mapgyver.composition.placement.v2";
+pub const PLACEMENT_TYPE: &str = "mapgyver.composition.placement.v3";
 
-#[node("mapgyver.composition.placement.v2", label = "Placement")]
+#[node("mapgyver.composition.placement.v3", label = "Placement")]
 #[children(
     folder(parameters, label = "Parameters") {
         source_channel: NodeReference = NodeReference::empty() (
@@ -26,7 +26,6 @@ pub const PLACEMENT_TYPE: &str = "mapgyver.composition.placement.v2";
         pivot: Vec2 = Vec2::new(0.5, 0.5) (label = "Pivot");
         opacity: f64 = 1.0 [0.0..1.0] (label = "Opacity", constraint_policy = "reject");
         blend: Enum = "Normal" (label = "Blend", enum_options = crate::parameters::enum_options(&["Normal", "Add", "Multiply", "Screen"]));
-        render_enabled: bool = true (label = "Enabled");
     }
 )]
 pub struct PlacementNode {
@@ -56,7 +55,6 @@ impl PlacementNode {
             rotation_degrees: uuid(self.rotation_degrees.id()),
             pivot: uuid(self.pivot.id()),
             opacity: uuid(self.opacity.id()),
-            enabled: uuid(self.render_enabled.id()),
         }
     }
     pub(crate) fn geometry_edits(
@@ -109,10 +107,9 @@ impl PlacementNode {
         node.pivot = ParameterHandle::new(vector(definition.transform.pivot));
         node.opacity = ParameterHandle::new(f64::from(definition.opacity));
         node.blend = ParameterHandle::new(Enum::new(blend_name(definition.blend)));
-        node.render_enabled = ParameterHandle::new(definition.enabled);
         node
     }
-    pub(crate) fn definition(&self, media: MediaId) -> InstanceDefinition {
+    pub(crate) fn definition(&self, media: MediaId, enabled: bool) -> InstanceDefinition {
         let channel = self.source_channel.get_ref().uuid;
         InstanceDefinition {
             source: (!channel.0.is_nil()).then_some(ChannelReference {
@@ -132,7 +129,7 @@ impl PlacementNode {
                 "Screen" => BlendMode::Screen,
                 _ => BlendMode::Normal,
             },
-            enabled: self.render_enabled.get(),
+            enabled,
         }
     }
     pub(crate) fn guard(&self) -> RevisionGuard {
@@ -154,7 +151,6 @@ impl PlacementNode {
             (self.pivot.id(), ParamValue::Vec2(pivot.x, pivot.y)),
             (self.opacity.id(), ParamValue::Float(f64::from(definition.opacity))),
             (self.blend.id(), ParamValue::Enum(blend_name(definition.blend).into())),
-            (self.render_enabled.id(), ParamValue::Bool(definition.enabled)),
         ]
         .into_iter()
         .map(|(node, value)| Edit::SetParam {
@@ -166,7 +162,7 @@ impl PlacementNode {
     }
 }
 
-#[node("mapgyver.composition.placement.v2", from_struct)]
+#[node("mapgyver.composition.placement.v3", from_struct)]
 impl Node for PlacementNode {
     fn needs_update(&self) -> bool {
         false
@@ -187,7 +183,8 @@ impl Node for PlacementNode {
         if !["Normal", "Add", "Multiply", "Screen"].contains(&self.blend.get_ref().as_str()) {
             return Err("Unknown Composition blend mode".into());
         }
-        self.definition(MediaId(golden_core::node::NodeUuid::nil())).validate()
+        self.definition(MediaId(golden_core::node::NodeUuid::nil()), true)
+            .validate()
     }
     fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
         if !data.is_null() {

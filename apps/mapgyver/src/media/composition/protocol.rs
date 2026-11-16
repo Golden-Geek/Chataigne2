@@ -205,5 +205,4 @@ pub struct InstanceParameterBindings {
     pub rotation_degrees: NodeUuid,
     pub pivot: NodeUuid,
     pub opacity: NodeUuid,
-    pub enabled: NodeUuid,
 }

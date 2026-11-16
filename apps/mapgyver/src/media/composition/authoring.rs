@@ -230,9 +230,17 @@ pub(crate) fn apply(
             if children::definition(engine, id)?.source != definition.source {
                 return Err("Edit child media Target/Output to change its source".into());
             }
+            let enabled = definition.enabled;
             for edit in current.parameter_edits(definition) {
                 engine.edits.push(edit);
             }
+            engine.edits.push(Edit::PatchMeta {
+                node: id,
+                patch: golden_core::node::NodeMetaPatch {
+                    enabled: Some(enabled),
+                    ..Default::default()
+                },
+            });
             Ok(MediaEditResult::Changed)
         }
         CompositionEdit::RenameInstance {

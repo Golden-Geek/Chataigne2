@@ -776,7 +776,8 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                     return Err("Placement belongs to a Composition child".into());
                 }
                 super::composition::children::placement(engine, parent)?;
-                node.definition(MediaId(owner.node_data().meta.uuid)).validate()?;
+                node.definition(MediaId(owner.node_data().meta.uuid), owner.node_data().meta.enabled)
+                    .validate()?;
                 if let Some(source) = super::composition::children::definition(engine, parent)?.source {
                     super::targeting::validate_existing_output(engine, source)?;
                 }

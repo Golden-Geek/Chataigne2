@@ -120,7 +120,6 @@ fn bounded_editor_queries_match_all_public_callers_without_authored_changes() {
                         ),
                         ("pivot", binding.pivot, "parameters/pivot"),
                         ("opacity", binding.opacity, "parameters/opacity"),
-                        ("enabled", binding.enabled, "parameters/render_enabled"),
                     ] {
                         let id = engine
                             .node_id_by_uuid(uuid)
@@ -213,6 +212,7 @@ fn composition_authoring_geometry_inspection_and_rejection_match_every_public_ca
     changed.source = Some(scene.sources[1]);
     changed.opacity = 0.7;
     changed.blend = BlendMode::Screen;
+    changed.enabled = false;
     let mut cycle = scene.definition.clone();
     cycle.source = Some(scene.owner);
     let mut invalid = scene.definition.clone();

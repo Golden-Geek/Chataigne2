@@ -15,7 +15,7 @@ test('media manager admits real domain hierarchy and hides parameter/channel pre
 		'mapgyver.matrix.column_group.v1'
 	])
 		assert(isMediaTreeNode({ node_type: type } as UiNodeDto), type);
-	for (const type of ['parameter', 'folder', 'mapgyver.composition.placement.v2']) {
+	for (const type of ['parameter', 'folder', 'mapgyver.composition.placement.v3']) {
 		const node = { node_type: type } as UiNodeDto;
 		assert.equal(isMediaTreeNode(node), false, type);
 		assert.equal(canRenderMediaTreeChildren(node), false, type);

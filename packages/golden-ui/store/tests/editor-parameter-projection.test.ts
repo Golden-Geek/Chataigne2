@@ -46,6 +46,25 @@ function fixture() {
 }
 
 describe('shared editor Parameter projection', () => {
+	it('projects ordinary node enabled metadata with the same draft and lifetime fences', () => {
+		const { host, reader, setEnabled } = fixture();
+		host.graph.state.nodesById.set(3, {
+			node_id: 3,
+			uuid: 'content',
+			meta: { enabled: false },
+			data: { kind: 'node', node_type: 'fixture' }
+		} as UiNodeDto);
+		expect(reader.enabled('content', true)).toBe(true);
+		setEnabled(false);
+		expect(reader.enabled('content', true)).toBe(false);
+		setEnabled();
+		host.graph.state.lastEventTime = { tick: 5, micro: 0, seq: 0 };
+		expect(reader.enabled('content', true)).toBe(false);
+		expect(reader.value('content', 'bool', true)).toBe(true);
+		host.snapshotGeneration++;
+		setEnabled(false);
+		expect(reader.enabled('content', true)).toBe(true);
+	});
 	it('reads optional typed values and enabled state without inventing a disabled Parameter value', () => {
 		const { host, reader, setEnabled } = fixture();
 		const node = host.graph.state.nodesById.get(2)!;

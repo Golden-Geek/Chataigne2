@@ -45,7 +45,7 @@ fn source_drop_adds_at_canvas_position_with_backend_defaults_and_one_history_ste
     assert_eq!(engine.undo_len(), history + 1);
     assert_eq!(
         engine.nodes.len(),
-        count + 17,
+        count + 16,
         "one complete detached instance subtree including Fit Mode"
     );
     let after = inspect(&mut engine, composition);
@@ -79,6 +79,13 @@ fn source_replacement_preserves_exact_authored_parameters_labels_identity_and_pe
     let instances = add(&mut engine, composition, vec![source, source]);
     let target = instances[0].instance;
     let fields = fields(&engine, target);
+    engine.edits.push(Edit::PatchMeta {
+        node: engine.node_id_by_uuid(target.0).unwrap(),
+        patch: golden_core::node::NodeMetaPatch {
+            enabled: Some(false),
+            ..Default::default()
+        },
+    });
     engine.edits.push(Edit::SetParamsAtomic {
         values: vec![
             (
@@ -99,7 +106,6 @@ fn source_replacement_preserves_exact_authored_parameters_labels_identity_and_pe
             ),
             (fields["parameters/opacity"], ParamValue::Float(0.987654321987)),
             (fields["parameters/blend"], ParamValue::Enum("Multiply".into())),
-            (fields["parameters/render_enabled"], ParamValue::Bool(false)),
         ],
         behaviour: ParameterEventBehaviour::Append,
     });

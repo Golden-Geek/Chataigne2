@@ -1,6 +1,7 @@
 use super::*;
 use crate::media::composition::protocol::*;
 use crate::media::resolution::ChannelAvailability;
+use golden_core::node::Node;
 use golden_video::plan::{Point, RenderOperation};
 use std::collections::HashSet;
 
@@ -440,7 +441,7 @@ fn pending_spout_dependencies_warm_without_drawing_and_disabled_instances_withdr
         },
     );
     let composition = composition(&mut engine, 8, 8);
-    let instances = add(&mut engine, composition, vec![source]);
+    let instances = add(&mut engine, composition, vec![source, source]);
     let prepared = prepare(&engine, composition);
     assert_eq!(prepared.submission.source_demands.len(), 1);
     assert_eq!(prepared.submission.plan.external_textures.len(), 1);
@@ -448,8 +449,34 @@ fn pending_spout_dependencies_warm_without_drawing_and_disabled_instances_withdr
         panic!()
     };
     assert!(layers.is_empty());
+    for (index, instance) in instances.iter().enumerate() {
+        let mut definition = inspect(&mut engine, composition).instances[index].definition.clone();
+        definition.enabled = false;
+        edit(
+            &mut engine,
+            MediaEdit::Composition {
+                reference: composition,
+                edit: CompositionEdit::ConfigureInstance {
+                    instance: instance.instance,
+                    definition,
+                },
+            },
+        );
+        let node = engine.node_id_by_uuid(instance.instance.0).unwrap();
+        assert!(!engine.nodes.get(node).unwrap().node_data().meta.enabled);
+        let prepared = prepare(&engine, composition);
+        assert_eq!(
+            prepared.submission.source_demands.len(),
+            usize::from(index == 0),
+            "a shared source stays demanded until its final enabled consumer leaves"
+        );
+    }
+    let prepared = prepare(&engine, composition);
+    assert!(prepared.submission.source_demands.is_empty());
+    assert!(prepared.submission.plan.external_textures.is_empty());
+    assert_eq!(prepared.submission.plan.passes.len(), 1);
     let mut definition = inspect(&mut engine, composition).instances[0].definition.clone();
-    definition.enabled = false;
+    definition.enabled = true;
     edit(
         &mut engine,
         MediaEdit::Composition {
@@ -461,7 +488,6 @@ fn pending_spout_dependencies_warm_without_drawing_and_disabled_instances_withdr
         },
     );
     let prepared = prepare(&engine, composition);
-    assert!(prepared.submission.source_demands.is_empty());
-    assert!(prepared.submission.plan.external_textures.is_empty());
-    assert_eq!(prepared.submission.plan.passes.len(), 1);
+    assert_eq!(prepared.submission.source_demands.len(), 1);
+    assert_eq!(prepared.submission.plan.external_textures.len(), 1);
 }

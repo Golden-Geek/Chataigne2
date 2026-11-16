@@ -318,6 +318,14 @@ fn native_nested_composition_pixels_cover_transforms_blends_resize_missing_undo_
         }
         fixture.publish(&engine, scene.root);
         fixture.pixels(adapter.id, &scene.expected(false), "all-root-items-restored");
+        scene.outer[2].enabled = false;
+        set_instance(&mut engine, scene.root, scene.outer_ids[2], scene.outer[2].clone());
+        fixture.publish(&engine, scene.root);
+        fixture.pixels(adapter.id, &scene.expected(false), "media-enabled-metadata-disabled");
+        scene.outer[2].enabled = true;
+        set_instance(&mut engine, scene.root, scene.outer_ids[2], scene.outer[2].clone());
+        fixture.publish(&engine, scene.root);
+        fixture.pixels(adapter.id, &scene.expected(false), "media-enabled-metadata-restored");
         scene.width = 64;
         scene.height = 48;
         configure(

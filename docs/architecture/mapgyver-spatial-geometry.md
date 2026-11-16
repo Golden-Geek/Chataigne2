@@ -20,6 +20,16 @@ The view projects live resize vertices from source fractions and additive displa
 around the fixed opposite anchor. It does not divide by collapsed dimensions or author a second
 transform, so drag feedback can recover from zero while backend Parameters stay authoritative.
 
+Placement v3 contains geometry/output/opacity/blend Parameters only. The child's media metadata
+is the sole authored enabled state; `InstanceDefinition.enabled` is a read projection and the
+configuration operation translates its requested value into a metadata edit in the same history
+transaction. Disabled media stay in document/editor queries and retain their Inspector bindings.
+Render capture uses effective media enablement, so disabled children withdraw their source demand
+without hiding their editable definitions. Golden's public projection helper reads enabled metadata
+for ordinary nodes as well as Parameters with the existing UUID/generation/event fences.
+Older Placement schemas reject explicitly; v2's duplicate Enabled Parameter is not silently ignored
+or migrated. Current copy/Undo/reload use the v3 typed tree.
+
 `MatrixEdit::EditLayerGeometry` resolves one Layer by UUID and checks at most 64 ancestors to
 its nearest Matrix media owner. It runs before full Matrix document loading and never enumerates
 Cells for a pointer sample. The backend preserves current non-geometric settings, computes each

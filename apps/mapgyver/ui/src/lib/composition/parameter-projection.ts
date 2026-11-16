@@ -16,7 +16,7 @@ export function projectInstanceParameters(
 		definition: {
 			...definition,
 			opacity: parameters.value(bindings.opacity, 'float', definition.opacity),
-			enabled: parameters.value(bindings.enabled, 'bool', definition.enabled),
+			enabled: parameters.enabled(instance.reference.instance, definition.enabled),
 			transform: {
 				position: parameters.value(bindings.position, 'vec2', transform.position),
 				scale: parameters.value(bindings.scale, 'vec2', transform.scale),
