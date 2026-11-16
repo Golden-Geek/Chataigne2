@@ -93,15 +93,21 @@ export function instanceDisplay(
 		const x = (1 - anchor.x - origin.pivot[0]) * width,
 			y = (1 - anchor.y - origin.pivot[1]) * height;
 		const fixed = { x: pivot.x + c * x - s * y, y: pivot.y + s * x + c * y };
-		const sx = anchor.x === 0.5 ? 1 : 1 + ((c * dx + s * dy) * (2 * anchor.x - 1)) / width;
-		const sy = anchor.y === 0.5 ? 1 : 1 + ((-s * dx + c * dy) * (2 * anchor.y - 1)) / height;
-		project = (point) => {
-			const x = point.x - fixed.x,
-				y = point.y - fixed.y;
-			const a = (c * x + s * y) * sx,
-				b = (-s * x + c * y) * sy;
+		const nextWidth = width + (anchor.x === 0.5 ? 0 : (c * dx + s * dy) * (2 * anchor.x - 1));
+		const nextHeight = height + (anchor.y === 0.5 ? 0 : (-s * dx + c * dy) * (2 * anchor.y - 1));
+		// Keep source fractions when the original outline has collapsed to a line or point.
+		const fraction = (x: number, y: number): Point => {
+			const a = (x - (1 - anchor.x)) * nextWidth,
+				b = (y - (1 - anchor.y)) * nextHeight;
 			return { x: fixed.x + c * a - s * b, y: fixed.y + s * a + c * b };
 		};
+		const points = [
+			[0, 0],
+			[1, 0],
+			[1, 1],
+			[0, 1]
+		].map(([x, y]) => fraction(x, y));
+		return { points, handles: gizmoFromOutline(fraction(...origin.pivot), points) };
 	}
 	const points = basis ? outline(origin, basis).map(project) : [];
 	return { points, handles: gizmoFromOutline(project(pivot), points) };

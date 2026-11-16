@@ -311,10 +311,6 @@ fn rejected_degenerate_nonfinite_and_wrong_owner_geometry_is_atomic() {
         ),
         (
             composition,
-            request(&instance, resize(SpatialResizeHandle::Right), [0.; 2], [3840., 0.]),
-        ),
-        (
-            composition,
             request(
                 &instance,
                 InstanceGeometryMode::Translate,
@@ -340,6 +336,35 @@ fn rejected_degenerate_nonfinite_and_wrong_owner_geometry_is_atomic() {
         assert_eq!(inspect(&mut engine, composition), before);
         assert_eq!(engine.undo_len(), history);
     }
+}
+
+#[test]
+fn canvas_resize_can_collapse_an_axis_and_recover_from_zero() {
+    let (mut engine, composition, instance) = instance_fixture();
+    let before = inspect(&mut engine, composition);
+    edit(
+        &mut engine,
+        composition,
+        request(&instance, resize(SpatialResizeHandle::Right), [0.; 2], [3840., 0.]),
+    );
+    let collapsed = inspect(&mut engine, composition).instances[0].clone();
+    assert_eq!(collapsed.definition.transform.scale, [0., 3.]);
+    edit(
+        &mut engine,
+        composition,
+        request(&collapsed, resize(SpatialResizeHandle::Right), [0.; 2], [-1920., 0.]),
+    );
+    assert_eq!(
+        inspect(&mut engine, composition).instances[0]
+            .definition
+            .transform
+            .scale,
+        [-1., 3.]
+    );
+    assert!(engine.undo().unwrap());
+    assert_eq!(inspect(&mut engine, composition).instances[0], collapsed);
+    assert!(engine.undo().unwrap());
+    assert_eq!(inspect(&mut engine, composition), before);
 }
 
 #[test]

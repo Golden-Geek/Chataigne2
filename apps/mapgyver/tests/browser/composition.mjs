@@ -242,6 +242,41 @@ export async function verifyCompositionUi({
 			() => inspect(owners[0]),
 			(value) => isDeepStrictEqual(value, changed)
 		);
+		stage = 'zero-scale child stays selected and editable through the generic Inspector';
+		for (const component of [0, 1]) {
+			await widgets.setNumber('Scale', 0, component);
+			await wait(
+				() => inspect(owners[0]),
+				(value) => value.instances.at(-1).definition.transform.scale[component] === 0
+			);
+			await inspector('Off-page child');
+			await selectedChild(main, selected);
+			await undo();
+			await wait(
+				() => inspect(owners[0]),
+				(value) => isDeepStrictEqual(value, changed)
+			);
+		}
+		for (const [component, value, scale] of [
+			[0, 0, [0, 1]],
+			[1, 0, [0, 0]],
+			[0, -1, [-1, 0]],
+			[1, 1, [-1, 1]]
+		]) {
+			await widgets.setNumber('Scale', value, component);
+			const current = await wait(
+				() => inspect(owners[0]),
+				(snapshot) => isDeepStrictEqual(snapshot.instances.at(-1).definition.transform.scale, scale)
+			);
+			assert.deepEqual(current.instances.slice(0, -1), changed.instances.slice(0, -1));
+			await inspector('Off-page child');
+			await selectedChild(main, selected);
+		}
+		for (let index = 0; index < 4; index++) await undo();
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, changed)
+		);
 		await main.getByRole('button', { name: 'Next instances', exact: true }).click();
 		await target(main, owners[0]);
 		await main.getByText('Page 2 / 2', { exact: true }).waitFor();

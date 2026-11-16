@@ -7,8 +7,9 @@ Overall acceptance stays88/106 (83%); no new fixed gate is closed by this slice.
 **2026-11-16 user priority revision:** this gate is now Pending for remaining MapGyver scope.
 Noncritical Chataigne-only Curve, Spatializer and other consumer improvements are deferred
 until Chataigne work resumes; see the [exact patch and findings handoff](chataigne-editor-followups.md).
-Historical consumer results below remain evidence, not a queue for MapGyver work. M14/4
-zero-scale Composition is the sole Active gate. Shared defects required by a current MapGyver
+Historical consumer results below remain evidence, not a queue for MapGyver work. M14/5
+Composition enabled metadata is the sole Active gate; zero-scale4 is functionally verified
+with native pixels queued at its recorded prerequisite. Shared defects required by a current MapGyver
 path remain actionable; unrelated Chataigne qualification does not block MapGyver delivery.
 
 The user's2026-11-14 instruction selects M14 before full M10/4 qualification. Every M10
@@ -1100,7 +1101,7 @@ investigation. Return only for a correction supported by its actual terminal bou
 native acceptance after helper reconnection. Its original connected/history/native requirements
 remain Pending; no fixed gate closes.
 
-Next MapGyver action: M14/4 zero-scale Composition. Remaining MapGyver selection/native
+Next MapGyver action: M14/5 Composition enabled metadata. Remaining MapGyver selection/native
 scope returns after that feature or for a reproduced product blocker. Chataigne-only graph,
 Curve and Spatializer followups return only when Chataigne is selected.
 The Gradient two-panel and tested document/reconnect product scopes now pass;

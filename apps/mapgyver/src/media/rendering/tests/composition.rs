@@ -70,6 +70,99 @@ fn prepare(engine: &AppEngine, reference: ChannelReference) -> super::super::pla
 }
 
 #[test]
+fn zero_scale_layers_do_not_poison_healthy_siblings_and_recover_across_sign_changes() {
+    let mut engine = engine();
+    let leaf = create(&mut engine, MediaKind::SolidColor);
+    resize(&mut engine, leaf, 4);
+    let owner = composition(&mut engine, 8, 8);
+    let instances = add(&mut engine, owner, vec![leaf, leaf]);
+    for scale in [[1., 1.], [0., 1.], [-1., 1.], [1., 0.], [0., 0.], [-0., -2.], [2., -1.]] {
+        let captured = capture_channels(&engine, &[owner], 16).unwrap();
+        let mut definition = inspect(&mut engine, owner).instances[0].definition.clone();
+        definition.transform.scale = scale;
+        edit(
+            &mut engine,
+            MediaEdit::Composition {
+                reference: owner,
+                edit: CompositionEdit::ConfigureInstance {
+                    instance: instances[0].instance,
+                    definition,
+                },
+            },
+        );
+        if scale != [1., 1.] {
+            assert!(!captured.is_current(), "scale changes must retire stale geometry");
+        }
+        let prepared = prepare(&engine, owner);
+        assert_eq!(
+            prepared
+                .channels
+                .iter()
+                .find(|channel| channel.reference == owner)
+                .unwrap()
+                .resolution
+                .availability,
+            ChannelAvailability::Ready
+        );
+        let target = prepared.entries[&owner].target;
+        let pass = prepared
+            .submission
+            .plan
+            .passes
+            .iter()
+            .find(|pass| pass.output == target)
+            .unwrap();
+        let RenderOperation::Composite { layers } = &pass.operation else {
+            panic!()
+        };
+        let expected = if scale.contains(&0.) { 1 } else { 2 };
+        assert_eq!(layers.len(), expected, "{scale:?}");
+        assert!(layers.iter().all(|layer| layer.mapping.is_some()));
+        prepared.submission.plan.compile(&config().plan_limits).unwrap();
+    }
+    for instance in instances {
+        let mut definition = inspect(&mut engine, owner)
+            .instances
+            .into_iter()
+            .find(|item| item.reference == instance)
+            .unwrap()
+            .definition;
+        definition.transform.scale = [0.; 2];
+        edit(
+            &mut engine,
+            MediaEdit::Composition {
+                reference: owner,
+                edit: CompositionEdit::ConfigureInstance {
+                    instance: instance.instance,
+                    definition,
+                },
+            },
+        );
+    }
+    let prepared = prepare(&engine, owner);
+    assert_eq!(
+        prepared
+            .channels
+            .iter()
+            .find(|channel| channel.reference == owner)
+            .unwrap()
+            .resolution
+            .availability,
+        ChannelAvailability::Ready
+    );
+    let target = prepared.entries[&owner].target;
+    let pass = prepared
+        .submission
+        .plan
+        .passes
+        .iter()
+        .find(|pass| pass.output == target)
+        .unwrap();
+    assert!(matches!(&pass.operation, RenderOperation::Composite { layers } if layers.is_empty()));
+    prepared.submission.plan.compile(&config().plan_limits).unwrap();
+}
+
+#[test]
 fn demanded_nested_channels_render_once_for_shared_instances_and_outputs() {
     let mut engine = engine();
     let leaf = create(&mut engine, MediaKind::SolidColor);

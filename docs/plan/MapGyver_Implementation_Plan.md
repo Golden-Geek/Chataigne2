@@ -66,8 +66,11 @@ Keep exactly one gate Active. The 2026-11-16 user priority revision parks noncri
 Chataigne-only Curve/Spatializer and other consumer improvements until Chataigne work resumes;
 their findings and local patch are recorded in [the deferred handoff](../progress/chataigne-editor-followups.md).
 M14/1 retains MapGyver editor acceptance and the shared contracts required by MapGyver, but
-Chataigne-only qualification no longer blocks MapGyver feature delivery. Select M14/4
-zero-scale Composition next; retain unfinished MapGyver selection/navigation and every other
+Chataigne-only qualification no longer blocks MapGyver feature delivery. M14/4 zero-scale
+Composition is now [functionally verified](../progress/mapgyver-m14-zero-scale.md); its
+native pixels await the recorded Overlay Off prerequisite and remain unaccepted. Select
+M14/5 Composition enabled metadata next while retaining that concrete qualification return
+trigger. Retain unfinished MapGyver selection/navigation and every other
 gate in the return queue. No gate is accepted or denominator changed by this priority revision.
 Then finish extended codecs,
 subtitles and retained acceptance before M09. The user also freshly observed native NVIDIA

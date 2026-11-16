@@ -9,6 +9,17 @@ contract: immutable origin, start and current canvas-texel points, and Translate
 Rust generates the TypeScript declarations. Composition uses the same resize directions with
 its own rotated/pivoted transform contract; its geometry math remains in Composition.
 
+Composition accepts finite zero scale on either or both axes as authored placement state.
+The ordinary typed Scale Parameter and public Composition operations use the same validation;
+nonfinite or f32-overflowing values still reject. The app's derived-layer builder omits zero-area
+draws before constructing a projective mapping, preserving healthy siblings and a valid empty
+Composition. Restoring nonzero scale restores the draw through normal revision/capture fencing.
+The media, its selection and Inspector bindings remain present. Golden's mapping validation
+continues to reject degenerate quads; no shared renderer exception or UI-side sentinel is needed.
+The view projects live resize vertices from source fractions and additive displayed dimensions
+around the fixed opposite anchor. It does not divide by collapsed dimensions or author a second
+transform, so drag feedback can recover from zero while backend Parameters stay authoritative.
+
 `MatrixEdit::EditLayerGeometry` resolves one Layer by UUID and checks at most 64 ancestors to
 its nearest Matrix media owner. It runs before full Matrix document loading and never enumerates
 Cells for a pointer sample. The backend preserves current non-geometric settings, computes each

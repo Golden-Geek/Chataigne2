@@ -121,10 +121,14 @@ export async function verifyComposition({ post, intent, edit }) {
 		position: { x: 0, y: 0 }
 	});
 	assert.deepEqual((await inspect(root)).instances[1], beforeSource.instances[1]);
-	assert.deepEqual((await inspect(root)).instances[0].definition.source, {
-		media: first,
-		channel: green.channel
+	const replacement = (await inspect(root)).instances[0].definition.source;
+	assert.equal(replacement.media, first);
+	assert.notEqual(replacement.channel, green.channel);
+	const { snapshot: replacementChannel } = await edit({
+		kind: 'InspectChannel',
+		reference: replacement
 	});
+	assert.deepEqual(replacementChannel.definition.source, { kind: 'Reference', target: green });
 	await operation(root, {
 		kind: 'RenameInstance',
 		instance: first,
@@ -153,10 +157,11 @@ export async function verifyComposition({ post, intent, edit }) {
 	assert.equal(rejected.success, false);
 	assert.deepEqual(await inspect(root), beforeReject);
 	await edit({ kind: 'RemoveMedia', media: red.media });
-	assert.deepEqual((await inspect(root)).instances[0].definition.source, {
-		media: instances[1].instance,
-		channel: red.channel
-	});
+	assert.equal(beforeReject.instances[0].definition.source.media, instances[1].instance);
+	assert.deepEqual(
+		(await inspect(root)).instances[0].definition.source,
+		beforeReject.instances[0].definition.source
+	);
 	assert((await intent({ kind: 'undo' })).success);
 	assert.deepEqual(await inspect(root), beforeReject);
 	assert.equal((await post('/api/ui/project-new', {})).ok, true);

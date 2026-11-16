@@ -200,14 +200,9 @@ impl Node for PlacementNode {
     fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
         if change.parameter == self.scale.id()
             && let ParamValue::Vec2(x, y) = change.value
-            && (!x.is_finite()
-                || !y.is_finite()
-                || (*x as f32) == 0.0
-                || (*y as f32) == 0.0
-                || !(*x as f32).is_finite()
-                || !(*y as f32).is_finite())
+            && (!(*x as f32).is_finite() || !(*y as f32).is_finite())
         {
-            return Err("Composition scale must be finite and nonzero".into());
+            return Err("Composition scale must be finite".into());
         }
         if [self.position.id(), self.pivot.id()].contains(&change.parameter)
             && let ParamValue::Vec2(x, y) = change.value

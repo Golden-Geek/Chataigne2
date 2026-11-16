@@ -216,7 +216,7 @@ fn composition_authoring_geometry_inspection_and_rejection_match_every_public_ca
     let mut cycle = scene.definition.clone();
     cycle.source = Some(scene.owner);
     let mut invalid = scene.definition.clone();
-    invalid.transform.scale[0] = 0.0;
+    invalid.opacity = 2.0;
     let mut cases = vec![
         (scene.owner, CompositionEdit::Inspect),
         (
@@ -311,6 +311,43 @@ fn composition_authoring_geometry_inspection_and_rejection_match_every_public_ca
             let actual = (reply, authored(&engine));
             if let Some(expected) = &canonical {
                 assert_eq!(&actual, expected, "{caller:?}: {operation:?}");
+            } else {
+                canonical = Some(actual);
+            }
+        }
+    }
+}
+
+#[test]
+fn zero_scale_composition_updates_are_accepted_by_every_public_caller() {
+    let scene = scene();
+    for scale in [[0., 1.], [1., 0.], [0., 0.], [-0., -2.], [-1., 1.]] {
+        let mut canonical = None;
+        for caller in CALLERS {
+            let mut engine = loaded(&scene.document);
+            let mut definition = scene.definition.clone();
+            definition.transform.scale = scale;
+            let reply = run(
+                &mut engine,
+                caller,
+                MediaEdit::Composition {
+                    reference: scene.owner,
+                    edit: CompositionEdit::ConfigureInstance {
+                        instance: scene.instances[0].instance,
+                        definition,
+                    },
+                },
+            );
+            assert!(reply.is_some(), "{caller:?}: {scale:?}");
+            let actual = authored(&engine);
+            let owner = actual
+                .1
+                .iter()
+                .find(|snapshot| snapshot.reference == scene.owner)
+                .unwrap();
+            assert_eq!(owner.instances[0].definition.transform.scale, scale);
+            if let Some(expected) = &canonical {
+                assert_eq!(&actual, expected, "{caller:?}: {scale:?}");
             } else {
                 canonical = Some(actual);
             }

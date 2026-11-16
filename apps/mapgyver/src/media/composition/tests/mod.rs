@@ -15,6 +15,7 @@ mod geometry;
 mod owned_media;
 mod parameters;
 mod query;
+mod zero_scale;
 
 fn edit(engine: &mut AppEngine, reference: ChannelReference, edit: CompositionEdit) -> MediaEditResult {
     apply(engine, MediaEdit::Composition { reference, edit })
@@ -129,7 +130,7 @@ fn cycles_invalid_transforms_and_wrong_owners_leave_document_and_history_untouch
     let owned = add(&mut engine, a, vec![b]);
     add(&mut engine, b, vec![c]);
     let mut invalid = InstanceDefinition::default();
-    invalid.transform.scale[0] = 0.0;
+    invalid.transform.scale[0] = f32::NAN;
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     for (reference, edit) in [

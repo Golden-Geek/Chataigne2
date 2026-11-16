@@ -88,7 +88,7 @@ fn direct_parameter_edits_reject_invalid_geometry_and_reference_cycles_without_s
     let before = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     for (parameter, value) in [
-        (scale, ParamValue::Vec2(0.0, 1.0)),
+        (scale, ParamValue::Vec2(f64::INFINITY, 1.0)),
         (scale, ParamValue::Vec2(f64::MAX, 1.0)),
         (
             channel,

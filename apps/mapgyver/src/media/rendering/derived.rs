@@ -110,6 +110,11 @@ pub(super) fn composition_layers(
         .as_ref()
         .ok_or("Composition instance admission failed")?
     {
+        // A collapsed item remains authored and inspectable, but has no drawable area.
+        // Keep degenerate geometry out of homography validation for healthy siblings.
+        if instance.transform.scale.contains(&0.0) {
+            continue;
+        }
         let Some(source) = instance.source.and_then(|reference| prepared.get(&reference)) else {
             continue;
         };

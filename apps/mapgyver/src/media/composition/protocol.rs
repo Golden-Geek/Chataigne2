@@ -76,10 +76,9 @@ impl InstanceDefinition {
             .chain(self.transform.pivot)
             .chain([self.transform.rotation_degrees, self.opacity])
             .all(f32::is_finite)
-            || self.transform.scale.into_iter().any(|value| value == 0.0)
             || !(0.0..=1.0).contains(&self.opacity)
         {
-            return Err("instance transform must be finite with nonzero scale and opacity in 0..1".into());
+            return Err("instance transform must be finite and opacity in 0..1".into());
         }
         Ok(())
     }

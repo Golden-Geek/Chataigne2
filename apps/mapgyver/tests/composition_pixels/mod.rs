@@ -218,7 +218,18 @@ fn native_fixture_authors_owned_children_without_rebinding_projected_sources() {
     for (actual, expected) in snapshot.instances.iter().zip(&scene.outer) {
         let source = actual.definition.source.unwrap();
         assert_eq!(source.media, MediaId(actual.reference.instance.0));
-        assert_eq!(source.channel, expected.source.unwrap().channel);
+        assert_ne!(source.channel, expected.source.unwrap().channel);
+        let MediaEditResult::Channel { snapshot: channel } =
+            edit(&mut engine, MediaEdit::InspectChannel { reference: source })
+        else {
+            panic!()
+        };
+        assert_eq!(
+            channel.unwrap().definition.source,
+            ChannelSource::Reference {
+                target: expected.source
+            }
+        );
         assert_eq!(actual.definition.transform, expected.transform);
     }
     assert_eq!(snapshot.instances.len(), scene.outer.len());
@@ -280,6 +291,33 @@ fn native_nested_composition_pixels_cover_transforms_blends_resize_missing_undo_
         set_instance(&mut engine, scene.root, scene.outer_ids[2], scene.outer[2].clone());
         fixture.publish(&engine, scene.root);
         fixture.pixels(adapter.id, &scene.expected(false), "independent-transform");
+        let visible = scene.outer[2].transform.scale;
+        for (scale, label) in [
+            ([0.0, visible[1]], "zero-width"),
+            ([visible[0], 0.0], "zero-height"),
+            ([0.0, 0.0], "zero-both"),
+            ([-0.0, -visible[1]], "negative-zero"),
+            ([-visible[0], visible[1]], "zero-crossing-restored-mirror"),
+            (visible, "zero-crossing-restored-original"),
+        ] {
+            scene.outer[2].transform.scale = scale;
+            set_instance(&mut engine, scene.root, scene.outer_ids[2], scene.outer[2].clone());
+            fixture.publish(&engine, scene.root);
+            fixture.pixels(adapter.id, &scene.expected(false), label);
+        }
+        let visible = scene.outer.clone();
+        for (index, definition) in scene.outer.iter_mut().enumerate() {
+            definition.transform.scale = [0.0; 2];
+            set_instance(&mut engine, scene.root, scene.outer_ids[index], definition.clone());
+        }
+        fixture.publish(&engine, scene.root);
+        fixture.pixels(adapter.id, &scene.expected(false), "all-root-items-zero");
+        scene.outer = visible;
+        for (index, definition) in scene.outer.iter().enumerate() {
+            set_instance(&mut engine, scene.root, scene.outer_ids[index], definition.clone());
+        }
+        fixture.publish(&engine, scene.root);
+        fixture.pixels(adapter.id, &scene.expected(false), "all-root-items-restored");
         scene.width = 64;
         scene.height = 48;
         configure(

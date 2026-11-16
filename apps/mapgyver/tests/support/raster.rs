@@ -128,7 +128,7 @@ impl Image {
 
     /// Independent raster scissor for placement Fill, applied at destination pixel centers.
     pub fn draw_clipped(&mut self, source: &Self, definition: &InstanceDefinition, clip: [f64; 4]) {
-        if !definition.enabled {
+        if !definition.enabled || definition.transform.scale.contains(&0.0) {
             return;
         }
         let t = definition.transform;
@@ -354,6 +354,29 @@ fn reference_checks_asymmetric_rotation_and_mirror() {
         target.output(),
         vec![[0, 255, 0, 255], [0; 4], [255, 0, 0, 255], [0; 4]]
     );
+}
+
+#[test]
+fn zero_area_has_no_coverage_even_when_a_pixel_center_matches_the_pivot() {
+    use mapgyver::media::composition::protocol::Transform2D;
+    let source = Image::solid(1, 1, [1.; 4]);
+    for scale in [[0., 1.], [1., 0.], [0., 0.], [-0., -1.]] {
+        let mut target = Image::solid(2, 2, [0.1, 0.2, 0.3, 1.]);
+        let before = target.output();
+        target.draw(
+            &source,
+            &InstanceDefinition {
+                transform: Transform2D {
+                    position: [0.5; 2],
+                    scale,
+                    pivot: [0.; 2],
+                    rotation_degrees: 0.,
+                },
+                ..Default::default()
+            },
+        );
+        assert_eq!(target.output(), before);
+    }
 }
 
 #[test]

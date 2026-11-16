@@ -29,6 +29,74 @@ const close = (a: { x: number; y: number }, b: { x: number; y: number }) => {
 	assert(Math.abs(a.x - b.x) < 1e-8);
 	assert(Math.abs(a.y - b.y) < 1e-8);
 };
+
+test('resize feedback recovers collapsed axes without dividing by their original size', () => {
+	for (const scene of [
+		{
+			scale: [0, 1],
+			handle: 'Right',
+			sample: [40, 0],
+			points: [
+				[100, 90],
+				[140, 90],
+				[140, 110],
+				[100, 110]
+			],
+			pivot: [120, 100]
+		},
+		{
+			scale: [1, 0],
+			handle: 'Top',
+			sample: [0, -20],
+			points: [
+				[80, 80],
+				[120, 80],
+				[120, 100],
+				[80, 100]
+			],
+			pivot: [100, 90]
+		},
+		{
+			scale: [0, 0],
+			handle: 'BottomRight',
+			sample: [40, 20],
+			points: [
+				[100, 100],
+				[140, 100],
+				[140, 120],
+				[100, 120]
+			],
+			pivot: [120, 110]
+		},
+		{
+			scale: [0, 1],
+			handle: 'Right',
+			sample: [-40, 0],
+			points: [
+				[100, 90],
+				[60, 90],
+				[60, 110],
+				[100, 110]
+			],
+			pivot: [80, 100]
+		}
+	] as const) {
+		const draft = hint(
+			{ Resize: { handle: scene.handle, extent } },
+			{ x: 0, y: 0 },
+			{ x: scene.sample[0], y: scene.sample[1] }
+		);
+		draft.handle.origin.scale = [...scene.scale];
+		const projected = instanceDisplay(instance, extent, draft);
+		for (const [index, [x, y]] of scene.points.entries()) close(projected.points[index], { x, y });
+		close(projected.handles.pivot, { x: scene.pivot[0], y: scene.pivot[1] });
+		assert(
+			projected.handles.resize.every(
+				(handle) => Number.isFinite(handle.point.x) && Number.isFinite(handle.point.y)
+			)
+		);
+	}
+});
 test('Composition translation/rotation/anchored resize transform only display vertices', () => {
 	const before = structuredClone(instance);
 	const translated = instanceDisplay(
