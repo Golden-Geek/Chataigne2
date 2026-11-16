@@ -24,7 +24,7 @@ pub(super) fn inspect(engine: &AppEngine, node: NodeUuid) -> Result<Option<Scree
     };
     let (detail, extent, enabled) = match owner {
         AppNode::Screen(screen) => {
-            let definition = screen.definition();
+            let definition = screen.definition(engine);
             let detail = match &definition.target {
                 Some(ScreenTarget::Fullscreen { display }) => {
                     let hint = screen.display_hint();
@@ -57,6 +57,9 @@ pub(super) fn inspect(engine: &AppEngine, node: NodeUuid) -> Result<Option<Scree
                 }
                 Some(ScreenTarget::Rectangle { bounds }) => format!("Rectangle · {}, {}", bounds.left, bounds.top),
                 Some(ScreenTarget::Spout { sender, .. }) => format!("Spout · {sender}"),
+                Some(ScreenTarget::AutomaticSpout { .. }) => {
+                    format!("Spout · MapGyver - {}", screen.node_data().meta.label)
+                }
                 None => "Unconfigured".into(),
             };
             (

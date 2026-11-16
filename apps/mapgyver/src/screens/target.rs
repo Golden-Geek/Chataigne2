@@ -9,9 +9,10 @@ pub(super) fn fullscreen_display<'a>(
     manager: &ScreenManagerNode,
     displays: &'a [DisplayInfo],
 ) -> Option<&'a DisplayInfo> {
-    let Some(ScreenTarget::Fullscreen { display }) = screen.definition().target else {
+    if !screen.is_fullscreen() || screen.authored_display_identity().is_empty() {
         return None;
-    };
+    }
+    let display = screen.authored_display_identity();
     let hint = screen.display_hint();
     manager
         .resolved_display(ScreenId(screen.node_data().meta.uuid), &hint)
@@ -31,8 +32,8 @@ pub(super) fn output_extent(engine: &AppEngine, screen: ScreenId) -> Result<Exte
     let Some(AppNode::Screen(node)) = engine.nodes.get(id) else {
         unreachable!()
     };
-    match node.definition().target {
-        Some(ScreenTarget::Spout { extent, .. }) => Ok(extent),
+    match node.definition(engine).target {
+        Some(ScreenTarget::Spout { extent, .. } | ScreenTarget::AutomaticSpout { extent }) => Ok(extent),
         Some(ScreenTarget::Rectangle { bounds }) => Ok(bounds.extent),
         Some(ScreenTarget::Fullscreen { .. }) => {
             let manager = super::authoring::manager(engine)?;

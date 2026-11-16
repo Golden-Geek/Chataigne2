@@ -62,7 +62,17 @@ impl ScreenNode {
             .chain(std::iter::once(&self))
             .filter_map(|screen| {
                 let values = screen.values(Some(change));
-                (values.kind.as_str() == "Shared Texture").then_some(values.sender)
+                if values.kind.as_str() != "Shared Texture" {
+                    return None;
+                }
+                let custom = change
+                    .node(screen.sender.id())
+                    .map(|node| node.node_data().meta.enabled)
+                    .unwrap_or(screen.initial_sender_enabled);
+                values
+                    .definition(custom)
+                    .target
+                    .and_then(|target| target.sender_name(&screen.node_data().meta.label))
             })
             .collect::<HashSet<_>>();
         for peer in peers {
@@ -78,10 +88,16 @@ impl ScreenNode {
                 changes.extend(peer.copy_display_hint_values(self));
                 can_swap = false;
             } else {
-                let sender = crate::screens::creation::unique_sender(&senders);
-                senders.insert(sender.clone());
                 changes.push((peer.target_kind.id(), ParamValue::Enum("Shared Texture".into())));
-                changes.push((peer.sender.id(), ParamValue::Str(sender)));
+                if change
+                    .node(peer.sender.id())
+                    .map(|node| node.node_data().meta.enabled)
+                    .unwrap_or(peer.initial_sender_enabled)
+                {
+                    let sender = crate::screens::creation::unique_sender(&senders);
+                    senders.insert(sender.clone());
+                    changes.push((peer.sender.id(), ParamValue::Str(sender)));
+                }
             }
         }
         Ok(changes)
@@ -105,9 +121,8 @@ impl ScreenNode {
             && self.target_kind.get_ref().as_str() == "Shared Texture"
         {
             Some(format!(
-                "{}: fullscreen assignment replaced with Shared Texture ({})",
-                self.node_data().meta.label,
-                self.sender.get_ref()
+                "{}: fullscreen assignment replaced with Shared Texture",
+                self.node_data().meta.label
             ))
         } else {
             None

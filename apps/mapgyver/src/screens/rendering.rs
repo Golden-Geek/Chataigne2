@@ -112,26 +112,29 @@ pub fn capture_outputs(
         if let Some(bounds) = hint.bounds {
             preview_extents.insert(screen, bounds.extent);
         }
-        if let Some(ScreenTarget::Fullscreen { .. }) = &node.definition().target
+        if let Some(ScreenTarget::Fullscreen { .. }) = &node.definition(engine).target
             && let Some(found) = resolved
             && found.bounds.extent.width() <= 8192
             && found.bounds.extent.height() <= 8192
         {
             preview_extents.insert(screen, found.bounds.extent);
         }
-        if node.definition().enabled && node.node_data().effective_enabled {
-            let Some(target) = &node.definition().target else {
+        if node.definition(engine).enabled && node.node_data().effective_enabled {
+            let Some(target) = &node.definition(engine).target else {
                 continue;
             };
             let authored = target.clone();
             allocation_pending |= pending && matches!(target, ScreenTarget::Fullscreen { .. });
             let target = match target {
-                ScreenTarget::Spout { sender, extent } => {
+                ScreenTarget::Spout { extent, .. } | ScreenTarget::AutomaticSpout { extent } => {
+                    let sender = target
+                        .sender_name(&node.node_data().meta.label)
+                        .expect("Shared Texture target");
                     if !names.insert(sender.clone()) {
                         return Err("duplicate Shared Texture output sender name".into());
                     }
                     ResolvedTarget::Spout {
-                        sender: sender.clone(),
+                        sender,
                         extent: *extent,
                     }
                 }
@@ -170,7 +173,7 @@ pub fn capture_outputs(
             outputs.push(CapturedOutput {
                 screen,
                 authored,
-                frame_rate: super::frame_rate::resolve(node.definition().frame_rate, &target, displays),
+                frame_rate: super::frame_rate::resolve(node.definition(engine).frame_rate, &target, displays),
                 target,
             });
         }
@@ -307,10 +310,10 @@ pub fn capture_screen(engine: &AppEngine, screen: ScreenId, maximum_surfaces: us
         id: screen,
         guards,
         surfaces,
-        anti_aliasing: node.definition().anti_aliasing,
-        target_extent: match &node.definition().target {
+        anti_aliasing: node.definition(engine).anti_aliasing,
+        target_extent: match &node.definition(engine).target {
             Some(ScreenTarget::Rectangle { bounds }) => Some(bounds.extent),
-            Some(ScreenTarget::Spout { extent, .. }) => Some(*extent),
+            Some(ScreenTarget::Spout { extent, .. } | ScreenTarget::AutomaticSpout { extent }) => Some(*extent),
             _ => None,
         },
     })

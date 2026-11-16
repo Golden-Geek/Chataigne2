@@ -93,7 +93,7 @@ fn disabled_connected_display_row_is_present_after_runtime_allocation_excludes_o
     assert!(!row.enabled);
     assert_eq!(row.detail, format!("Fullscreen · {}", displays[0].name));
     assert_eq!(
-        screen_node(&engine, screen).definition().target,
+        screen_node(&engine, screen).definition(&engine).target,
         Some(ScreenTarget::Fullscreen {
             display: displays[0].id.clone()
         })
@@ -446,7 +446,7 @@ fn display_metadata_disabled_reservations_do_not_steal_active_recovery_targets()
     let hint = screen_node(&engine, active).display_hint();
     publish(&mut engine, Arc::from([displays[1].clone()]));
     assert_eq!(owner(&engine).resolved_display(active, &hint).unwrap().id, "screen-a");
-    assert!(!screen_node(&engine, disabled).definition().enabled);
+    assert!(!screen_node(&engine, disabled).definition(&engine).enabled);
 }
 
 #[test]

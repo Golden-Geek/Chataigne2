@@ -32,7 +32,7 @@ mod selection;
         top: i32 = 0 (label = "Top", description = "Physical desktop pixels.");
         width: i32 = 1920 [1..8192] (label = "Width", description = "Physical output pixels.", constraint_policy = "reject");
         height: i32 = 1080 [1..8192] (label = "Height", description = "Physical output pixels.", constraint_policy = "reject");
-        sender: String = "Screen".to_owned() (label = "Sender name");
+        sender: String = "Screen".to_owned() (label = "Sender name", description = "Disabled uses MapGyver - <Screen name>. The custom value is preserved.", enabled = self.initial_sender_enabled, can_be_disabled = true);
         anti_aliasing: Enum = "Raw" (label = "Anti-aliasing", enum_options = crate::parameters::enum_options(&["Raw", "Smooth (2×)"]), constraint_policy = "reject");
         frame_rate_mode: Enum = "Follow display" (label = "Frame rate", enum_options = crate::parameters::enum_options(&["Follow display", "Explicit"]), constraint_policy = "reject", description = "Follow the resolved display refresh. Shared Texture or unknown display refresh uses 60 FPS. Editing and previews retain their independent cadence.");
         frames_per_second: f64 = 60.0 [1.0..1000.0] (label = "FPS", constraint_policy = "reject");
@@ -46,6 +46,9 @@ mod selection;
     }
 )]
 pub struct ScreenNode {
+    // Detached seed only. The real Sender Name Parameter metadata owns the mode.
+    #[state(default = true)]
+    initial_sender_enabled: bool,
     #[state(default = RevisionSource::default())]
     revision: RevisionSource,
 }
@@ -82,6 +85,11 @@ impl ScreenNode {
                 node.width = ParameterHandle::new(extent.width() as i32);
                 node.height = ParameterHandle::new(extent.height() as i32);
             }
+            Some(ScreenTarget::AutomaticSpout { extent }) => {
+                node.initial_sender_enabled = false;
+                node.width = ParameterHandle::new(extent.width() as i32);
+                node.height = ParameterHandle::new(extent.height() as i32);
+            }
             None => {
                 node.sender = ParameterHandle::new(String::new());
             }
@@ -89,8 +97,25 @@ impl ScreenNode {
         node
     }
 
-    pub fn definition(&self) -> ScreenDefinition {
-        self.values(None).definition()
+    pub fn definition(&self, engine: &crate::app::AppEngine) -> ScreenDefinition {
+        let enabled = engine
+            .nodes
+            .get(self.sender.id())
+            .map(|node| node.node_data().meta.enabled)
+            .unwrap_or(self.initial_sender_enabled);
+        self.values(None).definition(enabled)
+    }
+
+    pub(crate) fn use_automatic_sender(&mut self) {
+        self.initial_sender_enabled = false;
+    }
+
+    pub(crate) fn is_fullscreen(&self) -> bool {
+        self.target_kind.get_ref().as_str() == "Fullscreen"
+    }
+
+    pub(crate) fn sender_parameter(&self) -> NodeId {
+        self.sender.id()
     }
 
     pub(crate) fn parameter_values(&self, definition: ScreenDefinition) -> Vec<(NodeId, ParamValue)> {
@@ -112,6 +137,13 @@ impl ScreenNode {
             Some(ScreenTarget::Spout { sender, extent }) => {
                 values.extend([
                     (self.sender.id(), ParamValue::Str(sender)),
+                    (self.width.id(), ParamValue::Int(extent.width() as i32)),
+                    (self.height.id(), ParamValue::Int(extent.height() as i32)),
+                ]);
+                "Shared Texture"
+            }
+            Some(ScreenTarget::AutomaticSpout { extent }) => {
+                values.extend([
                     (self.width.id(), ParamValue::Int(extent.width() as i32)),
                     (self.height.id(), ParamValue::Int(extent.height() as i32)),
                 ]);
@@ -199,6 +231,16 @@ impl ScreenNode {
 
 #[node("mapgyver.screen", from_struct)]
 impl Node for ScreenNode {
+    fn init(&mut self, ctx: &mut ProcessCtx) {
+        ctx.add_event_listener_subtree(self.id(), self.id(), 2);
+    }
+
+    fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: golden_core::node::NodeMetaPatch) {
+        if (node == self.id() && patch.label.is_some()) || (node == self.sender.id() && patch.enabled.is_some()) {
+            self.revision.advance();
+            self.catalog_changed(ctx);
+        }
+    }
     fn user_container_rules(&self) -> Option<UserContainerRules> {
         Some(UserContainerRules::new(&["mapgyver.surface"]))
     }
@@ -271,8 +313,16 @@ impl Node for ScreenNode {
         let candidate = self.values(Some(change));
         self.validate_display_hint(Some(change))?;
         candidate.validate()?;
-        let definition = candidate.definition();
-        let Some(ScreenTarget::Spout { sender, .. }) = definition.target.filter(|_| definition.enabled) else {
+        let custom = change
+            .node(self.sender.id())
+            .map(|node| node.node_data().meta.enabled)
+            .unwrap_or(self.initial_sender_enabled);
+        let definition = candidate.definition(custom);
+        let Some(sender) = definition
+            .target
+            .filter(|_| definition.enabled)
+            .and_then(|target| target.sender_name(&self.node_data().meta.label))
+        else {
             return Ok(());
         };
         let mut child = self
@@ -289,9 +339,18 @@ impl Node for ScreenNode {
             let Some(screen) = node.as_any().downcast_ref::<ScreenNode>() else {
                 continue;
             };
-            let other = screen.values(Some(change)).definition();
+            let custom = change
+                .node(screen.sender.id())
+                .map(|node| node.node_data().meta.enabled)
+                .unwrap_or(screen.initial_sender_enabled);
+            let other = screen.values(Some(change)).definition(custom);
             if other.enabled
-                && matches!(other.target, Some(ScreenTarget::Spout { sender: other, .. }) if other == sender)
+                && other
+                    .target
+                    .as_ref()
+                    .and_then(|target| target.sender_name(&screen.node_data().meta.label))
+                    .as_ref()
+                    == Some(&sender)
             {
                 return Err("enabled Screens must have distinct Shared Texture sender names".into());
             }
@@ -322,7 +381,7 @@ struct ScreenValues {
 }
 
 impl ScreenValues {
-    fn definition(&self) -> ScreenDefinition {
+    fn definition(&self, custom_sender: bool) -> ScreenDefinition {
         // Empty endpoint text is an authored, visibly unconfigured state. It must
         // not select a primary display or invent a sender during ordinary editing.
         let target = match self.kind.as_str() {
@@ -335,6 +394,9 @@ impl ScreenValues {
                     top: self.top,
                     extent: projection_extent(self.width, self.height),
                 },
+            }),
+            "Shared Texture" if !custom_sender => Some(ScreenTarget::AutomaticSpout {
+                extent: projection_extent(self.width, self.height),
             }),
             "Shared Texture" if !self.sender.is_empty() => Some(ScreenTarget::Spout {
                 sender: self.sender.clone(),
@@ -373,7 +435,7 @@ impl ScreenValues {
         }
         validate_endpoint(self.display.as_str(), 1024, "display identity")?;
         validate_endpoint(&self.sender, 239, "Shared Texture sender")?;
-        self.definition().validate()
+        self.definition(true).validate()
     }
 }
 

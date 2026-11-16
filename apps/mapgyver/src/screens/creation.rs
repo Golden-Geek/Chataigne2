@@ -35,13 +35,14 @@ pub(crate) fn tree(context: &UserItemCreationContext<'_>, label: String) -> Resu
         let Some(screen) = node.as_any().downcast_ref::<ScreenNode>() else {
             continue;
         };
-        if matches!(screen.definition().target, Some(ScreenTarget::Fullscreen { .. })) {
+        if screen.is_fullscreen() && !screen.authored_display_identity().is_empty() {
             requested.push((ScreenId(screen.node_data().meta.uuid), screen.display_hint()));
         }
     }
     context.visit_prepared_children(manager, |node| {
         if let Some(screen) = node.as_any().downcast_ref::<ScreenNode>()
-            && matches!(screen.definition().target, Some(ScreenTarget::Fullscreen { .. }))
+            && screen.is_fullscreen()
+            && !screen.authored_display_identity().is_empty()
         {
             requested.push((ScreenId(screen.node_data().meta.uuid), screen.display_hint()));
         }
@@ -93,6 +94,7 @@ fn with_surface(
             anti_aliasing: Default::default(),
         },
     );
+    screen.use_automatic_sender();
     if let Some(display) = display {
         screen.remember_display(display);
     }

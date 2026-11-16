@@ -47,7 +47,7 @@ pub(super) fn read(engine: &AppEngine, edit: &ScreenEdit) -> Result<Option<Scree
             };
             ScreenEditResult::ScreenDefinition {
                 screen: *screen,
-                definition: node.definition(),
+                definition: node.definition(engine),
             }
         }
         _ => return Ok(None),

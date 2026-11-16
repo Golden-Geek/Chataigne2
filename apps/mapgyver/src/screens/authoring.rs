@@ -131,8 +131,21 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         ScreenEdit::ConfigureScreen { screen, definition } => {
             let node = screen_id(engine, screen)?;
             definition.validate()?;
+            let Some(AppNode::Screen(current)) = engine.nodes.get(node) else {
+                unreachable!()
+            };
+            let sender_parameter = current.sender_parameter();
+            let sender_mode = match &definition.target {
+                Some(ScreenTarget::Spout { .. }) => Some(true),
+                Some(ScreenTarget::AutomaticSpout { .. }) => Some(false),
+                None if !current.is_fullscreen() => Some(true),
+                _ => None,
+            };
             if definition.enabled
-                && let Some(ScreenTarget::Spout { sender, .. }) = &definition.target
+                && let Some(sender) = definition
+                    .target
+                    .as_ref()
+                    .and_then(|target| target.sender_name(&current.node_data().meta.label))
             {
                 let mut child = engine
                     .nodes
@@ -143,8 +156,14 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                     child = candidate.node_data().next_sibling;
                     if other != node
                         && let AppNode::Screen(candidate) = candidate
-                        && candidate.definition().enabled
-                        && matches!(&candidate.definition().target, Some(ScreenTarget::Spout { sender: name, .. }) if name == sender)
+                        && candidate.definition(engine).enabled
+                        && candidate
+                            .definition(engine)
+                            .target
+                            .as_ref()
+                            .and_then(|target| target.sender_name(&candidate.node_data().meta.label))
+                            .as_ref()
+                            == Some(&sender)
                     {
                         return Err("enabled Screens must have distinct Shared Texture sender names".into());
                     }
@@ -154,8 +173,20 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                 unreachable!()
             };
             let enabled = definition.enabled;
+            let values = current.parameter_values(definition);
+            // Parameter validation must see the requested mode, not the dormant endpoint.
+            // The public operation keeps metadata and values in one history transaction.
+            if let Some(enabled) = sender_mode {
+                engine.edits.push(Edit::PatchMeta {
+                    node: sender_parameter,
+                    patch: golden_core::node::NodeMetaPatch {
+                        enabled: Some(enabled),
+                        ..Default::default()
+                    },
+                });
+            }
             engine.edits.push(Edit::SetParamsAtomic {
-                values: current.parameter_values(definition),
+                values,
                 behaviour: ParameterEventBehaviour::Append,
             });
             engine.edits.push(Edit::PatchMeta {
@@ -179,7 +210,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             let Some(AppNode::Screen(current)) = engine.nodes.get(node) else {
                 unreachable!()
             };
-            if current.definition().target.as_ref() != Some(&target) {
+            if current.definition(engine).target.as_ref() != Some(&target) {
                 return Err("output target has changed".into());
             }
             if current.node_data().meta.enabled {
@@ -403,7 +434,7 @@ pub fn inspect(engine: &AppEngine) -> Result<ScreenManagerSnapshot, String> {
             screens.push(ScreenSnapshot {
                 id: owner,
                 label: screen.node_data().meta.label.clone(),
-                definition: screen.definition(),
+                definition: screen.definition(engine),
                 surfaces,
             });
         }
@@ -426,10 +457,13 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 if node.node_data().parent != Some(manager) {
                     return Err("Screen is outside its manager".into());
                 }
-                let definition = node.definition();
+                let definition = node.definition(engine);
                 definition.validate()?;
                 if definition.enabled
-                    && let Some(ScreenTarget::Spout { sender, .. }) = definition.target
+                    && let Some(sender) = definition
+                        .target
+                        .as_ref()
+                        .and_then(|target| target.sender_name(&node.node_data().meta.label))
                     && !senders.insert(sender)
                 {
                     return Err("enabled Screens must have distinct Shared Texture sender names".into());

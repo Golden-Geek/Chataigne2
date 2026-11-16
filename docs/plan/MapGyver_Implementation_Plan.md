@@ -80,12 +80,16 @@ M14/6 allocation and inventory are functionally verified, including both-GPU no-
 desktop checks. Its one/multiple-external physical cases and native shortcut remain
 [Blocked with return triggers](../progress/mapgyver-m14-screen-defaults.md): the active native
 and WMI catalogs expose only an internal panel, and supported desktop input cannot connect.
-Select M14/7 optional sender names while retaining every M14/6 requirement before M09.
+M14/7 optional sender names is now [Accepted](../progress/mapgyver-m14-sender-names.md):
+typed optional metadata, all-caller/history/copy/reload parity, actual Inspector and both-GPU
+SDK discovery/pixels, exact collision/retry and old-owner retirement pass. Return to M14/1's
+remaining MapGyver native/independent/lifetime acceptance, retaining every M14/6 requirement
+before M09. Chataigne-only consumers stay deferred.
 The recorded default-parallel
 Video software failures remain required correction/rerun work before M09; sequential passing
 evidence does not establish a full parallel-suite pass.
 Retain unfinished MapGyver selection/navigation and every other gate in the return queue.
-M14/3–5 acceptance adds three verified gates; the denominator is unchanged.
+M14/3–5,7 acceptance adds four verified gates; the denominator is unchanged.
 Then finish extended codecs,
 subtitles and retained acceptance before M09. The user also freshly observed native NVIDIA
 Overlay Off on this date; record that observation with any actual run, not as qualification.

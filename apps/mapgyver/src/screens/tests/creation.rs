@@ -44,7 +44,7 @@ fn definition(engine: &AppEngine, id: ScreenId) -> ScreenDefinition {
     let Some(AppNode::Screen(node)) = engine.nodes.get(engine.node_id_by_uuid(id.0).unwrap()) else {
         panic!()
     };
-    node.definition()
+    node.definition(engine)
 }
 fn assert_unselected_fullscreen(engine: &AppEngine, screen: ScreenId) {
     assert!(definition(engine, screen).target.is_none());
@@ -264,7 +264,7 @@ fn live_creation_reserves_disabled_external_assignments_and_leaves_fullscreen_un
         panic!()
     };
     assert_eq!(node.display_hint(), hint);
-    assert!(!node.definition().enabled);
+    assert!(!node.definition(&loaded).enabled);
     let Some(AppNode::ScreenManager(node)) = loaded.nodes.get(manager(&loaded)) else {
         panic!()
     };
@@ -385,7 +385,7 @@ fn intrinsic_screen_factory_remains_stable_and_enablement_has_no_parameter_dupli
     let owner = engine.nodes.get(root).unwrap();
     let tree = owner.create_user_item_tree("mapgyver.screen").unwrap();
     let node = tree.node.as_any().downcast_ref::<super::super::ScreenNode>().unwrap();
-    assert_eq!(node.definition(), ScreenDefinition::default());
+    assert_eq!(node.definition(&engine), ScreenDefinition::default());
     assert_eq!(node.authored_display_identity(), "");
     let (screen, _) = create(&mut engine);
     let root = engine.node_id_by_uuid(screen.0).unwrap();

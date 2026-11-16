@@ -162,16 +162,17 @@ fn shared_texture_requester_replaces_the_occupied_output_without_changing_its_su
         },
     );
     assert_eq!(engine.undo_len(), history + 1);
+    assert!(matches!(
+        screen(&engine, occupied).definition(&engine).target,
+        Some(ScreenTarget::AutomaticSpout { .. })
+    ));
     assert!(
-        matches!(screen(&engine, occupied).definition().target, Some(ScreenTarget::Spout { sender, .. }) if sender == "MapGyver Screen")
-    );
-    assert!(
-        matches!(screen(&engine, reserved_sender).definition().target, Some(ScreenTarget::Spout { sender, .. }) if sender == "MapGyver Screen 2")
+        matches!(screen(&engine, reserved_sender).definition(&engine).target, Some(ScreenTarget::Spout { sender, .. }) if sender == "MapGyver Screen 2")
     );
     assert_eq!(screen(&engine, requester).display_hint(), hint);
     assert_eq!(definition(&engine, surface), body);
     assert!(
-        !screen(&engine, occupied).definition().enabled,
+        !screen(&engine, occupied).definition(&engine).enabled,
         "reassignment preserves metadata enablement"
     );
     assert!(
@@ -186,10 +187,10 @@ fn shared_texture_requester_replaces_the_occupied_output_without_changing_its_su
     assert!(engine.undo().unwrap());
     dispatch(&mut engine);
     assert!(
-        matches!(screen(&engine, occupied).definition().target, Some(ScreenTarget::Fullscreen { display }) if display == "a-two")
+        matches!(screen(&engine, occupied).definition(&engine).target, Some(ScreenTarget::Fullscreen { display }) if display == "a-two")
     );
     assert!(
-        matches!(screen(&engine, requester).definition().target, Some(ScreenTarget::Spout { sender, .. }) if sender == "MapGyver Screen")
+        matches!(screen(&engine, requester).definition(&engine).target, Some(ScreenTarget::Spout { sender, .. }) if sender == "MapGyver Screen")
     );
 }
 
@@ -240,8 +241,8 @@ fn a_recovered_physical_display_is_occupied_even_when_the_saved_path_is_offline(
         },
     );
     assert!(matches!(
-        screen(&engine, occupied).definition().target,
-        Some(ScreenTarget::Spout { .. })
+        screen(&engine, occupied).definition(&engine).target,
+        Some(ScreenTarget::AutomaticSpout { .. })
     ));
     assert_eq!(
         screen(&engine, occupied).display_hint(),

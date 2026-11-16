@@ -1,0 +1,172 @@
+{
+	"gate": "M14/7",
+	"date": "2026-11-16",
+	"result": "accepted",
+	"scope": "Optional typed Sender name metadata, automatic/custom naming, callers, Inspector, history/copy/reload, exact SDK discovery/pixels, collision retry and old-sender retirement",
+	"ownership": "MapGyver Screen Parameters/protocol/capture; existing Golden optional metadata and Spout supervision",
+	"overlay": "Standing user-confirmed Off; no fresh confirmation required",
+	"progress": {
+		"accepted_before": 91,
+		"accepted_after": 92,
+		"total": 106,
+		"percent": 87,
+		"m14": "4/10",
+		"complete_phases": "8/15"
+	},
+	"software": {
+		"common": {
+			"command": "cargo test -p MapGyver --lib -- --test-threads=1",
+			"passed": 721,
+			"failed": 0,
+			"ignored_existing": 5,
+			"log": "target/m14-sender-app-tests-corrected-2026-11-16.log",
+			"sha256": "3d9f1dc6e497c8902001e5b358faa65d932a2c9a6c3b8ee26ba1479e239d8c59",
+			"scope": "Complete common suite before the final mode-order correction; final affected suite below covers the correction."
+		},
+		"additional_hosted_script": {
+			"command": "cargo test -p MapGyver --lib screens::tests::scripting::hosted_optional_sender_configuration -- --test-threads=1",
+			"passed": 1,
+			"cases": ["automatic", "explicit"],
+			"log": "target/m14-sender-script-tests-corrected-2026-11-16.log",
+			"sha256": "d3291c70a9935a8f4944e338385607b4588886c91470cf9a12197118c1363559"
+		},
+		"strict": {
+			"command": "cargo clippy -p MapGyver --lib --tests -- -D warnings",
+			"exit_code": 0,
+			"log": "target/m14-sender-transaction-clippy-2026-11-16.log",
+			"sha256": "d79445f140953002306a478da967d29a78790fb6e7b03066b4d044adfee72e16"
+		},
+		"ui": {
+			"command": "npm run check:mapgyver",
+			"errors": 0,
+			"warnings": 0,
+			"log": "target/m14-sender-ui-check-2026-11-16.log",
+			"sha256": "b127ec44db292ddff4f8c14f8d1d0db1a4c62d23843759615935d6f966286655"
+		},
+		"generated": "generate_screen_protocol ran successfully; checked_in_screen_typescript_matches_rust_contracts passes",
+		"format": [
+			"cargo fmt --all",
+			"cargo fmt --manifest-path crates/golden_core/Cargo.toml --all",
+			"scoped Prettier and node --check pass"
+		],
+		"default_build": {
+			"command": "cargo build -p MapGyver --bin MapGyver",
+			"exit_code": 0,
+			"log": "target/m14-sender-transaction-build-2026-11-16.log",
+			"sha256": "64ebbb8e1f922281ca4258c8ad9d77edb854abc20424dbde9c76af4d9f0e61e7"
+		},
+		"final_affected": {
+			"command": "cargo test -p MapGyver --lib screens:: -- --test-threads=1",
+			"passed": 122,
+			"failed": 0,
+			"ignored": 0,
+			"includes": "Both mode-order regressions, hosted-script parity, Screen/Surface/output rendering and generated contracts",
+			"log": "target/m14-sender-transaction-tests-2026-11-16.log",
+			"sha256": "f9b67f6a1173a307522d6ad9900c359a59d3725ea5eb8f7be95dcb17f7dcd989"
+		}
+	},
+	"binary_sha256": {
+		"target/debug/MapGyver.exe": "a345e49b738af5131f2ee609d390444711b8c8fa9ffdf52c2d7f401d9995cf65",
+		"target/debug/native_qualification.exe": "25d087ece65f323bb344754eeb417340550702b5e0cd2053728e3524b117ca02",
+		"target/debug/native_source_fixture.exe": "71cc73f6f195893957137adf340e0be2507147d7862f3e93361f37495baa40cc"
+	},
+	"native": [
+		{
+			"gpu": "Intel(R) Graphics",
+			"adapter": "dxgi:00000000:000156b6",
+			"pid": 44444,
+			"producer_pid": 30756,
+			"checks": 16,
+			"exit_code": 0,
+			"receipt": "target/m14-sender-transaction-intel-2026-11-16/result.json",
+			"sha256": "a02e199fd73f168d63ea8419e2912e9d5a8e91d2aa063ce2b2cf7cf998e2db03"
+		},
+		{
+			"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+			"adapter": "dxgi:00000000:00015b86",
+			"pid": 15076,
+			"producer_pid": 7108,
+			"checks": 16,
+			"exit_code": 0,
+			"receipt": "target/m14-sender-transaction-nvidia-2026-11-16/result.json",
+			"sha256": "0d3710321cbc44e6ab49e0be648474bb917cda3ec54cb0e1763906f983774421"
+		}
+	],
+	"native_assertions": {
+		"fresh": "Actual startup Sender name is a disabled, disableable typed String child",
+		"inspector": "Real generic enable switch and Screen title rename drive actual backend projection",
+		"images": 20,
+		"extent": [96, 64],
+		"exact_rgba_texels": 122880,
+		"expected_rgba": [255, 0, 0, 255],
+		"every_consumer_retired": true,
+		"states_per_gpu": [
+			"automatic",
+			"automatic-renamed",
+			"custom",
+			"custom-renamed",
+			"disabled-custom",
+			"fps-preserves-mode",
+			"copy-automatic",
+			"reloaded-automatic",
+			"reloaded-dormant-custom",
+			"collision-recovered"
+		],
+		"history": "Mode undo/redo restores exact SDK names; FPS configuration preserves automatic mode",
+		"copy_reload": "Two automatic Screens have distinct derived names; copy and reload preserve dormant custom String and disabled metadata",
+		"collision": "Independent owned producer causes per-Screen Screen output error 0x800700B7; no retained suffixed SDK name; producer exit automatically restores exact red pixels",
+		"retirement": "Old names absent on rename/mode/copy removal/Rectangle/New. Each final New advances runtime sequence and records one completed old native-owner retirement; replacement main preview Running with retiring0. Both app and producer exit normally."
+	},
+	"retained_failures": [
+		{
+			"path": "target/m14-sender-app-tests-2026-11-16.log",
+			"reason": "New helper counted unconfigured Fullscreen Screens as display reservations; restored the original nonempty-display requirement. Corrected complete suite passes."
+		},
+		{
+			"path": "target/m14-sender-script-tests-2026-11-16.log",
+			"reason": "Additional test omitted the Node trait import; corrected test compiles and passes."
+		},
+		{
+			"path": "target/m14-sender-native-intel-2026-11-16/failure.json",
+			"sha256": "e58acf81b420e892f384c1e873ca75680e11cd853e294fe4f25aa784cd9012ff",
+			"reason": "Fixture read native control during startup navigation; final fixture first waits for real Inspector controls."
+		},
+		{
+			"path": "target/m14-sender-native-intel-corrected-2026-11-16/failure.json",
+			"sha256": "987eb55661f425acd4cc90e1c5bf23f3724c910102e82ea277b568aa9b46add5",
+			"reason": "Nine full images passed; collision assertion incorrectly used global renderer error. Existing worker publishes output HRESULT on per-Screen preview status. Final fixture observes that original event without changing deadlines or product behavior."
+		}
+	],
+	"limits": [
+		"No timing, peak-growth, sustained-performance or complete M10 qualification claim",
+		"Replacement preview Running is not idle or zero allocation",
+		"M14/6 physical external-display/native-input cases and all retained gates remain open",
+		"Unrelated Chataigne work stays parked"
+	],
+	"source_review_correction": "Apply requested Sender name metadata before typed Parameter validation in the same public history transaction; dormant automatic/custom destinations cannot veto valid mode changes.",
+	"baseline_native_before_transaction_correction": {
+		"app_sha256": "dee55a91ec96d772541b044b8148e3e2efbab964371df1b7ac0ca98cdab40b82",
+		"receipts": [
+			{
+				"gpu": "Intel(R) Graphics",
+				"adapter": "dxgi:00000000:000156b6",
+				"pid": 26412,
+				"producer_pid": 54288,
+				"checks": 16,
+				"exit_code": 0,
+				"receipt": "target/m14-sender-native-intel-final-2026-11-16/result.json",
+				"sha256": "4c8edbf20860152657a5b6d24cc924a816b855560f0e5b9815642880f6612060"
+			},
+			{
+				"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+				"adapter": "dxgi:00000000:00015b86",
+				"pid": 26744,
+				"producer_pid": 35848,
+				"checks": 16,
+				"exit_code": 0,
+				"receipt": "target/m14-sender-native-nvidia-2026-11-16/result.json",
+				"sha256": "c0cc55ae2ce7ae68ac2e8116e2cbaf4b46a4ff65b18d09e268373ba2af1d91ed"
+			}
+		]
+	}
+}

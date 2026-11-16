@@ -138,8 +138,8 @@ impl Source {
             let leaf = engine.nodes.get(parameter).ok_or("Screen display Parameter missing")?;
             let hint = screen.display_hint();
             if screen.node_data().effective_enabled
-                && screen.definition().enabled
-                && matches!(screen.definition().target, Some(ScreenTarget::Fullscreen { .. }))
+                && screen.definition(engine).enabled
+                && matches!(screen.definition(engine).target, Some(ScreenTarget::Fullscreen { .. }))
             {
                 requests.push((ScreenId(screen.node_data().meta.uuid), hint.clone()));
             }

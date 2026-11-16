@@ -117,7 +117,7 @@ pub(super) fn inspect(engine: &AppEngine, query: ScreenEditorQuery) -> Result<Sc
     let mut snapshot = ScreenSnapshot {
         id: screen,
         label: node.node_data().meta.label.clone(),
-        definition: node.definition(),
+        definition: node.definition(engine),
         surfaces: Vec::new(),
     };
     let mut next = node.node_data().first_child;

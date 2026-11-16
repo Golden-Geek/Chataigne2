@@ -129,6 +129,20 @@ pub enum ScreenTarget {
         sender: String,
         extent: Extent2D,
     },
+    /// Sender Name is disabled; resolve the current Screen label at the output boundary.
+    AutomaticSpout {
+        extent: Extent2D,
+    },
+}
+
+impl ScreenTarget {
+    pub(crate) fn sender_name(&self, screen_label: &str) -> Option<String> {
+        match self {
+            Self::Spout { sender, .. } => Some(sender.clone()),
+            Self::AutomaticSpout { .. } => Some(format!("MapGyver - {screen_label}")),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
@@ -505,6 +519,7 @@ impl ScreenDefinition {
                 text(sender, 239, "Shared Texture sender")?;
                 extent(*size)?;
             }
+            Some(ScreenTarget::AutomaticSpout { extent: size }) => extent(*size)?,
             None => {}
         }
         Ok(())

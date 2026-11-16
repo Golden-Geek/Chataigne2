@@ -250,6 +250,20 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
     let screen_fields = parameters(&engine, screen_node);
     let surface_fields = parameters(&engine, surface_node);
     assert_eq!(screen_fields.len(), 17);
+    assert!(
+        apply_project_intent(
+            &mut engine,
+            UiEditIntent::PatchMeta {
+                node: screen_fields["parameters/sender"],
+                patch: golden_core::node::NodeMetaPatch {
+                    enabled: Some(true),
+                    ..Default::default()
+                }
+                .into(),
+            },
+        )
+        .success
+    );
     assert!(!screen_fields.contains_key("parameters/render_enabled"));
     assert_eq!(surface_fields.len(), 10);
     assert!(!surface_fields.contains_key("parameters/render_enabled"));

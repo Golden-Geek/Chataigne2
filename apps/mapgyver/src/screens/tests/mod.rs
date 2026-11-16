@@ -18,6 +18,7 @@ mod queries;
 mod rows;
 mod scripting;
 mod selection;
+mod sender_names;
 mod source_targeting;
 mod translation;
 mod typescript;

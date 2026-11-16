@@ -5,7 +5,7 @@ use golden_core::{
     application::service_script_app_operations,
     edit::Edit,
     events::EventKind,
-    node::{NodeId, NodeMetaPatch},
+    node::{Node, NodeId, NodeMetaPatch},
     parameter::ParamValue,
     script::{ScriptMethodCall, ScriptNode, ScriptNodeConfig, ScriptSource},
 };
@@ -92,6 +92,65 @@ fn hosted_script_configures_the_same_typed_screen_frame_rate() {
     assert_eq!(engine.undo_len(), history + 1);
     assert!(engine.undo().unwrap());
     assert_eq!(super::super::inspect(&engine).unwrap().screens[0].definition, original);
+}
+
+#[test]
+fn hosted_optional_sender_configuration_preserves_mode_dormant_values_and_one_step_history() {
+    for automatic in [false, true] {
+        let mut engine = fixture();
+        let (screen, _) = create(&mut engine);
+        let node = engine.node_id_by_uuid(screen.0).unwrap();
+        let field = super::parameters::parameters(&engine, node)["parameters/sender"];
+        assert!(super::parameters::set(&mut engine, field, ParamValue::Str("Dormant script name".into())).success);
+        let original = super::super::inspect(&engine).unwrap().screens[0].definition.clone();
+        let extent = golden_video::Extent2D::new(96, 64).unwrap();
+        let configured = ScreenDefinition {
+            target: Some(if automatic {
+                ScreenTarget::AutomaticSpout { extent }
+            } else {
+                ScreenTarget::Spout {
+                    sender: "Explicit script name".into(),
+                    extent,
+                }
+            }),
+            ..original.clone()
+        };
+        let request = serde_json::to_string(&ScreenEdit::ConfigureScreen {
+            screen,
+            definition: configured.clone(),
+        })
+        .unwrap();
+        script(
+            &mut engine,
+            format!(
+                "function init() {{ local.listen({{level:1}}); local.editScreens('sender', {request:?}); }} function onAppOperationResult(reply) {{ gc.emit('screen-test-reply', reply); }}"
+            ),
+        );
+        let history = engine.undo_len();
+        service_script_app_operations(&mut engine).unwrap();
+        assert_eq!(replies(&engine)[0]["status"], "applied");
+        assert_eq!(
+            super::super::inspect(&engine).unwrap().screens[0].definition,
+            configured
+        );
+        assert_eq!(engine.nodes.get(field).unwrap().node_data().meta.enabled, !automatic);
+        let value = engine.nodes.get(field).unwrap().engine_param_snapshot().unwrap().value;
+        assert_eq!(
+            value,
+            ParamValue::Str(
+                if automatic {
+                    "Dormant script name"
+                } else {
+                    "Explicit script name"
+                }
+                .into()
+            )
+        );
+        assert_eq!(engine.undo_len(), history + 1);
+        assert!(engine.undo().unwrap());
+        assert_eq!(super::super::inspect(&engine).unwrap().screens[0].definition, original);
+        assert!(!engine.nodes.get(field).unwrap().node_data().meta.enabled);
+    }
 }
 
 fn replies(engine: &AppEngine) -> Vec<serde_json::Value> {
