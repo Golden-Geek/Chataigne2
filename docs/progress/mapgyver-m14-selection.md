@@ -96,6 +96,25 @@ adapters already select their Formula/manager for empty graph selection. Spatial
 world now selects its module through the same callback, guarded against active endpoint input.
 These are shared Golden/consumer changes; MapGyver has no new graph panel from this slice.
 
+Actual-domain acceptance now covers Alchemist in the ordinary bundled Chataigne workbench:
+`apps/chataigne/ui/tests/browser/graph-selection-product.mjs` uses public intents to create real
+Formula/ANode nodes, then normal panel and graph input. It verifies exact Inspector UUID before
+release, retained DOM/capture, hover without selection/controls, background Formula inspection,
+tool-owned captured Escape followed by idle-owner Escape, and no late-input edits. Project Save
+bytes and Undo/Redo lengths remain identical; no rejected operations/page errors occur and the
+owned host exits normally. No production change was needed.
+
+The initial Home button was covered by the Formula Properties overlay. The completed selection
+scene uses the normal Hide properties action. Toolbar/inset overlap remains required work when
+M14/2 navigation is active; this result does not accept that layout. Log:
+`target/m14-graph-product-selection-2026-11-16.log`, SHA256
+`efe9f3771dc0928d4e9609711772c6a7296df48a9963eddddcf6792ed90204bd`.
+Receipt: `target/qualification/m14-graph-selection-product-262620ac-a58b-4daf-9fd5-f728ab2ec036/browser.jsonl`,
+SHA256 `27336eb1d549a8d79a8aebf60f1bde3a5ed25a323221d4002fa7ea3bfb7bb710`.
+The producer is the current `d2fd83b5` working-checkout Chataigne binary recorded below.
+Syntax/Prettier and root/Core formatting pass. Independent editors, offscreen/permissions,
+other graph-domain adapters and physical native scope still require acceptance.
+
 Graph pointer cancellation is now separate from commit. Escape first cancels captured input and
 any keyboard connection endpoint without deselecting; the next idle Escape selects the owner.
 Pointercancel/lost capture/blur and scope/topology/disposal boundaries retire matching ownership
@@ -272,7 +291,7 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Composition / Composition media | Real bundled UI/backend verifies before-release child/background selection and Inspector, no implicit first child, independent locked peers, owner/idle Escape, exact no-history selection,130-child off-page editing, reconnect/copy/removal/project replacement; shared selection/edit admission fixes busy reselection; hover and unavailable-bounds DOM checks pass | Physical native input/pixel agreement, overlapping hit order and remaining complete active-gesture/lifetime acceptance |
 | Matrix Layer spatial / Matrix media | Real backend/Inspector verifies primary-down selection, hover without controls, owner/background/idle Escape, no implicit child and independent locked Layer/Cell editors; full typed Inspector/history/off-page/mixed suite passes; geometry closure is reported busy | Physical native input/pixel, overlap and complete active/outgoing/project interaction acceptance |
 | Matrix Cell spatial / Layer | Real backend/Inspector verifies before-release selection including disabled Cell, Layer owner clearing without navigation, recognized Matrix-focus clearing and unrelated locked-content retention; exact unchanged authoring/history/playback; full typed Inspector suite passes | Physical native input/pixel, overlap, off-page spatial and complete active/outgoing/project interaction acceptance |
-| Golden graph canvases | Browser verifies primary-down nodes/edges, immediate background/idle-Escape empty selection, selected-only resize/hover, modifier/marquee/pan/text/finder isolation; captured cancellation/focus/identity/lifecycle boundaries and pending-work preservation; Spatializer owner callback wired and consumers typecheck | Actual domain Inspector/native/independent-editor/offscreen/permission and specialized custom-world capture acceptance |
+| Golden graph canvases | Reusable browser contract proves down/hover/controls, background/idle Escape, tool/capture/focus/lifetime isolation. Ordinary bundled Chataigne now proves Alchemist exact-node Inspector selection before release, Formula owner clearing, retained capture/DOM and unchanged saved document/history | Other domain Inspector adapters, native/independent-editor/offscreen/permission and specialized custom-world capture acceptance; Alchemist toolbar/Properties overlap returns with M14/2 |
 | Golden Dashboard / edited page | Primary-down widget/background selection; selected-only resize zones; border hover; per-page tool-first/idle-owner Escape; free/ordered move/resize and marquee/pan cancellation, nested keyboard and two-editor isolation verified in production browser fixture | Actual workbench/Inspector, permission/offscreen/project and current-host acceptance remain open; unrelated Dashboard backend edits are preserved |
 | Animation curves / curve and key nodes | Shared key/easing/field and embedded typed Inspector; background/idle owner, tool-first cancel, selected-only Bezier/contour hover, permission/offscreen/locked-owner checks; bounded editor/renderer; delayed draw/create/paste owner/document fencing, exact creation receipt and original-owner completion without selection theft | Fix connected pointer ownership and complete actual backend/history/native and full lifetime acceptance; all editor/renderer modules stay under1000 lines |
 | Gradient / Gradient owner and stops | Actual bundled Chataigne UI/backend proves before-release Outliner/Inspector selection, capture/cancel, typed/live edits and exact Undo/Redo; two locked real panels preserve independent owners/focus and local color Escape, retire capture on reconnect, reload locks, fence New during a live drag and restore exact authored values/presentation; optimized Engine/MapGyver/Gradient suites pass | Physical native input/pixels and remaining complete offscreen/copy/lifetime acceptance stay open. Rematerialized declared UUIDs leave locks unavailable rather than retargeting |
@@ -1008,7 +1027,7 @@ investigation. Return only for a correction supported by its actual terminal bou
 native acceptance after helper reconnection. Its original connected/history/native requirements
 remain Pending; no fixed gate closes.
 
-Next action: Golden graph's actual-domain Inspector selection acceptance within M14/1.
+Next action: actual State Machine domain/Inspector selection within the same M14/1 graph inventory.
 The Gradient two-panel and tested document/reconnect product scopes now pass;
 physical native and remaining editor inventory still require their own evidence.
 Matrix grid independent panels,
