@@ -2,11 +2,22 @@
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 import { nativeWorkbench } from './native-workbench.mjs';
+import { verifyGradientProductLifetime } from './gradient-product-lifetime.mjs';
 
 const rejected = [];
 await nativeWorkbench({
 	name: 'm14-gradient-product',
-	observePage({ page }) {
+	async observePage({ page }) {
+		await page.addInitScript(() => {
+			window.__gradientProductSockets = [];
+			const Original = window.WebSocket;
+			window.WebSocket = class extends Original {
+				constructor(...args) {
+					super(...args);
+					window.__gradientProductSockets.push(this);
+				}
+			};
+		});
 		page.on('websocket', (socket) =>
 			socket.on('framereceived', ({ payload }) => {
 				try {
@@ -17,7 +28,7 @@ await nativeWorkbench({
 			})
 		);
 	},
-	async exercise({ page, backend, emit }) {
+	async exercise({ page, backend, emit, evidence }) {
 		page.setDefaultTimeout(7000);
 		let stage = 'declared product Gradient';
 		let token;
@@ -291,6 +302,18 @@ await nativeWorkbench({
 			await wait(state, (value) => JSON.stringify(value) === JSON.stringify(edited));
 			await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 			await wait(state, (value) => JSON.stringify(value) === JSON.stringify(accepted));
+			stage = 'independent product Inspectors and lifetime';
+			await verifyGradientProductLifetime({
+				page,
+				post,
+				snapshot,
+				intent,
+				wait,
+				emit,
+				evidence,
+				formula,
+				primary: { anode, gradient, stop: first, position }
+			});
 			assert.deepEqual(rejected, []);
 			emit({
 				kind: 'gradient-product',

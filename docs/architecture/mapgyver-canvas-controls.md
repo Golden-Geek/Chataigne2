@@ -64,6 +64,12 @@ creation, typed edits, history, subtree copying and project codecs. Backend qual
 that facade rather than adding a MapGyver-only authoring route or calling raw-engine duplication,
 which deliberately requires the project codec boundary.
 
+Sparse metadata overrides preserve explicit defaults that clear constructor baselines. Clearing
+tags, semantic hints or presentation hints must remain an authored reset; an absent override
+means to inherit the constructor. Full snapshots retain compact default omission, and sparse
+records omit unchanged defaults while keeping authored resets. This keeps an expanded Gradient Stop expanded
+after saving, loading or copying without an editor-specific persistence workaround.
+
 Fresh Gradient nodes seed their initial stops during initialization. Reload and subtree copy
 preserve authored zero-stop collections through the project decode boundary; in-place history
 restoration preserves initialization state. Sparse project codecs distinguish declared schema

@@ -108,18 +108,23 @@ pub(super) fn project_meta_for_sparse_record(
         return persisted;
     }
 
-    if matched_parent_baseline.is_some() {
+    if let Some(baseline) = matched_parent_baseline {
         let mut persisted = project_meta_from_runtime(meta);
+        let changes = persisted.delta_against(&baseline.without_runtime_fields());
+        persisted.tags = changes.tags.or(persisted.tags);
+        persisted.semantics = changes.semantics.or(persisted.semantics);
+        persisted.presentation = changes.presentation.or(persisted.presentation);
         persisted.description = None;
         persisted.declared_description_key = None;
         persisted.declared_description = None;
-        if persisted.tags.as_ref().is_some_and(Vec::is_empty) {
+        if persisted.tags.as_ref().is_some_and(Vec::is_empty) && persisted.tags == baseline.tags {
             persisted.tags = None;
         }
         if persisted
             .user_permissions
             .as_ref()
             .is_some_and(|value| *value == Default::default())
+            && persisted.user_permissions == baseline.user_permissions
         {
             persisted.user_permissions = None;
         }
@@ -127,6 +132,7 @@ pub(super) fn project_meta_for_sparse_record(
             .semantics
             .as_ref()
             .is_some_and(|value| *value == Default::default())
+            && persisted.semantics == baseline.semantics
         {
             persisted.semantics = None;
         }
@@ -134,6 +140,7 @@ pub(super) fn project_meta_for_sparse_record(
             .presentation
             .as_ref()
             .is_some_and(|value| *value == Default::default())
+            && persisted.presentation == baseline.presentation
         {
             persisted.presentation = None;
         }

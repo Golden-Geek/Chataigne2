@@ -102,16 +102,14 @@ impl ProjectNodeMeta {
             } else {
                 Default::default()
             },
-            tags: (self.tags != baseline.tags).then(|| self.tags.clone()).flatten(),
+            tags: (self.tags != baseline.tags).then(|| self.tags.clone().unwrap_or_default()),
             user_permissions: (self.user_permissions != baseline.user_permissions)
                 .then(|| self.user_permissions.clone())
                 .flatten(),
-            semantics: (self.semantics != baseline.semantics)
-                .then(|| self.semantics.clone())
-                .flatten(),
+            semantics: (self.semantics != baseline.semantics).then(|| self.semantics.clone().unwrap_or_default()),
+            // An empty override clears constructor hints; absence inherits them.
             presentation: (self.presentation != baseline.presentation)
-                .then(|| self.presentation.clone())
-                .flatten(),
+                .then(|| self.presentation.clone().unwrap_or_default()),
         }
     }
 

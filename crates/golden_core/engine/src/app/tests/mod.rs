@@ -18,6 +18,7 @@ use crate::parameter::{ParamValue, ParameterEventBehaviour};
 mod preferences_extensions;
 mod project_identity;
 mod sparse_identity;
+mod sparse_presentation;
 
 define_node_enum!(
     enum PreferencesTestNode {}

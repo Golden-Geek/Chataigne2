@@ -214,6 +214,14 @@ use it even when the projected stop is unchanged. Ordinary model projection rema
 and cannot acquire input authority. The deterministic browser regression fails before this
 correction and passes afterward; the rebuilt actual product now passes the same scenario.
 
+The two-panel continuation also exposed a sparse metadata reset defect. Expanding a Stop clears
+its constructor's collapsed hint, but the sparse overlay discarded that default value and Load
+reapplied the constructor hint. Metadata deltas now retain explicit default resets for tags,
+semantics and presentation, including complete records matched to declared baselines. Full
+snapshots keep their compact omission of empty/default fields. The complete actual product
+flow now preserves the authored expanded state through Save/New/Load. Optimized regression
+revalidation remains pending as recorded below; this is not whole-gate acceptance.
+
 Gradient's captured input now distinguishes cancellation from release. Previously pointercancel
 ran the release handler and could submit armed deletion. The stable editor owns capture while
 markers reorder. Cancel/lost capture/blur, access or topology/selection loss, snapshot replacement
@@ -267,7 +275,7 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Golden graph canvases | Browser verifies primary-down nodes/edges, immediate background/idle-Escape empty selection, selected-only resize/hover, modifier/marquee/pan/text/finder isolation; captured cancellation/focus/identity/lifecycle boundaries and pending-work preservation; Spatializer owner callback wired and consumers typecheck | Actual domain Inspector/native/independent-editor/offscreen/permission and specialized custom-world capture acceptance |
 | Golden Dashboard / edited page | Primary-down widget/background selection; selected-only resize zones; border hover; per-page tool-first/idle-owner Escape; free/ordered move/resize and marquee/pan cancellation, nested keyboard and two-editor isolation verified in production browser fixture | Actual workbench/Inspector, permission/offscreen/project and current-host acceptance remain open; unrelated Dashboard backend edits are preserved |
 | Animation curves / curve and key nodes | Shared key/easing/field and embedded typed Inspector; background/idle owner, tool-first cancel, selected-only Bezier/contour hover, permission/offscreen/locked-owner checks; bounded editor/renderer; delayed draw/create/paste owner/document fencing, exact creation receipt and original-owner completion without selection theft | Fix connected pointer ownership and complete actual backend/history/native and full lifetime acceptance; all editor/renderer modules stay under1000 lines |
-| Gradient / Gradient owner and stops | Actual bundled Chataigne UI/backend proves before-release Outliner/anchored Inspector selection, stable capture, cancel without deletion/history, real Parameter editing, same-stop reselection after field selection, accepted live drag/active Escape and exact Undo/Redo; Golden browser covers independent locked editors, permissions/document/disposal and local color-tool Escape; public-facade copy/reload/collections pass | Independent real-panel and native input/pixel acceptance; complete project/reconnect/lifetime scope remains open |
+| Gradient / Gradient owner and stops | Actual bundled Chataigne UI/backend proves before-release Outliner/Inspector selection, capture/cancel, typed/live edits and exact Undo/Redo; two locked real panels preserve independent owners/focus and local color Escape, retire capture on reconnect, reload locks, fence New during a live drag and restore exact authored values/presentation; Golden browser and public-facade proofs retain their scopes | Refined metadata fix's optimized full-suite rerun is pending; physical native input/pixels and remaining complete offscreen/copy/lifetime acceptance stay open. Rematerialized declared UUIDs leave locks unavailable rather than retargeting |
 | Watcher projection canvases | `WatcherProjectionCanvas` renders buffer samples/latest points without pointer, key or mutation callbacks; it has no authored canvas targets | Read-only projection applicability resolved from source. Ordinary Inspector owns its settings; retain panel focus/lifetime checks in actual workbench acceptance |
 | Media Preview / followed or locked media | `MediaPreviewPanel` renders `ChannelPreview`/`NativePreview` without authored geometry targets; toolbar changes preview choice, not object placement | Read-only image applicability resolved from source. Existing follow/lock/routing requirements stay intact; actual cross-panel/native qualification remains open |
 | Matrix grid / Matrix, Layer, Column and Cell | Real bundled UI/backend proves primary-down Cell/Layer/Column/Group selection and exact Inspector identity before release, owner/text-tool Escape, unchanged history/playback, offscreen Cell editing, two locked independent grids with visible Inspector, layout reload, New during held input and exact Load recovery; complete contextual CRUD/rename/structural history passes | Physical native input/drag/pixels and complete active-drag/reconnect/lifetime acceptance remain open; tested project scope is New during a held selection and exact Load recovery |
@@ -276,6 +284,39 @@ This inventory retains the complete gate. DOM callback fixtures do not establish
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Gradient independent product panels / metadata resets (2026-11-16): the extended bundled
+Chataigne flow passes with0 page errors/rejected requests and normal owned-host exit0. It retains
+every single-panel check and adds two visible locked real Inspectors, exact Outliner selection
+before release, independent retained Stop focus and local color-popup Escape. Closing the live
+workbench socket retires held capture; moving after reconnect cannot author stale geometry.
+Layout reload restores each lock. New during an accepted drag withdraws both owners while the
+pointer remains held, and Load restores exact authored values, Stop identities, ordering and
+expanded/collapsed state with clean history. Locks resolve only their document/UUID; a declared
+Gradient rematerialized under a new UUID stays unavailable instead of binding positionally.
+Projected type/declaration help text is excluded from authored-state comparison; this fixture
+does not author descriptions. Presentation remains asserted.
+
+The first product run retained all earlier checks and failed only the expanded Stop's Load
+comparison (`target/m14-gradient-product-lifetime-2026-11-16.log`). The first metadata correction
+passed692 MapGyver tests and698 Engine tests (including three new regressions), but failed the
+existing compact full-snapshot serialization assertion. The refined correction preserves that
+original assertion and encodes explicit resets in sparse overrides. Strict Engine library/test
+Clippy exits0 with `-D warnings`, both ordinary app builds and root/Core fmt pass. Three new
+regressions cover full-record decoding, sparse reset overlays and live/immutable Gradient saves.
+Their refined optimized rerun, complete Engine/MapGyver libraries and existing Gradient
+integration suite are **still running** in terminal session `88108`:
+`cargo test --locked -p golden_engine -p MapGyver --lib --test gradient_editor`.
+Inspect that same handle/log before claiming completion; do not restart on observation loss.
+Log: `target/m14-gradient-metadata-software-final-2026-11-16.log`.
+
+The passing product receipt is
+`target/qualification/m14-gradient-product-29133495-1eee-4718-b1b7-d88d2c17ef0f/browser.jsonl`.
+Passing controller log: `target/m14-gradient-product-lifetime-fixed-2026-11-16.log`, SHA256
+`f382314e7c5d5a399e68c81f4277ba0de8549d947691bc1fd669a8238f4b7d18`.
+Strict log: `target/m14-gradient-metadata-clippy-2026-11-16.log`; the initial full-suite failure
+remains in `target/m14-gradient-metadata-software-2026-11-16.log`. No native GPU/input/pixel or
+stopped Curve probe was run, and M14/1 remains unaccepted.
 
 Gradient product host and reselection (2026-11-16): the ordinary Chataigne build and its
 default-feature `hosted_gradient_stop_edit_changes_materialized_gradient_resource` test pass.
@@ -879,19 +920,28 @@ build log SHA256 `9907163eb7e083305cc8702f4add228329847bea90d3cd0e7a2e9669fe861f
 combined integration log SHA256 `bac81f8dee5c0d81d785aea31604515c59d5b52e5c9f747d5c2afa11746cf7fe`.
 Logs: `target/m14-matrix-layout-build-2026-11-16.log`,
 `target/m14-matrix-selection-combined-final-2026-11-16.log`.
-Current ordinary builds with explicit Inspector selection (2026-11-16):
+Prior ordinary builds with explicit Inspector selection (2026-11-16):
 MapGyver SHA256 `ac42d85c8c28e74b24a7ae3a4f8f8314e979aa094def351283afb2cc360d97cc`;
 Chataigne SHA256 `ec22e0f8186d3730031d570b41233572dd04510a63cd9ba758f3494df4b3d88c`.
 Both default packages/bins were built together from the preserved working checkout; unrelated
 edits are not included in this milestone's staged changes. Build log:
 `target/m14-gradient-reselection-product-build-2026-11-16.log`, SHA256
 `8dbd2c39cd2a703971cbeaa9e8ca8a2127363696a110bc060a37a242d24b2576`.
+Current ordinary builds with sparse metadata reset preservation (2026-11-16):
+MapGyver SHA256 `21157ab5d425187eec36af7ff2abc07320bcba043e37efe0d840826327e2f643`;
+Chataigne SHA256 `d756d86293e04e72a1e0482c206cd87a468e71b30cbbbbfa260e773ee687c135`.
+Build log: `target/m14-gradient-metadata-product-build-2026-11-16.log`, SHA256
+`3719e79ebe9f9cdb50e27c2ae725455b69f7d580a9bfae21b6c8c246252eb5e0`.
+These working-checkout builds retain unrelated user edits outside the staged milestone.
 The native fixture remains older: these are not a coherent new ordinary/
 native qualification pair. Refresh both inputs before native acceptance; Video evidence keeps
 its original source/build scope.
 
-Next deliverable: two independent real Gradient Inspector panels and their document/lifetime
-boundaries, retaining the verified single-panel bundled product and Golden/public-facade proof.
+Next action: finish the live optimized metadata regression rerun above before the next product
+batch. Then address Curve's equivalent field-to-key exact-selection boundary through the newly
+explicit shared Inspector bridge, retaining its failed connected receipt and all original capture
+requirements. The Gradient two-panel and tested document/reconnect product scopes now pass;
+physical native and remaining editor inventory still require their own evidence.
 Matrix grid independent panels,
 layout reload and the tested New/Load scope now pass. Surface Source, Composition and
 Matrix spatial editors' listed backend scopes are verified;
