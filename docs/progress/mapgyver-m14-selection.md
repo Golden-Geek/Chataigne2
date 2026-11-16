@@ -251,7 +251,7 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | --- | --- | --- |
 | Golden `Viewport2D` | Browser verified primary-down/idle Escape, child/text/tool isolation, navigation and camera lifetime | Complete independent-editor, capture/cancel and app adapter acceptance |
 | Screen Warping / Screen | Real bundled UI/backend proves before-release Surface/background selection, shared Inspector/peer agreement, owner Escape, exact history/Undo and keyboard/project fencing; busy/unavailable DOM regression, shared contour hover and matching native paint declarations pass | Physical native input/pixel and Inspector agreement, overlapping hits, off-page and full active-gesture Escape checks |
-| Surface Source / Surface | Shared typed Crop Parameter selection, owner clearing, selected-only controls; shared hover/native paint declarations; browser capture/cancel and earlier ordinary-host Inspector/history checks | Actual current native pixel/hit agreement, two-editor/offscreen and project/snapshot interaction acceptance |
+| Surface Source / Surface | Real bundled UI/backend verifies Origin and Size selection/Inspector before release, owner clearing, captured cancellation without history, active Escape and two independent locked Source editors; full parameter/source/history/live crop suite passes; shared hover/native paint declarations remain | Actual current native pixel/hit agreement, offscreen and project/snapshot interaction acceptance |
 | Composition / Composition media | Real bundled UI/backend verifies before-release child/background selection and Inspector, no implicit first child, independent locked peers, owner/idle Escape, exact no-history selection,130-child off-page editing, reconnect/copy/removal/project replacement; shared selection/edit admission fixes busy reselection; hover and unavailable-bounds DOM checks pass | Physical native input/pixel agreement, overlapping hit order and remaining complete active-gesture/lifetime acceptance |
 | Matrix Layer spatial / Matrix media | Real backend/Inspector verifies primary-down selection, hover without controls, owner/background/idle Escape, no implicit child and independent locked Layer/Cell editors; full typed Inspector/history/off-page/mixed suite passes; geometry closure is reported busy | Physical native input/pixel, overlap and complete active/outgoing/project interaction acceptance |
 | Matrix Cell spatial / Layer | Real backend/Inspector verifies before-release selection including disabled Cell, Layer owner clearing without navigation, recognized Matrix-focus clearing and unrelated locked-content retention; exact unchanged authoring/history/playback; full typed Inspector suite passes | Physical native input/pixel, overlap, off-page spatial and complete active/outgoing/project interaction acceptance |
@@ -267,6 +267,26 @@ This inventory retains the complete gate. DOM callback fixtures do not establish
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Surface Source (2026-11-16): the unchanged `--surface-source-ui` baseline passes, and its
+extended real-backend fixture passes with0 page errors/rejected crop requests and normal
+owned-host exit0. Both Origin and Size select their actual typed Parameter and update the
+generic Inspector while the pointer is held. Foreign pointer cancellation preserves capture;
+matching pointercancel, capture release and dispatched window blur stop held input, preserve
+selection and leave the full Screen snapshot/history unchanged for a no-movement gesture.
+These software boundary checks do not prove native OS event delivery. Active Escape retains
+Crop selection and fences subsequent held motion while preserving the already accepted edit.
+Two simultaneously visible locked Source editors retain different Surface targets, share
+Origin/Size selection with the visible Inspector and clear to the correct owner without
+authoring history. Existing four-corner/origin/clamping, complete Undo/Redo, live Inspector
+feedback, source loss/Undo and panel-switching checks all remain and pass.
+
+Logs: `target/m14-surface-source-baseline-2026-11-16.log` and
+`target/m14-surface-source-selection-2026-11-16.log`; extended log SHA256
+`a3c227f3e3f0b865048526129a777d2081fe7cce278af5d3b7919553803e0ddb`.
+The unchanged ordinary executable is the Matrix readiness build identified below. This slice
+changes only the integration fixture; no runtime, DTO or native GPU cohort changed. Scoped
+Prettier/syntax and root/Core formatting checks pass. M14/1 remains unaccepted.
 
 Matrix Layer/Cell (2026-11-16): `--matrix-layout-selection-ui --matrix-parameters-ui` passes
 together on the rebuilt ordinary app, with0 page errors/rejected requests and normal exit
@@ -780,8 +800,9 @@ The native fixture remains older: these are not a coherent new ordinary/
 native qualification pair. Refresh both inputs before native acceptance; Video evidence keeps
 its original source/build scope.
 
-Next deliverable: Surface Source typed Crop selection, owner clearing and cancellation against
-the real backend/Inspector. Composition and Matrix's listed backend scopes are verified;
+Next deliverable: Matrix grid selection/owner/Inspector agreement against the real backend,
+retaining virtualization and independent real-panel scope. Surface Source, Composition and
+Matrix spatial editors' listed backend scopes are verified;
 remaining physical native selection/handle/hit acceptance returns when the
 desktop helper reconnects, with coherent inputs. The full editor inventory remains required;
 Gradient's real backend/history/copy/reload

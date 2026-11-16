@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
 import { observeRejectedRequests } from './intent-observer.mjs';
 import { screenParameterControls, surfaceParameterLabels } from './screen-parameters.mjs';
+import { contentLock } from './content-lock.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 const near = (actual, expected) =>
@@ -243,6 +244,31 @@ export async function verifySurfaceSourceUi({
 		assert.equal(await handles.count(), 4, 'real shared selection updates controls before release');
 		await page.mouse.up();
 		await ready();
+		stage = 'Crop Size selection before pointer release';
+		const sizeHandle = panel.getByRole('button', { name: 'Crop corner 3', exact: true });
+		const sizeBounds = await sizeHandle.boundingBox();
+		assert(sizeBounds);
+		await page.mouse.move(
+			sizeBounds.x + sizeBounds.width / 2,
+			sizeBounds.y + sizeBounds.height / 2
+		);
+		await page.mouse.down();
+		try {
+			await wait(
+				() => inspector.locator('.inspector-header .title-text').first().innerText(),
+				(value) => value === 'Crop size'
+			);
+			assert.equal(await handles.count(), 4);
+			await wait(
+				() => controls.number('Crop size').inputValue(),
+				(value) =>
+					Math.abs(Number(value) - selectionSnapshot.screens[0].surfaces[0].definition.crop.width) <
+					0.00001
+			);
+		} finally {
+			await page.mouse.up();
+		}
+		await ready();
 		const area = await panel.locator('.active-zone').boundingBox();
 		assert(area);
 		await page.mouse.move(area.x + area.width * 0.9, area.y + area.height * 0.85);
@@ -271,6 +297,50 @@ export async function verifySurfaceSourceUi({
 		assert.equal(await handles.count(), 0);
 		assert.deepEqual(await wait(screens, () => !history.active_edit_session), selectionSnapshot);
 		assert.equal(history.undo_len, selectionDepth, 'selection alone does not author crop geometry');
+		stage = 'crop cancellation without movement';
+		for (const boundary of ['pointercancel', 'lostpointercapture', 'blur']) {
+			await panel.evaluate((element) =>
+				element.addEventListener(
+					'pointerdown',
+					(event) => {
+						element.dataset.testCropPointer = String(event.pointerId);
+					},
+					{ once: true, capture: true }
+				)
+			);
+			const cancelledBox = await begin(0);
+			const pointerId = Number(await panel.getAttribute('data-test-crop-pointer'));
+			assert(Number.isSafeInteger(pointerId) && pointerId > 0);
+			if (!nativePage)
+				assert(await svg.evaluate((element, id) => element.hasPointerCapture(id), pointerId));
+			await svg.dispatchEvent('pointercancel', { pointerId: pointerId + 1 });
+			assert.equal(
+				await panel.getByRole('button', { name: 'Crop pointer', includeHidden: true }).count(),
+				1,
+				'foreign cancellation cannot retire the owned pointer'
+			);
+			if (boundary === 'pointercancel') await svg.dispatchEvent('pointercancel', { pointerId });
+			else if (boundary === 'lostpointercapture')
+				await svg.evaluate((element, id) => element.releasePointerCapture(id), pointerId);
+			else await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+			await wait(
+				() => panel.getByRole('button', { name: 'Crop pointer', includeHidden: true }).count(),
+				(count) => count === 0
+			);
+			await wait(
+				() => inspector.locator('.inspector-header .title-text').first().innerText(),
+				(value) => value === 'Crop size'
+			);
+			await move(cancelledBox, { x: 0.85, y: 0.85 }, 4);
+			await page.mouse.up();
+			await ready();
+			assert.deepEqual(await wait(screens, () => !history.active_edit_session), selectionSnapshot);
+			assert.equal(
+				history.undo_len,
+				selectionDepth,
+				`${boundary} cannot author a no-movement gesture`
+			);
+		}
 		async function begin(index) {
 			const value = await crop();
 			await ready();
@@ -498,6 +568,15 @@ export async function verifySurfaceSourceUi({
 		await wait(crop, (value) => near(value, { x: current.x + 0.04, y: current.y + 0.02 }));
 		await page.keyboard.press('Escape');
 		await wait(screens, () => !history.active_edit_session);
+		await wait(
+			() => inspector.locator('.inspector-header .title-text').first().innerText(),
+			(value) => value === 'Crop origin'
+		);
+		assert.equal(
+			await handles.count(),
+			4,
+			'active Escape cancels input while retaining Crop selection'
+		);
 		const accepted = await crop();
 		await move(box, { x: 0.8, y: 0.8 });
 		await page.mouse.up();
@@ -531,6 +610,8 @@ export async function verifySurfaceSourceUi({
 		await wait(crop, (value) => near(value, clamped.screens[0].surfaces[0].definition.crop));
 		stage = 'Inspector crop feedback before pointer release';
 		await ready();
+		await cropHit.focus();
+		await page.keyboard.press('Enter');
 		await wait(
 			() => panel.getByRole('button', { name: 'Crop corner 1', exact: true }).isEnabled(),
 			Boolean
@@ -654,6 +735,111 @@ export async function verifySurfaceSourceUi({
 		await tab.click();
 		await ready();
 		assert.deepEqual(await screens(), after);
+		stage = 'independent locked Source editors and visible Inspector';
+		const mainId = await panel.getAttribute('data-panel-id');
+		const panelType = await panel.getAttribute('data-panel-type');
+		assert(mainId && panelType);
+		const primary = page.locator(`section[data-panel-id="${mainId}"]`);
+		await (await contentLock(primary)).click();
+		await tree.getByRole('button', { name: peer.label, exact: true }).click();
+		const left = screenTab.locator('xpath=ancestor::*[contains(@class,"dv-groupview")][1]');
+		await left.getByRole('button', { name: 'Add panel in this group', exact: true }).click();
+		await page
+			.getByRole('menuitem')
+			.filter({ has: page.getByText('Surface Source', { exact: true }) })
+			.click();
+		const sourceTabs = page.locator(`.gc-dv-tab[data-panel-type="${panelType}"]`);
+		await wait(
+			() => sourceTabs.count(),
+			(count) => count === 2
+		);
+		const peerId = await sourceTabs.evaluateAll(
+			(nodes, main) =>
+				nodes.find((node) => node.dataset.contentPanelId !== main)?.dataset.contentPanelId,
+			mainId
+		);
+		assert(peerId);
+		const secondary = page.locator(`section[data-panel-id="${peerId}"]`);
+		async function target(currentPanel, id) {
+			await wait(
+				() => currentPanel.getAttribute('data-surface-target'),
+				(value) => value === id
+			);
+			await wait(
+				() => currentPanel.getAttribute('aria-busy'),
+				(value) => value === 'false'
+			);
+		}
+		const selectedHandles = (currentPanel) =>
+			currentPanel.getByRole('button', { name: /^Crop corner/ });
+		async function origin(currentPanel, otherPanel, expected) {
+			const rect = await currentPanel
+				.getByRole('button', { name: 'Select source crop', exact: true })
+				.boundingBox();
+			assert(rect);
+			await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2);
+			await page.mouse.down();
+			try {
+				await wait(
+					() => inspector.locator('.inspector-header .title-text').first().innerText(),
+					(value) => value === 'Crop origin'
+				);
+				await wait(
+					() => controls.number('Crop origin').inputValue(),
+					(value) => Math.abs(Number(value) - expected.x) < 0.00001
+				);
+				assert.equal(await selectedHandles(currentPanel).count(), 4);
+				assert.equal(await selectedHandles(otherPanel).count(), 0);
+			} finally {
+				await page.mouse.up();
+			}
+			await wait(
+				() => currentPanel.getAttribute('aria-busy'),
+				(value) => value === 'false'
+			);
+		}
+		await target(primary, first.reference.surface);
+		await target(secondary, peer.reference.surface);
+		await (await contentLock(secondary)).click();
+		const independentSnapshot = await wait(screens, () => !history.active_edit_session);
+		const independentHistory = history;
+		await origin(primary, secondary, independentSnapshot.screens[0].surfaces[0].definition.crop);
+		await origin(secondary, primary, peer.definition.crop);
+		await secondary.getByRole('button', { name: 'Crop corner 3', exact: true }).focus();
+		await page.keyboard.press('Enter');
+		await wait(
+			() => inspector.locator('.inspector-header .title-text').first().innerText(),
+			(value) => value === 'Crop size'
+		);
+		await wait(
+			() => controls.number('Crop size').inputValue(),
+			(value) => Math.abs(Number(value) - peer.definition.crop.width) < 0.00001
+		);
+		assert.equal(await selectedHandles(primary).count(), 0);
+		assert.equal(await selectedHandles(secondary).count(), 4);
+		await secondary.getByRole('application').focus();
+		await page.keyboard.press('Escape');
+		await wait(
+			() => inspector.locator('.inspector-header .title-text').first().innerText(),
+			(value) => value === peer.label
+		);
+		assert.equal(await selectedHandles(secondary).count(), 0);
+		await target(primary, first.reference.surface);
+		await target(secondary, peer.reference.surface);
+		assert.deepEqual(await wait(screens, () => !history.active_edit_session), independentSnapshot);
+		assert.deepEqual(
+			history,
+			independentHistory,
+			'independent editor selection cannot author history'
+		);
+		await page
+			.locator(`.gc-dv-tab[data-content-panel-id="${peerId}"]`)
+			.getByRole('button', { name: 'Close panel', exact: true })
+			.click();
+		await tree.getByRole('button', { name: first.label, exact: true }).click();
+		await (await contentLock(primary, true)).click();
+		await tab.click();
+		await ready();
 		assert.deepEqual(errors, []);
 		assert.deepEqual(rejected, [], 'finite crop controls and Inspector drags never reject');
 		await svg.scrollIntoViewIfNeeded();
@@ -664,6 +850,9 @@ export async function verifySurfaceSourceUi({
 				scope:
 					'actual generic Surface Parameters/calibration/crop/origin/clamping/live-before-release/Escape/source-loss/history input',
 				native: !!nativePage,
+				originAndSizeSelectedBeforeRelease: true,
+				cancelBoundariesRetainSelectionAndHistory: true,
+				independentLockedSourcesAndInspector: true,
 				browser: nativePage ? 'bundled WebView2' : browser.version(),
 				surface: first.reference,
 				source: source.reference,
