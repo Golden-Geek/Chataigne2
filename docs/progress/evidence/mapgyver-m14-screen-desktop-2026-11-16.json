@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-16",
+  "gate": "M14/6",
+  "acceptance": "Blocked: no-external desktop scope verified; external physical and native shortcut cases unfinished",
+  "base_commit": "013bc9902b2f78ee288e2ef4c3d298798ab29faf",
+  "product_sha256": "37e80f4a95c6d5c1e176c2e5c6228a3506cdab7a0c77f9ce613e743102e5fe64",
+  "observer_sha256": "25d087ece65f323bb344754eeb417340550702b5e0cd2053728e3524b117ca02",
+  "prerequisites": "718 app tests, strict lint, ordinary default build and seven headless groups pass. Current observer build exits0; fixture node syntax and Prettier pass. Unchanged owning checks retain their recorded scope.",
+  "hardware": { "active_internal": 1, "active_external": 0, "native_catalog": "target/m14-defaults-desktop-hardware-2026-11-16.json", "independent_wmi": "One active internal connection; VideoOutputTechnology=2147483648" },
+  "cohorts": [
+    { "gpu": "Intel(R) Graphics", "adapter": "dxgi:00000000:000156b6", "pid": 23340, "exit_code": 0, "checks": 16, "native_shortcut": false, "page_errors": [], "result": "target/m14-defaults-native-intel-final-2026-11-16/result.json", "result_sha256": "b3aa9236564fddcf367c4a11a660e859f6126224f69f078768b7d568dd40eb07" },
+    { "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU", "adapter": "dxgi:00000000:00015b86", "pid": 46520, "exit_code": 0, "checks": 16, "native_shortcut": false, "page_errors": [], "result": "target/m14-defaults-native-nvidia-final-2026-11-16/result.json", "result_sha256": "abaad2c228356a1ca62edee834078a36051448cbb3638ff08e2571ac9cd29c8c" }
+  ],
+  "verified": [
+    "Actual typed Inspector reads Fullscreen/empty Display without changing authored state.",
+    "Startup, API New, actual File-menu New, repeated empty/exact multi-Screen reload and immediate creation after load.",
+    "No output for an unselected destination; actual GPU selection after explicit output configuration.",
+    "Four full SDK images before/after reload: 96x64, 24576 texels total, exact opaque red; receiver retirement asserted.",
+    "Sender disappears on New; one new completed native-session receipt followed by Idle/no adapter/null resources/no screens on each GPU."
+  ],
+  "retirement_contract": "Owner::drop waits renderer and Picture/Video retirement before logging native session retired; worker Idle sampling follows. Configured replacements still require Running/retiring=0. Null Idle counters are not numeric-zero measurements.",
+  "fixture_command": "node apps/mapgyver/tests/browser/initial-screen.mjs <fresh-directory> <adapter-index> --defer-native-shortcut",
+  "preserved_failures": [
+    { "file": "target/m14-defaults-native-intel-2026-11-16/failure.json", "sha256": "3c032861b3b9c2f0e7e04d9220f3edfc337ec5dd37df19dd5d5e4dbdd116e50d", "scope": "Expected active GPU before output demand; Inspector/New/menu prefix passed." },
+    { "file": "target/m14-defaults-native-intel-corrected-2026-11-16/failure.json", "sha256": "99378176ab6c7a4540d349e8f9e5673764731c23bdac2623fdb4df0173efe4b4", "scope": "Initial exact Intel pixels passed, then old Running-state assumption after New failed." }
+  ],
+  "remaining": [
+    "Expose one external display: automatic selection, physical pixels and disappearance/recovery on both GPUs.",
+    "Expose two external displays: actual multi-display, occupied and atomic allocation cases; mock catalogs are not physical proof.",
+    "Restore supported native input connection or provide original physical Ctrl+N action; both computer-use entry points report pipe unavailable. Default fixture input scope is retained.",
+    "All unrelated qualification and original budgets remain, including full parallel-suite and production timing/growth/resource gates."
+  ],
+  "execution": { "blocked_gate": "M14/6", "next_active_gate": "M14/7", "accepted": 91, "total": 106, "percent": 86, "m14_accepted": 3, "m14_total": 10 }
+}

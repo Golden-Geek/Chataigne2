@@ -8,12 +8,22 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
 import { adapterKey, observeNativeAdapter } from './native-adapter.mjs';
 import { openInitialScreenHeadless } from '../headless/initial-screen-host.mjs';
+import { screenParameterControls } from './screen-parameters.mjs';
 
 const directory = path.resolve(process.argv[2]);
 await mkdir(directory);
 assert(process.env.MAPGYVER_TEST_BINARY, 'Select the successfully compiled current app');
 const headless = process.argv[3] === 'headless';
+const nativeShortcut = !headless && !process.argv.includes('--defer-native-shortcut');
 const gpuIndex = headless ? null : Number(process.argv[3]);
+let completedNativeSessions = 0;
+const logTails = { stdout: '', stderr: '' };
+function observeNativeRetirement(data, stream) {
+	const lines = (logTails[stream] + data).split('\n');
+	logTails[stream] = lines.pop().slice(-4096);
+	for (const line of lines)
+		if (line.trim() === '[mapgyver-output] native session retired') completedNativeSessions++;
+}
 const probe = path.resolve('target/debug/native_qualification.exe');
 const hardware = headless
 	? null
@@ -29,6 +39,7 @@ if (!headless)
 const native = headless
 	? await openInitialScreenHeadless(directory)
 	: await openNativeEditor({
+			onLogData: observeNativeRetirement,
 			prepareProfile: async (root) => {
 				const folder = path.join(root, 'MapGyver');
 				await mkdir(folder, { recursive: true });
@@ -214,6 +225,22 @@ try {
 			.locator('.inspector-header .title-text')
 			.filter({ hasText: /^Screen$/ })
 			.waitFor();
+		const controls = screenParameterControls(native.page);
+		await controls.choice('Target').waitFor({ state: 'visible' });
+		await wait(
+			() => controls.choice('Target').inputValue(),
+			(value) => value === 'Fullscreen'
+		);
+		const intended = beforeSelection.screens[0].definition.target?.display ?? '';
+		await wait(
+			() => controls.choice('Display').inputValue(),
+			(value) => value === intended
+		);
+		checks.push({
+			stage: 'ordinary typed Inspector',
+			target: 'Fullscreen',
+			display_selected: intended !== ''
+		});
 		assert.deepEqual(await inspect(), beforeSelection);
 		await fresh();
 	}
@@ -268,7 +295,7 @@ try {
 		stage = `New ${cycle}`;
 		const old = (await inspect()).screens[0].id;
 		if (!headless) await native.page.locator('.gc-loading-overlay').waitFor({ state: 'detached' });
-		if (!headless && cycle === 1) {
+		if (nativeShortcut && cycle === 1) {
 			// Use supported Windows input for the actual native shortcut check.
 			await native.page.getByRole('button', { name: 'Open File menu', exact: true }).focus();
 			await writeFile(
@@ -292,11 +319,17 @@ try {
 	}
 	if (!headless) {
 		stage = 'initial Screen output';
-		const adapter = await observeNativeAdapter(native.page, hardware);
-		assert.equal(adapter.index, gpuIndex);
-		checks.push({ stage: 'pinned native GPU', adapter });
 		const screen = (await inspect()).screens[0],
 			surface = screen.surfaces[0];
+		if (screen.definition.target === null) {
+			const idle = await control({ kind: 'mapgyverRuntimeStatus' });
+			assert.equal(idle.screens.length, 0);
+			checks.push({
+				stage: 'unselected Screen has no output',
+				state: idle.state,
+				screens: idle.screens
+			});
+		}
 		const { reference } = await media({
 			kind: 'CreateMedia',
 			media_kind: 'SolidColor',
@@ -326,12 +359,16 @@ try {
 				target: { kind: 'Spout', sender, extent: { width: 96, height: 64 } }
 			}
 		});
+		const adapter = await observeNativeAdapter(native.page, hardware);
+		assert.equal(adapter.index, gpuIndex);
+		checks.push({ stage: 'pinned native GPU', adapter });
 		await senderPresent(sender, true);
 		await pixels(sender, 'initial-output');
 		const authored = await inspect(),
 			file = path.join(directory, 'authored.mapgyver');
 		await post('/api/ui/project-save', { path: file });
 		const previousStatus = await control({ kind: 'mapgyverRuntimeStatus' });
+		const completedBeforeNew = completedNativeSessions;
 		assert.equal((await post('/api/ui/project-new', {})).ok, true);
 		const replacement = await fresh();
 		await senderPresent(sender, false);
@@ -339,9 +376,15 @@ try {
 			() => control({ kind: 'mapgyverRuntimeStatus' }),
 			(value) =>
 				value.sequence > previousStatus.sequence &&
-				value.state === 'Running' &&
-				value.screens.every((row) => row.screen === replacement.id) &&
-				value.resources?.retiring === 0 &&
+				completedNativeSessions > completedBeforeNew &&
+				(replacement.definition.target === null
+					? value.state === 'Idle' &&
+						value.gpu_adapter === null &&
+						value.resources === null &&
+						value.screens.length === 0
+					: value.state === 'Running' &&
+						value.screens.every((row) => row.screen === replacement.id) &&
+						value.resources?.retiring === 0) &&
 				!value.error
 		);
 		checks.push({
@@ -349,6 +392,8 @@ try {
 			sequence: retired.sequence,
 			previous_sequence: previousStatus.sequence,
 			resources: retired.resources,
+			state: retired.state,
+			completed_native_sessions: completedNativeSessions - completedBeforeNew,
 			screens: retired.screens
 		});
 		await post('/api/ui/project-load', { path: file });
@@ -367,6 +412,7 @@ try {
 				result: 'pass',
 				mode: headless ? 'headless' : 'native',
 				gpuIndex,
+				nativeShortcut,
 				pid: native.app.pid,
 				checks,
 				errors
@@ -380,6 +426,7 @@ try {
 			result: 'pass',
 			mode: headless ? 'headless' : 'native',
 			gpuIndex,
+			nativeShortcut,
 			pid: native.app.pid,
 			checks: checks.length
 		})

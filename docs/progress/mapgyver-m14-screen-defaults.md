@@ -2,7 +2,8 @@
 
 MapGyver owns fresh Screen allocation; Golden supplies physical connection metadata and the
 read-only detached creation context. See [ownership and lifecycle](../architecture/mapgyver-screen-defaults.md).
-M14/6 remains Active until all original software, actual-app and physical cases are verified.
+M14/6 is Blocked on missing physical external-display cases and native keyboard input.
+Its common software, headless and no-external desktop scopes are verified; it is not Accepted.
 
 Implemented behavior:
 
@@ -66,11 +67,31 @@ and `target/m14-display-default-build-2026-11-16.log`, all exit0. The original l
 Core test handle finished normally and was not restarted. Observer build and existing headless
 host checks also exit0; see `target/m14-display-headless-host-2026-11-16.log` and the
 [checkpoint receipt](evidence/mapgyver-m14-screen-defaults-2026-11-16.json). This checkpoint
-delivers common allocation; loaded/headless integration and full gate acceptance remain open.
+delivered common allocation; the later inventory receipt verifies loaded/headless correctness.
 
-Required actual-app/native return: original startup/New/menu/headless creation checks, live
-display/Inspector state, physical output and disappearance/recovery on both GPUs. Verify
-zero/one/multiple externals and all-occupied behavior against actual available topology;
-mock allocation does not establish missing physical cases. Existing M05 recovery evidence
-retains only its original scope. Standing NVIDIA Overlay Off applies. No gate or percentage
-is awarded by implementation alone, and no timing/release qualification is claimed.
+**No-external desktop/native qualification:** Intel and NVIDIA each pass16 recorded checks in
+the actual WebView2 application: typed Target=Fullscreen/empty Display, read-only selection,
+startup/New/File-menu and exact reload flows, post-load creation, actual requested GPU identity,
+two exact red96×64 SDK images before/after reload and old-output withdrawal on New. Four images
+cover24,576 texels. Both owned hosts exit0 with empty page errors; the original deadlines,
+watchdogs and pixel expectations are unchanged. See the [desktop receipt](evidence/mapgyver-m14-screen-desktop-2026-11-16.json).
+
+The fixture now observes an active GPU only after configuring an output. For an unselected
+replacement it requires Idle, no GPU adapter/resources/screens and a new existing production
+`native session retired` receipt. `preview/host/worker.rs::Owner::drop` waits renderer, Picture
+and Video retirement before that receipt; Idle sampling follows complete owner destruction.
+Configured replacements retain Running/retiring=0. Null Idle counters are not measured zeros.
+The first two failed Intel receipts preserve both obsolete Running assumptions. Source inspection
+resolved the final correction; no profiler, observer framework or budget change was added.
+
+`--defer-native-shortcut` is explicit partial coverage: API New and the File menu are tested;
+physical Ctrl+N is not. The default invocation still requires that native input. Both supported
+computer-use connections report the native pipe missing; no helper repair chain was attempted.
+
+**Return triggers:** when one external is exposed, test its automatic default and actual physical
+pixels/hotplug recovery on both GPUs; when two are exposed, finish physical multi-display,
+occupied and atomic-allocation cases. Current native and WMI inventories expose only one active
+internal panel. Restore native computer-use input or supply the original Ctrl+N action to finish
+the deferred shortcut. Existing M05 recovery evidence retains its original scope. These missing
+cases keep M14/6 Blocked while M14/7 proceeds; all remain required before M09. Standing Overlay
+Off applies. No fixed gate, timing/private-growth/stress budget or release readiness is accepted.

@@ -76,7 +76,12 @@ confirmation before each cohort. M14/3 Composition actions/front-first order is 
 [Accepted](../progress/evidence/mapgyver-m14-actions-acceptance-2026-11-16.json), including
 all-caller actions, bounded paint/hits, both-GPU raster/retirement and the complete seven-type
 creation contract after correcting Video status reads across authored-target retirement.
-Select M14/6 backend external-display Screen defaults next. The recorded default-parallel
+M14/6 allocation and inventory are functionally verified, including both-GPU no-external
+desktop checks. Its one/multiple-external physical cases and native shortcut remain
+[Blocked with return triggers](../progress/mapgyver-m14-screen-defaults.md): the active native
+and WMI catalogs expose only an internal panel, and supported desktop input cannot connect.
+Select M14/7 optional sender names while retaining every M14/6 requirement before M09.
+The recorded default-parallel
 Video software failures remain required correction/rerun work before M09; sequential passing
 evidence does not establish a full parallel-suite pass.
 Retain unfinished MapGyver selection/navigation and every other gate in the return queue.
