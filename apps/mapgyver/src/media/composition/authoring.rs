@@ -275,6 +275,30 @@ pub(crate) fn apply(
             }
             Ok(MediaEditResult::Changed)
         }
+        CompositionEdit::ArrangeInstance {
+            instance: target,
+            action,
+        } => {
+            let id = instance(engine, parent, target)?;
+            let ordered = instances(engine, parent)?;
+            let end = match action {
+                InstanceArrangeAction::Front => ordered.first(),
+                InstanceArrangeAction::Back => ordered.last(),
+            };
+            if end == Some(&id) {
+                return Ok(MediaEditResult::Changed);
+            }
+            let previous = match action {
+                InstanceArrangeAction::Front => None,
+                InstanceArrangeAction::Back => ordered.last().copied(),
+            };
+            engine.edits.push(Edit::MoveNode {
+                node: id,
+                new_parent: children::owner(engine, parent)?,
+                new_prev_sibling: previous,
+            });
+            Ok(MediaEditResult::Changed)
+        }
         CompositionEdit::EditInstanceGeometry { instance: target, edit } => {
             let id = instance(engine, parent, target)?;
             let current = children::placement(engine, id)?;

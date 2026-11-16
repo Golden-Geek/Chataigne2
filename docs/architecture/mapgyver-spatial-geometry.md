@@ -30,6 +30,26 @@ metadata. Toolbar controls, ordinary node-menu contributions, the named script m
 typed Media Command all dispatch the same intent. The editor opens Golden's ordinary node
 menu, retaining Copy/Duplicate/Delete rather than maintaining separate toolbar implementations.
 
+Composition child arrays and Outliner hierarchy are front-first: the first authored child is
+on top. `ArrangeInstance` resolves Front/Back against actual owned siblings in the backend and
+does nothing when the child is already at that end. It preserves geometry, media identity and
+all unrelated authored state. Commands, scripts, toolbar and ordinary Arrange menus use the
+same intent; foreign owners reject before mutation.
+
+MapGyver reverses captured Composition children once when producing Golden's back-to-front
+compositor layers. Golden's generic layer and Matrix/Screen order contracts stay unchanged.
+The editor paints its bounded page plus independent selection in reverse and picks known
+source bodies in front-first order. `CompositionEditorPage.selected_index` carries the selected
+child's authored rank, so a selection before or after the visible page joins it in the correct
+order without fetching the full document. Transform controls retain their normal selection
+priority; unavailable sources keep their existing explicit selection targets.
+
+The Composition controller projects pointer selection immediately from its already-loaded
+bounded page before a geometry gesture suspends background reads. It invalidates the older
+read and retains the backend-authored row/index, so a held pointer cannot leave the workbench
+selected while hiding its controls until release. This is presentation selection only; typed
+geometry writes, owner resolution, document fences and edit admission remain unchanged.
+
 Placement v3 contains geometry/output/opacity/blend Parameters only. The child's media metadata
 is the sole authored enabled state; `InstanceDefinition.enabled` is a read projection and the
 configuration operation translates its requested value into a metadata edit in the same history

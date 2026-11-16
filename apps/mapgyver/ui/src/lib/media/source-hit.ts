@@ -100,8 +100,7 @@ export function pickCompositionSource(
 	)
 		return null;
 	const extents = new Map<string, Extent2D | null>();
-	for (let index = composition.instances.length - 1; index >= 0; index--) {
-		const instance = composition.instances[index];
+	for (const instance of composition.instances) {
 		const source = instance.definition.source;
 		if (!source) continue;
 		let extent = extents.get(source.channel);

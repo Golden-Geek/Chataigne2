@@ -1,0 +1,108 @@
+{
+  "date": "2026-11-16",
+  "gate": "M14/3",
+  "acceptance": "Pending: retained Video source-status lifecycle read and seven-type creation contract",
+  "base_commit": "604ba10f37a86c686ef4ce4f7a12dc0855f6f21b",
+  "behavior": [
+    "First authored child is on top; backend Front/Back are atomic and no-op at the requested end.",
+    "Renderer translates front-first children into Golden back-to-front layers.",
+    "Bounded editor selected_index and reverse painting/forward picking agree.",
+    "Cached pointer selection is projected before a held gesture suspends reads.",
+    "Typed commands, named scripts and ordinary toolbar/node menus share the backend operations."
+  ],
+  "software": {
+    "composition_tests": 73,
+    "editor_and_picking_tests": 18,
+    "all_command_kinds_tests": 1,
+    "source_api_tests": 3,
+    "generated_contract_tests": 1,
+    "checks": "Strict app/test Clippy, both UI consumers, scoped Prettier, ordinary build, root/Core formatting pass.",
+    "browser": {
+      "command": "node apps/mapgyver/tests/headless/media.mjs --composition-review --composition-ui",
+      "exit_code": 0,
+      "bounded_queries": 139,
+      "page_errors": [],
+      "rejected_requests": [],
+      "log": "target/m14-order-product-ui-complete-2026-11-16.log",
+      "log_sha256": "4fcd343c1be6ce6838084d6ea56084a3f1d5f88953c68564506f414870ab24ab",
+      "product_sha256": "1915121d77714a28d46afc6d334f00c028a26e5b314be5b36d91ae950c49c611"
+    }
+  },
+  "native": {
+    "result": "passed",
+    "adapters": [
+      {
+        "luid": {
+          "low": 87734,
+          "high": 0
+        },
+        "description": "Intel(R) Graphics"
+      },
+      {
+        "luid": {
+          "low": 88966,
+          "high": 0
+        },
+        "description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+      }
+    ],
+    "overlay": "Standing user-observed NVIDIA App Settings Off, confirmed and made persistent by user on 2026-11-16; no repeated confirmation required until contradicted.",
+    "executable": "target/debug/deps/composition_rendering-160ea1ae4ad2ca13.exe",
+    "executable_sha256": "74005bde8592cf960cb73d399bb71b734f233d932b86dd402d30f8d0c7c66013",
+    "filter": "native_nested_composition_pixels --ignored --nocapture",
+    "dll_search_path_prefix": "target/debug",
+    "exit_code": 0,
+    "elapsed_seconds": 31.04,
+    "watchdog_seconds": 120,
+    "states_per_adapter": 27,
+    "readbacks_per_state": 3,
+    "images": 162,
+    "texels": 124416,
+    "max_residual_bytes": 1,
+    "allowed_residual_bytes": 2,
+    "states": [
+      "normal",
+      "add",
+      "multiply",
+      "screen",
+      "arrange-to-front",
+      "undo-arrange-to-front",
+      "redo-arrange-to-front",
+      "arrange-to-back",
+      "transform-reset",
+      "transform-fit",
+      "transform-fill",
+      "transform-original-restored",
+      "independent-transform",
+      "zero-width",
+      "zero-height",
+      "zero-both",
+      "negative-zero",
+      "zero-crossing-restored-mirror",
+      "zero-crossing-restored-original",
+      "all-root-items-zero",
+      "all-root-items-restored",
+      "media-enabled-metadata-disabled",
+      "media-enabled-metadata-restored",
+      "canvas-resize",
+      "missing-shared-source",
+      "undo-source-removal",
+      "reload-recreate"
+    ],
+    "oracle": "Independent inverse-affine CPU oracle; explicit authored reverse painting and known Reset/Fit/Fill geometry, with legal intermediate UNORM ranges.",
+    "cleanup": "Renderer plan live=0, created=released, no source/output inventory, readback payload pools idle.",
+    "log": "target/m14-order-native-2026-11-16.log",
+    "log_sha256": "33f213e28e30b7f5088c579c7238a0e6022d4f1f3210b4a1fdcbe9568ec8e395",
+    "prerequisites": "73 backend, 7 fixture software/oracle, 17 initial focused UI tests, strict lint, generated contract and UI typechecks passed before hardware launch. The later controller-only selection fix passed 18 UI tests and the final browser/build checks; native renderer/fixture code was unchanged."
+  },
+  "retained_failures": [
+    "Initial pixel software build hit a DLL lock from an owned test run concurrently; serial retry passed. No hardware launched against the failed build.",
+    "Initial browser check exposed delayed held-pointer local selection; controller projection and its regression test now pass.",
+    "The seven-type creation fixture's InspectVideoSource/media reference is missing failure remains required before gate acceptance; see owning report."
+  ],
+  "limits": [
+    "Finite raster and browser input scope; no cadence, scanout, physical alignment, stress, driver-reset or private-growth qualification inferred.",
+    "Existing Composition projects use the new front-first interpretation; no stacking migration.",
+    "M14/3 remains unaccepted; denominator106, accepted90 and all other open gates/budgets unchanged."
+  ]
+}

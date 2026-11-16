@@ -199,7 +199,7 @@ fn demanded_nested_channels_render_once_for_shared_instances_and_outputs() {
     };
     assert_eq!(
         layers.iter().map(|layer| layer.source.texture()).collect::<Vec<_>>(),
-        vec![Some(inner_target), Some(leaf_target)]
+        vec![Some(leaf_target), Some(inner_target)]
     );
     assert!(
         prepared

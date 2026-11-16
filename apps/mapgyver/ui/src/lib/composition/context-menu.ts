@@ -1,6 +1,6 @@
 import { appState, registerNodeContextMenuContributor } from 'golden_ui';
 import { invokeMediaEdit } from '../media/operations';
-import type { InstanceTransformAction } from '../media/generated/InstanceTransformAction';
+import type { CompositionEdit } from '../media/generated/CompositionEdit';
 
 /** Extend the ordinary node menu; ownership and dimensions are resolved by the backend. */
 export function registerCompositionContextMenu() {
@@ -19,7 +19,11 @@ export function registerCompositionContextMenu() {
 				!session.hasActiveEditSession &&
 				session.snapshotGeneration === generation &&
 				session.getNodeData(node.node_id)?.uuid === node.uuid;
-			const transform = async (action: InstanceTransformAction) => {
+			const apply = async (
+				edit:
+					| Omit<Extract<CompositionEdit, { kind: 'TransformInstance' }>, 'instance'>
+					| Omit<Extract<CompositionEdit, { kind: 'ArrangeInstance' }>, 'instance'>
+			) => {
 				closeMenu();
 				if (!session || !current()) return;
 				try {
@@ -44,20 +48,29 @@ export function registerCompositionContextMenu() {
 					await invokeMediaEdit(session, {
 						kind: 'Composition',
 						reference: result.page.selected.reference.composition,
-						edit: { kind: 'TransformInstance', instance: node.uuid, action }
+						edit: { ...edit, instance: node.uuid }
 					});
 				} catch (error) {
-					console.error('Composition transform rejected', error);
+					console.error('Composition action rejected', error);
 				}
 			};
 			return [
+				{
+					id: 'mapgyver-composition-arrange',
+					label: 'Arrange',
+					disabled: !current(),
+					submenu: (['Back', 'Front'] as const).map((action) => ({
+						label: `To ${action}`,
+						action: () => apply({ kind: 'ArrangeInstance', action })
+					}))
+				},
 				{
 					id: 'mapgyver-composition-transform',
 					label: 'Transform',
 					disabled: !current(),
 					submenu: (['Reset', 'Fit', 'Fill'] as const).map((action) => ({
 						label: action,
-						action: () => transform(action)
+						action: () => apply({ kind: 'TransformInstance', action })
 					}))
 				}
 			];

@@ -4,6 +4,12 @@ export const COMMAND_PARAMETER_FIELDS = {
     "media",
     "label"
   ],
+  "ArrangeCompositionMedia": [
+    "media",
+    "channel",
+    "composition_target",
+    "composition_arrange"
+  ],
   "ConfigureFitMode": [
     "media",
     "fit_mode"

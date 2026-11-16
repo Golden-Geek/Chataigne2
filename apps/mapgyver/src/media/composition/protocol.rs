@@ -122,6 +122,10 @@ pub enum CompositionEdit {
         instance: InstanceId,
         action: InstanceTransformAction,
     },
+    ArrangeInstance {
+        instance: InstanceId,
+        action: InstanceArrangeAction,
+    },
     RenameInstance {
         instance: InstanceId,
         label: String,
@@ -140,6 +144,12 @@ pub enum InstanceTransformAction {
     Reset,
     Fit,
     Fill,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub enum InstanceArrangeAction {
+    Front,
+    Back,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
@@ -206,6 +216,8 @@ pub struct CompositionEditorPage {
     pub total: u32,
     /// Independent bounded lookup, including when the object is outside the visible page.
     pub selected: Option<InstanceSnapshot>,
+    /// Authored front-first index, including when selection is outside the requested page.
+    pub selected_index: Option<u32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]

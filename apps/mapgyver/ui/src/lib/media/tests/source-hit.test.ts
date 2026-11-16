@@ -120,7 +120,7 @@ test('Composition picking covers later instances and resolves the topmost overla
 		pickCompositionSource({ x: 50, y: 50 }, { canvas, instances }, extent),
 		'beyond-overlay'
 	);
-	instances.push(instance('topmost'));
+	instances.unshift(instance('topmost'));
 	assert.equal(pickCompositionSource({ x: 50, y: 50 }, { canvas, instances }, extent), 'topmost');
 	assert.equal(pickCompositionSource({ x: 55, y: 50 }, { canvas, instances }, extent), 'topmost');
 	assert.equal(pickCompositionSource({ x: 55, y: 60 }, { canvas, instances }, extent), 'topmost');

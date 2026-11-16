@@ -29,8 +29,9 @@ use std::sync::Arc;
         launch_mode: Enum = "Configured" (label = "Launch mode", enum_options = crate::parameters::enum_options(&["Configured", "Cut"]), constraint_policy = "reject");
         position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position", description = "Composition canvas texels.");
         copy_media: bool = false (label = "Copy media");
-        composition_target: NodeReference = NodeReference::empty() (label = "Replace media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v11".into(), "mapgyver.media.reference.v4".into()]);
+        composition_target: NodeReference = NodeReference::empty() (label = "Child media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v11".into(), "mapgyver.media.reference.v4".into()]);
         composition_transform: Enum = "Fit" (label = "Transform", enum_options = crate::parameters::enum_options(&["Reset", "Fit", "Fill"]), constraint_policy = "reject");
+        composition_arrange: Enum = "Front" (label = "Arrange", enum_options = crate::parameters::enum_options(&["Front", "Back"]), constraint_policy = "reject");
         reference_target: NodeReference = NodeReference::empty() (label = "Target media", reference_target_kind = ReferenceTargetKind::AnyNode,
             reference_allowed_node_types = vec!["mapgyver.media.v11".into(), "mapgyver.media.reference.v4".into()]);
         channel: NodeReference = NodeReference::empty() (
@@ -287,6 +288,13 @@ impl MediaCommandNode {
                 edit: super::super::composition::protocol::CompositionEdit::TransformInstance {
                     instance: super::super::composition::protocol::InstanceId(self.composition_target.get_ref().uuid),
                     action: choice(self.composition_transform.get_ref().as_str())?,
+                },
+            },
+            MediaCommandKind::ArrangeCompositionMedia => MediaEdit::Composition {
+                reference,
+                edit: super::super::composition::protocol::CompositionEdit::ArrangeInstance {
+                    instance: super::super::composition::protocol::InstanceId(self.composition_target.get_ref().uuid),
+                    action: choice(self.composition_arrange.get_ref().as_str())?,
                 },
             },
             MediaCommandKind::CreateReference => MediaEdit::CreateReference {

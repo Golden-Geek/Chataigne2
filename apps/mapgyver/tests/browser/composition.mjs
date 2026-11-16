@@ -171,6 +171,10 @@ export async function verifyCompositionUi({
 			() => !history.active_edit_session
 		);
 		await wait(
+			() => currentPanel.getAttribute('data-composition-busy'),
+			(value) => value === 'false'
+		);
+		await wait(
 			() => currentPanel.getAttribute('data-composition-selected'),
 			(value) => value === item.reference.instance
 		);
@@ -290,6 +294,67 @@ export async function verifyCompositionUi({
 			() => inspect(owners[0]),
 			(value) => isDeepStrictEqual(value, beforeTransform)
 		);
+		stage = 'media enabled metadata keeps disabled Composition children visible and editable';
+		stage = 'front-first ordering through toolbar, ordinary menu and overlapping pointer targets';
+		const authoredOrder = await inspect(owners[0]);
+		await main.getByRole('button', { name: 'To Front', exact: true }).click();
+		const broughtFront = await wait(
+			() => inspect(owners[0]),
+			(value) => value.instances[0].reference.instance === selected
+		);
+		await main.getByRole('button', { name: 'To Back', exact: true }).click();
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, authoredOrder)
+		);
+		await compositionNodeMenuAction(page, main, 'To Front', 'Arrange');
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, broughtFront)
+		);
+		await undo();
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, authoredOrder)
+		);
+		await redo();
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, broughtFront)
+		);
+		await compositionNodeMenuAction(page, main, 'To Back', 'Arrange');
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, authoredOrder)
+		);
+		await select('Panel A');
+		await ownerCleared(main, 'Panel A');
+		const behind = main.getByRole('button', {
+			name: `Select ${authoredOrder.instances[1].label}`,
+			exact: true
+		});
+		const overlap = await behind.boundingBox();
+		assert(overlap);
+		await page.mouse.move(overlap.x + overlap.width / 2, overlap.y + overlap.height / 2);
+		await page.mouse.down();
+		try {
+			await wait(
+				() => main.getAttribute('data-composition-selected'),
+				(value) => value === authoredOrder.instances[0].reference.instance
+			);
+		} finally {
+			await page.mouse.up();
+		}
+		await wait(
+			() => inspect(owners[0]),
+			() => !history.active_edit_session
+		);
+		await wait(
+			() => main.getAttribute('data-composition-busy'),
+			(value) => value === 'false'
+		);
+		await select('Off-page child');
+		await inspector('Off-page child');
 		stage = 'media enabled metadata keeps disabled Composition children visible and editable';
 		assert.equal(
 			await widgets.parameter('Enabled').count(),

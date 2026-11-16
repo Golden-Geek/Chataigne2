@@ -25,6 +25,45 @@ fn query(selected: NodeUuid) -> CompositionEditorQuery {
 }
 
 #[test]
+fn selected_front_first_index_survives_paging_and_arrangement_without_extra_bindings() {
+    let mut engine = fixture();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    let owner = create(&mut engine, MediaKind::Composition);
+    let children = add(&mut engine, owner, vec![source; 6]);
+    for (target, expected) in [(children[0], 0), (children[5], 5)] {
+        let page = read(
+            &mut engine,
+            CompositionEditorQuery {
+                start: 2,
+                count: 2,
+                ..query(target.instance.0)
+            },
+        );
+        assert_eq!(page.selected_index, Some(expected));
+        assert_eq!(page.selected.unwrap().reference, target);
+        assert_eq!(page.composition.unwrap().instances.len(), 2);
+        assert_eq!(page.parameters.len(), 3);
+    }
+    edit(
+        &mut engine,
+        owner,
+        CompositionEdit::ArrangeInstance {
+            instance: children[5].instance,
+            action: InstanceArrangeAction::Front,
+        },
+    );
+    let page = read(
+        &mut engine,
+        CompositionEditorQuery {
+            start: 2,
+            count: 2,
+            ..query(children[5].instance.0)
+        },
+    );
+    assert_eq!(page.selected_index, Some(0));
+}
+
+#[test]
 fn explicit_owner_selection_clears_retained_children_without_mutating_history() {
     let mut engine = fixture();
     let source = create(&mut engine, MediaKind::SolidColor);

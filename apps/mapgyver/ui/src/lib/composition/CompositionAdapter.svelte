@@ -174,6 +174,32 @@
 					instance: instance.reference.instance,
 					action: 'Fit'
 				})} />
+		<IconButton
+			icon={arrowIcon}
+			label="To Front"
+			title="Place media in front of every other item"
+			class="composition-to-front"
+			disabled={busy || !instance}
+			onclick={() =>
+				instance &&
+				controller.edit({
+					kind: 'ArrangeInstance',
+					instance: instance.reference.instance,
+					action: 'Front'
+				})} />
+		<IconButton
+			icon={arrowIcon}
+			label="To Back"
+			title="Place media behind every other item"
+			class="composition-to-back"
+			disabled={busy || !instance}
+			onclick={() =>
+				instance &&
+				controller.edit({
+					kind: 'ArrangeInstance',
+					instance: instance.reference.instance,
+					action: 'Back'
+				})} />
 		{#if pages > 1}
 			<IconButton
 				icon={arrowIcon}
@@ -228,7 +254,10 @@
 					!appState.session.loading.visible}
 				active={gestureState.active}
 				select={(id) => {
-					if (selection.select(id)) selectedInstance = id;
+					if (selection.select(id)) {
+						controller.selectInstance(id);
+						selectedInstance = id;
+					}
 				}}
 				onselectionclear={() => {
 					if (gestureState.active) return;
@@ -261,6 +290,12 @@
 	}} />
 
 <style>
+	:global(.composition-to-front img) {
+		transform: rotate(-90deg);
+	}
+	:global(.composition-to-back img) {
+		transform: rotate(90deg);
+	}
 	:global(.previous img) {
 		transform: rotate(180deg);
 	}

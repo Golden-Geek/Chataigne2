@@ -117,6 +117,7 @@ struct Scene {
     inner: Vec<InstanceDefinition>,
     outer: Vec<InstanceDefinition>,
     outer_ids: Vec<InstanceId>,
+    order: Vec<usize>,
     root: ChannelReference,
     width: usize,
     height: usize,
@@ -175,6 +176,7 @@ impl Scene {
         Self {
             red,
             inner,
+            order: (0..outer.len()).collect(),
             outer,
             outer_ids,
             root,
@@ -188,14 +190,13 @@ impl Scene {
         let green = oracle::Image::solid(1, 1, [0.0, 1.0, 0.0, 0.75]);
         let blue = oracle::Image::solid(1, 1, [0.0, 0.0, 1.0, 0.25]);
         let mut inner = oracle::Image::solid(8, 4, [0.0; 4]);
+        inner.draw(&green, &self.inner[1]);
         if !red_missing {
             inner.draw(&red, &self.inner[0]);
         }
-        inner.draw(&green, &self.inner[1]);
         let mut outer = oracle::Image::solid(self.width, self.height, [0.0; 4]);
-        outer.draw(&blue, &self.outer[0]);
-        for definition in &self.outer[1..] {
-            outer.draw(&inner, definition);
+        for &index in self.order.iter().rev() {
+            outer.draw(if index == 0 { &blue } else { &inner }, &self.outer[index]);
         }
         outer
     }
@@ -287,6 +288,61 @@ fn native_nested_composition_pixels_cover_transforms_blends_resize_missing_undo_
             fixture.publish(&engine, scene.root);
             fixture.pixels(adapter.id, &scene.expected(false), label);
         }
+        for (action, label) in [
+            (InstanceArrangeAction::Front, "arrange-to-front"),
+            (InstanceArrangeAction::Back, "arrange-to-back"),
+        ] {
+            edit(
+                &mut engine,
+                MediaEdit::Composition {
+                    reference: scene.root,
+                    edit: CompositionEdit::ArrangeInstance {
+                        instance: scene.outer_ids[3],
+                        action,
+                    },
+                },
+            );
+            scene.order = match action {
+                InstanceArrangeAction::Front => vec![3, 0, 1, 2],
+                InstanceArrangeAction::Back => vec![0, 1, 2, 3],
+            };
+            fixture.publish(&engine, scene.root);
+            fixture.pixels(adapter.id, &scene.expected(false), label);
+            if matches!(action, InstanceArrangeAction::Front) {
+                assert!(engine.undo().unwrap());
+                scene.order = vec![0, 1, 2, 3];
+                fixture.publish(&engine, scene.root);
+                fixture.pixels(adapter.id, &scene.expected(false), "undo-arrange-to-front");
+                assert!(engine.redo().unwrap());
+                scene.order = vec![3, 0, 1, 2];
+                fixture.publish(&engine, scene.root);
+                fixture.pixels(adapter.id, &scene.expected(false), "redo-arrange-to-front");
+            }
+        }
+        let original = scene.outer[2].transform;
+        for (action, scale, label) in [
+            (InstanceTransformAction::Reset, [1., 1.], "transform-reset"),
+            (InstanceTransformAction::Fit, [4., 4.], "transform-fit"),
+            (InstanceTransformAction::Fill, [4., 6.], "transform-fill"),
+        ] {
+            edit(
+                &mut engine,
+                MediaEdit::Composition {
+                    reference: scene.root,
+                    edit: CompositionEdit::TransformInstance {
+                        instance: scene.outer_ids[2],
+                        action,
+                    },
+                },
+            );
+            scene.outer[2].transform = transform([16., 12.], scale, 0., [0.5, 0.5]);
+            fixture.publish(&engine, scene.root);
+            fixture.pixels(adapter.id, &scene.expected(false), label);
+        }
+        scene.outer[2].transform = original;
+        set_instance(&mut engine, scene.root, scene.outer_ids[2], scene.outer[2].clone());
+        fixture.publish(&engine, scene.root);
+        fixture.pixels(adapter.id, &scene.expected(false), "transform-original-restored");
         scene.outer[2].transform = transform([14.0, 18.0], [2.0, 1.0], -90.0, [1.0, 0.0]);
         set_instance(&mut engine, scene.root, scene.outer_ids[2], scene.outer[2].clone());
         fixture.publish(&engine, scene.root);

@@ -398,6 +398,46 @@ fn composition_canvas_transform_actions_match_every_public_caller() {
 }
 
 #[test]
+fn composition_arrange_actions_match_all_public_callers_and_keep_first_child_in_front() {
+    let scene = scene();
+    for (action, target) in [
+        (InstanceArrangeAction::Front, scene.instances[1]),
+        (InstanceArrangeAction::Back, scene.instances[0]),
+    ] {
+        let mut canonical = None;
+        for caller in CALLERS {
+            let mut engine = loaded(&scene.document);
+            assert!(
+                run(
+                    &mut engine,
+                    caller,
+                    MediaEdit::Composition {
+                        reference: scene.owner,
+                        edit: CompositionEdit::ArrangeInstance {
+                            instance: target.instance,
+                            action
+                        }
+                    }
+                )
+                .is_some()
+            );
+            let snapshot = crate::media::composition::inspect(&engine, scene.owner).unwrap();
+            let end = match action {
+                InstanceArrangeAction::Front => snapshot.instances.first(),
+                InstanceArrangeAction::Back => snapshot.instances.last(),
+            };
+            assert_eq!(end.unwrap().reference, target);
+            let actual = authored(&engine);
+            if let Some(expected) = &canonical {
+                assert_eq!(&actual, expected, "{caller:?}");
+            } else {
+                canonical = Some(actual);
+            }
+        }
+    }
+}
+
+#[test]
 fn composition_creation_add_and_copy_return_committed_owned_identities_to_every_caller() {
     for caller in CALLERS {
         let mut engine = fixture();

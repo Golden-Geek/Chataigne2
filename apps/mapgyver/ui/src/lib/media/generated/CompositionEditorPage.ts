@@ -23,4 +23,8 @@ composition: CompositionSnapshot | null, start: number, total: number,
 /**
  * Independent bounded lookup, including when the object is outside the visible page.
  */
-selected: InstanceSnapshot | null, };
+selected: InstanceSnapshot | null,
+/**
+ * Authored front-first index, including when selection is outside the requested page.
+ */
+selected_index: number | null, };

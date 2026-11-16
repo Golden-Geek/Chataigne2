@@ -50,7 +50,8 @@ export class CompositionEditorController<S extends Connection> {
 		return this.state.page?.selected ?? null;
 	}
 	get composition() {
-		const composition = this.state.page?.composition,
+		const page = this.state.page,
+			composition = page?.composition,
 			selected = this.instance;
 		if (
 			!composition ||
@@ -58,7 +59,14 @@ export class CompositionEditorController<S extends Connection> {
 			composition.instances.some((item) => item.reference.instance === selected.reference.instance)
 		)
 			return composition ?? null;
-		return { ...composition, instances: [...composition.instances, selected] };
+		// A selected snapshot always carries its authored index in this same backend reply.
+		const beforePage = page!.selected_index! < page!.start;
+		return {
+			...composition,
+			instances: beforePage
+				? [selected, ...composition.instances]
+				: [...composition.instances, selected]
+		};
 	}
 	get busy() {
 		const session = this.getSession();
@@ -144,6 +152,18 @@ export class CompositionEditorController<S extends Connection> {
 	edit(edit: CompositionEdit) {
 		const reference = this.channel?.reference;
 		if (reference) return this.mutate({ kind: 'Composition', reference, edit });
+	}
+	/** Pointer selection must not wait for a read that the new gesture intentionally suspends. */
+	selectInstance(id: string) {
+		const page = this.state.page;
+		if (!page?.composition || this.busy) return false;
+		const index = page.composition.instances.findIndex((item) => item.reference.instance === id);
+		if (index < 0) return page.selected?.reference.instance === id;
+		this.reads.invalidate();
+		this.state.refreshing = false;
+		page.selected = page.composition.instances[index];
+		page.selected_index = page.start + index;
+		return true;
 	}
 	setInteracting(active: boolean) {
 		this.state.interacting = active;

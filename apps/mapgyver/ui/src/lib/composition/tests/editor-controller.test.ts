@@ -64,9 +64,58 @@ const page = (id = 'owner'): CompositionEditorPage => ({
 		canvas: { width: 400, height: 300 },
 		instances: [instance('visible')]
 	},
-	selected: instance('off-page')
+	selected: instance('off-page'),
+	selected_index: 999
+});
+
+test('independent selected snapshot keeps its authored order before or after a bounded page', async () => {
+	for (const selectedIndex of [0, 999]) {
+		const host = session(),
+			state = createCompositionEditorState();
+		const editor = new CompositionEditorController(
+			() => host,
+			state,
+			async () => {
+				const value = page();
+				value.start = 128;
+				value.selected_index = selectedIndex;
+				return { kind: 'CompositionEditor', page: value };
+			}
+		);
+		editor.refresh({ ...query('off-page'), start: 128 });
+		await flush();
+		assert.deepEqual(
+			editor.composition?.instances.map((item) => item.reference.instance),
+			selectedIndex === 0 ? ['off-page', 'visible'] : ['visible', 'off-page']
+		);
+		editor.dispose();
+	}
 });
 const reply = (id = 'owner'): MediaEditResult => ({ kind: 'CompositionEditor', page: page(id) });
+
+test('visible pointer selection projects synchronously before a held gesture suspends reads', async () => {
+	const host = session(),
+		state = createCompositionEditorState();
+	const editor = new CompositionEditorController(
+		() => host,
+		state,
+		async () => {
+			const value = page();
+			value.selected = null;
+			value.selected_index = null;
+			return { kind: 'CompositionEditor', page: value };
+		}
+	);
+	editor.refresh(query());
+	await flush();
+	assert.equal(Boolean(editor.instance), false);
+	assert.equal(editor.selectInstance('visible'), true);
+	editor.setInteracting(true);
+	assert.equal(editor.instance?.reference.instance, 'visible');
+	assert.equal(state.page?.selected_index, 0);
+	assert.equal(editor.selectInstance('missing'), false);
+	editor.dispose();
+});
 function deferred() {
 	let resolve!: (value: MediaEditResult) => void, reject!: (error: Error) => void;
 	const promise = new Promise<MediaEditResult>((yes, no) => {

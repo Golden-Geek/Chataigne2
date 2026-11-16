@@ -42,7 +42,8 @@
 	const instance = $derived(
 		composition.instances.find((item) => item.reference.instance === selected)
 	);
-	const visible = $derived(composition.instances.slice(0, 128));
+	// The bounded page plus its independent selection contains at most 129 items.
+	const visible = $derived(composition.instances.toReversed());
 	const selectedExtent = $derived(
 		instance?.definition.source
 			? owner.statuses.get(previewKey({ kind: 'Channel', reference: instance.definition.source }))
@@ -143,24 +144,6 @@
 				}} />
 		{/if}
 	{/each}
-	{#if instance && handles}
-		{#if selectedExtent && !visible.some((item) => item.reference.instance === instance.reference.instance)}
-			<polygon
-				use:viewportContour={{
-					selected: true,
-					enabled: instance.definition.enabled,
-					identity: composition.reference.channel
-				}}
-				class="selected"
-				data-instance-drop-target={instance.reference.instance}
-				data-source-drop-object={instance.reference.instance}
-				points={instanceDisplay(instance, selectedExtent, presentation)
-					.points.map((point) => `${point.x},${point.y}`)
-					.join(' ')}
-				aria-hidden="true"
-				onpointerdown={(event) => down(event, instance!, 'Translate')} />
-		{/if}
-	{/if}
 </svg>
 
 {#each visible as item (item.reference.instance)}

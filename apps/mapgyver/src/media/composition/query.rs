@@ -89,6 +89,7 @@ pub(in crate::media) fn inspect(
         start: query.start,
         total: 0,
         selected: None,
+        selected_index: None,
     };
     if !page.document_matches {
         return Ok(page);
@@ -108,25 +109,27 @@ pub(in crate::media) fn inspect(
         .node_id_by_uuid(reference.media.0)
         .and_then(|id| engine.nodes.get(id))
         .map(|node| node.node_data().meta.label.clone());
-    let mut instances = Vec::with_capacity(usize::from(query.count));
-    for id in authoring::instance_nodes(engine, parent)? {
-        let id = id?;
-        let index = page.total;
-        page.total = page.total.checked_add(1).ok_or("too many Composition children")?;
-        if index >= query.start && instances.len() < usize::from(query.count) {
-            instances.push(snapshot(engine, reference, id)?);
-        }
-    }
     let selected = if query.selected == Some(reference.media.0) || query.selected == Some(reference.channel.0) {
         None
     } else {
         followed
             .filter(|(owner, _)| *owner == reference)
-            // An explicitly selected owner clears its child selection, including retained hints.
             .map(|(_, instance)| instance)
             .unwrap_or(query.instance)
             .and_then(|instance| authoring::instance(engine, parent, instance).ok())
     };
+    let mut instances = Vec::with_capacity(usize::from(query.count));
+    for id in authoring::instance_nodes(engine, parent)? {
+        let id = id?;
+        let index = page.total;
+        if selected == Some(id) {
+            page.selected_index = Some(index);
+        }
+        page.total = page.total.checked_add(1).ok_or("too many Composition children")?;
+        if index >= query.start && instances.len() < usize::from(query.count) {
+            instances.push(snapshot(engine, reference, id)?);
+        }
+    }
     page.selected = selected.map(|id| snapshot(engine, reference, id)).transpose()?;
     let mut bound = instances
         .iter()

@@ -115,17 +115,23 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
             | MediaCommandKind::UnloadMatrix => create(&mut engine, MediaKind::Matrix),
             MediaCommandKind::DropCompositionMedia
             | MediaCommandKind::CreateCompositionMedia
-            | MediaCommandKind::TransformCompositionMedia => create(&mut engine, MediaKind::Composition),
+            | MediaCommandKind::TransformCompositionMedia
+            | MediaCommandKind::ArrangeCompositionMedia => create(&mut engine, MediaKind::Composition),
             MediaCommandKind::Picture | MediaCommandKind::ReloadPicture | MediaCommandKind::ConfigureFitMode => picture,
             MediaCommandKind::SharedTexture | MediaCommandKind::ConfigureSenderSelection => shared,
             _ => solid,
         };
-        if *kind == MediaCommandKind::TransformCompositionMedia {
+        if matches!(
+            kind,
+            MediaCommandKind::TransformCompositionMedia | MediaCommandKind::ArrangeCompositionMedia
+        ) {
             let MediaEditResult::InstancesCreated { instances } = apply(
                 &mut engine,
                 MediaEdit::Composition {
                     reference: target,
-                    edit: crate::media::composition::protocol::CompositionEdit::AddInstances { sources: vec![solid] },
+                    edit: crate::media::composition::protocol::CompositionEdit::AddInstances {
+                        sources: vec![solid; 2],
+                    },
                 },
             ) else {
                 panic!()
@@ -134,7 +140,7 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
                 &mut engine,
                 command,
                 "composition_target",
-                reference(instances[0].instance.0),
+                reference(instances[1].instance.0),
             );
         }
         if matches!(

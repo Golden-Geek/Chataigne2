@@ -40,6 +40,7 @@ command_kinds! {
     DropCompositionMedia => "Drop Composition Media", "Composition", ["media", "channel", "entry", "composition_target", "copy_media", "position"];
     CreateCompositionMedia => "Create Composition Media", "Composition", ["media", "channel", "media_kind", "label", "position"];
     TransformCompositionMedia => "Transform Composition Media", "Composition", ["media", "channel", "composition_target", "composition_transform"];
+    ArrangeCompositionMedia => "Arrange Composition Media", "Composition", ["media", "channel", "composition_target", "composition_arrange"];
     CreateReference => "Create Reference", "Media", ["reference_target", "label"];
     ConfigureReference => "Set Reference Target", "Media", ["media", "reference_target"];
     SelectReferenceChannel => "Set Reference Channel", "Media", ["media", "channel"];

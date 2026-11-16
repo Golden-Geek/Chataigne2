@@ -27,6 +27,13 @@ fn named_invocation(operation: &MediaEdit) -> String {
     let (method, args) = match operation {
         MediaEdit::Composition {
             reference,
+            edit: crate::media::composition::protocol::CompositionEdit::ArrangeInstance { instance, action },
+        } => (
+            "arrangeCompositionMedia",
+            serde_json::json!([reference.media, reference.channel, instance, action]),
+        ),
+        MediaEdit::Composition {
+            reference,
             edit: crate::media::composition::protocol::CompositionEdit::TransformInstance { instance, action },
         } => (
             "transformCompositionMedia",

@@ -105,10 +105,13 @@ pub(super) fn composition_layers(
     prepared: &HashMap<ChannelReference, PreparedChannel>,
 ) -> Result<Vec<Layer>, String> {
     let mut result = Vec::new();
+    // Authored children are front-first; Golden's compositing passes paint back-to-front.
     for instance in channel
         .instances
         .as_ref()
         .ok_or("Composition instance admission failed")?
+        .iter()
+        .rev()
     {
         // A collapsed item remains authored and inspectable, but has no drawable area.
         // Keep degenerate geometry out of homography validation for healthy siblings.
