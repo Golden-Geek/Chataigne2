@@ -1,9 +1,8 @@
 # M14/5 Composition enabled metadata
 
-Updated 2026-11-16. M14/5 is functionally verified, including the full product-browser
-contract. Native pixel qualification remains pending its recorded prerequisite; the complete
-gate is not accepted. M14/5 remains the active gate for the now-ready native cohort;
-M14/3 is the next MapGyver product deliverable afterward.
+Updated 2026-11-16. M14/5 is Accepted after the full software/product-browser contract and
+both-GPU native pixel qualification. Together with M14/4, overall acceptance is90/106 (85%);
+M14 is2/10 (20%). M14/3 Composition actions/order is the next active product deliverable.
 
 Placement no longer owns an Enabled Parameter. Child media metadata supplies the read
 projection; ConfigureInstance edits that metadata in the same transaction as placement
@@ -31,7 +30,7 @@ Verified software:
 - Shared projection:13 passed; app projection/media-tree:3 passed (unchanged scope retained).
   The complete shared session suite now passes82 tests across11 files.
 - Pixel fixture software/oracle:7 passed,1 explicit hardware test ignored. Its two new
-  enabled states bring the pending both-GPU fixture to19 states.
+  enabled states bring the both-GPU fixture to19 states, now natively verified.
 - Rust-owned protocol generation, strict app/test Clippy, MapGyver and shared-consumer UI
   typechecks, scoped Prettier and ordinary default app build pass. Root/Core formatting pass.
 
@@ -63,9 +62,13 @@ Both earlier failing product logs remain retained under `m14-composition-enabled
 Earlier compile/count failures are preserved; count corrections remove exactly one Parameter
 per Placement, including two per deep-forest branch.
 
-**Remaining:** independent native pixels for disabled/restored media and shared-source behavior.
-The user has now checked Overlay Off and established standing Off state on2026-11-16
-(recorded16:23UTC), clearing the prerequisite without recurring questions. Use the built19-state
-Composition fixture with its original checks/watchdog; M14/4 shares that cohort. Do not restart
-desktop-helper probes. Product work proceeds with M14/3 afterward; all retained MapGyver
-qualification still precedes M09.
+**Native acceptance:** Intel(R) Graphics and NVIDIA GeForce RTX5080 Laptop GPU complete the
+existing19-state fixture in17.30s:114 independent images/87,552 texels through two outputs and
+the production preview compositor. Disabled/restored child metadata suppresses/restores the
+correct content while shared siblings remain valid. Maximum residual1 byte is within the
+unchanged2-byte bound. All renderer plan allocations balance, source/output inventories empty
+and readback pools return idle under the original120-second watchdog. See the
+[receipt](evidence/mapgyver-m14-composition-acceptance-2026-11-16.json) for hashes and identities.
+The user checked Overlay Off and established standing Off on2026-11-16; future cohorts use
+that provenance until contradicted. No helper repair or recurring question is required.
+M14/3 is next; all separate cadence, stress, growth, device recovery and final gates remain.

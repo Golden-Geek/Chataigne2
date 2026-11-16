@@ -67,15 +67,14 @@ Chataigne-only Curve/Spatializer and other consumer improvements until Chataigne
 their findings and local patch are recorded in [the deferred handoff](../progress/chataigne-editor-followups.md).
 M14/1 retains MapGyver editor acceptance and the shared contracts required by MapGyver, but
 Chataigne-only qualification no longer blocks MapGyver feature delivery. M14/4 zero-scale
-Composition is now [functionally verified](../progress/mapgyver-m14-zero-scale.md); its
-native pixels await the recorded qualification cohort and remain unaccepted.
-M14/5 Composition enabled metadata is also functionally verified, including corrected shared
-write/history admission and the full actual-app browser contract. Its native pixel states
-share the same pending cohort. On2026-11-16 the user checked Overlay Off and established
+Composition and M14/5 enabled metadata are now
+[Accepted](../progress/evidence/mapgyver-m14-composition-acceptance-2026-11-16.json), including
+corrected shared write/history admission, the full actual-app browser contract and independent
+output/preview pixels with resource retirement on both GPUs. On2026-11-16 the user checked Overlay Off and established
 standing Off state until they report or authoritative evidence shows a change; do not request
-confirmation before each cohort. Complete the existing M14/4–5 pixel fixture now, then select
-M14/3 Composition actions/front-first order. Retain unfinished MapGyver selection/navigation and every other
-gate in the return queue. No gate is accepted or denominator changed by this priority revision.
+confirmation before each cohort. Select M14/3 Composition actions/front-first order next.
+Retain unfinished MapGyver selection/navigation and every other gate in the return queue.
+M14/4–5 acceptance adds two verified gates; the denominator is unchanged.
 Then finish extended codecs,
 subtitles and retained acceptance before M09. The user also freshly observed native NVIDIA
 Overlay Off on this date; record that observation with any actual run, not as qualification.

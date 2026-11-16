@@ -1,0 +1,88 @@
+{
+  "date": "2026-11-16",
+  "gates": [
+    "M14/4",
+    "M14/5"
+  ],
+  "result": "accepted",
+  "source_checkpoint": "a136a9b054d9266168df1bfec02ae9a74c868ac3",
+  "overlay": {
+    "state": "Off",
+    "method": "User observation in NVIDIA App Settings followed by standing Off instruction on 2026-11-16; no recurring confirmation required until contradicted."
+  },
+  "test": {
+    "executable": "target/debug/deps/composition_rendering-160ea1ae4ad2ca13.exe",
+    "sha256": "37b3cb61c5eae39e60c330cb18cccf508e04e515afd86b2fac7b54e3eac40608",
+    "filter": "native_nested_composition_pixels --ignored --nocapture",
+    "dll_search_path_prefix": "target/debug",
+    "exit_code": 0,
+    "elapsed_seconds": 17.3,
+    "watchdog_seconds": 120,
+    "log": "target/m14-composition-native-2026-11-16.log",
+    "log_sha256": "6db2cbdd6324e905547aeb342fe3786643d95109d4158f6fb414629871a890ac"
+  },
+  "adapters": [
+    {
+      "luid": {
+        "low": 87734,
+        "high": 0
+      },
+      "description": "Intel(R) Graphics"
+    },
+    {
+      "luid": {
+        "low": 88966,
+        "high": 0
+      },
+      "description": "NVIDIA GeForce RTX 5080 Laptop GPU"
+    }
+  ],
+  "coverage": {
+    "states_per_adapter": 19,
+    "readbacks_per_state": 3,
+    "readbacks": 114,
+    "compared_texels": 87552,
+    "max_residual_bytes": 1,
+    "allowed_residual_bytes": 2,
+    "oracle": "Independent CPU inverse-affine coverage/blend oracle with legal intermediate UNORM ranges",
+    "states": [
+      "normal",
+      "add",
+      "multiply",
+      "screen",
+      "independent-transform",
+      "zero-width",
+      "zero-height",
+      "zero-both",
+      "negative-zero",
+      "zero-crossing-restored-mirror",
+      "zero-crossing-restored-original",
+      "all-root-items-zero",
+      "all-root-items-restored",
+      "media-enabled-metadata-disabled",
+      "media-enabled-metadata-restored",
+      "canvas-resize",
+      "missing-shared-source",
+      "undo-source-removal",
+      "reload-recreate"
+    ],
+    "retirement": "Each renderer retired; native plan live=0 and created=released, output/source inventories empty; SDK payload budgets idle."
+  },
+  "software_prerequisites": {
+    "composition_tests": 66,
+    "session_tests": 82,
+    "pixel_oracle_tests": 7,
+    "preserved_projection_tests": 16,
+    "preserved_retention_tests": 7,
+    "preserved_reference_tests": 1,
+    "checks": "Strict app/test lint, generated protocol, both UI consumer typechecks, scoped Prettier, ordinary product build, root/Core formatting, and full unchanged actual-app browser contract passed.",
+    "browser_log": "target/m14-history-admission-product-ui-2026-11-16.log",
+    "browser_log_sha256": "32a8e60195150082df01100f599ebe6422c3fb454b8ca413e372a786fb2d3066",
+    "product_sha256": "b1b6221687537f8ddeac5448aa9ea4e4663056138a0a266e08f4c28737938b24"
+  },
+  "limits": [
+    "Finite functional Composition raster qualification; not a cadence, scanout, physical editor alignment, stress, driver recovery or allocation-growth qualification.",
+    "Other M03/M05/M08/M10/M14/M09 requirements remain open according to the ledger.",
+    "Placement v3 intentionally rejects former v1/v2 projects; no migration is provided."
+  ]
+}

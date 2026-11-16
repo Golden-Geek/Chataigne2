@@ -1,8 +1,8 @@
 # M14/4 zero-scale Composition
 
 Updated 2026-11-16. This is MapGyver-owned placement and render-plan behavior.
-M14/4 is functionally verified and awaits native pixel qualification. Overall acceptance
-remains 88/106 (83%); this checkpoint does not accept the complete gate.
+M14/4 is Accepted after software, actual-product browser and both-GPU native pixel qualification.
+Together with M14/5, overall acceptance is90/106 (85%); M14 is2/10 (20%).
 
 ## Product behavior
 
@@ -62,10 +62,15 @@ legacy Reference ownership assertions in native/headless fixtures. Those asserti
 verify the child's own channel and its actual Reference target rather than requiring reuse
 of the original source channel. No product budget or source-identity guarantee was relaxed.
 
-**Remaining:** independent output/preview pixels on both GPUs. The fixture is built and its
-software prerequisites pass. The supported desktop reader still reports native pipe error 2;
-the requested current NVIDIA Overlay Off observation is pending. Return when that observation
-arrives (or supported desktop access can establish it), then run the existing explicit ignored
-pixel test with the unchanged 120-second watchdog and record adapter identities/pixels/retirement.
-No unchanged desktop-helper repair/profiler chain is queued, and an old Overlay observation
-will not be relabeled as current qualification. Other MapGyver product features can proceed.
+**Native acceptance:** the existing19-state fixture passed on Intel(R) Graphics and NVIDIA
+GeForce RTX5080 Laptop GPU in17.30s. Each state produced two independent output readbacks and
+one production preview-compositor readback; all114 images/87,552 texels stay within the original
+two-byte legal-UNORM residual bound (observed maximum1). Zero axes, signed crossings,
+all-collapsed clearing/restoration, metadata enablement, source removal/Undo and reload pass.
+Every renderer retires with balanced plan allocations, empty source/output inventories and idle
+readback pools under the unchanged120-second watchdog. The user freshly observed Overlay Off
+and established standing Off on2026-11-16; no repeated observer/helper prerequisite remains.
+The [acceptance receipt](evidence/mapgyver-m14-composition-acceptance-2026-11-16.json) records
+hashes, adapter identities and scope. Current66 backend/82 session tests and the full browser
+contract also pass. This accepts functional raster behavior; other cadence, physical alignment,
+stress, memory-growth and recovery gates remain required. Next product work is M14/3.
