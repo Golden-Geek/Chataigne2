@@ -1,8 +1,15 @@
 # M14/1 editor selection and hover
 
 Updated 2026-11-16. Golden owns reusable input/capture/selection dispatch; app adapters resolve
-their edited owners and shared Inspector selection. M14/1 remains **Active, unaccepted**.
+their edited owners and shared Inspector selection. M14/1 is **Pending, unaccepted**.
 Overall acceptance stays88/106 (83%); no new fixed gate is closed by this slice.
+
+**2026-11-16 user priority revision:** this gate is now Pending for remaining MapGyver scope.
+Noncritical Chataigne-only Curve, Spatializer and other consumer improvements are deferred
+until Chataigne work resumes; see the [exact patch and findings handoff](chataigne-editor-followups.md).
+Historical consumer results below remain evidence, not a queue for MapGyver work. M14/4
+zero-scale Composition is the sole Active gate. Shared defects required by a current MapGyver
+path remain actionable; unrelated Chataigne qualification does not block MapGyver delivery.
 
 The user's2026-11-14 instruction selects M14 before full M10/4 qualification. Every M10
 requirement remains unfinished and release-blocking; only execution order changed.
@@ -1093,8 +1100,9 @@ investigation. Return only for a correction supported by its actual terminal bou
 native acceptance after helper reconnection. Its original connected/history/native requirements
 remain Pending; no fixed gate closes.
 
-Next action: actual Spatializer specialized-world/module-Inspector selection within M14/1;
-keep remaining graph edge/read-only/native scopes explicit.
+Next MapGyver action: M14/4 zero-scale Composition. Remaining MapGyver selection/native
+scope returns after that feature or for a reproduced product blocker. Chataigne-only graph,
+Curve and Spatializer followups return only when Chataigne is selected.
 The Gradient two-panel and tested document/reconnect product scopes now pass;
 physical native and remaining editor inventory still require their own evidence.
 Matrix grid independent panels,
@@ -1103,8 +1111,8 @@ Matrix spatial editors' listed backend scopes are verified;
 remaining physical native selection/handle/hit acceptance returns when the
 desktop helper reconnects, with coherent inputs. The full editor inventory remains required;
 Gradient's real backend/history/copy/reload
-proof is complete. Curve capture is Pending within
-M14/1: return for a source-supported ownership correction or the required actual-host/native
+proof is complete. Curve capture is deferred to Chataigne:
+return there for a source-supported ownership correction or the required actual-host/native
 acceptance; the existing receipt does not identify which terminal boundary fired. Do not extend
 the stopped runtime investigation with unchanged variants or restore its failed cache stash.
 No completed slice or passing software suite substitutes for whole-gate acceptance.

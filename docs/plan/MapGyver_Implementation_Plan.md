@@ -62,7 +62,14 @@ retirement and recovery requirement retained. This explicitly supersedes gate-4-
 ordering above and below; it accepts no gate and changes no budget. Return M10/4 at a scheduled
 qualification boundary after M14 or for a reproduced blocker on the active product path,
 using its recorded binaries/source identities and the original environment prerequisites.
-Keep exactly one gate Active; start with M14/1 selection/hover. Then finish extended codecs,
+Keep exactly one gate Active. The 2026-11-16 user priority revision parks noncritical
+Chataigne-only Curve/Spatializer and other consumer improvements until Chataigne work resumes;
+their findings and local patch are recorded in [the deferred handoff](../progress/chataigne-editor-followups.md).
+M14/1 retains MapGyver editor acceptance and the shared contracts required by MapGyver, but
+Chataigne-only qualification no longer blocks MapGyver feature delivery. Select M14/4
+zero-scale Composition next; retain unfinished MapGyver selection/navigation and every other
+gate in the return queue. No gate is accepted or denominator changed by this priority revision.
+Then finish extended codecs,
 subtitles and retained acceptance before M09. The user also freshly observed native NVIDIA
 Overlay Off on this date; record that observation with any actual run, not as qualification.
 
