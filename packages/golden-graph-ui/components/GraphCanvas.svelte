@@ -334,10 +334,32 @@
 	const handleKeydown = (event: KeyboardEvent) => {
 		if (!keyboard.handleKeydown(event)) gestures.handleKeydown(event);
 	};
+	const resetClickSequence = () => {
+		editing.resetTitleClick();
+		gestures.resetResizeClick();
+	};
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		// Another control's press ends a sequence even if it keeps focus or stops propagation.
+		const press = (event: PointerEvent) => {
+			const target = event.target;
+			const owned =
+				event.button === 0 && target instanceof Element && viewport.container?.contains(target);
+			if (!owned || !target.closest('.node-title-label')) editing.resetTitleClick();
+			if (!owned || !target.closest('.resize-handle')) gestures.resetResizeClick();
+		};
+		window.addEventListener('pointerdown', press, true);
+		window.addEventListener('keydown', resetClickSequence, true);
+		return () => {
+			window.removeEventListener('pointerdown', press, true);
+			window.removeEventListener('keydown', resetClickSequence, true);
+		};
+	});
 </script>
 
 <svelte:window
 	onblur={() => {
+		resetClickSequence();
 		keyboard.cancel();
 		gestures.cancelPointerGesture();
 	}} />
@@ -371,7 +393,14 @@
 	onpointerleave={resetScrollHoverTarget}
 	onkeydown={handleKeydown}
 	onfocusin={(event) => navigation.recordFocus(event.target)}
-	onfocusout={navigation.leaveFocus}
+	onfocusout={(event) => {
+		navigation.leaveFocus(event);
+		if (
+			!(event.relatedTarget instanceof Node) ||
+			!viewport.container?.contains(event.relatedTarget)
+		)
+			resetClickSequence();
+	}}
 	onwheel={handleWheel}
 	oncontextmenu={handleContextMenu}
 	ondblclick={handleDoubleClick}>

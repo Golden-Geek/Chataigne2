@@ -349,7 +349,7 @@ await nativeWorkbench({
 				(value) => value.includes('name-changeable')
 			);
 			checks.push({ stage, rejectedWithoutWrite: true });
-			stage = 'offscreen typed Inspector edit and exact Undo';
+			stage = 'offscreen Inspector rename and exact Undo';
 			await heading.dblclick();
 			const rename = inspector.locator('.title-input');
 			await rename.fill('Offscreen State edit');
@@ -371,6 +371,56 @@ await nativeWorkbench({
 			assert.equal(await readFile(project, 'utf8'), independentDocument);
 			assert.deepEqual(rejected, []);
 			checks.push({ stage, oneHistoryStep: true, exactRestoration: true });
+			stage = 'offscreen typed Parameter edit and exact Undo';
+			const fields = (await snapshot()).nodes;
+			const selectedState = fields.find((current) => current.uuid === first.uuid);
+			const description = fields.find(
+				(current) =>
+					selectedState.children.includes(current.node_id) && current.decl_id === 'description'
+			);
+			assert(description);
+			const previousDescription = description.data.param.value;
+			const descriptionEditor = inspector.locator(
+				`.parameter-inspector[data-node-id="${description.node_id}"] .string-editor`
+			);
+			await descriptionEditor.fill('Offscreen parameter edit');
+			await descriptionEditor.press('Tab');
+			await wait(snapshot, (value) =>
+				value.nodes.some(
+					(current) =>
+						current.uuid === description.uuid &&
+						current.data.param.value.Str === 'Offscreen parameter edit'
+				)
+			);
+			assert.equal((await snapshot()).history.undo_len, independentHistory.undo_len + 1);
+			await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+			await wait(snapshot, (value) =>
+				value.nodes.some(
+					(current) =>
+						current.uuid === description.uuid &&
+						JSON.stringify(current.data.param.value) === JSON.stringify(previousDescription)
+				)
+			);
+			assert.equal((await snapshot()).history.undo_len, independentHistory.undo_len);
+			assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
+			assert.equal(await readFile(project, 'utf8'), independentDocument);
+			checks.push({
+				stage,
+				typedParameter: description.uuid,
+				oneHistoryStep: true,
+				exactRestoration: true
+			});
+			stage = 'real same-title double click still enters rename';
+			await graph.getByRole('button', { name: 'Home', exact: true }).click();
+			await node(first).locator('.node-title-label').dblclick();
+			const titleRename = node(first).locator('.node-title-input');
+			await titleRename.waitFor();
+			await titleRename.press('Escape');
+			await titleRename.waitFor({ state: 'detached' });
+			assert.equal((await snapshot()).history.undo_len, independentHistory.undo_len);
+			assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
+			assert.equal(await readFile(project, 'utf8'), independentDocument);
+			checks.push({ stage, renamePreserved: true, cancelledWithoutWrite: true });
 		}
 		emit({ kind: 'graph-domain-inspector-selection', domain, checks, nativePixels: false });
 	}

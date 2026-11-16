@@ -685,6 +685,9 @@ export function createCanvasGestures(
 			return selectionBoxStyle;
 		},
 		updateSelection,
+		resetResizeClick() {
+			lastResizePointerDown = null;
+		},
 		clearSelection,
 		selectEdge,
 		selectEdgeWithKeyboard,

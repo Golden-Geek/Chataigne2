@@ -192,6 +192,12 @@ child controls have been excluded. Canvas focus therefore retains keyboard owner
 selection refreshes the Inspector or activates another workbench group. The node drag path uses
 the same rule; buttons, text fields and embedded node content keep their existing input paths.
 
+The graph host also retires pending title/resize double-click sequences on an intervening
+control/panel press, keyboard input, or focus/window loss. Capture-phase listeners see input
+even when another control consumes it, and dispose with the view. This prevents returning to
+a graph or reselecting after Escape from being mistaken for rename/reset-size. Consecutive
+clicks on the same control retain their existing activation behavior.
+
 Graph cancellation now has a separate terminal path from pointer-up commit. Escape, pointercancel,
 lost capture, blur and scope/topology/disposal boundaries retire owned capture before releasing it
 and withdraw uncommitted previews without mutation callbacks. Earlier pending optimistic edits

@@ -129,20 +129,26 @@ still require acceptance.
 The independent-panel continuation found peer idle Escape did not clear selection after normal
 release. Golden now prevents the native pointer default on owned body/title presses, retaining
 canvas keyboard ownership through workbench group/Inspector updates; embedded controls are excluded.
-The rebuilt paired scene verifies focus is within the peer graph and its idle Escape inspects the
-Formula. It then fails on revisiting the first State title rapidly: rename is entered and the
-fixture's drag-capture assertion fails. The per-canvas title double-click sequence survives peer
-focus changes; inspect/reset that boundary before the next comparison. This is a distinct remaining
-case, not full paired acceptance. The current batch's baseline/corrective allowance is exhausted.
-No more variants/profilers ran. Offscreen editing, rename permission and final exact-Undo assertions
-in this extended fixture have **not executed**.
+That correction passed peer focus/Escape but exposed rapid State-title revisit entering rename
+instead of drag capture. The new graph-host boundary clears pending title/resize activation on
+foreign control/panel presses, keyboard input and focus/window loss. The first pointer/focus-only
+correction passed cross-panel ownership, then failed immediate reselection after Escape; capturing
+keyboard input completed that same sequence-lifetime rule. Both failures remain in their logs.
+
+The complete paired contract now passes against the ordinary bundled app: independent State
+Machine/Alchemist owners and shared Inspector, retained DOM/capture, tool-first and idle-owner
+Escape, and rapid reselect. It pans the selected State offscreen, verifies permission-denied
+rename submits no edit, performs a permitted Inspector rename and a typed Description Parameter
+edit, and verifies one history item and exact saved-document restoration after each Undo.
+The final true same-title double click enters rename; Escape cancels it without a write.
 
 Run the retained extended contract with `<binary> --state-machine --independent-panels`;
-ordinary Alchemist/State Machine modes preserve their original scope. The flag separates unfinished
-acceptance from the already-verified domain contract; it does not waive any M14 requirement.
-Current correction checks: full Alchemist product and Golden graph browser contracts pass;
-60 graph unit tests and Chataigne/MapGyver/graph-fixture typechecks0/0 pass. Both ordinary
-default-feature apps build; syntax/Prettier and root/Core formatting pass. Rust/protocol is unchanged.
+ordinary Alchemist/State Machine modes preserve their original scope. The flag names the extended
+acceptance contract and waives no requirement. Shared graph browser contracts,60 graph unit tests
+and UI typechecks0/0 pass. Both ordinary default-feature apps build; syntax/Prettier and root/Core
+formatting pass. The touched editing controller is normalized by repository Prettier; its only
+semantic addition is the activation reset. Rust/protocol is unchanged. Other domain/edge/read-only
+and physical native scopes still require acceptance; this closes no whole M14 gate.
 
 Logs: `target/m14-graph-independent-product-2026-11-16.log` (baseline peer Escape failure),
 `target/m14-graph-independent-product-fixed-2026-11-16.log` (later revisit/capture failure, SHA256
@@ -153,10 +159,27 @@ Logs: `target/m14-graph-independent-product-2026-11-16.log` (baseline peer Escap
 `b44b9111ac82e42db4f68f2370643f54405f7583b1993d14d7d6d2c961a50ca3`).
 Paired correction receipt:
 `target/qualification/m14-state-machine-selection-product-3075f2c8-7659-4a35-ac9d-62805285cd2c/browser.jsonl`.
-Current ordinary Chataigne SHA256:
+Earlier focus-correction ordinary Chataigne SHA256:
 `19b8f6da6985be632694e50902e5f72b8614fa1c9b884f02dfe77e5743a54e28`;
 MapGyver SHA256: `5f0285b53e4a81e134531b36a32a3ba77d1c04c99926efe116928d419f4b4ab5`.
 No new native/GPU qualification or complete fixed-gate acceptance is inferred.
+
+Final extended product log: `target/m14-graph-sequence-parameter-product-2026-11-16.log`, SHA256
+`c8de6f9c5e236c9f305039beb606dc577e22361967310e71dd3020a03224b549`.
+Receipt: `target/qualification/m14-state-machine-independent-selection-product-1576e1b5-c629-496b-8fdb-e2abaf98b847/browser.jsonl`.
+It exits0 with no page errors or rejected operations and normal owned-host shutdown.
+The earlier pointer-only correction is retained in
+`target/m14-graph-sequence-independent-product-2026-11-16.log`; the first complete pass before
+adding the actual typed Parameter assertion is in `target/m14-graph-sequence-final-product-2026-11-16.log`.
+Browser checks: `target/m14-graph-sequence-keyboard-browser-2026-11-16.log` (exit0);
+unit checks: `target/m14-graph-sequence-unit-2026-11-16.log` (60 passed).
+Final build: `target/m14-graph-sequence-keyboard-build-2026-11-16.log`, SHA256
+`d833e7aea8bc444acf62fa911941b274c20f0d7fd0ca676dba4a59edf7bae299`.
+Current ordinary Chataigne SHA256:
+`a1cdbe7a33d2c3731c79b3a656479b5953bed7cfac84cdbb1d0a001b8915214b`;
+MapGyver SHA256: `d94eb329a2e139a1aebc999b80c8276d0dc7ff1a66437bb0be7745d716a2be7f`.
+These preserve unrelated working-tree edits outside this milestone. Native fixtures remain older;
+refresh the required inputs before physical acceptance. No new native/GPU cohort ran.
 
 Graph pointer cancellation is now separate from commit. Escape first cancels captured input and
 any keyboard connection endpoint without deselecting; the next idle Escape selects the owner.
@@ -334,7 +357,7 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Composition / Composition media | Real bundled UI/backend verifies before-release child/background selection and Inspector, no implicit first child, independent locked peers, owner/idle Escape, exact no-history selection,130-child off-page editing, reconnect/copy/removal/project replacement; shared selection/edit admission fixes busy reselection; hover and unavailable-bounds DOM checks pass | Physical native input/pixel agreement, overlapping hit order and remaining complete active-gesture/lifetime acceptance |
 | Matrix Layer spatial / Matrix media | Real backend/Inspector verifies primary-down selection, hover without controls, owner/background/idle Escape, no implicit child and independent locked Layer/Cell editors; full typed Inspector/history/off-page/mixed suite passes; geometry closure is reported busy | Physical native input/pixel, overlap and complete active/outgoing/project interaction acceptance |
 | Matrix Cell spatial / Layer | Real backend/Inspector verifies before-release selection including disabled Cell, Layer owner clearing without navigation, recognized Matrix-focus clearing and unrelated locked-content retention; exact unchanged authoring/history/playback; full typed Inspector suite passes | Physical native input/pixel, overlap, off-page spatial and complete active/outgoing/project interaction acceptance |
-| Golden graph canvases | Reusable browser contract proves down/hover/controls, background/idle Escape, tool/capture/focus/lifetime isolation. Ordinary bundled Chataigne proves Alchemist and State Machine exact-node Inspector selection before release, domain owner clearing, retained capture/DOM and unchanged saved document/history | Other domain Inspector adapters, native/independent-editor/offscreen/permission and specialized custom-world capture acceptance; Alchemist toolbar/Properties overlap returns with M14/2 |
+| Golden graph canvases | Reusable input/cancel contract and actual Alchemist/State Machine Inspector selection before release pass. Actual paired panels retain independent owners/focus/capture; offscreen State Inspector name and typed Description edits, name permission, exact Undo/save restoration and genuine double-click rename pass | Other domain/edge/read-only and physical/native agreement, specialized custom-world capture acceptance; Alchemist toolbar/Properties overlap returns with M14/2 |
 | Golden Dashboard / edited page | Primary-down widget/background selection; selected-only resize zones; border hover; per-page tool-first/idle-owner Escape; free/ordered move/resize and marquee/pan cancellation, nested keyboard and two-editor isolation verified in production browser fixture | Actual workbench/Inspector, permission/offscreen/project and current-host acceptance remain open; unrelated Dashboard backend edits are preserved |
 | Animation curves / curve and key nodes | Shared key/easing/field and embedded typed Inspector; background/idle owner, tool-first cancel, selected-only Bezier/contour hover, permission/offscreen/locked-owner checks; bounded editor/renderer; delayed draw/create/paste owner/document fencing, exact creation receipt and original-owner completion without selection theft | Fix connected pointer ownership and complete actual backend/history/native and full lifetime acceptance; all editor/renderer modules stay under1000 lines |
 | Gradient / Gradient owner and stops | Actual bundled Chataigne UI/backend proves before-release Outliner/Inspector selection, capture/cancel, typed/live edits and exact Undo/Redo; two locked real panels preserve independent owners/focus and local color Escape, retire capture on reconnect, reload locks, fence New during a live drag and restore exact authored values/presentation; optimized Engine/MapGyver/Gradient suites pass | Physical native input/pixels and remaining complete offscreen/copy/lifetime acceptance stay open. Rematerialized declared UUIDs leave locks unavailable rather than retargeting |
@@ -1070,8 +1093,8 @@ investigation. Return only for a correction supported by its actual terminal bou
 native acceptance after helper reconnection. Its original connected/history/native requirements
 remain Pending; no fixed gate closes.
 
-Next action: fix the cross-focus title double-click boundary, then finish the retained actual graph
-independent-editor/offscreen/permission contract within M14/1.
+Next action: actual Spatializer specialized-world/module-Inspector selection within M14/1;
+keep remaining graph edge/read-only/native scopes explicit.
 The Gradient two-panel and tested document/reconnect product scopes now pass;
 physical native and remaining editor inventory still require their own evidence.
 Matrix grid independent panels,
