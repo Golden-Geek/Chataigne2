@@ -42,6 +42,62 @@ function fixture(limit = 64) {
 }
 
 describe('ordinary Parameter write presentation', () => {
+	it('admits new writes after every queued history barrier without blocking already confirmed writes', async () => {
+		const { host } = fixture();
+		const gate = deferred(),
+			events: string[] = [];
+		const first = host.editOperations.runBarrier(async () => {
+			await gate.promise;
+			events.push('undo-one');
+		});
+		const second = host.editOperations.runBarrier(async () => {
+			events.push('undo-two');
+		});
+		const written = previewParameterWrite(host, 2, { kind: 'vec2', value: [123, 20] }, async () => {
+			events.push('write');
+			return true;
+		});
+		expect(events).toEqual([]);
+		gate.resolve(true);
+		await Promise.all([first, second, written]);
+		expect(events).toEqual(['undo-one', 'undo-two', 'write']);
+	});
+	it('drops a write waiting behind history when its document retires', async () => {
+		const { host } = fixture(),
+			gate = deferred();
+		let dispatched = false;
+		const barrier = host.editOperations.runBarrier(async () => {
+			await gate.promise;
+		});
+		const written = previewParameterWrite(host, 2, { kind: 'vec2', value: [123, 20] }, async () => {
+			dispatched = true;
+			return true;
+		});
+		host.snapshotGeneration++;
+		gate.resolve(true);
+		await barrier;
+		expect(await written).toBe(false);
+		expect(dispatched).toBe(false);
+	});
+	it('keeps a write before a history action requested later', async () => {
+		const { host } = fixture(),
+			gate = deferred(),
+			events: string[] = [];
+		const first = host.editOperations.runBarrier(async () => {
+			await gate.promise;
+			events.push('undo-one');
+		});
+		const written = previewParameterWrite(host, 2, { kind: 'vec2', value: [123, 20] }, async () => {
+			events.push('write');
+			return true;
+		});
+		const second = host.editOperations.runBarrier(async () => {
+			events.push('undo-two');
+		});
+		gate.resolve(true);
+		await Promise.all([first, written, second]);
+		expect(events).toEqual(['undo-one', 'write', 'undo-two']);
+	});
 	it('publishes before dispatch completes and retains the draft through its actual event boundary', async () => {
 		const { host, advance } = fixture(),
 			pending = deferred();

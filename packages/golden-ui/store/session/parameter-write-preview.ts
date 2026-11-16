@@ -21,8 +21,20 @@ export async function previewParameterWrite(
 	applied?: AppliedIntentObserver
 ): Promise<boolean> {
 	const uuid = host?.graph.state.nodesById.get(node)?.uuid;
+	const generation = host?.snapshotGeneration;
+	// Capture this boundary once: a later history action must follow this write.
+	const barrier = host?.editOperations.pendingBarrier;
+	if (barrier) {
+		await barrier;
+		if (
+			host.status !== 'connected' ||
+			host.loading.visible ||
+			host.snapshotGeneration !== generation ||
+			(uuid && host.graph.state.nodesById.get(node)?.uuid !== uuid)
+		)
+			return false;
+	}
 	if (!host || !uuid || !value) return dispatch(applied);
-	const generation = host.snapshotGeneration;
 	let completion = Promise.resolve(false),
 		accepted = true;
 	const operation = host.editOperations.open({

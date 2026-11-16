@@ -37,6 +37,13 @@ acceptance item. Qualify one named adapter/route first; dual-vendor success is n
 
 ## NVIDIA overlay prerequisite
 
+**Standing user update,2026-11-16:** the user checked NVIDIA App Settings and confirmed Off,
+then instructed that Overlay should be treated as always Off for now. Use that standing
+operator-confirmed state for subsequent cohorts until the user reports or authoritative
+verification shows a change. Record this provenance with runs; do not ask for a fresh
+confirmation before each run. This updates the observation cadence, not any GPU workload,
+timing, memory, cleanup or correctness requirement.
+
 For NVIDIA GPU qualification, **NVIDIA overlay must be Off before the probe/test processes
 start**. The user approved this documented prerequisite on 2026-10-27 after the controlled
 [on/off/on test](evidence/mapgyver-m01-nvidia-overlay-control-2026-10-27.json): handle growth

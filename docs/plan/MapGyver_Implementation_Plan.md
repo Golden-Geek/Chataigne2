@@ -68,9 +68,13 @@ their findings and local patch are recorded in [the deferred handoff](../progres
 M14/1 retains MapGyver editor acceptance and the shared contracts required by MapGyver, but
 Chataigne-only qualification no longer blocks MapGyver feature delivery. M14/4 zero-scale
 Composition is now [functionally verified](../progress/mapgyver-m14-zero-scale.md); its
-native pixels await the recorded Overlay Off prerequisite and remain unaccepted. Select
-M14/5 Composition enabled metadata next while retaining that concrete qualification return
-trigger. Retain unfinished MapGyver selection/navigation and every other
+native pixels await the recorded qualification cohort and remain unaccepted.
+M14/5 Composition enabled metadata is also functionally verified, including corrected shared
+write/history admission and the full actual-app browser contract. Its native pixel states
+share the same pending cohort. On2026-11-16 the user checked Overlay Off and established
+standing Off state until they report or authoritative evidence shows a change; do not request
+confirmation before each cohort. Complete the existing M14/4–5 pixel fixture now, then select
+M14/3 Composition actions/front-first order. Retain unfinished MapGyver selection/navigation and every other
 gate in the return queue. No gate is accepted or denominator changed by this priority revision.
 Then finish extended codecs,
 subtitles and retained acceptance before M09. The user also freshly observed native NVIDIA

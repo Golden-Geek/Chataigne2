@@ -181,7 +181,24 @@ export const sendPatchMetaIntent = async (
 	node: NodeId,
 	patch: Partial<UiNodeMetaDto>
 ): Promise<boolean> => {
-	return sendUiIntent({
+	const session = appState.session;
+	if (!session) return false;
+	const generation = session.snapshotGeneration;
+	const uuid = session.getNodeData(node)?.uuid;
+	// Preserve call order with history already queued, including while an earlier action drains.
+	const barrier = session.editOperations.pendingBarrier;
+	if (barrier) {
+		await barrier;
+		if (
+			appState.session !== session ||
+			session.status !== 'connected' ||
+			session.loading.visible ||
+			session.snapshotGeneration !== generation ||
+			(uuid && session.getNodeData(node)?.uuid !== uuid)
+		)
+			return false;
+	}
+	return sendUiIntentToSession(session, {
 		kind: 'patchMeta',
 		node,
 		patch

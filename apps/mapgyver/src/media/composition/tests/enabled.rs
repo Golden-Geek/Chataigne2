@@ -6,6 +6,66 @@ use golden_core::{
 };
 
 #[test]
+fn metadata_redo_branch_is_replaced_by_a_new_component_edit_including_duplicate_commit() {
+    use golden_core::parameter::ParameterEventBehaviour;
+    let mut engine = fixture();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    let owner = create(&mut engine, MediaKind::Composition);
+    let instance = add(&mut engine, owner, vec![source])[0];
+    let node = engine.node_id_by_uuid(instance.instance.0).unwrap();
+    let position = super::parameters::instance_parameter(&engine, node, "position");
+    engine.clear_history();
+    let meta = |engine: &mut AppEngine, enabled| {
+        let ack = apply_project_intent(
+            engine,
+            UiEditIntent::PatchMeta {
+                node,
+                patch: NodeMetaPatch {
+                    enabled: Some(enabled),
+                    ..Default::default()
+                }
+                .into(),
+            },
+        );
+        assert!(ack.success, "{ack:?}");
+    };
+    let component = |engine: &mut AppEngine, value| {
+        let ack = apply_project_intent(
+            engine,
+            UiEditIntent::SetParamComponent {
+                node: position,
+                component: 0,
+                value,
+                behaviour: ParameterEventBehaviour::Coalesce,
+            },
+        );
+        assert!(ack.success, "{ack:?}");
+    };
+    meta(&mut engine, false);
+    component(&mut engine, 124.);
+    assert!(engine.undo().unwrap());
+    meta(&mut engine, true);
+    assert!(engine.undo().unwrap());
+    assert!(engine.undo().unwrap());
+    meta(&mut engine, false);
+    meta(&mut engine, true);
+    assert!(engine.undo().unwrap());
+    assert!(engine.undo().unwrap());
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let undo = engine.undo_len();
+    assert!(engine.redo_len() > 0);
+    component(&mut engine, 123.);
+    component(&mut engine, 123.);
+    assert_eq!(engine.redo_len(), 0, "a new value must fork from metadata redo history");
+    assert_eq!(engine.undo_len(), undo + 1);
+    let changed = to_sparse_project_json_pretty(&engine).unwrap();
+    assert!(engine.undo().unwrap());
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+    assert!(engine.redo().unwrap());
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), changed);
+}
+
+#[test]
 fn composition_configuration_and_metadata_share_one_enable_state_and_history() {
     let mut engine = fixture();
     let source = create(&mut engine, MediaKind::SolidColor);

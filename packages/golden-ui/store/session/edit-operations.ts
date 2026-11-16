@@ -222,6 +222,10 @@ export function createEditOperations(context: {
 	};
 	return {
 		open,
+		/** New ordinary writes wait here; confirmed work already admitted still drains normally. */
+		get pendingBarrier(): Promise<void> | null {
+			return barriers > 0 ? barrierTail : null;
+		},
 		runBarrier<T>(operation: () => Promise<T>): Promise<T> {
 			barriers++;
 			const epoch = generation,

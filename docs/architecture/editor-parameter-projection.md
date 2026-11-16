@@ -11,6 +11,12 @@ boundary. Inspector and other existing controls retain their original dispatch,
 history and validation path. A component preview composes presentation axes;
 the authored intent still changes only its requested backend component. Preview
 capacity exhaustion falls back to ordinary dispatch and never drops a write.
+Capacity exhaustion is distinct from history admission. The session's edit owner exposes
+the already-queued `pendingBarrier`; new ordinary Parameter writes and metadata patches
+capture that boundary and await it before dispatch. They do not overtake queued Undo/Redo,
+and a history action requested later keeps its place after the write. Already-confirmed
+work still drains through the original transport path. Generation/UUID checks discard a
+waiting write when its document or target retires; no polling or extra history group is used.
 Its Svelte companion owns the reactive applied-receipt fence. Editors pass its
 observer through the ordinary authored operation and use its bounded reader;
 they do not implement transport ordering or acknowledgement fences themselves.
@@ -37,6 +43,8 @@ reference so a retained panel cannot pin a replaced session's graph. Editor obse
 backend-dependent metadata and authoritative snapshots; it is no longer the
 only way Inspector geometry reaches Composition controls.
 
+Enabled-state projection also reads ordinary node metadata, so Composition derives its
+enable state from the owned media UUID rather than a second Enabled Parameter binding.
 Optional typed reads and Parameter enabled-state projection preserve the Cell
 Size Parameter's natural-source mode without inventing an authored size. App
 projections keep membership, natural source extents and other metadata from the
