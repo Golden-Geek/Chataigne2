@@ -257,6 +257,7 @@ export function createCanvasGestures(
 		) {
 			return;
 		}
+		event.preventDefault();
 		if (event.ctrlKey || event.metaKey || event.shiftKey) {
 			updateSelection(node.id, true);
 		} else if (!selectedIds.has(node.id)) {
@@ -268,6 +269,8 @@ export function createCanvasGestures(
 		if (event.button !== 0) {
 			return;
 		}
+		// Keep keyboard ownership on the canvas instead of the native title-button default.
+		event.preventDefault();
 		event.stopPropagation();
 		viewport.container?.focus();
 		viewport.stopAnimation();

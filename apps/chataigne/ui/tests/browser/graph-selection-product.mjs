@@ -1,4 +1,4 @@
-// Ordinary bundled workbench and domain Inspector. Pass <binary> --state-machine for that adapter.
+// Ordinary bundled workbench. Use <binary> --state-machine; add --independent-panels for that gate.
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -7,9 +7,11 @@ import { nativeWorkbench } from './native-workbench.mjs';
 
 const rejected = [];
 const stateMachine = process.argv.includes('--state-machine');
+const independentPanels = process.argv.includes('--independent-panels');
+assert(!independentPanels || stateMachine, 'Independent graph checks require --state-machine');
 const domain = stateMachine ? 'state-machine' : 'alchemist';
 await nativeWorkbench({
-	name: `m14-${domain}-selection-product`,
+	name: `m14-${domain}-${independentPanels ? 'independent-' : ''}selection-product`,
 	async observePage({ page }) {
 		page.on('websocket', (socket) =>
 			socket.on('framereceived', ({ payload }) => {
@@ -140,10 +142,11 @@ await nativeWorkbench({
 		const authored = await readFile(project, 'utf8');
 		const history = (await snapshot()).history;
 		const checks = [];
-		async function press(current) {
-			const box = await node(current).locator('.node-title-label').boundingBox();
+		async function press(current, canvas = graph, previous = original) {
+			const target = canvas.locator(`article.node[data-node-id="${current.node_id}"]`);
+			const box = await target.locator('.node-title-label').boundingBox();
 			assert(box);
-			await graph.evaluate((element) =>
+			await canvas.evaluate((element) =>
 				element.addEventListener(
 					'pointerdown',
 					(event) => {
@@ -155,10 +158,10 @@ await nativeWorkbench({
 			await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 			await page.mouse.down();
 			await inspected(current.uuid);
-			assert(await node(current).evaluate((element) => element.classList.contains('selected')));
-			assert(await graph.evaluate((element, old) => element === old, original));
+			assert(await target.evaluate((element) => element.classList.contains('selected')));
+			assert(await canvas.evaluate((element, old) => element === old, previous));
 			assert(
-				await graph.evaluate((element) =>
+				await canvas.evaluate((element) =>
 					element.hasPointerCapture(Number(element.dataset.selectionPointer))
 				),
 				`${stage}: selection preserves owned capture before release`
@@ -221,6 +224,154 @@ await nativeWorkbench({
 		assert.equal(await readFile(project, 'utf8'), authored);
 		assert.deepEqual(rejected, []);
 		checks.push({ stage, exactSavedDocument: true, unchangedHistory: true });
+		if (independentPanels) {
+			stage = 'independent graph panels retain their domain owners';
+			const library = (await snapshot()).nodes.find(
+				(current) => current.node_type === 'alchemist_formula_library'
+			);
+			assert(library);
+			const peerFormula = (
+				await intent({
+					kind: 'createUserItem',
+					parent: library.node_id,
+					node_type: 'alchemist_formula',
+					label: 'Independent graph Formula'
+				})
+			).created_node;
+			const peer = (
+				await intent({
+					kind: 'createUserItem',
+					parent: peerFormula.node_id,
+					node_type: 'alchemist_anode:gradient_sampler',
+					label: 'Independent graph node'
+				})
+			).created_node;
+			await outliner.locator('input.outliner-search').fill('Independent graph Formula');
+			await outliner
+				.getByRole('button', { name: 'Independent graph Formula', exact: true })
+				.click();
+			const peerGroup = page
+				.locator('.gc-dv-tab[data-content-panel-id="logger"]')
+				.locator('xpath=ancestor::*[contains(@class,"dv-groupview")][1]');
+			await peerGroup.getByRole('button', { name: 'Add panel in this group', exact: true }).click();
+			await page
+				.getByRole('menuitem')
+				.filter({ has: page.getByText('Alchemist Editor', { exact: true }) })
+				.click();
+			const peerGraph = page.locator('.alchemist-editor-panel .graph-canvas');
+			await peerGraph.waitFor();
+			await page.getByTitle('Hide properties', { exact: true }).click();
+			await peerGraph.getByRole('button', { name: 'Home', exact: true }).click();
+			const peerOriginal = await peerGraph.elementHandle();
+			assert(peerOriginal);
+			const independentHistory = (await snapshot()).history;
+			assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
+			const independentDocument = await readFile(project, 'utf8');
+			await press(first);
+			await page.mouse.up();
+			assert.equal(await peerGraph.locator('article.node.selected, .resize-handle').count(), 0);
+			assert(await peerGraph.locator(`article.node[data-node-id="${peer.node_id}"]`).isVisible());
+			await press(peer, peerGraph, peerOriginal);
+			await page.mouse.up();
+			assert.equal(await graph.locator('article.node.selected, .resize-handle').count(), 0);
+			assert(await node(first).isVisible());
+			const focus = await peerGraph.evaluate((element) => ({
+				owned: element.contains(document.activeElement),
+				tag: document.activeElement?.tagName,
+				className: document.activeElement?.className
+			}));
+			assert(focus.owned, `normal release retains peer keyboard focus: ${JSON.stringify(focus)}`);
+			await page.keyboard.press('Escape');
+			await inspected(peerFormula.uuid);
+			await press(first);
+			await page.mouse.up();
+			await page.keyboard.press('Escape');
+			await inspected(owner.uuid);
+			assert(await peerGraph.evaluate((element, old) => element === old, peerOriginal));
+			checks.push({
+				stage,
+				independentOwners: true,
+				sharedInspector: true,
+				retainedCanvases: true
+			});
+			stage = 'offscreen State remains available to its actual Inspector';
+			await press(first);
+			await page.mouse.up();
+			const viewport = await graph.boundingBox();
+			assert(viewport);
+			await page.mouse.move(viewport.x + viewport.width * 0.9, viewport.y + viewport.height * 0.9);
+			await page.mouse.down({ button: 'middle' });
+			await page.mouse.move(viewport.x - viewport.width * 2, viewport.y - viewport.height * 2, {
+				steps: 4
+			});
+			await page.mouse.up({ button: 'middle' });
+			await wait(
+				async () => {
+					if ((await node(first).count()) === 0) return true;
+					const box = await node(first).boundingBox();
+					return (
+						box === null ||
+						box.x + box.width < viewport.x ||
+						box.y + box.height < viewport.y ||
+						box.x > viewport.x + viewport.width ||
+						box.y > viewport.y + viewport.height
+					);
+				},
+				(value) => value
+			);
+			await inspected(first.uuid);
+			const afterNavigation = (await snapshot()).history;
+			assert.equal(afterNavigation.undo_len, independentHistory.undo_len);
+			assert.equal(afterNavigation.redo_len, independentHistory.redo_len);
+			assert.equal(afterNavigation.active_edit_session, false);
+			assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
+			assert.equal(await readFile(project, 'utf8'), independentDocument);
+			checks.push({ stage, offscreen: true, sameInspector: true, noAuthoredNavigation: true });
+			stage = 'offscreen Inspector honors rename permission';
+			const definition = (await snapshot()).nodes.find((current) => current.uuid === first.uuid);
+			await intent({
+				kind: 'patchMeta',
+				node: first.node_id,
+				patch: { user_permissions: { ...definition.meta.user_permissions, can_edit_name: false } }
+			});
+			const heading = inspector.locator('.inspector-header .title-text');
+			await wait(
+				() => heading.getAttribute('class'),
+				(value) => !value.includes('name-changeable')
+			);
+			const protectedHistory = (await snapshot()).history;
+			await heading.dblclick();
+			assert.equal(await inspector.locator('.title-input').count(), 0);
+			assert.equal((await snapshot()).history.undo_len, protectedHistory.undo_len);
+			await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+			await wait(
+				() => heading.getAttribute('class'),
+				(value) => value.includes('name-changeable')
+			);
+			checks.push({ stage, rejectedWithoutWrite: true });
+			stage = 'offscreen typed Inspector edit and exact Undo';
+			await heading.dblclick();
+			const rename = inspector.locator('.title-input');
+			await rename.fill('Offscreen State edit');
+			await rename.press('Enter');
+			await wait(snapshot, (value) =>
+				value.nodes.some(
+					(current) => current.uuid === first.uuid && current.meta.label === 'Offscreen State edit'
+				)
+			);
+			assert.equal((await snapshot()).history.undo_len, independentHistory.undo_len + 1);
+			await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+			await wait(snapshot, (value) =>
+				value.nodes.some(
+					(current) => current.uuid === first.uuid && current.meta.label === first.label
+				)
+			);
+			assert.equal((await snapshot()).history.undo_len, independentHistory.undo_len);
+			assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
+			assert.equal(await readFile(project, 'utf8'), independentDocument);
+			assert.deepEqual(rejected, []);
+			checks.push({ stage, oneHistoryStep: true, exactRestoration: true });
+		}
 		emit({ kind: 'graph-domain-inspector-selection', domain, checks, nativePixels: false });
 	}
 });

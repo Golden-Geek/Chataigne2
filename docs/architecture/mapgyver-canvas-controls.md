@@ -187,6 +187,11 @@ Golden owns modifier/marquee/navigation and connection-tool isolation. Selected 
 show resize handles, and unselected valid nodes receive a contour hover cue. Complete native/
 Inspector and active gesture cancellation acceptance remains in the M14 inventory.
 
+Owned graph body/title presses prevent the browser's native pointer default after interactive
+child controls have been excluded. Canvas focus therefore retains keyboard ownership when
+selection refreshes the Inspector or activates another workbench group. The node drag path uses
+the same rule; buttons, text fields and embedded node content keep their existing input paths.
+
 Graph cancellation now has a separate terminal path from pointer-up commit. Escape, pointercancel,
 lost capture, blur and scope/topology/disposal boundaries retire owned capture before releasing it
 and withdraw uncommitted previews without mutation callbacks. Earlier pending optimistic edits

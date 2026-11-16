@@ -112,7 +112,7 @@ M14/2 navigation is active; this result does not accept that layout. Log:
 `efe9f3771dc0928d4e9609711772c6a7296df48a9963eddddcf6792ed90204bd`.
 Receipt: `target/qualification/m14-graph-selection-product-262620ac-a58b-4daf-9fd5-f728ab2ec036/browser.jsonl`,
 SHA256 `27336eb1d549a8d79a8aebf60f1bde3a5ed25a323221d4002fa7ea3bfb7bb710`.
-The producer is the current `d2fd83b5` working-checkout Chataigne binary recorded below.
+The producer for those earlier checks is the `d2fd83b5` working-checkout Chataigne binary recorded below.
 The shared contract's two-domain run also passes:
 
 - `target/m14-state-selection-product-2026-11-16.log`, SHA256
@@ -122,10 +122,41 @@ The shared contract's two-domain run also passes:
   `1dcb61f59802f613ffea824245414a09c8351665a3ae8f60dbabf01f16d07a03`;
   receipt `target/qualification/m14-alchemist-selection-product-9f19b443-06e7-4ec1-90ab-bfc8b49e5615/browser.jsonl`.
 
-Both owned hosts exit0 with no page errors/rejections; saved documents/history remain exact.
-Syntax/Prettier and root/Core formatting pass. App source/binaries are unchanged; no recompilation
-or passing-test replay was required. Independent editors, offscreen/permissions, other graph-domain
-adapters and physical native scope still require acceptance.
+Those two owned hosts exit0 with no page errors/rejections; saved documents/history remain exact.
+Independent editors, offscreen/permissions, other graph-domain adapters and physical native scope
+still require acceptance.
+
+The independent-panel continuation found peer idle Escape did not clear selection after normal
+release. Golden now prevents the native pointer default on owned body/title presses, retaining
+canvas keyboard ownership through workbench group/Inspector updates; embedded controls are excluded.
+The rebuilt paired scene verifies focus is within the peer graph and its idle Escape inspects the
+Formula. It then fails on revisiting the first State title rapidly: rename is entered and the
+fixture's drag-capture assertion fails. The per-canvas title double-click sequence survives peer
+focus changes; inspect/reset that boundary before the next comparison. This is a distinct remaining
+case, not full paired acceptance. The current batch's baseline/corrective allowance is exhausted.
+No more variants/profilers ran. Offscreen editing, rename permission and final exact-Undo assertions
+in this extended fixture have **not executed**.
+
+Run the retained extended contract with `<binary> --state-machine --independent-panels`;
+ordinary Alchemist/State Machine modes preserve their original scope. The flag separates unfinished
+acceptance from the already-verified domain contract; it does not waive any M14 requirement.
+Current correction checks: full Alchemist product and Golden graph browser contracts pass;
+60 graph unit tests and Chataigne/MapGyver/graph-fixture typechecks0/0 pass. Both ordinary
+default-feature apps build; syntax/Prettier and root/Core formatting pass. Rust/protocol is unchanged.
+
+Logs: `target/m14-graph-independent-product-2026-11-16.log` (baseline peer Escape failure),
+`target/m14-graph-independent-product-fixed-2026-11-16.log` (later revisit/capture failure, SHA256
+`8c597848002a497c41cabe6bda45470754a794c52b1105ef2148d8f15d35a03c`),
+`target/m14-graph-focus-alchemist-product-2026-11-16.log` (pass),
+`target/m14-graph-focus-browser-2026-11-16.log` (pass), and
+`target/m14-graph-focus-product-build-2026-11-16.log` (exit0, SHA256
+`b44b9111ac82e42db4f68f2370643f54405f7583b1993d14d7d6d2c961a50ca3`).
+Paired correction receipt:
+`target/qualification/m14-state-machine-selection-product-3075f2c8-7659-4a35-ac9d-62805285cd2c/browser.jsonl`.
+Current ordinary Chataigne SHA256:
+`19b8f6da6985be632694e50902e5f72b8614fa1c9b884f02dfe77e5743a54e28`;
+MapGyver SHA256: `5f0285b53e4a81e134531b36a32a3ba77d1c04c99926efe116928d419f4b4ab5`.
+No new native/GPU qualification or complete fixed-gate acceptance is inferred.
 
 Graph pointer cancellation is now separate from commit. Escape first cancels captured input and
 any keyboard connection endpoint without deselecting; the next idle Escape selects the owner.
@@ -1030,7 +1061,7 @@ Logs: `target/m14-curve-exact-selection-baseline-2026-11-16.log` (expected failu
 `target/m14-curve-exact-selection-*-check-2026-11-16.log` (four checks0/0),
 and `target/m14-curve-exact-selection-product-build-2026-11-16.log` (exit0, SHA256
 `27e5045235042570d804fd11ddbe57653d4e1a304bff7dd59a081ae5bc10d35a`).
-Current ordinary MapGyver SHA256:
+Curve exact-selection ordinary MapGyver SHA256 (before graph focus correction):
 `a84b77774f0770ba3e0519f110e96b0d601e339303d528c04d20d43d9637481e`;
 Chataigne SHA256: `f7f4f9bd57c2bb0f2713ebb29f73d2056e54ba8c3e32b4fb3e2031ca4f6e4aa5`.
 The separate connected capture failure was not rerun and is not claimed fixed. No native/GPU
@@ -1039,7 +1070,8 @@ investigation. Return only for a correction supported by its actual terminal bou
 native acceptance after helper reconnection. Its original connected/history/native requirements
 remain Pending; no fixed gate closes.
 
-Next action: actual graph independent-editor/offscreen/permission acceptance within M14/1.
+Next action: fix the cross-focus title double-click boundary, then finish the retained actual graph
+independent-editor/offscreen/permission contract within M14/1.
 The Gradient two-panel and tested document/reconnect product scopes now pass;
 physical native and remaining editor inventory still require their own evidence.
 Matrix grid independent panels,
