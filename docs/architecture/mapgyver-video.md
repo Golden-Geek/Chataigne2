@@ -250,8 +250,10 @@ step to complete later, and no engine-side file or decoder wait. Source incarnat
 authored File binding and transport epoch/cycle fence every timestamp observation. The bounded
 `InspectVideoFrame` query exposes readiness and actual neighbouring timestamps; compact
 Inspector actions, typed commands, named scripts and headless operations use the same adapter.
-At either endpoint, stepping holds the existing position and pauses; an already-paused endpoint
-is a history no-op.
+At either endpoint, stepping holds the existing position and pauses. The control resolves an
+already-paused boundary to a no-op before the adapter queues any Parameter writes. This retains
+prepared neighbours and the transport epoch even when position feedback has not yet reached
+the engine; a following Step in the opposite direction remains immediately available.
 
 `InspectVideoSource`, its typed command and `inspectVideoSource` script method read one channel's
 runtime health without opening a File. `Prepared` means known timing with no active decoder;

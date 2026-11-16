@@ -933,7 +933,7 @@ Both default packages/bins were built together from the preserved working checko
 edits are not included in this milestone's staged changes. Build log:
 `target/m14-gradient-reselection-product-build-2026-11-16.log`, SHA256
 `8dbd2c39cd2a703971cbeaa9e8ca8a2127363696a110bc060a37a242d24b2576`.
-Current ordinary builds with sparse metadata reset preservation (2026-11-16):
+Previous paired ordinary builds with sparse metadata reset preservation (2026-11-16):
 MapGyver SHA256 `21157ab5d425187eec36af7ff2abc07320bcba043e37efe0d840826327e2f643`;
 Chataigne SHA256 `d756d86293e04e72a1e0482c206cd87a468e71b30cbbbbfa260e773ee687c135`.
 Build log: `target/m14-gradient-metadata-product-build-2026-11-16.log`, SHA256
@@ -943,8 +943,47 @@ The native fixture remains older: these are not a coherent new ordinary/
 native qualification pair. Refresh both inputs before native acceptance; Video evidence keeps
 its original source/build scope.
 
-Next action: resolve the retained Video stepping fixture readiness race without changing its
-deadlines, history or pixel assertions. Then address Curve's equivalent field-to-key exact-selection boundary through the newly
+### Video boundary Step regression prerequisite
+
+An already-paused first/last-frame Step now returns before queuing Pause and Seek Parameter
+writes. The control decides this from prepared timestamps and the actual transport position,
+independently of delayed engine position feedback. The new regression holds feedback pending,
+verifies an unchanged epoch, then steps immediately in the opposite direction with no extra
+readiness wait or authored history. Prepared-frame unit coverage also retains paused Speed,
+BOF, File, epoch and source-incarnation fences. The original four-codec mixed-rate/pixel/history
+test is unchanged and passes in both post-change full runs. This establishes a boundary defect;
+the earlier intermittent receipt lacked the operation stage and is not proven to have this as
+its only cause. Keep that receipt; return on a stage-identified reproduction, not another
+unchanged probe.
+
+The first added fixture timed out waiting for a metadata host it never started. The corrected
+fixture uses existing prepared-control timing injection. Its full optimized default-feature
+MapGyver run exits101:692 passed,1 failed,5 ignored. The new regression passes; the failure is
+`hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection`, rejected by the
+existing process-wide script app-operation reservation pool. That test passes individually
+without source/budget changes. Global-pool contention is plausible from source, not established
+as the only cause. Deterministic full-suite scripting admission remains in the software return
+queue before final qualification. Neither run is described as an entirely green full suite.
+
+Logs and SHA256:
+
+- Corrected full run: `target/m14-video-boundary-software-fixed-2026-11-16.log`,
+  `c20c223140e18088a47f8f15c93311b756a3f7ad4f89d5982234872a20949c98`.
+- Strict MapGyver lib/tests Clippy, exit0: `target/m14-video-boundary-clippy-2026-11-16.log`,
+  `177725e26f57fa00f2e5a9d70b5fe7638557b62a86b19c7391a855b31138e59c`.
+- Exact scripting recheck,1 passed: `target/m14-video-boundary-script-recheck-2026-11-16.log`,
+  `2b86b847a26d678c327e43a6eea20cb8de8699c73a5266c75d01112ed3b3f9f0`.
+- Ordinary default-feature MapGyver build, exit0:
+  `target/m14-video-boundary-product-build-2026-11-16.log`,
+  `f4ddf38dcb88ea73e8f25bc559aba82f652a10838bf9b1bf2f5896b743d4add4`.
+
+Current ordinary MapGyver SHA256:
+`6d3f0f9292eba04e6b425a8f89439014c3959cf219404033f4e69e103f069ad9`.
+Root/Core formatting passes. Core and Gradient are unchanged from their prior699/5 passing
+suites. No protocol/UI change, native/GPU check, budget change or fixed-gate acceptance is
+claimed. The native fixture remains older and needs a coherent rebuild before native acceptance.
+
+Next action: address Curve's equivalent field-to-key exact-selection boundary through the newly
 explicit shared Inspector bridge, retaining its failed connected receipt and all original capture
 requirements. The Gradient two-panel and tested document/reconnect product scopes now pass;
 physical native and remaining editor inventory still require their own evidence.

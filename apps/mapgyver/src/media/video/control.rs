@@ -571,18 +571,20 @@ impl VideoControl {
         let now = state.transport.sample().map_err(|e| e.to_string())?;
         Ok(state.frames.inspect(reference.media, reference.channel, file, now))
     }
+    /// None means a paused boundary Step: preserve its prepared neighbours and clock epoch.
     pub(crate) fn step_position(
         &self,
         channel: super::super::protocol::ChannelId,
         file: &super::super::protocol::AssetLocator,
         direction: VideoStepDirection,
-    ) -> Result<f64, String> {
+    ) -> Result<Option<f64>, String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
         let now = state.transport.sample().map_err(|e| e.to_string())?;
-        state
-            .frames
-            .step(channel, file, now, direction)
-            .map(super::frames::millis)
+        let position = state.frames.step(channel, file, now, direction)?;
+        Ok(
+            (state.settings.mode != VideoPlaybackMode::Paused || position != now.position)
+                .then(|| super::frames::millis(position)),
+        )
     }
 }
 impl State {

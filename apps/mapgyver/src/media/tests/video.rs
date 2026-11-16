@@ -8,6 +8,7 @@ use golden_core::{
 };
 use std::time::Duration;
 
+mod boundaries;
 mod policy;
 
 fn state(engine: &mut AppEngine, media: MediaId) -> VideoTransportSnapshot {

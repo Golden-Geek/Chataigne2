@@ -85,7 +85,11 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: VideoEdit) -> 
     let mut values = node.video_parameter_values(&edit);
     if let VideoEdit::Step { channel, direction } = edit {
         let file = channel_file(engine, ChannelReference { media, channel })?;
-        let position_ms = control.step_position(channel, &file, direction)?;
+        let Some(position_ms) = control.step_position(channel, &file, direction)? else {
+            return Ok(MediaEditResult::Video {
+                snapshot: inspect(engine, media)?,
+            });
+        };
         candidate.position_ms = position_ms;
         candidate.validate()?;
         values.extend(node.video_parameter_values(&VideoEdit::Seek { position_ms }));

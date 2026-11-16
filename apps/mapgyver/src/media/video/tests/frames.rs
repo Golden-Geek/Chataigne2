@@ -35,11 +35,22 @@ fn prepared_steps_are_fenced_by_file_epoch_and_source_incarnation() {
     control
         .observe_neighbours(reference.channel, first, sample, frame)
         .unwrap();
+    let mut settings = control.settings().unwrap();
+    settings.speed = 0.5;
+    control.configure(settings, false, None).unwrap();
+    assert_eq!(control.sample().unwrap().epoch, sample.epoch);
+    assert_eq!(
+        control
+            .step_position(reference.channel, &file, VideoStepDirection::Previous)
+            .unwrap(),
+        None,
+        "paused BOF is a no-op with the next timestamp still immediately available"
+    );
     assert_eq!(
         control
             .step_position(reference.channel, &file, VideoStepDirection::Next)
             .unwrap(),
-        super::super::frames::millis(frame.next.unwrap())
+        Some(super::super::frames::millis(frame.next.unwrap()))
     );
     assert!(
         control
