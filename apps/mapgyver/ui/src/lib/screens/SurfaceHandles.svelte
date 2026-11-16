@@ -18,6 +18,7 @@
 		selectedCorner,
 		pickCorner,
 		disabled,
+		selectionAvailable,
 		select,
 		start,
 		move,
@@ -32,6 +33,7 @@
 		selectedCorner: number | null;
 		pickCorner(surface: SurfaceId, corner: number): void;
 		disabled: boolean;
+		selectionAvailable: boolean;
 		select(id: SurfaceId | null): void;
 		start(reference: SurfaceReference, handle: WarpHandle): boolean;
 		move(point: Point): void;
@@ -95,13 +97,13 @@
 		};
 	}
 	function down(event: PointerEvent, reference: SurfaceReference, corner: number | null) {
-		if (disabled || event.button !== 0 || pointer !== null) return;
-		if (corner === null && !event.altKey) {
-			event.preventDefault();
-			event.stopPropagation();
-			select(reference.surface);
-			return;
-		}
+		if (!selectionAvailable || event.button !== 0 || pointer !== null) return;
+		event.preventDefault();
+		event.stopPropagation();
+		if (corner === null) select(reference.surface);
+		else pickCorner(reference.surface, corner);
+		// A pending editor read may block geometry without blocking document selection.
+		if (disabled || (corner === null && !event.altKey)) return;
 		const origin = point(event);
 		const surface = screen.surfaces.find((item) => item.reference.surface === reference.surface);
 		if (!origin || !surface) return;
@@ -118,10 +120,6 @@
 			};
 		else if (corner !== null) handle = { kind: 'QuadCorner', corner };
 		else return;
-		event.preventDefault();
-		event.stopPropagation();
-		if (corner === null) select(reference.surface);
-		else pickCorner(reference.surface, corner);
 		// Selection must not open an authored edit until the pointer actually drags.
 		pointer = {
 			id: event.pointerId,
@@ -226,16 +224,16 @@
 			class:inactive={!item.definition.enabled}
 			class:invalid={!item.mapping_valid}
 			role="button"
-			tabindex={disabled ? -1 : 0}
+			tabindex={selectionAvailable ? 0 : -1}
 			aria-label={`Select ${item.label}${item.mapping_valid ? '' : ' (invalid warp shape)'}`}
-			aria-disabled={disabled}
+			aria-disabled={!selectionAvailable}
 			onpointerdown={(event) => down(event, item.reference, null)}
 			onclick={(event) => {
 				event.stopPropagation();
-				if (!disabled && event.detail === 0) select(item.reference.surface);
+				if (selectionAvailable && event.detail === 0) select(item.reference.surface);
 			}}
 			onkeydown={(event) => {
-				if (!disabled && (event.key === 'Enter' || event.key === ' ')) {
+				if (selectionAvailable && (event.key === 'Enter' || event.key === ' ')) {
 					event.preventDefault();
 					event.stopPropagation();
 					select(item.reference.surface);
@@ -257,19 +255,19 @@
 				selected={item.reference.surface === selected && index === selectedCorner}
 				data-surface-drop-target={item.reference.surface}
 				data-source-drop-object={item.reference.surface}
-				{disabled}
+				disabled={!selectionAvailable}
 				onpointerdown={(event) => down(event, item.reference, index)}
 				onclick={(event) => {
 					event.stopPropagation();
 					if (
-						!disabled &&
+						selectionAvailable &&
 						event.detail === 0 &&
 						(item.reference.surface !== selected || index !== selectedCorner)
 					)
 						pickCorner(item.reference.surface, index);
 				}}
 				onkeydown={(event) => {
-					if (!disabled && (event.key === 'Enter' || event.key === ' ')) {
+					if (selectionAvailable && (event.key === 'Enter' || event.key === ' ')) {
 						event.preventDefault();
 						event.stopPropagation();
 						pickCorner(item.reference.surface, index);

@@ -94,6 +94,41 @@ try {
 	await page.keyboard.up('Space');
 	assert.equal(await owner.textContent(), 'A', 'pan does not select or clear');
 	assert.equal(await page.getByLabel('Geometry starts').textContent(), '0');
+	await page.getByRole('button', { name: 'Toggle warp metadata busy', exact: true }).click();
+	const busySecond = await point(second);
+	await page.mouse.move(busySecond.x, busySecond.y);
+	await page.mouse.down();
+	assert.equal(
+		await owner.textContent(),
+		'B',
+		'metadata reads cannot block primary-down selection'
+	);
+	await page.mouse.up();
+	const busyCorner = page.getByRole('button', { name: 'Warp corner 1', exact: true });
+	await busyCorner.focus();
+	await page.keyboard.press('Enter');
+	assert.equal(await owner.textContent(), 'B', 'busy corner remains keyboard selectable');
+	assert.equal(await busyCorner.getAttribute('aria-pressed'), 'true');
+	const busyAt = await point(busyCorner);
+	await page.mouse.move(busyAt.x, busyAt.y);
+	await page.mouse.down();
+	await page.mouse.move(busyAt.x + 24, busyAt.y + 12);
+	await page.mouse.up();
+	assert.equal(
+		await page.getByLabel('Geometry starts').textContent(),
+		'0',
+		'busy geometry is refused'
+	);
+	await page.getByRole('button', { name: 'Toggle warp input availability', exact: true }).click();
+	await first.focus();
+	await page.keyboard.press('Enter');
+	const unavailableFirst = await point(first);
+	await page.mouse.move(unavailableFirst.x, unavailableFirst.y);
+	await page.mouse.down();
+	assert.equal(await owner.textContent(), 'B', 'unavailable input cannot select');
+	await page.mouse.up();
+	await page.getByRole('button', { name: 'Toggle warp input availability', exact: true }).click();
+	await page.getByRole('button', { name: 'Toggle warp metadata busy', exact: true }).click();
 	await page.getByRole('button', { name: 'Show Composition', exact: true }).click();
 	const composition = page.getByLabel('Composition view', { exact: true });
 	assert.equal(await composition.getByRole('button', { name: /^Move / }).count(), 0);

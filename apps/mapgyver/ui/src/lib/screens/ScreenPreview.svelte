@@ -118,7 +118,7 @@
 		aspect={extent ? extent.width / extent.height : 16 / 9}
 		identity={documentIdentity}
 		onselectionclear={() => {
-			if (disabled) return;
+			if (!inputAvailable || gestureActive) return;
 			corner = null;
 			select(null);
 		}}
@@ -156,6 +156,7 @@
 					{screen}
 					{selected}
 					{disabled}
+					selectionAvailable={inputAvailable}
 					{select}
 					{start}
 					{move}

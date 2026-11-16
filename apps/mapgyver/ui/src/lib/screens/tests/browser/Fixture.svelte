@@ -54,6 +54,9 @@
 	let gridMode = $state(false);
 	let cropEditing = $state(false);
 	let cropBusy = $state(false);
+	let warpBusy = $state(false);
+	let warpSelectionAvailable = $state(true);
+	let warpCorner = $state<number | null>(null);
 	let cropFinishes = $state(0),
 		cropStops = $state(0),
 		cropMoves = $state(0);
@@ -144,6 +147,7 @@
 	let inspected = $state('screen');
 	let edits = $state(0);
 	function select(id: string | null) {
+		if (id !== selected) warpCorner = null;
 		selected = id;
 		inspected = id ?? screen.id;
 	}
@@ -161,6 +165,10 @@
 			extentAvailable = !extentAvailable;
 		}}>Toggle source bounds</button>
 	<output aria-label="Geometry starts">{edits}</output>
+	<button onclick={() => (warpBusy = !warpBusy)}>Toggle warp metadata busy</button>
+	<button onclick={() => (warpSelectionAvailable = !warpSelectionAvailable)}>
+		Toggle warp input availability
+	</button>
 	<output aria-label="Crop finishes">{cropFinishes}</output>
 	<output aria-label="Crop stops">{cropStops}</output>
 	<output aria-label="Crop moves">{cropMoves}</output>
@@ -291,10 +299,14 @@
 				}}
 				{screen}
 				{selected}
-				selectedCorner={null}
-				disabled={false}
+				selectedCorner={warpCorner}
+				disabled={warpBusy}
+				selectionAvailable={warpSelectionAvailable}
 				{select}
-				pickCorner={(id) => select(id)}
+				pickCorner={(id, corner) => {
+					select(id);
+					warpCorner = corner;
+				}}
 				start={() => {
 					edits++;
 					return true;

@@ -136,9 +136,17 @@ export async function verifyScreenKeyboard({ base, post, page: nativePage = null
 		);
 		await post('/api/ui/project-new', {});
 		await view.waitFor({ state: 'detached' });
+		const fresh = (await screens({ kind: 'InspectManager' })).snapshot;
+		assert.equal(fresh.screens.length, 1, 'New creates the authored default Screen');
+		assert.equal(fresh.screens[0].surfaces.length, 1);
+		assert.notEqual(fresh.screens[0].id, screen);
 		await page.keyboard.down('ArrowUp');
 		await page.keyboard.up('ArrowUp');
-		assert.equal((await screens({ kind: 'InspectManager' })).snapshot.screens.length, 0);
+		assert.deepEqual(
+			(await screens({ kind: 'InspectManager' })).snapshot,
+			fresh,
+			'held input from the replaced project cannot alter the fresh scene'
+		);
 		assert.deepEqual(errors, []);
 		assert.deepEqual(rejected, []);
 		console.log(

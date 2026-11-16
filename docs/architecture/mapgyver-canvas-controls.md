@@ -191,6 +191,14 @@ refused edits retain selection and viewport focus without acquiring capture. Com
 Matrix consume this helper directly; the former app-local pointer copy is removed. Adapters
 retain typed target identities and backend mutations.
 
+Screen Warping follows the same selection-before-admission rule in its native-aware controls.
+`SurfaceHandles.selectionAvailable` follows connection/loading availability; the owning adapter
+retains the active-gesture guard. Metadata/read busy state blocks geometry, while Surface and
+corner pointer/keyboard selection and background owner clearing remain available. Busy state
+must not disable the focused corner during a held keyboard edit. Actual bundled UI/backend
+selection, peer/Inspector, history and keyboard/project tests cover these boundaries; physical
+native hits/pixels remain separate acceptance.
+
 Composition's query distinguishes an explicitly selected edited owner from an absent or
 unrelated selection. A selected owner has no selected child, even with an old retained hint
 or when a nested Composition is itself an outer instance. The query does not invent a first

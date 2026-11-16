@@ -19,6 +19,18 @@ Background-down and idle Escape call the existing Screen-owner selection path. A
 corner editing remain on their existing capture/admission path. Existing selected-only handles
 are verified in the DOM fixture, including unavailable-source and invalid geometry.
 
+The stronger real-backend Screen test now checks Surface selection and background owner
+inspection while the pointer is still down. Its original baseline instead expected the old
+Escape behavior; the corrected owner-Escape assertion passes, but reselection immediately
+afterward failed. Source also incorrectly admitted selection through the editor's mutation/read
+busy flag. The correction gives `SurfaceHandles` explicit selection availability, fenced by
+connection/loading and active gestures, while geometry still honors `disabled`. Surface bodies,
+corners and keyboard selection remain available during metadata reads; background clearing uses
+the same lifetime/gesture availability. The deterministic busy/unavailable-input fixture passes.
+The rebuilt ordinary executable now passes this real-backend path, including peer/Inspector
+selection before release, repeated owner Escape, unchanged authored state/history and drag Undo.
+Physical native hits/pixels remain separately unaccepted.
+
 Composition's backend query now honors explicit edited-owner selection with no selected child,
 including stale off-page hints and nested owned Compositions. It no longer selects a first child
 implicitly. Locked content and explicit retained hints for unrelated selection remain supported;
@@ -228,7 +240,7 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Editor / owner | Current scope | Exact remaining work |
 | --- | --- | --- |
 | Golden `Viewport2D` | Browser verified primary-down/idle Escape, child/text/tool isolation, navigation and camera lifetime | Complete independent-editor, capture/cancel and app adapter acceptance |
-| Screen Warping / Screen | Pointer-down/owner/idle Escape and selected-only DOM handles; shared contour hover and matching native paint declarations verified | Actual native input/pixel and workbench/Inspector agreement, overlapping hits, off-page and active-gesture Escape checks |
+| Screen Warping / Screen | Real bundled UI/backend proves before-release Surface/background selection, shared Inspector/peer agreement, owner Escape, exact history/Undo and keyboard/project fencing; busy/unavailable DOM regression, shared contour hover and matching native paint declarations pass | Physical native input/pixel and Inspector agreement, overlapping hits, off-page and full active-gesture Escape checks |
 | Surface Source / Surface | Shared typed Crop Parameter selection, owner clearing, selected-only controls; shared hover/native paint declarations; browser capture/cancel and earlier ordinary-host Inspector/history checks | Actual current native pixel/hit agreement, two-editor/offscreen and project/snapshot interaction acceptance |
 | Composition / Composition media | Root/nested explicit owner clears old hints; immediate choice/clear and unlocked nested owner retention; selected-only gizmos, actual-bounds hover and unavailable-bounds selection target; pointer/keyboard replacement focus verified | Actual Inspector/native/independent-editor and snapshot acceptance; overlap/off-page and full active-gesture behavior |
 | Matrix Layer spatial / Matrix media | Shared owner clear and no-child projection, immediate controls/cached-definition clearing; shared hover, selected-only controls and keyboard/pointer unavailable-bounds selection verified | Actual adapter/Inspector/native checks, independent-editor and active-gesture behavior |
@@ -245,6 +257,35 @@ This inventory retains the complete gate. DOM callback fixtures do not establish
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Screen selection continuation (2026-11-16): the original headless integration baseline failed
+its obsolete Surface-after-Escape expectation; the strengthened version passed held Surface/
+background selection and owner Escape, then failed reselection. Logs:
+`target/m14-screen-selection-baseline-2026-11-16.log`,
+`target/m14-screen-selection-2026-11-16.log`. No extra probe variant was run. The source-supported
+admission correction passes the production DOM fixture, including busy primary-down/corner
+keyboard selection, refused geometry and unavailable-input rejection;17 controller tests;
+MapGyver typecheck0 errors/0 warnings; scoped Prettier; production UI build; root/Core formatting.
+Logs: `target/m14-screen-busy-selection-2026-11-16.log`,
+`target/m14-screen-selection-controller-2026-11-16.log`,
+`target/m14-screen-selection-types-2026-11-16.log`,
+`target/m14-screen-selection-ui-build-2026-11-16.log`.
+
+The user saved/closed the dev window to release its FFmpeg DLLs; the ordinary rebuild then
+passed. Final `--screen-selection-ui --screen-keyboard-ui` exits0 with no page errors or rejected
+requests and normal host exit (`target/m14-screen-selection-final-2026-11-16.log`). Selection
+proves Surface/background/peer/Inspector agreement before release, owner Escape/idempotence,
+no authored/history changes, one drag Undo and exact geometry restoration. Keyboard verifies
+100 repeats plus Shift at zoom, chord release, exact one-step Undo, blur/modifier isolation
+and New while held. Its old zero-Screen New assertion was corrected to the accepted M13/5
+policy: exactly one fresh default Screen/Surface whose complete snapshot stays unchanged after
+old held input. The first combined run retains that obsolete assertion failure in
+`target/m14-screen-selection-connected-2026-11-16.log`; final full suites pass.
+
+Computer Use still returns native-pipe error2 after documented retry/reset; no desktop input
+was sent. Physical native handle/hit/pixel acceptance returns when the helper reconnects,
+using coherent ordinary/native inputs where consumed. This is software/real-backend acceptance,
+not a physical native cohort or whole M14/1 acceptance.
 
 Golden backend slice (2026-11-16): the public project facade verifies exact initialized creation,
 live typed values before release, one history step, exact Undo/Redo, copied stop values with new
@@ -655,18 +696,25 @@ Prior ordinary build with Gradient/shared-bridge input:
 build log SHA256 `3311cf24845b0be8996aaa2e0cbd2f1562be74e593ffdea9f914066b9b3b4234`
 (`target/m14-gradient-build-mapgyver-2026-11-15.log`). The connected Curve failure above retains
 its earlier binary scope; no new connected/native qualification is inferred from this rebuild.
-Current ordinary build with Gradient collection persistence (2026-11-16):
+Prior ordinary build with Gradient collection persistence (2026-11-16):
 `ae6743e0812007b00236b892c282d36a0216915cabd25d49d68bf3147e564d23`;
 build log SHA256 `db145a48fcc5448a2bff1045747c0f5c56dc108665e25985469df025f14cbb56`
 (`target/m14-gradient-build-mapgyver-2026-11-16.log`). It was built from the working checkout,
 including preserved unrelated user edits; the milestone stages only its owned files.
+Current ordinary build with Screen read/selection admission (2026-11-16):
+`513c33b92b1f566651122eeeefcde5e4f54866107af4003e1ada5eac886b57ad`;
+build log SHA256 `e9d4f5ed163c810d189323d5823c456b6ffd28283798a4f7b462ae1d3f9fbb44`;
+final integration log SHA256 `4fe58297865eacf794517fe35bca3d4d6e0ea4fc05fd6a44bf45a3f0936c86b4`.
+Logs: `target/m14-screen-selection-build-2026-11-16.log`,
+`target/m14-screen-selection-final-2026-11-16.log`.
 The native fixture remains older: these are not a coherent new ordinary/
 native qualification pair. Refresh both inputs before native acceptance; Video evidence keeps
 its original source/build scope.
 
-Next deliverable: Screen Warping's product-host/native before-release selection, owner/background/
-idle Escape and native handle/hit agreement with the generic Inspector, after coherent input
-rebuild. The full editor inventory remains required; Gradient's real backend/history/copy/reload
+Next deliverable: Composition's real-backend before-release selection, owner clearing and generic
+Inspector agreement. Screen physical native selection/handle/hit acceptance returns when the
+desktop helper reconnects, with coherent inputs. The full editor inventory remains required;
+Gradient's real backend/history/copy/reload
 proof is complete. Curve capture is Pending within
 M14/1: return for a source-supported ownership correction or the required actual-host/native
 acceptance; the existing receipt does not identify which terminal boundary fired. Do not extend

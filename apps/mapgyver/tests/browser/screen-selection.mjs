@@ -76,6 +76,15 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 		await page.mouse.move(p.x, p.y);
 		if (click) await page.mouse.click(p.x, p.y);
 	}
+	async function heldPress(target, x, y, verify) {
+		await mouse(target, x, y);
+		await page.mouse.down();
+		try {
+			await verify();
+		} finally {
+			await page.mouse.up();
+		}
+	}
 	async function count(target, total) {
 		await page.waitForFunction(
 			({ id, total }) =>
@@ -111,9 +120,11 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 		await count(main, 0);
 		await mouse(main, 0.25, 0.25);
 		await count(main, 0);
-		await mouse(main, 0.25, 0.25, true);
-		await handles(main, 'A').waitFor();
-		await inspector('Selection A');
+		await heldPress(main, 0.25, 0.25, async () => {
+			await handles(main, 'A').waitFor();
+			await inspector('Selection A');
+			await count(main, 4);
+		});
 		await mouse(main, 0.7, 0.7);
 		await count(main, 4);
 		await mouse(main, 0.48, 0.15);
@@ -134,9 +145,10 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 			'screen-warp'
 		);
 		await inspector('Selection A');
-		await mouse(main, 0.48, 0.15, true);
-		await count(main, 0);
-		await inspector('Selection screen');
+		await heldPress(main, 0.48, 0.15, async () => {
+			await count(main, 0);
+			await inspector('Selection screen');
+		});
 		assert.equal(
 			await main.getByRole('button', { name: 'Refresh preview', exact: true }).count(),
 			0
@@ -148,8 +160,13 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 		const application = main.getByRole('application', { name: 'Screen view', exact: true });
 		await application.focus();
 		await page.keyboard.press('Escape');
-		assert.equal(await corner.getAttribute('aria-pressed'), 'false');
-		await inspector('Selection A');
+		await count(main, 0);
+		await inspector('Selection screen');
+		await page.keyboard.press('Escape');
+		await count(main, 0);
+		await inspector('Selection screen');
+		await mouse(main, 0.25, 0.25, true);
+		await handles(main, 'A').waitFor();
 		await application.focus();
 		await page.keyboard.down('Space');
 		await mouse(main, 0.48, 0.15, true);
@@ -220,8 +237,11 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 				.getAttribute('aria-pressed'),
 			'false'
 		);
-		await mouse(main, 0.7, 0.7, true);
-		await handles(peer, 'B').waitFor();
+		await heldPress(main, 0.7, 0.7, async () => {
+			await handles(main, 'B').waitFor();
+			await handles(peer, 'B').waitFor();
+			await inspector('Selection B');
+		});
 		await mouse(peer, 0.48, 0.15);
 		await count(peer, 4);
 		await count(main, 4);
@@ -281,6 +301,9 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 			JSON.stringify({
 				screenSelection:
 					'Surface/Inspector and background, selected-only handles, persistent deselection, local per-editor corners, Escape and pan isolation',
+				pointerDownSurfaceAndOwnerBeforeRelease: true,
+				peerSelectionBeforeRelease: true,
+				idleEscapeOwnerAndIdempotence: true,
 				selectionGeometryAndHistoryUnchanged: true,
 				pointerDragOneUndo: true,
 				native: !!nativePage,
