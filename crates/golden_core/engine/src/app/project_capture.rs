@@ -6,9 +6,9 @@ use crate::node::{Node, NodeId, NodeMeta, NodeUuid, UserNodeRole};
 use crate::parameter::Parameter;
 
 use super::sparse::{
-    diff_project_data_against_baseline, project_meta_delta_from_runtime, project_meta_for_sparse_record,
-    project_meta_from_runtime, raw_project_data_from_runtime, sparse_baseline_child_identity_count,
-    sparse_json_cache_key,
+    baseline_has_user_items, diff_project_data_against_baseline, find_declared_child_baseline,
+    project_meta_delta_from_runtime, project_meta_for_sparse_record, project_meta_from_runtime,
+    raw_project_data_from_runtime, sparse_baseline_child_identity_count, sparse_json_cache_key,
 };
 use super::{Folder, ProjectNode, node_is_app_data_persisted};
 
@@ -282,7 +282,12 @@ where
     let mut children = Vec::new();
     for child_id in captured.children.iter().copied() {
         let child = required_node(graph, child_id)?;
-        let matched_child_baseline = find_matching_child_baseline(child, baseline_children);
+        let matched_child_baseline = find_declared_child_baseline(
+            baseline_children,
+            child.node_type.as_ref(),
+            child.user_role,
+            &child.meta.decl_id,
+        );
         let repeated_child_baseline = matched_child_baseline
             .is_some_and(|baseline| sparse_baseline_child_identity_count(baseline_children, baseline) > 1);
         let child_allow_omission = matched_child_baseline.is_some() && !repeated_child_baseline;
@@ -302,6 +307,7 @@ where
     if allow_omission
         && self_matches_parent_baseline
         && children.is_empty()
+        && !baseline_has_user_items(baseline_children)
         && !referenced_uuids.contains(&captured.meta.uuid)
         && !captured.preserve_identity
     {
@@ -562,17 +568,6 @@ fn sparse_node_cache_fragment(
         node.user_role,
         sparse_json_cache_key(data)?
     ))
-}
-
-fn find_matching_child_baseline<'a>(
-    child: &CapturedProjectNode,
-    baseline_children: &'a [ProjectNodeRecord],
-) -> Option<&'a ProjectNodeRecord> {
-    baseline_children.iter().find(|baseline| {
-        baseline.node_type == child.node_type.as_ref()
-            && baseline.user_role == child.user_role
-            && baseline.meta.decl_id.as_ref() == Some(&child.meta.decl_id)
-    })
 }
 
 fn required_node(graph: &ProjectGraphCapture, node: NodeId) -> Result<&CapturedProjectNode, ProjectPersistenceError> {

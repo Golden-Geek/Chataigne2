@@ -285,8 +285,11 @@ where
     let mut consumed_overlay_children = vec![false; records.len()];
     let mut expanded_children = Vec::with_capacity(baseline_children.len().max(records.len()));
 
-    // Saved sparse children are overlays. Declared baseline children own the structural order.
-    for baseline_child in baseline_children {
+    // Declared children inherit schema order; user items are replaced by the saved collection.
+    for baseline_child in baseline_children
+        .iter()
+        .filter(|child| child.user_role != UserNodeRole::ItemRoot)
+    {
         let matching_indices = records
             .iter()
             .enumerate()

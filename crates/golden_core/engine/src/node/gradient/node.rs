@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use crate::node::NodeAuthoredData;
+
 use super::helpers::read_child_param_f64;
 use super::prelude::*;
 use super::snapshot::gradient_from_snapshot;
@@ -20,6 +22,16 @@ impl Default for GradientNode {
 }
 
 impl GradientNode {
+    fn validate_project_data(data: &serde_json::Value) -> Result<(), String> {
+        if data.is_null() {
+            Ok(())
+        } else {
+            Err(format!(
+                "node type '{GRADIENT_NODE_TYPE}' does not support persisted project data"
+            ))
+        }
+    }
+
     /// Creates one gradient node labelled `Gradient`.
     pub fn new() -> Self {
         Self::new_with_label("Gradient")
@@ -211,6 +223,18 @@ impl GradientNode {
 }
 
 impl Node for GradientNode {
+    fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
+        Self::validate_project_data(data)?;
+        // Restored children are authored, including an explicitly empty stop collection.
+        self.default_stops_seeded = true;
+        Ok(())
+    }
+
+    fn engine_restore_authored_data(&mut self, data: NodeAuthoredData) -> Result<(), String> {
+        // In-place history replay must preserve this instance's runtime initialization state.
+        Self::validate_project_data(data.as_json()?)
+    }
+
     fn node_data(&self) -> &NodeData {
         &self.node_data
     }

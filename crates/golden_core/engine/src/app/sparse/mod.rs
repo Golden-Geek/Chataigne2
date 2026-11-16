@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 
 use crate::engine::{Engine, ProjectNodeMeta, ProjectNodeRecord, ProjectPersistenceError};
-use crate::node::{Node, NodeMeta, NodeUuid};
+use crate::node::{DeclId, Node, NodeMeta, NodeUuid, UserNodeRole};
 use crate::parameter::Parameter;
 
 mod encode;
@@ -11,6 +11,25 @@ mod expand;
 
 pub(super) use encode::{SparseEncodeCache, encode_sparse_node_record};
 pub(super) use expand::{expand_sparse_project_file, sparse_baseline_child_identity_count};
+
+pub(super) fn find_declared_child_baseline<'a>(
+    children: &'a [ProjectNodeRecord],
+    node_type: &str,
+    role: UserNodeRole,
+    declaration: &DeclId,
+) -> Option<&'a ProjectNodeRecord> {
+    // User items form an authored collection, even when their values match defaults.
+    if role == UserNodeRole::ItemRoot {
+        return None;
+    }
+    children.iter().find(|child| {
+        child.node_type == node_type && child.user_role == role && child.meta.decl_id.as_ref() == Some(declaration)
+    })
+}
+
+pub(super) fn baseline_has_user_items(children: &[ProjectNodeRecord]) -> bool {
+    children.iter().any(|child| child.user_role == UserNodeRole::ItemRoot)
+}
 
 pub(super) fn sparse_json_cache_key(value: Option<&serde_json::Value>) -> Result<String, ProjectPersistenceError> {
     match value {

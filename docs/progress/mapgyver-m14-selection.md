@@ -1,6 +1,6 @@
 # M14/1 editor selection and hover
 
-Updated 2026-11-15. Golden owns reusable input/capture/selection dispatch; app adapters resolve
+Updated 2026-11-16. Golden owns reusable input/capture/selection dispatch; app adapters resolve
 their edited owners and shared Inspector selection. M14/1 remains **Active, unaccepted**.
 Overall acceptance stays88/106 (83%); no new fixed gate is closed by this slice.
 
@@ -192,6 +192,24 @@ Submitted writes settle in their pinned group; another gesture cannot join a pen
 Color-popup Escape belongs to its own editor. Captured double-click color opening and its first
 grouped sample are verified; ColorPicker now notifies Begin before publishing that sample.
 
+Golden's backend qualification exposed a real empty-list persistence defect: after deleting
+all stops, Undo/Redo retained the empty list but project reload recreated the black/white defaults.
+`GradientNode` now distinguishes fresh construction from project decoding; in-place authored-data
+restoration keeps runtime initialization state unchanged. Both sparse encoders retain user-item
+records even when their values match defaults, and retain a declared owner's record when its
+default user collection was removed. Reconstruction inherits declared schema children while
+replacing user items with the saved collection. Five public-facade regressions pass, including
+standalone empty copying/reload, partial/empty declared reload and copying the containing owner.
+The persisted format and ordinary declared-child identity policy stay unchanged. Core and
+MapGyver suites, strict lint, ordinary build and formatting pass. Product-host/native
+acceptance is separate.
+
+Source ownership also resolves the test host: no MapGyver-owned Gradient authoring path was found;
+Chataigne's Alchemist constructs declared Gradient children. Backend checks therefore use Golden's
+supported public project facade, including its duplication codec, rather than inventing a
+MapGyver feature. The existing browser fixture and actual backend tests are complementary;
+neither alone substitutes for product-host/native acceptance.
+
 ## Applicable editor inventory
 
 Screen, Source, Composition and Matrix now share Golden's contour action and pure paint
@@ -218,7 +236,7 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Golden graph canvases | Browser verifies primary-down nodes/edges, immediate background/idle-Escape empty selection, selected-only resize/hover, modifier/marquee/pan/text/finder isolation; captured cancellation/focus/identity/lifecycle boundaries and pending-work preservation; Spatializer owner callback wired and consumers typecheck | Actual domain Inspector/native/independent-editor/offscreen/permission and specialized custom-world capture acceptance |
 | Golden Dashboard / edited page | Primary-down widget/background selection; selected-only resize zones; border hover; per-page tool-first/idle-owner Escape; free/ordered move/resize and marquee/pan cancellation, nested keyboard and two-editor isolation verified in production browser fixture | Actual workbench/Inspector, permission/offscreen/project and current-host acceptance remain open; unrelated Dashboard backend edits are preserved |
 | Animation curves / curve and key nodes | Shared key/easing/field and embedded typed Inspector; background/idle owner, tool-first cancel, selected-only Bezier/contour hover, permission/offscreen/locked-owner checks; bounded editor/renderer; delayed draw/create/paste owner/document fencing, exact creation receipt and original-owner completion without selection theft | Fix connected pointer ownership and complete actual backend/history/native and full lifetime acceptance; all editor/renderer modules stay under1000 lines |
-| Gradient / Gradient owner and stops | Shared stop/field/owner selection and anchored typed Inspector; primary-down/keyboard/hover; stable capture, cancel versus release, access/document/disposal and pending-Begin ownership; independent locked editors and local color-tool Escape verified in production Inspector browser | Actual backend/history/copy/reload and independent real-panel/native-host acceptance; no full gate is inferred from the transport fixture |
+| Gradient / Gradient owner and stops | Shared stop/field/owner selection and anchored typed Inspector; primary-down/keyboard/hover; stable capture, cancel versus release, access/document/disposal and pending-Begin ownership; independent locked editors and local color-tool Escape verified in production Inspector browser; real public-facade creation/live edits/history/copy/reload, empty and partial declared collections pass | Independent real-panel/product-host/native acceptance; browser and backend proof together still do not establish the complete gate |
 | Watcher projection canvases | `WatcherProjectionCanvas` renders buffer samples/latest points without pointer, key or mutation callbacks; it has no authored canvas targets | Read-only projection applicability resolved from source. Ordinary Inspector owns its settings; retain panel focus/lifetime checks in actual workbench acceptance |
 | Media Preview / followed or locked media | `MediaPreviewPanel` renders `ChannelPreview`/`NativePreview` without authored geometry targets; toolbar changes preview choice, not object placement | Read-only image applicability resolved from source. Existing follow/lock/routing requirements stay intact; actual cross-panel/native qualification remains open |
 | Matrix grid / Matrix, Layer, Column and Cell | Shared primary-down/keyboard selection and hover for Cells/headers/labels; background/idle owner clear; immediate focus and stale-reply fencing; connected Golden browser fixture verifies controls, rename/launch, disabled input, independent drag cancellation and listener disposal | Actual backend/Inspector-driven selection, native drag/pixels, virtualized/offscreen/project and independent real-panel acceptance remain open |
@@ -227,6 +245,43 @@ This inventory retains the complete gate. DOM callback fixtures do not establish
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Golden backend slice (2026-11-16): the public project facade verifies exact initialized creation,
+live typed values before release, one history step, exact Undo/Redo, copied stop values with new
+UUIDs, removal, rejected-initialization rollback, standalone empty subtree copy/reload and
+runtime initialization preservation. Targeted result is **5 passed/0 failed**:
+`target/m14-gradient-collection-regression-2026-11-16.log`. Partial and empty declared collections
+survive reload, the remaining stop keeps its UUID, and copying the containing owner preserves
+its empty Gradient. The declared child is resolved through its owning UUID plus `gradient`
+declaration, respecting intentional rematerialization of unreferenced default child identities.
+The earlier four-pass/one-fail value regression is retained in
+`target/m14-gradient-backend-declared-path-2026-11-15.log`; its empty-value assertion now passes.
+
+Source-frozen validation after both root/Core formatters passes:
+
+- Full Golden Engine library:696 passed,3 existing ignored; integration:5 passed
+  (`target/m14-gradient-core-2026-11-16.log`). This includes persistence, Gradient and the
+  ten-thousand-node sparse roundtrip.
+- MapGyver library:692 passed,5 existing ignored
+  (`target/m14-gradient-mapgyver-2026-11-16.log`).
+- Strict Clippy for Golden Engine library and `gradient_editor`:exit0 with `-D warnings`
+  (`target/m14-gradient-clippy-2026-11-16.log`).
+- Ordinary `cargo build --locked -p MapGyver --bin MapGyver`:exit0
+  (`target/m14-gradient-build-mapgyver-2026-11-16.log`); root/Core formatting and final
+  `--check` both pass. It waited behind the concurrent user dev run without stopping it.
+
+No new connected/native cohort was run. Earlier passing
+five-case Gradient/eighteen-case persistence checks are superseded by the full Core run.
+The earlier standalone empty-list baseline is retained at
+`target/m14-gradient-backend-complete-2026-11-15.log`; corrected standalone proof is in the fixed/
+final-copy logs. Source ownership requires the public project facade for duplication rather than
+the raw engine's deliberate `duplicate_node_transport_required` rejection.
+
+This persistence milestone closes the reproduced backend defect; it does not accept a fixed
+M14 gate. Investigation began2026-11-15 22:25UTC with a23:25 cutoff; the source correction was
+made before cutoff. The interrupted overnight check had no terminal result or remaining process;
+the source-frozen validation rerun passes. No additional probe variants or investigation scope
+were opened. M14/1 Active, M14 0/10,88/106 (83%).
 
 Gradient selection/cancellation (2026-11-15):66 focused unit cases pass, including Gradient
 ownership, typed-field projection, foreign-target rejection and topology/cache scope. Four
@@ -239,8 +294,9 @@ Parameter selection, two locked editors, color opening/first grouped sample and 
 Its document/disposal controls are invoked out of band during capture, avoiding an accidental
 normal pointer release; snapshot generation is explicitly checked. Locked identities come from
 the current fixture graph. These corrected fixture assumptions are not production workarounds.
-Logs: `target/m14-gradient-*-2026-11-15.log`. Actual Gradient backend/history/copy/reload and native
-acceptance remain Pending. This transport fixture does not establish actual deletion/history.
+Logs: `target/m14-gradient-*-2026-11-15.log`. Actual backend/history/copy/reload now pass through
+the public project facade above; product-host/native acceptance remains Pending. This browser
+transport fixture alone does not establish actual deletion/history.
 Scoped Prettier/app lint, both production UI builds and root/Core formatting pass. Gradient's
 component is858 lines; the shared selection bridge, projections and new fixtures remain under1000.
 No native/GPU cohort or new Curve connected variant was run; its prior capture failure remains
@@ -594,17 +650,24 @@ Prior ordinary build with the selection ordering correction:
 build log SHA256 `7dc53aef88f3e99174792e0696c9d4a84acea7b5d0b9fde6756882a2cede5f5a`
 (`target/m14-curve-selection-race-build-mapgyver-2026-11-15.log`). Its connected result is the failing
 selection-race receipt above.
-Current ordinary build with Gradient/shared-bridge input:
+Prior ordinary build with Gradient/shared-bridge input:
 `25988ac43752937acaa9f653f13b3aeb58a23360fd11f5571632c3d1068aa106`;
 build log SHA256 `3311cf24845b0be8996aaa2e0cbd2f1562be74e593ffdea9f914066b9b3b4234`
 (`target/m14-gradient-build-mapgyver-2026-11-15.log`). The connected Curve failure above retains
 its earlier binary scope; no new connected/native qualification is inferred from this rebuild.
+Current ordinary build with Gradient collection persistence (2026-11-16):
+`ae6743e0812007b00236b892c282d36a0216915cabd25d49d68bf3147e564d23`;
+build log SHA256 `db145a48fcc5448a2bff1045747c0f5c56dc108665e25985469df025f14cbb56`
+(`target/m14-gradient-build-mapgyver-2026-11-16.log`). It was built from the working checkout,
+including preserved unrelated user edits; the milestone stages only its owned files.
 The native fixture remains older: these are not a coherent new ordinary/
 native qualification pair. Refresh both inputs before native acceptance; Video evidence keeps
 its original source/build scope.
 
-Next deliverable: validate the delivered Gradient behavior against the actual app/backend and
-history, then retain the complete actual-host/native inventory. Curve capture is Pending within
+Next deliverable: Screen Warping's product-host/native before-release selection, owner/background/
+idle Escape and native handle/hit agreement with the generic Inspector, after coherent input
+rebuild. The full editor inventory remains required; Gradient's real backend/history/copy/reload
+proof is complete. Curve capture is Pending within
 M14/1: return for a source-supported ownership correction or the required actual-host/native
 acceptance; the existing receipt does not identify which terminal boundary fired. Do not extend
 the stopped runtime investigation with unchanged variants or restore its failed cache stash.

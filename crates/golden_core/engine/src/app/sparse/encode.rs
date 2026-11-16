@@ -7,9 +7,10 @@ use crate::node::{Folder, Node, NodeId, NodeUuid, UserNodeRole};
 
 use super::super::{ProjectNode, node_is_app_data_persisted};
 use super::{
-    project_data_for_sparse_record, project_meta_delta_from_runtime, project_meta_for_sparse_record,
-    project_meta_from_runtime, project_persisted_data_from_runtime, raw_project_data_from_runtime,
-    sparse_baseline_child_identity_count, sparse_json_cache_key,
+    baseline_has_user_items, find_declared_child_baseline, project_data_for_sparse_record,
+    project_meta_delta_from_runtime, project_meta_for_sparse_record, project_meta_from_runtime,
+    project_persisted_data_from_runtime, raw_project_data_from_runtime, sparse_baseline_child_identity_count,
+    sparse_json_cache_key,
 };
 
 #[derive(Default)]
@@ -190,7 +191,12 @@ where
             .nodes
             .get(child_id)
             .ok_or(ProjectPersistenceError::MissingNode(child_id))?;
-        let matched_child_baseline = find_matching_child_baseline(child_node, baseline_children);
+        let matched_child_baseline = find_declared_child_baseline(
+            baseline_children,
+            child_node.get_type(),
+            child_node.node_data().user_role,
+            &child_node.node_data().meta.decl_id,
+        );
         let repeated_child_baseline = matched_child_baseline
             .is_some_and(|baseline| sparse_baseline_child_identity_count(baseline_children, baseline) > 1);
         let child_allow_omission = matched_child_baseline.is_some() && !repeated_child_baseline;
@@ -210,6 +216,7 @@ where
     if allow_omission
         && self_matches_parent_baseline
         && children.is_empty()
+        && !baseline_has_user_items(baseline_children)
         && !referenced_uuids.contains(&node.node_data().meta.uuid)
     {
         return Ok(None);
@@ -468,15 +475,4 @@ where
     }
 
     Ok(T::project_create_node(node_type.as_str()))
-}
-
-fn find_matching_child_baseline<'a, T: Node>(
-    child_node: &T,
-    baseline_children: &'a [ProjectNodeRecord],
-) -> Option<&'a ProjectNodeRecord> {
-    baseline_children.iter().find(|baseline_child| {
-        baseline_child.node_type == child_node.get_type()
-            && baseline_child.user_role == child_node.node_data().user_role
-            && baseline_child.meta.decl_id.as_ref() == Some(&child_node.node_data().meta.decl_id)
-    })
 }

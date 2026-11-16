@@ -54,6 +54,21 @@ The shared ColorPicker starts edit ownership before its first pointer sample is 
 The production Inspector fixture verifies these software boundaries; actual backend/history
 and native-host acceptance remain separate.
 
+Gradient data ownership stays in Golden: MapGyver currently exposes no authored Gradient editor
+path; Chataigne Alchemist is an existing product consumer. Golden's public project facade owns
+creation, typed edits, history, subtree copying and project codecs. Backend qualification uses
+that facade rather than adding a MapGyver-only authoring route or calling raw-engine duplication,
+which deliberately requires the project codec boundary.
+
+Fresh Gradient nodes seed their initial stops during initialization. Reload and subtree copy
+preserve authored zero-stop collections through the project decode boundary; in-place history
+restoration preserves initialization state. Sparse project codecs distinguish declared schema
+children from authored user-item collections. Both live and captured encoders retain user items
+and explicit empty overrides against seeded collections; expansion inherits declared children
+and replaces user items with the saved list. This requires no opaque persisted flag or special
+declared-child identity retention. The public-facade regressions cover standalone and declared
+Gradient reload, partial removal, history and subtree copying; native acceptance remains separate.
+
 Curve background-down and idle Escape now inspect the Curve owner through that adapter.
 Golden's focused `curve/input` controller separates release from cancellation for key/Bezier/
 segment edits, marquee, drawing and pan. It retires ownership before releasing capture;
