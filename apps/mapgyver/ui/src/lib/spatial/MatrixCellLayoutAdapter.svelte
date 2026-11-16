@@ -226,6 +226,8 @@
 					selected={selected?.view.cell.id ?? null}
 					disabled={reader.busy}
 					active={geometry.state.active}
+					selectionAvailable={appState.session?.status === 'connected' &&
+						!appState.session.loading.visible}
 					{select}
 					{start}
 					move={(point) => geometry.gesture.move(point)}

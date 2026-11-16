@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { createViewportPointer } from '../pointer';
+import { createViewportPointer, type ViewportPointerTarget } from '../pointer';
+
+function interaction(
+	select: ViewportPointerTarget['select'] = () => {},
+	begin: ViewportPointerTarget['begin'] = () => true
+): ViewportPointerTarget {
+	return { selectable: true, editable: true, select, begin };
+}
 
 function fixture() {
 	const captures = new Set<number>(),
@@ -53,21 +60,17 @@ test('shared Composition/Matrix pointer captures one identity, maps current canv
 	assert(
 		f.pointer.start(
 			f.event(30, 40),
-			() => {},
-			(point) => {
-				assert.deepEqual(point, { x: 40, y: 40 });
-				return true;
-			}
+			interaction(
+				() => {},
+				(point) => {
+					assert.deepEqual(point, { x: 40, y: 40 });
+					return true;
+				}
+			)
 		)
 	);
 	assert(f.captures.has(1));
-	assert(
-		!f.pointer.start(
-			f.event(40, 40, 2),
-			() => {},
-			() => true
-		)
-	);
+	assert(!f.pointer.start(f.event(40, 40, 2), interaction()));
 	f.pointer.move(f.event(40, 50, 2));
 	assert.equal(f.moves.length, 0);
 	f.pointer.move(f.event(50, 60));
@@ -85,27 +88,17 @@ test('shared Composition/Matrix pointer captures one identity, maps current canv
 test('shared pointer rejects invalid starts and retires capture once on cancellation or a lost viewport', () => {
 	for (const lostViewport of [false, true]) {
 		const f = fixture();
-		assert(
-			!f.pointer.start(
-				f.event(30, 40, 1, 1),
-				() => {},
-				() => true
-			)
-		);
+		assert(!f.pointer.start(f.event(30, 40, 1, 1), interaction()));
 		assert(
 			!f.pointer.start(
 				f.event(30, 40),
-				() => {},
-				() => false
+				interaction(
+					() => {},
+					() => false
+				)
 			)
 		);
-		assert(
-			f.pointer.start(
-				f.event(30, 40),
-				() => {},
-				() => true
-			)
-		);
+		assert(f.pointer.start(f.event(30, 40), interaction()));
 		if (lostViewport) {
 			f.rect.width = 0;
 			f.pointer.move(f.event(40, 40));
@@ -134,15 +127,17 @@ test('primary hit selects before admission and a denied edit still consumes the 
 		assert.equal(
 			f.pointer.start(
 				event,
-				() => {
-					selected = true;
-				},
-				() => {
-					assert(selected, 'selection is independent of mutation admission');
-					assert(consumed, 'the hit cannot bubble into background deselection');
-					assert.equal(f.captures.size, 0, 'selection precedes capture');
-					return admitted;
-				}
+				interaction(
+					() => {
+						selected = true;
+					},
+					() => {
+						assert(selected, 'selection is independent of mutation admission');
+						assert(consumed, 'the hit cannot bubble into background deselection');
+						assert.equal(f.captures.size, 0, 'selection precedes capture');
+						return admitted;
+					}
+				)
 			),
 			admitted
 		);
@@ -158,12 +153,46 @@ test('secondary, consumed and concurrent hits cannot change selection', () => {
 	const select = () => {
 		selections++;
 	};
-	assert(!f.pointer.start(f.event(30, 40, 1, 1), select, () => true));
+	assert(!f.pointer.start(f.event(30, 40, 1, 1), interaction(select)));
 	const consumed = Object.assign(f.event(30, 40), { defaultPrevented: true });
-	assert(!f.pointer.start(consumed, select, () => true));
+	assert(!f.pointer.start(consumed, interaction(select)));
 	assert.equal(selections, 0);
-	assert(f.pointer.start(f.event(30, 40), select, () => true));
-	assert(!f.pointer.start(f.event(30, 40, 2), select, () => true));
+	assert(f.pointer.start(f.event(30, 40), interaction(select)));
+	assert(!f.pointer.start(f.event(30, 40, 2), interaction(select)));
 	assert.equal(selections, 1);
 	f.pointer.cancel();
+});
+
+test('selection availability and edit admission are independent permissions', () => {
+	for (const selectable of [false, true]) {
+		for (const editable of [false, true]) {
+			const f = fixture();
+			let selections = 0,
+				begins = 0,
+				consumed = false;
+			const event = f.event(30, 40);
+			event.stopPropagation = () => {
+				consumed = true;
+			};
+			assert.equal(
+				f.pointer.start(event, {
+					selectable,
+					editable,
+					select: () => {
+						selections++;
+					},
+					begin: () => {
+						begins++;
+						return true;
+					}
+				}),
+				selectable && editable
+			);
+			assert.equal(selections, selectable ? 1 : 0);
+			assert.equal(begins, selectable && editable ? 1 : 0);
+			assert.equal(consumed, selectable);
+			assert.equal(f.captures.size, selectable && editable ? 1 : 0);
+			f.pointer.cancel();
+		}
+	}
 });

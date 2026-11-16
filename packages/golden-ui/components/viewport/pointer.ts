@@ -9,6 +9,13 @@ interface Client {
 	stop(): void;
 }
 
+export interface ViewportPointerTarget {
+	selectable: boolean;
+	editable: boolean;
+	select(): void;
+	begin(point: ViewPoint): boolean;
+}
+
 /** Select a primary hit before edit admission; adapters own target identities and mutations. */
 export function createViewportPointer(client: Client) {
 	let pointer: number | null = null;
@@ -36,16 +43,23 @@ export function createViewportPointer(client: Client) {
 		get active() {
 			return pointer !== null;
 		},
-		start(event: PointerEvent, select: () => void, begin: (point: ViewPoint) => boolean) {
+		start(event: PointerEvent, target: ViewportPointerTarget) {
 			const at = point(event),
 				canvas = client.canvas();
-			if (!canvas || event.defaultPrevented || event.button !== 0 || pointer !== null || !at)
+			if (
+				!target.selectable ||
+				!canvas ||
+				event.defaultPrevented ||
+				event.button !== 0 ||
+				pointer !== null ||
+				!at
+			)
 				return false;
 			event.stopPropagation();
 			// Keep the viewport's focus when selection replaces a hit control, even if editing is refused.
 			event.preventDefault();
-			select();
-			if (!begin(at)) return false;
+			target.select();
+			if (!target.editable || !target.begin(at)) return false;
 			pointer = event.pointerId;
 			client.ghost(at);
 			canvas.setPointerCapture(pointer);

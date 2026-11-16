@@ -17,6 +17,7 @@
 		canvas,
 		selected,
 		disabled,
+		selectionAvailable,
 		select,
 		active,
 		start,
@@ -32,6 +33,7 @@
 		canvas: { width: number; height: number };
 		selected: string | null;
 		disabled: boolean;
+		selectionAvailable: boolean;
 		select(uuid: string): void;
 		active: boolean;
 		start(id: string, mode: RectGeometryMode, point: Point): boolean;
@@ -62,12 +64,12 @@
 			: displayed
 	);
 	function down(event: PointerEvent, object: LayoutRect, mode: RectGeometryMode) {
-		if (disabled) return;
-		pointer.start(
-			event,
-			() => select(object.id),
-			(at) => start(object.id, mode, at)
-		);
+		pointer.start(event, {
+			selectable: selectionAvailable && !active,
+			editable: !disabled,
+			select: () => select(object.id),
+			begin: (at) => start(object.id, mode, at)
+		});
 	}
 	$effect(() => {
 		if (!active) pointer.cancel();
@@ -111,9 +113,9 @@
 				class:selected={selected === object.id}
 				class:inactive={!object.enabled}
 				role="button"
-				tabindex={disabled ? -1 : 0}
+				tabindex={selectionAvailable ? 0 : -1}
 				aria-label={`Select ${object.label}`}
-				aria-disabled={disabled}
+				aria-disabled={!selectionAvailable || active}
 				onpointerdown={(event) => down(event, object, 'Translate')}
 				ondblclick={(event) => {
 					event.stopPropagation();
@@ -121,10 +123,10 @@
 				}}
 				onclick={(event) => {
 					event.stopPropagation();
-					if (!disabled && event.detail === 0) select(object.id);
+					if (selectionAvailable && !active && event.detail === 0) select(object.id);
 				}}
 				onkeydown={(event) => {
-					if (!disabled && (event.key === 'Enter' || event.key === ' ')) {
+					if (selectionAvailable && !active && (event.key === 'Enter' || event.key === ' ')) {
 						event.preventDefault();
 						select(object.id);
 					}
@@ -141,9 +143,9 @@
 			data-layout-cell={kind === 'Cell' ? object.id : undefined}
 			label={`Select ${object.label}`}
 			enabled={object.enabled}
-			aria-disabled={disabled && !active}
+			aria-disabled={!selectionAvailable || active}
 			onclick={(event) => {
-				if (!disabled && event.detail === 0) select(object.id);
+				if (selectionAvailable && !active && event.detail === 0) select(object.id);
 			}}
 			onpointerdown={(event) => down(event, object, 'Translate')} />{/if}
 {/each}

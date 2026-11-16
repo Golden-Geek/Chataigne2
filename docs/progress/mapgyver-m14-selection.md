@@ -45,6 +45,16 @@ control is replaced. The browser test reproduces and verifies this focus correct
 manually focusing the viewport before Escape. Physical clicks cannot reselect through the
 keyboard/accessibility click fallback.
 
+The real-backend Composition continuation reproduced a refused reselection immediately after
+background owner clearing. Its controls returned on mutation/read busy state before the shared
+pointer could select; Matrix spatial controls had the same source pattern. Golden's pointer
+start now requires a typed target with independent `selectable`/`editable` permissions, and both
+consumers pass lifetime/tool availability separately from edit admission. A metadata read may
+refuse editing without blocking selection. Busy Composition/Matrix DOM checks,16 viewport
+unit cases,10 Composition controller cases and four typechecks pass. The rebuilt ordinary app
+also passes the complete strengthened Composition integration suite. Matrix's real-backend
+and physical acceptance remain separate; neither is inferred from these DOM/type checks.
+
 Matrix Layer background-down and idle Escape select the Matrix media owner; Cell layout selects
 its Layer owner without leaving that Layer. Explicit backend owners clear retained Layer/Cell
 hints, while owned Cell descendants resolve to their containing Cell. Both queries preserve
@@ -242,7 +252,7 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Golden `Viewport2D` | Browser verified primary-down/idle Escape, child/text/tool isolation, navigation and camera lifetime | Complete independent-editor, capture/cancel and app adapter acceptance |
 | Screen Warping / Screen | Real bundled UI/backend proves before-release Surface/background selection, shared Inspector/peer agreement, owner Escape, exact history/Undo and keyboard/project fencing; busy/unavailable DOM regression, shared contour hover and matching native paint declarations pass | Physical native input/pixel and Inspector agreement, overlapping hits, off-page and full active-gesture Escape checks |
 | Surface Source / Surface | Shared typed Crop Parameter selection, owner clearing, selected-only controls; shared hover/native paint declarations; browser capture/cancel and earlier ordinary-host Inspector/history checks | Actual current native pixel/hit agreement, two-editor/offscreen and project/snapshot interaction acceptance |
-| Composition / Composition media | Root/nested explicit owner clears old hints; immediate choice/clear and unlocked nested owner retention; selected-only gizmos, actual-bounds hover and unavailable-bounds selection target; pointer/keyboard replacement focus verified | Actual Inspector/native/independent-editor and snapshot acceptance; overlap/off-page and full active-gesture behavior |
+| Composition / Composition media | Real bundled UI/backend verifies before-release child/background selection and Inspector, no implicit first child, independent locked peers, owner/idle Escape, exact no-history selection,130-child off-page editing, reconnect/copy/removal/project replacement; shared selection/edit admission fixes busy reselection; hover and unavailable-bounds DOM checks pass | Physical native input/pixel agreement, overlapping hit order and remaining complete active-gesture/lifetime acceptance |
 | Matrix Layer spatial / Matrix media | Shared owner clear and no-child projection, immediate controls/cached-definition clearing; shared hover, selected-only controls and keyboard/pointer unavailable-bounds selection verified | Actual adapter/Inspector/native checks, independent-editor and active-gesture behavior |
 | Matrix Cell spatial / Layer | Shared Layer-owner clear without navigation; backend descendant/off-page selection; shared hover, selected-only controls and unavailable-bounds keyboard/pointer selection verified | Actual adapter/Inspector/native checks, active/outgoing/off-page interaction acceptance |
 | Golden graph canvases | Browser verifies primary-down nodes/edges, immediate background/idle-Escape empty selection, selected-only resize/hover, modifier/marquee/pan/text/finder isolation; captured cancellation/focus/identity/lifecycle boundaries and pending-work preservation; Spatializer owner callback wired and consumers typecheck | Actual domain Inspector/native/independent-editor/offscreen/permission and specialized custom-world capture acceptance |
@@ -257,6 +267,31 @@ This inventory retains the complete gate. DOM callback fixtures do not establish
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Shared spatial admission / Composition (2026-11-16): the unchanged real-backend baseline reached
+copy after off-page Inspector, independent locks/layout and reconnect, then failed its obsolete
+automatic-first-child assumption (`target/m14-composition-selection-baseline-2026-11-16.log`).
+The first held-input assertion incorrectly waited for a deferred backend summary; the correction
+checks actual control identity/Inspector while held and requires backend agreement after release.
+That corrected test reproduced a swallowed second selection during the owner read
+(`target/m14-composition-selection-controls-2026-11-16.log`), with the Inspector still on Panel B.
+The new explicit shared selection/edit permissions fix that source defect.
+
+`target/m14-composition-selection-final-2026-11-16.log` exits0, with0 page errors/rejected requests
+and normal host exit. It verifies actual control/Inspector selection and background owner before
+release, no implicit first child, independent locked peers, idle Escape/idempotence, exact authored
+state/history preservation and retained peer control identity,130 children with128-item pages and off-page Inspector editing,
+layout reload, real reconnect, copy/removal/Undo/Redo, New during held input and same-document
+Load. The fixture explicitly selects a child for Copy/drag, preserving M14's owner/no-child rule.
+
+Supporting checks pass:16 viewport unit cases,10 Composition controller cases, production DOM
+Screen/Source/Composition/Matrix selection suite with spatial metadata busy, and typechecks0/0
+for MapGyver, Chataigne, Golden UI browser fixtures and Golden Video UI. Logs:
+`target/m14-spatial-admission-{pointer,controller,browser,mapgyver-types,chataigne-types,golden-types,video-types}-2026-11-16.log`.
+Ordinary build rebuilds its production UI; scoped Prettier and root/Core formatting/check pass.
+No Rust/protocol behavior changed; preceding Rust validation retains its unchanged source scope.
+Matrix real-backend/physical and all remaining native inventory stay Pending. No new desktop
+connection retry, GPU/performance cohort or Curve probe occurred. M14/1 remains unaccepted.
 
 Screen selection continuation (2026-11-16): the original headless integration baseline failed
 its obsolete Surface-after-Escape expectation; the strengthened version passed held Surface/
@@ -701,18 +736,25 @@ Prior ordinary build with Gradient collection persistence (2026-11-16):
 build log SHA256 `db145a48fcc5448a2bff1045747c0f5c56dc108665e25985469df025f14cbb56`
 (`target/m14-gradient-build-mapgyver-2026-11-16.log`). It was built from the working checkout,
 including preserved unrelated user edits; the milestone stages only its owned files.
-Current ordinary build with Screen read/selection admission (2026-11-16):
+Prior ordinary build with Screen read/selection admission (2026-11-16):
 `513c33b92b1f566651122eeeefcde5e4f54866107af4003e1ada5eac886b57ad`;
 build log SHA256 `e9d4f5ed163c810d189323d5823c456b6ffd28283798a4f7b462ae1d3f9fbb44`;
 final integration log SHA256 `4fe58297865eacf794517fe35bca3d4d6e0ea4fc05fd6a44bf45a3f0936c86b4`.
 Logs: `target/m14-screen-selection-build-2026-11-16.log`,
 `target/m14-screen-selection-final-2026-11-16.log`.
+Current ordinary build with shared spatial admission (2026-11-16):
+`92bc43c8f19189e95e652680e07ad988be5b026fc5cbfdac912a3731e98d535f`;
+build log SHA256 `2cdf44b53e23e80081fec1b13168eec9ee9425e287657bedbaa8b5e62e0e72f9`;
+integration log SHA256 `ce48db27f0d3aa00864b558c58dc4645d128b5479603f1f40e98743df68c08a0`.
+Logs: `target/m14-spatial-admission-build-2026-11-16.log`,
+`target/m14-composition-selection-final-2026-11-16.log`.
 The native fixture remains older: these are not a coherent new ordinary/
 native qualification pair. Refresh both inputs before native acceptance; Video evidence keeps
 its original source/build scope.
 
-Next deliverable: Composition's real-backend before-release selection, owner clearing and generic
-Inspector agreement. Screen physical native selection/handle/hit acceptance returns when the
+Next deliverable: Matrix Layer/Cell real-backend selection, owner clearing and generic Inspector
+agreement against the shared admission contract. Composition's listed backend scope is verified;
+remaining physical native selection/handle/hit acceptance returns when the
 desktop helper reconnects, with coherent inputs. The full editor inventory remains required;
 Gradient's real backend/history/copy/reload
 proof is complete. Curve capture is Pending within

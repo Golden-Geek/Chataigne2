@@ -44,8 +44,18 @@ export async function verifyCompositionUi({
 		});
 		owners.push(reference);
 	}
-	const inspect = async (reference) =>
-		(await edit({ kind: 'Composition', reference, edit: { kind: 'Inspect' } })).snapshot;
+	let history;
+	const inspect = async (reference) => {
+		const ack = await post('/api/ui/intent', {
+			kind: 'invokeAppOperation',
+			namespace: 'mapgyver.media',
+			operation: 'edit',
+			payload: { kind: 'Composition', reference, edit: { kind: 'Inspect' } }
+		});
+		assert(ack.success, JSON.stringify(ack));
+		history = ack.history;
+		return ack.result.value.snapshot;
+	};
 	const initial = await inspect(owners[0]),
 		selected = initial.instances.at(-1).reference.instance;
 	await edit({
@@ -127,6 +137,48 @@ export async function verifyCompositionUi({
 			.click();
 		await search.fill('');
 	}
+	async function inspector(label) {
+		await tab('Inspector')
+			.filter({ has: page.getByText(`Inspector: ${label}`, { exact: true }) })
+			.waitFor();
+	}
+	async function selectedChild(currentPanel, id) {
+		const control = currentPanel.locator('[data-instance-handle="Translate"]');
+		if (!id) {
+			await control.waitFor({ state: 'detached' });
+			return;
+		}
+		await control.waitFor();
+		assert.equal(await control.getAttribute('data-instance-drop-target'), id);
+	}
+	async function pressItem(currentPanel, reference, item, held = async () => {}) {
+		const hit = currentPanel.getByRole('button', { name: `Select ${item.label}`, exact: true });
+		const rect = await hit.boundingBox();
+		assert(rect);
+		await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2);
+		await page.mouse.down();
+		try {
+			await selectedChild(currentPanel, item.reference.instance);
+			await inspector(item.label);
+			assert.equal(await currentPanel.locator('[data-instance-handle="Translate"]').count(), 1);
+			await held();
+		} finally {
+			await page.mouse.up();
+		}
+		await wait(
+			() => inspect(reference),
+			() => !history.active_edit_session
+		);
+		await wait(
+			() => currentPanel.getAttribute('data-composition-selected'),
+			(value) => value === item.reference.instance
+		);
+	}
+	async function ownerCleared(currentPanel, label) {
+		await selectedChild(currentPanel, '');
+		await inspector(label);
+		assert.equal(await currentPanel.locator('[data-instance-handle]').count(), 0);
+	}
 	async function settled(count) {
 		if (!nativePage) return;
 		await page.waitForFunction((count) => {
@@ -151,6 +203,7 @@ export async function verifyCompositionUi({
 		await select('Panel A');
 		await tab('Composition').click();
 		await target(main, owners[0]);
+		await ownerCleared(main, 'Panel A');
 		assert.equal(
 			await main.getByRole('button', { name: 'Add Composition', exact: true }).count(),
 			0
@@ -285,6 +338,36 @@ export async function verifyCompositionUi({
 		await persistedPanelState(page, secondId, {
 			locked: { kind: 'Composition', reference: owners[1] }
 		});
+		stage = 'primary-down selection and independent locked owner clearing';
+		const peerBefore = await inspect(owners[1]);
+		const selectionHistory = history;
+		const retained = await main.getAttribute('data-composition-selected');
+		await pressItem(peer, owners[1], peerBefore.instances[0], async () => {
+			await selectedChild(main, retained);
+			assert.equal(await main.getAttribute('data-composition-selected'), retained);
+			assert.equal(await main.getAttribute('data-composition-channel'), owners[0].channel);
+		});
+		const zone = await peer.locator('.active-zone').boundingBox();
+		assert(zone);
+		await page.mouse.move(zone.x + zone.width * 0.9, zone.y + zone.height * 0.9);
+		await page.mouse.down();
+		try {
+			await ownerCleared(peer, 'Panel B');
+			await selectedChild(main, retained);
+			assert.equal(await main.getAttribute('data-composition-selected'), retained);
+		} finally {
+			await page.mouse.up();
+		}
+		await pressItem(peer, owners[1], peerBefore.instances[0]);
+		await peer.getByRole('application', { name: 'Composition view', exact: true }).focus();
+		await page.keyboard.press('Escape');
+		await ownerCleared(peer, 'Panel B');
+		await page.keyboard.press('Escape');
+		await ownerCleared(peer, 'Panel B');
+		await selectedChild(main, retained);
+		assert.equal(await main.getAttribute('data-composition-selected'), retained);
+		assert.deepEqual(await inspect(owners[1]), peerBefore, 'selection preserves authored geometry');
+		assert.deepEqual(history, selectionHistory, 'selection and owner clearing create no history');
 		const project = path.join(directory, 'composition-panels.mapgyver');
 		assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
 		stage = 'persisted layout and real reconnect';
@@ -333,6 +416,8 @@ export async function verifyCompositionUi({
 		await (await contentLock(main, true)).click();
 		await target(main, owners[1]);
 		const original = await inspect(owners[1]);
+		await ownerCleared(main, 'Panel B');
+		await pressItem(main, owners[1], original.instances[0]);
 		await main.getByRole('button', { name: 'Copy instance', exact: true }).click();
 		const copied = await wait(
 			() => inspect(owners[1]),
@@ -369,6 +454,7 @@ export async function verifyCompositionUi({
 		);
 		await (await contentLock(main, false)).click();
 		await target(main, owners[1]);
+		await pressItem(main, owners[1], removed.instances[0]);
 		stage = 'New during held pointer and document-scoped reload';
 		const svg = main.getByRole('group', { name: 'Composition transform controls', exact: true });
 		const handle = main.locator('[data-instance-handle="Translate"]');
@@ -445,6 +531,11 @@ export async function verifyCompositionUi({
 					'bounded selected child/Inspector/history, simultaneous independent follow/lock/page state, layout reload, actual reconnect, copy/removal history, peer/tab retirement, New during held pointer and same-document Load',
 				instances: 130,
 				pageLimit: 128,
+				ownerHasNoImplicitChild: true,
+				primaryDownSelectionAndOwnerBeforeRelease: true,
+				lockedPeerSelectionIndependent: true,
+				idleEscapeOwnerAndIdempotence: true,
+				selectionGeometryAndHistoryUnchanged: true,
 				independentSelected: selected,
 				panelQueries: requests.length,
 				pageErrors: errors,

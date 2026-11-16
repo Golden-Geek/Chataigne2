@@ -130,6 +130,7 @@ try {
 	await page.getByRole('button', { name: 'Toggle warp input availability', exact: true }).click();
 	await page.getByRole('button', { name: 'Toggle warp metadata busy', exact: true }).click();
 	await page.getByRole('button', { name: 'Show Composition', exact: true }).click();
+	await page.getByRole('button', { name: 'Toggle spatial metadata busy', exact: true }).click();
 	const composition = page.getByLabel('Composition view', { exact: true });
 	assert.equal(await composition.getByRole('button', { name: /^Move / }).count(), 0);
 	const move = page.getByRole('button', { name: 'Select Item A', exact: true });

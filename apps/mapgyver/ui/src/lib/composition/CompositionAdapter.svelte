@@ -214,6 +214,8 @@
 				{composition}
 				selected={selectedInstance}
 				disabled={busy}
+				selectionAvailable={appState.session?.status === 'connected' &&
+					!appState.session.loading.visible}
 				active={gestureState.active}
 				select={(id) => {
 					if (selection.select(id)) selectedInstance = id;

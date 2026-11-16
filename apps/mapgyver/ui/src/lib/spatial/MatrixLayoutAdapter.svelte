@@ -213,6 +213,8 @@
 					selected={selected?.item.id.id ?? null}
 					disabled={owner.busy}
 					{select}
+					selectionAvailable={appState.session?.status === 'connected' &&
+						!appState.session.loading.visible}
 					active={geometry.state.active}
 					{start}
 					move={(point) => geometry.gesture.move(point)}

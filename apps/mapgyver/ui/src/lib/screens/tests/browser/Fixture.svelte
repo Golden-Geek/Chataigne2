@@ -57,6 +57,7 @@
 	let warpBusy = $state(false);
 	let warpSelectionAvailable = $state(true);
 	let warpCorner = $state<number | null>(null);
+	let spatialBusy = $state(false);
 	let cropFinishes = $state(0),
 		cropStops = $state(0),
 		cropMoves = $state(0);
@@ -165,6 +166,7 @@
 			extentAvailable = !extentAvailable;
 		}}>Toggle source bounds</button>
 	<output aria-label="Geometry starts">{edits}</output>
+	<button onclick={() => (spatialBusy = !spatialBusy)}>Toggle spatial metadata busy</button>
 	<button onclick={() => (warpBusy = !warpBusy)}>Toggle warp metadata busy</button>
 	<button onclick={() => (warpSelectionAvailable = !warpSelectionAvailable)}>
 		Toggle warp input availability
@@ -257,7 +259,8 @@
 				canvas={composition.canvas}
 				kind={matrixKind}
 				selected={matrixSelected?.id ?? null}
-				disabled={false}
+				disabled={spatialBusy}
+				selectionAvailable={true}
 				active={false}
 				select={(id) => {
 					selected = id;
@@ -273,7 +276,8 @@
 			{channel}
 			composition={shownComposition}
 			{selected}
-			disabled={false}
+			disabled={spatialBusy}
+			selectionAvailable={true}
 			active={false}
 			select={(id) => {
 				selected = id;

@@ -191,6 +191,13 @@ refused edits retain selection and viewport focus without acquiring capture. Com
 Matrix consume this helper directly; the former app-local pointer copy is removed. Adapters
 retain typed target identities and backend mutations.
 
+Each pointer start takes a typed `ViewportPointerTarget` with separate `selectable` and
+`editable` permissions. The shared helper consumes/selects an available hit before evaluating
+edit permission or calling `begin`; a refused edit acquires no capture. Composition and Matrix
+must pass connection/loading and active-tool availability separately from metadata/read/mutation
+busy state. Their selection-only keyboard paths use that same availability, so a pending read
+cannot swallow the next selection press. Existing focused gesture controls retain focus.
+
 Screen Warping follows the same selection-before-admission rule in its native-aware controls.
 `SurfaceHandles.selectionAvailable` follows connection/loading availability; the owning adapter
 retains the active-gesture guard. Metadata/read busy state blocks geometry, while Surface and

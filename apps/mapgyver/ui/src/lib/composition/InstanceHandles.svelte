@@ -18,6 +18,7 @@
 		presentation = null,
 		selected,
 		disabled,
+		selectionAvailable,
 		active,
 		select,
 		start,
@@ -29,6 +30,7 @@
 		presentation?: InstancePresentation | null;
 		selected: InstanceId | null;
 		disabled: boolean;
+		selectionAvailable: boolean;
 		active: boolean;
 		select(id: InstanceId): void;
 		start(reference: InstanceReference, handle: InstanceHandle): boolean;
@@ -63,11 +65,11 @@
 		stop: () => stop()
 	});
 	function down(event: PointerEvent, item: InstanceSnapshot, mode: InstanceGeometryMode) {
-		if (disabled) return;
-		pointer.start(
-			event,
-			() => select(item.reference.instance),
-			(at) => {
+		pointer.start(event, {
+			selectable: selectionAvailable && !active,
+			editable: !disabled,
+			select: () => select(item.reference.instance),
+			begin: (at) => {
 				const handle: InstanceHandle = {
 					mode,
 					origin: {
@@ -80,7 +82,7 @@
 				};
 				return start(item.reference, handle);
 			}
-		);
+		});
 	}
 	$effect(() => {
 		if (!active) pointer.cancel();
@@ -126,15 +128,15 @@
 				class:selected={item.reference.instance === selected}
 				class:inactive={!item.definition.enabled}
 				role="button"
-				tabindex={disabled ? -1 : 0}
+				tabindex={selectionAvailable ? 0 : -1}
 				aria-label={`Select ${item.label}`}
-				aria-disabled={disabled}
+				aria-disabled={!selectionAvailable || active}
 				onpointerdown={(event) => down(event, item, 'Translate')}
 				onclick={(event) => {
-					if (!disabled && event.detail === 0) select(item.reference.instance);
+					if (selectionAvailable && !active && event.detail === 0) select(item.reference.instance);
 				}}
 				onkeydown={(event) => {
-					if (!disabled && (event.key === 'Enter' || event.key === ' ')) {
+					if (selectionAvailable && !active && (event.key === 'Enter' || event.key === ' ')) {
 						event.preventDefault();
 						select(item.reference.instance);
 					}
@@ -174,10 +176,10 @@
 			label={`Select ${item.label}`}
 			data-instance-drop-target={item.reference.instance}
 			data-source-drop-object={item.reference.instance}
-			aria-disabled={disabled && !active}
+			aria-disabled={!selectionAvailable || active}
 			onpointerdown={(event) => down(event, item, 'Translate')}
 			onclick={(event) => {
-				if (!disabled && event.detail === 0) select(item.reference.instance);
+				if (selectionAvailable && !active && event.detail === 0) select(item.reference.instance);
 			}} />
 	{/if}
 {/each}

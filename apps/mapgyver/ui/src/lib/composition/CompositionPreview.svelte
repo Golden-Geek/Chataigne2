@@ -19,6 +19,7 @@
 		presentation = null,
 		selected,
 		disabled,
+		selectionAvailable,
 		active,
 		select,
 		onselectionclear,
@@ -33,6 +34,7 @@
 		presentation?: InstancePresentation | null;
 		selected: InstanceId | null;
 		disabled: boolean;
+		selectionAvailable: boolean;
 		active: boolean;
 		select(id: InstanceId): void;
 		onselectionclear(): void;
@@ -127,6 +129,7 @@
 		{composition}
 		{selected}
 		{disabled}
+		{selectionAvailable}
 		{active}
 		{select}
 		{start}
