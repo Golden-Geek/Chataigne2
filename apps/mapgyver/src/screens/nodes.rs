@@ -16,7 +16,7 @@ pub struct ScreenManagerNode {
     data: NodeData,
     owner: Arc<()>,
     revision: RevisionSource,
-    displays: Arc<[DisplayInfo]>,
+    displays: Option<Arc<[DisplayInfo]>>,
     known_displays: std::collections::HashMap<String, DisplayInfo>,
     resolved_displays: std::collections::HashMap<super::protocol::ScreenId, super::catalog_runtime::RecoveredDisplay>,
     allocation_guard: Option<RevisionGuard>,
@@ -31,7 +31,7 @@ impl ScreenManagerNode {
             data,
             owner: Arc::new(()),
             revision: RevisionSource::default(),
-            displays: Arc::from([]),
+            displays: None,
             known_displays: Default::default(),
             resolved_displays: Default::default(),
             allocation_guard: None,
@@ -43,16 +43,19 @@ impl ScreenManagerNode {
         reader.guard_at(reader.current())
     }
     pub fn displays(&self) -> Arc<[DisplayInfo]> {
-        self.displays.clone()
+        self.displays.clone().unwrap_or_else(|| Arc::from([]))
+    }
+    pub(crate) fn has_display_catalog(&self) -> bool {
+        self.displays.is_some()
     }
     /// Publishes ephemeral native metadata without writing any authored Parameter or history.
     pub fn set_displays(&mut self, displays: Arc<[DisplayInfo]>) -> bool {
         self.known_displays
             .extend(displays.iter().map(|display| (display.id.clone(), display.clone())));
-        if self.displays.as_ref() == displays.as_ref() {
+        if self.displays.as_deref() == Some(displays.as_ref()) {
             return false;
         }
-        self.displays = displays;
+        self.displays = Some(displays);
         true
     }
     pub(crate) fn mark_catalog_dirty(&mut self) {
@@ -68,7 +71,7 @@ impl ScreenManagerNode {
     pub(crate) fn allocation_pending(&self, displays: &[DisplayInfo]) -> bool {
         self.allocation_guard
             .as_ref()
-            .is_some_and(|guard| !guard.is_current() || self.displays.as_ref() != displays)
+            .is_some_and(|guard| !guard.is_current() || self.displays.as_deref() != Some(displays))
     }
     pub(crate) fn resolved_display(
         &self,
@@ -120,6 +123,7 @@ impl Node for ScreenManagerNode {
         self.resolved_displays.clear();
         self.allocation_guard = None;
         self.known_displays.clear();
+        self.displays = None;
     }
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
         self.mark_catalog_dirty();

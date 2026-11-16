@@ -87,20 +87,16 @@ async function wait(read, ready, maximum = 15000) {
 		await delay(100);
 	}
 }
-async function fresh() {
-	const snapshot = await inspect();
-	assert.equal(snapshot.screens.length, 1);
-	const screen = snapshot.screens[0];
-	assert.equal(screen.label, 'Screen');
-	assert.equal(screen.definition.enabled, true);
-	assert.equal(screen.definition.anti_aliasing, 'Raw');
-	const displays = JSON.parse(
+function displayCatalog() {
+	return JSON.parse(
 		execFileSync(probe, ['--role', 'catalog'], {
 			encoding: 'utf8',
 			windowsHide: true,
 			timeout: 10000
 		})
 	);
+}
+function expectedTarget(displays) {
 	const available = displays
 		.filter(
 			(display) =>
@@ -109,15 +105,34 @@ async function fresh() {
 				display.bounds.extent.height <= 8192
 		)
 		.sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0))[0];
-	assert.deepEqual(
-		screen.definition.target,
-		available
-			? {
-					kind: 'Fullscreen',
-					display: available.id
-				}
-			: null
-	);
+	return available ? { kind: 'Fullscreen', display: available.id } : null;
+}
+function displayOptions(graph, screen) {
+	const nodes = new Map(graph.nodes.map((node) => [node.node_id, node]));
+	const root = graph.nodes.find((node) => node.uuid === screen);
+	assert(root, 'Screen missing from snapshot');
+	const pending = [root.node_id];
+	while (pending.length) {
+		const node = nodes.get(pending.pop());
+		if (node.decl_id === 'parameters/display') {
+			const param = node.data.param;
+			const definition = graph.schema.enums?.find((item) => item.enum_id === param.enum_options_id);
+			return (definition?.variants ?? param.constraints?.enum_options ?? []).map(
+				(option) => option.variant_id
+			);
+		}
+		pending.push(...(node.children ?? []));
+	}
+	assert.fail('Display Parameter missing');
+}
+async function fresh() {
+	const snapshot = await inspect();
+	assert.equal(snapshot.screens.length, 1);
+	const screen = snapshot.screens[0];
+	assert.equal(screen.label, 'Screen');
+	assert.equal(screen.definition.enabled, true);
+	assert.equal(screen.definition.anti_aliasing, 'Raw');
+	assert.deepEqual(screen.definition.target, expectedTarget(displayCatalog()));
 	assert.equal(screen.surfaces.length, 1);
 	assert.equal(screen.surfaces[0].definition.source, null);
 	const graph = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
@@ -223,6 +238,28 @@ try {
 		}
 	}
 	checks.push({ stage, load_cycles: 2, count: 0, browser_reload: !headless });
+	stage = 'creation immediately after empty load';
+	const currentDisplays = displayCatalog();
+	const createdAfterLoad = await screens({ kind: 'CreateScreen', label: 'After Load' });
+	const loadedScreen = (await inspect()).screens.find(
+		(screen) => screen.id === createdAfterLoad.screen
+	);
+	assert(loadedScreen);
+	assert.deepEqual(loadedScreen.definition.target, expectedTarget(currentDisplays));
+	const inventoryGraph = await wait(
+		() => post('/api/ui/snapshot', { scope: 'wholeGraph' }),
+		(graph) =>
+			currentDisplays.every((display) =>
+				displayOptions(graph, loadedScreen.id).includes(display.id)
+			)
+	);
+	assert.equal(inventoryGraph.history.undo_len, 1);
+	checks.push({
+		stage,
+		display_options: currentDisplays.length,
+		target: loadedScreen.definition.target,
+		history: inventoryGraph.history
+	});
 	stage = 'multiple project load';
 	await post('/api/ui/project-load', { path: manyFile });
 	assert.deepEqual(await inspect(), many);

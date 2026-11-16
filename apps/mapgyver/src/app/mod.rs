@@ -75,6 +75,12 @@ impl ProjectLifecycle for AppNode {
         Ok(())
     }
 
+    fn project_opened(engine: &mut AppEngine) -> Result<(), String> {
+        // New candidates may still hold their initialization forest as queued edits.
+        engine.apply_edits().map_err(|error| error.to_string())?;
+        crate::screens::host_inventory::prepare(engine)
+    }
+
     fn query_app_operation(
         engine: &AppEngine,
         namespace: &str,

@@ -65,6 +65,28 @@ fn assert_unselected_fullscreen(engine: &AppEngine, screen: ScreenId) {
 }
 
 #[test]
+fn configuring_an_unselected_default_keeps_fullscreen_mode_and_exact_history() {
+    let mut engine = fixture();
+    let (screen, _) = create(&mut engine);
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let mut settings = definition(&engine, screen);
+    settings.frame_rate = ScreenFrameRate::Explicit { fps: 30.0 };
+    apply(
+        &mut engine,
+        ScreenEdit::ConfigureScreen {
+            screen,
+            definition: settings.clone(),
+        },
+    );
+    assert_eq!(definition(&engine, screen), settings);
+    assert_unselected_fullscreen(&engine, screen);
+    assert!(engine.undo().unwrap());
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+    assert!(engine.redo().unwrap());
+    assert_unselected_fullscreen(&engine, screen);
+}
+
+#[test]
 fn creation_uses_physical_external_identity_even_when_primary_and_ignores_unknown_connections() {
     let mut external = display("external", 9, true, 2);
     external.internal = Some(false);

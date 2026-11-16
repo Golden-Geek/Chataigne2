@@ -41,12 +41,24 @@ mock catalogs. Their setup now clears inherited metadata; identity matching and 
 assertions remain intact. Earlier Screen fixture assumptions about implicit Spout targets and
 primary/secondary classification were made explicit. Failed receipts remain in `target/`.
 
-**Remaining correctness scope:** fresh startup/New seed the catalog, but raw project loading
-recreates an empty ephemeral manager catalog. The headless host currently starts Video and
-application services without a display-inventory service. Before claiming every creation path,
-restore current metadata on loaded candidates and refresh the headless catalog across topology
-changes without changing saved target Parameters. Add the loaded-empty-project → CreateScreen
-case to the existing host contract. This is unfinished M14/6 work, not deferred qualification.
+**Loaded/headless correctness:** opened candidates now prepare missing ephemeral inventory once,
+distinguishing unprepared from prepared-empty state. The existing headless worker refreshes
+once per second through the current catalog inbox; unchanged catalogs avoid actor captures.
+Loss/recovery and old-publisher replacement preserve authored targets and history. Configuration
+of an unselected Fullscreen Screen now preserves its mode when changing frame rate or AA.
+
+The updated complete library run passes718 tests (eight existing hardware tests ignored) in
+90.20s, including both real-actor inventory tests and exact Fullscreen configuration history.
+Strict app/library/test lint passes. The tests drive normal runtime ticks for catalog wakes;
+load compares authored snapshots across decoding and the exact loaded document/history before
+and after metadata preparation, allowing intrinsic declaration-order canonicalization by the
+existing codec. Prior failed receipts remain preserved. The default-feature app build and
+strict lint exit0. The extended actual headless contract passes seven groups, including
+immediate creation after empty load, one current Display enum option, a null destination on
+the current no-external topology and exactly one creation history item. HostPID38648 exits0;
+errors are empty. See the [inventory receipt](evidence/mapgyver-m14-screen-inventory-2026-11-16.json).
+Loaded/headless correctness is functionally verified for these scopes; desktop and original
+physical topology/output/recovery requirements remain open under M14/6.
 
 Shared/default receipts: `target/m14-display-core-creation-tests-2026-11-16.log`,
 `target/m14-display-host-tests-2026-11-16.log`, `target/m14-display-clippy-2026-11-16.log`

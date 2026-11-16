@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-16",
+  "gate": "M14/6",
+  "acceptance": "Active: loaded/headless correctness verified; desktop and physical requirements remain open",
+  "base_commit": "b679d2ed24899764acfe2eaa9a8399ae54e4ed88",
+  "report": "../mapgyver-m14-screen-defaults.md",
+  "behavior": [
+    "Opened candidates prepare missing ephemeral display inventory once, preserving prepared-empty state and authored destinations.",
+    "The existing headless worker scans once per second; unchanged catalogs avoid actor captures. Existing catalog inbox guards handle loss/recovery and project replacement.",
+    "Configuring an unselected Fullscreen Screen preserves its mode and exact Undo/Redo."
+  ],
+  "software": {
+    "app_library_passed": 718,
+    "existing_hardware_ignored": 8,
+    "seconds": 90.20,
+    "execution": "Sequential; retained default-parallel failures are not waived.",
+    "log": "target/m14-display-lifecycle-app-tests-verified-2026-11-16.log",
+    "log_sha256": "f6a3b7986b95303734db24f51e1a01ff88895fe39db10d922bacb47bf7882416",
+    "checks": "Strict app/library/test Clippy, ordinary default-feature build, root/Core formatting and scoped browser Prettier pass. Protocol and UI source are unchanged; previous generated/UI and unchanged Core/host checks retain their tested scope.",
+    "strict_log": "target/m14-display-inventory-clippy-2026-11-16.log",
+    "default_build_log": "target/m14-display-inventory-default-build-2026-11-16.log"
+  },
+  "host": {
+    "command": "node apps/mapgyver/tests/browser/initial-screen.mjs target/m14-screen-inventory-host-2026-11-16 headless",
+    "exit_code": 0,
+    "host_pid": 38648,
+    "groups": 7,
+    "errors": [],
+    "after_load_creation": { "display_options": 1, "target": null, "undo_len": 1 },
+    "log": "target/m14-display-inventory-host-2026-11-16.log",
+    "log_sha256": "e4e1d6d765f422892a1b12d7af96e47634fb2e77e489f1f954a97e1343568ea7",
+    "product_sha256": "37e80f4a95c6d5c1e176c2e5c6228a3506cdab7a0c77f9ce613e743102e5fe64",
+    "observer": "Reused b679d2ed observer: native catalog code and contract are unchanged."
+  },
+  "limits": [
+    "Current observed physical topology has one internal panel and no external display. Mock external catalogs prove allocation logic, not missing physical cases.",
+    "Desktop/menu/Inspector, original zero/one/multiple external physical output and both-GPU disappearance/recovery acceptance remain required.",
+    "All unrelated gates and original budgets remain. No gate count, cadence, stress or release-readiness acceptance is awarded."
+  ],
+  "overall": { "accepted": 91, "total": 106, "percent": 86, "m14_accepted": 3, "m14_total": 10 }
+}

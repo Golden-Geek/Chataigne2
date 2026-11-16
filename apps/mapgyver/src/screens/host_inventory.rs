@@ -1,7 +1,23 @@
-//! One-shot candidate metadata preparation; live refresh stays on the preview worker.
+//! Candidate metadata preparation and host-worker refresh; never authored target reassignment.
 use super::protocol::{DisplayInfo, DisplayRefreshRate, PhysicalRectangle};
 use golden_video::Extent2D;
 use std::io;
+
+#[cfg(windows)]
+pub(crate) mod headless;
+
+/// Loaded candidates have no persisted inventory. Fresh candidates retain their prepared
+/// catalog, including a prepared-empty fallback, rather than doing another OS query.
+pub(crate) fn prepare(engine: &mut crate::app::AppEngine) -> Result<(), String> {
+    let id = super::authoring::manager(engine)?;
+    let Some(crate::app::AppNode::ScreenManager(manager)) = engine.nodes.get_mut(id) else {
+        unreachable!()
+    };
+    if !manager.has_display_catalog() {
+        manager.set_displays(initial().into());
+    }
+    Ok(())
+}
 
 pub(crate) fn scan() -> io::Result<Vec<DisplayInfo>> {
     golden_core::app::native_displays()?

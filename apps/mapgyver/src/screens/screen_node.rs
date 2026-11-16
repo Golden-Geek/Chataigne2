@@ -117,6 +117,10 @@ impl ScreenNode {
                 ]);
                 "Shared Texture"
             }
+            None if self.target_kind.get_ref().as_str() == "Fullscreen" => {
+                values.push((self.display.id(), ParamValue::Enum(String::new())));
+                "Fullscreen"
+            }
             None => {
                 values.push((self.sender.id(), ParamValue::Str(String::new())));
                 "Shared Texture"
