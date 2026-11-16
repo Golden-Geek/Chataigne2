@@ -99,6 +99,13 @@ bounds; live parameter publications preserve them. Curve constants/value project
 reading and compiled easing evaluation now live in focused modules under `common/curve`;
 model projection never mutates document nodes.
 
+Curve input publishes its complete key/segment selection through the editor's typed
+`onselectioninput` callback before gesture admission. The Inspector uses the same explicit
+selection bridge as Gradient, so pressing a key while its Value Parameter is inspected selects
+the key itself even though both project to the same local item. Pointer, context-menu,
+marquee-completion and Select All inputs use this boundary; model cleanup and asynchronous
+commands retain their existing guarded projection paths. Selection authors no Parameter values.
+
 `AnimationCurveCanvas` is now a DOM/lifecycle host. Its props derive from the typed
 `CurveCanvasFrame`; shared Curve model types replace the former partial duplicate declarations.
 `canvas-paint` consumes one draw frame and returns both bounds text and the hit transform from
@@ -143,7 +150,7 @@ key/Bezier frame samples and edit-session handoff. `parameter-writer` owns curre
 coercion and unsettled writes for both gestures and pending commands. The terminal input controller
 retires tools, flushes or discards samples and waits for those writes before closing the pinned
 session. The editor supplies geometry/projection adapters instead of holding that bookkeeping.
-`AnimationCurveNodeEditor` is the687-line composition/lifecycle host. Focused editor factories
+`AnimationCurveNodeEditor` is the composition/lifecycle host. Focused editor factories
 own model projection, selection, previews, constraints, insertion, sculpting, camera, hits,
 drawing, commands and pointer dispatch; each consumes a typed interface limited to its dependencies.
 The context exposes lazy references so mutually dependent projections do not create runtime import

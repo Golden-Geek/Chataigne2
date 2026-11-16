@@ -9,6 +9,14 @@ interface Context {
 	readonly state: ReturnType<typeof createCurveEditorState>;
 }
 export function createCurveEditorSelection(context: Context) {
+	// Explicit input chooses exact nodes even when a field already projects to the same item.
+	const publish_input_selection = (): void => {
+		context.bindings.onselectioninput?.({
+			key: context.bindings.selected_key_id,
+			keys: [...context.bindings.selected_key_ids],
+			segments: [...context.bindings.selected_curve_owner_key_ids]
+		});
+	};
 	const same_node_id_array = (left: NodeId[], right: NodeId[]): boolean => {
 		if (left.length !== right.length) {
 			return false;
@@ -206,6 +214,7 @@ export function createCurveEditorSelection(context: Context) {
 			if (active.mode === 'replace') {
 				set_single_selected_key(null);
 				set_single_selected_curve_owner_key(null);
+				publish_input_selection();
 			}
 			return;
 		}
@@ -222,6 +231,7 @@ export function createCurveEditorSelection(context: Context) {
 			context.bindings.selected_key_ids = next_key_selection;
 			context.bindings.selected_key_id = next_key_selection[0] ?? null;
 			clear_selected_curve_owner_keys();
+			publish_input_selection();
 			return;
 		}
 		if (active.mode === 'replace' || curve_hits.length > 0) {
@@ -232,6 +242,7 @@ export function createCurveEditorSelection(context: Context) {
 			curve_hits,
 			active.mode
 		);
+		publish_input_selection();
 	};
 	const clear_canvas_selection = (): void => {
 		clear_selected_keys();
@@ -252,8 +263,10 @@ export function createCurveEditorSelection(context: Context) {
 		context.bindings.selected_key_ids = all_ids;
 		context.bindings.selected_key_id = all_ids[0] ?? null;
 		context.bindings.selected_curve_owner_key_ids = [];
+		publish_input_selection();
 	};
 	return {
+		publish_input_selection,
 		same_node_id_array,
 		has_selected_key,
 		clear_selected_keys,

@@ -1,4 +1,5 @@
 import type { UiNodeDto } from '../../../../types';
+import type { CurveSelection } from '../../../common/curve/types';
 import {
 	createInspectorEditorSelection,
 	type InspectorEditorSelectionHost
@@ -6,8 +7,7 @@ import {
 import {
 	createCurveSelectionProjection,
 	curveSelectionNodes,
-	curveSelectionSignature,
-	type CurveSelection
+	curveSelectionSignature
 } from './curve-selection';
 
 export function createCurveInspectorSelection(context: {

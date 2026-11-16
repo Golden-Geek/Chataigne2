@@ -1,5 +1,11 @@
 import type { NodeId, ParamValue, UiNodeDto, UiParamConstraints } from '../../../types';
 
+export interface CurveSelection {
+	key: NodeId | null;
+	keys: NodeId[];
+	segments: NodeId[];
+}
+
 export type CurveEasingKind =
 	| 'linear'
 	| 'bezier'

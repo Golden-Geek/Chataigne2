@@ -4,7 +4,7 @@ import { VersionedNodeMap } from '../../../../store/graph-index';
 import { fixtureNode } from '../../../../tests/browser/fixture/session';
 import { createCurveInspectorSelection } from '../nodes/curve-selection.svelte';
 import type { InspectorEditorSelectionHost } from '../editor-selection.svelte';
-import type { CurveSelection } from '../nodes/curve-selection';
+import type { CurveSelection } from '../../../common/curve/types';
 import type { NodeId } from '../../../../types';
 
 export function curveBridgeFixture() {

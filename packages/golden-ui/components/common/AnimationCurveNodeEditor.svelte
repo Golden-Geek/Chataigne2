@@ -13,7 +13,7 @@
 	import type { NodeId, UiNodeDto } from '../../types';
 	import AnimationCurveCanvas from './AnimationCurveCanvas.svelte';
 	import ContextMenu from './ContextMenu.svelte';
-	import type { DragPreview, BezierEasingPreview } from './curve/types';
+	import type { DragPreview, BezierEasingPreview, CurveSelection } from './curve/types';
 	import type {
 		CurveEditorDocument,
 		CurveEditorBindings,
@@ -41,7 +41,8 @@
 		showBounds = true,
 		constrainKeysToNeighbors = true,
 		canvasHeight = 'min(26rem, 38vh)',
-		onselectionclear
+		onselectionclear,
+		onselectioninput
 	}: {
 		curveNode: UiNodeDto;
 		selected_key_id?: NodeId | null;
@@ -53,6 +54,7 @@
 		constrainKeysToNeighbors?: boolean;
 		canvasHeight?: string;
 		onselectionclear?: () => void;
+		onselectioninput?: (selection: CurveSelection) => void;
 	} = $props();
 	let session = $derived(appState.session);
 	let graphNodesById = $derived(session?.graph.state.nodesById ?? null);
@@ -108,6 +110,9 @@
 		},
 		get onselectionclear() {
 			return onselectionclear;
+		},
+		get onselectioninput() {
+			return onselectioninput;
 		}
 	};
 	const services: CurveEditorServices = {

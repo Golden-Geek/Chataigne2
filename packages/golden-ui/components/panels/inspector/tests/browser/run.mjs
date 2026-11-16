@@ -115,6 +115,18 @@ try {
 		'selection keeps owned capture'
 	);
 	await page.mouse.up();
+	await page.getByRole('button', { name: 'Select key value', exact: true }).click();
+	assert.equal(await selected.textContent(), 'Value');
+	await page.mouse.move(points[0].x, points[0].y);
+	await page.mouse.down();
+	assert.equal(
+		await selected.textContent(),
+		'Curve A key 0',
+		'pressing an already projected key selects its exact node before release'
+	);
+	assert(await canvas.evaluate((current, old) => current === old, original));
+	assert.equal(await page.getByLabel('Curve writes').textContent(), '0');
+	await page.mouse.up();
 	await page.keyboard.down('Shift');
 	await page.mouse.move(points[1].x, points[1].y);
 	await page.mouse.down();

@@ -977,15 +977,39 @@ Logs and SHA256:
   `target/m14-video-boundary-product-build-2026-11-16.log`,
   `f4ddf38dcb88ea73e8f25bc559aba82f652a10838bf9b1bf2f5896b743d4add4`.
 
-Current ordinary MapGyver SHA256:
+Boundary-Step ordinary MapGyver SHA256 (superseded by the Curve UI build below):
 `6d3f0f9292eba04e6b425a8f89439014c3959cf219404033f4e69e103f069ad9`.
 Root/Core formatting passes. Core and Gradient are unchanged from their prior699/5 passing
 suites. No protocol/UI change, native/GPU check, budget change or fixed-gate acceptance is
 claimed. The native fixture remains older and needs a coherent rebuild before native acceptance.
 
-Next action: address Curve's equivalent field-to-key exact-selection boundary through the newly
-explicit shared Inspector bridge, retaining its failed connected receipt and all original capture
-requirements. The Gradient two-panel and tested document/reconnect product scopes now pass;
+Curve exact-selection slice (2026-11-16): the production Inspector baseline fails when Value is
+selected and the already-projected key is pressed: Value remains selected. Curve now publishes
+complete selection through the shared bridge's explicit input method before gesture admission.
+Pointer/context-menu, marquee completion and Select All use the typed callback; passive cleanup
+and asynchronous commands retain guarded projection. The corrected regression selects the key
+before release with the same canvas and zero Parameter writes. Full Curve/Gradient browser
+coverage, all three unchanged paint hashes,37 focused unit tests and four UI typechecks0/0 pass.
+Both ordinary default-feature apps build successfully; root/Core formatting passes.
+
+Logs: `target/m14-curve-exact-selection-baseline-2026-11-16.log` (expected failure),
+`target/m14-curve-exact-selection-fixed-2026-11-16.log` (exit0, SHA256
+`15878e22d44b1d21216eb0453ac84e45028a38b1c3ceb98be38bd1cd28361ae4`),
+`target/m14-curve-exact-selection-unit-2026-11-16.log` (37 passed),
+`target/m14-curve-exact-selection-*-check-2026-11-16.log` (four checks0/0),
+and `target/m14-curve-exact-selection-product-build-2026-11-16.log` (exit0, SHA256
+`27e5045235042570d804fd11ddbe57653d4e1a304bff7dd59a081ae5bc10d35a`).
+Current ordinary MapGyver SHA256:
+`a84b77774f0770ba3e0519f110e96b0d601e339303d528c04d20d43d9637481e`;
+Chataigne SHA256: `f7f4f9bd57c2bb0f2713ebb29f73d2056e54ba8c3e32b4fb3e2031ca4f6e4aa5`.
+The separate connected capture failure was not rerun and is not claimed fixed. No native/GPU
+check or acceptance-budget change occurred. Finish this verified slice; stop extending Curve
+investigation. Return only for a correction supported by its actual terminal boundary or required
+native acceptance after helper reconnection. Its original connected/history/native requirements
+remain Pending; no fixed gate closes.
+
+Next action: Golden graph's actual-domain Inspector selection acceptance within M14/1.
+The Gradient two-panel and tested document/reconnect product scopes now pass;
 physical native and remaining editor inventory still require their own evidence.
 Matrix grid independent panels,
 layout reload and the tested New/Load scope now pass. Surface Source, Composition and

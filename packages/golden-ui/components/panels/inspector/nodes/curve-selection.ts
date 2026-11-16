@@ -1,15 +1,11 @@
 import type { NodeId } from '../../../../types';
+import type { CurveSelection } from '../../../common/curve/types';
 import {
 	createHierarchySelection,
 	selectionPath,
 	type SelectionGraph
 } from '../../../../store/selection-hierarchy';
 
-export interface CurveSelection {
-	key: NodeId | null;
-	keys: NodeId[];
-	segments: NodeId[];
-}
 export const curveSelectionSignature = (selection: CurveSelection) =>
 	JSON.stringify([selection.key, selection.keys, selection.segments]);
 

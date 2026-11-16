@@ -6,6 +6,7 @@ import type { createCurveParameterWriter } from './parameter-writer';
 import type { createCurveCreation } from './creation.svelte';
 import type { createCurveEditGesture } from './edit-gesture.svelte';
 import type { createCurveInput } from './input';
+import type { CurveSelection } from './types';
 export interface CurveEditorDocument {
 	readonly session: WorkbenchSession | null;
 	readonly graphNodesById: CurveNodes | null;
@@ -20,6 +21,7 @@ export interface CurveEditorBindings {
 	readonly input_selection_identity: string;
 	readonly constrainKeysToNeighbors: boolean;
 	readonly onselectionclear: (() => void) | undefined;
+	readonly onselectioninput?: (selection: CurveSelection) => void;
 }
 export interface CurveEditorServices {
 	readonly curveOperations: ReturnType<typeof createCurveOperations>;

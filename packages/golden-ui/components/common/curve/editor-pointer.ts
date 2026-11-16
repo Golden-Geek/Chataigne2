@@ -90,6 +90,7 @@ export function createCurveEditorPointer(context: Context) {
 		);
 		if (key_id !== null) {
 			context.selection.set_single_selected_key(key_id);
+			context.selection.publish_input_selection();
 			context.state.hover_key_id = key_id;
 			context.state.hover_curve_owner_key_id = null;
 			context.state.hover_bezier_handle = null;
@@ -107,6 +108,7 @@ export function createCurveEditorPointer(context: Context) {
 		);
 		if (curve_hit) {
 			context.selection.set_single_selected_curve_owner_key(curve_hit.owner_key_id);
+			context.selection.publish_input_selection();
 			context.state.hover_key_id = null;
 			context.state.hover_curve_owner_key_id = curve_hit.owner_key_id;
 			context.state.hover_bezier_handle = null;
@@ -238,6 +240,7 @@ export function createCurveEditorPointer(context: Context) {
 			if (additive_selection) {
 				context.selection.add_selected_key(selection);
 				context.bindings.selected_key_id = selection;
+				context.selection.publish_input_selection();
 				context.state.hover_curve_owner_key_id = null;
 				event.preventDefault();
 				return;
@@ -247,6 +250,7 @@ export function createCurveEditorPointer(context: Context) {
 			} else {
 				context.bindings.selected_key_id = selection;
 			}
+			context.selection.publish_input_selection();
 			const drag_key_ids = context.selection.has_selected_key(selection)
 				? context.bindings.selected_key_ids
 				: [selection];
@@ -374,6 +378,7 @@ export function createCurveEditorPointer(context: Context) {
 			) {
 				context.selection.set_single_selected_curve_owner_key(curve_selection);
 			}
+			context.selection.publish_input_selection();
 			const segment = context.model.bezier_segment_by_owner_key_id.get(curve_selection);
 			if (!segment) {
 				event.preventDefault();

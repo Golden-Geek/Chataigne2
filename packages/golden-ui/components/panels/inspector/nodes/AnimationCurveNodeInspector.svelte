@@ -154,6 +154,7 @@
 			<AnimationCurveNodeEditor
 				curveNode={liveNode}
 				onselectionclear={selection.clear}
+				onselectioninput={selection.select}
 				bind:selected_key_id
 				bind:selected_key_ids
 				bind:selected_curve_owner_key_ids
