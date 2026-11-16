@@ -32,7 +32,7 @@ function timers() {
 	};
 }
 
-test('only one selected-source read runs at a time and null reads preserve healthy status', async () => {
+test('one read at a time clears retired source status and recovers if it returns', async () => {
 	const state = createVideoSourceState(),
 		timer = timers(),
 		first = deferred<VideoSourceStatus>();
@@ -41,7 +41,7 @@ test('only one selected-source read runs at a time and null reads preserve healt
 		state,
 		async () => {
 			calls++;
-			return calls === 1 ? first.promise : null;
+			return calls === 1 ? first.promise : calls === 2 ? null : ready;
 		},
 		() => true,
 		timer.schedule
@@ -56,10 +56,14 @@ test('only one selected-source read runs at a time and null reads preserve healt
 	timer.pending[0].run();
 	await flush();
 	assert.equal(calls, 2);
+	assert.equal(state.status, null);
+	assert.equal(state.error, '');
+	timer.pending[1].run();
+	await flush();
 	assert.deepEqual(state.status, ready);
 	stop();
 	assert.equal(state.status, null);
-	assert(timer.pending[1].cancelled);
+	assert(timer.pending[2].cancelled);
 });
 
 test('query failures clear stale readiness and recover on the next bounded retry', async () => {
@@ -84,6 +88,31 @@ test('query failures clear stale readiness and recover on the next bounded retry
 	assert.deepEqual(state.status, ready);
 	assert.equal(state.error, '');
 	stop();
+});
+
+test('deferred reads preserve both healthy status and an existing failure presentation', async () => {
+	for (const fail of [false, true]) {
+		const state = createVideoSourceState(),
+			timer = timers();
+		let calls = 0;
+		const reader = new VideoSourceReader(
+			state,
+			async () => {
+				if (++calls > 1) return undefined;
+				if (fail) throw new Error('offline');
+				return ready;
+			},
+			() => true,
+			timer.schedule
+		);
+		const stop = reader.start();
+		await flush();
+		const before = { ...state };
+		timer.pending[0].run();
+		await flush();
+		assert.deepEqual(state, before);
+		stop();
+	}
 });
 
 test('late reads and cancelled timers cannot overwrite a replacement owner or cancel its retry', async () => {

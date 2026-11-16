@@ -16,12 +16,12 @@ export class VideoSourceReader {
 	private epoch = 0;
 	private cancel: (() => void) | undefined;
 	private state: State;
-	private query: () => Promise<VideoSourceStatus | null>;
+	private query: () => Promise<VideoSourceStatus | null | undefined>;
 	private live: () => boolean;
 	private schedule: Later;
 	constructor(
 		state: State,
-		query: () => Promise<VideoSourceStatus | null>,
+		query: () => Promise<VideoSourceStatus | null | undefined>,
 		live: () => boolean,
 		schedule: Later = later
 	) {
@@ -49,7 +49,8 @@ export class VideoSourceReader {
 		}
 		try {
 			const status = await this.query();
-			if (current() && status) {
+			// Undefined defers a read; null is an authoritative absent target.
+			if (current() && status !== undefined) {
 				this.state.status = status;
 				this.state.error = '';
 			}

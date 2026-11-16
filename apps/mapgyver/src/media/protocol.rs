@@ -506,7 +506,8 @@ pub enum MediaEditResult {
         frame: Option<super::video::protocol::VideoFrameState>,
     },
     VideoSource {
-        status: super::video::protocol::VideoSourceStatus,
+        /// None when the authored media/channel has retired before this bounded read.
+        status: Option<super::video::protocol::VideoSourceStatus>,
     },
     TargetPicker {
         page: Option<TargetPickerPage>,

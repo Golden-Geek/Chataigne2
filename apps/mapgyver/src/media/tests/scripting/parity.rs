@@ -13,6 +13,7 @@ mod picture_file;
 mod reference_selection;
 mod target_picker;
 mod video_policy;
+mod video_status;
 
 #[derive(Clone, Copy, Debug)]
 enum Caller {
@@ -25,6 +26,10 @@ const CALLERS: [Caller; 4] = [Caller::Ui, Caller::QuickJs, Caller::HostedQuickJs
 
 fn named_invocation(operation: &MediaEdit) -> String {
     let (method, args) = match operation {
+        MediaEdit::InspectVideoSource { reference } => (
+            "inspectVideoSource",
+            serde_json::json!([reference.media, reference.channel]),
+        ),
         MediaEdit::Composition {
             reference,
             edit: crate::media::composition::protocol::CompositionEdit::ArrangeInstance { instance, action },
@@ -368,7 +373,17 @@ fn run_measured(
     } else {
         service_script_app_operations(engine).unwrap();
         let responses = replies(engine);
-        assert_eq!(responses.len(), 1, "{caller:?} must emit one committed callback");
+        assert_eq!(
+            responses.len(),
+            1,
+            "{caller:?} must emit one committed callback; script warnings: {:?}",
+            engine
+                .nodes
+                .iter()
+                .filter_map(|(_, node)| node.node_data().meta.presentation.warning(Some("script")))
+                .take(3)
+                .collect::<Vec<_>>()
+        );
         assert_eq!(responses[0]["request_id"], "parity");
         if responses[0]["status"] == "applied" {
             Some(responses[0]["value"].clone())

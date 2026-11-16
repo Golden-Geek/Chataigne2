@@ -28,7 +28,7 @@
 		const reader = new VideoSourceReader(
 			state,
 			async () => {
-				if (!current || current.hasActiveEditSession) return null;
+				if (!current || current.hasActiveEditSession) return undefined;
 				const result = await invokeMediaEdit(current, {
 					kind: 'InspectVideoSource',
 					reference: selected

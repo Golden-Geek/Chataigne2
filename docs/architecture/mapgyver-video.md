@@ -263,6 +263,13 @@ bounded256-character messages. A failed live decoder enters `Recovering`; initia
 `Unavailable`. Retry state is explicit. Builds without the Video file feature report unsupported
 playback without promising a retry. Ordinary authored settings remain real Inspector Parameters.
 
+This bounded read returns a nullable status when the authored media or channel has retired.
+It uses indexed UUID membership before reading the current owner, so an in-flight Inspector
+read during removal/Undo/New/Load cannot revive a retained decoder or report a mutation failure.
+Live wrong-kind and foreign-channel requests still reject; decoder/file errors remain typed
+statuses. Rust owns the nullable reply and generates the UI contract. An absent reply clears
+cached readiness; reads deferred by an active edit group preserve their current presentation.
+
 The compact channel Inspector status uses a background read, at most one in flight and one
 one-second retry timer. Active edit sessions defer its reads. Selection, File, connection and
 project changes fence late replies and dispose timers. Native preview messages follow canonical

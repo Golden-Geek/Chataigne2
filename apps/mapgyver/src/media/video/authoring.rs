@@ -43,13 +43,23 @@ pub(crate) fn inspect_frame(
     };
     node.video_control().unwrap().frame(reference, &file)
 }
-pub(crate) fn inspect_source(engine: &AppEngine, reference: ChannelReference) -> Result<VideoSourceStatus, String> {
+pub(crate) fn inspect_source(
+    engine: &AppEngine,
+    reference: ChannelReference,
+) -> Result<Option<VideoSourceStatus>, String> {
+    // A bounded status read may arrive after removal; invalid live ownership still rejects.
+    if engine.node_id_by_uuid(reference.media.0).is_none() {
+        return Ok(None);
+    }
     let node = owner(engine, reference.media)?;
+    if engine.node_id_by_uuid(reference.channel.0).is_none() {
+        return Ok(None);
+    }
     let channel = super::super::authoring::channel(engine, reference)?;
     let ChannelSource::Video { file } = channel.definition.source else {
         return Err("Selected channel is not Video".into());
     };
-    node.video_control().unwrap().source_status(reference, &file)
+    node.video_control().unwrap().source_status(reference, &file).map(Some)
 }
 pub(crate) fn file(engine: &mut AppEngine, reference: ChannelReference, file: &str) -> Result<(), String> {
     super::super::assets::parse_file(file)?;

@@ -72,9 +72,15 @@ Composition and M14/5 enabled metadata are now
 corrected shared write/history admission, the full actual-app browser contract and independent
 output/preview pixels with resource retirement on both GPUs. On2026-11-16 the user checked Overlay Off and established
 standing Off state until they report or authoritative evidence shows a change; do not request
-confirmation before each cohort. Select M14/3 Composition actions/front-first order next.
+confirmation before each cohort. M14/3 Composition actions/front-first order is now
+[Accepted](../progress/evidence/mapgyver-m14-actions-acceptance-2026-11-16.json), including
+all-caller actions, bounded paint/hits, both-GPU raster/retirement and the complete seven-type
+creation contract after correcting Video status reads across authored-target retirement.
+Select M14/6 backend external-display Screen defaults next. The recorded default-parallel
+Video software failures remain required correction/rerun work before M09; sequential passing
+evidence does not establish a full parallel-suite pass.
 Retain unfinished MapGyver selection/navigation and every other gate in the return queue.
-M14/4–5 acceptance adds two verified gates; the denominator is unchanged.
+M14/3–5 acceptance adds three verified gates; the denominator is unchanged.
 Then finish extended codecs,
 subtitles and retained acceptance before M09. The user also freshly observed native NVIDIA
 Overlay Off on this date; record that observation with any actual run, not as qualification.

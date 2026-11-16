@@ -229,7 +229,9 @@ fn relative_root_changes_missing_file_retry_and_relink_preserve_only_the_matchin
     std::fs::remove_file(second.path().join("clip.mp4")).unwrap();
     std::thread::sleep(Duration::from_millis(1050));
     probe.run_due(&source, || false).unwrap();
-    let unavailable = super::super::authoring::inspect_source(&engine, reference).unwrap();
+    let unavailable = super::super::authoring::inspect_source(&engine, reference)
+        .unwrap()
+        .unwrap();
     assert_eq!(unavailable.state, protocol::VideoSourceState::Unavailable);
     assert_eq!(unavailable.error.unwrap().kind, protocol::VideoSourceErrorKind::Missing);
     assert!(unavailable.retrying);
@@ -258,7 +260,9 @@ fn relative_root_changes_missing_file_retry_and_relink_preserve_only_the_matchin
         Duration::ZERO,
         "a replacement file does not revive a seek from the previous file"
     );
-    let recovered = super::super::authoring::inspect_source(&engine, reference).unwrap();
+    let recovered = super::super::authoring::inspect_source(&engine, reference)
+        .unwrap()
+        .unwrap();
     assert_eq!(recovered.state, protocol::VideoSourceState::Prepared);
     assert!(recovered.error.is_none());
     assert!(!recovered.retrying);

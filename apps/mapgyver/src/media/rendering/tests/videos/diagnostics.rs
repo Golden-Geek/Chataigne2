@@ -8,7 +8,7 @@ fn status(engine: &mut AppEngine, reference: ChannelReference) -> VideoSourceSta
     let MediaEditResult::VideoSource { status } = edit(engine, MediaEdit::InspectVideoSource { reference }) else {
         panic!()
     };
-    status
+    status.expect("live Video source")
 }
 
 #[test]

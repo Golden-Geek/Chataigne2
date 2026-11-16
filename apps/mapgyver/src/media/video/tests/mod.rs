@@ -5,6 +5,7 @@ mod membership;
 mod metadata;
 #[cfg(feature = "video-files")]
 mod publication;
+mod query_lifetime;
 #[cfg(feature = "video-files")]
 mod reader;
 mod status;

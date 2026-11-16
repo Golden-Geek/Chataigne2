@@ -1,0 +1,54 @@
+{
+  "date": "2026-11-16",
+  "gate": "M14/3",
+  "acceptance": "Accepted",
+  "base_commit": "b1ac18ff0aa3ef8ac06a3fc272b5dc3315a52784",
+  "owning_report": "../mapgyver-m14-composition-actions.md",
+  "preserved_evidence": [
+    "mapgyver-m14-composition-order-2026-11-16.json",
+    "Transform checkpoint 604ba10f: mixed ratios, all public callers, typed Inspector bindings, ordinary menus, history/copy/reload."
+  ],
+  "correction": "Rust-owned nullable Video source status for retired UUIDs; live invalid ownership rejects. Existing UI clears authoritative absence and preserves deferred reads; no new observer or relaxed assertion.",
+  "software": {
+    "video_serial": { "passed": 110, "ignored_hardware": 6, "failed": 0, "log": "target/m14-video-status-serial-tests-2026-11-16.log", "sha256": "b303947f832e01e646567569bd84340e10ca33b5c849a625d132fc68ae427883" },
+    "reader_operation_tests_passed": 7,
+    "checks": "Strict native-qualification app/library/test Clippy, Rust protocol generation and comparison, all-command-kinds check, both UI typechecks, scoped Prettier, root/Core formatting pass.",
+    "default_build_exit": 0,
+    "default_build_log": "target/m14-video-status-default-build-verified-2026-11-16.log",
+    "default_build_log_sha256": "c8d08520d1741e21001e18943ad99e5f688bd923c7072574417deea1b96a016d"
+  },
+  "browser": {
+    "command": "node apps/mapgyver/tests/headless/media.mjs --composition-review --composition-ui --composition-creation-ui",
+    "exit_code": 0,
+    "host_exit_code": 0,
+    "panel_queries": 139,
+    "media_types": ["Reference", "SolidColor", "Picture", "Video", "SharedTexture", "Composition", "Matrix"],
+    "page_errors": [],
+    "rejected_requests": [],
+    "log": "target/m14-video-status-product-ui-2026-11-16.log",
+    "log_sha256": "a2520a6561b8877b248313334d80efc09c78ddb273b01a427d777a053f9bcda6",
+    "product_sha256": "ce28a247d55ee237c37a4a52648710197a25bc34941a638c180945866af037b6"
+  },
+  "native": {
+    "result": "passed",
+    "adapters": ["Intel(R) Graphics LUID 87734:0", "NVIDIA GeForce RTX 5080 Laptop GPU LUID 88966:0"],
+    "states_per_adapter": 27,
+    "independent_images": 162,
+    "texels": 124416,
+    "maximum_error_bytes": 1,
+    "allowed_error_bytes": 2,
+    "seconds": 24.25,
+    "retirement": "Balanced/empty native inventory and idle payload pool assertions pass.",
+    "overlay": "User standing Off instruction applies; no fresh per-run confirmation required.",
+    "log": "target/m14-lifecycle-native-2026-11-16.log",
+    "log_sha256": "1dd0121c2bfe693ac80c4061d89315cc0edd8d985bfc29cd4c735ceeb706bbcf",
+    "executable_sha256": "ed78e677c1fcd6433799929184dec0f010844819c9b57b71b41974d909d27867"
+  },
+  "retained_failures": {
+    "parallel_video_suite": "Default parallel runs fail existing typed-policy generic QuickJS callback count or timed-column preload !idle.is_current(). Cause unproven. Exact sequential suite passes; full parallel suite is not accepted. Return before M09 with source-supported correction and original parallel rerun.",
+    "logs": ["target/m14-video-status-tests-final-2026-11-16.log", "target/m14-video-status-tests-complete-2026-11-16.log"],
+    "historical_creation_failure": "target/m14-transform-composition-ui-complete-2026-11-16.log",
+    "qualification": "No cadence, physical image/control alignment, private-growth, stress, driver-recovery or release-readiness claim. Every unrelated gate and original budget remains."
+  },
+  "progress": { "accepted": 91, "total": 106, "rounded_percent": 86, "m14_accepted": 3, "m14_total": 10, "phases_complete": 8, "phases_total": 15, "next_active_gate": "M14/6" }
+}

@@ -2,8 +2,8 @@
 
 MapGyver owns placement actions and authored child order. Golden supplies typed Parameters,
 history, the ordinary node menu and canvas toolbar. Actions, front-first ordering and native
-overlap pixels are verified. The gate stays Active for the retained Video-status lifecycle read
-and the complete seven-type creation series below.
+overlap pixels are verified. M14/3 is Accepted after correcting the Video-status lifecycle read
+and completing the original seven-type creation series below.
 
 The current product slice replaces Copy/Delete toolbar buttons with Fill/Fit and extends the
 ordinary node menu with Transform → Reset/Fit/Fill. Copy/Duplicate/Delete remain standard node
@@ -73,18 +73,39 @@ The [ordering receipt](evidence/mapgyver-m14-composition-order-2026-11-16.json) 
 hashes and exact scope. This is finite raster/input behavior, not cadence, physical image/control
 alignment, stress, driver recovery or private-growth qualification. Other owning gates remain.
 
-**Retained failure:** the seven-type creation function passed once in
+**Lifecycle correction:** `InspectVideoSource` now returns a generated nullable status for
+retired media/channel UUIDs. Live wrong-kind and foreign-channel requests still reject.
+The existing reader clears readiness on authoritative absence and preserves presentation
+when an active edit defers a read. Removal/Undo/New/Load, immutable-query/operation parity,
+all four public callers and late-reader fences are covered without reviving retained decoders.
+
+110 Video tests pass sequentially (six existing hardware tests ignored), seven reader/operation
+tests pass, and strict app/test lint, generated contract/command checks and both UI typechecks
+pass. The current native executable again passes all 27 states/162 images on both GPUs in
+24.25 seconds; original raster/resource budgets remain unchanged.
+
+**Parallel software return:** the default parallel Video suite is not green. One run fails the
+existing typed-policy generic QuickJS callback count; another fails the existing timed-column
+preload `!idle.is_current()` assertion. Both exact cases pass in the sequential 110-test run;
+their cause is unproven. Preserve `target/m14-video-status-tests-final-2026-11-16.log` and
+`target/m14-video-status-tests-complete-2026-11-16.log` for source-supported correction and the
+original parallel rerun before M09. No full parallel-suite or final qualification pass is claimed.
+
+**Historical failure:** the seven-type creation function passed once in
 `target/m14-transform-product-all-ui-2026-11-16.log`, but that aggregate command later failed
 on a parameter-fixture name collision (corrected with an explicit fixture label). A subsequent
 creation run completes the authored operations but records one unexpected background
 `InspectVideoSource` rejection, `media reference is missing`, after lifecycle edits.
 `target/m14-transform-composition-ui-complete-2026-11-16.log` SHA256
 `b296716743b1d1ad76bf96cd7eb855728989b5a8584cbb9b4a1bb6d82f52b93b` preserves that failure.
-No complete creation-series acceptance is claimed. Ordering is now delivered; before M14/3
-acceptance, reconcile the source-status read across removal/Undo/New/Load
-at its existing Video query/footer boundary, then complete the unchanged creation contract.
-Do not add another observer, profile or fixture variant.
+The failure remains historical evidence; the nullable read correction above resolves it.
 
-Remaining gate scope: correct the retained source-status lifecycle read at its existing boundary,
-then complete the unchanged seven-type creation contract. No observer/profile variant or
-unchanged rerun is queued. M14/3 stays Active/unaccepted;90/106 gates and M14 2/10 are unchanged.
+**Acceptance:** the rebuilt ordinary app passes the unchanged combined Composition review,
+editor and seven-type creation contracts, with 139 bounded panel queries, empty page errors and
+rejected-request lists, and normal host exit0. Reference, Solid Color, Picture, Video, Shared
+Texture, Composition and Matrix creation, placement, copy/reorder/delete, Undo/Redo and project
+identity pass. The explicit default-build exit is0; root/Core formatting and scoped Prettier pass.
+Together with the preserved transform/order caller, Inspector, menu, picking and native proofs,
+this closes M14/3. See the [acceptance receipt](evidence/mapgyver-m14-actions-acceptance-2026-11-16.json).
+Overall becomes91/106 (86%), M14 3/10. Parallel-suite and unrelated qualification debt remain
+open; no cadence, physical alignment or release-readiness claim follows from this finite gate.
