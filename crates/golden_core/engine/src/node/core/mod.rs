@@ -31,7 +31,7 @@ pub use metadata::{
 };
 pub use parameter_validation::ParameterValidationContext;
 pub use policies::{IntoScriptHostPolicyOption, IntoUserContextHostPolicyOption, UserContextHostPolicy};
-pub use user_item_creation::UserItemCreationContext;
+pub use user_item_creation::{PreparedChildrenReader, UserItemCreationContext};
 pub use user_items::{
     DeclaredUserItemNode, NodeUserPermissions, UserContainerRules, UserCreatableItem, UserCreatableItemInitialParam,
     UserNodeRole,

@@ -68,6 +68,7 @@ fn fullscreen_pixel_extent_uses_cached_intended_identity_and_rejects_unavailable
     let mut engine = fixture();
     let (screen, reference) = create(&mut engine);
     let display = DisplayInfo {
+        internal: None,
         refresh_rate: None,
         id: "pixels-display".into(),
         name: "Pixels".into(),

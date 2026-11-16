@@ -179,6 +179,7 @@ fn fullscreen_allocation_handoff_is_pending_until_current_metadata_confirms_targ
 }
 fn display(id: &str, index: u32, primary: bool, edid: u8) -> DisplayInfo {
     DisplayInfo {
+        internal: Some(primary),
         refresh_rate: None,
         id: id.into(),
         name: format!("Monitor {index}"),

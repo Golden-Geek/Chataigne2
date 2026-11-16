@@ -75,6 +75,7 @@ pub(super) fn enumerate() -> io::Result<Vec<NativeDisplay>> {
                 let gdi_name = source_name(&path);
                 displays.push(NativeDisplay {
                     id,
+                    internal: internal_connection(path.targetInfo.outputTechnology),
                     refresh_rate: (path.targetInfo.refreshRate.Numerator != 0
                         && path.targetInfo.refreshRate.Denominator != 0)
                         .then_some((
@@ -103,6 +104,30 @@ pub(super) fn enumerate() -> io::Result<Vec<NativeDisplay>> {
         io::ErrorKind::WouldBlock,
         "display topology changed during bounded enumeration",
     ))
+}
+
+pub(super) fn internal_connection(technology: DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY) -> Option<bool> {
+    match technology {
+        DISPLAYCONFIG_OUTPUT_TECHNOLOGY_INTERNAL
+        | DISPLAYCONFIG_OUTPUT_TECHNOLOGY_LVDS
+        | DISPLAYCONFIG_OUTPUT_TECHNOLOGY_DISPLAYPORT_EMBEDDED
+        | DISPLAYCONFIG_OUTPUT_TECHNOLOGY_UDI_EMBEDDED => Some(true),
+        DISPLAYCONFIG_OUTPUT_TECHNOLOGY_HD15
+        | DISPLAYCONFIG_OUTPUT_TECHNOLOGY_SVIDEO
+        | DISPLAYCONFIG_OUTPUT_TECHNOLOGY_COMPOSITE_VIDEO
+        | DISPLAYCONFIG_OUTPUT_TECHNOLOGY_COMPONENT_VIDEO
+        | DISPLAYCONFIG_OUTPUT_TECHNOLOGY_DVI
+        | DISPLAYCONFIG_OUTPUT_TECHNOLOGY_HDMI
+        | DISPLAYCONFIG_OUTPUT_TECHNOLOGY_D_JPN
+        | DISPLAYCONFIG_OUTPUT_TECHNOLOGY_SDI
+        | DISPLAYCONFIG_OUTPUT_TECHNOLOGY_DISPLAYPORT_EXTERNAL
+        | DISPLAYCONFIG_OUTPUT_TECHNOLOGY_DISPLAYPORT_USB_TUNNEL
+        | DISPLAYCONFIG_OUTPUT_TECHNOLOGY_INDIRECT_WIRED
+        | DISPLAYCONFIG_OUTPUT_TECHNOLOGY_UDI_EXTERNAL
+        | DISPLAYCONFIG_OUTPUT_TECHNOLOGY_SDTVDONGLE
+        | DISPLAYCONFIG_OUTPUT_TECHNOLOGY_MIRACAST => Some(false),
+        _ => None,
+    }
 }
 
 fn terminated(value: &[u16]) -> &[u16] {

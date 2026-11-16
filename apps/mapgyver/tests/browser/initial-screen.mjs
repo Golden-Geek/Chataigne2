@@ -94,11 +94,30 @@ async function fresh() {
 	assert.equal(screen.label, 'Screen');
 	assert.equal(screen.definition.enabled, true);
 	assert.equal(screen.definition.anti_aliasing, 'Raw');
-	assert.deepEqual(screen.definition.target, {
-		kind: 'Spout',
-		sender: 'MapGyver Screen',
-		extent: { width: 1920, height: 1080 }
-	});
+	const displays = JSON.parse(
+		execFileSync(probe, ['--role', 'catalog'], {
+			encoding: 'utf8',
+			windowsHide: true,
+			timeout: 10000
+		})
+	);
+	const available = displays
+		.filter(
+			(display) =>
+				display.internal === false &&
+				display.bounds.extent.width <= 8192 &&
+				display.bounds.extent.height <= 8192
+		)
+		.sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0))[0];
+	assert.deepEqual(
+		screen.definition.target,
+		available
+			? {
+					kind: 'Fullscreen',
+					display: available.id
+				}
+			: null
+	);
 	assert.equal(screen.surfaces.length, 1);
 	assert.equal(screen.surfaces[0].definition.source, null);
 	const graph = await post('/api/ui/snapshot', { scope: 'wholeGraph' });

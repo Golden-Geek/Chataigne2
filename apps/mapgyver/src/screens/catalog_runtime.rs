@@ -247,6 +247,7 @@ impl Source {
                 .iter()
                 .filter_map(|selection| {
                     selection.hint.bounds.map(|bounds| DisplayInfo {
+                        internal: None,
                         refresh_rate: None,
                         id: selection.hint.identity.clone(),
                         name: selection.hint.name.clone(),

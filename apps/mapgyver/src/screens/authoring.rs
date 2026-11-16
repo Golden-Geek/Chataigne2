@@ -10,10 +10,17 @@ use super::{ScreenManagerNode, SurfaceNode, protocol::*};
 use crate::app::{AppEngine, AppNode, labels};
 
 pub fn initialize(engine: &mut AppEngine) {
+    initialize_with_displays(engine, super::host_inventory::initial());
+}
+
+pub(crate) fn initialize_with_displays(engine: &mut AppEngine, displays: Vec<DisplayInfo>) {
+    let initial = super::creation::initial_tree(&displays).as_user_item();
+    let mut manager = ScreenManagerNode::new();
+    manager.set_displays(displays.into());
     engine.edits.push(Edit::AddNodeTree {
         parent: engine.root,
         prev_sibling: None,
-        tree: NodeTree::new(ScreenManagerNode::new()).with_child(super::creation::initial_tree().as_user_item()),
+        tree: NodeTree::new(manager).with_child(initial),
     });
 }
 

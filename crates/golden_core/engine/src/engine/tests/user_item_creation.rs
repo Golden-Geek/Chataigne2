@@ -5,6 +5,33 @@ use crate::{
     ui_sync::UiEditIntent,
 };
 
+#[test]
+fn prepared_creation_children_are_lazy_parent_scoped_and_do_not_enter_the_live_graph() {
+    let engine = Engine::<LiveCreationNode>::new(LiveCreationFactory::new().into());
+    let candidate = LiveCreationItem::new();
+    let reads = std::cell::Cell::new(0);
+    let parent = engine.root;
+    let reader = |requested, visit: &mut dyn FnMut(&dyn Node)| {
+        reads.set(reads.get() + 1);
+        if requested == parent {
+            visit(&candidate);
+        }
+    };
+    let lookup = |id| engine.nodes.get(id).map(|node| node as &dyn Node);
+    let context = UserItemCreationContext::new(parent, &lookup).with_prepared_children(&reader);
+    assert_eq!(reads.get(), 0);
+    let before = engine.nodes.len();
+    let mut found = Vec::new();
+    context.visit_prepared_children(parent, |node| found.push(node.node_data().meta.uuid));
+    assert_eq!(found, [candidate.node_data().meta.uuid]);
+    context.visit_prepared_children(crate::node::NodeId(parent.0.wrapping_add(1)), |_| {
+        panic!("foreign parent")
+    });
+    assert_eq!(reads.get(), 2);
+    assert_eq!(engine.nodes.len(), before);
+    assert!(engine.node_id_by_uuid(candidate.node_data().meta.uuid).is_none());
+}
+
 #[crate::node("live_creation_factory")]
 struct LiveCreationFactory {}
 #[crate::node("live_creation_factory", from_struct)]

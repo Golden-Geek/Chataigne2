@@ -10,8 +10,9 @@ use golden_core::{
 };
 use std::sync::Arc;
 
-fn display(id: &str, index: u32, primary: bool, edid: u8) -> DisplayInfo {
+pub(super) fn display(id: &str, index: u32, primary: bool, edid: u8) -> DisplayInfo {
     DisplayInfo {
+        internal: Some(primary),
         refresh_rate: None,
         id: id.into(),
         name: format!("Display {index}"),
@@ -32,7 +33,7 @@ fn manager(engine: &AppEngine) -> golden_core::node::NodeId {
         .find_map(|(id, node)| matches!(node, AppNode::ScreenManager(_)).then_some(id))
         .unwrap()
 }
-fn displays(engine: &mut AppEngine, displays: Vec<DisplayInfo>) {
+pub(super) fn displays(engine: &mut AppEngine, displays: Vec<DisplayInfo>) {
     let id = manager(engine);
     let Some(AppNode::ScreenManager(node)) = engine.nodes.get_mut(id) else {
         panic!()
@@ -44,6 +45,126 @@ fn definition(engine: &AppEngine, id: ScreenId) -> ScreenDefinition {
         panic!()
     };
     node.definition()
+}
+fn assert_unselected_fullscreen(engine: &AppEngine, screen: ScreenId) {
+    assert!(definition(engine, screen).target.is_none());
+    let id = engine.node_id_by_uuid(screen.0).unwrap();
+    let fields = super::parameters::parameters(engine, id);
+    for (field, expected) in [("parameters/target_kind", "Fullscreen"), ("parameters/display", "")] {
+        assert_eq!(
+            engine
+                .nodes
+                .get(fields[field])
+                .unwrap()
+                .engine_param_snapshot()
+                .unwrap()
+                .value,
+            golden_core::parameter::ParamValue::Enum(expected.into())
+        );
+    }
+}
+
+#[test]
+fn creation_uses_physical_external_identity_even_when_primary_and_ignores_unknown_connections() {
+    let mut external = display("external", 9, true, 2);
+    external.internal = Some(false);
+    let mut internal = display("built-in", 1, false, 1);
+    internal.internal = Some(true);
+    let mut unknown = display("unknown", 2, false, 3);
+    unknown.internal = None;
+    for catalog in [vec![], vec![internal.clone()], vec![unknown.clone()]] {
+        let mut engine = fixture();
+        displays(&mut engine, catalog);
+        let (screen, _) = create(&mut engine);
+        assert_unselected_fullscreen(&engine, screen);
+    }
+    for catalog in [
+        vec![internal.clone(), external.clone(), unknown.clone()],
+        vec![unknown, external, internal],
+    ] {
+        let mut engine = fixture();
+        displays(&mut engine, catalog);
+        let (first, _) = create(&mut engine);
+        assert_eq!(
+            definition(&engine, first).target,
+            Some(ScreenTarget::Fullscreen {
+                display: "external".into()
+            })
+        );
+        let (second, _) = create(&mut engine);
+        assert_unselected_fullscreen(&engine, second);
+    }
+}
+
+#[test]
+fn atomic_screen_creation_reserves_prepared_siblings_and_preserves_exact_undo_redo_reload() {
+    use golden_core::ui_sync::UiDuplicateCreateUserItemSpec;
+    let mut engine = fixture();
+    displays(
+        &mut engine,
+        vec![display("external-b", 2, false, 2), display("external-a", 7, false, 3)],
+    );
+    let parent = manager(&engine);
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    let sources = [engine.root, parent];
+    let ack = apply_project_intent(
+        &mut engine,
+        UiEditIntent::DuplicateNodes {
+            nodes: vec![],
+            created_items: sources
+                .into_iter()
+                .map(|source| UiDuplicateCreateUserItemSpec {
+                    source,
+                    parent,
+                    node_type: "mapgyver.screen".into(),
+                    label: None,
+                    initial_params: vec![],
+                })
+                .collect(),
+            dependent_items: (0..2)
+                .map(|_| golden_core::ui_sync::UiDuplicateDependentUserItem {
+                    parent,
+                    node_type: "mapgyver.screen".into(),
+                    label: None,
+                    initial_params: vec![],
+                })
+                .collect(),
+        },
+    );
+    assert!(ack.success, "{ack:?}");
+    let snapshot = super::super::inspect(&engine).unwrap();
+    assert_eq!(snapshot.screens.len(), 4);
+    let unselected = snapshot
+        .screens
+        .iter()
+        .filter(|screen| screen.definition.target.is_none())
+        .collect::<Vec<_>>();
+    assert_eq!(unselected.len(), 2);
+    for screen in unselected {
+        assert_unselected_fullscreen(&engine, screen.id);
+    }
+    let mut targets = snapshot
+        .screens
+        .iter()
+        .filter_map(|screen| screen.definition.target.clone())
+        .map(|target| match target {
+            ScreenTarget::Fullscreen { display } => display,
+            _ => panic!(),
+        })
+        .collect::<Vec<_>>();
+    targets.sort();
+    assert_eq!(targets, ["external-a", "external-b"]);
+    let committed = to_sparse_project_json_pretty(&engine).unwrap();
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(engine.undo().unwrap());
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+    assert!(engine.redo().unwrap());
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), committed);
+    let mut loaded = from_sparse_project_json::<AppNode>(&committed).unwrap();
+    loaded.apply_edits().unwrap();
+    displays(&mut loaded, vec![display("different", 1, false, 4)]);
+    assert_eq!(super::super::inspect(&loaded).unwrap(), snapshot);
 }
 fn media(engine: &mut AppEngine, edit: MediaEdit) -> MediaEditResult {
     let ack = apply_project_intent(
@@ -59,19 +180,19 @@ fn media(engine: &mut AppEngine, edit: MediaEdit) -> MediaEditResult {
 }
 
 #[test]
-fn live_creation_uses_next_secondary_reserves_disabled_outputs_and_falls_back_to_unique_shared_senders() {
+fn live_creation_reserves_disabled_external_assignments_and_leaves_fullscreen_unselected_when_full() {
     let mut engine = fixture();
     displays(
         &mut engine,
         vec![
             display("primary", 1, true, 1),
-            display("secondary-two", 2, false, 2),
-            display("secondary-three", 3, false, 3),
+            display("external-a", 2, false, 2),
+            display("external-b", 3, false, 3),
         ],
     );
     let (first, _) = create(&mut engine);
     assert!(
-        matches!(definition(&engine, first).target, Some(ScreenTarget::Fullscreen { display }) if display == "secondary-two")
+        matches!(definition(&engine, first).target, Some(ScreenTarget::Fullscreen { display }) if display == "external-a")
     );
     let first_node = engine.node_id_by_uuid(first.0).unwrap();
     let ack = apply_project_intent(
@@ -100,22 +221,18 @@ fn live_creation_uses_next_secondary_reserves_disabled_outputs_and_falls_back_to
     let snapshot = super::super::inspect(&engine).unwrap();
     assert_eq!(snapshot.screens.len(), 2);
     assert!(
-        matches!(&snapshot.screens[1].definition.target, Some(ScreenTarget::Fullscreen { display }) if display == "secondary-three")
+        matches!(&snapshot.screens[1].definition.target, Some(ScreenTarget::Fullscreen { display }) if display == "external-b")
     );
     assert!(snapshot.screens[1].definition.enabled);
     let (third, _) = create(&mut engine);
     let (fourth, _) = create(&mut engine);
-    assert!(
-        matches!(definition(&engine, third).target, Some(ScreenTarget::Spout { sender, .. }) if sender == "MapGyver Screen")
-    );
-    assert!(
-        matches!(definition(&engine, fourth).target, Some(ScreenTarget::Spout { sender, .. }) if sender == "MapGyver Screen 2")
-    );
+    assert_unselected_fullscreen(&engine, third);
+    assert_unselected_fullscreen(&engine, fourth);
     let Some(AppNode::Screen(node)) = engine.nodes.get(first_node) else {
         panic!()
     };
     let hint = node.display_hint();
-    assert_eq!(hint.identity, "secondary-two");
+    assert_eq!(hint.identity, "external-a");
     assert_eq!(hint.index, 2);
     assert!(hint.edid.is_some());
     let json = to_sparse_project_json_pretty(&engine).unwrap();

@@ -10,6 +10,7 @@ fn fullscreen_row_uses_human_name_and_truthful_missing_state_without_changing_id
         panic!()
     };
     node.set_displays(std::sync::Arc::from([DisplayInfo {
+        internal: Some(false),
         refresh_rate: None,
         id: identity.into(),
         name: "Studio projector".into(),
@@ -62,7 +63,7 @@ fn row_reads_are_constant_size_read_only_and_follow_targets_source_renames_and_m
     let history = engine.undo_len();
     let initial = row(&mut engine, screen.0);
     assert_eq!(engine.undo_len(), history);
-    assert!(initial.detail.starts_with("Spout"));
+    assert_eq!(initial.detail, "Unconfigured");
     assert_eq!(row(&mut engine, surface.surface.0).detail, "No source");
     let source = super::drop_sources::source(&mut engine);
     let mut definition = definition(&engine, surface);

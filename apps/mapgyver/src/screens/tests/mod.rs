@@ -37,6 +37,11 @@ pub(super) fn fixture() -> AppEngine {
     // Fresh-project seeding is covered separately by the app lifecycle tests.
     let initial = super::inspect(&engine).unwrap().screens.pop().unwrap();
     apply(&mut engine, ScreenEdit::RemoveScreen { screen: initial.id });
+    let manager = super::authoring::manager(&engine).unwrap();
+    let Some(crate::app::AppNode::ScreenManager(node)) = engine.nodes.get_mut(manager) else {
+        panic!()
+    };
+    node.set_displays(std::sync::Arc::from([]));
     engine.clear_history();
     engine
 }

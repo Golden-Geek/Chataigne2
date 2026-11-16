@@ -6,4 +6,8 @@ export type DisplayInfo = { id: string, name: string, edid: string | null,
 /**
  * Current OS GDI display number; zero means unavailable.
  */
-index: number, primary: boolean, refresh_rate: DisplayRefreshRate | null, bounds: PhysicalRectangle, };
+index: number, primary: boolean,
+/**
+ * Physical connection classification from the host; None is unknown/virtual.
+ */
+internal: boolean | null, refresh_rate: DisplayRefreshRate | null, bounds: PhysicalRectangle, };

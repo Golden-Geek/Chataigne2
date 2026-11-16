@@ -51,6 +51,10 @@ impl<T: Node> PreparedProjectSubtree<T> {
         self.tree.node.node_data().meta.uuid
     }
 
+    pub(crate) fn creation_root(&self) -> (NodeId, &dyn Node) {
+        (self.parent, &self.tree.node)
+    }
+
     pub(crate) fn root_label(&self) -> &str {
         self.tree.node.node_data().meta.label.as_str()
     }
@@ -212,24 +216,25 @@ impl<T: Node> Engine<T> {
             })?;
         let label = self.next_unique_child_label(parent, label.as_deref().unwrap_or(&item.label));
         self.prepare_prevalidated_catalog_item_subtree(
-            parent,
-            prev_sibling,
+            (parent, prev_sibling),
             node_type,
             label,
             initial_params,
             operation,
+            &|_, _| {},
         )
     }
 
     pub(crate) fn prepare_prevalidated_catalog_item_subtree(
         &self,
-        parent: NodeId,
-        prev_sibling: Option<NodeId>,
+        destination: (NodeId, Option<NodeId>),
         node_type: &str,
         resolved_label: String,
         initial_params: Vec<(DeclId, ParamValue)>,
         operation: &'static str,
+        prepared_children: &crate::node::PreparedChildrenReader<'_>,
     ) -> Result<PreparedProjectSubtree<T>, ProjectPersistenceError> {
+        let (parent, prev_sibling) = destination;
         self.validate_persisted_subtree_destination(parent, prev_sibling, operation)?;
 
         if let Some(blueprint_id) = BlueprintRegistry::<T>::parse_type_id(node_type) {
@@ -284,7 +289,8 @@ impl<T: Node> Engine<T> {
             .get(factory_node_id)
             .ok_or(ProjectPersistenceError::MissingNode(factory_node_id))?;
         let lookup = |id| self.nodes.get(id).map(|node| node as &dyn Node);
-        let context = crate::node::UserItemCreationContext::new(self.root, &lookup);
+        let context =
+            crate::node::UserItemCreationContext::new(self.root, &lookup).with_prepared_children(prepared_children);
         let tree = factory_node
             .create_user_item_tree_with_context(node_type, &context)
             .ok_or_else(|| {

@@ -17,6 +17,8 @@ pub struct NativeDisplay {
     pub index: u32,
     /// OS primary-desktop flag, falling back to a physical origin of (0, 0) when unavailable.
     pub primary: bool,
+    /// Physical connection classification. None means unknown or virtual; primary is unrelated.
+    pub internal: Option<bool>,
     /// OS desktop refresh frequency as numerator/denominator Hz; None when unreported.
     pub refresh_rate: Option<(u32, u32)>,
     /// Current physical desktop client rectangle, independent of caller DPI awareness.

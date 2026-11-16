@@ -624,13 +624,21 @@ impl<T: Node> Engine<T> {
                 OPERATION,
             )?;
             let resolved_label = self.reserve_child_label(spec.parent, preferred_label.as_str(), &mut reserved_labels);
+            let prepared_children = |parent, visitor: &mut dyn FnMut(&dyn Node)| {
+                for subtree in prepared_duplicates.iter().chain(&prepared_created_items) {
+                    let (owner, node) = subtree.creation_root();
+                    if owner == parent {
+                        visitor(node);
+                    }
+                }
+            };
             let prepared = self.prepare_prevalidated_catalog_item_subtree(
-                spec.parent,
-                None,
+                (spec.parent, None),
                 spec.node_type.as_str(),
                 resolved_label.clone(),
                 Self::ui_initial_param_pairs(spec.initial_params),
                 OPERATION,
+                &prepared_children,
             )?;
             copied_by_source.insert(source, (prepared.root_uuid(), resolved_label));
             prepared_created_items.push(prepared);
@@ -647,13 +655,25 @@ impl<T: Node> Engine<T> {
                 OPERATION,
             )?;
             let resolved_label = self.reserve_child_label(item.parent, preferred_label.as_str(), &mut reserved_labels);
+            let prepared_children = |parent, visitor: &mut dyn FnMut(&dyn Node)| {
+                for subtree in prepared_duplicates
+                    .iter()
+                    .chain(&prepared_created_items)
+                    .chain(&prepared_dependent_items)
+                {
+                    let (owner, node) = subtree.creation_root();
+                    if owner == parent {
+                        visitor(node);
+                    }
+                }
+            };
             prepared_dependent_items.push(self.prepare_prevalidated_catalog_item_subtree(
-                item.parent,
-                None,
+                (item.parent, None),
                 item.node_type.as_str(),
                 resolved_label,
                 Self::ui_initial_param_pairs(initial_params),
                 OPERATION,
+                &prepared_children,
             )?);
         }
 

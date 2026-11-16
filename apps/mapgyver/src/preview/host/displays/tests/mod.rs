@@ -4,6 +4,7 @@ use golden_video::Extent2D;
 
 fn display(id: &str) -> DisplayInfo {
     DisplayInfo {
+        internal: None,
         refresh_rate: None,
         id: id.into(),
         name: "Monitor".into(),

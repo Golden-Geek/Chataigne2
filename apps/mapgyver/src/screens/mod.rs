@@ -8,6 +8,7 @@ pub mod display_matching;
 mod editor;
 mod frame_rate;
 mod geometry;
+pub(crate) mod host_inventory;
 mod nodes;
 pub mod protocol;
 mod queries;
@@ -18,6 +19,8 @@ mod scripting;
 mod surface_node;
 mod target;
 
+#[cfg(test)]
+pub(crate) use authoring::initialize_with_displays;
 pub use authoring::{apply_operation, initialize, inspect, validate_project};
 pub(crate) use calibration::CalibrationAssets;
 pub use nodes::ScreenManagerNode;

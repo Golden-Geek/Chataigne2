@@ -65,6 +65,15 @@ pub(super) fn engine() -> AppEngine {
     let mut engine = create_new_project_engine().unwrap();
     engine.apply_edits().unwrap();
     // Rendering cases below author their own complete output cohort.
+    let manager = engine
+        .nodes
+        .iter()
+        .find_map(|(id, node)| matches!(node, crate::app::AppNode::ScreenManager(_)).then_some(id))
+        .unwrap();
+    let Some(crate::app::AppNode::ScreenManager(manager)) = engine.nodes.get_mut(manager) else {
+        panic!()
+    };
+    manager.set_displays(std::sync::Arc::from([]));
     let initial = crate::screens::inspect(&engine).unwrap().screens.pop().unwrap();
     screens::screen_edit(
         &mut engine,

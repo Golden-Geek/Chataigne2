@@ -8,6 +8,15 @@ fn empty_outputs() -> AppEngine {
     let mut engine = create_new_project_engine().unwrap();
     engine.apply_edits().unwrap();
     // Each target-registry case controls its own entire output cohort.
+    let manager = engine
+        .nodes
+        .iter()
+        .find_map(|(id, node)| matches!(node, crate::app::AppNode::ScreenManager(_)).then_some(id))
+        .unwrap();
+    let Some(crate::app::AppNode::ScreenManager(manager)) = engine.nodes.get_mut(manager) else {
+        panic!()
+    };
+    manager.set_displays(std::sync::Arc::from([]));
     let initial = crate::screens::inspect(&engine).unwrap().screens.pop().unwrap();
     edit(&mut engine, ScreenEdit::RemoveScreen { screen: initial.id });
     engine.clear_history();
@@ -194,6 +203,7 @@ fn fullscreen_resolves_exact_identity_and_recovers_without_primary_or_geometry_f
         extent: Extent2D::new(1920, 1080).unwrap(),
     };
     let wanted = DisplayInfo {
+        internal: None,
         refresh_rate: None,
         id: "wanted".into(),
         name: "Same label".into(),
@@ -310,6 +320,7 @@ fn fullscreen_resolves_exact_identity_and_recovers_without_primary_or_geometry_f
         },
     );
     let preview_display = DisplayInfo {
+        internal: None,
         refresh_rate: None,
         id: "wanted".into(),
         name: "Monitor".into(),

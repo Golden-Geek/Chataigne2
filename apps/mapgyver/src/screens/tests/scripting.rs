@@ -106,6 +106,38 @@ fn replies(engine: &AppEngine) -> Vec<serde_json::Value> {
 }
 
 #[test]
+fn hosted_screen_creation_uses_the_same_external_catalog_and_unselected_fallback() {
+    for external in [false, true] {
+        let mut engine = fixture();
+        if external {
+            let mut display = super::creation::display("external-primary", 1, true, 1);
+            display.internal = Some(false);
+            super::creation::displays(&mut engine, vec![display]);
+        }
+        let request = serde_json::to_string(&ScreenEdit::CreateScreen { label: None }).unwrap();
+        script(
+            &mut engine,
+            format!(
+                "function init() {{ local.listen({{level:1}}); local.editScreens('create', {request:?}); }} function onAppOperationResult(reply) {{ gc.emit('screen-test-reply', reply); }}"
+            ),
+        );
+        let history = engine.undo_len();
+        service_script_app_operations(&mut engine).unwrap();
+        assert_eq!(replies(&engine)[0]["status"], "applied");
+        let expected = external.then(|| ScreenTarget::Fullscreen {
+            display: "external-primary".into(),
+        });
+        assert_eq!(
+            super::super::inspect(&engine).unwrap().screens[0].definition.target,
+            expected
+        );
+        assert_eq!(engine.undo_len(), history + 1);
+        assert!(engine.undo().unwrap());
+        assert!(super::super::inspect(&engine).unwrap().screens.is_empty());
+    }
+}
+
+#[test]
 fn hosted_surface_configuration_updates_the_same_enabled_metadata_as_generic_callers() {
     use golden_core::node::Node;
     let mut engine = fixture();

@@ -14,6 +14,7 @@ fn bounds(left: i32) -> PhysicalRectangle {
 }
 fn display(id: &str, numerator: u32, denominator: u32, left: i32) -> DisplayInfo {
     DisplayInfo {
+        internal: None,
         id: id.into(),
         name: id.into(),
         edid: None,

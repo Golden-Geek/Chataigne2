@@ -251,6 +251,7 @@ fn fit_uses_cached_fullscreen_extent_and_rejects_lost_display_without_history_ch
     let (screen, reference) = create(&mut engine);
     let source = super::drop_sources::source(&mut engine);
     let display = DisplayInfo {
+        internal: None,
         refresh_rate: None,
         id: "fit-display".into(),
         name: "Fit display".into(),

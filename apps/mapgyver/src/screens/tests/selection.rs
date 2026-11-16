@@ -16,6 +16,7 @@ fn runtime() -> AppEngine {
 
 fn display(id: &str, index: u32) -> DisplayInfo {
     DisplayInfo {
+        internal: Some(index == 1),
         refresh_rate: None,
         id: id.into(),
         name: format!("Panel {index}"),
@@ -63,7 +64,7 @@ fn dispatch(engine: &mut AppEngine) {
 #[test]
 fn selecting_an_occupied_display_atomically_swaps_saved_hints_and_history_restores_them_exactly() {
     let mut engine = runtime();
-    let original_catalog = vec![display("primary", 1), display("two", 2), display("three", 3)];
+    let original_catalog = vec![display("primary", 1), display("a-two", 2), display("b-three", 3)];
     publish(&mut engine, original_catalog.clone());
     let (first, first_surface) = create(&mut engine);
     let (second, second_surface) = create(&mut engine);
@@ -74,7 +75,7 @@ fn selecting_an_occupied_display_atomically_swaps_saved_hints_and_history_restor
     let second_body = definition(&engine, second_surface);
     let history = engine.undo_len();
     let parameter = screen(&engine, first).display_parameter_id();
-    let ack = set(&mut engine, parameter, ParamValue::Enum("three".into()));
+    let ack = set(&mut engine, parameter, ParamValue::Enum("b-three".into()));
     assert!(ack.success, "{ack:?}");
     assert_eq!(engine.undo_len(), history + 1);
     assert_eq!(screen(&engine, first).display_hint(), second_hint);
@@ -86,9 +87,9 @@ fn selecting_an_occupied_display_atomically_swaps_saved_hints_and_history_restor
     loaded.apply_edits().unwrap();
     assert_eq!(screen(&loaded, second).display_hint(), first_hint);
 
-    let mut changed = display("two", 2);
+    let mut changed = display("a-two", 2);
     changed.name = "Changed after selection".into();
-    publish(&mut engine, vec![display("primary", 1), changed, display("three", 3)]);
+    publish(&mut engine, vec![display("primary", 1), changed, display("b-three", 3)]);
     assert_eq!(
         engine.undo_len(),
         history + 1,
@@ -107,11 +108,26 @@ fn selecting_an_occupied_display_atomically_swaps_saved_hints_and_history_restor
 #[test]
 fn shared_texture_requester_replaces_the_occupied_output_without_changing_its_surface() {
     let mut engine = runtime();
-    let catalog = vec![display("primary", 1), display("two", 2)];
+    let catalog = vec![display("primary", 1), display("a-two", 2)];
     publish(&mut engine, catalog.clone());
     let (occupied, surface) = create(&mut engine);
     let (requester, _) = create(&mut engine);
     let (reserved_sender, _) = create(&mut engine);
+    for (screen, sender) in [(requester, "MapGyver Screen"), (reserved_sender, "MapGyver Screen 2")] {
+        apply(
+            &mut engine,
+            ScreenEdit::ConfigureScreen {
+                screen,
+                definition: ScreenDefinition {
+                    target: Some(ScreenTarget::Spout {
+                        sender: sender.into(),
+                        extent: golden_video::Extent2D::new(1920, 1080).unwrap(),
+                    }),
+                    ..Default::default()
+                },
+            },
+        );
+    }
     publish(&mut engine, catalog);
     let occupied_node = engine.node_id_by_uuid(occupied.0).unwrap();
     assert!(
@@ -137,7 +153,9 @@ fn shared_texture_requester_replaces_the_occupied_output_without_changing_its_su
             screen: requester,
             definition: ScreenDefinition {
                 frame_rate: Default::default(),
-                target: Some(ScreenTarget::Fullscreen { display: "two".into() }),
+                target: Some(ScreenTarget::Fullscreen {
+                    display: "a-two".into(),
+                }),
                 enabled: true,
                 anti_aliasing: Default::default(),
             },
@@ -168,7 +186,7 @@ fn shared_texture_requester_replaces_the_occupied_output_without_changing_its_su
     assert!(engine.undo().unwrap());
     dispatch(&mut engine);
     assert!(
-        matches!(screen(&engine, occupied).definition().target, Some(ScreenTarget::Fullscreen { display }) if display == "two")
+        matches!(screen(&engine, occupied).definition().target, Some(ScreenTarget::Fullscreen { display }) if display == "a-two")
     );
     assert!(
         matches!(screen(&engine, requester).definition().target, Some(ScreenTarget::Spout { sender, .. }) if sender == "MapGyver Screen")
@@ -178,7 +196,7 @@ fn shared_texture_requester_replaces_the_occupied_output_without_changing_its_su
 #[test]
 fn conflicting_explicit_peer_assignments_reject_the_whole_proposal() {
     let mut engine = runtime();
-    let catalog = vec![display("primary", 1), display("two", 2), display("three", 3)];
+    let catalog = vec![display("primary", 1), display("a-two", 2), display("b-three", 3)];
     publish(&mut engine, catalog.clone());
     let (first, _) = create(&mut engine);
     let (second, _) = create(&mut engine);
@@ -189,8 +207,8 @@ fn conflicting_explicit_peer_assignments_reject_the_whole_proposal() {
     let second_parameter = screen(&engine, second).display_parameter_id();
     engine.edits.push(golden_core::edit::Edit::SetParamsAtomic {
         values: vec![
-            (first_parameter, ParamValue::Enum("three".into())),
-            (second_parameter, ParamValue::Enum("three".into())),
+            (first_parameter, ParamValue::Enum("b-three".into())),
+            (second_parameter, ParamValue::Enum("b-three".into())),
         ],
         behaviour: ParameterEventBehaviour::Append,
     });

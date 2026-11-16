@@ -1,6 +1,24 @@
 use super::*;
 use golden_core::app::{from_sparse_project_json, to_sparse_project_json_pretty};
 
+fn create(engine: &mut AppEngine) -> (ScreenId, SurfaceReference) {
+    let (screen, surface) = super::create(engine);
+    apply(
+        engine,
+        ScreenEdit::ConfigureScreen {
+            screen,
+            definition: ScreenDefinition {
+                target: Some(ScreenTarget::Spout {
+                    sender: format!("Output {:?}", screen.0),
+                    extent: golden_video::Extent2D::new(1920, 1080).unwrap(),
+                }),
+                ..Default::default()
+            },
+        },
+    );
+    (screen, surface)
+}
+
 fn output(engine: &AppEngine, screen: ScreenId) -> ScreenEdit {
     let snapshot = crate::screens::inspect(engine).unwrap();
     ScreenEdit::DisableOutput {

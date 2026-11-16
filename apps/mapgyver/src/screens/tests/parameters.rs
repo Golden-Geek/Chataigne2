@@ -272,6 +272,14 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
             .is_null()
     );
 
+    assert!(
+        set(
+            &mut engine,
+            screen_fields["parameters/target_kind"],
+            ParamValue::Enum("Shared Texture".into())
+        )
+        .success
+    );
     let history = engine.undo_len();
     assert!(set(&mut engine, screen_fields["parameters/width"], ParamValue::Int(640)).success);
     assert!(screen_definition(&engine, screen).enabled);

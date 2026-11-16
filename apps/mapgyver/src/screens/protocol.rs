@@ -23,6 +23,9 @@ pub struct DisplayInfo {
     pub index: u32,
     #[serde(default)]
     pub primary: bool,
+    /// Physical connection classification from the host; None is unknown/virtual.
+    #[serde(default)]
+    pub internal: Option<bool>,
     #[serde(default)]
     pub refresh_rate: Option<DisplayRefreshRate>,
     pub bounds: PhysicalRectangle,

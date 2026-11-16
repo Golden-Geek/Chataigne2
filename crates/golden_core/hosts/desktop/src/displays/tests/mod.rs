@@ -1,5 +1,35 @@
 use super::metadata::{canonical_edid, display_index};
 
+#[cfg(windows)]
+#[test]
+fn physical_connection_classification_is_independent_of_primary_and_unknown_stays_unknown() {
+    use windows::Win32::Devices::Display::*;
+    for technology in [
+        DISPLAYCONFIG_OUTPUT_TECHNOLOGY_INTERNAL,
+        DISPLAYCONFIG_OUTPUT_TECHNOLOGY_LVDS,
+        DISPLAYCONFIG_OUTPUT_TECHNOLOGY_DISPLAYPORT_EMBEDDED,
+        DISPLAYCONFIG_OUTPUT_TECHNOLOGY_UDI_EMBEDDED,
+    ] {
+        assert_eq!(super::platform::internal_connection(technology), Some(true));
+    }
+    for technology in [
+        DISPLAYCONFIG_OUTPUT_TECHNOLOGY_HDMI,
+        DISPLAYCONFIG_OUTPUT_TECHNOLOGY_DVI,
+        DISPLAYCONFIG_OUTPUT_TECHNOLOGY_DISPLAYPORT_EXTERNAL,
+        DISPLAYCONFIG_OUTPUT_TECHNOLOGY_DISPLAYPORT_USB_TUNNEL,
+        DISPLAYCONFIG_OUTPUT_TECHNOLOGY_INDIRECT_WIRED,
+    ] {
+        assert_eq!(super::platform::internal_connection(technology), Some(false));
+    }
+    for technology in [
+        DISPLAYCONFIG_OUTPUT_TECHNOLOGY_OTHER,
+        DISPLAYCONFIG_OUTPUT_TECHNOLOGY_INDIRECT_VIRTUAL,
+        DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY(123456),
+    ] {
+        assert_eq!(super::platform::internal_connection(technology), None);
+    }
+}
+
 fn edid() -> [u8; 128] {
     let mut bytes = [0_u8; 128];
     bytes[..8].copy_from_slice(&[0, 255, 255, 255, 255, 255, 255, 0]);

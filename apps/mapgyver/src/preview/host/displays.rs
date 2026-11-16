@@ -63,28 +63,7 @@ impl Catalog {
 }
 
 pub(super) fn scan() -> Result<Vec<DisplayInfo>, String> {
-    golden_core::app::native_displays()
-        .map_err(|error| error.to_string())?
-        .into_iter()
-        .map(|display| {
-            Ok(DisplayInfo {
-                id: display.id,
-                name: display.name,
-                edid: display.edid,
-                index: display.index,
-                primary: display.primary,
-                refresh_rate: display.refresh_rate.map(|(numerator, denominator)| {
-                    crate::screens::protocol::DisplayRefreshRate { numerator, denominator }
-                }),
-                bounds: crate::screens::protocol::PhysicalRectangle {
-                    left: display.bounds.left(),
-                    top: display.bounds.top(),
-                    extent: golden_video::Extent2D::new(display.bounds.width(), display.bounds.height())
-                        .map_err(|error| error.to_string())?,
-                },
-            })
-        })
-        .collect()
+    crate::screens::host_inventory::scan().map_err(|error| error.to_string())
 }
 
 #[cfg(test)]

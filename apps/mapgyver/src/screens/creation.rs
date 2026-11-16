@@ -4,20 +4,19 @@ use super::{ScreenManagerNode, ScreenNode, SurfaceNode, protocol::*};
 use crate::media::protocol::{ChannelId, ChannelReference, MediaId};
 use golden_core::{
     edit::NodeTree,
-    node::{NodeId, UserItemCreationContext},
+    node::{Node, NodeId, UserItemCreationContext},
 };
 use std::collections::HashSet;
 
-/// Fresh documents precede the native catalog. Use the same no-display fallback
-/// as live creation, without later rewriting the authored destination.
-pub(crate) fn initial_tree() -> NodeTree {
-    with_surface("Screen".into(), shared_target(&HashSet::new()), None, None)
+/// Fresh candidates receive host metadata before seeding, never after loading authored data.
+pub(crate) fn initial_tree(displays: &[DisplayInfo]) -> NodeTree {
+    let display = available_display(displays, &HashSet::new());
+    with_surface("Screen".into(), fullscreen_target(display), display, None)
 }
 
-fn shared_target(senders: &HashSet<String>) -> ScreenTarget {
-    ScreenTarget::Spout {
-        sender: unique_sender(senders),
-        extent: crate::media::resolution::default_canvas(),
+fn fullscreen_target(display: Option<&DisplayInfo>) -> ScreenTarget {
+    ScreenTarget::Fullscreen {
+        display: display.map(|display| display.id.clone()).unwrap_or_default(),
     }
 }
 
@@ -29,7 +28,6 @@ pub(crate) fn tree(context: &UserItemCreationContext<'_>, label: String) -> Resu
         .ok_or("Screens is missing")?;
     let displays = owner.displays();
     let mut requested = Vec::new();
-    let mut senders = HashSet::new();
     let mut next = context.node(manager).and_then(|node| node.node_data().first_child);
     while let Some(id) = next {
         let node = context.node(id).ok_or("Screens child is missing")?;
@@ -37,16 +35,17 @@ pub(crate) fn tree(context: &UserItemCreationContext<'_>, label: String) -> Resu
         let Some(screen) = node.as_any().downcast_ref::<ScreenNode>() else {
             continue;
         };
-        match screen.definition().target {
-            Some(ScreenTarget::Fullscreen { .. }) => {
-                requested.push((ScreenId(node.node_data().meta.uuid), screen.display_hint()))
-            }
-            Some(ScreenTarget::Spout { sender, .. }) => {
-                senders.insert(sender);
-            }
-            _ => {}
+        if matches!(screen.definition().target, Some(ScreenTarget::Fullscreen { .. })) {
+            requested.push((ScreenId(screen.node_data().meta.uuid), screen.display_hint()));
         }
     }
+    context.visit_prepared_children(manager, |node| {
+        if let Some(screen) = node.as_any().downcast_ref::<ScreenNode>()
+            && matches!(screen.definition().target, Some(ScreenTarget::Fullscreen { .. }))
+        {
+            requested.push((ScreenId(screen.node_data().meta.uuid), screen.display_hint()));
+        }
+    });
     // Disabled authored assignments still reserve their physical display for a later enable.
     let reserved = if requested.len() > super::rendering::MAX_SCREEN_CATALOG {
         (0..displays.len()).collect::<HashSet<_>>()
@@ -56,25 +55,27 @@ pub(crate) fn tree(context: &UserItemCreationContext<'_>, label: String) -> Resu
             .map(|matched| matched.display_index)
             .collect::<HashSet<_>>()
     };
-    let secondary = displays
+    let display = available_display(&displays, &reserved);
+    Ok(with_surface(
+        label,
+        fullscreen_target(display),
+        display,
+        first_source(context)?,
+    ))
+}
+
+fn available_display<'a>(displays: &'a [DisplayInfo], reserved: &HashSet<usize>) -> Option<&'a DisplayInfo> {
+    displays
         .iter()
         .enumerate()
         .filter(|(index, display)| {
-            !display.primary
+            display.internal == Some(false)
                 && !reserved.contains(index)
                 && display.bounds.extent.width() <= 8192
                 && display.bounds.extent.height() <= 8192
         })
-        .min_by_key(|(order, display)| (if display.index == 0 { u32::MAX } else { display.index }, *order))
-        .map(|(_, display)| display);
-    let target = if let Some(display) = secondary {
-        ScreenTarget::Fullscreen {
-            display: display.id.clone(),
-        }
-    } else {
-        shared_target(&senders)
-    };
-    Ok(with_surface(label, target, secondary, first_source(context)?))
+        .min_by(|(_, left), (_, right)| left.id.cmp(&right.id))
+        .map(|(_, display)| display)
 }
 
 fn with_surface(

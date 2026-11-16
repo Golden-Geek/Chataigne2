@@ -25,6 +25,7 @@ fn fullscreen_capture_and_plan_withdrawal_work_without_a_native_host() {
         },
     );
     let displays = [DisplayInfo {
+        internal: None,
         refresh_rate: None,
         id: "intended".into(),
         name: "Monitor".into(),
