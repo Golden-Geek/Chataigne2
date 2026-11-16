@@ -232,6 +232,14 @@ idle actions use the complete frontend readiness boundary. Real backend tests ve
 clearing, shared Inspector values and independent locked Layer/Cell scopes without authored or
 playback changes; physical native input/pixels remain separate acceptance.
 
+Golden's shared edit-session owner requires a connected host as well as matching snapshot
+generation and edit epoch. When transport reconnects during a Layer/Cell drag, capture retires
+without queuing an End for the backend session that has already closed. Accepted samples keep
+their existing one-step Undo contract; later pointer movement cannot mutate the recovered owner.
+The actual MapGyver WebView verifies this on both GPUs, alongside captured Escape, independent
+locked scopes and New/Load during Cell input. Installed previews are not independent pixel or
+physical-hit evidence; those requirements remain in the M14 selection inventory.
+
 Screen Warping follows the same selection-before-admission rule in its native-aware controls.
 `SurfaceHandles.selectionAvailable` follows connection/loading availability; the owning adapter
 retains the active-gesture guard. Metadata/read busy state blocks geometry, while Surface and

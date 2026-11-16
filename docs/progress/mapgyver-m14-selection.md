@@ -1,16 +1,31 @@
 # M14/1 editor selection and hover
 
 Updated 2026-11-16. Golden owns reusable input/capture/selection dispatch; app adapters resolve
-their edited owners and shared Inspector selection. M14/1 is **Pending, unaccepted**.
-Overall acceptance stays88/106 (83%); no new fixed gate is closed by this slice.
+their edited owners and shared Inspector selection. M14/1 is **Active, unaccepted**.
+Overall acceptance is92/106 (87%), M14 4/10 after accepted gates3–5,7.
 
-**2026-11-16 user priority revision:** this gate is now Pending for remaining MapGyver scope.
+**Current result (21:23–21:46 UTC; original stop22:07):** Matrix Layer/Cell selection and six
+gesture/lifetime checks now pass in the actual owned MapGyver WebView on Intel and NVIDIA.
+The flow reproduced stale `EndEditSession` after real reconnect. Golden's shared edit owner now
+requires a connected host before begin/end, queued reopen and late begin ownership. Three unit
+regressions fail before the correction; all389 Golden UI tests and three UI typechecks pass
+afterward. Both complete native flows have zero rejected requests/page errors and normal exit0.
+See the [bounded receipt](evidence/mapgyver-m14-matrix-selection-2026-11-16.json).
+
+The native desktop skill's21:28 availability check still returns native-pipe error2; no desktop
+input was sent. Native previews install on the actual selected GPUs, but physical input and
+independent pixel/hit alignment remain unverified. Next: Screen Warping's remaining overlap,
+off-page and active-capture selection scope using the existing owned fixture. Other unfinished
+MapGyver inventory rows remain Pending; no fixed gate credit until all required scope passes.
+
+**2026-11-16 user priority revision:** this gate selects only remaining MapGyver scope.
 Noncritical Chataigne-only Curve, Spatializer and other consumer improvements are deferred
 until Chataigne work resumes; see the [exact patch and findings handoff](chataigne-editor-followups.md).
-Historical consumer results below remain evidence, not a queue for MapGyver work. M14/5
-Composition enabled metadata is the sole Active gate; zero-scale4 is functionally verified
-with native pixels queued at its recorded prerequisite. Shared defects required by a current MapGyver
-path remain actionable; unrelated Chataigne qualification does not block MapGyver delivery.
+Historical consumer results below remain evidence, not a queue for MapGyver work. M14/3–5,7
+are Accepted and pushed; their scopes are not being reopened. Shared defects required by a
+current MapGyver path remain actionable; unrelated Chataigne qualification does not block
+MapGyver delivery. Earlier percentages and next-action notes below are historical, not current
+execution instructions; this section and the main ledger own the return queue.
 
 The user's2026-11-14 instruction selects M14 before full M10/4 qualification. Every M10
 requirement remains unfinished and release-blocking; only execution order changed.
@@ -363,8 +378,8 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Screen Warping / Screen | Real bundled UI/backend proves before-release Surface/background selection, shared Inspector/peer agreement, owner Escape, exact history/Undo and keyboard/project fencing; busy/unavailable DOM regression, shared contour hover and matching native paint declarations pass | Physical native input/pixel and Inspector agreement, overlapping hits, off-page and full active-gesture Escape checks |
 | Surface Source / Surface | Real bundled UI/backend verifies Origin and Size selection/Inspector before release, owner clearing, captured cancellation without history, active Escape and two independent locked Source editors; full parameter/source/history/live crop suite passes; shared hover/native paint declarations remain | Actual current native pixel/hit agreement, offscreen and project/snapshot interaction acceptance |
 | Composition / Composition media | Real bundled UI/backend verifies before-release child/background selection and Inspector, no implicit first child, independent locked peers, owner/idle Escape, exact no-history selection,130-child off-page editing, reconnect/copy/removal/project replacement; shared selection/edit admission fixes busy reselection; hover and unavailable-bounds DOM checks pass | Physical native input/pixel agreement, overlapping hit order and remaining complete active-gesture/lifetime acceptance |
-| Matrix Layer spatial / Matrix media | Real backend/Inspector verifies primary-down selection, hover without controls, owner/background/idle Escape, no implicit child and independent locked Layer/Cell editors; full typed Inspector/history/off-page/mixed suite passes; geometry closure is reported busy | Physical native input/pixel, overlap and complete active/outgoing/project interaction acceptance |
-| Matrix Cell spatial / Layer | Real backend/Inspector verifies before-release selection including disabled Cell, Layer owner clearing without navigation, recognized Matrix-focus clearing and unrelated locked-content retention; exact unchanged authoring/history/playback; full typed Inspector suite passes | Physical native input/pixel, overlap, off-page spatial and complete active/outgoing/project interaction acceptance |
+| Matrix Layer spatial / Matrix media | Actual MapGyver WebView on Intel/NVIDIA verifies before-release selection/Inspector, hover without handles, owner clearing and independent locked Layer/Cell scopes. Captured Escape, exact Undo, no late writes after reconnect, New during held Cell input and exact Load recovery pass with zero rejected requests; installed previews and actual GPU identity are observed | Physical native input/pixel/hit agreement, overlap and active/outgoing selection parity remain open; earlier off-page typed Inspector evidence retains its tested scope |
+| Matrix Cell spatial / Layer | The same both-GPU actual-app flow includes disabled-Cell selection, Layer-owner clearing without navigation, recognized Matrix focus and unrelated locked-content retention. Capture cancels before idle-owner Escape; real reconnect and project replacement retire input while history/playback remain exact | Physical native input/pixel/hit agreement, overlap, off-page spatial and active/outgoing selection parity remain open |
 | Golden graph canvases | Reusable input/cancel contract and actual Alchemist/State Machine Inspector selection before release pass. Actual paired panels retain independent owners/focus/capture; offscreen State Inspector name and typed Description edits, name permission, exact Undo/save restoration and genuine double-click rename pass | Other domain/edge/read-only and physical/native agreement, specialized custom-world capture acceptance; Alchemist toolbar/Properties overlap returns with M14/2 |
 | Golden Dashboard / edited page | Primary-down widget/background selection; selected-only resize zones; border hover; per-page tool-first/idle-owner Escape; free/ordered move/resize and marquee/pan cancellation, nested keyboard and two-editor isolation verified in production browser fixture | Actual workbench/Inspector, permission/offscreen/project and current-host acceptance remain open; unrelated Dashboard backend edits are preserved |
 | Animation curves / curve and key nodes | Shared key/easing/field and embedded typed Inspector; background/idle owner, tool-first cancel, selected-only Bezier/contour hover, permission/offscreen/locked-owner checks; bounded editor/renderer; delayed draw/create/paste owner/document fencing, exact creation receipt and original-owner completion without selection theft | Fix connected pointer ownership and complete actual backend/history/native and full lifetime acceptance; all editor/renderer modules stay under1000 lines |
@@ -1101,18 +1116,18 @@ investigation. Return only for a correction supported by its actual terminal bou
 native acceptance after helper reconnection. Its original connected/history/native requirements
 remain Pending; no fixed gate closes.
 
-Next MapGyver action: M14/5 Composition enabled metadata. Remaining MapGyver selection/native
-scope returns after that feature or for a reproduced product blocker. Chataigne-only graph,
-Curve and Spatializer followups return only when Chataigne is selected.
-The Gradient two-panel and tested document/reconnect product scopes now pass;
-physical native and remaining editor inventory still require their own evidence.
-Matrix grid independent panels,
-layout reload and the tested New/Load scope now pass. Surface Source, Composition and
-Matrix spatial editors' listed backend scopes are verified;
-remaining physical native selection/handle/hit acceptance returns when the
-desktop helper reconnects, with coherent inputs. The full editor inventory remains required;
-Gradient's real backend/history/copy/reload
-proof is complete. Curve capture is deferred to Chataigne:
+Next MapGyver action: Screen Warping's remaining overlap, off-page and active-capture selection
+checks using its existing owned fixture. Matrix spatial selection and six captured/lifetime
+stages now pass in the actual WebView on both GPUs, including the shared reconnect correction;
+physical native input/pixels/hits, overlap, off-page and active/outgoing spatial scopes retain
+their exact remaining requirements. The desktop connection still reports native-pipe error2.
+The earlier Matrix grid, Surface Source and Composition backend evidence retains only its
+tested scope; the complete applicable editor inventory remains required. M14/1 stays Active,
+92/106 (87%),M14 4/10; no new fixed gate closes.
+
+Chataigne-only graph, Curve, Gradient and Spatializer followups return only when Chataigne is
+selected. Their existing backend/history/copy/reload findings remain in the deferred handoff.
+Curve capture is deferred to Chataigne:
 return there for a source-supported ownership correction or the required actual-host/native
 acceptance; the existing receipt does not identify which terminal boundary fired. Do not extend
 the stopped runtime investigation with unchanged variants or restore its failed cache stash.

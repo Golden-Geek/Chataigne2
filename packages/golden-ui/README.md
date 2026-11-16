@@ -113,6 +113,12 @@ unsent samples on disposal; apps call `stop` for Escape. It closes accepted work
 domain geometry. Apps defer catalog inspection and conflicting controls during a live group,
 then inspect once on completion. MapGyver Surface and Composition editors use this same helper.
 
+`store/session/edit-session` binds begin/end acknowledgements to a connected host, snapshot
+generation and edit-session epoch. Connection loss revokes ownership immediately, before a
+replacement snapshot arrives. A cancelled gesture cannot send a stale End to the reconnecting
+transport; queued reopen and late begin acknowledgement must still match a connected owner.
+This contract is shared by ordinary parameter controls and specialized editors.
+
 ## Large collections
 
 `components/common/virtual-rows/VirtualRows.svelte` owns bounded row mounting, keyed focus

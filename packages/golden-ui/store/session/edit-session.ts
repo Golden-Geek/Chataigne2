@@ -5,6 +5,7 @@ export interface UiEditSession {
 }
 
 interface EditHost {
+	readonly status: string;
 	readonly hasActiveEditSession: boolean;
 	readonly editSessionEpoch: number;
 	readonly snapshotGeneration: number;
@@ -28,6 +29,7 @@ export function createEditSession<Host extends EditHost>(context: {
 	} | null = null;
 	const current = () =>
 		owner !== null &&
+		owner.host.status === 'connected' &&
 		context.host() === owner.host &&
 		owner.host.snapshotGeneration === owner.generation &&
 		owner.host.hasActiveEditSession &&
@@ -46,6 +48,7 @@ export function createEditSession<Host extends EditHost>(context: {
 				if (
 					next.cancelled ||
 					context.host() !== next.host ||
+					next.host?.status !== 'connected' ||
 					next.host?.snapshotGeneration !== next.generation
 				)
 					return;
@@ -63,10 +66,16 @@ export function createEditSession<Host extends EditHost>(context: {
 		if (current()) return Promise.resolve();
 		owner = null;
 		const host = context.host();
-		if (!host || host.hasActiveEditSession) return Promise.resolve();
+		if (!host || host.status !== 'connected' || host.hasActiveEditSession) return Promise.resolve();
 		const generation = host.snapshotGeneration;
 		const task = (async () => {
-			if (await context.begin(host)) owner = { host, epoch: host.editSessionEpoch, generation };
+			if (
+				(await context.begin(host)) &&
+				context.host() === host &&
+				host.status === 'connected' &&
+				host.snapshotGeneration === generation
+			)
+				owner = { host, epoch: host.editSessionEpoch, generation };
 		})();
 		starting = task;
 		const clear = () => {

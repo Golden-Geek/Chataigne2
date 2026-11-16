@@ -3,11 +3,11 @@ import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
 import { clearMatrixScene } from './matrix-scene.mjs';
 import { contentLock } from './content-lock.mjs';
-import { observeRejectedRequests } from './intent-observer.mjs';
+import { observeNativeRejectedRequests, observeRejectedRequests } from './intent-observer.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
-export async function verifyMatrixLayoutSelection({ base, edit, post }) {
+export async function verifyMatrixLayoutSelection({ base, edit, post, page: nativePage = null }) {
 	const { reference } = await edit({
 		kind: 'CreateMedia',
 		media_kind: 'Matrix',
@@ -91,13 +91,14 @@ export async function verifyMatrixLayoutSelection({ base, edit, post }) {
 		level: 'Cells'
 	}));
 	assert.equal(cells.length, 2);
-	const browser = await chromium.launch({ headless: true });
-	const page = await browser.newPage({ viewport: { width: 1800, height: 1100 } });
+	const browser = nativePage ? null : await chromium.launch({ headless: true });
+	const page = nativePage ?? (await browser.newPage({ viewport: { width: 1800, height: 1100 } }));
 	page.setDefaultTimeout(7000);
 	const errors = [];
 	let stage = 'startup';
 	page.on('pageerror', (error) => errors.push(String(error)));
-	const rejected = observeRejectedRequests(page, () => stage);
+	const nativeReceipts = nativePage ? await observeNativeRejectedRequests(page, () => stage) : null;
+	const rejected = nativeReceipts?.rejected ?? observeRejectedRequests(page, () => stage);
 	const panel = (id) =>
 		page.locator(`.workbench-editor[data-panel-id="${id}"][data-spatial-kind="Matrix"]`);
 	const main = panel('composition');
@@ -214,7 +215,8 @@ export async function verifyMatrixLayoutSelection({ base, edit, post }) {
 		await tree.locator('input[type="search"]').fill('');
 	}
 	try {
-		await page.goto(base);
+		if (nativePage) await page.reload();
+		else await page.goto(base);
 		await selectMedia('Selection Matrix');
 		await tab('Composition').click();
 		await target(main, 'Layers');
@@ -288,21 +290,22 @@ export async function verifyMatrixLayoutSelection({ base, edit, post }) {
 		assert.equal((await matrix({ kind: 'InspectPlayback' })).snapshot.desired_column, null);
 		assert.deepEqual(errors, []);
 		assert.deepEqual(rejected, []);
-		console.log(
-			JSON.stringify({
-				result: 'pass',
-				native: false,
-				scope:
-					'real Matrix Layer/Cell primary-down selection and generic Inspector, hover without controls, owner/background/idle Escape, independent locked editors, recognized Matrix focus clearing and unrelated-selection retention; unchanged authoring/history/playback',
-				layerAndCellBeforeRelease: true,
-				disabledCellSelectable: true,
-				ownerHasNoImplicitChild: true,
-				inspectorPositionMatches: true,
-				independentLockedScopes: true,
-				pageErrors: errors,
-				rejected
-			})
-		);
+		const result = {
+			result: 'pass',
+			native: !!nativePage,
+			scope:
+				'real Matrix Layer/Cell primary-down selection and generic Inspector, hover without controls, owner/background/idle Escape, independent locked editors, recognized Matrix focus clearing and unrelated-selection retention; unchanged authoring/history/playback',
+			layerAndCellBeforeRelease: true,
+			disabledCellSelectable: true,
+			ownerHasNoImplicitChild: true,
+			inspectorPositionMatches: true,
+			independentLockedScopes: true,
+			pageErrors: errors,
+			rejected,
+			observed: nativeReceipts?.observed
+		};
+		console.log(JSON.stringify(result));
+		return { ...result, media: reference.media, mainId: 'composition', peerId, layers, cells };
 	} catch (error) {
 		console.error(
 			JSON.stringify({
@@ -314,6 +317,6 @@ export async function verifyMatrixLayoutSelection({ base, edit, post }) {
 		);
 		throw error;
 	} finally {
-		await browser.close();
+		await browser?.close();
 	}
 }

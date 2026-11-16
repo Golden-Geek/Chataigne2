@@ -9,7 +9,12 @@ const deferred = <T>() => {
 	return { promise, resolve };
 };
 function setup() {
-	let host = { hasActiveEditSession: false, editSessionEpoch: 0, snapshotGeneration: 0 };
+	let host = {
+		status: 'connected',
+		hasActiveEditSession: false,
+		editSessionEpoch: 0,
+		snapshotGeneration: 0
+	};
 	const begin = deferred<boolean>(),
 		end = deferred<void>();
 	const open = vi.fn(async (opened: typeof host) => {
@@ -32,11 +37,45 @@ function setup() {
 		close,
 		host: () => host,
 		replace: () => {
-			host = { hasActiveEditSession: true, editSessionEpoch: 1, snapshotGeneration: 0 };
+			host = {
+				status: 'connected',
+				hasActiveEditSession: true,
+				editSessionEpoch: 1,
+				snapshotGeneration: 0
+			};
 		}
 	};
 }
 describe('UI edit-session acknowledgement ownership', () => {
+	it('revokes ownership on connection loss before the replacement snapshot arrives', async () => {
+		const s = setup();
+		s.begin.resolve(true);
+		await s.session.begin();
+		s.host().status = 'connecting';
+		expect(s.session.active).toBe(false);
+		await s.session.end();
+		expect(s.close).not.toHaveBeenCalled();
+	});
+	it('does not reopen a queued interaction while its transport is reconnecting', async () => {
+		const s = setup();
+		s.begin.resolve(true);
+		await s.session.begin();
+		const closing = s.session.end(),
+			reopening = s.session.begin();
+		s.host().status = 'connecting';
+		s.end.resolve();
+		await Promise.all([closing, reopening]);
+		expect(s.open).toHaveBeenCalledTimes(1);
+		expect(s.session.active).toBe(false);
+	});
+	it('cannot begin an interaction on a disconnected host', async () => {
+		const s = setup();
+		s.host().status = 'disconnected';
+		const begin = s.session.begin();
+		s.begin.resolve(false);
+		await begin;
+		expect(s.open).not.toHaveBeenCalled();
+	});
 	it('coalesces begins and closes a begin acknowledged after end was requested', async () => {
 		const s = setup(),
 			first = s.session.begin(),
