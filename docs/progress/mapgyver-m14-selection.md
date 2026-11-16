@@ -253,8 +253,8 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Screen Warping / Screen | Real bundled UI/backend proves before-release Surface/background selection, shared Inspector/peer agreement, owner Escape, exact history/Undo and keyboard/project fencing; busy/unavailable DOM regression, shared contour hover and matching native paint declarations pass | Physical native input/pixel and Inspector agreement, overlapping hits, off-page and full active-gesture Escape checks |
 | Surface Source / Surface | Shared typed Crop Parameter selection, owner clearing, selected-only controls; shared hover/native paint declarations; browser capture/cancel and earlier ordinary-host Inspector/history checks | Actual current native pixel/hit agreement, two-editor/offscreen and project/snapshot interaction acceptance |
 | Composition / Composition media | Real bundled UI/backend verifies before-release child/background selection and Inspector, no implicit first child, independent locked peers, owner/idle Escape, exact no-history selection,130-child off-page editing, reconnect/copy/removal/project replacement; shared selection/edit admission fixes busy reselection; hover and unavailable-bounds DOM checks pass | Physical native input/pixel agreement, overlapping hit order and remaining complete active-gesture/lifetime acceptance |
-| Matrix Layer spatial / Matrix media | Shared owner clear and no-child projection, immediate controls/cached-definition clearing; shared hover, selected-only controls and keyboard/pointer unavailable-bounds selection verified | Actual adapter/Inspector/native checks, independent-editor and active-gesture behavior |
-| Matrix Cell spatial / Layer | Shared Layer-owner clear without navigation; backend descendant/off-page selection; shared hover, selected-only controls and unavailable-bounds keyboard/pointer selection verified | Actual adapter/Inspector/native checks, active/outgoing/off-page interaction acceptance |
+| Matrix Layer spatial / Matrix media | Real backend/Inspector verifies primary-down selection, hover without controls, owner/background/idle Escape, no implicit child and independent locked Layer/Cell editors; full typed Inspector/history/off-page/mixed suite passes; geometry closure is reported busy | Physical native input/pixel, overlap and complete active/outgoing/project interaction acceptance |
+| Matrix Cell spatial / Layer | Real backend/Inspector verifies before-release selection including disabled Cell, Layer owner clearing without navigation, recognized Matrix-focus clearing and unrelated locked-content retention; exact unchanged authoring/history/playback; full typed Inspector suite passes | Physical native input/pixel, overlap, off-page spatial and complete active/outgoing/project interaction acceptance |
 | Golden graph canvases | Browser verifies primary-down nodes/edges, immediate background/idle-Escape empty selection, selected-only resize/hover, modifier/marquee/pan/text/finder isolation; captured cancellation/focus/identity/lifecycle boundaries and pending-work preservation; Spatializer owner callback wired and consumers typecheck | Actual domain Inspector/native/independent-editor/offscreen/permission and specialized custom-world capture acceptance |
 | Golden Dashboard / edited page | Primary-down widget/background selection; selected-only resize zones; border hover; per-page tool-first/idle-owner Escape; free/ordered move/resize and marquee/pan cancellation, nested keyboard and two-editor isolation verified in production browser fixture | Actual workbench/Inspector, permission/offscreen/project and current-host acceptance remain open; unrelated Dashboard backend edits are preserved |
 | Animation curves / curve and key nodes | Shared key/easing/field and embedded typed Inspector; background/idle owner, tool-first cancel, selected-only Bezier/contour hover, permission/offscreen/locked-owner checks; bounded editor/renderer; delayed draw/create/paste owner/document fencing, exact creation receipt and original-owner completion without selection theft | Fix connected pointer ownership and complete actual backend/history/native and full lifetime acceptance; all editor/renderer modules stay under1000 lines |
@@ -267,6 +267,28 @@ This inventory retains the complete gate. DOM callback fixtures do not establish
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Matrix Layer/Cell (2026-11-16): `--matrix-layout-selection-ui --matrix-parameters-ui` passes
+together on the rebuilt ordinary app, with0 page errors/rejected requests and normal exit
+(`target/m14-matrix-selection-combined-final-2026-11-16.log`). The focused spatial flow checks
+actual selected rectangles/handles and generic Inspector Position before release, hover without
+selection, background and repeated idle Escape to the correct owner, disabled Cell selection,
+two visible locked editors with a visible Inspector, recognized Matrix focus clearing and
+unrelated-selection retention. Complete Matrix authoring/history stays exact and playback
+remains unlaunched. Matrix panels now include local geometry closure in `aria-busy`; a backend
+End acknowledgement alone does not establish frontend idle. Target binding and new-tab identity
+are awaited explicitly. The original Inspector suite retains every per-field Undo/Redo,
+off-page Layer/Cell, optional Size, owned Color and mixed-selection assertion.
+
+Fixture corrections preserve actual UI boundaries: read back Inspector values and await the
+loading overlay after history replacement, use an observed lower Cell hit away from controls/
+sticky headers, and search for virtualized mixed-selection targets. Earlier failures remain in
+`target/m14-matrix-selection-{baseline,readiness,baseline-fixed}-2026-11-16.log`; corrected
+Inspector proof is `target/m14-matrix-selection-parameters-2026-11-16.log`. The initial spatial
+failure and busy-state correction are retained in `target/m14-matrix-layout-selection*-2026-11-16.log`.
+MapGyver typecheck0 errors/0 warnings, production ordinary/UI build, scoped Prettier and root/
+Core formatting/check pass. No Rust/protocol behavior changed or physical native cohort ran.
+Full M14/1 remains unaccepted; these close the listed Matrix software/real-backend checks only.
 
 Shared spatial admission / Composition (2026-11-16): the unchanged real-backend baseline reached
 copy after off-page Inspector, independent locks/layout and reconnect, then failed its obsolete
@@ -742,18 +764,24 @@ build log SHA256 `e9d4f5ed163c810d189323d5823c456b6ffd28283798a4f7b462ae1d3f9fbb
 final integration log SHA256 `4fe58297865eacf794517fe35bca3d4d6e0ea4fc05fd6a44bf45a3f0936c86b4`.
 Logs: `target/m14-screen-selection-build-2026-11-16.log`,
 `target/m14-screen-selection-final-2026-11-16.log`.
-Current ordinary build with shared spatial admission (2026-11-16):
+Prior ordinary build with shared spatial admission (2026-11-16):
 `92bc43c8f19189e95e652680e07ad988be5b026fc5cbfdac912a3731e98d535f`;
 build log SHA256 `2cdf44b53e23e80081fec1b13168eec9ee9425e287657bedbaa8b5e62e0e72f9`;
 integration log SHA256 `ce48db27f0d3aa00864b558c58dc4645d128b5479603f1f40e98743df68c08a0`.
 Logs: `target/m14-spatial-admission-build-2026-11-16.log`,
 `target/m14-composition-selection-final-2026-11-16.log`.
+Current ordinary build with Matrix interaction readiness (2026-11-16):
+`f92d8c669074887e4fe6ce34669e953e2d5be84b14c03f9bd642b09cd8d69229`;
+build log SHA256 `9907163eb7e083305cc8702f4add228329847bea90d3cd0e7a2e9669fe861f8b`;
+combined integration log SHA256 `bac81f8dee5c0d81d785aea31604515c59d5b52e5c9f747d5c2afa11746cf7fe`.
+Logs: `target/m14-matrix-layout-build-2026-11-16.log`,
+`target/m14-matrix-selection-combined-final-2026-11-16.log`.
 The native fixture remains older: these are not a coherent new ordinary/
 native qualification pair. Refresh both inputs before native acceptance; Video evidence keeps
 its original source/build scope.
 
-Next deliverable: Matrix Layer/Cell real-backend selection, owner clearing and generic Inspector
-agreement against the shared admission contract. Composition's listed backend scope is verified;
+Next deliverable: Surface Source typed Crop selection, owner clearing and cancellation against
+the real backend/Inspector. Composition and Matrix's listed backend scopes are verified;
 remaining physical native selection/handle/hit acceptance returns when the
 desktop helper reconnects, with coherent inputs. The full editor inventory remains required;
 Gradient's real backend/history/copy/reload

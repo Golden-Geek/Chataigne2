@@ -23,6 +23,7 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 	const page = nativePage ?? (await browser.newPage({ viewport: { width: 1600, height: 1200 } }));
 	page.setDefaultTimeout(7000);
 	const errors = [];
+	let stage = 'setup';
 	page.on('pageerror', (error) => errors.push(String(error)));
 	const rejected = observeRejectedRequests(page, () => 'Typed Matrix row Parameters');
 	const parameter = (label) =>
@@ -32,7 +33,7 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 		while (true) {
 			const value = await read();
 			if (predicate(value)) return value;
-			assert(Date.now() < deadline, JSON.stringify(value));
+			assert(Date.now() < deadline, `${stage}: ${JSON.stringify(value)}`);
 			await delay(25);
 		}
 	}
@@ -69,6 +70,14 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 				['enabled', false],
 				['enabled', true]
 			]) {
+				stage = `${item.kind} ${field}=${value}`;
+				const readControl = async () => {
+					if (field === 'opacity')
+						return Number(await parameter('Opacity').locator('input.number-field').inputValue());
+					if (field === 'blend') return parameter('Blend Mode').locator('select').inputValue();
+					return parameter('Render enabled').locator('input[type=checkbox]').isChecked();
+				};
+				await page.locator('.gc-loading-overlay').waitFor({ state: 'detached' });
 				const before = await inspect();
 				if (field === 'opacity') {
 					const input = parameter('Opacity').locator('input.number-field');
@@ -97,8 +106,15 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 				});
 				await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 				await wait(inspect, (state) => isDeepStrictEqual(state, before));
+				await wait(
+					readControl,
+					(current) => current === before.items.find((row) => row.id.id === item.id).settings[field]
+				);
+				await page.locator('.gc-loading-overlay').waitFor({ state: 'detached' });
 				await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 				await wait(inspect, (state) => isDeepStrictEqual(state, after));
+				await wait(readControl, (current) => current === value);
+				await page.locator('.gc-loading-overlay').waitFor({ state: 'detached' });
 			}
 			if (item.kind === 'Layer') {
 				for (const [label, component, value, field] of [
@@ -154,6 +170,7 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 			element.scrollTop = 0;
 			element.dispatchEvent(new Event('scroll'));
 		});
+		stage = 'Cell settings and source Inspector';
 		const cellTarget = grid.getByTitle('Layer 1 / Column 1', { exact: true }).first();
 		const cellBounds = await cellTarget.boundingBox();
 		assert(cellBounds);
@@ -207,13 +224,24 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 			await wait(inspect, (state) => isDeepStrictEqual(state, after));
 		}
 		for (const mode of ['Fill', 'Stretch', 'Fit']) {
+			stage = `Cell Fit Mode=${mode}`;
 			const before = await inspect();
 			await parameter('Fit Mode').locator('select.dropdown-editor').selectOption(mode);
 			const after = await wait(inspect, (state) => cellSettings(state).fit_mode === mode);
 			await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 			await wait(inspect, (state) => isDeepStrictEqual(state, before));
+			await wait(
+				() => parameter('Fit Mode').locator('select.dropdown-editor').inputValue(),
+				(current) => current === cellSettings(before).fit_mode
+			);
+			await page.locator('.gc-loading-overlay').waitFor({ state: 'detached' });
 			await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 			await wait(inspect, (state) => isDeepStrictEqual(state, after));
+			await wait(
+				() => parameter('Fit Mode').locator('select.dropdown-editor').inputValue(),
+				(current) => current === mode
+			);
+			await page.locator('.gc-loading-overlay').waitFor({ state: 'detached' });
 		}
 		await sizeToggle.click();
 		await wait(inspect, (state) => cellSettings(state).size === null);
@@ -245,10 +273,15 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 			element.scrollTop = 0;
 			element.dispatchEvent(new Event('scroll'));
 		});
-		await grid
+		const sourceCellTarget = grid
 			.locator(`[role="row"][data-row-id="${layers[0].id}"]`)
-			.getByTitle('Layer 1 / Column 1', { exact: true })
-			.click({ button: 'right', position: { x: 5, y: 5 } });
+			.getByTitle('Layer 1 / Column 1', { exact: true });
+		const sourceCellBounds = await sourceCellTarget.boundingBox();
+		assert(sourceCellBounds);
+		await sourceCellTarget.click({
+			button: 'right',
+			position: { x: 8, y: sourceCellBounds.height - 8 }
+		});
 		await page.getByRole('menuitem', { name: 'Inspect media', exact: true }).click();
 		const color = parameter('Color');
 		await color.locator('.cp-preview').click();
@@ -260,9 +293,12 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 		await page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
 		await wait(readOwned, (rgba) => isDeepStrictEqual(rgba, [1, 0, 0, 1]));
 		await edit({ kind: 'CreateMedia', media_kind: 'SolidColor', label: 'Mixed Inspector peer' });
+		stage = 'mixed selection across filtered outliner';
 		const manager = page.getByRole('region', { name: 'Medias', exact: true });
+		const search = manager.locator('input[type="search"]');
 		const matrixNode = manager.getByRole('button', { name: 'Typed Matrix rows', exact: true });
 		const peerNode = manager.getByRole('button', { name: 'Mixed Inspector peer', exact: true });
+		await search.fill('Typed Matrix rows');
 		await matrixNode.click();
 		await page
 			.locator('.inspector-header .title-text')
@@ -270,6 +306,7 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 			.waitFor();
 		assert.equal(await page.locator('.inspector .runtime-feedback').count(), 0);
 		const beforeMixed = await inspect();
+		await search.fill('Mixed Inspector peer');
 		await peerNode.click({ modifiers: ['Control'] });
 		await page
 			.locator('.inspector-header .title-text')
@@ -302,6 +339,7 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 		await page.screenshot({ path: 'target/m07-row-parameters-ui-failure.png' }).catch(() => {});
 		console.error(
 			JSON.stringify({
+				stage,
 				errors,
 				rejected,
 				body: (await page.locator('body').innerText()).slice(-5000)

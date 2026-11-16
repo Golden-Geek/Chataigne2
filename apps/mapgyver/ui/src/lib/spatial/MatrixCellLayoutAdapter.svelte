@@ -160,7 +160,7 @@
 	data-spatial-layer={props.layer}
 	data-spatial-selected={selected?.view.cell.id ?? ''}
 	data-composition-locked={props.locked}
-	aria-busy={reader.busy || !props.present}>
+	aria-busy={reader.busy || geometry.state.active || !props.present}>
 	<div class="editor-canvas">
 		{#if state.error || geometry.state.error}<p class="editor-error" role="alert">
 				{state.error || geometry.state.error}

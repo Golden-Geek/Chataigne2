@@ -146,7 +146,7 @@
 	data-spatial-level="Layers"
 	data-spatial-selected={selected?.item.id.id ?? ''}
 	data-composition-locked={props.locked}
-	aria-busy={owner.busy || !props.present}>
+	aria-busy={owner.busy || geometry.state.active || !props.present}>
 	<div class="editor-canvas">
 		{#if geometry.state.error || owner.view.error || owner.view.readError}<p
 				class="editor-error"

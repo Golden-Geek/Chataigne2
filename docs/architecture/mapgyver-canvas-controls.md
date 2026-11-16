@@ -198,6 +198,12 @@ must pass connection/loading and active-tool availability separately from metada
 busy state. Their selection-only keyboard paths use that same availability, so a pending read
 cannot swallow the next selection press. Existing focused gesture controls retain focus.
 
+Matrix Layer/Cell panels report local geometry ownership through closure in `aria-busy`, along
+with reader availability. Backend history closure can precede the frontend's final acknowledgement;
+idle actions use the complete frontend readiness boundary. Real backend tests verify owner
+clearing, shared Inspector values and independent locked Layer/Cell scopes without authored or
+playback changes; physical native input/pixels remain separate acceptance.
+
 Screen Warping follows the same selection-before-admission rule in its native-aware controls.
 `SurfaceHandles.selectionAvailable` follows connection/loading availability; the owning adapter
 retains the active-gesture guard. Metadata/read busy state blocks geometry, while Surface and

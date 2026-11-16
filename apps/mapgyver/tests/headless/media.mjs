@@ -27,6 +27,7 @@
 // Add --surface-source-ui for M05 real Source crop/form/calibration/history verification.
 // Add --composition-ui for M06 real Composition form/gesture/history verification.
 // Add --matrix-ui for M07 real Matrix grid/authoring/playback-feedback verification.
+// Add --matrix-layout-selection-ui for real Layer/Cell selection, owner clearing and Inspector agreement.
 // Add --matrix-project-ui for M07 actual File New/upload and editor replacement verification.
 // Add --composition-project-ui for M06 actual New-during-drag and review-upload verification.
 // Add --column-applications-ui for M08 actual column UI and owned-process lifecycle verification.
@@ -80,6 +81,7 @@ const withUi = [
 	'--matrix-owned-media-ui',
 	'--unavailable-reference-ui',
 	'--matrix-ui',
+	'--matrix-layout-selection-ui',
 	'--matrix-parameters-ui',
 	'--matrix-defaults-ui',
 	'--matrix-grid-ui',
@@ -455,6 +457,10 @@ try {
 	if (process.argv.includes('--matrix-ui')) {
 		const { verifyMatrixUi } = await import('../browser/matrix.mjs');
 		await verifyMatrixUi({ base, post, edit, directory, inspectMedia: inspect });
+	}
+	if (process.argv.includes('--matrix-layout-selection-ui')) {
+		const { verifyMatrixLayoutSelection } = await import('../browser/matrix-layout-selection.mjs');
+		await verifyMatrixLayoutSelection({ base, post, edit });
 	}
 	if (process.argv.includes('--matrix-project-ui')) {
 		const { verifyMatrixProjectUi } = await import('../browser/matrix-project.mjs');
