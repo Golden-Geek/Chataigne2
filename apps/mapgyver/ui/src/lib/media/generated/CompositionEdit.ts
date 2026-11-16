@@ -3,6 +3,7 @@ import type { ChannelReference } from "./ChannelReference";
 import type { InstanceDefinition } from "./InstanceDefinition";
 import type { InstanceGeometryEdit } from "./InstanceGeometryEdit";
 import type { InstanceId } from "./InstanceId";
+import type { InstanceTransformAction } from "./InstanceTransformAction";
 import type { MediaKind } from "./MediaKind";
 import type { Point } from "./Point";
 
@@ -14,4 +15,4 @@ position: Point, } | { "kind": "AddInstances", sources: Array<ChannelReference>,
 /**
  * Canvas texels for a new instance; replacement preserves its existing transform.
  */
-position: Point, } | { "kind": "DuplicateInstances", instances: Array<InstanceId>, } | { "kind": "ConfigureInstance", instance: InstanceId, definition: InstanceDefinition, } | { "kind": "EditInstanceGeometry", instance: InstanceId, edit: InstanceGeometryEdit, } | { "kind": "RenameInstance", instance: InstanceId, label: string, } | { "kind": "ReorderInstance", instance: InstanceId, after: InstanceId | null, } | { "kind": "RemoveInstance", instance: InstanceId, };
+position: Point, } | { "kind": "DuplicateInstances", instances: Array<InstanceId>, } | { "kind": "ConfigureInstance", instance: InstanceId, definition: InstanceDefinition, } | { "kind": "EditInstanceGeometry", instance: InstanceId, edit: InstanceGeometryEdit, } | { "kind": "TransformInstance", instance: InstanceId, action: InstanceTransformAction, } | { "kind": "RenameInstance", instance: InstanceId, label: string, } | { "kind": "ReorderInstance", instance: InstanceId, after: InstanceId | null, } | { "kind": "RemoveInstance", instance: InstanceId, };

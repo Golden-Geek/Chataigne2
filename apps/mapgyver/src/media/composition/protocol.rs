@@ -118,6 +118,10 @@ pub enum CompositionEdit {
         instance: InstanceId,
         edit: InstanceGeometryEdit,
     },
+    TransformInstance {
+        instance: InstanceId,
+        action: InstanceTransformAction,
+    },
     RenameInstance {
         instance: InstanceId,
         label: String,
@@ -129,6 +133,13 @@ pub enum CompositionEdit {
     RemoveInstance {
         instance: InstanceId,
     },
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub enum InstanceTransformAction {
+    Reset,
+    Fit,
+    Fill,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]

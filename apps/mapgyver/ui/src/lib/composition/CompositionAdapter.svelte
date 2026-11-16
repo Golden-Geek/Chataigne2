@@ -3,12 +3,13 @@
 	import {
 		appState,
 		ContextMenu,
+		openNodeContextMenu,
 		type ContextMenuAnchor,
 		type ContextMenuItem,
 		IconButton
 	} from 'golden_ui';
-	import copyIcon from 'golden_ui/style/icons/copy.svg';
-	import deleteIcon from 'golden_ui/style/icons/panels/close.svg';
+	import fillIcon from '../screens/icons/fill.svg';
+	import fitIcon from '../screens/icons/fit.svg';
 	import arrowIcon from 'golden_ui/style/icons/arrow.svg';
 	import { mediaIcons } from '../icons/tree';
 	import { createCompositionEditor } from './editor.svelte';
@@ -66,6 +67,22 @@
 	});
 	function creationMenu(event: MouseEvent) {
 		if (busy || gestureState.active || !channel) return;
+		const target =
+			event.target instanceof Element
+				? (event.target
+						.closest('[data-instance-drop-target]')
+						?.getAttribute('data-instance-drop-target') ??
+					(event.target.closest('[data-instance-handle]') ? instance?.reference.instance : null))
+				: null;
+		if (target) {
+			const node = appState.session?.graph.state.nodesById.getByUuid(target);
+			if (!node) return;
+			event.preventDefault();
+			event.stopPropagation();
+			selection.select(target);
+			openNodeContextMenu(node.node_id, event.clientX, event.clientY);
+			return;
+		}
 		const position = dropPoint(event);
 		if (!position) return;
 		event.preventDefault();
@@ -119,26 +136,6 @@
 				)
 			: null;
 	}
-	async function duplicate() {
-		if (!instance) return;
-		const selectCreated = selection.capture();
-		const result = await controller.edit({
-			kind: 'DuplicateInstances',
-			instances: [instance.reference.instance]
-		});
-		if (result?.kind === 'InstancesCreated' && result.instances[0])
-			selectCreated(result.instances[0].instance);
-	}
-	async function remove() {
-		if (!instance) return;
-		const selectParent = selection.capture(),
-			parent = channel?.reference.channel;
-		const result = await controller.edit({
-			kind: 'RemoveInstance',
-			instance: instance.reference.instance
-		});
-		if (result?.kind === 'Changed' && parent) selectParent(parent);
-	}
 </script>
 
 <section
@@ -154,16 +151,29 @@
 	data-composition-busy={busy}>
 	{#snippet actions()}
 		<IconButton
-			icon={copyIcon}
-			label="Copy instance"
+			icon={fillIcon}
+			label="Fill Composition"
+			title="Stretch media to Composition bounds"
 			disabled={busy || !instance}
-			onclick={duplicate} />
+			onclick={() =>
+				instance &&
+				controller.edit({
+					kind: 'TransformInstance',
+					instance: instance.reference.instance,
+					action: 'Fill'
+				})} />
 		<IconButton
-			icon={deleteIcon}
-			label="Remove instance"
-			class="mapgyver-remove-action"
+			icon={fitIcon}
+			label="Fit to Composition"
+			title="Center media with its source aspect preserved"
 			disabled={busy || !instance}
-			onclick={remove} />
+			onclick={() =>
+				instance &&
+				controller.edit({
+					kind: 'TransformInstance',
+					instance: instance.reference.instance,
+					action: 'Fit'
+				})} />
 		{#if pages > 1}
 			<IconButton
 				icon={arrowIcon}
@@ -251,10 +261,6 @@
 	}} />
 
 <style>
-	:global(.canvas-toolbar:not(:hover):not(:focus-within) .mapgyver-remove-action) {
-		opacity: 0;
-		pointer-events: none;
-	}
 	:global(.previous img) {
 		transform: rotate(180deg);
 	}

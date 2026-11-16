@@ -25,6 +25,13 @@ const CALLERS: [Caller; 4] = [Caller::Ui, Caller::QuickJs, Caller::HostedQuickJs
 
 fn named_invocation(operation: &MediaEdit) -> String {
     let (method, args) = match operation {
+        MediaEdit::Composition {
+            reference,
+            edit: crate::media::composition::protocol::CompositionEdit::TransformInstance { instance, action },
+        } => (
+            "transformCompositionMedia",
+            serde_json::json!([reference.media, reference.channel, instance, action]),
+        ),
         MediaEdit::Video {
             media,
             edit: crate::media::video::protocol::VideoEdit::OnActivate { policy },

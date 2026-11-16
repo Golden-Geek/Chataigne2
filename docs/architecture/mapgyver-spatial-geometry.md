@@ -20,6 +20,16 @@ The view projects live resize vertices from source fractions and additive displa
 around the fixed opposite anchor. It does not divide by collapsed dimensions or author a second
 transform, so drag feedback can recover from zero while backend Parameters stay authoritative.
 
+`CompositionEdit::TransformInstance` owns discrete Reset/Fit/Fill actions. Reset centers the
+native-sized source with the default pivot and no rotation; Fit centers it with a uniform
+scale that preserves its aspect; Fill stretches it to the complete canvas. The backend resolves
+current source dimensions, including Reference overrides, and rejects unknown dimensions before
+queuing edits. Reset remains available without a source. These actions change only the four
+typed transform Parameters in one history transaction, preserving opacity, blend and enabled
+metadata. Toolbar controls, ordinary node-menu contributions, the named script method and
+typed Media Command all dispatch the same intent. The editor opens Golden's ordinary node
+menu, retaining Copy/Duplicate/Delete rather than maintaining separate toolbar implementations.
+
 Placement v3 contains geometry/output/opacity/blend Parameters only. The child's media metadata
 is the sole authored enabled state; `InstanceDefinition.enabled` is a read projection and the
 configuration operation translates its requested value into a metadata edit in the same history

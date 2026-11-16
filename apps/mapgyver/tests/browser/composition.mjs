@@ -1,4 +1,5 @@
 import { contentLock, persistedPanelState } from './content-lock.mjs';
+import { compositionNodeMenuAction } from './composition-menu.mjs';
 // Current typed Composition panels: real selection, Inspector, follow/lock, history and lifetime.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -225,6 +226,70 @@ export async function verifyCompositionUi({
 		await select('Off-page child');
 		await target(main, owners[0]);
 		await widgets.number('Position').waitFor();
+		stage = 'backend canvas transform toolbar and ordinary node menu';
+		assert.equal(await main.getByRole('button', { name: 'Copy instance', exact: true }).count(), 0);
+		assert.equal(
+			await main.getByRole('button', { name: 'Remove instance', exact: true }).count(),
+			0
+		);
+		const beforeTransform = await inspect(owners[0]);
+		for (const [label, scale] of [
+			['Fill Composition', [20, 18.75]],
+			['Fit to Composition', [18.75, 18.75]]
+		]) {
+			await main.getByRole('button', { name: label, exact: true }).click();
+			await wait(
+				() => inspect(owners[0]),
+				(value) =>
+					isDeepStrictEqual(value.instances.at(-1).definition.transform, {
+						position: [200, 150],
+						scale,
+						rotation_degrees: 0,
+						pivot: [0.5, 0.5]
+					})
+			);
+			await undo();
+			await wait(
+				() => inspect(owners[0]),
+				(value) => isDeepStrictEqual(value, beforeTransform)
+			);
+		}
+		await main.getByRole('button', { name: 'Fill Composition', exact: true }).click();
+		const beforeReset = await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value.instances.at(-1).definition.transform.scale, [20, 18.75])
+		);
+		await compositionNodeMenuAction(page, main, 'Reset', 'Transform');
+		const resetTransform = await wait(
+			() => inspect(owners[0]),
+			(value) =>
+				isDeepStrictEqual(value.instances.at(-1).definition.transform, {
+					position: [200, 150],
+					scale: [1, 1],
+					rotation_degrees: 0,
+					pivot: [0.5, 0.5]
+				})
+		);
+		await undo();
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, beforeReset)
+		);
+		await redo();
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, resetTransform)
+		);
+		await undo();
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, beforeReset)
+		);
+		await undo();
+		await wait(
+			() => inspect(owners[0]),
+			(value) => isDeepStrictEqual(value, beforeTransform)
+		);
 		stage = 'media enabled metadata keeps disabled Composition children visible and editable';
 		assert.equal(
 			await widgets.parameter('Enabled').count(),
@@ -527,7 +592,7 @@ export async function verifyCompositionUi({
 		const original = await inspect(owners[1]);
 		await ownerCleared(main, 'Panel B');
 		await pressItem(main, owners[1], original.instances[0]);
-		await main.getByRole('button', { name: 'Copy instance', exact: true }).click();
+		await compositionNodeMenuAction(page, main, 'Duplicate');
 		const copied = await wait(
 			() => inspect(owners[1]),
 			(value) => value.instances.length === 2
@@ -540,12 +605,20 @@ export async function verifyCompositionUi({
 			{ ...copied.instances[1].definition, source: original.instances[0].definition.source },
 			original.instances[0].definition
 		);
+		await main
+			.getByRole('button', { name: `Select ${copied.instances[1].label}`, exact: true })
+			.press('Enter');
+		await main
+			.locator(
+				`[data-instance-handle="Translate"][data-instance-drop-target="${copied.instances[1].reference.instance}"]`
+			)
+			.waitFor();
 		await wait(
 			() => main.getAttribute('data-composition-selected'),
 			(value) => value === copied.instances[1].reference.instance
 		);
 		await target(main, owners[1]);
-		await main.getByRole('button', { name: 'Remove instance', exact: true }).click();
+		await compositionNodeMenuAction(page, main, 'Delete');
 		const removed = await wait(
 			() => inspect(owners[1]),
 			(value) => value.instances.length === 1
@@ -627,7 +700,15 @@ export async function verifyCompositionUi({
 		await settled(0);
 		assert(
 			requests.length > 0 &&
-				requests.every((query) => query.count === 128 && (!query.locked || query.document)),
+				requests.every(
+					(query) =>
+						(query.count === 128 ||
+							(query.count === 1 &&
+								query.selected === selected &&
+								query.locked === null &&
+								query.retained === null)) &&
+						(!query.locked || query.document)
+				),
 			'all current Composition reads are bounded and locks are document-scoped'
 		);
 		assert.deepEqual(errors, []);

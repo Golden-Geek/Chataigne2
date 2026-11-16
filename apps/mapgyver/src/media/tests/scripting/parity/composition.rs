@@ -217,8 +217,17 @@ fn composition_authoring_geometry_inspection_and_rejection_match_every_public_ca
     cycle.source = Some(scene.owner);
     let mut invalid = scene.definition.clone();
     invalid.opacity = 2.0;
+    let mut disabled = scene.definition.clone();
+    disabled.enabled = false;
     let mut cases = vec![
         (scene.owner, CompositionEdit::Inspect),
+        (
+            scene.owner,
+            CompositionEdit::ConfigureInstance {
+                instance: first,
+                definition: disabled,
+            },
+        ),
         (
             scene.owner,
             CompositionEdit::DropSource {
@@ -348,6 +357,39 @@ fn zero_scale_composition_updates_are_accepted_by_every_public_caller() {
             assert_eq!(owner.instances[0].definition.transform.scale, scale);
             if let Some(expected) = &canonical {
                 assert_eq!(&actual, expected, "{caller:?}: {scale:?}");
+            } else {
+                canonical = Some(actual);
+            }
+        }
+    }
+}
+
+#[test]
+fn composition_canvas_transform_actions_match_every_public_caller() {
+    let scene = scene();
+    for action in [
+        InstanceTransformAction::Reset,
+        InstanceTransformAction::Fit,
+        InstanceTransformAction::Fill,
+    ] {
+        let mut canonical = None;
+        for caller in CALLERS {
+            let mut engine = loaded(&scene.document);
+            let result = run(
+                &mut engine,
+                caller,
+                MediaEdit::Composition {
+                    reference: scene.owner,
+                    edit: CompositionEdit::TransformInstance {
+                        instance: scene.instances[0].instance,
+                        action,
+                    },
+                },
+            );
+            assert!(result.is_some(), "{caller:?}: {action:?}");
+            let actual = authored(&engine);
+            if let Some(expected) = &canonical {
+                assert_eq!(&actual, expected, "{caller:?}");
             } else {
                 canonical = Some(actual);
             }

@@ -251,6 +251,30 @@ pub(crate) fn apply(
             labels::rename(engine, id, label)?;
             Ok(MediaEditResult::Changed)
         }
+        CompositionEdit::TransformInstance {
+            instance: target,
+            action,
+        } => {
+            let id = instance(engine, parent, target)?;
+            let current = children::placement(engine, id)?;
+            let mut definition = children::definition(engine, id)?;
+            let extent = if matches!(action, InstanceTransformAction::Reset) {
+                None
+            } else {
+                Some(crate::media::resolution::channel_extent(
+                    engine,
+                    definition
+                        .source
+                        .ok_or("source dimensions are unavailable for Fit/Fill")?,
+                )?)
+            };
+            definition.transform = super::geometry::transform(canvas, extent, action)?;
+            definition.validate()?;
+            for edit in current.transform_edits(definition.transform) {
+                engine.edits.push(edit);
+            }
+            Ok(MediaEditResult::Changed)
+        }
         CompositionEdit::EditInstanceGeometry { instance: target, edit } => {
             let id = instance(engine, parent, target)?;
             let current = children::placement(engine, id)?;

@@ -1,5 +1,31 @@
 use super::protocol::{InstanceDefinition, InstanceGeometryEdit, InstanceGeometryMode};
 
+/// Canvas actions replace the placement basis, preserving media, opacity, blend and metadata.
+pub(super) fn transform(
+    canvas: golden_video::Extent2D,
+    source: Option<golden_video::Extent2D>,
+    action: super::protocol::InstanceTransformAction,
+) -> Result<super::protocol::Transform2D, String> {
+    use super::protocol::{InstanceTransformAction, Transform2D};
+    let mut result = Transform2D {
+        position: [canvas.width() as f32 / 2.0, canvas.height() as f32 / 2.0],
+        ..Default::default()
+    };
+    if !matches!(action, InstanceTransformAction::Reset) {
+        let source = source.ok_or("source dimensions are unavailable for Fit/Fill")?;
+        let scale = [
+            canvas.width() as f32 / source.width() as f32,
+            canvas.height() as f32 / source.height() as f32,
+        ];
+        result.scale = match action {
+            InstanceTransformAction::Fit => [scale[0].min(scale[1]); 2],
+            InstanceTransformAction::Fill => scale,
+            InstanceTransformAction::Reset => unreachable!(),
+        };
+    }
+    Ok(result)
+}
+
 impl InstanceGeometryEdit {
     /// Change only the requested transform field on a validated clone of the current definition.
     pub(super) fn apply(self, definition: &mut InstanceDefinition) -> Result<(), String> {

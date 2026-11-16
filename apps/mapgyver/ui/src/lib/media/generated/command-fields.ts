@@ -199,6 +199,12 @@ export const COMMAND_PARAMETER_FIELDS = {
     "channel",
     "rgba"
   ],
+  "TransformCompositionMedia": [
+    "media",
+    "channel",
+    "composition_target",
+    "composition_transform"
+  ],
   "UnloadMatrix": [
     "media"
   ],

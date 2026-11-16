@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { compositionNodeMenuAction } from './composition-menu.mjs';
 import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
 import path from 'node:path';
@@ -90,7 +91,18 @@ export async function verifyCompositionCreation({
 				count: 128
 			}
 		});
-		assert.equal(catalog.media_types.length, 6);
+		assert.deepEqual(
+			new Set(catalog.media_types.map((choice) => choice.media_kind)),
+			new Set([
+				'Reference',
+				'SolidColor',
+				'Picture',
+				'Video',
+				'SharedTexture',
+				'Composition',
+				'Matrix'
+			])
+		);
 		const created = [];
 		for (const choice of catalog.media_types) {
 			await selectOwner();
@@ -102,9 +114,16 @@ export async function verifyCompositionCreation({
 			);
 			const zone = await main.locator('.active-zone').boundingBox();
 			assert(zone);
-			await page.mouse.click(zone.x + zone.width * 0.4, zone.y + zone.height * 0.6, {
-				button: 'right'
-			});
+			// Target the background explicitly: existing media may cover the full canvas.
+			await main
+				.locator('.source-drop-zone')
+				.evaluate(
+					(element, point) =>
+						element.dispatchEvent(
+							new MouseEvent('contextmenu', { bubbles: true, clientX: point.x, clientY: point.y })
+						),
+					{ x: zone.x + zone.width * 0.4, y: zone.y + zone.height * 0.6 }
+				);
 			for (const type of catalog.media_types)
 				await page.getByRole('menuitem', { name: type.label, exact: true }).waitFor();
 			await page.getByRole('menuitem', { name: choice.label, exact: true }).click();
@@ -164,7 +183,7 @@ export async function verifyCompositionCreation({
 			() => main.getAttribute('data-composition-selected'),
 			(value) => value === solid.reference.instance
 		);
-		await main.getByRole('button', { name: 'Copy instance', exact: true }).click();
+		await compositionNodeMenuAction(page, main, 'Duplicate');
 		const afterCopy = await wait(
 			inspect,
 			(value) => value.instances.length === beforeCopy.instances.length + 1
@@ -179,11 +198,17 @@ export async function verifyCompositionCreation({
 			edit: { kind: 'ReorderInstance', instance: copied.instance, after: null }
 		});
 		assert.equal((await inspect()).instances[0].reference.instance, copied.instance);
+		await main
+			.getByRole('button', {
+				name: `Select ${afterCopy.instances.find((child) => child.reference.instance === copied.instance).label}`,
+				exact: true
+			})
+			.press('Enter');
 		await wait(
 			() => main.getAttribute('data-composition-selected'),
 			(value) => value === copied.instance
 		);
-		await main.getByRole('button', { name: 'Remove instance', exact: true }).click();
+		await compositionNodeMenuAction(page, main, 'Delete');
 		assert.deepEqual(
 			await wait(inspect, (value) => value.instances.length === beforeCopy.instances.length),
 			beforeCopy

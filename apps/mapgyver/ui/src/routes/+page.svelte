@@ -26,6 +26,7 @@
 	import { ASSET_NODE_TYPE } from '../lib/media/generated/constants';
 	import { registerMatrixContextMenu } from '../lib/matrix/context-menu';
 	import { registerMediaContextMenus } from '../lib/media/context-menu';
+	import { registerCompositionContextMenu } from '../lib/composition/context-menu';
 	import removeIcon from 'golden_ui/style/icons/panels/close.svg';
 	import '../lib/workbench.css';
 	import { treeIcons, panelIcons } from '../lib/icons/tree';
@@ -40,6 +41,7 @@
 	registerMediaTargetPicker();
 	registerMatrixContextMenu();
 	registerMediaContextMenus();
+	registerCompositionContextMenu();
 	registerActionIcon('remove', removeIcon);
 	onMount(() => preview.mount());
 	for (const type of [

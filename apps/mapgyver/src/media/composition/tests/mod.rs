@@ -16,6 +16,7 @@ mod geometry;
 mod owned_media;
 mod parameters;
 mod query;
+mod transform_actions;
 mod zero_scale;
 
 fn edit(engine: &mut AppEngine, reference: ChannelReference, edit: CompositionEdit) -> MediaEditResult {

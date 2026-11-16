@@ -30,6 +30,7 @@ function sourceExamples(mediaId, channelId, assetId) {
 	// local.transferMatrixCell("transfer", matrixId, cellId, layerId, columnId, "Drop"); // Drop swaps/moves; Move/Copy/Reference require empty destination
 	// local.dropCompositionMedia("drop", compositionMediaId, compositionChannelId, mediaId, "", false, 0, 0); // true copies the full media
 	// local.createCompositionMedia("create-child", compositionMediaId, compositionChannelId, "SolidColor", "", 320, 180);
+	// local.transformCompositionMedia("fit", compositionMediaId, compositionChannelId, childMediaId, "Fit"); // Reset: centered native size; Fit: preserve ratio; Fill: stretch to canvas
 	// local.createReference("reference", mediaId, ""); // ReferenceCreated returns media UUID
 	// local.selectReferenceChannel("output", referenceMediaId, channelId); // empty channelId follows the first available output
 	// local.configureReference("retarget", referenceMediaId, mediaId); // empty target clears

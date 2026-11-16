@@ -30,6 +30,7 @@ use std::sync::Arc;
         position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position", description = "Composition canvas texels.");
         copy_media: bool = false (label = "Copy media");
         composition_target: NodeReference = NodeReference::empty() (label = "Replace media", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.v11".into(), "mapgyver.media.reference.v4".into()]);
+        composition_transform: Enum = "Fit" (label = "Transform", enum_options = crate::parameters::enum_options(&["Reset", "Fit", "Fill"]), constraint_policy = "reject");
         reference_target: NodeReference = NodeReference::empty() (label = "Target media", reference_target_kind = ReferenceTargetKind::AnyNode,
             reference_allowed_node_types = vec!["mapgyver.media.v11".into(), "mapgyver.media.reference.v4".into()]);
         channel: NodeReference = NodeReference::empty() (
@@ -279,6 +280,13 @@ impl MediaCommandNode {
                         x: self.position.get().x as f32,
                         y: self.position.get().y as f32,
                     },
+                },
+            },
+            MediaCommandKind::TransformCompositionMedia => MediaEdit::Composition {
+                reference,
+                edit: super::super::composition::protocol::CompositionEdit::TransformInstance {
+                    instance: super::super::composition::protocol::InstanceId(self.composition_target.get_ref().uuid),
+                    action: choice(self.composition_transform.get_ref().as_str())?,
                 },
             },
             MediaCommandKind::CreateReference => MediaEdit::CreateReference {

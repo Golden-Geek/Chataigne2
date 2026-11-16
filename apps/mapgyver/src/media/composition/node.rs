@@ -137,20 +137,32 @@ impl PlacementNode {
         reader.guard_at(reader.current())
     }
     pub(crate) fn parameter_edits(&self, definition: InstanceDefinition) -> Vec<golden_core::edit::Edit> {
+        let mut edits = self.transform_edits(definition.transform);
+        for (node, value) in [
+            (self.opacity.id(), ParamValue::Float(f64::from(definition.opacity))),
+            (self.blend.id(), ParamValue::Enum(blend_name(definition.blend).into())),
+        ] {
+            edits.push(golden_core::edit::Edit::SetParam {
+                node,
+                value,
+                behaviour: golden_core::parameter::ParameterEventBehaviour::Append,
+            });
+        }
+        edits
+    }
+    pub(crate) fn transform_edits(&self, transform: Transform2D) -> Vec<golden_core::edit::Edit> {
         use golden_core::{edit::Edit, parameter::ParameterEventBehaviour};
-        let position = vector(definition.transform.position);
-        let scale = vector(definition.transform.scale);
-        let pivot = vector(definition.transform.pivot);
+        let position = vector(transform.position);
+        let scale = vector(transform.scale);
+        let pivot = vector(transform.pivot);
         [
             (self.position.id(), ParamValue::Vec2(position.x, position.y)),
             (self.scale.id(), ParamValue::Vec2(scale.x, scale.y)),
             (
                 self.rotation_degrees.id(),
-                ParamValue::Float(f64::from(definition.transform.rotation_degrees)),
+                ParamValue::Float(f64::from(transform.rotation_degrees)),
             ),
             (self.pivot.id(), ParamValue::Vec2(pivot.x, pivot.y)),
-            (self.opacity.id(), ParamValue::Float(f64::from(definition.opacity))),
-            (self.blend.id(), ParamValue::Enum(blend_name(definition.blend).into())),
         ]
         .into_iter()
         .map(|(node, value)| Edit::SetParam {

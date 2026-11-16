@@ -1,5 +1,6 @@
 // Real generic Golden parameter editors against the ordinary bundled app; queries only inspect.
 import assert from 'node:assert/strict';
+import { compositionNodeMenuAction } from './composition-menu.mjs';
 import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isDeepStrictEqual } from 'node:util';
@@ -52,7 +53,9 @@ export async function verifyParameterUi({ base, edit, inspectMedia }) {
 			(item) => !beforeCreation.media.some((old) => old.id === item.id)
 		).channels[0].reference;
 		const owner = catalog.media.find((item) => item.id === composition.media);
-		await manager.getByRole('button', { name: owner.label, exact: true }).click();
+		const ownerLabel = 'Parameter inspector composition';
+		await edit({ kind: 'RenameMedia', media: owner.id, label: ownerLabel });
+		await manager.getByRole('button', { name: ownerLabel, exact: true }).click();
 		const source = catalog.media.find((item) => item.media_kind === 'SolidColor');
 		const inspect = async () =>
 			(await edit({ kind: 'Composition', reference: composition, edit: { kind: 'Inspect' } }))
@@ -89,7 +92,8 @@ export async function verifyParameterUi({ base, edit, inspectMedia }) {
 		assert.equal(new Set(ids).size, 10, 'Every editor is bound to its own real parameter node');
 		const parameter = (label) => parameters.filter({ has: page.getByText(label, { exact: true }) });
 		for (const label of [
-			'Target',
+			'Media',
+			'Channel',
 			'Resolution',
 			'Output',
 			'Position',
@@ -97,10 +101,10 @@ export async function verifyParameterUi({ base, edit, inspectMedia }) {
 			'Rotation',
 			'Pivot',
 			'Opacity',
-			'Blend',
-			'Enabled'
+			'Blend'
 		])
 			assert.equal(await parameter(label).count(), 1);
+		assert.equal(await parameter('Enabled').count(), 0, 'Enablement belongs to media metadata');
 		const number = (label, index = 0) => parameter(label).locator('input.number-field').nth(index);
 		const undo = () => page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 		const redo = () => page.getByTitle('Ctrl/Cmd+Shift+Z or Ctrl+Y', { exact: true }).click();
@@ -119,7 +123,7 @@ export async function verifyParameterUi({ base, edit, inspectMedia }) {
 			(value) => value.instances[0].definition.transform.scale[0] === 2
 		);
 		stage = 'generic parameter invariant rejection';
-		await number('Scale').fill('0');
+		await number('Scale').fill('1e100'); // Finite f64 that cannot be represented by the render transform.
 		await number('Scale').press('Enter');
 		await wait(
 			() => rejected.length,
@@ -132,23 +136,45 @@ export async function verifyParameterUi({ base, edit, inspectMedia }) {
 		await wait(inspect, (value) => isDeepStrictEqual(value, scaled));
 		await page.screenshot({ path: 'target/mapgyver-composition-parameters-ui.png' });
 		stage = 'parameter-backed duplication and removal';
-		await page.getByRole('button', { name: 'Copy instance', exact: true }).click();
+		await compositionNodeMenuAction(
+			page,
+			page.locator('[data-panel-id="composition"]'),
+			'Duplicate'
+		);
 		const copied = await wait(inspect, (value) => value.instances.length === 2);
 		const child = copied.instances[1].reference.instance;
 		assert.notEqual(child, scaled.instances[0].reference.instance);
-		assert.deepEqual(copied.instances[1].definition, {
-			...scaled.instances[0].definition,
-			source: { ...scaled.instances[0].definition.source, media: child }
-		});
+		assert.deepEqual(
+			{ ...copied.instances[1].definition, source: scaled.instances[0].definition.source },
+			scaled.instances[0].definition
+		);
+		assert.equal(copied.instances[1].definition.source.media, child);
+		assert.notEqual(
+			copied.instances[1].definition.source.channel,
+			scaled.instances[0].definition.source.channel
+		);
 		const aliases = (await inspectMedia()).media;
+		assert(
+			aliases
+				.find((item) => item.id === child)
+				.channels.some(
+					(channel) => channel.reference.channel === copied.instances[1].definition.source.channel
+				)
+		);
 		assert.deepEqual(
 			aliases.find((item) => item.id === child).channels.map((item) => item.definition),
 			aliases
 				.find((item) => item.id === scaled.instances[0].reference.instance)
 				.channels.map((item) => item.definition)
 		);
-		// The backend commit can be observed before the UI receives its receipt
-		// and selects the returned copy. Wait for that selection, not the old count.
+		await page
+			.locator('[data-panel-id="composition"]')
+			.getByRole('button', {
+				name: `Select ${copied.instances[1].label}`,
+				exact: true
+			})
+			.press('Enter');
+		// Ordinary node-menu duplication preserves selection; select the copy to inspect its Parameters.
 		const copiedIds = await wait(
 			() => parameters.evaluateAll((nodes) => nodes.map((node) => node.dataset.nodeId)),
 			(values) => values.length === 10 && values.every((id) => !ids.includes(id))
@@ -157,7 +183,7 @@ export async function verifyParameterUi({ base, edit, inspectMedia }) {
 			copiedIds.every((id) => !ids.includes(id)),
 			'Copy owns independent parameter nodes'
 		);
-		await page.getByRole('button', { name: 'Remove instance', exact: true }).click();
+		await compositionNodeMenuAction(page, page.locator('[data-panel-id="composition"]'), 'Delete');
 		await wait(inspect, (value) => value.instances.length === 1);
 		await undo();
 		await wait(inspect, (value) => isDeepStrictEqual(value, copied));

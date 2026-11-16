@@ -24,6 +24,7 @@ pub(super) const METHODS: &[&str] = &[
     "transferMatrixCell",
     "dropCompositionMedia",
     "createCompositionMedia",
+    "transformCompositionMedia",
     "createReference",
     "configureReference",
     "selectReferenceChannel",
@@ -106,6 +107,7 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "inspectChannels" => 3,
         "dropCompositionMedia" => 7,
         "createCompositionMedia" => 6,
+        "transformCompositionMedia" => 4,
         "dropMatrixMedia" => 5,
         "transferMatrixCell" => 5,
         "createReference" | "configureReference" | "selectReferenceChannel" => 2,
@@ -191,6 +193,13 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
                 layer: crate::matrix::protocol::LayerId(uuid(args, 2)?),
                 column: crate::matrix::protocol::ColumnId(uuid(args, 3)?),
                 action: choice(args, 4)?,
+            },
+        },
+        "transformCompositionMedia" => MediaEdit::Composition {
+            reference: reference(args)?,
+            edit: super::composition::protocol::CompositionEdit::TransformInstance {
+                instance: super::composition::protocol::InstanceId(uuid(args, 2)?),
+                action: choice(args, 3)?,
             },
         },
         "createCompositionMedia" => MediaEdit::Composition {

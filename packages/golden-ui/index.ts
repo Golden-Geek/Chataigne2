@@ -76,6 +76,7 @@ export {
 	type ContextMenuPointAnchor
 } from './components/common/context-menu';
 export { buildCreatableItemMenu } from './components/common/creatable-item-menu';
+export { openNodeContextMenu } from './store/node-context-menu.svelte';
 export {
 	registerNodeContextMenuContributor,
 	registerNodeContextMenuContributors,
