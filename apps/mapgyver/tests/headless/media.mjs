@@ -484,7 +484,7 @@ try {
 	}
 	if (process.argv.includes('--matrix-grid-ui')) {
 		const { verifyMatrixGridUi } = await import('../browser/matrix-grid.mjs');
-		await verifyMatrixGridUi({ base, edit });
+		await verifyMatrixGridUi({ base, edit, post });
 	}
 	if (process.argv.includes('--matrix-drag-ui')) {
 		const { verifyMatrixDragUi } = await import('../browser/matrix-drag.mjs');

@@ -261,12 +261,35 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Gradient / Gradient owner and stops | Shared stop/field/owner selection and anchored typed Inspector; primary-down/keyboard/hover; stable capture, cancel versus release, access/document/disposal and pending-Begin ownership; independent locked editors and local color-tool Escape verified in production Inspector browser; real public-facade creation/live edits/history/copy/reload, empty and partial declared collections pass | Independent real-panel/product-host/native acceptance; browser and backend proof together still do not establish the complete gate |
 | Watcher projection canvases | `WatcherProjectionCanvas` renders buffer samples/latest points without pointer, key or mutation callbacks; it has no authored canvas targets | Read-only projection applicability resolved from source. Ordinary Inspector owns its settings; retain panel focus/lifetime checks in actual workbench acceptance |
 | Media Preview / followed or locked media | `MediaPreviewPanel` renders `ChannelPreview`/`NativePreview` without authored geometry targets; toolbar changes preview choice, not object placement | Read-only image applicability resolved from source. Existing follow/lock/routing requirements stay intact; actual cross-panel/native qualification remains open |
-| Matrix grid / Matrix, Layer, Column and Cell | Shared primary-down/keyboard selection and hover for Cells/headers/labels; background/idle owner clear; immediate focus and stale-reply fencing; connected Golden browser fixture verifies controls, rename/launch, disabled input, independent drag cancellation and listener disposal | Actual backend/Inspector-driven selection, native drag/pixels, virtualized/offscreen/project and independent real-panel acceptance remain open |
+| Matrix grid / Matrix, Layer, Column and Cell | Real bundled UI/backend proves primary-down Cell/Layer/Column/Group selection and exact Inspector identity before release, owner clearing, idle/text-tool Escape, keyboard selection, unchanged history/playback and editable offscreen Cell; complete contextual CRUD/rename/structural history passes; Golden fixture covers disabled input/independent drag cancellation/disposal | Native drag/pixels, project interaction and independent real-panel acceptance remain open |
 
 This inventory retains the complete gate. DOM callback fixtures do not establish actual
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Matrix grid (2026-11-16): `--matrix-grid-ui` passes against the unchanged ordinary app,
+with0 page errors/rejected requests and normal host exit0. Actual Inspector UUIDs and selected
+grid controls agree before pointer release for empty addresses (their existing Layer owner),
+authored Cells, Layer/Column headers and Group labels. Hover leaves owner inspection unchanged;
+background-down and idle Escape inspect the Matrix owner and clear every grid highlight.
+Keyboard Cell selection and Escape from a focused Cell work; Escape within inline Group rename
+discards the draft while retaining Group selection. Selection-only snapshots and complete
+history remain exact, and no playback column is requested. All existing owned-media creation/
+removal, complete structural Undo/Redo and offscreen Cell editing checks remain and pass;
+128 added Layers keep fewer than30 row headers mounted while the original Cell Inspector stays
+bound and accepts an edit.
+
+The baseline's fixed top-left populated-Cell hit landed on Play. Corrected fixture body hits
+use current observed Cell bounds, since row height changes with added content; no force clicks,
+fabricated selection or bypassed handlers are used. An initial new assertion incorrectly assumed
+empty grid addresses already had authored Cell nodes; it now verifies the existing backend Layer
+fallback separately from real Cell creation. Failed logs remain
+`target/m14-matrix-grid-{baseline,selection,selection-final,selection-final-hits}-2026-11-16.log`.
+Passing log: `target/m14-matrix-grid-selection-current-bounds-2026-11-16.log`, SHA256
+`a03d31081ba1bbcce1e6208bf1f7438d71b0d9994e42ced9570c568d90ab9e74`.
+Scoped Prettier/syntax and root/Core formatting pass. This fixture-only slice establishes no
+new native acceptance, independent real-grid policy or project-replacement coverage.
 
 Surface Source (2026-11-16): the unchanged `--surface-source-ui` baseline passes, and its
 extended real-backend fixture passes with0 page errors/rejected crop requests and normal
@@ -800,8 +823,8 @@ The native fixture remains older: these are not a coherent new ordinary/
 native qualification pair. Refresh both inputs before native acceptance; Video evidence keeps
 its original source/build scope.
 
-Next deliverable: Matrix grid selection/owner/Inspector agreement against the real backend,
-retaining virtualization and independent real-panel scope. Surface Source, Composition and
+Next deliverable: Matrix grid independent locked real-panel and project interaction acceptance,
+retaining the verified selection/Inspector/history/virtualization suite. Surface Source, Composition and
 Matrix spatial editors' listed backend scopes are verified;
 remaining physical native selection/handle/hit acceptance returns when the
 desktop helper reconnects, with coherent inputs. The full editor inventory remains required;
