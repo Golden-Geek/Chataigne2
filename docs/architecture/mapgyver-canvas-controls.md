@@ -40,6 +40,10 @@ before publishing, and ordinary projection does not write authored data.
 supplies a bounded hierarchy projection, typed local signature and current-node resolution;
 the bridge owns input admission and host/document/selection fencing. Gradient's registry entry
 anchors its editor while real stops or their Parameter children drive the workbench Inspector.
+Explicit item hits call the bridge's `select` method, which resolves and publishes the exact
+document targets even when a selected field already projects to that same editor item. Ordinary
+reactive projection still avoids republishing unchanged local selection; model cleanup cannot
+acquire input authority. Gradient marker presses and keyboard activation use this explicit path.
 Background/idle Escape inspect the Gradient owner without choosing an implicit first stop.
 Stop markers use the public `selectOnPress` action for pointer and keyboard selection; hover
 changes only their unselected contour.

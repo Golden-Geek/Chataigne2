@@ -661,7 +661,7 @@
 						use:selectOnPress={{
 							disabled: dragScope !== null,
 							select: () => {
-								selected_stop_id = stop.id;
+								selection.select({ stop: stop.id });
 							}
 						}}
 						class:selected={stop.id === selected_stop_id}

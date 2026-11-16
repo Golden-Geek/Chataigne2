@@ -205,6 +205,15 @@ Real stop/field selection keeps the Gradient owner mounted; background and idle 
 the owner, with no automatic first-stop selection. Hover changes only an unselected marker's
 contour. The existing typed stop Inspector, color popup and interpolation tools remain usable.
 
+The actual Chataigne product-host continuation reproduced same-stop reselection failure: after
+selecting its Position Parameter, pressing that Stop left the workbench selecting Position.
+Both objects project to the same local stop, so a reactive signature alone cannot express the
+new exact input target. Golden's shared Inspector bridge now exposes an explicit `select` path
+with the same host/document/snapshot/input fences. Gradient primary-down and keyboard actions
+use it even when the projected stop is unchanged. Ordinary model projection remains non-authoring
+and cannot acquire input authority. The deterministic browser regression fails before this
+correction and passes afterward; the rebuilt actual product now passes the same scenario.
+
 Gradient's captured input now distinguishes cancellation from release. Previously pointercancel
 ran the release handler and could submit armed deletion. The stable editor owns capture while
 markers reorder. Cancel/lost capture/blur, access or topology/selection loss, snapshot replacement
@@ -223,14 +232,14 @@ default user collection was removed. Reconstruction inherits declared schema chi
 replacing user items with the saved collection. Five public-facade regressions pass, including
 standalone empty copying/reload, partial/empty declared reload and copying the containing owner.
 The persisted format and ordinary declared-child identity policy stay unchanged. Core and
-MapGyver suites, strict lint, ordinary build and formatting pass. Product-host/native
-acceptance is separate.
+MapGyver suites, strict lint, ordinary build and formatting pass. Native acceptance is separate.
 
 Source ownership also resolves the test host: no MapGyver-owned Gradient authoring path was found;
 Chataigne's Alchemist constructs declared Gradient children. Backend checks therefore use Golden's
 supported public project facade, including its duplication codec, rather than inventing a
-MapGyver feature. The existing browser fixture and actual backend tests are complementary;
-neither alone substitutes for product-host/native acceptance.
+MapGyver feature. The bundled Chataigne UI now also verifies actual Outliner/anchored Inspector
+selection, capture/cancel, typed editing and live drag/history. Independent real-panel and native
+acceptance remain separate from this verified single-panel product-host scope.
 
 ## Applicable editor inventory
 
@@ -258,7 +267,7 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Golden graph canvases | Browser verifies primary-down nodes/edges, immediate background/idle-Escape empty selection, selected-only resize/hover, modifier/marquee/pan/text/finder isolation; captured cancellation/focus/identity/lifecycle boundaries and pending-work preservation; Spatializer owner callback wired and consumers typecheck | Actual domain Inspector/native/independent-editor/offscreen/permission and specialized custom-world capture acceptance |
 | Golden Dashboard / edited page | Primary-down widget/background selection; selected-only resize zones; border hover; per-page tool-first/idle-owner Escape; free/ordered move/resize and marquee/pan cancellation, nested keyboard and two-editor isolation verified in production browser fixture | Actual workbench/Inspector, permission/offscreen/project and current-host acceptance remain open; unrelated Dashboard backend edits are preserved |
 | Animation curves / curve and key nodes | Shared key/easing/field and embedded typed Inspector; background/idle owner, tool-first cancel, selected-only Bezier/contour hover, permission/offscreen/locked-owner checks; bounded editor/renderer; delayed draw/create/paste owner/document fencing, exact creation receipt and original-owner completion without selection theft | Fix connected pointer ownership and complete actual backend/history/native and full lifetime acceptance; all editor/renderer modules stay under1000 lines |
-| Gradient / Gradient owner and stops | Shared stop/field/owner selection and anchored typed Inspector; primary-down/keyboard/hover; stable capture, cancel versus release, access/document/disposal and pending-Begin ownership; independent locked editors and local color-tool Escape verified in production Inspector browser; real public-facade creation/live edits/history/copy/reload, empty and partial declared collections pass | Independent real-panel/product-host/native acceptance; browser and backend proof together still do not establish the complete gate |
+| Gradient / Gradient owner and stops | Actual bundled Chataigne UI/backend proves before-release Outliner/anchored Inspector selection, stable capture, cancel without deletion/history, real Parameter editing, same-stop reselection after field selection, accepted live drag/active Escape and exact Undo/Redo; Golden browser covers independent locked editors, permissions/document/disposal and local color-tool Escape; public-facade copy/reload/collections pass | Independent real-panel and native input/pixel acceptance; complete project/reconnect/lifetime scope remains open |
 | Watcher projection canvases | `WatcherProjectionCanvas` renders buffer samples/latest points without pointer, key or mutation callbacks; it has no authored canvas targets | Read-only projection applicability resolved from source. Ordinary Inspector owns its settings; retain panel focus/lifetime checks in actual workbench acceptance |
 | Media Preview / followed or locked media | `MediaPreviewPanel` renders `ChannelPreview`/`NativePreview` without authored geometry targets; toolbar changes preview choice, not object placement | Read-only image applicability resolved from source. Existing follow/lock/routing requirements stay intact; actual cross-panel/native qualification remains open |
 | Matrix grid / Matrix, Layer, Column and Cell | Real bundled UI/backend proves primary-down Cell/Layer/Column/Group selection and exact Inspector identity before release, owner/text-tool Escape, unchanged history/playback, offscreen Cell editing, two locked independent grids with visible Inspector, layout reload, New during held input and exact Load recovery; complete contextual CRUD/rename/structural history passes | Physical native input/drag/pixels and complete active-drag/reconnect/lifetime acceptance remain open; tested project scope is New during a held selection and exact Load recovery |
@@ -267,6 +276,41 @@ This inventory retains the complete gate. DOM callback fixtures do not establish
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
 
 ## Validation
+
+Gradient product host and reselection (2026-11-16): the ordinary Chataigne build and its
+default-feature `hosted_gradient_stop_edit_changes_materialized_gradient_resource` test pass.
+The first test build failed because inherited `CPAL_ASIO_DIR` pointed to an incomplete Temp SDK;
+the existing bootstrap selected its already-cached pinned SDK (`496a0765b8bb9c26f764f22f9a9712a937177db2`)
+for the command only. No feature was removed or machine environment persisted. The existing
+owned-workbench helper now supports the app's bundled UI as well as production fixtures and
+checks normal shutdown for that bundled mode; its existing Spatializer consumer also passes.
+
+The actual declared Alchemist Gradient reaches the ordinary Outliner/Inspector, preserves
+selection-only state/history and capture before release, rejects foreign cancellation and cancels
+armed removal without deleting. Real Parameter selection keeps the Gradient owner mounted;
+typed edits and an accepted live drag each have exact single-step Undo/Redo. Active Escape
+preserves accepted edits/selection and fences held motion; idle Escape selects the owner.
+Opening the Stop folder authors its normal presentation metadata, so numeric history is measured
+after that explicit folder action. Current rendered position and loading completion are awaited
+after history replacement before pressing the next handle. Initial fixture corrections covered
+sparse leaf children, normal folder expansion and history baselines; the product's unchanged
+same-stop failure is retained in `target/m14-gradient-product-ui-history-2026-11-16.log`.
+
+`target/m14-gradient-reselection-baseline-2026-11-16.log` reproduces the same missed selection in
+the existing production Gradient browser fixture. The fixed complete Curve/Gradient suite passes,
+including primary-down and keyboard reselection with no writes/history; all three Curve paint
+hashes remain unchanged. Six selection unit cases and Chataigne/MapGyver/Golden browser
+typechecks (0 errors/0 warnings) pass, as do scoped Prettier/syntax, root/Core fmt and both
+ordinary app/UI builds. No Rust/DTO behavior changed, stopped Curve probe or native GPU run occurred.
+
+Passing actual-product receipt:
+`target/qualification/m14-gradient-product-4a89d922-b691-4469-b262-359e12a79b20/browser.jsonl`;
+its controller exits0 with0 page errors/rejected requests and normal owned-host shutdown.
+Logs: `target/m14-gradient-reselection-product-final-2026-11-16.log` (SHA256
+`d61ab3c8648c2ed8cac8c00f39483bc92a5cb892fc84187ed72a94e3d7b50525`),
+`target/m14-gradient-reselection-fixed-2026-11-16.log` and
+`target/m14-gradient-reselection-existing-fixture-final-2026-11-16.log`.
+No headless input/pixel result substitutes for physical native qualification; M14/1 remains open.
 
 Matrix grid (2026-11-16): `--matrix-grid-ui` passes against the unchanged ordinary app,
 with0 page errors/rejected requests and normal host exit0. Actual Inspector UUIDs and selected
@@ -829,18 +873,26 @@ build log SHA256 `2cdf44b53e23e80081fec1b13168eec9ee9425e287657bedbaa8b5e62e0e72
 integration log SHA256 `ce48db27f0d3aa00864b558c58dc4645d128b5479603f1f40e98743df68c08a0`.
 Logs: `target/m14-spatial-admission-build-2026-11-16.log`,
 `target/m14-composition-selection-final-2026-11-16.log`.
-Current ordinary build with Matrix interaction readiness (2026-11-16):
+Prior ordinary build with Matrix interaction readiness (2026-11-16):
 `f92d8c669074887e4fe6ce34669e953e2d5be84b14c03f9bd642b09cd8d69229`;
 build log SHA256 `9907163eb7e083305cc8702f4add228329847bea90d3cd0e7a2e9669fe861f8b`;
 combined integration log SHA256 `bac81f8dee5c0d81d785aea31604515c59d5b52e5c9f747d5c2afa11746cf7fe`.
 Logs: `target/m14-matrix-layout-build-2026-11-16.log`,
 `target/m14-matrix-selection-combined-final-2026-11-16.log`.
+Current ordinary builds with explicit Inspector selection (2026-11-16):
+MapGyver SHA256 `ac42d85c8c28e74b24a7ae3a4f8f8314e979aa094def351283afb2cc360d97cc`;
+Chataigne SHA256 `ec22e0f8186d3730031d570b41233572dd04510a63cd9ba758f3494df4b3d88c`.
+Both default packages/bins were built together from the preserved working checkout; unrelated
+edits are not included in this milestone's staged changes. Build log:
+`target/m14-gradient-reselection-product-build-2026-11-16.log`, SHA256
+`8dbd2c39cd2a703971cbeaa9e8ca8a2127363696a110bc060a37a242d24b2576`.
 The native fixture remains older: these are not a coherent new ordinary/
 native qualification pair. Refresh both inputs before native acceptance; Video evidence keeps
 its original source/build scope.
 
-Next deliverable: Gradient selection/Inspector/history in its actual Chataigne product host,
-retaining the completed Golden browser/public-facade proof. Matrix grid independent panels,
+Next deliverable: two independent real Gradient Inspector panels and their document/lifetime
+boundaries, retaining the verified single-panel bundled product and Golden/public-facade proof.
+Matrix grid independent panels,
 layout reload and the tested New/Load scope now pass. Surface Source, Composition and
 Matrix spatial editors' listed backend scopes are verified;
 remaining physical native selection/handle/hit acceptance returns when the

@@ -40,10 +40,15 @@ export function createInspectorEditorSelection<T>(context: Context<T>) {
 		owner: string;
 		selected: readonly NodeId[];
 	} | null = null;
-	const publish = (selected: T, session: InspectorEditorSelectionHost | null, owner: UiNodeDto) => {
+	const publish = (
+		selected: T,
+		session: InspectorEditorSelectionHost | null,
+		owner: UiNodeDto,
+		explicit = false
+	) => {
 		const next = context.signature(selected);
 		if (
-			next === signature ||
+			(!explicit && next === signature) ||
 			!session ||
 			session.status !== 'connected' ||
 			session.loading.visible ||
@@ -55,12 +60,14 @@ export function createInspectorEditorSelection<T>(context: Context<T>) {
 			input.owner !== owner.uuid ||
 			input.selected !== session.selectedNodesIds
 		)
-			return;
+			return false;
 		const nodes = context.resolve(session.graph.state, owner.node_id, selected);
-		if (!nodes) return;
+		if (!nodes) return false;
 		signature = next;
+		if (explicit) context.write(selected);
 		session.selectNodes(nodes, 'REPLACE');
 		input.selected = session.selectedNodesIds;
+		return true;
 	};
 	$effect(() => {
 		const session = context.session,
@@ -90,6 +97,10 @@ export function createInspectorEditorSelection<T>(context: Context<T>) {
 		untrack(() => publish(selected, session, owner));
 	});
 	return {
+		// A field and its parent can project to the same editor item. Input still chooses exact nodes.
+		select(selected: T) {
+			return publish(selected, context.session, context.owner, true);
+		},
 		clear() {
 			const session = context.session,
 				owner = context.owner;

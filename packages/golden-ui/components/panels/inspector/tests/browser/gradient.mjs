@@ -204,6 +204,26 @@ export async function checkGradient(page, url) {
 	await field.focus();
 	await page.keyboard.press('Escape');
 	await waitSelected('Position');
+	const beforeReselectWrites = await count('writes'),
+		beforeReselectBegins = await count('begins');
+	await down();
+	await page.mouse.up();
+	await closed();
+	await page.getByRole('button', { name: 'Select Gradient position', exact: true }).click();
+	await waitSelected('Position');
+	await marker.focus();
+	await page.keyboard.press('Enter');
+	await waitSelected('Gradient A stop 0');
+	assert.equal(
+		await count('writes'),
+		beforeReselectWrites,
+		'same-stop reselection cannot author geometry'
+	);
+	assert.equal(
+		await count('begins'),
+		beforeReselectBegins,
+		'same-stop reselection cannot open history'
+	);
 	await editor.focus();
 	await page.keyboard.press('Escape');
 	await waitSelected('Gradient A');

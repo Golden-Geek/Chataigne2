@@ -20,63 +20,80 @@ import { chromium } from 'playwright-core';
 const repository = fileURLToPath(new URL('../../../../../', import.meta.url));
 const hash = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
 
-/** Owns isolated app data, loopback host, production fixture and browser; never opens the desktop. */
+/** Owns isolated app data, loopback host and browser; omit fixture for the app's bundled UI. */
 export async function nativeWorkbench({ fixture, name, exercise, observePage }) {
 	assert.match(name, /^[a-z][a-z0-9-]*$/);
 	const binary = resolve(repository, process.argv[2] ?? 'target/debug/Chataigne2.exe');
 	const evidence = resolve(repository, 'target/qualification', `${name}-${randomUUID()}`);
 	const outDir = resolve(repository, 'target/qualification', `${name}-app`);
-	const root = fileURLToPath(fixture);
+	const root = fixture ? fileURLToPath(fixture) : null;
+	const stop = fixture ? null : resolve(evidence, 'host.stop');
 	mkdirSync(evidence, { recursive: true });
 	const report = resolve(evidence, 'browser.jsonl');
 	const emit = (value) => {
 		appendFileSync(report, JSON.stringify(value) + '\n');
 		console.log(JSON.stringify(value));
 	};
-	await build({
-		configFile: false,
-		root,
-		plugins: [svelte({ configFile: false })],
-		logLevel: 'warn',
-		resolve: { alias: { '#lib': fileURLToPath(new URL('../../src/lib', import.meta.url)) } },
-		build: { outDir, emptyOutDir: true, sourcemap: process.env.GC_GRAPH_SCALE_CPU_PROFILE === '1' }
-	});
-	if (process.env.GC_GRAPH_SCALE_CPU_PROFILE === '1') {
+	if (fixture)
+		await build({
+			configFile: false,
+			root,
+			plugins: [svelte({ configFile: false })],
+			logLevel: 'warn',
+			resolve: { alias: { '#lib': fileURLToPath(new URL('../../src/lib', import.meta.url)) } },
+			build: {
+				outDir,
+				emptyOutDir: true,
+				sourcemap: process.env.GC_GRAPH_SCALE_CPU_PROFILE === '1'
+			}
+		});
+	if (fixture && process.env.GC_GRAPH_SCALE_CPU_PROFILE === '1') {
 		for (const name of readdirSync(resolve(outDir, 'assets'))) {
 			if (name.endsWith('.map'))
 				writeFileSync(resolve(evidence, name), readFileSync(resolve(outDir, 'assets', name)));
 		}
 	}
-	const server = await preview({
-		configFile: false,
-		root,
-		logLevel: 'warn',
-		build: { outDir },
-		preview: { host: '127.0.0.1', port: 0, strictPort: true }
-	});
+	const server = fixture
+		? await preview({
+				configFile: false,
+				root,
+				logLevel: 'warn',
+				build: { outDir },
+				preview: { host: '127.0.0.1', port: 0, strictPort: true }
+			})
+		: null;
 	let child, browser, page, startupError;
 	const errors = [];
 	try {
-		const frontend = `http://127.0.0.1:${server.httpServer.address().port}`;
+		const frontend = server ? `http://127.0.0.1:${server.httpServer.address().port}` : null;
 		const reservation = createServer();
 		await new Promise((done) => reservation.listen(0, '127.0.0.1', done));
 		const port = reservation.address().port;
 		await new Promise((done) => reservation.close(done));
 		const backend = `http://127.0.0.1:${port}`;
 		const log = openSync(resolve(evidence, 'headless.log'), 'w');
-		child = spawn(binary, ['--headless', '--no-frontend', '--no-remote'], {
-			windowsHide: true,
-			stdio: ['ignore', log, log],
-			env: {
-				...process.env,
-				GC_UI_BIND: `127.0.0.1:${port}`,
-				GC_UI_FRONTEND_URL: frontend,
-				APPDATA: evidence,
-				LOCALAPPDATA: evidence,
-				USERPROFILE: evidence,
-				XDG_DATA_HOME: evidence
+		child = spawn(
+			binary,
+			[
+				'--headless',
+				...(fixture ? ['--no-frontend'] : []),
+				'--no-remote',
+				...(stop ? ['--automation-shutdown-file', stop] : [])
+			],
+			{
+				windowsHide: true,
+				stdio: ['ignore', log, log],
+				env: {
+					...process.env,
+					GC_UI_BIND: `127.0.0.1:${port}`,
+					GC_UI_FRONTEND_URL: frontend ?? '',
+					APPDATA: evidence,
+					LOCALAPPDATA: evidence,
+					USERPROFILE: evidence,
+					XDG_DATA_HOME: evidence
+				}
 			}
-		});
+		);
 		child.on('error', (error) => {
 			startupError = error;
 		});
@@ -109,16 +126,19 @@ export async function nativeWorkbench({ fixture, name, exercise, observePage }) 
 			production: true,
 			browser: await browser.version(),
 			binaryHash: hash(binary),
-			assets: readdirSync(resolve(outDir, 'assets')).map((name) => ({
-				name,
-				sha256: hash(resolve(outDir, 'assets', name))
-			})),
+			frontend: fixture ? 'production fixture' : 'bundled product UI',
+			assets: fixture
+				? readdirSync(resolve(outDir, 'assets')).map((name) => ({
+						name,
+						sha256: hash(resolve(outDir, 'assets', name))
+					}))
+				: [],
 			report
 		});
-		await page.goto(`${frontend}/?backend=${encodeURIComponent(backend)}`, {
+		await page.goto(frontend ? `${frontend}/?backend=${encodeURIComponent(backend)}` : backend, {
 			waitUntil: 'networkidle'
 		});
-		await exercise({ page, evidence, emit });
+		await exercise({ page, evidence, emit, backend });
 		assert.deepEqual(errors, []);
 		emit({ kind: 'result', passed: true, errors });
 	} catch (error) {
@@ -133,11 +153,17 @@ export async function nativeWorkbench({ fixture, name, exercise, observePage }) 
 		await browser?.close();
 		if (child?.pid && child.exitCode === null && child.signalCode === null) {
 			const exited = new Promise((done) => child.once('exit', done));
-			child.kill();
+			if (stop) {
+				writeFileSync(stop, 'stop');
+				await Promise.race([exited, new Promise((done) => setTimeout(done, 7000))]);
+			}
+			if (child.exitCode === null && child.signalCode === null) child.kill();
 			await exited;
 		}
-		await new Promise((done, reject) =>
-			server.httpServer.close((error) => (error ? reject(error) : done()))
-		);
+		if (server)
+			await new Promise((done, reject) =>
+				server.httpServer.close((error) => (error ? reject(error) : done()))
+			);
+		if (stop && child) assert.equal(child.exitCode, 0, 'Bundled product host exits normally');
 	}
 }
