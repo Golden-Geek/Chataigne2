@@ -261,7 +261,7 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Gradient / Gradient owner and stops | Shared stop/field/owner selection and anchored typed Inspector; primary-down/keyboard/hover; stable capture, cancel versus release, access/document/disposal and pending-Begin ownership; independent locked editors and local color-tool Escape verified in production Inspector browser; real public-facade creation/live edits/history/copy/reload, empty and partial declared collections pass | Independent real-panel/product-host/native acceptance; browser and backend proof together still do not establish the complete gate |
 | Watcher projection canvases | `WatcherProjectionCanvas` renders buffer samples/latest points without pointer, key or mutation callbacks; it has no authored canvas targets | Read-only projection applicability resolved from source. Ordinary Inspector owns its settings; retain panel focus/lifetime checks in actual workbench acceptance |
 | Media Preview / followed or locked media | `MediaPreviewPanel` renders `ChannelPreview`/`NativePreview` without authored geometry targets; toolbar changes preview choice, not object placement | Read-only image applicability resolved from source. Existing follow/lock/routing requirements stay intact; actual cross-panel/native qualification remains open |
-| Matrix grid / Matrix, Layer, Column and Cell | Real bundled UI/backend proves primary-down Cell/Layer/Column/Group selection and exact Inspector identity before release, owner clearing, idle/text-tool Escape, keyboard selection, unchanged history/playback and editable offscreen Cell; complete contextual CRUD/rename/structural history passes; Golden fixture covers disabled input/independent drag cancellation/disposal | Native drag/pixels, project interaction and independent real-panel acceptance remain open |
+| Matrix grid / Matrix, Layer, Column and Cell | Real bundled UI/backend proves primary-down Cell/Layer/Column/Group selection and exact Inspector identity before release, owner/text-tool Escape, unchanged history/playback, offscreen Cell editing, two locked independent grids with visible Inspector, layout reload, New during held input and exact Load recovery; complete contextual CRUD/rename/structural history passes | Physical native input/drag/pixels and complete active-drag/reconnect/lifetime acceptance remain open; tested project scope is New during a held selection and exact Load recovery |
 
 This inventory retains the complete gate. DOM callback fixtures do not establish actual
 Inspector transactions, native pixels, GPU parity or all editor selection policies.
@@ -288,8 +288,24 @@ fallback separately from real Cell creation. Failed logs remain
 `target/m14-matrix-grid-{baseline,selection,selection-final,selection-final-hits}-2026-11-16.log`.
 Passing log: `target/m14-matrix-grid-selection-current-bounds-2026-11-16.log`, SHA256
 `a03d31081ba1bbcce1e6208bf1f7438d71b0d9994e42ced9570c568d90ab9e74`.
-Scoped Prettier/syntax and root/Core formatting pass. This fixture-only slice establishes no
-new native acceptance, independent real-grid policy or project-replacement coverage.
+The complete grid continuation also passes two simultaneously visible real Matrix grids plus
+the ordinary Inspector. A Layer press selects its exact Inspector UUID before release while
+the other locked grid retains its content and selection; idle Escape clears only the active
+Matrix's focus. Full authoring/history snapshots stay unchanged. Layout reload restores both
+locked targets and their independent selections. New during a held row press withdraws both
+targets and clears Inspector selection, and releasing cannot reselect the old node. Load restores
+both exact authored snapshots, no recovery warnings, zero Undo/Redo, no active edit and no
+requested playback column. This is held-selection fencing, not native HTML drag qualification.
+
+The helper waits for persisted panel state and activates restored tabs before querying their
+mounted bodies. Row selection deliberately retains the existing column coordinate; the fixture
+verifies that current contract. Its initial Load/history checks were corrected to the public DTOs
+(resolved path/recovery and a boolean active-edit flag). Earlier failed logs are retained as
+`target/m14-matrix-grid-lifetime{,-final,-persisted,-targets}-2026-11-16.log`.
+Complete passing log: `target/m14-matrix-grid-lifetime-complete-2026-11-16.log`, SHA256
+`3f48270a2550623a7f428982e3e4910f5a8cb7dd2b61666ae57d28fe06bc350a`.
+Scoped Prettier/syntax and root/Core formatting pass. These fixture-only slices establish no
+new native input/pixel acceptance, complete active-drag or reconnect qualification.
 
 Surface Source (2026-11-16): the unchanged `--surface-source-ui` baseline passes, and its
 extended real-backend fixture passes with0 page errors/rejected crop requests and normal
@@ -823,8 +839,9 @@ The native fixture remains older: these are not a coherent new ordinary/
 native qualification pair. Refresh both inputs before native acceptance; Video evidence keeps
 its original source/build scope.
 
-Next deliverable: Matrix grid independent locked real-panel and project interaction acceptance,
-retaining the verified selection/Inspector/history/virtualization suite. Surface Source, Composition and
+Next deliverable: Gradient selection/Inspector/history in its actual Chataigne product host,
+retaining the completed Golden browser/public-facade proof. Matrix grid independent panels,
+layout reload and the tested New/Load scope now pass. Surface Source, Composition and
 Matrix spatial editors' listed backend scopes are verified;
 remaining physical native selection/handle/hit acceptance returns when the
 desktop helper reconnects, with coherent inputs. The full editor inventory remains required;

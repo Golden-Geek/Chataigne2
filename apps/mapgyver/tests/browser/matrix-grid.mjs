@@ -3,9 +3,10 @@ import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { observeRejectedRequests } from './intent-observer.mjs';
+import { verifyMatrixGridLifetime } from './matrix-grid-lifetime.mjs';
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
-export async function verifyMatrixGridUi({ base, edit, post, page: nativePage = null }) {
+export async function verifyMatrixGridUi({ base, edit, post, directory, page: nativePage = null }) {
 	const { reference } = await edit({
 		kind: 'CreateMedia',
 		media_kind: 'Matrix',
@@ -349,6 +350,15 @@ export async function verifyMatrixGridUi({ base, edit, post, page: nativePage = 
 				0.375
 		);
 		assert.equal((await matrix({ kind: 'InspectPlayback' })).snapshot.desired_column, null);
+		stage = 'independent grids and project replacement';
+		await verifyMatrixGridLifetime({
+			page,
+			post,
+			edit,
+			directory,
+			mainId: await panel.getAttribute('data-panel-id'),
+			mainMedia: reference.media
+		});
 		assert.deepEqual(errors, []);
 		assert.deepEqual(rejected, []);
 		console.log(
