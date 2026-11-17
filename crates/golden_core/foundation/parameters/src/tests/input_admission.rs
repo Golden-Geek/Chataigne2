@@ -131,3 +131,40 @@ fn nonfinite_inputs_and_invalid_constraints_are_rejected_before_integer_casts() 
         );
     }
 }
+
+#[test]
+fn each_numeric_kind_uses_new_bounds_instead_of_retaining_previous_admission() {
+    fn like(target: &ParamValue, scalar: f64) -> ParamValue {
+        match target {
+            ParamValue::Int(_) => ParamValue::Int(scalar as i32),
+            ParamValue::Float(_) => ParamValue::Float(scalar),
+            ParamValue::CssValue(_) => ParamValue::CssValue(CssValue::new(scalar, CssUnit::Em)),
+            ParamValue::Vec2(_, _) => ParamValue::Vec2(scalar, scalar),
+            ParamValue::Vec3(_, _, _) => ParamValue::Vec3(scalar, scalar, scalar),
+            ParamValue::Color(_, _, _, _) => ParamValue::Color(scalar, scalar, scalar, scalar),
+            _ => unreachable!(),
+        }
+    }
+    for target in [
+        ParamValue::Int(2),
+        ParamValue::Float(2.),
+        ParamValue::CssValue(CssValue::new(2., CssUnit::Em)),
+        ParamValue::Vec2(2., 2.),
+        ParamValue::Vec3(2., 2., 2.),
+        ParamValue::Color(2., 2., 2., 2.),
+    ] {
+        for (min, max) in [(0., 2.), (1., 3.)] {
+            let constraints = ParameterConstraints {
+                range: RangeConstraint::uniform(Some(min), Some(max)),
+                ..bounds()
+            };
+            for incoming in [-5., 0., 1., 2., 3., 5.] {
+                assert_eq!(
+                    prepare_param_value_for_target_owned(like(&target, incoming), &target, &constraints).unwrap(),
+                    like(&target, incoming.clamp(min, max)),
+                    "{target:?}, {incoming}, {min}..{max}"
+                );
+            }
+        }
+    }
+}

@@ -24,6 +24,12 @@ Nonfinite inputs reject before mutation; nonfinite computed oscillator samples r
 last valid value without interrupting sibling controls. Already admissible stepped values
 stay exact across repeated admission, Undo and reload. See the
 [M15 control checkpoint](../progress/mapgyver-m15-parameter-control.md) for verified scope.
+Golden's bounded edit settlement evaluates dependent controls before consuming change
+notifications, so UI/app/script transactions propagate bindings as runtime edits do.
+Those dependent writes participate in the owning transaction and history.
+Sparse persistence may omit locked constraints only against a matching owner declaration.
+A generic Parameter constructor baseline does not supply conditional range/step metadata;
+records without that declared baseline retain their constraints explicitly.
 
 Channel source differences stay expanded in the generic Inspector. Picture rows edit their
 own real File Parameter; path, Browse and Clear share Golden's compact file widget. They do

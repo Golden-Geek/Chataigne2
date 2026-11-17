@@ -1,48 +1,61 @@
 # Safe Parameter control admission (M15/1)
 
-The reported crashes are reproduced against actual MapGyver Parameter declarations:
+Golden owns numeric admission, dependent control evaluation and Parameter persistence.
+MapGyver owns the Surface/media/Video reproducers and ordinary Inspector verification.
+The [architecture](../architecture/mapgyver-parameters.md) defines those boundaries.
 
-- Surface Opacity Animation at750ms returns an engine tick error:
-  `value -1 is lower than min 0`.
-- Video Speed Animation at17ms returns:
-  `value 0.10661115427525991 does not align with step 0.01 from base -16`.
+Confirmed failures before their corrections:
 
-Both reject-policy failures originated at shared Parameter admission. Golden now projects
-input, clamps/adapts its numeric range/step, then converts to the target kind. Integer
-inputs remain wide until range admission; nonfinite data rejects before conversion.
-Parameter writes/scripts and control/binding directions use this boundary. Authored
-validation remains strict and owner invariants still reject atomically. Already legal
-stepped values remain exact, preserving Undo/reload. A nonfinite computed oscillator
-sample holds its last valid target rather than failing the engine tick.
-The [architecture](../architecture/mapgyver-parameters.md) owns this contract.
+- Surface Opacity Animation at750ms aborts the tick: `value -1 is lower than min 0`.
+- Video Speed Animation at17ms aborts on its declared0.01 step.
+- Through actual app intents, a source changes4→−4 but Proxy Opacity stays1 without a
+  diagnostic: UI settlement consumed the notification before control evaluation.
+- After ordinary save/reload, Video Speed has no range or step. Sparse encoding omitted
+  locked constraints against a generic constructor baseline that cannot restore them.
 
-## Current proof and limits — 2026-11-17
+## Implemented behavior
 
-The baseline tests fail with the two messages above. After the fix, MapGyver's full library
-passes734 tests,8 ignored. Golden Parameters passes31 tests,1 ignored, including scalar/
-integer/vector/Color/CSS bounds, projected integer conversion, steps, exact endpoints,
-nonfinite inputs, invalid constraints and idempotent legal values. Existing app tests now
-verify finite clamping with exact values and Undo, retaining rejection of nonfinite and
-invalid domain data. The updated behavior is intentional, not a weakened rejection test.
+Shared admission adapts finite numeric range/step before bounded conversion; integers stay
+wide until admission. Scripts and projected controls/bindings use the same boundary.
+Nonnumeric domains and owner invariants remain strict. Nonfinite input rejects without
+mutation; an overflowing oscillator holds its last valid target while siblings continue.
+Already admissible stepped values stay exact across repeated admission and history.
 
-Golden Engine's full regression now passes700 tests,3 ignored. Two old assertions now
-require numeric clamping while retaining exact live-state, history and persistence checks;
-all18 feedback tests pass. This software rerun uses the existing `cargo test-fast` dev
-profile, then its cached `golden_engine-7e37a68d81035a87.exe` for the full703-test suite.
-It makes no native timing/profile qualification claim. Local terminal logs are
-`target/m15-parameter-feedback.log` and `target/m15-parameter-engine-full.log`, both exit0.
-The734-app/31-Parameter run preceded four additional app nonfinite-input table entries;
-those extra rows still require execution in the next app test run.
-Strict Clippy passes for MapGyver, Golden Parameters and Golden Engine libraries/tests
-with `MapGyver/native-qualification` and `-D warnings` (exit0;
-`target/m15-parameter-clippy.log`). Root and Golden Core `cargo fmt --all` pass.
-No actual-app Inspector Animation run, fresh bundled build or M15/1 acceptance is claimed.
+Bounded edit settlement evaluates controls before dispatch drains their source notifications.
+Dependent writes share the owning transaction and Undo. New sparse saves preserve constraints
+when no matching owner declaration supplies them; generic constructor defaults are insufficient.
 
-Next, run the final app nonfinite rows, rebuild and verify actual Inspector mode changes
-for Surface/Composition opacity and Video Speed, history/reload,
-bindings/scripts/transport, changed constraints and healthy sibling/invalid-sample behavior.
-Keep M15/1 Active until its complete contract is verified. Do not open M15/2 yet.
-The11:50–12:32UTC batch cutoff stopped new implementation/experiments. Existing validation
-finished at16:15UTC after interrupted tool jobs were confirmed absent and resumed with
-terminal logs. This is a software checkpoint. Performance, recovery and unusual-scenario
-qualification remain second-pass work and do not expand this product fix.
+## Verified scope — 2026-11-17
+
+- Current app library:737 passed,8 ignored, including direct inputs/Undo, Proxy and both
+  Binding directions, grouped binding Undo, script admission/nonfinite rejection, changed
+  live bounds, invalid-oscillator/healthy-sibling behavior and Video Speed's exact new-save
+  constraint roundtrip. Log: `target/m15-parameter-reload-verified.log`, exit0.
+- Parameters:32 passed,1 ignored, including each numeric kind with changed bounds,
+  scalar/integer/vector/Color/CSS admission, projections, steps and invalid data.
+  Log: `target/m15-parameter-types-final.log`, exit0.
+- Current Engine, including the final sparse-codec change:700 passed,3 ignored, in the
+  existing software-only `cargo test-fast` profile. Log: `target/m15-sparse-engine-final.log`, exit0.
+- Current strict libraries/tests Clippy passes with `MapGyver/native-qualification` and
+  `-D warnings`; `target/m15-sparse-clippy-final.log`, exit0. Both final checks terminated
+  at17:05UTC. Browser fixture Node/Prettier checks and root/Core formatting pass.
+  The last fresh default bundled app build predates the sparse change; a rebuild remains required.
+
+The actual bundled Inspector fixture completed Animation/Manual, mode Undo/Redo and Manual
+edits for Surface Opacity, Composition Opacity and Video Speed. Reloaded Surface/Composition
+kept animating; reloaded Video Speed failed its step assertion. The owned app shut down
+normally. This failed cohort is retained at `target/m15-native-controls-20261117-1645`.
+Its app SHA256 is `E5180048A7CBC3F5349A4B1B817F86E25A725C1D0DB7D3780A94386A9B93AA62`.
+It predates the sparse correction and establishes no native proof for that correction.
+
+## Exact remaining requirement
+
+M15/1 stays Active. Restore canonical conditional Parameter metadata when a saved record
+already omits it; the encoder correction fixes new saves and does not repair those records.
+Then rebuild and rerun the existing bundled Inspector fixture, including all three active
+controls through save/reload. Do not open M15/2 or claim acceptance yet.
+
+The16:16–17:00UTC batch stops new implementation/experiments at17:00, finishes existing
+validation and checkpoints verified progress. Next product delivery after control safety is
+Matrix selection/custom colors. Performance, recovery and unusual-scenario qualification
+stay in the second pass; no new benchmark/probe framework was added.

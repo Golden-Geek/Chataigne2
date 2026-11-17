@@ -166,24 +166,28 @@ fn project_data_for_sparse_record<T: Node>(
     use_declared_overlay_delta: bool,
 ) -> Result<Option<serde_json::Value>, ProjectPersistenceError> {
     if use_declared_overlay_delta {
-        return project_persisted_data_from_runtime(node, matched_parent_baseline);
+        return project_persisted_data_from_runtime(node, matched_parent_baseline, true);
     }
 
     if matched_parent_baseline.is_some() {
         return raw_project_data_from_runtime(node);
     }
 
-    project_persisted_data_from_runtime(node, self_baseline)
+    project_persisted_data_from_runtime(node, self_baseline, false)
 }
 
 fn project_persisted_data_from_runtime<T: Node>(
     node: &T,
     baseline: Option<&ProjectNodeRecord>,
+    declared_baseline: bool,
 ) -> Result<Option<serde_json::Value>, ProjectPersistenceError> {
     let node_type = node.get_type().to_string();
     let data_value = if let Some(parameter) = node.as_any().downcast_ref::<Parameter>() {
         let persist_runtime_value = baseline.is_none() || !parameter.read_only || parameter.persist_read_only_value;
-        let persist_constraints = baseline.is_none() || node.node_data().meta.user_permissions.can_edit_constraints;
+        // A generic constructor cannot restore a conditional owner's constraints.
+        // Omit locked constraints only when a matching declaration supplies them.
+        let persist_constraints =
+            !declared_baseline || baseline.is_none() || node.node_data().meta.user_permissions.can_edit_constraints;
         parameter.project_encode_data_against_baseline(
             baseline.and_then(|record| record.data.as_ref()),
             persist_runtime_value,

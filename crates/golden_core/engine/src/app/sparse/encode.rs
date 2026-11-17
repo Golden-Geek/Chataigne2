@@ -147,7 +147,7 @@ where
 
     let self_matches_parent_baseline = if let Some(baseline) = matched_parent_baseline {
         project_meta_delta_from_runtime(&node.node_data().meta, Some(&baseline.meta)).is_empty()
-            && project_persisted_data_from_runtime(node, Some(baseline))?.is_none()
+            && project_persisted_data_from_runtime(node, Some(baseline), true)?.is_none()
     } else {
         false
     };

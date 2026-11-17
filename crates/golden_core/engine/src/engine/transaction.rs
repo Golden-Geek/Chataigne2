@@ -45,7 +45,7 @@ impl<T: Node> Engine<T> {
     /// App operation adapters can use this before reading updated parameter handles or
     /// issuing runtime requests that depend on their callbacks. This does not create an
     /// atomic transaction: invoke it within the application's operation boundary when
-    /// rollback is required. Callback-generated edits participate in the current history.
+    /// rollback is required. Control- and callback-generated edits participate in the current history.
     pub fn settle_edit_notifications(&mut self, max_passes: usize) -> Result<(), crate::engine::EngineEditError> {
         self.settle_edit_notifications_with_history(max_passes, true)
     }
@@ -73,6 +73,9 @@ impl<T: Node> Engine<T> {
             }
 
             if !self.inbox.events.is_empty() {
+                // Controls consume these same change notifications. Evaluate before dispatch
+                // drains them, including when UI/app edits settle outside the runtime tick.
+                self.evaluate_parameter_controls();
                 self.dispatch_inbox(crate::process_ctx::ExecutionPhase::EndOfTickStabilization)?;
             }
 
