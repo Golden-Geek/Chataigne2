@@ -1,4 +1,7 @@
 //! Per-panel ownership and bounded geometry. Presentation never chooses a domain default.
+//! Fresh candidates carry exact factory-created identities in their Screens manager. The
+//! hint is process-local, survives delayed panel mounts, and is absent after deserialization.
+//! Existing panel locks/selection/retention still own targeting within the same document.
 use super::{authoring, protocol::*};
 use crate::app::{AppEngine, AppNode};
 use golden_core::node::{Node, NodeUuid};
@@ -68,11 +71,27 @@ pub(super) fn inspect(engine: &AppEngine, query: ScreenEditorQuery) -> Result<Sc
         ScreenEditorKind::Surface => reference.map(|reference| ScreenEditorTarget::Surface { reference }),
     });
     let matches = query.document.is_none_or(|expected| expected == document);
+    let initial = authoring::manager(engine)
+        .ok()
+        .and_then(|id| match engine.nodes.get(id)? {
+            AppNode::ScreenManager(manager) => manager.initial_editor_target,
+            _ => None,
+        })
+        .filter(|reference| match query.editor {
+            ScreenEditorKind::Screen => authoring::screen_id(engine, reference.screen).is_ok(),
+            ScreenEditorKind::Surface => authoring::surface_id(engine, *reference).is_ok(),
+        });
+    let default = initial.map(|reference| match query.editor {
+        ScreenEditorKind::Screen => ScreenEditorTarget::Screen {
+            screen: reference.screen,
+        },
+        ScreenEditorKind::Surface => ScreenEditorTarget::Surface { reference },
+    });
     let mut page = ScreenEditorPage {
         at: engine.time,
         parameters: Vec::new(),
         document,
-        document_matches: matches || (query.locked.is_none() && eligible.is_some()),
+        document_matches: matches || default.is_some() || (query.locked.is_none() && eligible.is_some()),
         target: None,
         screen: None,
         has_more_surfaces: false,
@@ -82,7 +101,15 @@ pub(super) fn inspect(engine: &AppEngine, query: ScreenEditorQuery) -> Result<Sc
     if !page.document_matches {
         return Ok(page);
     }
-    let Some(target) = query.locked.or(eligible).or(query.retained.filter(|_| matches)) else {
+    // New owns fresh identities, including when an old locked panel mounts late. Within
+    // one document, explicit locks/selection/retained targets always precede the hint.
+    let Some(target) = query
+        .locked
+        .filter(|_| matches)
+        .or(eligible)
+        .or(query.retained.filter(|_| matches))
+        .or(default)
+    else {
         return Ok(page);
     };
     let (screen, selected) = match target {
@@ -91,7 +118,7 @@ pub(super) fn inspect(engine: &AppEngine, query: ScreenEditorQuery) -> Result<Sc
             followed
                 .filter(|(id, _)| *id == screen)
                 .map(|(_, reference)| reference.map(|reference| reference.surface))
-                .unwrap_or(query.surface),
+                .unwrap_or(query.surface.filter(|_| matches)),
         ),
         ScreenEditorTarget::Surface { reference } => (reference.screen, Some(reference.surface)),
     };

@@ -122,7 +122,7 @@ M10/8 subtitles and retained M10/4 qualification return after M15. The remaining
 order is **9 → 10 → 8 → 2**; all four are functionally delivered with qualification Pending.
 M15/1–4 controls, Matrix selection/colors, appearance and configuration presets are Accepted
 for their owning contracts. M15/5 feedback is functionally delivered with native presentation
-qualification Pending; M15/6 startup targets is next under the user's deep-tests-later cadence.
+qualification Pending. M15/6 startup targets is Accepted; M15/7 Surface display is next.
 Deliver the M15 feedback
 before returning to Video and final acceptance closure. Reproduced correctness defects
 on the active product path remain prerequisites; the reported parameter-control crash is
@@ -1375,8 +1375,8 @@ awarding acceptance or changing retained budgets.
 Source: [Latest Feedback.md](../../Latest%20Feedback.md) in the repository root, plus the user's
 instruction that remaining Video work follows this feedback. Follow the M14 feature-first
 execution revision above: selected M14 features9,10,8,2 are functionally delivered, with their
-remaining qualification Pending in the return queue. M15/1–4 are Accepted; M15/5 is functionally
-delivered with native presentation qualification Pending, and M15/6 is next;
+remaining qualification Pending in the return queue. M15/1–4,6 are Accepted; M15/5 is functionally
+delivered with native presentation qualification Pending, and M15/7 is next;
 deliver M15 before remaining Video, retaining user-deferred M14/1 and blocked M14/6.
 Retain every unfinished qualification gate and its return trigger before M09.
 
@@ -1451,7 +1451,7 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
    adds shared120ms paint and subtler handles. Browser and native Screen/Source input checks
    pass; native paint packets interpolate and are accepted, but matching installation/presented
    frames and actual Composition/Matrix presentation remain unproved. Retain full M15/5
-   qualification before M09; continue feature delivery with startup targets6 under the user's
+   qualification before M09; continue feature delivery with Surface display7 under the user's
    explicit deep-tests-later order. This checkpoint earns no gate credit or budget revision.
 6. **Startup and New show the automatic Screen and Surface.** Owners: MapGyver document
    bootstrap/default editor targets through Golden's panel-follow APIs. On fresh startup and
@@ -1461,6 +1461,11 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
    targets and follow/lock behavior. Verify fresh desktop/headless bootstrap, repeated New,
    hidden/reopened panels, empty/loaded projects and project fencing without synthetic authored
    edits, extra bootstrap history or stale previous-session targets.
+   [Acceptance](../progress/evidence/mapgyver-m15-startup-targets-2026-11-17.json): the new
+   candidate carries exact factory identities as an ephemeral backend hint, absent on load.
+   Twelve startup/editor tests and real bundled desktop/headless checks pass initial/repeated
+   New, hidden/locked/late/reopened panels, explicit saved targets/reload and empty loads.
+   Bootstrap history stays zero; no authored Parameter or UI selection is synthesized.
 7. **Surface Editor shows related Surfaces and source-free test patterns.** Owners: MapGyver
    Surface/source projection and editor, using public Golden canvas/preview contracts. Add an
    accessible compact navbar icon toggle to show all Surfaces using the selected Surface's
@@ -1515,7 +1520,7 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
     creation/history/copy/reload and actual SDK discovery with correct pixels; labels alone are
     not proof of sender provenance.
 
-M15/1–4 are Accepted with their owning software/native proofs;5–11 remain open.
+M15/1–4,6 are Accepted with their owning software/native proofs;5,7–11 remain open.
 M15/2 covers explicit/shared/modifier selection, nested/disabled/offscreen objects, Inspector
 colors, history/copy/reload, representative theme contrast and independent panels. Wider app
 stress/interruption and retained GPU/resource qualification return in the deferred pass before M09.
@@ -1530,6 +1535,7 @@ M15/1 acceptance now raises the numerator to **93/117**; rounding still gives **
 M15/2 acceptance raises it to **94/117 (80%)** and M15 to **2/11 (18%)**; the denominator is unchanged.
 M15/3 presentation acceptance raises it to **95/117 (81%)**, M15 **3/11 (27%)**, with unchanged scope.
 M15/4 preset acceptance raises it to **96/117 (82%)**, M15 **4/11 (36%)**, with unchanged scope.
+M15/6 startup acceptance raises it to **97/117 (83%)**, M15 **5/11 (45%)**, with unchanged scope.
 M14/1,6 and all retained correctness, physical, recovery and performance requirements remain
 required before M09. New features follow the user's feature-first cadence; a checkpoint or a
 passing subset of checks never closes a complete gate.

@@ -16,6 +16,10 @@ pub fn initialize(engine: &mut AppEngine) {
 pub(crate) fn initialize_with_displays(engine: &mut AppEngine, displays: Vec<DisplayInfo>) {
     let initial = super::creation::initial_tree(&displays).as_user_item();
     let mut manager = ScreenManagerNode::new();
+    manager.initial_editor_target = Some(SurfaceReference {
+        screen: ScreenId(initial.node.node_data().meta.uuid),
+        surface: SurfaceId(initial.children[0].node.node_data().meta.uuid),
+    });
     manager.set_displays(displays.into());
     engine.edits.push(Edit::AddNodeTree {
         parent: engine.root,

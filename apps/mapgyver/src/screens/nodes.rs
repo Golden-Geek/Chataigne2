@@ -17,6 +17,8 @@ pub struct ScreenManagerNode {
     owner: Arc<()>,
     revision: RevisionSource,
     displays: Option<Arc<[DisplayInfo]>>,
+    /// New-document presentation hint; never serialized or inferred from loaded content.
+    pub(super) initial_editor_target: Option<super::protocol::SurfaceReference>,
     known_displays: std::collections::HashMap<String, DisplayInfo>,
     resolved_displays: std::collections::HashMap<super::protocol::ScreenId, super::catalog_runtime::RecoveredDisplay>,
     allocation_guard: Option<RevisionGuard>,
@@ -32,6 +34,7 @@ impl ScreenManagerNode {
             owner: Arc::new(()),
             revision: RevisionSource::default(),
             displays: None,
+            initial_editor_target: None,
             known_displays: Default::default(),
             resolved_displays: Default::default(),
             allocation_guard: None,

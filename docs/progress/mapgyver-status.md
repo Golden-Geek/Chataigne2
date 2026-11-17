@@ -1,9 +1,9 @@
 # MapGyver — simple status
 
 - **Updated:** 17 November 2026.
-- **Overall plan acceptance:** `████████░░` **82% — 96/117 checks accepted**. Deferred verification is still counted as unfinished.
-- **Latest delivered:** Shared editor feedback and subtler handles; code/functional checks pass. Native presentation qualification remains below.
-- **Working on next:** Startup/New editor targets.
+- **Overall plan acceptance:** `████████░░` **83% — 97/117 checks accepted**. Deferred verification is still counted as unfinished.
+- **Latest delivered:** Startup/New immediately show the automatic Screen and Surface; desktop and headless checks pass.
+- **Working on next:** Surface Editor: related Surfaces and source-free test patterns.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -14,7 +14,7 @@
 - [x] **Pictures and Solid Color:** real channel settings/files, independent copies, file reload and color controls.
 - [x] **Shared Texture:** receiving, previews, manual/automatic sender controls, sender retention when switching modes, ordinary reconnect and the preview-cadence fix.
 - [x] **Screens/Surfaces:** creation, warping, crop/source editing, opacity, enable/disable, calibration and native outputs.
-- [x] **Initial document:** an initial Screen and Surface are created automatically. Automatically showing them in the editors is still in the next-feature list.
+- [x] **Initial document/editors:** startup and New create and immediately show the automatic Screen and Surface. Hidden/reopened panels, saved targets/locks, reload and empty projects pass; no extra Undo steps.
 - [x] **Output settings:** GPU preferences, per-Screen frame-rate settings and optional/custom sender names.
 - [x] **Display recovery:** the previously tested unplug/replug and monitor-rearrangement cases.
 - [x] **Composition:** owned media, transforms, front/back ordering, contextual actions, enable state and zero-scale handling.
@@ -31,14 +31,13 @@
 
 ## Next features — implementation order
 
-1. **NOW — Startup/New editor targets:** immediately show the automatic Screen and Surface without manual selection.
-2. **Surface Editor:** show related Surfaces sharing a source; show test patterns even without a source.
-3. **Screen-handle links:** magnet snapping creates persistent linked handle groups; provide unlink controls.
-4. **Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
-5. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
-6. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
-7. **Extended Video codecs:** DXV and WebP/animated WebP.
-8. **Subtitles:** optional, disableable subtitle controls and display.
+1. **NOW — Surface Editor:** show related Surfaces sharing a source; show test patterns even without a source.
+2. **Screen-handle links:** magnet snapping creates persistent linked handle groups; provide unlink controls.
+3. **Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
+4. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+5. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
+6. **Extended Video codecs:** DXV and WebP/animated WebP.
+7. **Subtitles:** optional, disableable subtitle controls and display.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 
