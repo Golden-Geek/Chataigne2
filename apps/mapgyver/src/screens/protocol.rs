@@ -258,6 +258,9 @@ pub enum ScreenEdit {
     InspectEditor {
         query: ScreenEditorQuery,
     },
+    InspectRelatedSurfaces {
+        query: RelatedSurfaceQuery,
+    },
     /// Bounded metadata for one mounted outliner row; never includes descendants.
     InspectRow {
         node: NodeUuid,
@@ -465,6 +468,31 @@ pub struct SurfaceParameterBindings {
     pub opacity: NodeUuid,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub struct RelatedSurfaceQuery {
+    pub document: NodeUuid,
+    pub reference: SurfaceReference,
+    /// Opaque inclusive scan continuation, scoped to the current Screens hierarchy.
+    pub cursor: Option<NodeUuid>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct RelatedSurface {
+    pub screen_label: String,
+    pub surface: SurfaceSnapshot,
+    pub parameters: SurfaceParameterBindings,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct RelatedSurfacePage {
+    pub at: golden_core::engine::EngineTime,
+    pub document_matches: bool,
+    pub source: Option<ChannelReference>,
+    pub surfaces: Vec<RelatedSurface>,
+    /// Pages bound both returned geometry (64) and actor scan work (512 direct nodes).
+    pub next: Option<NodeUuid>,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct ScreenRowSnapshot {
     pub node: NodeUuid,
@@ -476,6 +504,9 @@ pub struct ScreenRowSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ScreenEditResult {
+    RelatedSurfaces {
+        page: RelatedSurfacePage,
+    },
     Editor {
         page: Box<ScreenEditorPage>,
     },

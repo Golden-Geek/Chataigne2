@@ -12,6 +12,7 @@ pub(crate) mod host_inventory;
 mod nodes;
 pub mod protocol;
 mod queries;
+mod related;
 pub mod rendering;
 mod rows;
 mod screen_node;

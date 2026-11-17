@@ -10,6 +10,10 @@
 	} from 'golden_ui';
 	import fillIcon from './icons/fill.svg';
 	import fitIcon from './icons/fit.svg';
+	import relatedIcon from './icons/related.svg';
+	import previousIcon from './icons/previous.svg';
+	import nextIcon from './icons/next.svg';
+	import { createRelatedSurfaces } from './related.svelte';
 	import type { SurfaceFitMode } from './generated/SurfaceFitMode';
 	import { createScreenEditor } from './editor.svelte';
 	import { screenPanelState, type ScreenPanelState } from './panel-state';
@@ -76,6 +80,42 @@
 				appState.session?.selectedNodeUuid ?? ''
 			)
 	);
+	let cursors = $state<(string | null)[]>([null]);
+	const relatedKey = $derived(
+		JSON.stringify([
+			appState.session?.projectGeneration,
+			appState.session?.currentHistoryStateId,
+			controller.page?.document,
+			surface?.reference,
+			surface?.definition.source,
+			choice.related
+		])
+	);
+	$effect(() => {
+		void relatedKey;
+		untrack(() => {
+			cursors = [null];
+		});
+	});
+	const related = createRelatedSurfaces(() =>
+		editor === 'source' && choice.related && surface && controller.page
+			? {
+					document: controller.page.document,
+					reference: surface.reference,
+					cursor: cursors.at(-1) ?? null
+				}
+			: null
+	);
+	let canonical = $state('');
+	$effect(() => {
+		const source = related.page?.source;
+		if (!related.page) return;
+		const next = JSON.stringify(source);
+		untrack(() => {
+			if (canonical && canonical !== next) cursors = [null];
+			canonical = next;
+		});
+	});
 	function persist() {
 		writePanelPersistedState(panelApi, { ...choice });
 	}
@@ -163,6 +203,33 @@
 				title="Center Surface with cropped-source aspect preserved"
 				disabled={controller.busy || gestureState.active || !surface}
 				onclick={() => fitSurface('Fit')} />
+		{:else}
+			<IconButton
+				icon={relatedIcon}
+				label="Show related Surfaces"
+				aria-pressed={choice.related}
+				title={related.error || 'Show Surfaces using the same source'}
+				disabled={!surface || gestureState.active}
+				onclick={() => {
+					choice.related = !choice.related;
+					persist();
+				}} />
+			{#if choice.related}
+				<IconButton
+					icon={previousIcon}
+					label="Previous related Surfaces"
+					disabled={cursors.length < 2 || related.loading}
+					onclick={() => {
+						cursors = cursors.slice(0, -1);
+					}} />
+				<IconButton
+					icon={nextIcon}
+					label="Next related Surfaces"
+					disabled={!related.page?.next || related.loading}
+					onclick={() => {
+						if (related.page?.next) cursors = [...cursors, related.page.next];
+					}} />
+			{/if}
 		{/if}
 	{/snippet}
 	<SourceDropZone
@@ -221,6 +288,11 @@
 				stop={() => gesture.stop()} />
 		{:else if editor === 'source' && surface}
 			<SurfaceSourcePreview
+				{actions}
+				related={related.surfaces}
+				selectRelated={(uuid) => {
+					if (inputAvailable && !gestureState.active) selection.select(uuid);
+				}}
 				{inputAvailable}
 				presentation={owner.presentation}
 				{surface}

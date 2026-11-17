@@ -16,6 +16,7 @@ mod output_input;
 mod parameters;
 mod pixel_gestures;
 mod queries;
+mod related;
 mod rows;
 mod scripting;
 mod selection;

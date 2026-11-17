@@ -1476,6 +1476,12 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
    multiple Screens, source changes/loss/recovery, pattern on/off, geometry/selection/Inspector,
    independent panel targets, undo/reload and bounded queries for large Surface collections;
    do not allocate another decoder or source renderer per overlay Surface.
+   [Related-view functional checkpoint](../progress/evidence/mapgyver-m15-related-surfaces-2026-11-17.json):
+   backend canonical channel identity, bounded cursor pages and per-panel toolbar/contour
+   projection are implemented. Software and actual bundled selection/Inspector/lock/reload/
+   source-recovery checks pass, sharing one source preview per panel. Source-free pattern
+   rendering, actual large-group toolbar paging and presented contour/pattern checks remain
+   on this same Active gate; this checkpoint earns no acceptance credit.
 8. **Screen-handle snapping creates persistent shared links.** Owners: Golden public parameter
    binding/group contracts and MapGyver Screen geometry intents. Add a magnet-icon snap toggle
    to Screen Warping's toolbar. Dragging a handle near another Screen's handle snaps them

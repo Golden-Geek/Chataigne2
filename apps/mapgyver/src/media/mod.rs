@@ -29,6 +29,7 @@ mod script_templates;
 mod scripting;
 pub(crate) mod sender_catalog;
 mod source_api;
+mod source_identity;
 mod source_node;
 pub mod spatial;
 pub(crate) mod structure;
@@ -49,6 +50,7 @@ pub(crate) use persistence::validate_project_file;
 pub(crate) use queries::query_operation;
 pub use reference::ReferenceNode;
 pub use reference::ReferenceOutputNode;
+pub(crate) use source_identity::SourceIdentity;
 pub use source_node::resolve_source_node;
 pub(crate) use source_node::{MediaSource, VideoRoute, routing_enabled, source_selection};
 

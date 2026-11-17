@@ -102,6 +102,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
     let geometry_sample = matches!(&edit, ScreenEdit::EditSurfaceGeometry { .. });
     let result = match edit {
         ScreenEdit::InspectRow { .. }
+        | ScreenEdit::InspectRelatedSurfaces { .. }
         | ScreenEdit::InspectEditor { .. }
         | ScreenEdit::DropSourceAt { .. }
         | ScreenEdit::InspectManager

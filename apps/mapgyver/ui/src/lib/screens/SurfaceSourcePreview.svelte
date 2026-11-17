@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { NativePreview, type OverlayPrimitive } from 'golden_video_ui';
 	import { appState, Viewport2D, pointBounds } from 'golden_ui';
+	import type { Snippet } from 'svelte';
+	import type { RelatedSurface } from './generated/RelatedSurface';
+	import RelatedContours from './RelatedContours.svelte';
 	import { cropCorners } from './gesture-presentation';
 	import type { SurfaceSnapshot } from './generated/SurfaceSnapshot';
 	import type { Point } from './generated/Point';
@@ -20,7 +23,10 @@
 		start,
 		move,
 		finish,
-		stop
+		stop,
+		actions,
+		related = [],
+		selectRelated = () => {}
 	}: {
 		surface: SurfaceSnapshot;
 		inputAvailable: boolean;
@@ -33,10 +39,14 @@
 		move(point: Point): void;
 		finish(): void;
 		stop(): void;
+		actions?: Snippet;
+		related?: RelatedSurface[];
+		selectRelated?(uuid: string): void;
 	} = $props();
 	const owner = usePreview();
 	let cropControls = $state<{ keydown(event: KeyboardEvent): void }>();
 	let overlays = $state<OverlayPrimitive[]>([]);
+	let relatedOverlays = $state<OverlayPrimitive[]>([]);
 	let nativeFrame = $state(false);
 	function presentationChanged(painted: boolean) {
 		nativeFrame = painted;
@@ -53,6 +63,14 @@
 </script>
 
 {#snippet controls()}
+	<RelatedContours
+		surfaces={related}
+		selected={appState.session?.selectedNodeUuid ?? null}
+		available={inputAvailable && !presentation}
+		select={selectRelated}
+		onoverlays={(next) => {
+			relatedOverlays = next;
+		}} />
 	{#key `${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}:${source}`}
 		<CropHandles
 			bind:this={cropControls}
@@ -73,6 +91,7 @@
 
 <section aria-label="Surface Source preview">
 	<Viewport2D
+		{actions}
 		nativeFrame={identity !== null && nativeFrame}
 		aspect={extent ? extent.width / extent.height : 16 / 9}
 		identity={`${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}`}
@@ -89,10 +108,10 @@
 				nativeBackdrop
 				lifetime={`${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}`}
 				onpresentationchange={presentationChanged}
-				overlayCapacity={16}
+				overlayCapacity={80}
 				session={owner.session}
 				{source}
-				overlays={status?.error || status?.message ? [] : overlays}
+				overlays={status?.error || status?.message ? [] : [...relatedOverlays, ...overlays]}
 				label={`Full source for ${surface.label}`}>
 				{#if status?.error || status?.message}<div class="message">
 						{status.error ?? status.message}

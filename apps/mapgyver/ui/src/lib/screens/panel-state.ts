@@ -5,6 +5,7 @@ export interface ScreenPanelState {
 	target: ScreenEditorTarget | null;
 	locked: boolean;
 	surface: string | null;
+	related: boolean;
 }
 const uuid = (value: unknown): value is string =>
 	typeof value === 'string' && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
@@ -30,6 +31,7 @@ export function screenPanelState(
 					: { kind: 'Surface', reference: { ...target.reference } }
 				: null,
 		locked: !!valid && value.locked === true,
-		surface: uuid(value.surface) ? value.surface : null
+		surface: uuid(value.surface) ? value.surface : null,
+		related: editor !== 'Screen' && value.related === true
 	};
 }
