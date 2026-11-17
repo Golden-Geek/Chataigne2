@@ -1496,6 +1496,11 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
    controls and snap-off behavior explicitly. Verify threshold/zoom behavior, multi-member moves,
    all-callers, link/unlink history, copy/delete/Undo, reload and missing/recreated targets with
    bounded group propagation and accurate native handle/output geometry.
+   The first backend slice implements typed `LinkScreenCorners`/`UnlinkScreenCorners` through
+   the existing script/transport operation and generic Golden binding groups. Its coordinate,
+   control-conflict, copy and missing-target policies live in
+   [Screen-handle links](../architecture/mapgyver-screen-handle-links.md). Toolbar/proximity
+   behavior and native verification remain required; this partial delivery awards no gate.
 9. **Surface, Composition and Matrix geometry align while moving/scaling.** Owners: Golden
    reusable viewport snapping hints and MapGyver authoritative geometry intents. Add a magnet
    toggle to the applicable editor toolbars. While moving or scaling an element, snap close X/Y

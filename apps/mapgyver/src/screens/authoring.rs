@@ -322,6 +322,14 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             let values = current.geometry_parameter_values(&definition, edit);
             set_geometry(engine, reference, node, definition, values)
         }
+        ScreenEdit::LinkScreenCorners { source, target } => {
+            super::handle_links::link(engine, source, target)?;
+            ScreenEditResult::Changed
+        }
+        ScreenEdit::UnlinkScreenCorners { member } => {
+            super::handle_links::unlink(engine, member)?;
+            ScreenEditResult::Changed
+        }
         ScreenEdit::FitSurface { reference, mode } => {
             let node = surface_id(engine, reference)?;
             let Some(AppNode::Surface(current)) = engine.nodes.get(node) else {

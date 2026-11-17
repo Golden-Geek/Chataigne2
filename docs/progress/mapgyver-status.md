@@ -1,9 +1,9 @@
 # MapGyver — simple status
 
-- **Updated:** 17 November 2026.
+- **Updated:** 18 November 2026.
 - **Overall plan acceptance:** `████████░░` **84% — 98/117 checks accepted**. Deferred verification is still counted as unfinished.
-- **Latest delivered:** Surface Editor shows related Surfaces and source-free calibration patterns. Calibration now obeys the Surface crop in Screen Warping; native pixels and paging are verified.
-- **Working on next:** Persistent Screen-handle links and magnet snapping.
+- **Latest delivered:** Screen-handle binding backend: link/merge/unlink, multi-member moves and history/reload pass focused checks. Magnet/link controls are next.
+- **Working on next:** Screen-handle magnet snapping and unlink icons; the binding backend is implemented and functionally checked.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -16,6 +16,7 @@
 - [x] **Screens/Surfaces:** creation, warping, crop/source editing, opacity, enable/disable, calibration and native outputs.
 - [x] **Initial document/editors:** startup and New create and immediately show the automatic Screen and Surface. Hidden/reopened panels, saved targets/locks, reload and empty projects pass; no extra Undo steps.
 - [x] **Surface Editor display:** related Surfaces across Screens/References, independent toggles/locks, bounded paging, selection/Inspector and Undo/reload. ColorBars/Grid work without a source and obey its crop in Screen Warping/output mapping. Native patterns/contours, cropped ColorBars/Grid, mixed pattern/channel panels and70-Surface toolbar paging pass.
+- [x] **Screen-handle link backend:** link/merge/unlink groups through real Parameter bindings and script/API operations. Multi-member moves, ordinary parameter edits, Undo/Redo, copies, save/load and missing/recreated targets pass focused checks. Editor controls are next.
 - [x] **Output settings:** GPU preferences, per-Screen frame-rate settings and optional/custom sender names.
 - [x] **Display recovery:** the previously tested unplug/replug and monitor-rearrangement cases.
 - [x] **Composition:** owned media, transforms, front/back ordering, contextual actions, enable state and zero-scale handling.
@@ -32,7 +33,7 @@
 
 ## Next features — implementation order
 
-1. **NOW — Screen-handle links:** magnet snapping creates persistent linked handle groups; provide unlink controls.
+1. **NOW — Screen-handle links:** add magnet snapping and link/unlink icons using the completed backend, then verify viewport thresholds/zoom and native geometry.
 2. **Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
 3. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
 4. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.

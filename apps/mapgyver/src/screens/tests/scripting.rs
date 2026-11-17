@@ -34,6 +34,40 @@ fn script(engine: &mut AppEngine, text: String) {
 }
 
 #[test]
+fn hosted_corner_link_uses_the_same_binding_group_and_single_history_step() {
+    let mut engine = fixture();
+    let (_, a) = create(&mut engine);
+    let (_, b) = create(&mut engine);
+    let source = ScreenCorner {
+        reference: a,
+        corner: 0,
+    };
+    let target = ScreenCorner {
+        reference: b,
+        corner: 2,
+    };
+    let request = serde_json::to_string(&ScreenEdit::LinkScreenCorners { source, target }).unwrap();
+    script(
+        &mut engine,
+        format!(
+            "function init() {{ local.listen({{level:1}}); local.editScreens('link', {request:?}); }} function onAppOperationResult(reply) {{ gc.emit('screen-test-reply', reply); }}"
+        ),
+    );
+    let history = engine.undo_len();
+    service_script_app_operations(&mut engine).unwrap();
+    assert_eq!(replies(&engine)[0]["status"], "applied");
+    assert_eq!(
+        definition(&engine, a).quad.corners[0],
+        definition(&engine, b).quad.corners[2]
+    );
+    assert_eq!(engine.undo_len(), history + 1);
+    let param = super::super::handle_links::parameter(&engine, source).unwrap();
+    assert_eq!(engine.parameter_binding_group(param).len(), 2);
+    assert!(engine.undo().unwrap());
+    assert_eq!(engine.parameter_binding_group(param), vec![param]);
+}
+
+#[test]
 fn hosted_screen_antialiasing_uses_typed_parameters_and_one_step_history() {
     let mut engine = fixture();
     let (screen, _) = create(&mut engine);

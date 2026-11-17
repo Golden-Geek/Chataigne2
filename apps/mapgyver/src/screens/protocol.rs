@@ -325,6 +325,15 @@ pub enum ScreenEdit {
         reference: SurfaceReference,
         edit: SurfaceGeometryEdit,
     },
+    /// Merge complete corner groups, aligning to the target in normalized Screen space.
+    LinkScreenCorners {
+        source: ScreenCorner,
+        target: ScreenCorner,
+    },
+    /// Remove every binding in the clicked corner's resolved group, retaining geometry.
+    UnlinkScreenCorners {
+        member: ScreenCorner,
+    },
     /// Backend computes the quad from current output/source dimensions; other settings stay authored.
     FitSurface {
         reference: SurfaceReference,
@@ -371,6 +380,12 @@ pub enum SurfaceGeometryEdit {
     CropOrigin {
         point: Point,
     },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ScreenCorner {
+    pub reference: SurfaceReference,
+    pub corner: u8,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]

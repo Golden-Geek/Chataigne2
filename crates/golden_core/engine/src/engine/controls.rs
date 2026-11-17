@@ -27,6 +27,7 @@ use serde_json::{Map as JsonMap, Value as JsonValue};
 use super::history::SetParamControlStateEffect;
 use super::{Engine, EngineEditError, ExpressionControlRuntime};
 
+mod binding;
 mod edit;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -366,12 +367,6 @@ struct ControlChangeSet {
     structural: bool,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct BindingWriteScore {
-    source_counter: u64,
-    source: NodeId,
-}
-
 impl<T: Node> Engine<T> {
     pub(crate) fn text_param_input_uses_template_mode(&self, value: &str) -> bool {
         text_has_template_token(value)
@@ -573,6 +568,10 @@ impl<T: Node> Engine<T> {
 
         candidates.sort_by_key(|node| node.0);
         candidates.dedup();
+        // A write to any member must evaluate the whole connected binding component.
+        // Pair-by-pair tick propagation can otherwise make fresh echoes beat the author.
+        candidates = self.binding_component(candidates);
+        candidates.retain(|node| self.active_control_param_set.contains(node));
         candidates
     }
 
@@ -1171,66 +1170,14 @@ impl<T: Node> Engine<T> {
             diagnostics_by_param.insert(param, diagnostics);
         }
 
-        let mut best_write_by_target = HashMap::<NodeId, (BindingWriteScore, ParamValue)>::new();
         let mut sorted_pairs = pairs.into_iter().collect::<Vec<_>>();
         sorted_pairs.sort_by_key(|(a, b)| (a.0, b.0));
-
-        for (a, b) in sorted_pairs {
-            let (Some(a_snapshot), Some(b_snapshot)) = (param_snapshots.get(&a), param_snapshots.get(&b)) else {
-                continue;
-            };
-
-            let a_counter = self.param_last_change_counter.get(&a).copied().unwrap_or(0);
-            let b_counter = self.param_last_change_counter.get(&b).copied().unwrap_or(0);
-
-            let (source, source_snapshot, source_counter, target, target_snapshot) =
-                if a_counter > b_counter || (a_counter == b_counter && a.0 <= b.0) {
-                    (a, a_snapshot, a_counter, b, b_snapshot)
-                } else {
-                    (b, b_snapshot, b_counter, a, a_snapshot)
-                };
-
-            let mut target_diagnostics = Vec::<ParameterControlDiagnostic>::new();
-            let Some(converted) = self.convert_binding_for_target(
-                source,
-                &source_snapshot.value,
-                target,
-                target_snapshot,
-                binding_targets,
-                &mut target_diagnostics,
-            ) else {
-                if !target_diagnostics.is_empty() {
-                    diagnostics_by_param
-                        .entry(target)
-                        .or_default()
-                        .extend(target_diagnostics);
-                }
-                continue;
-            };
-
-            if converted == target_snapshot.value {
-                continue;
-            }
-
-            let score = BindingWriteScore { source_counter, source };
-            let replace = match best_write_by_target.get(&target) {
-                Some((existing_score, _)) => {
-                    score.source_counter > existing_score.source_counter
-                        || (score.source_counter == existing_score.source_counter
-                            && score.source.0 < existing_score.source.0)
-                }
-                None => true,
-            };
-            if replace {
-                best_write_by_target.insert(target, (score, converted));
-            }
-        }
-
-        let mut pending_writes = best_write_by_target
-            .into_iter()
-            .map(|(target, (_, value))| (target, value))
-            .collect::<Vec<_>>();
-        pending_writes.sort_by_key(|(node, _)| node.0);
+        let pending_writes = self.evaluate_binding_groups(
+            sorted_pairs,
+            binding_targets,
+            param_snapshots,
+            &mut diagnostics_by_param,
+        );
 
         BindingEvaluation {
             pending_writes,

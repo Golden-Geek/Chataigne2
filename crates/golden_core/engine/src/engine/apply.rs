@@ -721,6 +721,15 @@ impl<T: Node> Engine<T> {
             self.clear_tick_tree_snapshot();
         }
         match &kind {
+            EventKind::ParamChanged { param, .. }
+                if self.nodes.get(*param).is_some_and(|node| {
+                    node.node_data().meta.decl_id.0 == crate::node::PARAMETER_CONTROL_REFERENCE_DECL_ID
+                }) =>
+            {
+                // Public binding-group reads must see a retarget immediately, including
+                // between raw edit application and the next control evaluation.
+                self.mark_param_control_index_dirty();
+            }
             EventKind::NodeCreated { node } => {
                 self.node_wakes.source.attach([*node]);
                 self.last_update_elapsed_by_node

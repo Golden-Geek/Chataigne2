@@ -8,6 +8,7 @@ pub mod display_matching;
 mod editor;
 mod frame_rate;
 mod geometry;
+mod handle_links;
 pub(crate) mod host_inventory;
 mod nodes;
 pub mod protocol;

@@ -194,7 +194,7 @@ impl<T: Node> Engine<T> {
         source
     }
 
-    fn make_control_reference_parameter() -> Parameter {
+    pub(super) fn make_control_reference_parameter() -> Parameter {
         let mut reference = Parameter::new(
             "Reference",
             ParamValue::Reference(NodeReference::default()),

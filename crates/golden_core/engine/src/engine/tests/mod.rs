@@ -2,6 +2,7 @@
 use super::*;
 
 mod atomic_operations;
+mod binding_groups;
 mod declared_ownership;
 mod direct_intents;
 mod edit_completions;

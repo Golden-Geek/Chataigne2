@@ -79,6 +79,18 @@ impl SurfaceNode {
         std::array::from_fn(|index| (ids[index], vector_value(point_vector(quad.corners[index]))))
     }
 
+    pub(super) fn corner_parameter(&self, corner: u8) -> Result<NodeId, String> {
+        [
+            self.top_left.id(),
+            self.top_right.id(),
+            self.bottom_right.id(),
+            self.bottom_left.id(),
+        ]
+        .get(usize::from(corner))
+        .copied()
+        .ok_or_else(|| "corner index must be 0..3".into())
+    }
+
     /// The candidate and corner index have already passed geometry validation.
     pub(super) fn geometry_parameter_values(
         &self,
