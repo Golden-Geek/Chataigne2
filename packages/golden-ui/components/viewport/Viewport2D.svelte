@@ -3,8 +3,9 @@
 	import { cameraZoomFactor } from 'golden_graph_ui/camera-geometry';
 	import { CanvasToolbar, canvasNavigationCommand } from 'golden_graph_ui';
 	import { fitSize, frameBounds, type ViewBounds, type ViewCamera } from './geometry';
-	import { createZoomMotion } from './zoom-motion';
+	import { createCameraMotion } from './camera-motion';
 	import { clearViewportSelection } from './selection';
+	import { registerCommandHandler } from '../../store/commands.svelte';
 	let {
 		aspect,
 		identity,
@@ -40,7 +41,7 @@
 	let space = $state(false);
 	let pressed = $state<number | null>(null);
 	let suppressClick = false;
-	const motion = createZoomMotion(
+	const motion = createCameraMotion(
 		() => camera,
 		(next) => {
 			camera = next;
@@ -50,10 +51,11 @@
 	let appliedSize = { width: 0, height: 0 };
 	let drag = $state<{ id: number; x: number; y: number; panX: number; panY: number } | null>(null);
 	const size = $derived(fitSize(width, height, aspect));
+	const homeCamera = () => ({ zoom: 1, pan: { x: 0, y: 0 } });
+	const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 	function home() {
-		motion.cancel();
 		release();
-		camera = { zoom: 1, pan: { x: 0, y: 0 } };
+		motion.move(homeCamera(), reducedMotion());
 	}
 	$effect(() => {
 		const current = identity;
@@ -61,19 +63,21 @@
 		// Geometry receipts and selection updates must never reframe an ongoing interaction.
 		if (current === appliedIdentity) return;
 		appliedIdentity = current;
-		untrack(home);
+		untrack(() => {
+			release();
+			motion.move(homeCamera(), true);
+		});
 	});
 	function zoom(factor: number, x = 0, y = 0) {
 		if (pressed !== null) return;
-		motion.zoom(factor, { x, y }, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+		motion.zoom(factor, { x, y }, reducedMotion());
 	}
 	function frame() {
-		motion.cancel();
 		release();
 		if (!selection) return home();
 		const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
 		const next = frameBounds(selection, size, { width, height }, 3 * rem);
-		if (next) camera = next;
+		if (next) motion.move(next, reducedMotion());
 	}
 	function isEditable(target: EventTarget | null) {
 		return (
@@ -84,6 +88,33 @@
 	function isControl(target: EventTarget | null) {
 		return isEditable(target) || (target instanceof Element && !!target.closest('.navigation'));
 	}
+	$effect(() => {
+		// The workbench captures F/H before local DOM handlers. Claim only this focused
+		// viewport; other editors, text fields and held pointer edits retain their input.
+		const unregister = (
+			[
+				['view.frame', frame],
+				['view.home', home]
+			] as const
+		).map(([command, action]) =>
+			registerCommandHandler(
+				command,
+				() => {
+					const focused = document.activeElement;
+					if (
+						pressed !== null ||
+						isEditable(focused) ||
+						focused?.closest('.viewport-2d') !== element
+					)
+						return false;
+					action();
+					return true;
+				},
+				{ priority: 200 }
+			)
+		);
+		return () => unregister.forEach((stop) => stop());
+	});
 	function down(event: PointerEvent) {
 		suppressClick = false;
 		if (isControl(event.target)) return;

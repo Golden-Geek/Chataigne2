@@ -43,6 +43,41 @@ try {
 		assert(value);
 		return value;
 	};
+	const atHome = async () => {
+		await atZoom(1);
+		await page.waitForFunction(() => {
+			const active = document.querySelector('.active-zone').getBoundingClientRect();
+			const stage = document.querySelector('.stage').getBoundingClientRect();
+			return (
+				Math.abs(active.x + active.width / 2 - stage.x - stage.width / 2) < 0.01 &&
+				Math.abs(active.y + active.height / 2 - stage.y - stage.height / 2) < 0.01
+			);
+		});
+	};
+	async function navigationFrames(action) {
+		await page.evaluate(() => {
+			window.__navigationFrames = [];
+			window.__navigationDone = false;
+			const until = performance.now() + 500;
+			function sample() {
+				window.__navigationFrames.push(
+					Number(document.querySelector('output[data-zoom]').dataset.zoom)
+				);
+				if (performance.now() < until) requestAnimationFrame(sample);
+				else window.__navigationDone = true;
+			}
+			requestAnimationFrame(sample);
+		});
+		await action();
+		await page.waitForFunction(() => window.__navigationDone);
+		const frames = await page.evaluate(() => window.__navigationFrames);
+		const low = Math.min(frames[0], frames.at(-1)),
+			high = Math.max(frames[0], frames.at(-1));
+		assert(
+			new Set(frames.filter((value) => value > low && value < high)).size >= 2,
+			'navigation presents intermediate cameras'
+		);
+	}
 	const roundHandle = async (original) => {
 		const bounds = await box(handle);
 		near(bounds.width, bounds.height, 'round handle dimensions');
@@ -99,6 +134,10 @@ try {
 	await page.keyboard.press('Escape');
 	assert.equal(await clears.textContent(), '1');
 	await page.getByRole('textbox', { name: 'Viewport text' }).focus();
+	const beforeTextKeys = await zoom.getAttribute('data-zoom');
+	await page.keyboard.type('fh');
+	assert.equal(await page.getByRole('textbox', { name: 'Viewport text' }).inputValue(), 'fh');
+	assert.equal(await zoom.getAttribute('data-zoom'), beforeTextKeys, 'text fields retain F/H');
 	await page.keyboard.press('Escape');
 	assert.equal(await clears.textContent(), '1', 'text editing retains Escape');
 	await handle.focus();
@@ -181,7 +220,7 @@ try {
 	near((await box(active)).x, beforeEdit.x, 'Changing selection preserves pan');
 	near((await box(active)).width, beforeEdit.width, 'Changing selection preserves zoom');
 	await view.focus();
-	await page.keyboard.press('f');
+	await navigationFrames(() => page.keyboard.press('f'));
 	await zoom.getByText('400%').waitFor();
 	await atZoom(4);
 	const framed = await box(selection);
@@ -193,7 +232,9 @@ try {
 		'F centers selection Y'
 	);
 	await roundHandle(originalHandle);
-	await view.getByRole('button', { name: 'Home view', exact: true }).click();
+	await navigationFrames(() =>
+		view.getByRole('button', { name: 'Home view', exact: true }).click()
+	);
 	await zoom.getByText('100%').waitFor();
 	await atZoom(1);
 	await view.getByRole('button', { name: 'Zoom in', exact: true }).click();
@@ -263,8 +304,19 @@ try {
 	await page.emulateMedia({ reducedMotion: 'reduce' });
 	await view.getByRole('button', { name: 'Zoom in', exact: true }).click();
 	assert.equal(await zoom.getAttribute('data-zoom'), '1.2');
+	await view.getByRole('button', { name: 'Frame selection', exact: true }).click();
+	const reducedFrame = await box(selection),
+		reducedStage = await box(stage);
+	near(
+		reducedFrame.x + reducedFrame.width / 2,
+		reducedStage.x + reducedStage.width / 2,
+		'reduced-motion Frame is immediate'
+	);
+	await view.getByRole('button', { name: 'Home view', exact: true }).click();
+	assert.equal(await zoom.getAttribute('data-zoom'), '1');
 	await page.emulateMedia({ reducedMotion: 'no-preference' });
 	await view.getByRole('button', { name: 'Home view', exact: true }).click();
+	await atHome();
 	const released = await box(active);
 	await page.mouse.move(released.x + released.width / 2, released.y + released.height / 2);
 	await page.mouse.down();
@@ -276,6 +328,7 @@ try {
 	await atZoom(Math.exp(0.14));
 	assert.deepEqual(errors, []);
 	await view.getByRole('button', { name: 'Home view', exact: true }).click();
+	await atHome();
 	const middleRect = await box(active);
 	await page.mouse.move(middleRect.x + middleRect.width / 2, middleRect.y + middleRect.height / 2);
 	await page.mouse.down({ button: 'middle' });
@@ -287,12 +340,36 @@ try {
 	await zoomIn.focus();
 	await page.keyboard.press('Space');
 	await atZoom(1.2);
+	const heldMainZoom = await zoom.getAttribute('data-zoom');
+	const peer = page.getByRole('application', { name: 'Peer viewport', exact: true });
+	await peer.getByRole('button', { name: 'Zoom in', exact: true }).click();
+	await page.waitForFunction(
+		() =>
+			Number(
+				document.querySelector('[aria-label="Peer viewport"] output[data-zoom]').dataset.zoom
+			) === 1.2
+	);
+	await peer.press('h');
+	await page.waitForFunction(
+		() =>
+			Number(
+				document.querySelector('[aria-label="Peer viewport"] output[data-zoom]').dataset.zoom
+			) === 1
+	);
+	assert.equal(
+		await zoom.getAttribute('data-zoom'),
+		heldMainZoom,
+		'global navigation belongs only to the focused viewport'
+	);
 	console.log(
 		JSON.stringify({
 			blackActiveArea: true,
 			roundConstantHandles: true,
 			anchoredWheelZoom: true,
 			smoothIntermediateFrames: true,
+			easedFrameAndHome: true,
+			textFieldsRetainNavigationKeys: true,
+			focusedViewportCommandOwnership: true,
 			animationCancelledOnDocumentReplacement: true,
 			reducedMotion: true,
 			outsidePointerReleaseAndLiveSnapshot: true,

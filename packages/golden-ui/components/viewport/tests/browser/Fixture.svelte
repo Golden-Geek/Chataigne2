@@ -1,6 +1,8 @@
 <script lang="ts">
 	import Viewport2D from '../../Viewport2D.svelte';
 	import ViewportHandle from '../../ViewportHandle.svelte';
+	import { registerGlobalCommandShortcuts } from '../../../../store/commands.svelte';
+	$effect(() => registerGlobalCommandShortcuts(true));
 	let narrow = $state(false);
 	let native = $state(false);
 	let edits = $state(0);
@@ -65,6 +67,11 @@
 		<input aria-label="Viewport text" style:position="absolute" style:top="0.2rem" />
 	</Viewport2D>
 </main>
+<aside style:width="20rem" style:height="10rem">
+	<Viewport2D aspect={2} identity="peer" label="Peer viewport">
+		<div>Peer document</div>
+	</Viewport2D>
+</aside>
 
 <style>
 	:global(html) {

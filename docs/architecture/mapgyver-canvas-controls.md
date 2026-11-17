@@ -6,6 +6,17 @@ pointer and animation lifetimes. Native preview underlays remain owned by the de
 MapGyver supplies contextual action snippets to the same toolbar; Composition, Screen
 Warping and Surface Source no longer need duplicated navigation or internal title bars.
 
+`Viewport2D` shares one frame-driven camera motion for pointer-anchored zoom and short
+160ms ease-in/ease-out Frame/Home transitions. It registers F/H with Golden's command router
+only while its own viewport is focused, including toolbar focus. This avoids the workbench's
+global shortcut capture swallowing local navigation. Text editing and held pointer gestures
+retain their input. Repeated destinations keep their deadline; editing, resize and disposal
+cancel motion. Project/document identity replacement resets Home immediately, while ordinary
+receipts preserve the camera. Reduced-motion preference applies the same destination directly.
+Native preview layout, overlay geometry and hit testing consume that displayed camera; there
+is no independent CSS animation. [M14 navigation](../progress/mapgyver-m14-navigation.md)
+records the verified app scope and retained pixel/timing qualification.
+
 `Viewport2D.onselectionclear` dispatches an unconsumed primary background pointer-down or
 idle Escape. Navigation capture, child controls, text editing and consumed tool keys retain
 ownership; selection no longer waits for a later click. The adapter chooses the edited owner

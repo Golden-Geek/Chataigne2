@@ -12,14 +12,19 @@ const browserClock: AnimationClock = {
 };
 const DURATION_MS = 160;
 
-/** One bounded animation; retarget from the displayed camera while accumulating requested zoom. */
-export function createZoomMotion(
+/** One displayed camera for zoom and eased navigation; pointer editing can freeze it immediately. */
+export function createCameraMotion(
 	read: () => ViewCamera,
 	write: (camera: ViewCamera) => void,
 	clock: AnimationClock = browserClock
 ) {
 	let frame: number | null = null;
-	let motion: { from: ViewCamera; to: ViewCamera; start: number } | null = null;
+	let motion: {
+		from: ViewCamera;
+		to: ViewCamera;
+		start: number;
+		kind: 'zoom' | 'navigation';
+	} | null = null;
 	let disposed = false;
 	function cancel() {
 		if (frame !== null) clock.cancel(frame);
@@ -29,14 +34,15 @@ export function createZoomMotion(
 	function advance(time: number) {
 		frame = null;
 		if (!motion || disposed) return;
-		const { from, to, start } = motion;
+		const { from, to, start, kind } = motion;
 		const progress = Math.min(1, Math.max(0, (time - start) / DURATION_MS));
 		if (progress === 1) {
 			motion = null;
 			write(to);
 			return;
 		}
-		const eased = 1 - (1 - progress) ** 3;
+		const eased =
+			kind === 'navigation' ? progress * progress * (3 - 2 * progress) : 1 - (1 - progress) ** 3;
 		// Linear camera interpolation keeps the chosen world point fixed at the anchor
 		// at every intermediate scale, rather than easing scale and pan independently.
 		write({
@@ -48,7 +54,27 @@ export function createZoomMotion(
 		});
 		frame = clock.request(advance);
 	}
+	function same(a: ViewCamera, b: ViewCamera) {
+		return a.zoom === b.zoom && a.pan.x === b.pan.x && a.pan.y === b.pan.y;
+	}
+	function start(to: ViewCamera, kind: 'zoom' | 'navigation', immediate: boolean) {
+		if (disposed || ![to.zoom, to.pan.x, to.pan.y].every(Number.isFinite) || to.zoom <= 0) return;
+		// Held shortcuts must not keep resetting an identical destination's deadline.
+		if (!immediate && motion && same(motion.to, to) && motion.kind === kind) return;
+		const from = read();
+		cancel();
+		if (immediate) {
+			write(to);
+			return;
+		}
+		if (same(from, to)) return;
+		motion = { from, to, start: clock.now(), kind };
+		frame = clock.request(advance);
+	}
 	return {
+		move(to: ViewCamera, immediate = false) {
+			start({ zoom: to.zoom, pan: { ...to.pan } }, 'navigation', immediate);
+		},
 		zoom(factor: number, anchor: ViewPoint, immediate = false) {
 			if (
 				disposed ||
@@ -58,15 +84,8 @@ export function createZoomMotion(
 			)
 				return;
 			const from = read();
-			const to = zoomAt(from, (motion?.to.zoom ?? from.zoom) * factor, anchor);
-			cancel();
-			if (immediate) {
-				write(to);
-				return;
-			}
-			if (from.zoom === to.zoom && from.pan.x === to.pan.x && from.pan.y === to.pan.y) return;
-			motion = { from, to, start: clock.now() };
-			frame = clock.request(advance);
+			const requested = motion?.kind === 'zoom' ? motion.to.zoom : from.zoom;
+			start(zoomAt(from, requested * factor, anchor), 'zoom', immediate);
 		},
 		cancel,
 		dispose() {

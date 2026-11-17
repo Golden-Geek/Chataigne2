@@ -57,7 +57,7 @@ import { verifyMenuIconsInBothHosts } from './menu-icons.mjs';
 const gpu = process.argv.find((value) => value.startsWith('--gpu='))?.slice('--gpu='.length);
 assert(!gpu || /^dxgi:[0-9a-f]{8}:[0-9a-f]{8}$/.test(gpu), 'Exact GPU LUID required');
 assert(!gpu || !process.env.MAPGYVER_TEST_APP_DATA, 'Pin GPUs only in a fresh owned profile');
-const observer = path.resolve('target/debug/native_qualification-m1110.exe');
+const observer = path.resolve('target/debug/native_qualification.exe');
 const native = await openNativeEditor({
 	appDataDirectory: process.env.MAPGYVER_TEST_APP_DATA,
 	prepareProfile: gpu

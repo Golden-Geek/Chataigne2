@@ -59,11 +59,35 @@ export async function verifyViewportNavigation({
 			calibration: 'Off'
 		}
 	});
+	await screens({ kind: 'RenameSurface', reference: surface, label: 'Navigation warped surface' });
 	const { snapshot: authoredSurface } = await screens({
 		kind: 'InspectSurface',
 		reference: surface
 	});
-	await edit({ kind: 'CreateMedia', media_kind: 'Composition', label: 'Navigation composition' });
+	const { reference: compositionReference } = await edit({
+		kind: 'CreateMedia',
+		media_kind: 'Composition',
+		label: 'Navigation composition'
+	});
+	await edit({
+		kind: 'ConfigureMediaResolution',
+		media: compositionReference.media,
+		size: { kind: 'Fixed', extent: { width: 640, height: 360 } }
+	});
+	const { instances } = await edit({
+		kind: 'Composition',
+		reference: compositionReference,
+		edit: { kind: 'AddInstances', sources: [source] }
+	});
+	await edit({
+		kind: 'Composition',
+		reference: compositionReference,
+		edit: {
+			kind: 'RenameInstance',
+			instance: instances[0].instance,
+			label: 'Navigation framed item'
+		}
+	});
 	const browser = nativePage ? null : await chromium.launch({ headless: true });
 	const page = nativePage ?? (await browser.newPage({ viewport: { width: 1600, height: 1100 } }));
 	page.setDefaultTimeout(6000);
@@ -72,6 +96,44 @@ export async function verifyViewportNavigation({
 	const rejected = observeRejectedRequests(page, () => 'shared smooth navigation');
 	const tab = (name) => page.getByRole('tab').filter({ hasText: new RegExp(`^${name}$`) });
 	const reports = [];
+	async function transition(view, action) {
+		await view.evaluate((element) => {
+			window.__frameHomeSamples = [];
+			window.__frameHomeDone = false;
+			const until = performance.now() + 400;
+			function sample() {
+				const image = element.querySelector('.native-preview')?.getBoundingClientRect();
+				const overlay = element.querySelector('svg[role="group"]')?.getBoundingClientRect();
+				window.__frameHomeSamples.push({
+					zoom: Number(element.querySelector('output[data-zoom]').dataset.zoom),
+					image: image?.toJSON(),
+					overlay: overlay?.toJSON()
+				});
+				if (performance.now() < until) requestAnimationFrame(sample);
+				else window.__frameHomeDone = true;
+			}
+			requestAnimationFrame(sample);
+		});
+		await action();
+		await page.waitForFunction(() => window.__frameHomeDone);
+		const samples = await page.evaluate(() => window.__frameHomeSamples);
+		const low = Math.min(samples[0].zoom, samples.at(-1).zoom),
+			high = Math.max(samples[0].zoom, samples.at(-1).zoom);
+		const intermediate = samples.filter((sample) => sample.zoom > low && sample.zoom < high);
+		assert(
+			new Set(intermediate.map((sample) => sample.zoom)).size >= 2,
+			`${await view.getAttribute('aria-label')} Frame/Home present intermediate cameras: ${JSON.stringify(samples.map((sample) => sample.zoom))}`
+		);
+		for (const sample of samples) {
+			assert(sample.image && sample.overlay, 'navigation keeps image and controls mounted');
+			for (const axis of ['x', 'y', 'width', 'height'])
+				assert(
+					Math.abs(sample.image[axis] - sample.overlay[axis]) <= 1,
+					'Frame/Home share image/control DOM geometry'
+				);
+		}
+		return intermediate.length;
+	}
 	const beforeNavigation = (await screens({ kind: 'InspectManager' })).snapshot;
 	try {
 		if (!nativePage) await page.goto(base);
@@ -80,22 +142,43 @@ export async function verifyViewportNavigation({
 			.locator('section[aria-label="Screens"]')
 			.getByRole('button', { name: authoredSurface.label, exact: true })
 			.click();
-		for (const [label, tabName] of [
-			['Screen view', 'Screen Warping'],
-			['Surface source view', 'Surface Source'],
-			['Composition view', 'Composition']
+		for (const [label, panelId] of [
+			['Screen view', 'screen-warp'],
+			['Surface source view', 'surface-source'],
+			['Composition view', 'composition']
 		]) {
-			if (tabName === 'Composition') {
+			if (panelId !== 'composition') {
+				await tab('Screens').click();
+				await page
+					.locator('section[aria-label="Screens"]')
+					.getByRole('button', { name: authoredSurface.label, exact: true })
+					.click();
+			}
+			if (panelId === 'composition') {
 				await tab('Medias').click();
 				await page
 					.locator('section[aria-label="Medias"]')
 					.getByRole('treeitem', { name: 'Navigation composition', exact: true })
 					.getByRole('button', { name: 'Navigation composition', exact: true })
 					.click();
+				const parent = page
+					.locator('section[aria-label="Medias"]')
+					.getByRole('treeitem', { name: 'Navigation composition', exact: true });
+				if ((await parent.getAttribute('aria-expanded')) !== 'true') {
+					await parent.focus();
+					await parent.press('ArrowRight');
+				}
+				await page
+					.locator('section[aria-label="Medias"]')
+					.getByRole('treeitem', { name: 'Navigation framed item', exact: true })
+					.getByRole('button', { name: 'Navigation framed item', exact: true })
+					.click();
 			}
-			await tab(tabName).click();
+			await page.locator(`.gc-dv-tab[data-content-panel-id="${panelId}"]`).click();
 			const view = page.getByRole('application', { name: label, exact: true });
 			await view.waitFor();
+			if (panelId === 'surface-source')
+				await view.getByRole('button', { name: 'Select source crop', exact: true }).press('Enter');
 			const toolbar = view.locator('.canvas-toolbar');
 			const viewBox = await view.boundingBox(),
 				toolbarBox = await toolbar.boundingBox();
@@ -171,6 +254,16 @@ export async function verifyViewportNavigation({
 					);
 			}
 			// Domain pointer input freezes any unfinished camera before hit testing.
+			const frameFrames = await transition(view, () =>
+				view.getByRole('button', { name: 'Frame selection', exact: true }).click()
+			);
+			await view.focus();
+			const homeFrames = await transition(view, () => view.press('h'));
+			assert.equal(
+				await view.locator('output[data-zoom]').getAttribute('data-zoom'),
+				'1',
+				`${label} Home reaches exact zoom`
+			);
 			await view.getByRole('button', { name: 'Zoom in', exact: true }).click();
 			await page.mouse.move(anchor.x, anchor.y);
 			await page.mouse.down();
@@ -186,6 +279,8 @@ export async function verifyViewportNavigation({
 			reports.push({
 				view: label,
 				intermediateFrames: intermediate.length,
+				frameFrames,
+				homeFrames,
 				pointerAnchor: true,
 				domImageOverlayGeometry: true,
 				editCancelsMotion: true
@@ -217,7 +312,7 @@ export async function verifyViewportNavigation({
 			.locator('[data-panel-id="media-manager"]')
 			.getByRole('button', { name: 'Navigation composition', exact: true })
 			.click();
-		await tab('Composition').click();
+		await page.locator('.gc-dv-tab[data-content-panel-id="composition"]').click();
 		await composition.waitFor();
 		await page.waitForTimeout(200);
 		assert.equal(

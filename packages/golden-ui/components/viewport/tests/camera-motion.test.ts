@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createZoomMotion } from '../zoom-motion';
+import { createCameraMotion } from '../camera-motion';
 import type { ViewCamera } from '../geometry';
 
 function fixture() {
@@ -7,7 +7,7 @@ function fixture() {
 	let now = 0,
 		serial = 0;
 	const frames = new Map<number, (time: number) => void>();
-	const motion = createZoomMotion(
+	const motion = createCameraMotion(
 		() => camera,
 		(value) => (camera = value),
 		{
@@ -33,7 +33,7 @@ function fixture() {
 		}
 	};
 }
-describe('frame-driven document zoom', () => {
+describe('frame-driven document camera', () => {
 	it('animates through intermediate cameras while preserving the pointer world point', () => {
 		const f = fixture();
 		f.motion.zoom(2, { x: 140, y: 80 });
@@ -99,5 +99,52 @@ describe('frame-driven document zoom', () => {
 		for (const factor of [0, -1, NaN, Infinity]) f.motion.zoom(factor, { x: 0, y: 0 });
 		expect(f.frames.size).toBe(0);
 		expect(f.camera().zoom).toBe(0.05);
+	});
+	it('eases Frame/Home in and out, completing an exact target without restarting held shortcuts', () => {
+		const f = fixture();
+		const target = { zoom: 4, pan: { x: -80, y: 100 } };
+		f.motion.move(target);
+		expect(f.camera()).toEqual({ zoom: 1, pan: { x: 40, y: -20 } });
+		f.advance(40);
+		expect(f.camera().zoom).toBe(1 + 3 * 0.15625);
+		f.motion.move(target);
+		f.advance(80);
+		expect(f.camera()).toEqual({ zoom: 2.5, pan: { x: -20, y: 40 } });
+		f.advance(120);
+		expect(f.camera().zoom).toBe(1 + 3 * 0.84375);
+		f.advance(160);
+		expect(f.camera()).toEqual(target);
+		expect(f.frames.size).toBe(0);
+	});
+	it('retargets navigation from its displayed position and lets pointer zoom interrupt it', () => {
+		const f = fixture();
+		f.motion.move({ zoom: 4, pan: { x: -80, y: 100 } });
+		f.advance(80);
+		const displayed = f.camera();
+		f.motion.move({ zoom: 1, pan: { x: 0, y: 0 } });
+		expect(f.camera()).toEqual(displayed);
+		f.advance(120);
+		const interrupted = f.camera();
+		f.motion.zoom(2, { x: 140, y: 80 });
+		expect(f.camera()).toEqual(interrupted);
+		f.advance(280);
+		expect(f.camera().zoom).toBe(interrupted.zoom * 2);
+		expect(f.frames.size).toBe(0);
+	});
+	it('freezes navigation on editing, snaps reduced motion and cannot revive after disposal', () => {
+		const f = fixture();
+		const target = { zoom: 4, pan: { x: -80, y: 100 } };
+		f.motion.move(target);
+		f.advance(40);
+		const displayed = f.camera();
+		f.motion.cancel();
+		f.advance(160);
+		expect(f.camera()).toEqual(displayed);
+		f.motion.move(target, true);
+		expect(f.camera()).toEqual(target);
+		expect(f.frames.size).toBe(0);
+		f.motion.dispose();
+		f.motion.move({ zoom: 1, pan: { x: 0, y: 0 } });
+		expect(f.frames.size).toBe(0);
 	});
 });

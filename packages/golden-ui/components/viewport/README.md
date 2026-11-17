@@ -8,13 +8,20 @@ keeps handles round and constant in screen space independently of document aspec
 Zoom requests accumulate into one bounded animation, with the pointer's world point fixed
 through every intermediate camera. Native geometry, overlay layout and hit testing all consume
 that displayed camera; there is no separate CSS transition. Pan or domain pointer input freezes
-the current camera. Home, framing, resize, identity replacement and disposal cancel pending work.
+the current camera. Frame and Home retarget that same displayed camera with a short 160ms
+ease-in/ease-out transition; repeated shortcuts preserve an identical pending destination.
+Wheel zoom can interrupt navigation while retaining its new pointer anchor. Resize, identity
+replacement and disposal cancel pending work; identity replacement resets Home immediately.
 Reduced-motion preference applies the same target immediately. Document owners include their
 backend project generation in `identity`, so reloading the same UUID also cancels obsolete work.
 `WorkbenchSession.projectGeneration` exposes that lifetime independently of full-snapshot refreshes;
 ordinary snapshot receipts must preserve the camera of the same document.
 
-Editors receive unconsumed primary clicks through `onbackgroundclick` and specialized key
+The focused viewport registers Frame/Home with Golden's command router, which captures F/H
+before local DOM events in the workbench. Local navigation also works in standalone hosts.
+Editable fields, other viewports and held pointer edits do not claim those commands.
+
+Editors receive unconsumed primary presses through `onselectionclear` and specialized key
 input through `onkeydown`; editable controls and the navigation toolbar retain their own keys.
 `onfocusout` lets an editor flush its input gesture when focus changes. Pan clicks and child
 buttons do not become background selection.

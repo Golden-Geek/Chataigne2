@@ -99,9 +99,9 @@ actual run, not as qualification.
 [Latest Feedback.md](../../Latest%20Feedback.md) is incorporated in **M15** as eleven fixed
 acceptance gates. **All remaining Video work follows this feedback:** M10/3 extended codecs,
 M10/8 subtitles and retained M10/4 qualification return after M15. The remaining M14 feature
-order is **9 → 10 → 8 → 2**;9,10 and8 are functionally delivered with qualification Pending.
-M14/2 is the sole Active feature. Then deliver
-M15 before returning to Video and final acceptance closure. Reproduced correctness defects
+order is **9 → 10 → 8 → 2**; all four are functionally delivered with qualification Pending.
+M15/1 parameter-control safety is the sole Active feature. Deliver the M15 feedback
+before returning to Video and final acceptance closure. Reproduced correctness defects
 on the active product path remain prerequisites; the reported parameter-control crash is
 M15/1's first correction, not optional optimization or deferred edge-case qualification.
 The user's renewed feature priority keeps sustained performance tuning, recovery and unusual
@@ -1351,9 +1351,9 @@ awarding acceptance or changing retained budgets.
 
 Source: [Latest Feedback.md](../../Latest%20Feedback.md) in the repository root, plus the user's
 instruction that remaining Video work follows this feedback. Follow the M14 feature-first
-execution revision above: M14/9 and M14/10 are implemented and functionally verified, with their
-remaining qualification Pending in the return queue. M14/8 is the selected next feature; do not switch
-gates merely to edit this plan. Deliver remaining M14 features, then M15, then remaining Video.
+execution revision above: selected M14 features9,10,8,2 are functionally delivered, with their
+remaining qualification Pending in the return queue. M15/1 is the selected next feature;
+deliver M15 before remaining Video, retaining user-deferred M14/1 and blocked M14/6.
 Retain every unfinished qualification gate and its return trigger before M09.
 
 Golden owns parameter admission, reusable gradients/animation, parameter bindings, shared
