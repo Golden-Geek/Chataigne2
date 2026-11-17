@@ -128,9 +128,11 @@ fn screen_frame_rate_is_typed_atomic_history_safe_and_persisted() {
     dispatch(&mut engine);
     assert_eq!(screen_definition(&engine, screen), explicit);
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
-    for invalid in [0.0, 1001.0, f64::NAN] {
+    for invalid in [f64::NAN, f64::INFINITY] {
         assert!(!set(&mut engine, fps, ParamValue::Float(invalid)).success);
     }
+    crate::tests::clamps_and_undo(&mut engine, fps, ParamValue::Float(0.), ParamValue::Float(1.));
+    crate::tests::clamps_and_undo(&mut engine, fps, ParamValue::Float(1001.), ParamValue::Float(1000.));
     assert!(!set(&mut engine, mode, ParamValue::Enum("Source".into())).success);
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
     let loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
@@ -355,9 +357,7 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
     let before = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     for (node, value) in [
-        (screen_fields["parameters/width"], ParamValue::Int(8193)),
         (screen_fields["parameters/sender"], ParamValue::Str("x".repeat(240))),
-        (surface_fields["parameters/opacity"], ParamValue::Float(2.0)),
         (surface_fields["parameters/top_left"], ParamValue::Vec2(f64::MAX, 0.0)),
         (
             surface_fields["parameters/source_media"],
@@ -370,6 +370,18 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
     }
 
     let snapshot = super::super::inspect(&engine).unwrap();
+    crate::tests::clamps_and_undo(
+        &mut engine,
+        screen_fields["parameters/width"],
+        ParamValue::Int(8193),
+        ParamValue::Int(8192),
+    );
+    crate::tests::clamps_and_undo(
+        &mut engine,
+        surface_fields["parameters/opacity"],
+        ParamValue::Float(2.),
+        ParamValue::Float(1.),
+    );
     let loaded = from_sparse_project_json::<AppNode>(&before).unwrap();
     validate_engine_project_candidate(&loaded).unwrap();
     assert_eq!(super::super::inspect(&loaded).unwrap(), snapshot);

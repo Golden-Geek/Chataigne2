@@ -524,7 +524,15 @@ fn inspector_speed_uses_the_same_transport_and_rejects_invalid_values_atomically
     }
     let before = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
-    for value in [-16.01, 16.01, f64::NAN, f64::INFINITY] {
+    for value in [-16.01, 16.01] {
+        crate::tests::clamps_and_undo(
+            &mut engine,
+            speed,
+            ParamValue::Float(value),
+            ParamValue::Float(value.clamp(-16., 16.)),
+        );
+    }
+    for value in [f64::NAN, f64::INFINITY] {
         let ack = apply_project_intent(
             &mut engine,
             UiEditIntent::SetParam {

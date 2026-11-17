@@ -483,6 +483,11 @@ impl Node for ParameterAnimationControlNode {
         let Some(value) = value else {
             return;
         };
+        // Finite settings can still overflow waveform arithmetic. Hold the last
+        // valid target sample instead of aborting the engine and healthy controls.
+        if !value.is_finite() {
+            return;
+        }
 
         ctx.set_param(parent_param, ParamValue::Float(value));
     }

@@ -104,17 +104,27 @@ fn layer_spatial_settings_are_atomic_typed_independent_of_final_canvas_and_prese
     let before = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     for (field, value) in [
-        ("canvas_size", ParamValue::Vec2(4.5, 2.0)),
-        ("canvas_size", ParamValue::Vec2(0.0, 2.0)),
-        ("canvas_size", ParamValue::Vec2(16385.0, 2.0)),
         ("position", ParamValue::Vec2(1e40, 0.0)),
-        ("duration_ms", ParamValue::Float(0.5)),
+        ("position", ParamValue::Vec2(f64::NAN, 0.0)),
     ] {
         assert!(!write(&mut engine, row.0, field, value).success);
         assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
         assert_eq!(engine.undo_len(), history);
     }
     assert!(write(&mut engine, row.0, "canvas_size", ParamValue::Vec2(12.0, 6.0)).success);
+    for (field, input, expected) in [
+        ("canvas_size", ParamValue::Vec2(4.5, 2.), ParamValue::Vec2(5., 2.)),
+        ("canvas_size", ParamValue::Vec2(0., 2.), ParamValue::Vec2(1., 2.)),
+        (
+            "canvas_size",
+            ParamValue::Vec2(16385., 2.),
+            ParamValue::Vec2(16384., 2.),
+        ),
+        ("duration_ms", ParamValue::Float(0.5), ParamValue::Float(1.)),
+    ] {
+        let node = parameter(&engine, row.0, field);
+        crate::tests::clamps_and_undo(&mut engine, node, input, expected);
+    }
     assert_eq!(
         inspect(&mut engine, media)
             .items

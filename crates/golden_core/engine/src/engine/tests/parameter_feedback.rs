@@ -305,7 +305,7 @@ fn runtime_range_clamps_live_state_and_validates_all_writes_without_persisting_b
         value: ParamValue::Float(6.0),
         behaviour: ParameterEventBehaviour::Append,
     });
-    assert!(engine.apply_edits().is_err());
+    engine.apply_edits().unwrap();
     assert_eq!(live(&engine, id), ParamValue::Float(5.0));
     assert_eq!(engine.undo_len(), history);
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
@@ -458,7 +458,7 @@ fn clearing_feedback_cannot_expose_an_authored_value_outside_runtime_bounds() {
         expected_input: None,
         guard: None,
     });
-    assert!(engine.apply_edits().is_err());
+    engine.apply_edits().unwrap();
     assert_eq!(live(&engine, id), ParamValue::Float(1.0));
     engine
         .nodes

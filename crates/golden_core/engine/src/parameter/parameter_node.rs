@@ -85,7 +85,7 @@ impl Parameter {
 
     /// Requests a parameter update through the process context.
     pub fn set(&mut self, ctx: &mut ProcessCtx, new_value: ParamValue) {
-        let normalized = match self.effective_constraints().normalize(new_value) {
+        let normalized = match self.engine_prepare_param_value(new_value) {
             Ok(value) => value,
             Err(message) => {
                 eprintln!(
@@ -752,8 +752,8 @@ impl Node for Parameter {
     }
 
     fn engine_prepare_param_value(&self, value: ParamValue) -> Result<ParamValue, String> {
-        let coerced = self.coerce_for_current_value_kind(value)?;
-        self.effective_constraints().normalize(coerced)
+        super::prepare_param_value_for_target_owned(value, &self.value, &self.effective_constraints())
+            .map_err(|error| error.to_string())
     }
 
     fn engine_param_snapshot(&self) -> Option<crate::parameter::ParameterSnapshot> {
@@ -883,7 +883,7 @@ impl Node for Parameter {
                 if self.read_only {
                     return Err("parameter is read-only".to_string());
                 }
-                let normalized = self.effective_constraints().normalize_ref(value)?.into_owned();
+                let normalized = self.engine_prepare_param_value(value.clone())?;
                 ctx.set_param_with_behaviour(self.id(), normalized, ParameterEventBehaviour::Coalesce);
                 Ok(true)
             }

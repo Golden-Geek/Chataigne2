@@ -8,3 +8,6 @@ mod parameters;
 pub mod preferences;
 pub mod preview;
 pub mod screens;
+
+#[cfg(test)]
+pub(crate) mod tests;

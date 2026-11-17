@@ -1,9 +1,125 @@
 use std::borrow::Cow;
 
 use super::{
-    ParamValue, ParamValueProjection,
+    ParamValue, ParamValueProjection, ParameterConstraintPolicy, ParameterConstraints,
     projection::{project_param_value_for_target, project_param_value_for_target_reverse},
 };
+
+/// Input admission failure, before any Parameter or owner state is changed.
+#[derive(Debug, thiserror::Error)]
+pub enum ParameterInputError {
+    /// The input cannot represent the target's value kind or requested projection.
+    #[error("parameter input is incompatible with its target value kind")]
+    Incompatible,
+    /// Invalid/nonfinite data or a nonnumeric domain constraint rejects the input.
+    #[error("{0}")]
+    Constraint(String),
+}
+
+fn prepare_input(
+    source: Cow<'_, ParamValue>,
+    target: &ParamValue,
+    constraints: &ParameterConstraints,
+) -> Result<ParamValue, ParameterInputError> {
+    if !source.has_only_finite_numbers() {
+        return Err(ParameterInputError::Constraint(
+            "parameter values must contain only finite numbers".into(),
+        ));
+    }
+    let mut constraints = constraints.clone();
+    if matches!(
+        target,
+        ParamValue::Int(_)
+            | ParamValue::Float(_)
+            | ParamValue::CssValue(_)
+            | ParamValue::Vec2(_, _)
+            | ParamValue::Vec3(_, _, _)
+            | ParamValue::Color(_, _, _, _)
+    ) {
+        // Incoming control values adapt to numeric bounds/steps. Authored state/constraint
+        // validation still uses normalize() and its declared rejection policy.
+        constraints.policy = ParameterConstraintPolicy::ClampAdapt;
+    }
+    if matches!(target, ParamValue::Int(_)) {
+        let scalar = source.as_float().ok_or(ParameterInputError::Incompatible)?;
+        let value = constraints
+            .normalize(ParamValue::Float(scalar))
+            .map_err(ParameterInputError::Constraint)?;
+        let ParamValue::Float(value) = value else {
+            unreachable!()
+        };
+        // Clamp while still wide and finite; never let NaN become zero or an overflow
+        // saturating cast choose the value before the target's own range is applied.
+        let value = value.clamp(f64::from(i32::MIN), f64::from(i32::MAX)) as i32;
+        let accepted = constraints
+            .normalize(ParamValue::Int(value))
+            .map_err(ParameterInputError::Constraint)?;
+        // Fractional ranges/steps may have no representable integer. Reject those
+        // instead of rounding an endpoint back outside its declared domain.
+        constraints.policy = ParameterConstraintPolicy::Reject;
+        constraints
+            .normalize_ref(&accepted)
+            .map_err(ParameterInputError::Constraint)?;
+        return Ok(accepted);
+    }
+    let value = coerce_kind(source, target)
+        .ok_or(ParameterInputError::Incompatible)?
+        .into_owned();
+    constraints.normalize(value).map_err(ParameterInputError::Constraint)
+}
+
+/// Coerce and admit an owned incoming value against the target's current numeric range/step.
+/// Nonnumeric domains remain strict; nonfinite data is rejected before bounded conversion.
+pub fn prepare_param_value_for_target_owned(
+    source: ParamValue,
+    target: &ParamValue,
+    constraints: &ParameterConstraints,
+) -> Result<ParamValue, ParameterInputError> {
+    prepare_input(Cow::Owned(source), target, constraints)
+}
+
+/// Project, then admit an input without performing a premature bounded kind conversion.
+pub fn prepare_param_value_for_target(
+    source: &ParamValue,
+    target: &ParamValue,
+    constraints: &ParameterConstraints,
+    projection: Option<ParamValueProjection>,
+) -> Result<ParamValue, ParameterInputError> {
+    if !source.has_only_finite_numbers() {
+        return Err(ParameterInputError::Constraint(
+            "parameter values must contain only finite numbers".into(),
+        ));
+    }
+    let source = match projection {
+        Some(projection) => Cow::Owned(
+            project_param_value_for_target(source, target, projection).ok_or(ParameterInputError::Incompatible)?,
+        ),
+        None => Cow::Borrowed(source),
+    };
+    prepare_input(source, target, constraints)
+}
+
+/// Admit the reverse direction of an explicit bidirectional binding projection.
+pub fn prepare_param_value_for_target_reverse(
+    source: &ParamValue,
+    target: &ParamValue,
+    constraints: &ParameterConstraints,
+    projection: Option<ParamValueProjection>,
+) -> Result<ParamValue, ParameterInputError> {
+    if !source.has_only_finite_numbers() {
+        return Err(ParameterInputError::Constraint(
+            "parameter values must contain only finite numbers".into(),
+        ));
+    }
+    let source = match projection {
+        Some(projection) => Cow::Owned(
+            project_param_value_for_target_reverse(source, target, projection)
+                .ok_or(ParameterInputError::Incompatible)?,
+        ),
+        None => Cow::Borrowed(source),
+    };
+    prepare_input(source, target, constraints)
+}
 
 fn coerce_kind<'a>(source: Cow<'a, ParamValue>, target: &ParamValue) -> Option<Cow<'a, ParamValue>> {
     // Coercion to the same kind preserves the complete value, including CSS units

@@ -15,8 +15,8 @@ use crate::node::{
 use crate::parameter::{
     ParamValue, ParamValueProjection, Parameter, ParameterAnimationControlNode, ParameterChangeCheck,
     ParameterControlDiagnostic, ParameterControlMode, ParameterControlSpec, ParameterControlState,
-    ParameterEventBehaviour, ParameterSnapshot, ReferenceTargetKind, available_control_modes_for_parameter,
-    coerce_param_value_for_target, coerce_param_value_for_target_reverse,
+    ParameterEventBehaviour, ParameterInputError, ParameterSnapshot, ReferenceTargetKind,
+    available_control_modes_for_parameter, prepare_param_value_for_target, prepare_param_value_for_target_reverse,
 };
 use crate::process_ctx::ProcessTreeSnapshot;
 use crate::script::{
@@ -1602,12 +1602,17 @@ impl<T: Node> Engine<T> {
         diagnostics: &mut Vec<ParameterControlDiagnostic>,
     ) -> Option<ParamValue> {
         let converted = if reverse_projection {
-            coerce_param_value_for_target_reverse(source, &target_snapshot.value, projection)
+            prepare_param_value_for_target_reverse(
+                source,
+                &target_snapshot.value,
+                &target_snapshot.constraints,
+                projection,
+            )
         } else {
-            coerce_param_value_for_target(source, &target_snapshot.value, projection)
+            prepare_param_value_for_target(source, &target_snapshot.value, &target_snapshot.constraints, projection)
         };
 
-        let Some(converted) = converted else {
+        if matches!(converted, Err(ParameterInputError::Incompatible)) {
             let projection_label = projection
                 .map(|projection| {
                     if reverse_projection {
@@ -1627,12 +1632,12 @@ impl<T: Node> Engine<T> {
             return None;
         };
 
-        match target_snapshot.constraints.normalize(converted) {
+        match converted {
             Ok(normalized) => Some(normalized),
-            Err(message) => {
+            Err(error) => {
                 diagnostics.push(ParameterControlDiagnostic::new(
                     "control_constraints_violation",
-                    format!("control mode '{}' produced an invalid value: {message}", mode),
+                    format!("control mode '{}' produced an invalid value: {error}", mode),
                 ));
                 None
             }

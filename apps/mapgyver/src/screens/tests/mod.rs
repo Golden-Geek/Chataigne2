@@ -6,6 +6,7 @@ mod crop_gestures;
 mod drop_sources;
 mod editor;
 mod enabled;
+mod external_control;
 mod fit;
 mod free_warp;
 mod geometry;

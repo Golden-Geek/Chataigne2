@@ -4650,7 +4650,7 @@ fn apply_set_param_clamps_value_when_constraints_use_clamp_adapt_policy() {
 }
 
 #[test]
-fn apply_set_param_rejects_value_when_constraints_use_reject_policy() {
+fn apply_set_param_adapts_numeric_input_even_with_authored_reject_policy() {
     let mut root = Parameter::new("root_param", ParamValue::Float(0.0), ParameterChangeCheck::None);
     root.constraints = ParameterConstraints {
         enum_domain: None,
@@ -4670,8 +4670,17 @@ fn apply_set_param_rejects_value_when_constraints_use_reject_policy() {
         behaviour: ParameterEventBehaviour::Coalesce,
     });
 
-    let result = engine.apply_edits();
-    assert!(matches!(result, Err(EngineEditError::ParamConstraintViolation { .. })));
+    engine.apply_edits().unwrap();
+    assert_eq!(
+        engine
+            .nodes
+            .get(engine.root)
+            .unwrap()
+            .engine_param_snapshot()
+            .unwrap()
+            .value,
+        ParamValue::Float(0.5)
+    );
 }
 
 #[test]
@@ -4712,7 +4721,7 @@ fn apply_set_param_clamps_vec2_components_when_constraints_use_clamp_adapt_polic
 }
 
 #[test]
-fn apply_set_param_rejects_vec3_components_when_constraints_use_reject_policy() {
+fn apply_set_param_adapts_vec3_input_even_with_authored_reject_policy() {
     let mut root = Parameter::new(
         "root_param",
         ParamValue::Vec3(0.0, 0.0, 0.0),
@@ -4736,8 +4745,17 @@ fn apply_set_param_rejects_vec3_components_when_constraints_use_reject_policy() 
         behaviour: ParameterEventBehaviour::Coalesce,
     });
 
-    let result = engine.apply_edits();
-    assert!(matches!(result, Err(EngineEditError::ParamConstraintViolation { .. })));
+    engine.apply_edits().unwrap();
+    assert_eq!(
+        engine
+            .nodes
+            .get(engine.root)
+            .unwrap()
+            .engine_param_snapshot()
+            .unwrap()
+            .value,
+        ParamValue::Vec3(0.2, 1., 0.5)
+    );
 }
 
 #[test]

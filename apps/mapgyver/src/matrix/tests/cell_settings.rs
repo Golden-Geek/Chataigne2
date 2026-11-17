@@ -177,11 +177,6 @@ fn cell_settings_materialize_only_the_address_and_preserve_atomic_values_history
     let history = engine.undo_len();
     for (field, value) in [
         ("position", ParamValue::Vec2(1e40, 0.0)),
-        ("opacity", ParamValue::Float(-0.1)),
-        ("opacity", ParamValue::Float(1.1)),
-        ("size", ParamValue::Vec2(1.5, 2.0)),
-        ("size", ParamValue::Vec2(0.0, 2.0)),
-        ("size", ParamValue::Vec2(16385.0, 2.0)),
         ("fit_mode", ParamValue::Enum("Unknown".into())),
     ] {
         assert!(!write(&mut engine, cell, field, value).success);
@@ -189,6 +184,16 @@ fn cell_settings_materialize_only_the_address_and_preserve_atomic_values_history
         assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
     }
     assert!(write(&mut engine, cell, "position", ParamValue::Vec2(-4.0, 5.0)).success);
+    for (field, input, expected) in [
+        ("opacity", ParamValue::Float(-0.1), ParamValue::Float(0.)),
+        ("opacity", ParamValue::Float(1.1), ParamValue::Float(1.)),
+        ("size", ParamValue::Vec2(1.5, 2.), ParamValue::Vec2(2., 2.)),
+        ("size", ParamValue::Vec2(0., 2.), ParamValue::Vec2(1., 2.)),
+        ("size", ParamValue::Vec2(16385., 2.), ParamValue::Vec2(16384., 2.)),
+    ] {
+        let node = parameter(&engine, cell, field);
+        crate::tests::clamps_and_undo(&mut engine, node, input, expected);
+    }
     assert!(write(&mut engine, cell, "opacity", ParamValue::Float(0.5)).success);
     let node = engine.node_id_by_uuid(cell.0).unwrap();
     assert!(!engine.nodes.get(node).unwrap().node_data().meta.enabled);

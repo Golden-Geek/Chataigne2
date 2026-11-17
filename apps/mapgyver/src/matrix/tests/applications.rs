@@ -304,16 +304,11 @@ fn embedded_settings_reject_standalone_crud_and_invalid_parameters_without_autho
     }
     let pre = parameter(&engine, application, "pre");
     for value in [-1, 65536] {
-        assert!(
-            !apply_project_intent(
-                &mut engine,
-                UiEditIntent::SetParam {
-                    node: pre,
-                    value: ParamValue::Int(value),
-                    behaviour: ParameterEventBehaviour::Append
-                }
-            )
-            .success
+        crate::tests::clamps_and_undo(
+            &mut engine,
+            pre,
+            ParamValue::Int(value),
+            ParamValue::Int(value.clamp(0, 65535)),
         );
     }
     assert_eq!(engine.undo_len(), history);

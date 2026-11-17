@@ -12,6 +12,19 @@ Editable collections use real child nodes. Identity, labels, hierarchy and order
 Golden topology/metadata. Selection/zoom, panel locks and native observations are presentation/
 runtime state. Declared Parameter folders must not advertise unsupported Add actions.
 
+Numeric input admission is shared in `golden_parameters`: incoming finite values adapt to
+the target's declared range and step before bounded conversion. This applies to ordinary
+Parameter writes, scripts and projected controls/bindings; app code does not clamp values
+in widgets or patch each media type. Integer input is still wide during range admission,
+so NaN cannot turn into zero and an overflowing cast cannot choose the value first.
+Numeric admission does not change declared metadata. `ParameterConstraints::normalize`
+retains its policy for authored state/constraint validation, including strict project data.
+Nonnumeric domains and app owner invariants still reject invalid edits atomically.
+Nonfinite inputs reject before mutation; nonfinite computed oscillator samples retain the
+last valid value without interrupting sibling controls. Already admissible stepped values
+stay exact across repeated admission, Undo and reload. See the
+[M15 control checkpoint](../progress/mapgyver-m15-parameter-control.md) for verified scope.
+
 Channel source differences stay expanded in the generic Inspector. Picture rows edit their
 own real File Parameter; path, Browse and Clear share Golden's compact file widget. They do
 not create an implicit catalog Asset or forward another object's File. Explicit catalog Assets

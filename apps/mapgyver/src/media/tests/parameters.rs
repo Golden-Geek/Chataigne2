@@ -133,8 +133,8 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
         let saved = to_sparse_project_json_pretty(&engine).unwrap();
         let undo = engine.undo_len();
         for (node, value) in [
-            (resolution, ParamValue::Vec2(0.0, 1080.0)),
             (fields["parameters/source_kind"], ParamValue::Enum("Picture".into())),
+            (resolution, ParamValue::Vec2(f64::NAN, 1080.)),
         ] {
             if kind == MediaKind::Picture && node == fields["parameters/source_kind"] {
                 continue;
@@ -144,6 +144,12 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
             assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
         }
         references.push(reference);
+        crate::tests::clamps_and_undo(
+            &mut engine,
+            resolution,
+            ParamValue::Vec2(0., 1080.),
+            ParamValue::Vec2(1., 1080.),
+        );
     }
     let snapshot = crate::media::catalog::inspect(&engine).unwrap();
     let json = to_sparse_project_json_pretty(&engine).unwrap();
@@ -329,9 +335,6 @@ fn resolution_generic_edits_toggle_all_variants_and_reject_invalid_pixels_atomic
     let before = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     for value in [
-        ParamValue::Vec2(0.0, 1.0),
-        ParamValue::Vec2(1.0, 16385.0),
-        ParamValue::Vec2(1.5, 2.0),
         ParamValue::Vec2(f64::NAN, 2.0),
         ParamValue::Vec2(2.0, f64::INFINITY),
         ParamValue::Str("640x360".into()),
@@ -339,6 +342,13 @@ fn resolution_generic_edits_toggle_all_variants_and_reject_invalid_pixels_atomic
         assert!(!set(&mut engine, resolution, value).success);
         assert_eq!(engine.undo_len(), history);
         assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+    }
+    for (input, expected) in [
+        (ParamValue::Vec2(0., 1.), ParamValue::Vec2(1., 1.)),
+        (ParamValue::Vec2(1., 16385.), ParamValue::Vec2(1., 16384.)),
+        (ParamValue::Vec2(1.5, 2.), ParamValue::Vec2(2., 2.)),
+    ] {
+        crate::tests::clamps_and_undo(&mut engine, resolution, input, expected);
     }
     let captured = crate::media::capture_channels(&engine, &[first, second], 4).unwrap();
     let ack = apply_project_intent(

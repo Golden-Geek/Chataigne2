@@ -271,6 +271,10 @@ fn direct_parameter_writes_validate_deadlines_paths_and_environment_without_auth
         },
     );
     let env = children(&engine, application)[0];
+    for (field, input, expected) in [("retirement_ms", 0., 1.), ("timeout_ms", 1.5, 2.)] {
+        let node = parameter(&engine, owner, field);
+        crate::tests::clamps_and_undo(&mut engine, node, ParamValue::Float(input), ParamValue::Float(expected));
+    }
     let authored = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     for (node, value) in [
@@ -279,8 +283,6 @@ fn direct_parameter_writes_validate_deadlines_paths_and_environment_without_auth
             ParamValue::File("relative.exe".into()),
         ),
         (parameter(&engine, owner, "initial_ms"), ParamValue::Float(50000.0)),
-        (parameter(&engine, owner, "retirement_ms"), ParamValue::Float(0.0)),
-        (parameter(&engine, owner, "timeout_ms"), ParamValue::Float(1.5)),
         (parameter(&engine, env, "name"), ParamValue::Str("bad=name".into())),
         (parameter(&engine, env, "value"), ParamValue::Str("bad\0value".into())),
     ] {

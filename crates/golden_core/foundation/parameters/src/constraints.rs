@@ -399,6 +399,15 @@ impl ParameterConstraints {
             ParamValue::CssValue(value) => Cow::Owned(self.normalize_css_value(*value)?),
             ParamValue::Vec2(x, y) => Cow::Owned(self.normalize_vec2(*x, *y)?),
             ParamValue::Vec3(x, y, z) => Cow::Owned(self.normalize_vec3(*x, *y, *z)?),
+            ParamValue::Color(r, g, b, a) => {
+                let bounds = self.vector_component_bounds(4, "color")?;
+                let mut values = [*r, *g, *b, *a];
+                for (value, (min, max)) in values.iter_mut().zip(bounds) {
+                    *value = self.normalize_numeric_with_bounds(*value, min, max)?;
+                }
+                let [r, g, b, a] = values;
+                Cow::Owned(ParamValue::Color(r, g, b, a))
+            }
             ParamValue::File(path) => {
                 self.validate_file(path)?;
                 Cow::Borrowed(incoming)
@@ -560,6 +569,13 @@ impl ParameterConstraints {
     }
 
     fn normalize_numeric_with_bounds(&self, mut value: f64, min: Option<f64>, max: Option<f64>) -> Result<f64, String> {
+        if [min, max, self.step, self.step_base]
+            .into_iter()
+            .flatten()
+            .any(|bound| !bound.is_finite())
+        {
+            return Err("numeric constraints must contain only finite bounds, step and step base".into());
+        }
         if let (Some(min), Some(max)) = (min, max)
             && min > max
         {
@@ -595,7 +611,10 @@ impl ParameterConstraints {
 
             match self.policy {
                 ParameterConstraintPolicy::ClampAdapt => {
-                    value = base + nearest * step;
+                    // Keep already legal values exact across repeated admission/history.
+                    if scaled.is_finite() && (scaled - nearest).abs() > 1e-9 {
+                        value = base + nearest * step;
+                    }
                 }
                 ParameterConstraintPolicy::Reject => {
                     if (scaled - nearest).abs() > 1e-9 {
@@ -616,6 +635,9 @@ impl ParameterConstraints {
             }
         }
 
+        if !value.is_finite() {
+            return Err("numeric constraint adaptation overflowed".into());
+        }
         Ok(value)
     }
 

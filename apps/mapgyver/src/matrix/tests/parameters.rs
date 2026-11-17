@@ -180,9 +180,8 @@ fn direct_parameter_changes_invalidate_render_capture_and_invalid_proposals_leav
     let before = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     for (field, value) in [
-        ("opacity", ParamValue::Float(-0.1)),
-        ("opacity", ParamValue::Float(1.1)),
         ("blend", ParamValue::Enum("Unknown".into())),
+        ("opacity", ParamValue::Float(f64::NAN)),
     ] {
         assert!(
             !write(&mut engine, row, field, value.clone()).success,
@@ -192,6 +191,8 @@ fn direct_parameter_changes_invalidate_render_capture_and_invalid_proposals_leav
         assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
     }
     let opacity = parameter(&engine, row, "opacity");
+    crate::tests::clamps_and_undo(&mut engine, opacity, ParamValue::Float(-0.1), ParamValue::Float(0.));
+    crate::tests::clamps_and_undo(&mut engine, opacity, ParamValue::Float(1.1), ParamValue::Float(1.));
     let blend = parameter(&engine, row, "blend");
     engine.edits.push(golden_core::edit::Edit::SetParamsAtomic {
         values: vec![
