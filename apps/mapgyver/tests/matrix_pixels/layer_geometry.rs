@@ -1,5 +1,19 @@
 use super::*;
 use golden_core::app::create_new_project_engine;
+use golden_core::node::Node;
+
+fn alpha(fixture: &Fixture, adapter: AdapterId) -> u8 {
+    let budget = golden_io::PayloadPool::new("layer-stop-readback", 3, 1024 * 1024).unwrap();
+    let mut probe = golden_video::native::SpoutProbe::new(fixture.sender(0), adapter, budget).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(8);
+    loop {
+        if let Some(image) = probe.capture_pixels().unwrap() {
+            return image.pixels()[4 * 32 + 5][3];
+        }
+        assert!(Instant::now() < deadline, "Layer Stop native alpha readback timeout");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
 
 #[test]
 #[ignore = "explicit native Layer position/canvas and Undo qualification"]
@@ -113,6 +127,61 @@ fn native_layer_position_canvas_and_undo_preserve_source_pixel_size_on_each_adap
         assert!(engine.undo().unwrap());
         fixture.publish_channels(&engine, &[root, root], root, None);
         fixture.pixels_channels(adapter.id, &[&large, &large], &large, "layer-canvas-undo");
+        matrix(
+            &mut engine,
+            root.media,
+            MatrixEdit::ConfigureColumn {
+                column: columns[0],
+                definition: ColumnDefinition {
+                    transition: Some(TransitionDefinition {
+                        duration_ms: 4000,
+                        curve: TransitionCurve::Linear,
+                    }),
+                },
+            },
+        );
+        let owner = engine.node_id_by_uuid(layer.0).unwrap();
+        let folder = engine
+            .nodes
+            .iter()
+            .find(|(_, node)| node.node_data().parent == Some(owner) && node.node_data().meta.decl_id.0 == "parameters")
+            .unwrap()
+            .0;
+        let stop = engine
+            .nodes
+            .iter()
+            .find(|(_, node)| {
+                node.node_data().parent == Some(folder) && node.node_data().meta.decl_id.0 == "parameters/stop"
+            })
+            .unwrap()
+            .0;
+        let ack = apply_project_intent(
+            &mut engine,
+            UiEditIntent::SetParam {
+                node: stop,
+                value: golden_core::parameter::ParamValue::Trigger(),
+                behaviour: golden_core::parameter::ParameterEventBehaviour::Append,
+            },
+        );
+        assert!(ack.success, "{ack:?}");
+        golden_core::application::service_script_app_operations(&mut engine).unwrap();
+        fixture.publish_channels(&engine, &[root, root], root, None);
+        let first = alpha(&fixture, adapter.id);
+        std::thread::sleep(Duration::from_millis(300));
+        let second = alpha(&fixture, adapter.id);
+        assert!(first > 0 && first < 255, "expected a partial outgoing alpha: {first}");
+        assert!(
+            second < first.saturating_sub(5),
+            "native fade must advance: {first} -> {second}"
+        );
+        std::thread::sleep(Duration::from_millis(4000));
+        fixture.publish_channels(&engine, &[root, root], root, None);
+        let blank = image([0.0; 4]);
+        fixture.pixels_channels(adapter.id, &[&blank, &blank], &blank, "layer-stop-completed");
+        println!(
+            "Layer Stop native alpha {first}->{second}->0 on {}",
+            adapter.description
+        );
         drop(fixture);
         println!(
             "Layer position/canvas/resize/Undo native pixels passed on {}",

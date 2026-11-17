@@ -1344,9 +1344,10 @@ awarding acceptance or changing retained budgets.
 ### M15 — Apply the 2026-11-17 latest feedback before remaining Video
 
 Source: [Latest Feedback.md](../../Latest%20Feedback.md) in the repository root, plus the user's
-instruction that remaining Video work follows this feedback. Keep M14/9 Active until accepted
-or Blocked with a named prerequisite and concrete return action; do not switch gates merely to
-edit this plan. Deliver the selected remaining M14 features, then M15, then remaining Video.
+instruction that remaining Video work follows this feedback. Follow the M14 feature-first
+execution revision above: M14/9 and M14/10 are implemented and functionally verified, with their
+remaining qualification Pending in the return queue. M14/8 is the selected next feature; do not switch
+gates merely to edit this plan. Deliver remaining M14 features, then M15, then remaining Video.
 Retain every unfinished qualification gate and its return trigger before M09.
 
 Golden owns parameter admission, reusable gradients/animation, parameter bindings, shared

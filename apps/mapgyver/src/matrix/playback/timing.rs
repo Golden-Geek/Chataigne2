@@ -32,7 +32,7 @@ impl State {
         self.video_deadline_armed = false;
     }
     pub(super) fn advance_videos(&mut self) {
-        if !self.video_enabled || self.videos.next_deadline().is_none() {
+        if !self.video_enabled || (self.videos.next_deadline().is_none() && self.layer_stop_deadline().is_none()) {
             self.cancel_video_deadline();
             return;
         }
@@ -66,18 +66,26 @@ impl State {
     pub(super) fn schedule_video_deadline(&mut self) {
         self.cancel_video_deadline();
         let Some(deadline) = &self.video_deadline else { return };
-        if !self.video_enabled || self.videos.next_deadline().is_none() {
+        if !self.video_enabled || (self.videos.next_deadline().is_none() && self.layer_stop_deadline().is_none()) {
             return;
         }
         let now = Instant::now();
         let delay = if let Some(observation) = &self.video_time {
             let Ok(time) = observation.project(now) else { return };
-            self.timeline.next_video_interval().map(|interval| {
-                let end = interval.anchor.monotonic().as_nanos() as u128 + interval.duration.as_nanos();
-                Duration::from_nanos(end.saturating_sub(time.monotonic().as_nanos() as u128) as u64)
-            })
+            self.timeline
+                .next_video_interval()
+                .map(|interval| {
+                    let end = interval.anchor.monotonic().as_nanos() as u128 + interval.duration.as_nanos();
+                    Duration::from_nanos(end.saturating_sub(time.monotonic().as_nanos() as u128) as u64)
+                })
+                .or_else(|| self.layer_stop_deadline().map(|at| at.saturating_duration_since(now)))
         } else {
-            self.videos.next_deadline().map(|at| at.saturating_duration_since(now))
+            self.videos
+                .next_deadline()
+                .into_iter()
+                .chain(self.layer_stop_deadline())
+                .min()
+                .map(|at| at.saturating_duration_since(now))
         };
         if let Some(delay) = delay {
             deadline.wake_after(delay);

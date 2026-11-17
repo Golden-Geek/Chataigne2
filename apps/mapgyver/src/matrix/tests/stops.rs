@@ -10,6 +10,8 @@ use golden_core::{
 };
 use golden_time::TimeSnapshot;
 
+mod layer_fades;
+
 struct Scene {
     engine: AppEngine,
     media: MediaId,
@@ -97,6 +99,18 @@ impl Scene {
             .unwrap()
             .id
     }
+    fn cut_layer(&mut self, row: usize) {
+        assert!(
+            super::layer_settings::write(
+                &mut self.engine,
+                self.rows[row].0,
+                "duration_ms",
+                ParamValue::Float(0.0)
+            )
+            .success
+        );
+        pulse(&mut self.engine, self.rows[row].0, "stop");
+    }
 }
 
 #[test]
@@ -160,7 +174,7 @@ fn cell_stop_preserves_other_addresses_and_layer_stop_clears_all_its_independent
     let independent = scene.cell(0, 2);
     pulse(&mut scene.engine, independent.0, "play");
     scene.weights(0, at(now, 125));
-    pulse(&mut scene.engine, scene.rows[0].0, "stop");
+    scene.cut_layer(0);
     assert_eq!(scene.weights(0, at(now, 175)), []);
     let weights = scene.weights(1, at(now, 175));
     assert_eq!(weights.iter().map(|(source, _)| *source).collect::<Vec<_>>(), [0, 1]);
@@ -184,7 +198,7 @@ fn unseen_column_and_row_stops_preserve_unrelated_mixes_and_a_later_play_survive
     assert_eq!(scene.weights(0, now), [(0, 1.0)]);
     assert_eq!(scene.weights(1, now), [(0, 1.0)]);
     scene.launch(1, LaunchMode::Configured);
-    pulse(&mut scene.engine, scene.rows[0].0, "stop");
+    scene.cut_layer(0);
     assert_eq!(scene.weights(0, now), []);
     assert_eq!(scene.weights(1, at(now, 125)), [(0, 0.5), (1, 0.5)]);
     let cell = scene.cell(0, 1);
@@ -415,9 +429,18 @@ fn scoped_stops_clear_playing_references_preserve_anchor_demand_and_disabled_pla
     let now = time();
     let old = capture(&scene.engine, scene.media, scene.rows[0], now);
     assert!(old.applications.references.contains(&owners[0].1));
+    assert!(
+        super::layer_settings::write(
+            &mut scene.engine,
+            scene.rows[0].0,
+            "duration_ms",
+            ParamValue::Float(0.0)
+        )
+        .success
+    );
     let authored = to_sparse_project_json_pretty(&scene.engine).unwrap();
     let history = scene.engine.undo_len();
-    pulse(&mut scene.engine, scene.rows[0].0, "stop");
+    scene.cut_layer(0);
     let logical = crate::applications::logical::capture_logical_applications(&scene.engine).unwrap();
     assert!(
         capture(&scene.engine, scene.media, scene.rows[0], now)

@@ -206,6 +206,19 @@ fn resolve(
     Ok(routes[&selection].owner())
 }
 impl Playback {
+    pub(super) fn latest_clip(&self, layer: LayerId) -> Option<(ColumnId, bool)> {
+        self.active
+            .get(&layer)
+            .into_iter()
+            .chain(
+                self.outgoing
+                    .iter()
+                    .filter(|outgoing| outgoing.layer == layer)
+                    .map(|outgoing| &outgoing.active),
+            )
+            .max_by_key(|active| active.order)
+            .map(|active| (active.key.column, active.key.individual))
+    }
     pub fn accepts(&self, prepared: &Prepared) -> bool {
         let owners = prepared
             .rows

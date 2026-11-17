@@ -15,6 +15,14 @@ pub(crate) struct Applications {
     cached: HashMap<Option<LayerId>, CapturedApplications>,
 }
 impl Applications {
+    pub(super) fn clip_references(&self, layer: LayerId, clip: uuid::Uuid) -> impl Iterator<Item = ApplicationId> + '_ {
+        self.clips
+            .get(&(clip, Some(layer)))
+            .into_iter()
+            .chain(self.clips.get(&(clip, None)))
+            .flatten()
+            .copied()
+    }
     pub fn layers(&self) -> impl Iterator<Item = LayerId> + '_ {
         self.clips
             .iter()

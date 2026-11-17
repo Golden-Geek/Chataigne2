@@ -113,6 +113,8 @@ impl Scene {
                     layer: *row,
                     settings: LayerSettings {
                         size: Extent2D::new(32, 24).unwrap(),
+                        // This retained fixture qualifies immediate scoped cuts.
+                        duration_ms: 0,
                         ..snapshot
                             .items
                             .iter()

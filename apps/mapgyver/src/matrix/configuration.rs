@@ -16,6 +16,14 @@ pub(crate) struct Configuration {
     pub layer_overrides: HashMap<LayerId, TransitionDefinition>,
     pub playable: HashSet<(LayerId, ColumnId)>,
 }
+impl Configuration {
+    pub(super) fn transition_for(&self, layer: LayerId, column: Option<ColumnId>) -> TransitionDefinition {
+        column
+            .and_then(|column| self.overrides.get(&column).and_then(|rows| rows.get(&layer)).copied())
+            .or_else(|| column.and_then(|column| self.transitions.get(&column).copied().flatten()))
+            .unwrap_or_else(|| self.layer_overrides.get(&layer).copied().unwrap_or(self.layer_base))
+    }
+}
 pub(crate) fn index(
     engine: &AppEngine,
     media: crate::media::protocol::MediaId,

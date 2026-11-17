@@ -482,7 +482,7 @@ fn matrix_disable_withdraws_shared_use_and_reenable_applies_the_current_activati
 }
 
 #[test]
-fn headless_layer_stop_withdraws_only_its_video_and_cancels_its_deadline() {
+fn headless_layer_stop_fades_only_its_video_and_releases_it_at_the_resolved_deadline() {
     let mut engine = fixture();
     let sources = [
         create(&mut engine, MediaKind::Video),
@@ -501,10 +501,17 @@ fn headless_layer_stop_withdraws_only_its_video_and_cancels_its_deadline() {
     for (row, source) in rows.iter().zip(sources) {
         assign(&mut engine, matrix.media, *row, column, source.media);
     }
-    configured(&mut engine, matrix.media, column, 5000);
+    configured(&mut engine, matrix.media, column, 80);
     assert!(clocks.iter().all(|control| control.sample().unwrap().playing));
     super::controls::pulse(&mut engine, rows[0].0, "stop");
     golden_core::application::service_script_app_operations(&mut engine).unwrap();
+    tick(&mut engine);
+    assert!(
+        clocks[0].sample().unwrap().playing,
+        "outgoing Video must keep advancing during the fade"
+    );
+    assert!(clocks[1].sample().unwrap().playing);
+    std::thread::sleep(Duration::from_millis(110));
     tick(&mut engine);
     assert_eq!(clocks[0].settings().unwrap().mode, VideoPlaybackMode::Stopped);
     assert!(clocks[1].sample().unwrap().playing);

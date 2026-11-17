@@ -11,6 +11,9 @@ use golden_core::{
 };
 use std::collections::{HashMap, HashSet};
 
+mod layer;
+pub(super) use layer::PreparedStop;
+
 #[derive(Default)]
 pub(super) struct Scope {
     pub columns: HashSet<ColumnId>,
@@ -122,6 +125,13 @@ fn scope(engine: &AppEngine, root: NodeId, owner: NodeUuid) -> Result<Scope, Str
 }
 
 pub(super) fn stop(engine: &mut AppEngine, media: MediaId, owner: NodeUuid) -> Result<MediaEditResult, String> {
+    if engine
+        .node_id_by_uuid(owner)
+        .and_then(|id| engine.nodes.get(id))
+        .is_some_and(|node| matches!(node, AppNode::MatrixElement(node) if node.is_layer()))
+    {
+        return layer::stop(engine, media, LayerId(owner));
+    }
     let root = super::playback::root(engine, media)?;
     let Some(AppNode::MediaChannel(channel)) = engine.nodes.get(root) else {
         unreachable!()

@@ -30,7 +30,8 @@ The current M13/6 slice provides these intrinsic Trigger Parameters:
 | Column                | `parameters/play`, `parameters/cut` | Configured transition or immediate launch of that Column.                                        |
 | Cell                  | `parameters/play`, `parameters/cut` | Independent launch on its Layer, preserving the Column anchor and other Layers.                  |
 | Matrix media          | `parameters/stop_all`               | Immediate Cut to empty across the base Column and every independent Layer request.               |
-| Layer / Layer Group   | `parameters/stop`                   | Cut every playing clip on that Layer / its current descendant Layers.                            |
+| Layer                 | `parameters/stop`                   | Fade the complete current mix using resolved Cell → Column → Layer duration/curve; zero cuts.     |
+| Layer Group           | `parameters/stop`                   | Cut every playing clip on its current descendant Layers.                                         |
 | Column / Column Group | `parameters/stop`                   | Cut matching Column clips across every Layer, including independent launches and outgoing clips. |
 | Cell                  | `parameters/stop`                   | Cut only that Layer/Column address, preserving other outgoing contributions on the Layer.        |
 
@@ -55,6 +56,21 @@ descends into Cell media or another Matrix. Cell/Layer stops retain the Column a
 Column-axis stops clear that anchor only when its selected Column is in the stopped scope.
 Affected Cell requests become empty instead of falling back to the Column. Unrelated
 contributions retain their original fade weights, curve and deadline.
+
+Direct Layer Stop is resolved in `matrix/stops/layer.rs`, using the latest requested
+playback destination on that Layer, including independent Cell launches. If the target
+has already been cleared, the most recent retained outgoing launch supplies its Column;
+the Layer fallback applies when its authored Column/Cell no longer exists. Current
+optional Cell/Column metadata determines precedence. One resolved transition fades all
+contributions together from their sampled weights; Inspector selection is not policy.
+Repeated Stop reuses the committed empty target and does not restart its deadline.
+
+`matrix/playback/layer_stop.rs` owns receipt-gated stop identities and logical outgoing
+application holds. A newer Play or immediate scoped Cut revokes only its affected holds.
+The existing Matrix deadline notifier expires headless holds and wakes application
+reconciliation; there is no main-thread polling. Rendered fades use shared timeline time,
+and renderer plan/final-use holds retain their independent GPU completion fences. Stops
+remain runtime state: they do not edit authored Parameters or create Undo entries.
 
 Deferred Cut filters are committed with the playback edit receipt. A private launch order
 separates historical clips from a later Play before the next capture. Suppressed targets

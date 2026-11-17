@@ -231,6 +231,34 @@ pub(crate) struct Timeline {
     pub applications: super::applications::Applications,
 }
 impl Timeline {
+    pub(super) fn latest_clip(&self, layer: LayerId, cuts: &super::stops::Cuts) -> Option<Clip> {
+        self.frame
+            .layer(layer)
+            .clips
+            .iter()
+            .map(|entry| entry.clip)
+            .filter(|clip| !cuts.removes(Some(layer), *clip))
+            .max_by_key(|clip| clip.order)
+    }
+    pub(super) fn retained_applications(
+        &self,
+        layer: LayerId,
+    ) -> Vec<(ColumnId, crate::applications::protocol::ApplicationId)> {
+        self.frame
+            .layer(layer)
+            .clips
+            .iter()
+            .flat_map(|entry| {
+                self.applications
+                    .clip_references(layer, entry.clip.id)
+                    .map(|application| (entry.clip.column, application))
+            })
+            .collect()
+    }
+    pub(super) fn stop_finished(&self, layer: LayerId, launch: uuid::Uuid) -> bool {
+        let frame = self.frame.layer(layer);
+        frame.target == Some(launch) && frame.clips.is_empty()
+    }
     pub(super) fn next_video_interval(&self) -> Option<Interval> {
         self.frame.next
     }

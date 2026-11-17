@@ -1,0 +1,42 @@
+{
+  "scope": "M14/10 functional feature milestone; complete qualification remains Pending",
+  "base_commit": "41a7653cf0c722c11c95f7ff9689800d48281882",
+  "software": {
+    "native_feature_library_passed": 728,
+    "native_feature_library_ignored": 8,
+    "raster_software_passed": 8,
+    "focused_scoped_stop_passed": 15,
+    "strict_all_target_clippy": "pass; native-qualification,application-process-fixture; warnings denied",
+    "ui_static": "0 errors, 0 warnings"
+  },
+  "native": {
+    "test": "native_layer_position_canvas_and_undo_preserve_source_pixel_size_on_each_adapter",
+    "executable_sha256": "078aff6a527ca2c3ce1d16705c3c1fe3ef1ebd4895f28b848d41b8820504a404",
+    "result": "pass",
+    "elapsed_seconds": 12.89,
+    "watchdog_seconds": 90,
+    "intel_alpha": [251, 224, 0],
+    "nvidia_alpha": [252, 225, 0],
+    "whole_images": 24,
+    "whole_image_texels": 18432,
+    "maximum_byte_residual": 0,
+    "outputs_and_preview_per_adapter": 3,
+    "retirement": "plan live0; created=released; outputs/sources empty",
+    "limit": "Four partial-alpha samples establish advancing fades; no complete timing envelope or process/final-use retirement claim"
+  },
+  "bundled_ui": {
+    "pid": 44996,
+    "executable_sha256": "9e2145f9999a157b356e830f65331c4b1c8e20bb065b41e935a91f75fe3971a6",
+    "result": "pass",
+    "runner_exit_code": 0,
+    "receipt": "target/m14-layer-stop-controls-2026-11-17/result.json",
+    "scope": "Six grid/Inspector control scopes, exact Parameters, sparse creation,30 transport cycles, history and project reload",
+    "errors": []
+  },
+  "remaining": [
+    "Complete timed-alpha envelopes and native override/caller combinations",
+    "Process and final-GPU-use retirement qualification",
+    "Deletion/project replacement/shared-consumer cases"
+  ],
+  "next_feature": "M14/8 4x AA"
+}

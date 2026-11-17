@@ -108,13 +108,22 @@ pub fn capture_logical_applications(engine: &AppEngine) -> Result<LogicalApplica
                     .map(|(_, application)| *application),
             );
         }
-        let holds = holds
+        let mut holds = holds
             .into_iter()
             .map(|application| DemandHold {
                 application,
                 reason: DemandReason::Preparation,
             })
             .collect::<Vec<_>>();
+        holds.extend(
+            control
+                .layer_stop_applications()
+                .into_iter()
+                .map(|application| DemandHold {
+                    application,
+                    reason: DemandReason::Outgoing,
+                }),
+        );
         matrices.push((axis, cursors, holds));
     }
     let inputs = matrices

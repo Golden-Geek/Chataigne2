@@ -109,6 +109,7 @@ impl PlaybackControl {
         engine.edits.push(Edit::EmitCustomEvent { event });
         let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
         state.pending = Some(Pending {
+            layer_stop: None,
             videos: Some(plan),
             desired: state.current.clone(),
             receipt: engine.edits.completion(),

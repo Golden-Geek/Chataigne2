@@ -15,6 +15,7 @@ use std::sync::{
     Arc, Mutex, OnceLock, Weak,
     atomic::{AtomicBool, Ordering},
 };
+mod layer_stop;
 mod reconcile;
 mod timing;
 
@@ -37,6 +38,8 @@ struct Control {
 }
 #[derive(Default)]
 struct State {
+    layer_stops: std::collections::HashMap<LayerId, layer_stop::LayerStop>,
+    active_layer_stops: std::collections::HashSet<LayerId>,
     videos: super::video::Playback,
     video_plan: Option<Arc<super::video::Prepared>>,
     video_enabled: bool,
@@ -63,6 +66,7 @@ struct State {
     application_axis: Option<(u64, Arc<super::application_axis::ApplicationAxis>)>,
 }
 struct Pending {
+    layer_stop: Option<super::stops::PreparedStop>,
     videos: Option<Arc<super::video::Prepared>>,
     desired: MatrixPlaybackSnapshot,
     receipt: EditCompletion,
@@ -192,6 +196,11 @@ impl PlaybackControl {
             }
         }
         state.advance_videos();
+        let headless = state.video_time.is_none().then(std::time::Instant::now);
+        if state.finish_layer_stops(headless) {
+            self.notify_applications();
+            state.schedule_video_deadline();
+        }
         state.video_error.clone()
     }
     pub(super) fn configuration(&self) -> Option<Arc<super::configuration::Configuration>> {
@@ -270,6 +279,9 @@ impl PlaybackControl {
         let State { timeline, videos, .. } = &mut *state;
         timeline.settle(time);
         videos.retain_timeline(timeline);
+        if state.finish_layer_stops(None) {
+            self.notify_applications();
+        }
         state.observe_video_time(time);
         state.schedule_video_deadline();
     }
@@ -300,6 +312,9 @@ impl PlaybackControl {
         *cuts = super::stops::Cuts::default();
         videos.retain_frame(&frame);
         let result = capture(timeline, &frame, &desired).map(Some);
+        if state.finish_layer_stops(None) {
+            self.notify_applications();
+        }
         if let Some(time) = time {
             state.observe_video_time(time);
         }
@@ -352,6 +367,7 @@ impl PlaybackControl {
                         stop,
                         videos,
                         refresh,
+                        layer_stop,
                         ..
                     } = state.pending.take().unwrap();
                     if refresh {
@@ -377,6 +393,7 @@ impl PlaybackControl {
                     if stop.is_none() && desired.desired_column.is_none() && desired.layers.is_empty() {
                         state.cuts.stop_all(order);
                     }
+                    state.commit_layer_stop(&desired, layer_stop, stop.as_ref());
                     if let Some(stop) = stop {
                         state.cuts.extend(stop, order);
                     }
@@ -431,6 +448,16 @@ impl PlaybackControl {
         stop: Option<super::stops::Scope>,
         videos: Option<Arc<super::video::Prepared>>,
     ) {
+        self.stage_request(desired, receipt, stop, videos, None);
+    }
+    fn stage_request(
+        &self,
+        desired: MatrixPlaybackSnapshot,
+        receipt: EditCompletion,
+        stop: Option<super::stops::Scope>,
+        videos: Option<Arc<super::video::Prepared>>,
+        layer_stop: Option<super::stops::PreparedStop>,
+    ) {
         // Preserve an earlier committed request even when the next request later fails.
         self.snapshot();
         self.0.state.lock().expect("Matrix playback lock poisoned").pending = Some(Pending {
@@ -440,6 +467,7 @@ impl PlaybackControl {
             stop,
             videos,
             refresh: false,
+            layer_stop,
         });
         // Conservative invalidation may also trigger recapture after an aborted request.
         self.0.revision.advance();
@@ -691,11 +719,9 @@ pub(super) fn launch_cell(
     if !index.layers.contains(&layer) {
         return Err("Layer belongs to another Matrix or is missing".into());
     }
-    let fallback = index
-        .transitions
-        .get(&column)
-        .ok_or("Column belongs to another Matrix or is missing")?
-        .unwrap_or_else(|| index.layer_overrides.get(&layer).copied().unwrap_or(index.layer_base));
+    if !index.transitions.contains_key(&column) {
+        return Err("Column belongs to another Matrix or is missing".into());
+    }
     if index
         .cell_nodes
         .get(&(layer, column))
@@ -706,15 +732,7 @@ pub(super) fn launch_cell(
             snapshot: control.snapshot(),
         });
     }
-    let transition = selected_transition(
-        index
-            .overrides
-            .get(&column)
-            .and_then(|overrides| overrides.get(&layer))
-            .copied()
-            .unwrap_or(fallback),
-        mode,
-    );
+    let transition = selected_transition(index.transition_for(layer, Some(column)), mode);
     let admitted = {
         let state = control.0.state.lock().expect("Matrix playback lock poisoned");
         state
