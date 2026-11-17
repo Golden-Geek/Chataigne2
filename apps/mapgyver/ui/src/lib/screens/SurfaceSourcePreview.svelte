@@ -11,6 +11,7 @@
 	import CropHandles from './CropHandles.svelte';
 	let {
 		surface,
+		inputAvailable,
 		selected,
 		select,
 		onselectionclear,
@@ -22,6 +23,7 @@
 		stop
 	}: {
 		surface: SurfaceSnapshot;
+		inputAvailable: boolean;
 		selected: boolean;
 		select(handle: 'origin' | 'size'): boolean;
 		onselectionclear(): void;
@@ -56,6 +58,7 @@
 			bind:this={cropControls}
 			{surface}
 			{selected}
+			selectionAvailable={inputAvailable}
 			{select}
 			{presentation}
 			onoverlays={setOverlays}
@@ -74,13 +77,15 @@
 		aspect={extent ? extent.width / extent.height : 16 / 9}
 		identity={`${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}`}
 		selection={selected ? pointBounds(cropCorners(surface, presentation)) : null}
-		{onselectionclear}
+		onselectionclear={() => {
+			if (inputAvailable) onselectionclear();
+		}}
 		onkeydown={(event) => cropControls?.keydown(event)}
 		label="Surface source view"
 		native={identity !== null}>
 		{#if identity}
 			<NativePreview
-				nativeInput
+				nativeInput={inputAvailable}
 				nativeBackdrop
 				lifetime={`${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}`}
 				onpresentationchange={presentationChanged}

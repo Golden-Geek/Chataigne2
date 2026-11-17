@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
-import { observeRejectedRequests } from './intent-observer.mjs';
+import { observeRejectedRequests, observeNativeRejectedRequests } from './intent-observer.mjs';
 import { screenParameterControls, surfaceParameterLabels } from './screen-parameters.mjs';
 import { contentLock } from './content-lock.mjs';
 
@@ -21,7 +21,8 @@ export async function verifySurfaceSourceUi({
 	post,
 	media,
 	inspectMedia,
-	page: nativePage = null
+	page: nativePage = null,
+	verifyAdditional
 }) {
 	const browser = nativePage ? null : await chromium.launch({ headless: true });
 	const page = nativePage ?? (await browser.newPage({ viewport: { width: 1440, height: 1000 } }));
@@ -30,7 +31,8 @@ export async function verifySurfaceSourceUi({
 	const errors = [];
 	page.on('pageerror', (error) => errors.push(String(error)));
 	let stage = 'startup';
-	const rejected = observeRejectedRequests(page, () => stage);
+	const nativeReceipts = nativePage ? await observeNativeRejectedRequests(page, () => stage) : null;
+	const rejected = nativeReceipts?.rejected ?? observeRejectedRequests(page, () => stage);
 	let history;
 	try {
 		async function screens() {
@@ -320,9 +322,20 @@ export async function verifySurfaceSourceUi({
 				'foreign cancellation cannot retire the owned pointer'
 			);
 			if (boundary === 'pointercancel') await svg.dispatchEvent('pointercancel', { pointerId });
-			else if (boundary === 'lostpointercapture')
-				await svg.evaluate((element, id) => element.releasePointerCapture(id), pointerId);
-			else await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+			else if (boundary === 'lostpointercapture') {
+				await svg.evaluate((element, id) => {
+					const owner = element.hasPointerCapture(id)
+						? element
+						: element.closest('[data-native-preview-backdrop]');
+					if (!owner?.hasPointerCapture(id)) throw Error('The crop capture owner must be observed');
+					owner.releasePointerCapture(id);
+				}, pointerId);
+				// Flush pending capture loss before checking the logical control cancellation.
+				await page.mouse.move(
+					cancelledBox.x + cancelledBox.width * 0.1,
+					cancelledBox.y + cancelledBox.height * 0.1
+				);
+			} else await page.evaluate(() => window.dispatchEvent(new Event('blur')));
 			await wait(
 				() => panel.getByRole('button', { name: 'Crop pointer', includeHidden: true }).count(),
 				(count) => count === 0
@@ -832,6 +845,13 @@ export async function verifySurfaceSourceUi({
 			independentHistory,
 			'independent editor selection cannot author history'
 		);
+		const additional = await verifyAdditional?.({
+			mainId,
+			peerId,
+			first,
+			peer,
+			source: source.reference
+		});
 		await page
 			.locator(`.gc-dv-tab[data-content-panel-id="${peerId}"]`)
 			.getByRole('button', { name: 'Close panel', exact: true })
@@ -863,6 +883,14 @@ export async function verifySurfaceSourceUi({
 				native_pixel_alignment: 'not established by DOM input or installation assertions'
 			})
 		);
+		return {
+			surface: first.reference,
+			source: source.reference,
+			additional,
+			observed: nativeReceipts?.observed,
+			rejected,
+			errors
+		};
 	} catch (error) {
 		console.error(
 			JSON.stringify({

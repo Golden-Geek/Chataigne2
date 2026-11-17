@@ -54,6 +54,7 @@
 	let gridMode = $state(false);
 	let cropEditing = $state(false);
 	let cropBusy = $state(false);
+	let cropInputAvailable = $state(true);
 	let warpBusy = $state(false);
 	let warpSelectionAvailable = $state(true);
 	let warpCorner = $state<number | null>(null);
@@ -168,6 +169,8 @@
 	<output aria-label="Geometry starts">{edits}</output>
 	<button onclick={() => (spatialBusy = !spatialBusy)}>Toggle spatial metadata busy</button>
 	<button onclick={() => (warpBusy = !warpBusy)}>Toggle warp metadata busy</button>
+	<button onclick={() => (cropInputAvailable = !cropInputAvailable)}
+		>Toggle crop input availability</button>
 	<button onclick={() => (warpSelectionAvailable = !warpSelectionAvailable)}>
 		Toggle warp input availability
 	</button>
@@ -215,6 +218,7 @@
 			}} />
 	{:else if sourceMode}
 		<SurfaceSourcePreview
+			inputAvailable={cropInputAvailable}
 			surface={cropSurface}
 			selected={selected === 'crop-origin' || selected === 'crop-size'}
 			disabled={cropBusy}

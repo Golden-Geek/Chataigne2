@@ -4,7 +4,20 @@ Updated 2026-11-17. Golden owns reusable input/capture/selection dispatch; app a
 their edited owners and shared Inspector selection. M14/1 is **Active, unaccepted**.
 Overall acceptance is92/106 (87%), M14 4/10 after accepted gates3–5,7.
 
-**Current result:** Screen Warping now cancels both native and DOM capture when document input
+**Current Source result:** Shared workbench admission, unexpected capture-loss cancellation,
+projected-control focus and tool-first native Escape are implemented. The preview browser suite,
+68 preview tests, both UI typechecks, production controls and the complete original headless
+Source contract pass. Native Intel confirms captured Escape, retired pointer input and exact
+Undo. Reconnect still splits one drag across history: one Undo retains its first accepted sample
+instead of restoring the pre-drag scene. Keep the failing native regression and correct shared
+request/edit-group lifetime on disconnect next. Remaining Source lifetime and physical/native
+image checks are unaccepted. See the [checkpoint](evidence/mapgyver-m14-source-capture-2026-11-17.json).
+The final NVIDIA Screen audit also rejects a queued old-Screen geometry request after New
+(`screen reference is missing`). The lifetime callback returned, but this rejection prevents
+complete current native qualification. Correct the same queued-request ownership boundary;
+older passing Screen receipts retain only their exact builds and scopes.
+
+**Retained Screen result:** Screen Warping cancels both native and DOM capture when document input
 becomes unavailable. The real baseline retained capture across reconnect; the corrected app
 passes overlap selection in both authored orders, offscreen and bounded off-page typed Inspector editing, captured
 Escape/Undo, real reconnect without late writes, New during a held drag and exact Load recovery
@@ -26,8 +39,8 @@ does not qualify129-Surface rendering. Earlier
 
 The native desktop skill's21:28 availability check still returns native-pipe error2; no desktop
 input was sent. Native previews install on the actual selected GPUs, but physical input and
-independent pixel/hit alignment remain unverified. Next: remaining Surface Source offscreen,
-capture/reconnect/project and Composition/Matrix scope. Other unfinished
+independent pixel/hit alignment remain unverified. Next: correct Source reconnect history,
+then its remaining lifetime and Composition/Matrix scope. Other unfinished
 MapGyver inventory rows remain Pending; no fixed gate credit until all required scope passes.
 
 **2026-11-16 user priority revision:** this gate selects only remaining MapGyver scope.
@@ -388,7 +401,7 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | --- | --- | --- |
 | Golden `Viewport2D` | Browser verified primary-down/idle Escape, child/text/tool isolation, navigation and camera lifetime | Complete independent-editor, capture/cancel and app adapter acceptance |
 | Screen Warping / Screen | Actual owned WebView/Inspector on Intel/NVIDIA proves before-release Surface/background selection, overlap in both authored orders against accepted native hit metadata, independent corners/locked peers, offscreen and bounded off-page typed editing, captured Escape/Undo, reconnect capture retirement, held-drag New and exact Load. The complete seven-stage flow passes with128 visible definitions plus independently selected Surface/129 bindings. Zero observed rejected requests/page errors; two installed previews and normal exit0 per GPU. Browser admission-revocation regression also passes | Physical native input and independent image/control/hit agreement; renderer admission remains128 and larger rendering is not qualified |
-| Surface Source / Surface | Real bundled UI/backend verifies Origin and Size selection/Inspector before release, owner clearing, captured cancellation without history, active Escape and two independent locked Source editors; full parameter/source/history/live crop suite passes; shared hover/native paint declarations remain | Actual current native pixel/hit agreement, offscreen and project/snapshot interaction acceptance |
+| Surface Source / Surface | Original complete headless parameter/crop/Inspector/history and production DOM availability-withdrawal checks pass. Shared native capture-loss/focus/tool-first Escape corrections pass browser regressions; actual Intel confirms captured Escape and exact Undo with independent owners | Reconnect splits accepted samples into separate Undo steps: fix shared request/group ownership and retain the failing native regression. Complete unavailable-source peer, offscreen and New/Load stages on both GPUs, plus physical native image/hit/input agreement |
 | Composition / Composition media | Real bundled UI/backend verifies before-release child/background selection and Inspector, no implicit first child, independent locked peers, owner/idle Escape, exact no-history selection,130-child off-page editing, reconnect/copy/removal/project replacement; shared selection/edit admission fixes busy reselection; hover and unavailable-bounds DOM checks pass | Physical native input/pixel agreement, overlapping hit order and remaining complete active-gesture/lifetime acceptance |
 | Matrix Layer spatial / Matrix media | Actual MapGyver WebView on Intel/NVIDIA verifies before-release selection/Inspector, hover without handles, owner clearing and independent locked Layer/Cell scopes. Captured Escape, exact Undo, no late writes after reconnect, New during held Cell input and exact Load recovery pass with zero rejected requests; installed previews and actual GPU identity are observed | Physical native input/pixel/hit agreement, overlap and active/outgoing selection parity remain open; earlier off-page typed Inspector evidence retains its tested scope |
 | Matrix Cell spatial / Layer | The same both-GPU actual-app flow includes disabled-Cell selection, Layer-owner clearing without navigation, recognized Matrix focus and unrelated locked-content retention. Capture cancels before idle-owner Escape; real reconnect and project replacement retire input while history/playback remain exact | Physical native input/pixel/hit agreement, overlap, off-page spatial and active/outgoing selection parity remain open |

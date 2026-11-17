@@ -389,6 +389,34 @@ try {
 	assert.equal(await page.getByLabel('Crop finishes').textContent(), '1');
 	assert.equal(await page.getByLabel('Crop stops').textContent(), '1');
 	assert(Number(await page.getByLabel('Crop moves').textContent()) >= 2);
+	await page.mouse.move(at.x, at.y);
+	await page.mouse.down();
+	await page.mouse.move(at.x + 12, at.y + 6);
+	const movesBeforeLoss = await page.getByLabel('Crop moves').textContent();
+	const availabilityToggle = page.getByRole('button', {
+		name: 'Toggle crop input availability',
+		exact: true
+	});
+	await availabilityToggle.evaluate((node) => {
+		if (node instanceof HTMLElement) node.click();
+	});
+	assert.equal(
+		await page.getByLabel('Crop stops').textContent(),
+		'2',
+		'Input withdrawal cancels an active DOM crop'
+	);
+	assert.equal(await crop.evaluate((node) => node.hasPointerCapture(1)), false);
+	await availabilityToggle.evaluate((node) => {
+		if (node instanceof HTMLElement) node.click();
+	});
+	await page.mouse.move(at.x + 25, at.y + 12);
+	await page.mouse.up();
+	assert.equal(
+		await page.getByLabel('Crop moves').textContent(),
+		movesBeforeLoss,
+		'Restored input cannot resume the held crop'
+	);
+	assert.equal(await page.getByLabel('Crop finishes').textContent(), '1');
 	await gridSelectionChecks(page);
 	assert.deepEqual(errors, []);
 	console.log(

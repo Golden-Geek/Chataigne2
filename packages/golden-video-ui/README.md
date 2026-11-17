@@ -49,8 +49,13 @@ Native input uses an accepted-frame query to admit a pointer target. When that c
 cohort for the drag. Captured moves project locally without another IPC or animation-frame
 poll; coordinates remain unclamped outside the image. Terminal hit/click testing still queries
 the native frame, while the final geometry sample keeps the admitted drag's coordinate basis.
-Bounds/DPR changes, source/session replacement, Escape, blur and disposal cancel ownership;
-an outdated query cannot revive it. Hover and uncaptured input retain serialized native queries.
+Bounds/DPR changes, source/session replacement, unexpected viewport capture loss, Escape, blur
+and disposal cancel ownership; an outdated query cannot revive it. Normal mouse-up may release
+OS capture while its terminal hit request is pending, so that admitted completion keeps its
+owner. Hover and uncaptured input retain serialized native queries.
+Admitted pointer-down focuses its control or focusable viewport ancestor. While a native pointer
+is owned, capture-phase Escape cancels it before a child can consume the bubbling key; it leaves
+idle Escape with the editor's selection policy.
 This removes a control-delivery dependency, not the renderer's presentation cadence. Physical
 high-refresh pacing and native/DOM alignment still require separate validation.
 

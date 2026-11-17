@@ -64,6 +64,9 @@
 	const { view, controller, gestureState, gesture } = owner;
 	const screen = $derived(owner.screen),
 		surface = $derived(owner.surface);
+	const inputAvailable = $derived(
+		appState.session?.status === 'connected' && !appState.session.loading.visible
+	);
 	const cropParameters = $derived(
 		controller.page?.parameters.find((binding) => binding.surface === surface?.reference.surface)
 	);
@@ -203,6 +206,7 @@
 			</p>{/if}
 		{#if editor === 'screen' && screen}
 			<ScreenPreview
+				{inputAvailable}
 				presentation={owner.presentation}
 				{actions}
 				{screen}
@@ -217,6 +221,7 @@
 				stop={() => gesture.stop()} />
 		{:else if editor === 'source' && surface}
 			<SurfaceSourcePreview
+				{inputAvailable}
 				presentation={owner.presentation}
 				{surface}
 				selected={cropSelected}

@@ -15,6 +15,7 @@
 	import { surfaceQuad } from './gesture-presentation';
 	let {
 		screen,
+		inputAvailable,
 		presentation = null,
 		selected,
 		disabled,
@@ -28,6 +29,7 @@
 		actions
 	}: {
 		screen: ScreenSnapshot;
+		inputAvailable: boolean;
 		presentation?: SurfacePresentation | null;
 		selected: SurfaceId | null;
 		disabled: boolean;
@@ -75,9 +77,6 @@
 			if (pixelsActive()) stop();
 		}
 	});
-	const inputAvailable = $derived(
-		appState.session?.status === 'connected' && !appState.session.loading.visible
-	);
 	$effect(() =>
 		keyboard.observe(
 			inputAvailable ? keyboardTarget : null,

@@ -14,6 +14,7 @@
 	let {
 		crop,
 		selected,
+		selectionAvailable,
 		select,
 		surface,
 		presentation = null,
@@ -26,6 +27,7 @@
 	}: {
 		crop: UnitRect;
 		selected: boolean;
+		selectionAvailable: boolean;
 		select(handle: 'origin' | 'size'): boolean;
 		surface: SurfaceSnapshot;
 		presentation?: SurfacePresentation | null;
@@ -53,7 +55,7 @@
 		onoverlays(cropOverlays(corners, selected, ghost, overlayRem(), hovered));
 	});
 	$effect(() => {
-		if (!selected) cancel();
+		if (!selected || !selectionAvailable) cancel();
 	});
 	function point(event: PointerEvent): Point | null {
 		const rect = canvas.getBoundingClientRect();
@@ -65,7 +67,7 @@
 			: null;
 	}
 	function down(event: PointerEvent, handle: SurfaceHandle) {
-		if (drag || event.button !== 0 || event.defaultPrevented) return;
+		if (!selectionAvailable || drag || event.button !== 0 || event.defaultPrevented) return;
 		const editable = !disabled;
 		event.preventDefault();
 		event.stopPropagation();
@@ -155,7 +157,8 @@
 		}}
 		data-native-hit-id="crop"
 		role="button"
-		tabindex="0"
+		tabindex={selectionAvailable ? 0 : -1}
+		aria-disabled={!selectionAvailable}
 		aria-label="Select source crop"
 		aria-pressed={selected}
 		class:selected
@@ -164,14 +167,14 @@
 		width={bounds.width}
 		height={bounds.height}
 		onkeydown={(event) => {
-			if (event.key === 'Enter' || event.key === ' ') {
+			if (selectionAvailable && (event.key === 'Enter' || event.key === ' ')) {
 				event.preventDefault();
 				event.stopPropagation();
 				select('origin');
 			}
 		}}
 		onclick={(event) => {
-			if (event.detail === 0) select('origin');
+			if (selectionAvailable && event.detail === 0) select('origin');
 		}}
 		onpointerdown={(event) => down(event, { kind: 'CropOrigin' })} />
 </svg>
@@ -183,9 +186,10 @@
 			x={corner.x}
 			y={corner.y}
 			label={`Crop corner ${index + 1}`}
+			disabled={!selectionAvailable}
 			aria-disabled={disabled}
 			onclick={(event) => {
-				if (event.detail === 0) select('size');
+				if (selectionAvailable && event.detail === 0) select('size');
 			}}
 			onpointerdown={(event) => down(event, { kind: 'CropCorner', corner: index })} />
 	{/each}{/if}

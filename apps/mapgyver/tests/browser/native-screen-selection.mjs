@@ -8,6 +8,8 @@ import { openNativeEditor } from './native-editor.mjs';
 import { adapterKey, observeNativeAdapter } from './native-adapter.mjs';
 import { verifyScreenSelection } from './screen-selection.mjs';
 import { verifyScreenSelectionLifetime } from './screen-selection-lifetime.mjs';
+import { verifySurfaceSourceUi } from './surface-source.mjs';
+import { verifySourceSelectionLifetime } from './source-selection-lifetime.mjs';
 
 const directory = path.resolve(process.argv[2]);
 const gpuIndex = Number(process.argv[3]);
@@ -63,41 +65,74 @@ async function post(route, body) {
 }
 try {
 	token = (await post('/api/ui/session', {})).token;
-	const contract = await verifyScreenSelection({
-		base: native.base,
-		post,
-		page: native.page,
-		beforeNew: async (scene) => {
-			const lifetime = await verifyScreenSelectionLifetime({
-				page: native.page,
-				post,
-				scene,
-				directory
+	let contract;
+	if (process.argv.includes('--source')) {
+		async function edit(payload) {
+			const ack = await post('/api/ui/intent', {
+				kind: 'invokeAppOperation',
+				namespace: 'mapgyver.media',
+				operation: 'edit',
+				payload
 			});
-			const adapter = await observeNativeAdapter(native.page, hardware);
-			assert.equal(adapter.index, gpuIndex);
-			await native.page.waitForFunction(
-				() => {
-					const views = [
-						...document.querySelectorAll(
-							'.workbench-editor[data-panel-type="screenWarp"] .native-preview'
-						)
-					].filter((node) => node.getBoundingClientRect().width > 0);
-					return (
-						views.length === 2 &&
-						views.every(
-							(node) =>
-								node.dataset.previewInstalled === 'true' &&
-								node.dataset.previewState === 'available'
-						)
-					);
-				},
-				null,
-				{ timeout: 7000 }
-			);
-			return { lifetime, adapter, installed_previews: 2 };
+			assert(ack.success, JSON.stringify(ack));
+			return ack.result.value;
 		}
-	});
+		await edit({ kind: 'CreateMedia', media_kind: 'SolidColor', label: 'Native source crop' });
+		const inspectMedia = async () => (await edit({ kind: 'InspectManager' })).snapshot;
+		contract = await verifySurfaceSourceUi({
+			base: native.base,
+			post,
+			page: native.page,
+			media: await inspectMedia(),
+			inspectMedia,
+			verifyAdditional: async (scene) => {
+				const lifetime = await verifySourceSelectionLifetime({
+					page: native.page,
+					post,
+					scene,
+					directory
+				});
+				const adapter = await observeNativeAdapter(native.page, hardware);
+				assert.equal(adapter.index, gpuIndex);
+				return { lifetime, adapter };
+			}
+		});
+	} else
+		contract = await verifyScreenSelection({
+			base: native.base,
+			post,
+			page: native.page,
+			beforeNew: async (scene) => {
+				const lifetime = await verifyScreenSelectionLifetime({
+					page: native.page,
+					post,
+					scene,
+					directory
+				});
+				const adapter = await observeNativeAdapter(native.page, hardware);
+				assert.equal(adapter.index, gpuIndex);
+				await native.page.waitForFunction(
+					() => {
+						const views = [
+							...document.querySelectorAll(
+								'.workbench-editor[data-panel-type="screenWarp"] .native-preview'
+							)
+						].filter((node) => node.getBoundingClientRect().width > 0);
+						return (
+							views.length === 2 &&
+							views.every(
+								(node) =>
+									node.dataset.previewInstalled === 'true' &&
+									node.dataset.previewState === 'available'
+							)
+						);
+					},
+					null,
+					{ timeout: 7000 }
+				);
+				return { lifetime, adapter, installed_previews: 2 };
+			}
+		});
 	assert.deepEqual(errors, []);
 	result = {
 		result: 'pass',

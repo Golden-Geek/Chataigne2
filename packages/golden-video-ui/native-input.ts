@@ -29,6 +29,7 @@ export function observeNativeInput(
 		hit: string | null;
 		capture: Element | null;
 		started: boolean;
+		ending: boolean;
 		projection: { native: PreviewPointer['rect']; dom: PreviewPointer['rect']; dpr: number } | null;
 	} | null = null;
 	let hovered: Element | null = null;
@@ -178,8 +179,13 @@ export function observeNativeInput(
 						continue;
 					}
 					beginning.projection = { native: { ...sample.rect }, dom, dpr: devicePixelRatio };
-					if (beginning.target)
+					if (beginning.target) {
+						// Projected pointer events have no browser focus default action.
+						beginning.target
+							.closest<HTMLElement | SVGElement>('[tabindex],button,input,select,textarea,a[href]')
+							?.focus({ preventScroll: true });
 						beginning.capture = dispatch('pointerdown', beginning.target, event, sample);
+					}
 				} else if (active) {
 					const destination = active.capture ?? active.target;
 					if (!destination?.isConnected) {
@@ -210,6 +216,7 @@ export function observeNativeInput(
 			hit: null,
 			capture: null,
 			started: false,
+			ending: false,
 			projection: null
 		};
 		root.setPointerCapture(event.pointerId);
@@ -233,6 +240,7 @@ export function observeNativeInput(
 		if (!owns(event) || !active || event.pointerId !== active.down.pointerId) return;
 		event.preventDefault();
 		event.stopPropagation();
+		active.ending = true;
 		terminal = event;
 		void drain();
 	}
@@ -240,6 +248,11 @@ export function observeNativeInput(
 		if (!owns(event) || !active || event.pointerId !== active.down.pointerId) return;
 		event.stopPropagation();
 		cancel();
+	}
+	function lostCapture(event: PointerEvent) {
+		// Physical up releases OS capture while its accepted native terminal query can
+		// still be queued. Unexpected loss during a held pointer cancels that control.
+		if (!active?.ending) cancelled(event);
 	}
 	function blockHover(event: Event) {
 		if (!owns(event)) return;
@@ -263,7 +276,13 @@ export function observeNativeInput(
 		}
 	}
 	function key(event: KeyboardEvent) {
-		if (event.key === 'Escape') cancel();
+		if (event.key === 'Escape' && active) {
+			if (!active.ending) {
+				event.preventDefault();
+				event.stopPropagation();
+			}
+			cancel();
+		}
 	}
 	function geometryChanged() {
 		const projection = active?.projection;
@@ -279,11 +298,12 @@ export function observeNativeInput(
 	root.addEventListener('pointermove', move, true);
 	root.addEventListener('pointerup', up, true);
 	root.addEventListener('pointercancel', cancelled, true);
+	root.addEventListener('lostpointercapture', lostCapture, true);
 	root.addEventListener('click', click, true);
 	for (const name of ['pointerenter', 'pointerleave', 'pointerover', 'pointerout'])
 		root.addEventListener(name, blockHover, true);
 	window.addEventListener('blur', cancel);
-	window.addEventListener('keydown', key);
+	window.addEventListener('keydown', key, true);
 	window.addEventListener('resize', geometryChanged);
 	window.addEventListener('scroll', geometryChanged, true);
 	return () => {
@@ -293,11 +313,12 @@ export function observeNativeInput(
 		root.removeEventListener('pointermove', move, true);
 		root.removeEventListener('pointerup', up, true);
 		root.removeEventListener('pointercancel', cancelled, true);
+		root.removeEventListener('lostpointercapture', lostCapture, true);
 		root.removeEventListener('click', click, true);
 		for (const name of ['pointerenter', 'pointerleave', 'pointerover', 'pointerout'])
 			root.removeEventListener(name, blockHover, true);
 		window.removeEventListener('blur', cancel);
-		window.removeEventListener('keydown', key);
+		window.removeEventListener('keydown', key, true);
 		window.removeEventListener('resize', geometryChanged);
 		window.removeEventListener('scroll', geometryChanged, true);
 		resize.disconnect();

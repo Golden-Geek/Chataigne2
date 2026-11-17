@@ -16,6 +16,11 @@ export async function verifyNativeInput(browser, base) {
 		assert(trace.some((event) => event.kind === 'down' && Math.abs(event.x - 0.2) < 0.0001));
 		assert(trace.some((event) => event.kind === 'up' && Math.abs(event.x - 0.2) < 0.0001));
 		assert(!trace.some((event) => event.kind === 'right'));
+		assert.equal(
+			await page.evaluate(() => document.activeElement?.getAttribute('data-native-hit-id')),
+			'left',
+			'Accepted native control receives keyboard focus'
+		);
 		await page.mouse.move(130, 220);
 		await page.mouse.down();
 		await page.mouse.move(450, 400, { steps: 25 });
@@ -89,6 +94,60 @@ export async function verifyNativeInput(browser, base) {
 			!changedGeometry.some((e) => e.kind === 'move' || e.kind === 'up'),
 			'a changed projection never commits in a stale coordinate basis'
 		);
+		const beforeLoss = await page.evaluate(() => window.__nativeInput.trace.length);
+		await page.mouse.move(130, 220);
+		await page.mouse.down();
+		await page.waitForFunction(
+			(before) => window.__nativeInput.trace.slice(before).some((event) => event.kind === 'down'),
+			beforeLoss
+		);
+		await page.locator('[data-native-preview-backdrop]').evaluate((node) => {
+			if (!node.hasPointerCapture(1)) throw Error('Native viewport must own capture');
+			node.releasePointerCapture(1);
+		});
+		const released = await page.evaluate(() => window.__nativeInput.trace.length);
+		await page.mouse.move(145, 225);
+		await page.mouse.up();
+		await page.waitForFunction(
+			(before) => window.__nativeInput.trace.slice(before).some((event) => event.kind === 'cancel'),
+			beforeLoss,
+			{ timeout: 3000 }
+		);
+		const afterLoss = await page.evaluate(
+			(before) => window.__nativeInput.trace.slice(before),
+			released
+		);
+		assert(
+			!afterLoss.some((event) => ['move', 'up', 'left', 'right'].includes(event.kind)),
+			'Lost viewport capture cannot resume or commit logical control input'
+		);
+		const beforeEscape = await page.evaluate(() => window.__nativeInput.trace.length);
+		await page.mouse.move(130, 220);
+		await page.mouse.down();
+		await page.waitForFunction(
+			(before) => window.__nativeInput.trace.slice(before).some((event) => event.kind === 'down'),
+			beforeEscape
+		);
+		await page
+			.locator('[data-native-hit-id="left"]')
+			.evaluate((node) =>
+				node.addEventListener('keydown', (event) => event.stopPropagation(), { once: true })
+			);
+		await page.keyboard.press('Escape');
+		await page.mouse.move(145, 225);
+		await page.mouse.up();
+		const stopped = await page.evaluate(
+			(before) => window.__nativeInput.trace.slice(before),
+			beforeEscape
+		);
+		assert(
+			stopped.some((event) => event.kind === 'cancel'),
+			'Owned Escape retires native capture even when the child consumes bubbling keys'
+		);
+		assert(
+			!stopped.some((event) => ['move', 'up', 'left', 'right'].includes(event.kind)),
+			'Cancelled input cannot resume or commit'
+		);
 		trace = await page.evaluate(() => window.__nativeInput.trace);
 		await page.evaluate(() => {
 			window.__nativeInput.delay = 150;
@@ -121,6 +180,7 @@ export async function verifyNativeInput(browser, base) {
 			coalescedDrag: true,
 			capturedMovesIndependentOfNativeReplies: 25,
 			geometryFence: true,
+			lostCaptureFence: true,
 			outsideApertureDrag: true,
 			escapeFence: true,
 			sourceFence: true,

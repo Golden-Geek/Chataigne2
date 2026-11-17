@@ -15,16 +15,22 @@ gesture path. Its keyboard/accessibility click fallback cannot reselect a Surfac
 mouse-up. See the [M14 selection inventory](../progress/mapgyver-m14-selection.md) for remaining
 editor adapters and native acceptance; this public input contract alone does not qualify them.
 
-Screen Warping admits native input only while its document session is connected and not
-loading. Losing that admission disposes Golden Video's native input observer, which cancels
-logical control input and releases its viewport capture. Surface controls also cancel their
-DOM capture when selection admission is withdrawn. Restoring a connection cannot revive a
+The shared Screen/Source workbench admits input only while its document session is connected
+and not loading. Both specialized previews receive that admission. Losing it disposes Golden
+Video's native input observer, which cancels logical control input and releases viewport capture.
+Surface and crop controls also cancel their DOM capture when admission is withdrawn. Restoring a connection cannot revive a
 held pointer; a new press starts the next gesture. This leaves preview rendering independent
 of authoring transport availability. The [Screen lifetime receipt](../progress/evidence/mapgyver-m14-screen-selection-2026-11-17.json)
 records both-GPU overlap, offscreen/bounded off-page Inspector, Escape, reconnect and project
 checks. The visible page stays128 definitions while one independently queried selection keeps
 its typed Inspector editable. Renderer admission stays128; physical native input/image
 alignment remains a separate requirement.
+
+Golden Video supplies the browser focus action missing from projected native pointer-down.
+Unexpected viewport capture loss cancels its logical control; normal mouse-up can finish an
+already admitted terminal hit query. Escape for a captured native pointer is consumed in the
+capture phase before child bubbling handlers, cancelling the tool without deselecting its owner.
+Idle Escape remains with the editor's ordinary owner-selection contract.
 
 Golden's public `selectOnPress` action admits primary-down target selection and keyboard/
 accessibility activation, ignoring later physical clicks and nested controls. It leaves native
