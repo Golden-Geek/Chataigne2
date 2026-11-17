@@ -26,7 +26,7 @@ use std::sync::OnceLock;
             enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
             enum_options = self.sender_options.clone());
         output_kind: Enum = "Final" (label = "Matrix output", read_only = true, persist_read_only_value = true, enum_options = crate::parameters::enum_options(&["Final", "Layer", "Group"]));
-        output_item: NodeReference = NodeReference::empty() (label = "Output item", read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v3".into(), "mapgyver.matrix.group.v2".into()]);
+        output_item: NodeReference = NodeReference::empty() (label = "Output item", read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v4".into(), "mapgyver.matrix.group.v3".into()]);
     }
 )]
 pub struct ChannelNode {

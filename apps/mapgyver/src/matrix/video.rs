@@ -125,11 +125,7 @@ impl Prepared {
                     .and_then(|column| index.cell_nodes.get(&(layer, column)))
                     .and_then(|id| engine.nodes.get(*id))
                 {
-                    Some(AppNode::MatrixCell(cell))
-                        if cell.node_data().effective_enabled && cell.settings(engine).enabled =>
-                    {
-                        cell.selection(engine)?
-                    }
+                    Some(AppNode::MatrixCell(cell)) if cell.node_data().meta.enabled => cell.selection(engine)?,
                     _ => None,
                 }
             };

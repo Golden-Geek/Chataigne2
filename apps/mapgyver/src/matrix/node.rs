@@ -9,8 +9,8 @@ use golden_core::{
 };
 use std::sync::OnceLock;
 
-pub const LAYER_TYPE: &str = "mapgyver.matrix.layer.v3";
-pub const GROUP_TYPE: &str = "mapgyver.matrix.group.v2";
+pub const LAYER_TYPE: &str = "mapgyver.matrix.layer.v4";
+pub const GROUP_TYPE: &str = "mapgyver.matrix.group.v3";
 pub use super::cell_node::CELL_TYPE;
 pub use super::column_node::COLUMN_TYPE;
 
@@ -28,7 +28,6 @@ enum Kind {
     opacity: f64 = 1.0 [0.0..1.0] (label = "Opacity", constraint_policy = "reject");
     blend: Enum = "Normal" (label = "Blend Mode", enum_options = crate::parameters::enum_options(&["Normal", "Add", "Multiply", "Screen"]));
     expose_channel: bool = false (label = "Expose Channel");
-    render_enabled: bool = true (label = "Render enabled");
     position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position", dependency = |node: &Self| node.is_layer());
     canvas_size: Vec2 = Vec2::new(1920.0, 1080.0) [(1.0, 1.0)..(16384.0, 16384.0)] (
         label = "Canvas size", step = 1.0, constraint_policy = "reject", dependency = |node: &Self| node.is_layer());
@@ -170,7 +169,7 @@ impl ElementNode {
         };
         node.opacity = ParameterHandle::new(f64::from(settings.opacity));
         node.blend = ParameterHandle::new(Enum::new(blend_name(settings.blend)));
-        node.render_enabled = ParameterHandle::new(settings.enabled);
+        node.node_data_mut().meta.enabled = settings.enabled;
         node.expose_channel = ParameterHandle::new(settings.expose_channel);
         node
     }
@@ -191,23 +190,31 @@ impl ElementNode {
                 "Screen" => golden_video::plan::BlendMode::Screen,
                 _ => golden_video::plan::BlendMode::Normal,
             },
-            enabled: self.render_enabled.get(),
+            enabled: self.node_data().meta.enabled,
         };
         match self.kind {
             Kind::Layer => ElementDefinition::Layer { settings },
             Kind::Group => ElementDefinition::Group { settings },
         }
     }
-    pub(super) fn configuration_edit(&self, settings: CompositeSettings) -> Edit {
-        Edit::SetParamsAtomic {
-            values: vec![
-                (self.opacity.id(), ParamValue::Float(f64::from(settings.opacity))),
-                (self.expose_channel.id(), ParamValue::Bool(settings.expose_channel)),
-                (self.blend.id(), ParamValue::Enum(blend_name(settings.blend).into())),
-                (self.render_enabled.id(), ParamValue::Bool(settings.enabled)),
-            ],
-            behaviour: ParameterEventBehaviour::Append,
-        }
+    pub(super) fn configuration_edits(&self, settings: CompositeSettings) -> Vec<Edit> {
+        vec![
+            Edit::SetParamsAtomic {
+                values: vec![
+                    (self.opacity.id(), ParamValue::Float(f64::from(settings.opacity))),
+                    (self.expose_channel.id(), ParamValue::Bool(settings.expose_channel)),
+                    (self.blend.id(), ParamValue::Enum(blend_name(settings.blend).into())),
+                ],
+                behaviour: ParameterEventBehaviour::Append,
+            },
+            Edit::PatchMeta {
+                node: self.id(),
+                patch: golden_core::node::NodeMetaPatch {
+                    enabled: Some(settings.enabled),
+                    ..Default::default()
+                },
+            },
+        ]
     }
     pub(crate) fn bind_runtime(&self, binding: super::playback::RuntimeBinding) {
         let _ = self.runtime.set(binding);

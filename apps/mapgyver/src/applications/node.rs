@@ -96,9 +96,12 @@ impl AppControlNode {
     pub(crate) fn configured(&self) -> bool {
         !self.app_file.get_ref().as_str().is_empty()
     }
-    pub(crate) fn availability(&self) -> super::demand::DefinitionAvailability {
+    pub(crate) fn enabled(&self, engine: &AppEngine) -> bool {
+        crate::media::routing_enabled(engine, self)
+    }
+    pub(crate) fn availability(&self, engine: &AppEngine) -> super::demand::DefinitionAvailability {
         use super::demand::DefinitionAvailability;
-        if !self.node_data().effective_enabled {
+        if !self.enabled(engine) {
             DefinitionAvailability::Disabled
         } else if !self.configured() {
             DefinitionAvailability::Unconfigured
@@ -119,7 +122,7 @@ impl AppControlNode {
             label: self.node_data().meta.label.clone(),
             enablement: if !self.node_data().meta.enabled {
                 ApplicationEnablement::Disabled
-            } else if !self.node_data().effective_enabled {
+            } else if !self.enabled(engine) {
                 ApplicationEnablement::DisabledByParent
             } else {
                 ApplicationEnablement::Enabled

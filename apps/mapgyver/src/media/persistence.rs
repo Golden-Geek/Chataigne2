@@ -99,7 +99,7 @@ pub(crate) fn validate_project_file(project: &ProjectFile) -> Result<(), String>
         if record.node_type == "mapgyver.app_control.v1"
             && !matches!(
                 parent_type,
-                Some("mapgyver.matrix.column.v3" | "mapgyver.matrix.column_group.v1" | "mapgyver.matrix.cell.v4")
+                Some("mapgyver.matrix.column.v3" | "mapgyver.matrix.column_group.v1" | "mapgyver.matrix.cell.v5")
             )
         {
             return Err(

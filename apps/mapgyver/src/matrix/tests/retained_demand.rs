@@ -168,6 +168,13 @@ fn render_disabled_and_transparent_layers_keep_direct_app_demand_and_history_pro
         );
         let saved = to_sparse_project_json_pretty(&engine).unwrap();
         let history = engine.undo_len();
+        assert!(
+            inspect(&mut engine, reference.media).cells[0]
+                .definition
+                .settings
+                .enabled,
+            "hidden Layer must not change its Cell's authored enabled state"
+        );
         edit(
             &mut engine,
             reference.media,
@@ -178,7 +185,14 @@ fn render_disabled_and_transparent_layers_keep_direct_app_demand_and_history_pro
             },
         );
         let logical = capture_logical_applications(&engine).unwrap();
-        assert_eq!(logical.demand.len(), 1);
+        assert_eq!(
+            logical.demand.len(),
+            1,
+            "application={:?}; playback={:?}; enabled={:?}",
+            crate::applications::inspect(&engine, application),
+            playback(&engine, reference.media),
+            crate::applications::control_node(&engine, application).map(|node| node.enabled(&engine))
+        );
         assert_eq!(
             logical.demand[0].application, application,
             "individual activation does not start the Column control"

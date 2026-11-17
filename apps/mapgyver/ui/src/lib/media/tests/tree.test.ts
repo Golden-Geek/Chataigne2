@@ -8,9 +8,9 @@ test('media manager admits real domain hierarchy and hides parameter/channel pre
 		'mapgyver.media.v11',
 		'mapgyver.media.reference.v4',
 		'mapgyver.media.folder',
-		'mapgyver.matrix.layer.v3',
-		'mapgyver.matrix.group.v2',
-		'mapgyver.matrix.cell.v4',
+		'mapgyver.matrix.layer.v4',
+		'mapgyver.matrix.group.v3',
+		'mapgyver.matrix.cell.v5',
 		'mapgyver.matrix.column.v3',
 		'mapgyver.matrix.column_group.v1'
 	])

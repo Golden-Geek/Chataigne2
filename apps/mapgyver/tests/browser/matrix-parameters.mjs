@@ -28,6 +28,11 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 	const rejected = observeRejectedRequests(page, () => 'Typed Matrix row Parameters');
 	const parameter = (label) =>
 		page.locator('.parameter-inspector').filter({ has: page.getByText(label, { exact: true }) });
+	const enabledToggle = () =>
+		page
+			.locator('.inspector[data-panel-id="inspector"] .inspector-header')
+			.getByRole('switch', { name: 'Toggle node enabled', exact: true })
+			.first();
 	async function wait(read, predicate) {
 		const deadline = Date.now() + 7000;
 		while (true) {
@@ -56,6 +61,7 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 			const row = (await inspect()).items.find((row) => row.id.id === item.id);
 			await grid.locator(`[role="rowheader"][data-row-id="${row.id.id}"]`).click();
 			await parameter('Opacity').locator('input.number-field').waitFor();
+			assert.equal(await parameter('Render enabled').count(), 0);
 			assert.equal(await page.locator('.inspector .runtime-feedback').count(), 0);
 			assert.equal(
 				await page.getByRole('button', { name: 'Save row settings', exact: true }).count(),
@@ -75,7 +81,7 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 					if (field === 'opacity')
 						return Number(await parameter('Opacity').locator('input.number-field').inputValue());
 					if (field === 'blend') return parameter('Blend Mode').locator('select').inputValue();
-					return parameter('Render enabled').locator('input[type=checkbox]').isChecked();
+					return (await enabledToggle().getAttribute('aria-checked')) === 'true';
 				};
 				await page.locator('.gc-loading-overlay').waitFor({ state: 'detached' });
 				const before = await inspect();
@@ -86,13 +92,13 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 				} else if (field === 'blend') {
 					await parameter('Blend Mode').locator('select').selectOption(value);
 				} else {
-					const checkbox = parameter('Render enabled').locator('input[type=checkbox]');
+					const checkbox = enabledToggle();
 					await wait(
-						() => checkbox.isChecked(),
+						async () => (await checkbox.getAttribute('aria-checked')) === 'true',
 						(checked) =>
 							checked === before.items.find((row) => row.id.id === item.id).settings.enabled
 					);
-					await checkbox.setChecked(value);
+					await checkbox.click();
 				}
 				const after = await wait(
 					inspect,
@@ -177,7 +183,9 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 		await cellTarget.click({ position: { x: 8, y: cellBounds.height - 8 } });
 		await cellTarget.click({ button: 'right', position: { x: 8, y: cellBounds.height - 8 } });
 		await page.getByRole('menuitem', { name: 'Inspect Cell settings', exact: true }).click();
-		await parameter('Enabled').locator('input[type=checkbox]').waitFor();
+		await enabledToggle().waitFor();
+		assert.equal(await parameter('Enabled').count(), 0);
+		assert.equal(await parameter('Render enabled').count(), 0);
 		const cellSettings = (state) =>
 			state.cells.find((cell) => cell.layer === layers[0].id).definition.settings;
 		const sizeToggle = parameter('Size').getByRole('switch', { name: 'Toggle node enabled' });
@@ -200,12 +208,12 @@ export async function verifyMatrixParametersUi({ base, edit, page: nativePage = 
 		]) {
 			const before = await inspect();
 			if (field === 'enabled') {
-				const input = parameter(label).locator('input[type=checkbox]');
+				const input = enabledToggle();
 				await wait(
-					() => input.isChecked(),
+					async () => (await input.getAttribute('aria-checked')) === 'true',
 					(checked) => checked === cellSettings(before).enabled
 				);
-				await input.setChecked(value);
+				await input.click();
 			} else {
 				const input = parameter(label).locator('input.number-field').nth(component);
 				await input.fill(String(value));

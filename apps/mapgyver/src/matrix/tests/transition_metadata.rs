@@ -181,7 +181,7 @@ fn transition_metadata_configure_copy_history_and_project_preserve_one_authority
     assert_eq!(inspect(&mut loaded, media), copied);
     for (current, obsolete) in [
         ("mapgyver.matrix.column.v3", "mapgyver.matrix.column.v2"),
-        ("mapgyver.matrix.cell.v4", "mapgyver.matrix.cell.v3"),
+        ("mapgyver.matrix.cell.v5", "mapgyver.matrix.cell.v3"),
     ] {
         assert!(from_sparse_project_json::<AppNode>(&saved.replace(current, obsolete)).is_err());
     }

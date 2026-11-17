@@ -131,6 +131,34 @@ fn native_cell_position_opacity_enabled_and_undo_preserve_child_size_on_each_ada
             original,
             "cell-native-size-position-opacity",
         );
+        let cell = inspect(&mut engine, root.media)
+            .cells
+            .into_iter()
+            .find(|cell| cell.definition.column == columns[0])
+            .unwrap()
+            .id;
+        for owner in [cell.0, layer.0] {
+            let node = engine.node_id_by_uuid(owner).unwrap();
+            for enabled in [false, true] {
+                let ack = apply_project_intent(
+                    &mut engine,
+                    UiEditIntent::PatchMeta {
+                        node,
+                        patch: golden_core::ui_sync::NodeMetaPatch {
+                            enabled: Some(enabled),
+                            ..Default::default()
+                        },
+                    },
+                );
+                assert!(ack.success, "{ack:?}");
+                verify(
+                    &engine,
+                    if enabled { [1.0, 0.0, 0.0, 1.0] } else { [0.0; 4] },
+                    original,
+                    "matrix-enabled-metadata",
+                );
+            }
+        }
         let changed = CellSettings {
             position: [7.0, 5.0],
             opacity: 0.75,

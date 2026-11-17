@@ -52,7 +52,7 @@ impl Pulses {
         self.ready = false;
     }
     pub(crate) fn invoke(&mut self, ctx: &mut ProcessCtx, node: &golden_core::node::NodeData, action: Action) {
-        if !self.ready || !node.effective_enabled {
+        if !self.ready || !node.meta.enabled {
             return;
         }
         let result = (|| {
@@ -214,7 +214,7 @@ pub(crate) fn apply(
         return Err("Matrix control delivery requires an unconsumed live Parameter invocation".into());
     }
     let node = engine.nodes.get(id).ok_or("Matrix control owner is missing")?;
-    if !node.node_data().effective_enabled {
+    if !crate::media::routing_enabled(engine, node) {
         return Err("Matrix control owner is disabled".into());
     }
     let mut ancestor = Some(id);

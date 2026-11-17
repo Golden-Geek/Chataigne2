@@ -42,7 +42,7 @@ pub(crate) fn index(
         else {
             unreachable!()
         };
-        if !node.node_data().meta.enabled || !cell.definition.settings.enabled {
+        if !node.node_data().meta.enabled {
             disabled.entry(cell.definition.column).or_default().push(cell.layer);
         }
         if let Some(transition) = cell.definition.transition {
@@ -52,7 +52,7 @@ pub(crate) fn index(
                 .insert(cell.layer, transition);
         }
         if crate::applications::control_node(engine, cell.definition.application)
-            .is_some_and(|app| app.configured() && app.node_data().effective_enabled)
+            .is_some_and(|app| app.configured() && app.enabled(engine))
         {
             cell_apps.insert((cell.layer, cell.definition.column), cell.definition.application);
         }

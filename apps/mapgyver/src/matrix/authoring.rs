@@ -268,7 +268,9 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
             let Some(AppNode::MatrixElement(node)) = engine.nodes.get(id) else {
                 unreachable!()
             };
-            engine.edits.push(node.configuration_edit(settings));
+            for edit in node.configuration_edits(settings) {
+                engine.edits.push(edit);
+            }
         }
         MatrixEdit::ConfigureLayer { layer, settings } => {
             settings.validate()?;

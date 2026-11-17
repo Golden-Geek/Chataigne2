@@ -147,7 +147,7 @@ impl MediaSource {
     }
 }
 
-fn routing_enabled(engine: &AppEngine, node: &dyn Node) -> bool {
+pub(crate) fn routing_enabled(engine: &AppEngine, node: &dyn Node) -> bool {
     if node.node_data().effective_enabled {
         return true;
     }

@@ -168,7 +168,7 @@ fn empty_cell_owns_typed_app_control_with_atomic_history_stable_identity_and_pro
 }
 
 #[test]
-fn cell_demand_is_clamped_nonwrapping_and_updates_on_direct_distance_reorder_disable_and_delete() {
+fn cell_demand_is_clamped_nonwrapping_and_preserves_held_content_when_disabled() {
     let mut engine = fixture();
     let (media, row, columns) = scene(&mut engine);
     let (cell, application) = configure(&mut engine, media, row, columns[2]);
@@ -256,11 +256,11 @@ fn cell_demand_is_clamped_nonwrapping_and_updates_on_direct_distance_reorder_dis
         )
         .success
     );
-    assert!(
-        crate::applications::logical::capture_logical_applications(&engine)
-            .unwrap()
-            .demand
-            .is_empty()
+    let demand = crate::applications::logical::capture_logical_applications(&engine).unwrap();
+    assert_eq!(demand.demand.len(), 1);
+    assert_eq!(
+        demand.demand[0].application, application,
+        "empty-column Hold keeps this launched Cell active; hiding it must not Stop its application"
     );
     assert!(engine.undo().unwrap());
     assert_eq!(
@@ -353,7 +353,7 @@ fn cell_app_control_duplicates_with_its_column_and_rejects_obsolete_schema() {
     );
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     assert!(
-        from_sparse_project_json::<AppNode>(&saved.replace("mapgyver.matrix.cell.v4", "mapgyver.matrix.cell.v1"))
+        from_sparse_project_json::<AppNode>(&saved.replace("mapgyver.matrix.cell.v5", "mapgyver.matrix.cell.v1"))
             .is_err()
     );
     assert!(engine.undo().unwrap());

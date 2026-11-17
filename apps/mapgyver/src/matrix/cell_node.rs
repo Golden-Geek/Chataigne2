@@ -15,8 +15,8 @@ use std::sync::{
     atomic::{AtomicU64, Ordering},
 };
 
-pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v4";
-#[node("mapgyver.matrix.cell.v4", label = "Cell")]
+pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v5";
+#[node("mapgyver.matrix.cell.v5", label = "Cell")]
 #[children(folder(parameters, label = "Parameters") {
     play: ParamValue = ParamValue::Trigger() (label = "Play");
     cut: ParamValue = ParamValue::Trigger() (label = "Cut");
@@ -26,7 +26,7 @@ pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v4";
     shared_app_control: NodeReference = NodeReference::empty() (label = "Shared app control",
         description = "When no local App File is configured, share this Cell's App Control.",
         read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode,
-        reference_allowed_node_types = vec!["mapgyver.matrix.cell.v4".into()]);
+        reference_allowed_node_types = vec!["mapgyver.matrix.cell.v5".into()]);
     output: NodeReference = NodeReference::empty() (label = "Output", description = "Empty follows the first available output.",
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.media.channel.v2".into(), crate::media::reference::OUTPUT_TYPE.into()]);
     position: Vec2 = Vec2::new(0.0, 0.0) (label = "Position");
@@ -35,7 +35,6 @@ pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v4";
         enabled = self.initial_size.is_some(), can_be_disabled = true, step = 1.0, constraint_policy = "reject");
     fit_mode: Enum = "Fit" (label = "Fit Mode", enum_options = crate::parameters::enum_options(&["Fit", "Fill", "Stretch"]), constraint_policy = "reject");
     opacity: f64 = 1.0 [0.0..1.0] (label = "Opacity", constraint_policy = "reject");
-    enabled: bool = true (label = "Enabled");
     duration_ms: f64 = 250.0 [0.0..4294967295.0] (label = "Transition Time", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject", enabled = false, can_be_disabled = true);
     curve: Enum = "Smooth" (label = "Transition curve", enum_options = crate::parameters::enum_options(&["Linear", "Smooth"]));
 }
@@ -127,7 +126,7 @@ impl CellNode {
                 }),
             fit_mode: MediaFitMode::parse(self.fit_mode.get_ref().as_str()).expect("validated Cell Fit Mode"),
             opacity: self.opacity.get() as f32,
-            enabled: self.enabled.get(),
+            enabled: self.node_data().meta.enabled,
         }
     }
     pub(crate) fn with_settings(mut self, settings: CellSettings) -> Self {
@@ -141,7 +140,7 @@ impl CellNode {
             f64::from(settings.position[1]),
         ));
         self.opacity = ParameterHandle::new(f64::from(settings.opacity));
-        self.enabled = ParameterHandle::new(settings.enabled);
+        self.node_data_mut().meta.enabled = settings.enabled;
         self
     }
     pub(crate) fn configuration_edits(&self, settings: CellSettings) -> Vec<golden_core::edit::Edit> {
@@ -151,7 +150,6 @@ impl CellNode {
                 ParamValue::Vec2(f64::from(settings.position[0]), f64::from(settings.position[1])),
             ),
             (self.opacity.id(), ParamValue::Float(f64::from(settings.opacity))),
-            (self.enabled.id(), ParamValue::Bool(settings.enabled)),
             (self.fit_mode.id(), ParamValue::Enum(settings.fit_mode.name().into())),
         ];
         if let Some(size) = settings.size {
@@ -161,6 +159,13 @@ impl CellNode {
             ));
         }
         vec![
+            golden_core::edit::Edit::PatchMeta {
+                node: self.id(),
+                patch: golden_core::node::NodeMetaPatch {
+                    enabled: Some(settings.enabled),
+                    ..Default::default()
+                },
+            },
             golden_core::edit::Edit::SetParamsAtomic {
                 values,
                 behaviour: ParameterEventBehaviour::Append,
@@ -208,7 +213,7 @@ impl CellNode {
             size: None,
             fit_mode: MediaFitMode::parse(&fit)?,
             opacity: opacity as f32,
-            enabled: self.enabled.get(),
+            enabled: self.node_data().meta.enabled,
         }
         .validate()
     }
@@ -327,7 +332,7 @@ impl CellNode {
         }
     }
 }
-#[node("mapgyver.matrix.cell.v4", from_struct)]
+#[node("mapgyver.matrix.cell.v5", from_struct)]
 impl Node for CellNode {
     fn init(&mut self, ctx: &mut ProcessCtx) {
         ctx.add_event_listener_subtree(self.id(), self.id(), 2);
@@ -371,7 +376,9 @@ impl Node for CellNode {
         if !enabled {
             self.pulses.revoke();
         }
-        self.invalidate();
+        if let Some(binding) = self.runtime.get() {
+            binding.invalidate();
+        }
         if self.application_source().is_some()
             && let Some(binding) = self.runtime.get()
         {
@@ -406,7 +413,6 @@ impl Node for CellNode {
             self.size.id(),
             self.fit_mode.id(),
             self.opacity.id(),
-            self.enabled.id(),
         ]
         .contains(&parameter)
         {

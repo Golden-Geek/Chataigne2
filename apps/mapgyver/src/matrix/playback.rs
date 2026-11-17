@@ -700,10 +700,7 @@ pub(super) fn launch_cell(
         .cell_nodes
         .get(&(layer, column))
         .and_then(|id| engine.nodes.get(*id))
-        .is_some_and(|node| {
-            !node.node_data().effective_enabled
-                || matches!(node, AppNode::MatrixCell(cell) if !cell.settings(engine).enabled)
-        })
+        .is_some_and(|node| !node.node_data().meta.enabled)
     {
         return Ok(MediaEditResult::MatrixPlayback {
             snapshot: control.snapshot(),

@@ -73,20 +73,10 @@ impl RenderIndex {
             else {
                 unreachable!()
             };
-            if !node.node_data().effective_enabled || !cell.definition.settings.enabled {
-                continue;
-            }
             if cell.media.is_some() {
-                let AppNode::MatrixCell(node) = engine
-                    .nodes
-                    .get(document.cells[&(cell.layer, cell.definition.column)])
-                    .unwrap()
-                else {
-                    unreachable!()
-                };
                 let source = node.selection(engine).expect("validated Cell media").unwrap();
                 let entry = &items[&MatrixItemId::Layer { id: cell.layer }];
-                if !entry.enabled || !entry.settings.enabled || entry.settings.opacity == 0.0 {
+                if !entry.enabled || entry.settings.opacity == 0.0 {
                     continue;
                 }
                 cells.entry(cell.definition.column).or_default().insert(
@@ -95,7 +85,10 @@ impl RenderIndex {
                         layer: cell.layer,
                         source,
                         version: node.source_version(),
-                        settings: cell.definition.settings,
+                        settings: CellSettings {
+                            enabled: node.node_data().effective_enabled,
+                            ..cell.definition.settings
+                        },
                     },
                 );
             }

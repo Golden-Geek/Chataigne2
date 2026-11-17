@@ -56,7 +56,7 @@
 		'mapgyver.app_control.v1'
 	])
 		registerNodeInspector(type, { component: DomainInspector });
-	for (const type of ['mapgyver.matrix.layer.v3', 'mapgyver.matrix.group.v2'])
+	for (const type of ['mapgyver.matrix.layer.v4', 'mapgyver.matrix.group.v3'])
 		registerNodeInspector(type, { childFilter: (child) => child.decl_id === 'parameters' });
 	registerNodeInspector('mapgyver.matrix.column_group.v1', {
 		childFilter: (child) => child.decl_id === 'parameters' || child.decl_id === 'app_control'

@@ -234,7 +234,7 @@ pub(crate) fn capture_channels_with_time(
                 guards.push(manager.membership_guard());
                 Some((
                     node.definition(engine, reference.channel),
-                    node.node_data().effective_enabled,
+                    super::routing_enabled(engine, node.as_ref()),
                 ))
             }
             Some(AppNode::Media(media))
@@ -261,7 +261,7 @@ pub(crate) fn capture_channels_with_time(
                         guards.push(channel.guard());
                         Some((
                             super::authoring::effective_definition(engine, channel.as_ref())?,
-                            channel.node_data().effective_enabled,
+                            super::routing_enabled(engine, channel.as_ref()),
                         ))
                     }
                     _ => None,
@@ -525,7 +525,7 @@ pub(crate) fn capture_channels_with_time(
         for entry in demand {
             if let Some(node) = crate::applications::control_node(engine, entry.application) {
                 guards.push(node.guard());
-                availability.insert(entry.application, node.availability());
+                availability.insert(entry.application, node.availability(engine));
             }
         }
         captured.guards = guards.into();

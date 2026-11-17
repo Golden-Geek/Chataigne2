@@ -78,7 +78,7 @@ pub fn capture_logical_applications(engine: &AppEngine) -> Result<LogicalApplica
             })
             .into_iter()
             .collect::<Vec<_>>();
-        let holds = playback
+        let mut holds = playback
             .layers
             .iter()
             .flat_map(|request| {
@@ -94,7 +94,21 @@ pub fn capture_logical_applications(engine: &AppEngine) -> Result<LogicalApplica
                     .flat_map(|column| axis.column_applications(column));
                 cell.into_iter().copied().chain(column)
             })
-            .collect::<std::collections::HashSet<_>>()
+            .collect::<std::collections::HashSet<_>>();
+        if let Some(column) = playback.desired_column {
+            let overrides = playback
+                .layers
+                .iter()
+                .map(|row| row.layer)
+                .collect::<std::collections::HashSet<_>>();
+            holds.extend(
+                axis.column_cells(column)
+                    .iter()
+                    .filter(|(layer, _)| !overrides.contains(layer))
+                    .map(|(_, application)| *application),
+            );
+        }
+        let holds = holds
             .into_iter()
             .map(|application| DemandHold {
                 application,
@@ -116,7 +130,7 @@ pub fn capture_logical_applications(engine: &AppEngine) -> Result<LogicalApplica
     for entry in &mut demand {
         if let Some(node) = super::control_node(engine, entry.application) {
             guards.push(node.guard());
-            entry.availability = node.availability();
+            entry.availability = node.availability(engine);
         }
     }
     Ok(LogicalApplicationCapture {

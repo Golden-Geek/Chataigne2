@@ -188,7 +188,7 @@ pub(crate) fn capture(
                 if let Some(layer) = entry.layer {
                     captured.canvas = layer.size;
                 }
-                if !entry.enabled || !entry.settings.enabled || entry.settings.opacity == 0.0 {
+                if !entry.enabled || entry.settings.opacity == 0.0 {
                     return Ok(Some(captured));
                 }
             }
@@ -207,11 +207,14 @@ pub(crate) fn capture(
                         Ok(None) => continue,
                         Err(_) => return Ok(None),
                     };
+                    let settings = timeline.bindings.settings(entry.clip, layer);
+                    if !settings.enabled {
+                        continue;
+                    }
                     let output = source.capture(engine, guards)?;
                     let Some(source) = timeline.bindings.output(entry.clip, layer, output) else {
                         continue;
                     };
-                    let settings = timeline.bindings.settings(entry.clip, layer);
                     if let Some((_, _, current_from, current_to)) = sources
                         .iter_mut()
                         .find(|(id, current, _, _)| *id == source && *current == settings)
@@ -320,7 +323,7 @@ pub(crate) fn capture(
                 children.sort_by_key(|(_, order)| std::cmp::Reverse(*order));
                 for (item, _) in children {
                     let entry = &index.items[&item];
-                    if entry.enabled && entry.settings.enabled && entry.settings.opacity > 0.0 {
+                    if entry.enabled && entry.settings.opacity > 0.0 {
                         captured.inputs.push(MatrixInput {
                             source: entry.channel,
                             blend: entry.settings.blend,

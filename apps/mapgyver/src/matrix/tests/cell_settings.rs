@@ -154,7 +154,7 @@ fn cell_settings_materialize_only_the_address_and_preserve_atomic_values_history
     assert!(engine.redo().unwrap());
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
     assert!(
-        from_sparse_project_json::<AppNode>(&saved.replace("mapgyver.matrix.cell.v4", "mapgyver.matrix.cell.v2"))
+        from_sparse_project_json::<AppNode>(&saved.replace("mapgyver.matrix.cell.v5", "mapgyver.matrix.cell.v2"))
             .is_err()
     );
     let mut file = engine.to_project_file_with(Node::project_encode_data).unwrap();
@@ -190,7 +190,27 @@ fn cell_settings_materialize_only_the_address_and_preserve_atomic_values_history
     }
     assert!(write(&mut engine, cell, "position", ParamValue::Vec2(-4.0, 5.0)).success);
     assert!(write(&mut engine, cell, "opacity", ParamValue::Float(0.5)).success);
-    assert!(write(&mut engine, cell, "enabled", ParamValue::Bool(true)).success);
+    let node = engine.node_id_by_uuid(cell.0).unwrap();
+    assert!(!engine.nodes.get(node).unwrap().node_data().meta.enabled);
+    assert!(
+        !engine
+            .nodes
+            .iter()
+            .any(|(_, child)| { child.node_data().meta.decl_id.0 == "parameters/enabled" })
+    );
+    assert!(
+        apply_project_intent(
+            &mut engine,
+            UiEditIntent::PatchMeta {
+                node,
+                patch: golden_core::ui_sync::NodeMetaPatch {
+                    enabled: Some(true),
+                    ..Default::default()
+                },
+            }
+        )
+        .success
+    );
     assert_eq!(
         inspect(&mut engine, media)
             .cells

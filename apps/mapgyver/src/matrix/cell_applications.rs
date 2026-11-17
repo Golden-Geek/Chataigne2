@@ -143,7 +143,7 @@ pub(super) fn append(
             return Err("Column app control is missing".into());
         };
         bind(node, control);
-        if !node.configured() || !node.node_data().effective_enabled {
+        if !node.configured() || !node.enabled(engine) {
             continue;
         }
         count += 1;
@@ -172,7 +172,7 @@ pub(super) fn append(
             }
             continue;
         };
-        if !node.configured() || !node.node_data().effective_enabled {
+        if !node.configured() || !node.enabled(engine) || !cell.definition.settings.enabled {
             continue;
         }
         count += 1;

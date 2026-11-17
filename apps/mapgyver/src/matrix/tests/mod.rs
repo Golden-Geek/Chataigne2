@@ -28,6 +28,7 @@ mod copying;
 mod creation;
 mod defaults;
 mod editor;
+mod enabled;
 mod front_order;
 mod layer_geometry;
 mod layer_settings;

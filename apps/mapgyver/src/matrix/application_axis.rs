@@ -13,6 +13,7 @@ pub(crate) struct ApplicationAxis {
     pub columns: Vec<DemandColumn>,
     pub spans: Vec<DemandSpan>,
     pub cell_apps: HashMap<(LayerId, ColumnId), ApplicationId>,
+    column_cells: HashMap<ColumnId, Vec<(LayerId, ApplicationId)>>,
     column_apps: HashMap<ColumnId, ApplicationId>,
     column_groups: HashMap<ColumnId, ColumnGroupId>,
     group_parents: HashMap<ColumnGroupId, ColumnGroupId>,
@@ -20,6 +21,9 @@ pub(crate) struct ApplicationAxis {
 }
 
 impl ApplicationAxis {
+    pub fn column_cells(&self, column: ColumnId) -> &[(LayerId, ApplicationId)] {
+        self.column_cells.get(&column).map_or(&[], Vec::as_slice)
+    }
     pub fn is_current(&self) -> bool {
         self.dependency
             .as_ref()
@@ -81,7 +85,7 @@ pub(super) fn for_document(
     }
     let configured = |application| {
         crate::applications::control_node(engine, application)
-            .is_some_and(|node| node.configured() && node.node_data().effective_enabled)
+            .is_some_and(|node| node.configured() && node.enabled(engine))
     };
     let mut columns = document
         .snapshot
@@ -122,6 +126,17 @@ pub(super) fn for_document(
         });
         group_apps.insert(group.id, group.application);
     }
+    let cell_apps = document
+        .snapshot
+        .cells
+        .iter()
+        .filter(|cell| configured(cell.definition.application))
+        .map(|cell| ((cell.layer, cell.definition.column), cell.definition.application))
+        .collect::<HashMap<_, _>>();
+    let mut column_cells = HashMap::<_, Vec<_>>::new();
+    for (&(layer, column), &application) in &cell_apps {
+        column_cells.entry(column).or_default().push((layer, application));
+    }
     let axis = Arc::new(ApplicationAxis {
         dependency,
         columns,
@@ -134,13 +149,8 @@ pub(super) fn for_document(
             .filter(|column| configured(column.application))
             .map(|column| (column.id, column.application))
             .collect(),
-        cell_apps: document
-            .snapshot
-            .cells
-            .iter()
-            .filter(|cell| configured(cell.definition.application))
-            .map(|cell| ((cell.layer, cell.definition.column), cell.definition.application))
-            .collect(),
+        cell_apps,
+        column_cells,
         column_groups: document
             .snapshot
             .columns

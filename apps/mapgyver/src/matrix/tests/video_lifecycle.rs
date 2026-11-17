@@ -473,10 +473,13 @@ fn matrix_layer_visibility_does_not_stop_or_reactivate_its_launched_video() {
     assign(&mut engine, matrix.media, row, column, source.media);
     cut(&mut engine, matrix.media, column);
     policy(&mut engine, source.media, VideoEdit::Seek { position_ms: 2500.0 });
-    for visible in [false, true] {
-        enabled(&mut engine, row.0, visible);
-        assert!(control.sample().unwrap().playing);
-        assert_eq!(control.sample().unwrap().position, Duration::from_millis(2500));
+    let cell = inspect(&mut engine, matrix.media).cells[0].id;
+    for owner in [row.0, cell.0] {
+        for visible in [false, true] {
+            enabled(&mut engine, owner, visible);
+            assert!(control.sample().unwrap().playing);
+            assert_eq!(control.sample().unwrap().position, Duration::from_millis(2500));
+        }
     }
 }
 

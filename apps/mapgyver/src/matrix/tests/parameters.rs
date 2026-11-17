@@ -52,7 +52,7 @@ fn group(engine: &mut AppEngine, media: MediaId) -> (MatrixItemId, GroupId) {
 }
 
 #[test]
-fn layer_and_group_configure_writes_real_parameters_atomically_and_roundtrips_exactly() {
+fn layer_and_group_configure_writes_parameters_and_enabled_metadata_atomically_and_roundtrips_exactly() {
     let mut engine = fixture();
     let matrix = create(&mut engine, MediaKind::Matrix);
     let (group, parent) = group(&mut engine, matrix.media);
@@ -61,7 +61,7 @@ fn layer_and_group_configure_writes_real_parameters_atomically_and_roundtrips_ex
     for item in [group, row] {
         let history = engine.undo_len();
         let before = to_sparse_project_json_pretty(&engine).unwrap();
-        let identities = ["opacity", "blend", "render_enabled"].map(|field| {
+        let identities = ["opacity", "blend"].map(|field| {
             engine
                 .nodes
                 .get(parameter(&engine, item, field))
@@ -92,7 +92,6 @@ fn layer_and_group_configure_writes_real_parameters_atomically_and_roundtrips_ex
         for (field, expected) in [
             ("opacity", ParamValue::Float(0.25)),
             ("blend", ParamValue::Enum("Screen".into())),
-            ("render_enabled", ParamValue::Bool(false)),
         ] {
             assert_eq!(
                 engine
@@ -109,7 +108,7 @@ fn layer_and_group_configure_writes_real_parameters_atomically_and_roundtrips_ex
         let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
         assert_eq!(inspect(&mut loaded, matrix.media), state);
         assert_eq!(
-            ["opacity", "blend", "render_enabled"].map(|field| loaded
+            ["opacity", "blend"].map(|field| loaded
                 .nodes
                 .get(parameter(&loaded, item, field))
                 .unwrap()
@@ -123,6 +122,13 @@ fn layer_and_group_configure_writes_real_parameters_atomically_and_roundtrips_ex
             MatrixItemId::Group { id } => id.0,
         };
         let node = engine.nodes.get(engine.node_id_by_uuid(uuid).unwrap()).unwrap();
+        assert!(!node.node_data().meta.enabled);
+        assert!(
+            !engine
+                .nodes
+                .iter()
+                .any(|(_, node)| { node.node_data().meta.decl_id.0 == "parameters/render_enabled" })
+        );
         assert_eq!(node.project_encode_data().unwrap(), serde_json::Value::Null);
         assert!(engine.undo().unwrap());
         assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
@@ -152,7 +158,25 @@ fn direct_parameter_changes_invalidate_render_capture_and_invalid_proposals_leav
     assert!(write(&mut engine, row, "opacity", ParamValue::Float(0.75)).success);
     assert!(!capture.is_current());
     assert!(write(&mut engine, row, "blend", ParamValue::Enum("Add".into())).success);
-    assert!(write(&mut engine, row, "render_enabled", ParamValue::Bool(false)).success);
+    let node = engine
+        .node_id_by_uuid(match row {
+            MatrixItemId::Layer { id } => id.0,
+            MatrixItemId::Group { id } => id.0,
+        })
+        .unwrap();
+    assert!(
+        apply_project_intent(
+            &mut engine,
+            UiEditIntent::PatchMeta {
+                node,
+                patch: golden_core::ui_sync::NodeMetaPatch {
+                    enabled: Some(false),
+                    ..Default::default()
+                },
+            }
+        )
+        .success
+    );
     let before = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
     for (field, value) in [
@@ -189,6 +213,18 @@ fn typed_nested_row_copy_remaps_parameter_identities_and_old_row_schemas_reject_
     let row = layers(&mut engine, matrix.media, Some(parent), 1)[0];
     assert!(write(&mut engine, group, "opacity", ParamValue::Float(0.375)).success);
     assert!(write(&mut engine, row, "blend", ParamValue::Enum("Multiply".into())).success);
+    edit(
+        &mut engine,
+        matrix.media,
+        MatrixEdit::ConfigureItem {
+            item: group,
+            settings: CompositeSettings {
+                enabled: false,
+                opacity: 0.375,
+                ..Default::default()
+            },
+        },
+    );
     let before = inspect(&mut engine, matrix.media);
     let saved_before = to_sparse_project_json_pretty(&engine).unwrap();
     let history = engine.undo_len();
@@ -214,7 +250,7 @@ fn typed_nested_row_copy_remaps_parameter_identities_and_old_row_schemas_reject_
             before.items.iter().find(|item| item.id == a).unwrap().settings,
             after.items.iter().find(|item| item.id == b).unwrap().settings
         );
-        for field in ["opacity", "blend", "render_enabled"] {
+        for field in ["opacity", "blend"] {
             assert_ne!(
                 engine
                     .nodes
