@@ -21,8 +21,10 @@ logical control input and releases its viewport capture. Surface controls also c
 DOM capture when selection admission is withdrawn. Restoring a connection cannot revive a
 held pointer; a new press starts the next gesture. This leaves preview rendering independent
 of authoring transport availability. The [Screen lifetime receipt](../progress/evidence/mapgyver-m14-screen-selection-2026-11-17.json)
-records both-GPU overlap, offscreen Inspector, Escape, reconnect and project checks; bounded
-off-page and physical native input/image alignment remain separate requirements.
+records both-GPU overlap, offscreen/bounded off-page Inspector, Escape, reconnect and project
+checks. The visible page stays128 definitions while one independently queried selection keeps
+its typed Inspector editable. Renderer admission stays128; physical native input/image
+alignment remains a separate requirement.
 
 Golden's public `selectOnPress` action admits primary-down target selection and keyboard/
 accessibility activation, ignoring later physical clicks and nested controls. It leaves native

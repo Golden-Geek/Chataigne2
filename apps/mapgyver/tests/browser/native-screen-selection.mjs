@@ -1,7 +1,8 @@
 // Run the complete existing Screen contract and its added lifetime scope in WebView2.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { openNativeEditor } from './native-editor.mjs';
 import { adapterKey, observeNativeAdapter } from './native-adapter.mjs';
@@ -12,6 +13,12 @@ const directory = path.resolve(process.argv[2]);
 const gpuIndex = Number(process.argv[3]);
 await mkdir(directory);
 assert(process.env.MAPGYVER_TEST_BINARY, 'Select the current compiled ordinary application');
+const producer = {
+	path: path.resolve(process.env.MAPGYVER_TEST_BINARY),
+	sha256: createHash('sha256')
+		.update(await readFile(process.env.MAPGYVER_TEST_BINARY))
+		.digest('hex')
+};
 const observer = path.resolve('target/debug/native_qualification.exe');
 const hardware = JSON.parse(
 	execFileSync(observer, ['--role', 'hardware'], { encoding: 'utf8', windowsHide: true })
@@ -37,7 +44,7 @@ const native = await openNativeEditor({
 		);
 	}
 });
-let token;
+let token, result;
 const errors = [];
 native.page.on('pageerror', (error) => errors.push(String(error)));
 async function post(route, body) {
@@ -92,28 +99,22 @@ try {
 		}
 	});
 	assert.deepEqual(errors, []);
-	await writeFile(
-		path.join(directory, 'result.json'),
-		JSON.stringify(
-			{
-				result: 'pass',
-				pid: native.app.pid,
-				gpuIndex,
-				contract,
-				errors,
-				scope:
-					'actual workbench/Inspector and installed native previews; physical input and independent native pixels/hits remain separate'
-			},
-			null,
-			2
-		)
-	);
-	console.log(JSON.stringify({ result: 'pass', pid: native.app.pid, gpuIndex }));
+	result = {
+		result: 'pass',
+		producer,
+		pid: native.app.pid,
+		gpuIndex,
+		contract,
+		errors,
+		scope:
+			'actual workbench/Inspector and installed native previews; physical input and independent native pixels/hits remain separate'
+	};
 } catch (error) {
 	await writeFile(
 		path.join(directory, 'failure.json'),
 		JSON.stringify(
 			{
+				producer,
 				error: String(error),
 				proof: error.proof,
 				errors,
@@ -146,3 +147,9 @@ try {
 } finally {
 	await native.close();
 }
+// A pass receipt also proves the owned application closed normally.
+await writeFile(
+	path.join(directory, 'result.json'),
+	JSON.stringify({ ...result, normal_app_exit: 0 }, null, 2)
+);
+console.log(JSON.stringify({ result: 'pass', pid: native.app.pid, gpuIndex, normal_app_exit: 0 }));

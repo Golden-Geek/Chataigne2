@@ -6,28 +6,28 @@ Overall acceptance is92/106 (87%), M14 4/10 after accepted gates3–5,7.
 
 **Current result:** Screen Warping now cancels both native and DOM capture when document input
 becomes unavailable. The real baseline retained capture across reconnect; the corrected app
-passes overlap selection in both authored orders, offscreen typed Inspector editing, captured
+passes overlap selection in both authored orders, offscreen and bounded off-page typed Inspector editing, captured
 Escape/Undo, real reconnect without late writes, New during a held drag and exact Load recovery
 on Intel and NVIDIA. Both ordinary app processes exit0, two native previews install per GPU,
 and observed rejected requests/page errors are zero. The original headless contract, production
-control browser suite, UI typecheck and rebuilt default app pass. See the
+control browser suite, UI typecheck and default app build pass. The resumed full seven-stage
+flow passes on both GPUs, including129 Surfaces with128 visible definitions and one independent
+selected Surface/129 bindings. See the
 [bounded receipt](evidence/mapgyver-m14-screen-selection-2026-11-17.json).
-The mutable debug executable was overwritten at07:50UTC after the checkpoint cohorts;
-the receipt retains the observed tested fingerprint and gives the replacement no qualification credit.
+The current producer fingerprint is captured before launch; final pass receipts are written
+only after normal app exit. Both cohorts use d9ddebcf… and exit0.
 
-The batch started21:58UTC with a22:41 stop. A tool invocation returned after33483.7 seconds;
-the expanded off-page run has no complete result or normal-exit proof and earns no acceptance.
-Its exact unfinished fixture is preserved in stash `d0029450f8410976a11ed646fa203cd0eb0bbe05`
-(`pending/mapgyver-m14-screen-offpage-2026-11-17`). It preliminarily reached129-Surface bounded
-selection/Inspector/Undo checks, then required owner/layout readiness before the complete
-lifetime flow. Resume only that named missing check; do not repeat an infrastructure investigation.
-The checked-in fixture retains the fully verified six-stage scope. Earlier
+The earlier33483.7-second interrupted off-page run remains failed. Its exact snapshot stays in
+stash `d0029450f8410976a11ed646fa203cd0eb0bbe05` as evidence; the named block is now integrated
+and verified after waiting for restored editor ownership and persisted lock state. Do not
+restore that stash automatically. Renderer admission stays128; this metadata/selection scope
+does not qualify129-Surface rendering. Earlier
 [Matrix lifetime acceptance](evidence/mapgyver-m14-matrix-selection-2026-11-16.json) remains valid.
 
 The native desktop skill's21:28 availability check still returns native-pipe error2; no desktop
 input was sent. Native previews install on the actual selected GPUs, but physical input and
-independent pixel/hit alignment remain unverified. Next: complete the preserved Screen off-page
-fixture's whole flow, then remaining Surface Source/Composition/Matrix scope. Other unfinished
+independent pixel/hit alignment remain unverified. Next: remaining Surface Source offscreen,
+capture/reconnect/project and Composition/Matrix scope. Other unfinished
 MapGyver inventory rows remain Pending; no fixed gate credit until all required scope passes.
 
 **2026-11-16 user priority revision:** this gate selects only remaining MapGyver scope.
@@ -387,7 +387,7 @@ now retains focus before keyboard activation, preserving immediate idle Escape i
 | Editor / owner | Current scope | Exact remaining work |
 | --- | --- | --- |
 | Golden `Viewport2D` | Browser verified primary-down/idle Escape, child/text/tool isolation, navigation and camera lifetime | Complete independent-editor, capture/cancel and app adapter acceptance |
-| Screen Warping / Screen | Actual owned WebView/Inspector on Intel/NVIDIA proves before-release Surface/background selection, overlap in both authored orders against accepted native hit metadata, independent corners/locked peers, offscreen typed editing, captured Escape/Undo, reconnect capture retirement, held-drag New and exact Load. Zero observed rejected requests/page errors; two installed previews and normal exit0 per GPU. Browser admission-revocation regression also passes | Physical native input and independent image/control/hit agreement; complete bounded off-page flow remains open, with exact unfinished fixture in stash d0029450f8410976a11ed646fa203cd0eb0bbe05 |
+| Screen Warping / Screen | Actual owned WebView/Inspector on Intel/NVIDIA proves before-release Surface/background selection, overlap in both authored orders against accepted native hit metadata, independent corners/locked peers, offscreen and bounded off-page typed editing, captured Escape/Undo, reconnect capture retirement, held-drag New and exact Load. The complete seven-stage flow passes with128 visible definitions plus independently selected Surface/129 bindings. Zero observed rejected requests/page errors; two installed previews and normal exit0 per GPU. Browser admission-revocation regression also passes | Physical native input and independent image/control/hit agreement; renderer admission remains128 and larger rendering is not qualified |
 | Surface Source / Surface | Real bundled UI/backend verifies Origin and Size selection/Inspector before release, owner clearing, captured cancellation without history, active Escape and two independent locked Source editors; full parameter/source/history/live crop suite passes; shared hover/native paint declarations remain | Actual current native pixel/hit agreement, offscreen and project/snapshot interaction acceptance |
 | Composition / Composition media | Real bundled UI/backend verifies before-release child/background selection and Inspector, no implicit first child, independent locked peers, owner/idle Escape, exact no-history selection,130-child off-page editing, reconnect/copy/removal/project replacement; shared selection/edit admission fixes busy reselection; hover and unavailable-bounds DOM checks pass | Physical native input/pixel agreement, overlapping hit order and remaining complete active-gesture/lifetime acceptance |
 | Matrix Layer spatial / Matrix media | Actual MapGyver WebView on Intel/NVIDIA verifies before-release selection/Inspector, hover without handles, owner clearing and independent locked Layer/Cell scopes. Captured Escape, exact Undo, no late writes after reconnect, New during held Cell input and exact Load recovery pass with zero rejected requests; installed previews and actual GPU identity are observed | Physical native input/pixel/hit agreement, overlap and active/outgoing selection parity remain open; earlier off-page typed Inspector evidence retains its tested scope |
@@ -1128,8 +1128,8 @@ investigation. Return only for a correction supported by its actual terminal bou
 native acceptance after helper reconnection. Its original connected/history/native requirements
 remain Pending; no fixed gate closes.
 
-Next MapGyver action: finish the preserved bounded off-page Screen fixture's complete flow.
-Screen and Matrix six-stage lifetime checks pass on both GPUs, including connection ownership
+Next MapGyver action: remaining Surface Source offscreen/current capture/reconnect/project scope.
+Screen's complete seven-stage and Matrix's six-stage lifetime checks pass on both GPUs, including connection ownership
 and native/DOM capture retirement. Physical native input/pixels/hits, remaining editor overlap,
 off-page and active/outgoing scopes retain their exact requirements. The supported desktop
 connection's last check reports native-pipe error2; no helper repair is queued.

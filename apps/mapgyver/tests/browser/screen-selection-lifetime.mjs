@@ -232,6 +232,94 @@ export async function verifyScreenSelectionLifetime({ page, post, scene, directo
 			exact_undo: true,
 			scope: 'geometry outside viewport; bounded off-page catalog selection remains separate'
 		});
+		stage = 'selected Surface beyond the bounded page remains independently editable';
+		const paged = await edit({ kind: 'CreateScreen', label: 'Paged selection screen' });
+		const createdPage = await inspect();
+		const createdHistory = history.undo_len;
+		await edit({
+			kind: 'ConfigureScreen',
+			screen: paged.screen,
+			definition: { enabled: true, target: null }
+		});
+		const emptyPage = await inspect();
+		const configuredHistory = history.undo_len;
+		const document = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
+		const parent = document.nodes.find((node) => node.uuid === paged.screen);
+		const initial = document.nodes.find((node) => node.uuid === paged.surface.surface);
+		assert(parent && initial);
+		const batch = await post('/api/ui/intent', {
+			kind: 'duplicateNodes',
+			created_items: Array.from({ length: 128 }, (_, index) => ({
+				source: 900000 + index,
+				parent: parent.node_id,
+				node_type: initial.node_type,
+				label: index === 127 ? 'Off-page selected Surface' : `Paged Surface ${index}`
+			}))
+		});
+		assert(batch.success, JSON.stringify(batch));
+		const catalog = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
+		const last = catalog.nodes.find((node) => node.meta.label === 'Off-page selected Surface');
+		assert(last);
+		const query = {
+			editor: 'Screen',
+			selected: last.uuid,
+			document: null,
+			locked: null,
+			retained: null,
+			surface: null
+		};
+		const { page: bounded } = await edit({ kind: 'InspectEditor', query });
+		assert.equal(bounded.screen.surfaces.length, 128);
+		assert.equal(bounded.has_more_surfaces, true);
+		assert(!bounded.screen.surfaces.some((item) => item.reference.surface === last.uuid));
+		assert.equal(bounded.surface.reference.surface, last.uuid);
+		assert.equal(bounded.parameters.length, 129);
+		assert(bounded.parameters.some((binding) => binding.surface === last.uuid));
+		const pagedScene = await inspect(),
+			pagedHistory = history.current_history_state_id;
+		await page
+			.getByRole('tab')
+			.filter({ hasText: /^Screens(?::|$)/ })
+			.click();
+		const manager = page.locator('section[aria-label="Screens"]');
+		const search = manager.locator('input[type="search"]');
+		await search.fill('Off-page selected Surface');
+		await manager.getByRole('button', { name: 'Off-page selected Surface', exact: true }).click();
+		await search.fill('');
+		await selected('Off-page selected Surface');
+		await main
+			.getByRole('group', { name: 'Warp handles for Off-page selected Surface', exact: true })
+			.waitFor();
+		assert.deepEqual(await inspect(), pagedScene);
+		assert.equal(
+			history.current_history_state_id,
+			pagedHistory,
+			'Off-page selection creates no history'
+		);
+		await page.getByRole('tab').filter({ hasText: 'Inspector: Off-page selected Surface' }).click();
+		await screenParameterControls(page).setNumber('Opacity', 0.6);
+		await wait(
+			async () =>
+				(await edit({ kind: 'InspectSurface', reference: bounded.surface.reference })).snapshot,
+			(value) => Math.abs(value.definition.opacity - 0.6) < 0.0001 && !history.active_edit_session
+		);
+		await undo(pagedScene);
+		await undo(emptyPage);
+		if (configuredHistory > createdHistory) await undo(createdPage);
+		await undo(original);
+		await search.fill('Selection B');
+		await manager.getByRole('button', { name: 'Selection B', exact: true }).click();
+		await search.fill('');
+		await selected('Selection B');
+		checks.push({
+			stage,
+			page_surfaces: 128,
+			independent_selected_bindings: 129,
+			typed_inspector_edit: true,
+			exact_undo: true,
+			scope:
+				'129-Surface metadata/selection; renderer admission remains 128, no larger render qualification'
+		});
 		await page.locator(`.gc-dv-tab[data-content-panel-id="${scene.peerId}"]`).click();
 		for (const current of [main, peer]) {
 			await wait(

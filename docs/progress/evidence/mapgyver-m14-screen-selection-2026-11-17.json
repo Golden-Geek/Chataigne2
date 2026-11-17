@@ -7,23 +7,17 @@
 	"overall_percent": 87,
 	"m14_accepted": 4,
 	"m14_total": 10,
-	"capability": "Screen Warping cancels native viewport and DOM Surface capture when document input becomes unavailable; reconnect cannot revive the held pointer.",
+	"capability": "Screen Warping preserves bounded off-page selection and typed Inspector editing, with exact history and complete capture/reconnect/project lifetime on both GPUs.",
 	"owners": [
 		"apps/mapgyver/ui/src/lib/screens/ScreenPreview.svelte",
 		"apps/mapgyver/ui/src/lib/screens/SurfaceHandles.svelte"
 	],
 	"producer": {
 		"path": "target/debug/MapGyver.exe",
-		"sha256_at_validation": "ad4ac9e4e6bfdf98b67c2d00683a5d7f1628ca2a13d1efec0d50dfba10d14fc3",
-		"fingerprint_observed_utc": "2026-11-16 22:20",
-		"artifact_replaced_after_runs": {
-			"last_write_utc": "2026-11-17 07:50:47",
-			"sha256": "d9ddebcfce3524b93a893d1ef2f5670483003b4082c1d5e9a4dfe6b44717d58e",
-			"qualification_credit": false,
-			"scope": "The mutable target/debug executable was overwritten after the 07:40/07:46 checkpoint results. Scoped successful cohorts and the observed earlier fingerprint are retained; they do not establish qualification of the replacement artifact."
-		},
+		"sha256": "d9ddebcfce3524b93a893d1ef2f5670483003b4082c1d5e9a4dfe6b44717d58e",
 		"build": "cargo build --locked -p MapGyver --bin MapGyver",
-		"exit": 0
+		"exit": 0,
+		"fingerprint": "Captured before each owned native app launch, included in each final receipt."
 	},
 	"overlay": "Standing Off per the user's 2026-11-16 instruction; no fresh confirmation requested.",
 	"checks": [
@@ -51,10 +45,10 @@
 			"sha256": "cd842c6d8636f7f3bf839a0ae59f5562d8f03089fae0b941fa63ca21193958df"
 		},
 		{
-			"name": "Default app rebuild with current UI",
+			"name": "Default app build with unchanged UI inputs",
 			"exit": 0,
-			"path": "target/m14-screen-lifetime-default-build-2026-11-16.log",
-			"sha256": "5140fc9e90b2bd253f622e5283e162b368658d35b492a3484edac4bccc134f88"
+			"path": "target/m14-screen-offpage-default-build-2026-11-17.log",
+			"sha256": "121249178a136a764da9e4f4930aac682ddd5729de95d22bda49006ff46c06d3"
 		},
 		{
 			"name": "Root and Golden Core cargo fmt; scoped Prettier, node syntax and diff checks",
@@ -70,15 +64,16 @@
 		{
 			"adapter": "dxgi:00000000:000156b6",
 			"gpu": "Intel(R) Graphics",
-			"pid": 24392,
-			"path": "target/m14-screen-lifetime-intel-checkpoint-2026-11-17/result.json",
-			"sha256": "77cde04226550e32022ba376dc9861208b6ef8bac8eff4450b35d6dd6c27a2fb",
+			"pid": 10952,
+			"path": "target/m14-screen-offpage-intel-2026-11-17/result.json",
+			"sha256": "a4c4247aa17ed761b0979547b45942b3c1b164ed40c33de51b410c16c32b6e1f",
 			"controller_exit": 0,
 			"normal_app_exit": 0,
+			"complete_stages": 7,
 			"installed_previews": 2,
 			"observed": {
-				"requests": 435,
-				"receipts": 434
+				"requests": 796,
+				"receipts": 795
 			},
 			"rejected": [],
 			"errors": []
@@ -86,12 +81,17 @@
 		{
 			"adapter": "dxgi:00000000:00015b86",
 			"gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
-			"pid": 34440,
-			"path": "target/m14-screen-lifetime-nvidia-2026-11-16/result.json",
-			"sha256": "29b0459fedc9bcb2274aa9dd847b950e30219c615fd0072d4026c29c167956c2",
+			"pid": 30252,
+			"path": "target/m14-screen-offpage-nvidia-2026-11-17/result.json",
+			"sha256": "fe8331f1ee5b28f549ff7e8843a263a795d5288cc5b1aa102ebe9e9f89351bce",
 			"controller_exit": 0,
 			"normal_app_exit": 0,
+			"complete_stages": 7,
 			"installed_previews": 2,
+			"observed": {
+				"requests": 797,
+				"receipts": 796
+			},
 			"rejected": [],
 			"errors": []
 		}
@@ -99,6 +99,7 @@
 	"native_scope": [
 		"Complete original before-release Surface/background and Inspector agreement, hover without extra handles, selected-only handles, independent peer corner selection, idle Escape and pan isolation.",
 		"Overlapping Surfaces select the authored topmost object before release in both sibling orders; the fixture waits for public accepted-native Pointer hit metadata and asserts selection adds no history.",
+		"One public DuplicateNodes transaction creates 128 typed Surfaces beside the initial Surface. The editor returns 128 visible definitions, has_more_surfaces=true and one independent selected Surface/129 bindings. Real Outliner selection, typed Inspector edit and exact Undo pass before restoring both editor owners and completing all lifetime stages.",
 		"Offscreen Surface geometry retains its real typed Opacity Inspector; edit and exact Undo work.",
 		"Captured corner Escape retires input before idle-owner deselection; later pointer movement/release cannot write geometry; exact normal-toolbar Undo.",
 		"Closing the actual authoring WebSocket during a held drag automatically reconnects, releases capture, prevents late writes and preserves exact Undo.",
@@ -131,12 +132,15 @@
 		"Native Pointer metadata establishes accepted hit identity, not independent native image/control alignment or physical input."
 	],
 	"offpage": {
-		"state": "Pending",
-		"stash": "d0029450f8410976a11ed646fa203cd0eb0bbe05",
-		"name": "pending/mapgyver-m14-screen-offpage-2026-11-17 interrupted native verification; six-stage baseline retained separately",
-		"source_in_stash": "apps/mapgyver/tests/browser/screen-selection-lifetime.mjs",
-		"preliminary": "One public DuplicateNodes batch creates 128 typed Surfaces beside the initial Surface; bounded editor reply remains 128 with one independently queried selected Surface/129 bindings. Real Outliner selection, typed Inspector editing and Undo were reached, but the complete extended flow is unverified.",
-		"return_action": "Manually reconcile only the named off-page block from the stash with the checked-in helper; finish its current-owner/layout readiness and complete both-GPU lifetime flow. Do not automatically restore unrelated stash content or raise renderer admission.",
+		"state": "Functionally verified for bounded metadata and Inspector scope",
+		"visible_surfaces": 128,
+		"independent_selected_bindings": 129,
+		"renderer_admission_surfaces": 128,
+		"complete_stages_per_gpu": 7,
+		"source": "apps/mapgyver/tests/browser/screen-selection-lifetime.mjs",
+		"resolved": "Reconciled only the named saved off-page block; wait for the restored Screen/Surface owners before locking and for persisted lock state before reload. Same complete flow passes on both GPUs.",
+		"preserved_stash": "d0029450f8410976a11ed646fa203cd0eb0bbe05",
+		"stash_state": "Off-page work is now integrated; keep this earlier interrupted snapshot as evidence, do not automatically restore it.",
 		"interruption": {
 			"planned_start_utc": "2026-11-16 21:58",
 			"planned_stop_utc": "2026-11-16 22:41",
@@ -145,7 +149,8 @@
 			"sha256": "41f76622aa58ca6a01fac42b63024b59bbd76ccc21f26df95ba7978643089547",
 			"normal_exit_proved": false,
 			"acceptance_credit": false
-		}
+		},
+		"scope": "No rendering of 129 Surfaces, physical desktop input, independent native image/control/hit alignment or full M14/1 credit."
 	},
 	"retained_failures": [
 		{
@@ -180,7 +185,6 @@
 		}
 	],
 	"remaining": [
-		"Full bounded off-page Screen flow",
 		"Physical native input and independent image/control/hit alignment",
 		"Remaining Surface Source/Composition/Matrix selection, overlap and active/outgoing scopes",
 		"Every retained fixed gate and final release qualification"
@@ -191,5 +195,9 @@
 		"desktop_input_sent": false,
 		"return_trigger": "Supported native connection restored or original physical checks performed manually; no helper repair chain."
 	},
-	"next": "Finish the named preserved off-page Screen flow, then remaining MapGyver editor scopes. M14/1 stays the sole Active gate."
+	"next": "Remaining Surface Source offscreen/current native capture, reconnect and project scope, then remaining Composition/Matrix scope. Physical native input and independent image/control/hit agreement stay required. M14/1 remains the sole Active gate.",
+	"previous_producer": {
+		"sha256": "ad4ac9e4e6bfdf98b67c2d00683a5d7f1628ca2a13d1efec0d50dfba10d14fc3",
+		"scope": "Earlier six-stage cohorts; the recorded interrupted off-page run remains failed."
+	}
 }
