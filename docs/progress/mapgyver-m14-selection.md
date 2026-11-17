@@ -1,8 +1,17 @@
 # M14/1 editor selection and hover
 
 Updated 2026-11-17. Golden owns reusable input/capture/selection dispatch; app adapters resolve
-their edited owners and shared Inspector selection. M14/1 is **Active, unaccepted**.
+their edited owners and shared Inspector selection. M14/1 is **Pending, user-deferred and unaccepted**.
 Overall acceptance is92/106 (87%), M14 4/10 after accepted gates3–5,7.
+
+**2026-11-17 feature-delivery priority:** the user deferred further interruption/recovery and
+optimization qualification until a second pass. Continue M14/9 Matrix enabled metadata, then
+Layer Stop/4x AA/navigation and remaining M10 features; retain all missing acceptance before
+M09. The request-lifetime candidate is parked in stash
+`bf8d43628cf0c4ac29abd9ae579b71c08946c204`:394 Golden UI tests and three UI typechecks pass,
+but final bundled/native verification was not run. [Exact files, failures and return trigger](evidence/mapgyver-request-lifetime-deferred-2026-11-17.json)
+are preserved. Do not restore it automatically. Reopen early only for a reproduced blocker in
+normal use or explicit user request; native failure evidence below remains unchanged.
 
 **Current Source result:** Shared workbench admission, unexpected capture-loss cancellation,
 projected-control focus and tool-first native Escape are implemented. The preview browser suite,

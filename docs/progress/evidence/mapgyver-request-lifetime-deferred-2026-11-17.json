@@ -1,0 +1,73 @@
+{
+	"updated": "2026-11-17",
+	"state": "Deferred by user; candidate preserved outside active checkout",
+	"reason": "User prioritizes MapGyver feature delivery; interruption/recovery acceptance and optimization work returns in a second pass. No acceptance requirement or release gate is waived.",
+	"return_trigger": "After functional delivery of remaining MapGyver features, at the qualification pass before M09; earlier only for a reproduced normal-use blocker or explicit user request.",
+	"existing_failures": "docs/progress/evidence/mapgyver-m14-source-capture-2026-11-17.json",
+	"required_outcomes": [
+		"One Source drag remains one Undo operation across connection loss.",
+		"Old-Screen geometry stops before a replacement project; no missing-Screen rejected request.",
+		"Complete remaining editor/lifetime and native image/control/hit qualification."
+	],
+	"candidate": {
+		"stash": "bf8d43628cf0c4ac29abd9ae579b71c08946c204",
+		"base": "e8f21977bfd82bc16f04224f50f681c6c4784fa7",
+		"restore_policy": "Do not automatically restore. Inspect and reconcile only the listed five paths when the return trigger is reached.",
+		"files": [
+			"packages/golden-ui/store/session/intent-pipeline.ts",
+			"packages/golden-ui/store/session/tests/intent-admission.test.ts",
+			"packages/golden-ui/store/workbench.svelte.ts",
+			"packages/golden-ui/transport/ws.ts",
+			"packages/golden-ui/transport/tests/session.test.ts"
+		],
+		"changes": [
+			"Queue transport readiness and completion-generation guards.",
+			"Immediate UI owner/pending-request revocation on disconnect/project-change notice; old replies cannot update current history.",
+			"Control requests retain originating socket; replacing a closing socket retires its pending controls before reconnect."
+		],
+		"verification": {
+			"golden_ui_tests": 394,
+			"test_files": 72,
+			"new_regressions": 5,
+			"mapgyver_ui_errors": 0,
+			"mapgyver_ui_warnings": 0,
+			"golden_ui_errors": 0,
+			"golden_ui_warnings": 0,
+			"shared_consumer_ui_errors": 0,
+			"shared_consumer_ui_warnings": 0
+		},
+		"limits": [
+			"Final candidate has no completed bundled-app/native verification; earlier intermediate app build is not credited.",
+			"The three queue admission regressions fail before the candidate. Transport test harness setup was corrected during development; do not cite its initial harness failures as product proof.",
+			"No current native acceptance, performance, pixel or release credit."
+		]
+	},
+	"artifacts": [
+		{
+			"path": "target/m14-intent-lifetime-golden-tests-2026-11-17.log",
+			"sha256": "9dd25be3f285c6976cbfde94943a44aec8318906dc3799fbea766bcce39a247d"
+		},
+		{
+			"path": "target/m14-intent-lifetime-mapgyver-check-2026-11-17.log",
+			"sha256": "09e488070504365f190a43847aec1da2ba66f54cf15178cf5490f0d05eb90e6b"
+		},
+		{
+			"path": "target/m14-intent-lifetime-golden-check-2026-11-17.log",
+			"sha256": "bbea6270c2fff90518f9101bc72a49dd4c353fe7e5201f617f6a28647e833fd5"
+		},
+		{
+			"path": "target/m14-intent-lifetime-shared-consumer-check-2026-11-17.log",
+			"sha256": "f90b36f7d749f52dcf4d07d2f3fc077b0716bbc345f93fc81510cfaad9fa8b5c"
+		},
+		{
+			"path": "target/m14-intent-admission-baseline-complete-2026-11-17.log",
+			"sha256": "20da65a373e3d6d8ebc06e81921f1b8a3f4d1734e7b25e7b2336dd60d474f380"
+		}
+	],
+	"next_product_deliverables": [
+		"M14/9 Matrix Layer/Cell enabled metadata",
+		"M14/10 fading Layer Stop",
+		"M14/8 4x AA and M14/2 navigation",
+		"Remaining M10 features before retained qualification"
+	]
+}

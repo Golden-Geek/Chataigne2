@@ -1195,6 +1195,17 @@ retain all unfinished M10/4 qualification as release-blocking. M14 precedes M10/
 M10/8 subtitles and final qualification.
 The ten gates below cover every requested behavior; incorporation implements nothing and accepts no gate.
 
+**2026-11-17 execution revision:** the user prioritizes feature delivery over further
+interruption/recovery edge-case and optimization qualification. Implement the remaining usable
+features in order9→10→8→2, then the remaining M10 features, using their functional dependencies
+and relevant correctness checks. Keep incomplete selection, recovery, hardware and performance
+acceptance in the explicit return queue for a second pass before M09; no requirement or budget
+is waived. M14/1 is user-deferred, not accepted. Its current request-lifetime candidate and exact
+failing regressions are preserved in [the deferred handoff](../progress/evidence/mapgyver-request-lifetime-deferred-2026-11-17.json).
+Do not restore that candidate automatically while implementing features. Essential correctness
+needed by a selected feature still belongs in that feature; unrelated qualification does not
+block the next functionally ready feature.
+
 Golden owns reusable 2D selection/input, viewport animation, workbench context menus and
 enabled/optional-Parameter mechanisms. MapGyver owns editor target resolution, Composition
 geometry/order, display allocation, sender naming and Matrix playback policy. Specialized
