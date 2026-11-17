@@ -7,6 +7,7 @@
 	import type { MatrixSelection } from '../../../media/generated/MatrixSelection';
 	import type { ColumnSnapshot } from '../../../media/generated/ColumnSnapshot';
 	import type { MatrixViewRow } from '../../../media/generated/MatrixViewRow';
+	import type { MatrixRenderStatus } from '../../../preview/generated/MatrixRenderStatus';
 	let { onselect }: { onselect(id: string): void } = $props();
 	const fixture = createFixtureSession();
 	const result = viewportResult('matrix');
@@ -172,6 +173,34 @@
 		launches = $state(0);
 	let disabled = $state(false),
 		comparison = $state(false);
+	let active = $state(false);
+	const plan = {
+		revision: 1,
+		playback: snapshot.playback,
+		columns: [snapshot.columns[0].id],
+		column_groups: [],
+		transitioning: false,
+		layers: [
+			{
+				layer: snapshot.rows[1].item.id.id,
+				columns: [snapshot.columns[0].id],
+				transitioning: false
+			}
+		]
+	};
+	const observation = $derived<MatrixRenderStatus | null>(
+		active
+			? {
+					project: snapshot.project,
+					desired: plan,
+					installed: plan,
+					submitted: plan,
+					stage: 'Published',
+					availability: 'Ready',
+					error: null
+				}
+			: null
+	);
 	function choose(uuid: string, event?: PointerEvent | MouseEvent | KeyboardEvent) {
 		selectedNode = uuid;
 		selections++;
@@ -222,6 +251,10 @@
 		<output aria-label="Grid launches">{launches}</output>
 	</div>
 	<div class="actions">
+		<button
+			onclick={() => {
+				active = !active;
+			}}>Toggle submitted Cell</button>
 		<button onclick={() => fixture.session.selectNode(byUuid.get('layer-1')!.node_id, 'REPLACE')}
 			>Select Layer B externally</button>
 		<button
@@ -256,7 +289,7 @@
 				{snapshot}
 				{selected}
 				{disabled}
-				observation={null}
+				{observation}
 				applicationRuntime={null}
 				viewport={() => {}}
 				select={cell}

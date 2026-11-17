@@ -4,6 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
+import { verifyMatrixAppearance } from './matrix-appearance.mjs';
 
 const directory = path.resolve(process.argv[2]);
 await mkdir(directory, { recursive: true });
@@ -202,6 +203,20 @@ try {
 			() => node.getAttribute('class'),
 			(value) => value.includes('custom-color')
 		);
+	const appearance = process.argv.includes('--appearance')
+		? await verifyMatrixAppearance({
+				page,
+				grid,
+				cell,
+				layer,
+				column,
+				matrix,
+				post,
+				reference,
+				directory,
+				wait
+			})
+		: null;
 	assert.deepEqual(errors, []);
 	await page.screenshot({ path: path.join(directory, 'matrix-selection-color.png') });
 	const result = {
@@ -209,7 +224,8 @@ try {
 		pid: native.app.pid,
 		scope:
 			'Native bundled UI explicit Cell/Layer/Column/Group selection; Inspector colors and Undo/Redo for all five headers/item kinds; saved project reload. Nested copies have current-source Rust proof. No GPU/deep qualification.',
-		colors
+		colors,
+		appearance
 	};
 	await writeFile(path.join(directory, 'result.json'), JSON.stringify(result, null, 2));
 	console.log(JSON.stringify(result));

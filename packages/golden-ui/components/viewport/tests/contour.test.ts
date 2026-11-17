@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { viewportContour, viewportContourAppearance } from '../contour';
 
-function fixture() {
+function fixture(svg = true) {
 	const node = Object.assign(new EventTarget(), {
 		ownerDocument: { defaultView: new EventTarget() },
-		namespaceURI: 'http://www.w3.org/2000/svg',
+		namespaceURI: svg ? 'http://www.w3.org/2000/svg' : 'http://www.w3.org/1999/xhtml',
 		style: {} as CSSStyleDeclaration,
 		dataset: {} as DOMStringMap
 	});
@@ -17,6 +17,20 @@ function fixture() {
 	};
 	return { node, changes, action, send, options };
 }
+
+test('DOM contours expose theme fallbacks without changing state precedence or border geometry', () => {
+	const f = fixture(false);
+	assert.equal(f.node.style.borderColor, 'var(--gc-viewport-contour-idle, #a2b0c5)');
+	assert.equal(f.node.style.borderWidth, '0.0625rem');
+	f.send('pointerenter');
+	assert.equal(f.node.style.borderColor, 'var(--gc-viewport-contour-hover, #c0d8ff)');
+	f.action.update({ ...f.options, selected: true });
+	assert.equal(f.node.style.borderColor, 'var(--gc-viewport-contour-selected, #70aaff)');
+	f.action.update({ ...f.options, selected: true, valid: false, enabled: false });
+	assert.equal(f.node.style.borderColor, 'var(--gc-viewport-contour-invalid, #ff5364)');
+	assert.equal(f.node.style.borderStyle, 'dashed');
+	f.action.destroy();
+});
 
 test('hover paints only a contour without filling or selecting; selected and invalid cues retain precedence', () => {
 	const idle = viewportContourAppearance();

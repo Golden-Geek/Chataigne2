@@ -35,6 +35,7 @@
 	import { CELL_DRAG_TYPE, readCellDrag, type CellDrag } from './cell-transfer';
 	import { sameSelection } from './selection';
 	import { getContainerColorForNode } from 'golden_ui/store/node-types';
+	import './grid-appearance.css';
 	type SelectionInput = PointerEvent | MouseEvent | KeyboardEvent;
 	let {
 		snapshot,
@@ -636,11 +637,9 @@
 									data-requested={(layerRequests.has(row.item.id.id)
 										? layerRequests.get(row.item.id.id)?.column
 										: snapshot.playback.desired_column) === column.id}
-									data-submitted={(
-										submittedLayers.get(row.item.id.id)?.columns ??
-										observation?.submitted?.columns ??
-										[]
-									).includes(column.id)}
+									data-submitted={(submittedLayers.get(row.item.id.id)?.columns ?? []).includes(
+										column.id
+									)}
 									title={`${row.item.label} / ${column.label}`}>
 									{#if row.item.id.kind === 'Layer' && !cell?.cell.media}<span
 											class="empty-icon"

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { build, preview } from 'vite';
 import { chromium } from 'playwright-core';
 import { gridSelectionChecks } from './selection.mjs';
+import { gridAppearanceChecks } from './appearance.mjs';
 
 const configFile = fileURLToPath(
 	new URL('../../../screens/tests/browser/vite.config.ts', import.meta.url)
@@ -25,12 +26,13 @@ try {
 	page.on('pageerror', (error) => errors.push(error.message));
 	await page.goto(`http://127.0.0.1:${address.port}`);
 	await gridSelectionChecks(page);
+	await gridAppearanceChecks(page);
 	assert.deepEqual(errors, []);
 	console.log(
 		JSON.stringify({
 			result: 'pass',
 			scope:
-				'Production Matrix grid: explicit document selection, keyboard/modifiers, live Golden custom colors, controls, independent panels and disposal; no GPU timing qualification'
+				'Production Matrix grid: selection/colors, rounded quiet cards, active-state isolation, stable geometry, interrupted transitions, reduced motion, narrow/scaled themes and independent panels; no GPU timing qualification'
 		})
 	);
 } finally {

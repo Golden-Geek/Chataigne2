@@ -42,6 +42,13 @@ Cell collections. Layers, Columns and Groups declare color-edit permission; Cell
 the ordinary user-item permission. Inspector color edits, history, copies and project loading
 therefore use the same metadata as the outliner. Playback markers remain separate.
 
+`grid-appearance.css` scopes Matrix card corners, quiet borders and short active-state
+transitions. Golden's DOM contour action reads optional `--gc-viewport-contour-idle`,
+`-hover`, `-selected` and `-invalid` colors, retaining its established fallbacks elsewhere;
+SVG/native contour paint is unchanged. Cell elevation follows the renderer's explicit
+per-Layer submitted columns, never the whole-Column union. Reduced motion removes transitions.
+Corners and shadows do not change Cell hit bounds, thumbnail tile geometry or preview ownership.
+
 Layer and Group sibling order in the document and grid is front to back. The Matrix capture
 boundary reverses each immediate sibling set for Golden's back-to-front compositing draw
 order. Nested Groups apply the same rule locally and remain one composited input in their

@@ -41,7 +41,16 @@ export function viewportContour(node: SVGElement | HTMLElement, initial: Contour
 			node.style.strokeDasharray = appearance.dash?.map((part) => `${part}rem`).join(' ') ?? 'none';
 			node.style.vectorEffect = 'non-scaling-stroke';
 		} else {
-			node.style.borderColor = `#${appearance.stroke}`;
+			// DOM panels may theme contours; SVG/native paint keeps its shared color contract.
+			const state =
+				options.valid === false
+					? 'invalid'
+					: options.selected
+						? 'selected'
+						: hovered
+							? 'hover'
+							: 'idle';
+			node.style.borderColor = `var(--gc-viewport-contour-${state}, #${appearance.stroke})`;
 			node.style.borderWidth = `${appearance.width}rem`;
 			node.style.borderStyle = options.enabled === false ? 'dashed' : 'solid';
 		}

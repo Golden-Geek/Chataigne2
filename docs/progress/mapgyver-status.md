@@ -1,9 +1,9 @@
 # MapGyver — simple status
 
 - **Updated:** 17 November 2026.
-- **Overall plan acceptance:** `████████░░` **80% — 94/117 checks accepted**. Deferred verification is still counted as unfinished.
-- **Latest finished:** Matrix selection and custom colors, including Inspector edits, Undo and save/reload.
-- **Working on next:** Matrix appearance and active-Cell feedback.
+- **Overall plan acceptance:** `████████░░` **81% — 95/117 checks accepted**. Deferred verification is still counted as unfinished.
+- **Latest finished:** Matrix appearance: subtle borders, rounded corners and active-Cell feedback.
+- **Working on next:** Matrix configuration presets.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -20,6 +20,7 @@
 - [x] **Composition:** owned media, transforms, front/back ordering, contextual actions, enable state and zero-scale handling.
 - [x] **Matrix:** Layers, Columns, Cells, Groups, sparse scrolling, media drops/copies/references and normal playback/crossfades.
 - [x] **Matrix selection/colors:** only explicitly selected objects highlight; modifier multiselection works; Layers/Columns/Cells/Groups show Golden custom colors. Inspector color edits, Undo, copies and reload pass focused checks.
+- [x] **Matrix appearance:** quieter borders, small rounded corners and a short active-Cell shadow. Selection/colors remain distinct; reduced motion works; app visual review and focused scaling/narrow-grid checks pass.
 - [x] **App Control:** normal 64-bit launch/readiness/sharing/reconnect/stop workflows. The remaining 32-bit case is listed below.
 - [x] **Video:** common H.264/HEVC/ProRes profiles and HAP; playback, loop, seek/frame stepping, transport Inspector and Matrix activation/deactivation policies.
 - [x] **Editor manipulation:** the smoothness improvements you accepted in Screen Warping, Surface Source and Composition.
@@ -27,17 +28,16 @@
 
 ## Next features — implementation order
 
-1. **NOW — Matrix appearance:** subtle borders/rounded corners and clearer active-Cell feedback.
-2. **Matrix configuration presets:** save/recall Layer/Column order and enabled states without changing Cell contents.
-3. **Shared editor feedback:** short hover/selection transitions and subtler handles/outlines.
-4. **Startup/New editor targets:** immediately show the automatic Screen and Surface without manual selection.
-5. **Surface Editor:** show related Surfaces sharing a source; show test patterns even without a source.
-6. **Screen-handle links:** magnet snapping creates persistent linked handle groups; provide unlink controls.
-7. **Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
-8. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
-9. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
-10. **Extended Video codecs:** DXV and WebP/animated WebP.
-11. **Subtitles:** optional, disableable subtitle controls and display.
+1. **NOW — Matrix configuration presets:** save/recall Layer/Column order and enabled states without changing Cell contents.
+2. **Shared editor feedback:** short hover/selection transitions and subtler handles/outlines.
+3. **Startup/New editor targets:** immediately show the automatic Screen and Surface without manual selection.
+4. **Surface Editor:** show related Surfaces sharing a source; show test patterns even without a source.
+5. **Screen-handle links:** magnet snapping creates persistent linked handle groups; provide unlink controls.
+6. **Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
+7. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+8. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
+9. **Extended Video codecs:** DXV and WebP/animated WebP.
+10. **Subtitles:** optional, disableable subtitle controls and display.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 

@@ -1,0 +1,35 @@
+{
+  "gate": "M15/3",
+  "date": "2026-11-17",
+  "result": "Accepted",
+  "behavior": [
+    "Matrix idle borders use quiet Golden theme colors; panels/Cells have 0.3rem corners",
+    "Submitted Cells have a subtle inset cue/drop shadow and 120ms transitions; reduced motion removes transitions",
+    "Only explicit renderer per-Layer columns receive active feedback; global Column union cannot activate unrelated rows",
+    "Selection, hover and custom colors remain independent of active playback"
+  ],
+  "software": {
+    "contour_tests": {"passed": 5, "failed": 0, "scope": "DOM CSS theme fallbacks; unchanged SVG/native contour state, hover, cancellation and disposal"},
+    "ui_type_check": {"errors": 0, "warnings": 0},
+    "format": "Prettier and both Rust workspace formatters pass",
+    "grid_browser": "Pass: existing selection/color contract plus active/inactive Layer isolation, stable hit geometry/color, interrupted active paint, reduced motion, dark/16px/1000px and light/20px/600px presentation in a 28rem panel",
+    "backend": "M15/2's154 passing Matrix tests reused: no Rust/backend/protocol change in this slice",
+    "default_build": {"result": "pass", "log": "target/m15-matrix-appearance-build.log", "duration": "1m20s", "builds": 1}
+  },
+  "native": {
+    "result": "pass",
+    "pid": 55196,
+    "normal_exit_code": 0,
+    "app_sha256": "8827098E36FA7B7F4010F7F51A261109D3F06E94E9FE351658D6850F1541955E",
+    "artifacts": "target/m15-matrix-appearance-20261117-verified",
+    "device_pixel_ratio": 1.25,
+    "observed_radius_css_px": 4.8,
+    "transition_seconds": 0.12,
+    "preview_components": 1,
+    "source_groups_at_matching_viewport": 1,
+    "verified": "Real Cell double-click launch to an owned96x64 offscreen Spout consumer; exactly one active Cell; custom color and selection coexist; scroll-adjusted hit/preview placement unchanged; active selected/unselected and idle screenshots visually reviewed; reduced-motion0s; ordinary Stop All retires elevation; color/history/reload and30-Layer offscreen selection also pass",
+    "fixture_limits": "Earlier fixture attempts lacked final render demand, compared geometry/source visibility across different native focus-scroll positions, or used the wrong Stop All accessible name. Corrected setup/scroll-aware layout assertions and ordinary Trigger Stop All; failed local artifacts retained. No timing/resource limits were relaxed."
+  },
+  "remaining": "Wider cross-app/Intel/GPU/stress/recovery qualification remains queued before M09. This is presentation acceptance, not production rendering qualification.",
+  "progress": "95/117 (81%); M15 3/11 (27%); phases8/16. Next M15/4."
+}
