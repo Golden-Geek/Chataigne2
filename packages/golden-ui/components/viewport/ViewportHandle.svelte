@@ -1,11 +1,14 @@
 <script lang="ts">
 	import type { HTMLButtonAttributes } from 'svelte/elements';
+	import { viewportHandleAppearance } from './feedback';
+	import './feedback.css';
 	let {
 		x,
 		y,
 		label,
 		ghost = false,
 		selected,
+		paint = true,
 		...attributes
 	}: HTMLButtonAttributes & {
 		x: number;
@@ -13,7 +16,9 @@
 		label: string;
 		ghost?: boolean;
 		selected?: boolean;
+		paint?: boolean;
 	} = $props();
+	const appearance = $derived(viewportHandleAppearance(selected === true, ghost));
 </script>
 
 <button
@@ -22,6 +27,11 @@
 	class="viewport-handle"
 	class:ghost
 	class:selected={selected === true}
+	class:unpainted={!paint}
+	data-viewport-handle
+	style:background={paint ? `#${appearance.fill}` : 'transparent'}
+	style:border-color={paint ? `#${appearance.stroke}` : 'transparent'}
+	style:--gc-viewport-handle-halo={`#${appearance.halo}`}
 	style:left={`${x * 100}%`}
 	style:top={`${y * 100}%`}
 	aria-label={label}
@@ -55,8 +65,10 @@
 		pointer-events: none;
 	}
 	.selected {
-		background: var(--gc-focus-color, #a3bfff);
-		border-color: var(--gc-color-text, #ddd);
-		box-shadow: 0 0 0 0.1rem var(--gc-focus-color, #a3bfff);
+		box-shadow: 0 0 0 0.0625rem var(--gc-viewport-handle-halo);
+	}
+	.viewport-handle:focus-visible {
+		outline: 0.125rem solid var(--gc-focus-color, #a3bfff);
+		outline-offset: 0.125rem;
 	}
 </style>

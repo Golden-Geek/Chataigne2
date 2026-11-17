@@ -198,6 +198,7 @@
 			label={`Rotate ${instance.label} ${handle.name}`}
 			tabindex={disabled ? -1 : 0}
 			data-instance-handle="Rotate"
+			paint={false}
 			data-instance-rotation={handle.name}
 			style={`width: 1.2rem; height: 1.2rem; background: transparent; border: none; transform: translate(-50%, -50%) translate(${handle.offset.x * 1.3}rem, ${handle.offset.y * 1.3}rem); cursor: url(${JSON.stringify(rotateCursor)}) 12 12, crosshair`}
 			aria-disabled={disabled && !active}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import './feedback.css';
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 	import { viewportContour } from './contour';
 	let {

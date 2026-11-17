@@ -53,6 +53,8 @@
 	} | null>(null);
 	let ghost = $state<Point | null>(null);
 	let hovered = $state<SurfaceId | null>(null);
+	let focusedSurface = $state<SurfaceId | null>(null);
+	let focusedHandle = $state<string | null>(null);
 	const visible = $derived(screen.surfaces.slice(0, 128));
 	const handles = $derived(
 		[selected].flatMap((id, index, all) => {
@@ -69,7 +71,7 @@
 				quadOverlay(surfaceQuad(item, presentation, extent), rem, {
 					hit: item.reference.surface,
 					selected: item.reference.surface === selected,
-					hovered: item.reference.surface === hovered,
+					hovered: item.reference.surface === hovered || item.reference.surface === focusedSurface,
 					enabled: item.definition.enabled,
 					valid: item.mapping_valid
 				})
@@ -79,7 +81,8 @@
 					handleOverlays(
 						point,
 						rem,
-						item.reference.surface === selected && index === selectedCorner,
+						(item.reference.surface === selected && index === selectedCorner) ||
+							focusedHandle === `${item.reference.surface}:${index}`,
 						false,
 						`${item.reference.surface}:${index}`
 					)
@@ -212,6 +215,10 @@
 				onhover: (value) => {
 					if (value) hovered = item.reference.surface;
 					else if (hovered === item.reference.surface) hovered = null;
+				},
+				onfocus: (value) => {
+					if (value) focusedSurface = item.reference.surface;
+					else if (focusedSurface === item.reference.surface) focusedSurface = null;
 				}
 			}}
 			data-native-hit-id={item.reference.surface}
@@ -251,6 +258,13 @@
 				x={corner.x}
 				y={corner.y}
 				label={`Warp corner ${index + 1}`}
+				tabindex={selectionAvailable ? 0 : -1}
+				onfocus={() => {
+					focusedHandle = `${item.reference.surface}:${index}`;
+				}}
+				onblur={() => {
+					focusedHandle = null;
+				}}
 				title="Drag corner; Alt-drag to move Surface"
 				selected={item.reference.surface === selected && index === selectedCorner}
 				data-surface-drop-target={item.reference.surface}

@@ -42,6 +42,10 @@ try {
 	const idleStroke = await first.evaluate((element) => getComputedStyle(element).stroke);
 	await page.mouse.move(a.x, a.y);
 	assert.equal(await first.getAttribute('data-viewport-hovered'), 'true');
+	await page.waitForFunction((idle) => {
+		const node = document.querySelector('[aria-label="Select A"]');
+		return node && getComputedStyle(node).stroke !== idle;
+	}, idleStroke);
 	assert.notEqual(await first.evaluate((element) => getComputedStyle(element).stroke), idleStroke);
 	assert.equal(await owner.textContent(), 'screen', 'hover cannot select');
 	assert.equal(await page.getByRole('group', { name: /Warp handles for/ }).count(), 0);

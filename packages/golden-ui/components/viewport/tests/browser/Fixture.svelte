@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Viewport2D from '../../Viewport2D.svelte';
 	import ViewportHandle from '../../ViewportHandle.svelte';
+	import Feedback from './Feedback.svelte';
 	import { registerGlobalCommandShortcuts } from '../../../../store/commands.svelte';
 	$effect(() => registerGlobalCommandShortcuts(true));
 	let narrow = $state(false);
@@ -72,6 +73,7 @@
 		<div>Peer document</div>
 	</Viewport2D>
 </aside>
+<Feedback />
 
 <style>
 	:global(html) {

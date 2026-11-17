@@ -1,4 +1,5 @@
 <script lang="ts">
+	import './feedback.css';
 	import { onDestroy, untrack, type Snippet } from 'svelte';
 	import { cameraZoomFactor } from 'golden_graph_ui/camera-geometry';
 	import { CanvasToolbar, canvasNavigationCommand } from 'golden_graph_ui';

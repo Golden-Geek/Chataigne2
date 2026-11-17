@@ -13,9 +13,9 @@ export function viewportContourAppearance({
 	valid = true
 }: ViewportContourState = {}) {
 	return {
-		fill: selected ? (valid ? '78aafa18' : 'a51d2c18') : '00000000',
+		fill: selected ? (valid ? '78aafa0f' : 'a51d2c18') : '00000000',
 		stroke: !valid ? 'ff5364' : selected ? '70aaff' : hovered ? 'c0d8ff' : 'a2b0c5',
-		width: selected || (hovered && valid) ? 0.125 : 0.0625,
+		width: selected || (hovered && valid) ? 0.1 : 0.0625,
 		dash: enabled ? null : ([0.3, 0.2] as const)
 	};
 }
@@ -23,17 +23,21 @@ export function viewportContourAppearance({
 interface ContourOptions extends Omit<ViewportContourState, 'hovered'> {
 	identity?: string;
 	onhover?(hovered: boolean): void;
+	onfocus?(focused: boolean): void;
 }
 
 /** Hover is presentation only; it never selects, captures input or starts a domain edit. */
 export function viewportContour(node: SVGElement | HTMLElement, initial: ContourOptions = {}) {
 	let options = initial;
 	let hovered = false;
+	let focused = false;
 	const view = node.ownerDocument.defaultView!;
 	const svg = node.namespaceURI === 'http://www.w3.org/2000/svg';
+	node.dataset.viewportContour = '';
 	function paint() {
-		const appearance = viewportContourAppearance({ ...options, hovered });
+		const appearance = viewportContourAppearance({ ...options, hovered: hovered || focused });
 		node.dataset.viewportHovered = String(hovered);
+		node.dataset.viewportFocused = String(focused);
 		if (svg) {
 			node.style.fill = `#${appearance.fill}`;
 			node.style.stroke = `#${appearance.stroke}`;
@@ -47,7 +51,7 @@ export function viewportContour(node: SVGElement | HTMLElement, initial: Contour
 					? 'invalid'
 					: options.selected
 						? 'selected'
-						: hovered
+						: hovered || focused
 							? 'hover'
 							: 'idle';
 			node.style.borderColor = `var(--gc-viewport-contour-${state}, #${appearance.stroke})`;
@@ -69,6 +73,22 @@ export function viewportContour(node: SVGElement | HTMLElement, initial: Contour
 		paint();
 		options.onhover?.(true);
 	}
+	function focus() {
+		if (focused) return;
+		focused = true;
+		view.addEventListener('blur', blur);
+		paint();
+		options.onfocus?.(true);
+	}
+	function blur() {
+		if (!focused) return;
+		focused = false;
+		view.removeEventListener('blur', blur);
+		paint();
+		options.onfocus?.(false);
+	}
+	node.addEventListener('focus', focus);
+	node.addEventListener('blur', blur);
 	node.addEventListener('pointerenter', enter as EventListener);
 	for (const event of ['pointerleave', 'pointerdown', 'pointercancel', 'lostpointercapture']) {
 		node.addEventListener(event, clear);
@@ -76,12 +96,18 @@ export function viewportContour(node: SVGElement | HTMLElement, initial: Contour
 	paint();
 	return {
 		update(next: ContourOptions) {
-			if (next.identity !== options.identity) clear();
+			if (next.identity !== options.identity) {
+				clear();
+				blur();
+			}
 			options = next;
 			paint();
 		},
 		destroy() {
 			clear();
+			blur();
+			node.removeEventListener('focus', focus);
+			node.removeEventListener('blur', blur);
 			node.removeEventListener('pointerenter', enter as EventListener);
 			for (const event of ['pointerleave', 'pointerdown', 'pointercancel', 'lostpointercapture']) {
 				node.removeEventListener(event, clear);

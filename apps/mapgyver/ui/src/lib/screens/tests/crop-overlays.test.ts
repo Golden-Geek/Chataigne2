@@ -36,7 +36,7 @@ test('native crop hover preserves exact geometry and hit admission without addin
 	assert.deepEqual(hovered[1].shape, idle[1].shape);
 	assert.equal(hovered[1].fill[3], 0);
 	assert.notDeepEqual(hovered[1].stroke, idle[1].stroke);
-	assert.equal(hovered[1].width, 2.5);
+	assert.equal(hovered[1].width, 2);
 	assert.deepEqual(
 		cropOverlays(corners, true, null, 20, true),
 		cropOverlays(corners, true, null, 20)

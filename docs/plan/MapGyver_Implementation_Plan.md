@@ -121,7 +121,9 @@ acceptance gates. **All remaining Video work follows this feedback:** M10/3 exte
 M10/8 subtitles and retained M10/4 qualification return after M15. The remaining M14 feature
 order is **9 → 10 → 8 → 2**; all four are functionally delivered with qualification Pending.
 M15/1–4 controls, Matrix selection/colors, appearance and configuration presets are Accepted
-for their owning contracts. M15/5 shared editor feedback is next. Deliver the M15 feedback
+for their owning contracts. M15/5 feedback is functionally delivered with native presentation
+qualification Pending; M15/6 startup targets is next under the user's deep-tests-later cadence.
+Deliver the M15 feedback
 before returning to Video and final acceptance closure. Reproduced correctness defects
 on the active product path remain prerequisites; the reported parameter-control crash is
 M15/1's first correction, not optional optimization or deferred edge-case qualification.
@@ -1373,7 +1375,8 @@ awarding acceptance or changing retained budgets.
 Source: [Latest Feedback.md](../../Latest%20Feedback.md) in the repository root, plus the user's
 instruction that remaining Video work follows this feedback. Follow the M14 feature-first
 execution revision above: selected M14 features9,10,8,2 are functionally delivered, with their
-remaining qualification Pending in the return queue. M15/1–4 are Accepted, and M15/5 is next;
+remaining qualification Pending in the return queue. M15/1–4 are Accepted; M15/5 is functionally
+delivered with native presentation qualification Pending, and M15/6 is next;
 deliver M15 before remaining Video, retaining user-deferred M14/1 and blocked M14/6.
 Retain every unfinished qualification gate and its return trigger before M09.
 
@@ -1444,6 +1447,12 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
    than duplicating selection stores; M14's unfinished correctness/lifetime requirements stay
    open. Earlier M13/4 acceptance remains historical; this new feedback requires the added
    presentation checks without silently changing retained timing budgets.
+   [Functional feedback delivery](../progress/evidence/mapgyver-m15-editor-feedback-2026-11-17.json)
+   adds shared120ms paint and subtler handles. Browser and native Screen/Source input checks
+   pass; native paint packets interpolate and are accepted, but matching installation/presented
+   frames and actual Composition/Matrix presentation remain unproved. Retain full M15/5
+   qualification before M09; continue feature delivery with startup targets6 under the user's
+   explicit deep-tests-later order. This checkpoint earns no gate credit or budget revision.
 6. **Startup and New show the automatic Screen and Surface.** Owners: MapGyver document
    bootstrap/default editor targets through Golden's panel-follow APIs. On fresh startup and
    New session, Screen Warping displays the auto-created Screen and Surface Editor displays its

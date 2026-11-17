@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { build, preview } from 'vite';
 import { chromium } from 'playwright-core';
+import { feedbackChecks } from './feedback.mjs';
 
 const configFile = fileURLToPath(new URL('./vite.config.ts', import.meta.url));
 await build({ configFile, logLevel: 'warn' });
@@ -361,9 +362,11 @@ try {
 		heldMainZoom,
 		'global navigation belongs only to the focused viewport'
 	);
+	const feedback = await feedbackChecks(page);
 	console.log(
 		JSON.stringify({
 			blackActiveArea: true,
+			feedback,
 			roundConstantHandles: true,
 			anchoredWheelZoom: true,
 			smoothIntermediateFrames: true,

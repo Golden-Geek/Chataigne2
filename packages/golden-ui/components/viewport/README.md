@@ -28,6 +28,15 @@ buttons do not become background selection.
 `ViewportHandle.selected` exposes an optional pressed state and shared selection styling;
 the app owns which document object or local handle is selected.
 
+Contour and handle paint uses a short120ms transition, shared with native preview decoration.
+Only color/fill/shadow changes are eased: camera, object coordinates, dimensions, stroke hit
+geometry and pointer admission stay immediate. The common handle palette softens its fill and
+uses a thin contrasting selected halo while keeping its screen-space size and opaque normal
+border. Transparent rotation hit zones use `paint={false}`. Reduced motion disables easing.
+`viewportContour` also reports keyboard focus independently of hover, without selecting or
+editing an object. `Viewport2D`, `ViewportHandle` and `ViewportTarget` load `feedback.css`;
+standalone contour hosts can import that public stylesheet explicitly.
+
 Layout spacing and handles use relative units. Measured content dimensions and camera offsets
 use CSS pixels to match browser pointer coordinates; these are computed geometry, not fixed
 layout sizes. Set `native` only for a native underlay aperture: its DOM background must stay

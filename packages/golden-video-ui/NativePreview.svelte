@@ -7,6 +7,7 @@
 	import type { OverlayPrimitive } from './generated/OverlayPrimitive';
 	import type { PreviewTileGroup } from './generated/PreviewTileGroup';
 	import { observeNativeInput } from './native-input';
+	import { animateOverlayPaint } from './overlay-paint';
 
 	type Props = Omit<HTMLAttributes<HTMLDivElement>, 'children'> & {
 		source: string;
@@ -45,11 +46,40 @@
 	let presentedViews = $state<readonly string[]>([]);
 	let registrationError = $state(false);
 	let registration = $state<PreviewRegistration | null>(null);
+	let paintedOverlays = $state.raw<OverlayPrimitive[]>([]);
+	let paintMotion = $state.raw<ReturnType<typeof animateOverlayPaint> | null>(null);
 	// Register in component order; intersection delivery can otherwise reorder
 	// overlapping native surfaces. Hidden/clipped surfaces retire on observation.
 	let inViewport = $state(true);
 	// A parent DTO can refresh its prop getter without changing the lease's lifetime value.
 	const registrationLifetime = $derived(lifetime);
+	$effect(() => {
+		if (!element) return;
+		source;
+		registrationLifetime;
+		visible;
+		inViewport;
+		if (!visible || !inViewport) {
+			paintMotion = null;
+			paintedOverlays = untrack(() => overlays);
+			return;
+		}
+		const motion = animateOverlayPaint(element.ownerDocument.defaultView!, (next) => {
+			paintedOverlays = next;
+			registration?.invalidate();
+		});
+		untrack(() => motion.update(overlays));
+		paintMotion = motion;
+		return () => {
+			motion.destroy();
+		};
+	});
+	$effect(() => {
+		const next = overlays,
+			motion = paintMotion;
+		if (motion) untrack(() => motion.update(next));
+		else paintedOverlays = next;
+	});
 	const nativeOverlays = $derived(
 		overlays.length > 0 && registration !== null && presentedViews.includes(registration.id)
 	);
@@ -95,7 +125,7 @@
 					observation?.measured(geometry);
 					return {
 						...geometry,
-						overlays: untrack(() => overlays),
+						overlays: untrack(() => paintedOverlays),
 						overlay_capacity: untrack(() => overlayCapacity),
 						tile_groups: untrack(() => tileGroups)
 					};

@@ -1,0 +1,13 @@
+[data-viewport-contour],
+[data-viewport-handle] {
+	transition-property: fill, stroke, border-color, background-color, box-shadow;
+	transition-duration: var(--gc-viewport-feedback-duration, 120ms);
+	transition-timing-function: linear;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	[data-viewport-contour],
+	[data-viewport-handle] {
+		transition: none;
+	}
+}

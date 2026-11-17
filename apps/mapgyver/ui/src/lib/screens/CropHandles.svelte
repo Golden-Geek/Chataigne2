@@ -49,10 +49,14 @@
 	} | null = null;
 	let ghost = $state<Point | null>(null);
 	let hovered = $state(false);
+	let focused = $state(false);
+	let focusedCorner = $state<number | null>(null);
 	const corners = $derived(cropCorners(surface, presentation));
 	const bounds = $derived(pointBounds(corners)!);
 	$effect(() => {
-		onoverlays(cropOverlays(corners, selected, ghost, overlayRem(), hovered));
+		onoverlays(
+			cropOverlays(corners, selected, ghost, overlayRem(), hovered || focused, focusedCorner)
+		);
 	});
 	$effect(() => {
 		if (!selected || !selectionAvailable) cancel();
@@ -153,6 +157,9 @@
 			selected,
 			onhover: (value) => {
 				hovered = value;
+			},
+			onfocus: (value) => {
+				focused = value;
 			}
 		}}
 		data-native-hit-id="crop"
@@ -186,6 +193,13 @@
 			x={corner.x}
 			y={corner.y}
 			label={`Crop corner ${index + 1}`}
+			tabindex={selectionAvailable ? 0 : -1}
+			onfocus={() => {
+				focusedCorner = index;
+			}}
+			onblur={() => {
+				focusedCorner = null;
+			}}
 			disabled={!selectionAvailable}
 			aria-disabled={disabled}
 			onclick={(event) => {

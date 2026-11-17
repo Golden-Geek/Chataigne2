@@ -1,5 +1,6 @@
 import type { OverlayPrimitive } from 'golden_video_ui';
 import { viewportContourAppearance } from 'golden_ui/components/viewport/contour.ts';
+import { viewportHandleAppearance } from 'golden_ui/components/viewport/feedback.ts';
 import type { Point } from './generated/Point';
 
 const color = (hex: string): [number, number, number, number] => [
@@ -67,17 +68,18 @@ export function handleOverlays(
 	ghost = false,
 	hit: string | null = null
 ): OverlayPrimitive[] {
+	const appearance = viewportHandleAppearance(selected, ghost);
 	const shape = {
 		kind: 'Circle' as const,
 		center: [point.x, point.y] as [number, number],
-		radius: 0.375 * rem
+		radius: appearance.radius * rem
 	};
 	const handle: OverlayPrimitive = {
 		hit,
 		shape,
-		fill: color(ghost ? '00000000' : selected ? 'a3bfff' : 'dceaff'),
-		stroke: color(ghost ? 'ffe19b' : selected ? 'dddddd' : '467bcc'),
-		width: 0.1 * rem,
+		fill: color(appearance.fill),
+		stroke: color(appearance.stroke),
+		width: appearance.width * rem,
 		dash: null
 	};
 	return selected
@@ -86,8 +88,9 @@ export function handleOverlays(
 					...handle,
 					hit: null,
 					shape: { ...shape, radius: 0.475 * rem },
-					fill: color('a3bfff'),
-					stroke: color('a3bfff')
+					fill: color('00000000'),
+					stroke: color(appearance.halo),
+					width: 0.0625 * rem
 				},
 				handle
 			]

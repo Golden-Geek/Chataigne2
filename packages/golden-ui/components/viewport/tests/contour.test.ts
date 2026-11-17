@@ -92,3 +92,19 @@ test('owner replacement and disposal clear hovered native declarations, with no 
 	f.send('pointerenter');
 	assert.equal(f.node.dataset.viewportHovered, 'false');
 });
+
+test('keyboard focus shares contour emphasis without becoming hover or selecting and clears on identity replacement', () => {
+	const f = fixture();
+	const focus: boolean[] = [];
+	f.action.update({ ...f.options, onfocus: (value) => focus.push(value) });
+	f.send('focus');
+	assert.equal(f.node.dataset.viewportFocused, 'true');
+	assert.equal(f.node.dataset.viewportHovered, 'false');
+	assert.equal(f.node.style.stroke, '#c0d8ff');
+	assert.deepEqual(f.changes, []);
+	f.action.update({ ...f.options, identity: 'two', onfocus: (value) => focus.push(value) });
+	assert.deepEqual(focus, [true, false]);
+	f.action.destroy();
+	f.send('focus');
+	assert.equal(f.node.dataset.viewportFocused, 'false');
+});

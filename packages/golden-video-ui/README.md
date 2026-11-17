@@ -44,6 +44,14 @@ rendering opportunity barrier. Delayed-reply retention still compares the comple
 including every decoration; this scheduling distinction never certifies native installation or
 input latency.
 
+`NativePreview` eases decoration fill/stroke colors for120ms using Golden viewport feedback
+timing. One finite animation per view publishes current target shapes, widths, dashes and hit
+IDs immediately; geometry updates never restart a color fade. New primitives fade in without
+adding registrations or primitives, and removed hits withdraw immediately. Reduced motion
+settles paint immediately. Hiding, replacing or disposing the view cancels pending work; a
+settled preview does no animation polling. Layout acceptance remains distinct from matching
+native installation and presented pixels, so color packets alone are not qualification proof.
+
 Native input uses an accepted-frame query to admit a pointer target. When that control calls
 `capturePreviewPointer`, the adapter pins its accepted native projection and current DOM/DPR
 cohort for the drag. Captured moves project locally without another IPC or animation-frame
