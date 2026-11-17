@@ -60,7 +60,7 @@ M10/1,2,5,6,7 functional contracts. M10/4 remains unfinished and release-blockin
 original age, complete GPU-path, shared-consumer, profile/repeated/performance-tier, memory,
 retirement and recovery requirement retained. This explicitly supersedes gate-4-before-M14
 ordering above and below; it accepts no gate and changes no budget. Return M10/4 at a scheduled
-qualification boundary after M14 or for a reproduced blocker on the active product path,
+qualification boundary after M14 and M15 or for a reproduced blocker on the active product path,
 using its recorded binaries/source identities and the original environment prerequisites.
 Keep exactly one gate Active. The 2026-11-16 user priority revision parks noncritical
 Chataigne-only Curve/Spatializer and other consumer improvements until Chataigne work resumes;
@@ -91,8 +91,22 @@ evidence does not establish a full parallel-suite pass.
 Retain unfinished MapGyver selection/navigation and every other gate in the return queue.
 M14/3–5,7 acceptance adds four verified gates; the denominator is unchanged.
 Then finish extended codecs,
-subtitles and retained acceptance before M09. The user also freshly observed native NVIDIA
-Overlay Off on this date; record that observation with any actual run, not as qualification.
+subtitles and retained acceptance before M09, subject to the M15 priority below. The user also
+freshly observed native NVIDIA Overlay Off on this date; record that observation with any
+actual run, not as qualification.
+
+**Latest feedback and execution-order revision, 2026-11-17:**
+[Latest Feedback.md](../../Latest%20Feedback.md) is incorporated in **M15** as eleven fixed
+acceptance gates. **All remaining Video work follows this feedback:** M10/3 extended codecs,
+M10/8 subtitles and retained M10/4 qualification return after M15. Preserve M14/9 as the sole
+Active gate and the selected remaining M14 feature order **9 → 10 → 8 → 2**, then deliver
+M15 before returning to Video and final acceptance closure. Reproduced correctness defects
+on the active product path remain prerequisites; the reported parameter-control crash is
+M15/1's first correction, not optional optimization or deferred edge-case qualification.
+M15 supersedes conflicting Matrix selection/presentation, sender-default, editor-feedback
+and gradient ownership contracts. It extends M14's shared editor work without accepting or
+removing any unfinished M14 requirement. Existing acceptance retains its original tested
+scope; this update adds **eleven gates and one phase**, implements nothing and accepts no gate.
 
 ## Entry, order and delivery
 
@@ -108,13 +122,17 @@ Overlay Off on this date; record that observation with any actual run, not as qu
 4. Execute the revision in this order: **M04 ownership/Resolution/Reference → M04 Media Preview
    and M05 navigation/Screen interaction → M06 Composition → M08 reusable app-control boundary
    and M07 Matrix redesign together → delivered M11/M12/M13 functional contracts →
-   M10 functional Video (1 → 2 → 5 → 6 → 7, accepted) → M14 feedback (1–10) →
+   M10 functional Video (1 → 2 → 5 → 6 → 7, accepted) →
+   remaining M14 features (9 → 10 → 8 → 2) →
+   M15 latest feedback (1–11) →
    M10/3 DXV/WebP → M10/8 subtitles →
    remaining acceptance closure → M09 final qualification**.
    M08's shared configuration/runtime contract precedes dependent Matrix app controls; this
    dependency does not authorize two active gates. Deliver their coherent slices sequentially.
    M10/1,2,5,6,7 are accepted for their tested scopes. The 2026-11-14 user revision selects
    M14 now while M10/4 qualification stays in the explicit return queue and blocks M09.
+   The 2026-11-17 revision puts M15 before every remaining M10 gate; it preserves the
+   user-deferred M14/1 and blocked M14/6 return requirements for acceptance closure before M09.
    M13/4's existing failed numerical evidence remains historical under the user's acceptance
    above; do not requalify that scope without new feedback or a reproduced dependency defect.
    Retain every unfinished M12/M13 and qualification gate; this priority change awards no acceptance.
@@ -123,7 +141,7 @@ Overlay Off on this date; record that observation with any actual run, not as qu
    are verified; independent M11 stability/editor work does not depend on unverified external-target
    cleanup. This 2026-11-04 ordering change uses rule 6 below and accepts or waives no gate.
    A reproduced defect blocking the selected product path still takes precedence. Do not start
-   M09 while M08/4 or any M11/M12/M13/M14 gate remains unaccepted. The 2026-11-08 Video priority
+   M09 while M08/4 or any M11/M12/M13/M14/M15 gate remains unaccepted. The 2026-11-08 Video priority
    supersedes the former M10 prerequisite here. The 2026-11-05 user priority
    moves unfinished M05/8 qualification to Pending with its existing evidence and exact return
    action; it does not waive that gate or restart its investigation allowance. That historical
@@ -168,8 +186,8 @@ whole-document snapshots during bulk typed creation. [M08/3 actual runtime accep
 now verifies both native readiness modes, shared owned processes, cancellation, completion-based
 retention and stale-project rejection. [M08 ordinary-app integration](../progress/mapgyver-m08-app-integration.md)
 also verifies picker, commands, scripts/callbacks and project/recovery/shutdown. M08/4 remains
-Blocked on [complete singleton retirement](../progress/mapgyver-m08-retirement.md); M10 first-pass
-Video now owns the next product delivery, then M14 corrections. Retained physical/timing
+Blocked on [complete singleton retirement](../progress/mapgyver-m08-retirement.md); remaining M14
+features and M15 own the next product delivery before all remaining Video. Retained physical/timing
 qualification and the original Matrix fixture budgets are unchanged.
 
 [Typed Layer/Group settings](../progress/mapgyver-m07-model.md) use real Parameters and
@@ -237,36 +255,38 @@ Historical batches, pauses and execution instructions in the
   cancellation, project/device fencing and completion-based final-use retirement.
 - No compatibility layer is planned. Version changed document structures explicitly and reject
   unsupported old records clearly; never reinterpret old records silently.
-- M10/5–8 own the latest Video feedback; M14 owns the latest other feedback contract;
-  M13's unchanged requirements remain binding.
+- M10/5–8 own the Video feedback; M15 owns the latest feedback contract and explicitly
+  supersedes conflicting M04–M14 behavior. Unchanged M13/M14 requirements remain binding.
   Authored/playback controls are real Golden nodes and
   Parameters, including triggers and optional-Parameter metadata. Interaction feedback must
   remain smooth at the display refresh rate independently of media/output frame cadence.
 
 ## Milestones and dependencies
 
-IDs remain stable; **M10 first pass, including high-priority gates 5–7, precedes M14, extended
-codecs, low-priority subtitles and remaining qualification**. M04–M13 retain earlier evidence
-within its tested scope; M10/5–8 and M14 own their latest changed contracts.
+IDs remain stable. Accepted M10 functional gates **1,2,5,6,7 → remaining M14 features →
+M15 → remaining Video → retained acceptance closure → M09** is the current execution order.
+M10/4 remains unfinished and release-blocking, with return after M15. M04–M14 retain earlier
+evidence within its tested scope; M15 owns the latest changed contracts.
 Counts refer to the numbered acceptance gates below, not commits or elapsed work.
 
-| ID  | Outcome                                                       | Functional dependency                                       | Gates |
-| --- | ------------------------------------------------------------- | ----------------------------------------------------------- | ----- |
-| M00 | Reconciled baseline and qualification workloads               | Explicit product selection                                  | 1     |
-| M01 | Functional native host/backend/binding decision               | M00                                                         | 4     |
-| M02 | Public multi-app seams and runnable thin shell                | M01 functional decision                                     | 7     |
-| M03 | Reusable rendering, channels, time, assets and preview        | M02                                                         | 9     |
-| M04 | Source variants, Resolution, Reference and Media Preview      | M03 gates 1–3, 5–8                                          | 8     |
-| M05 | Screens, Surfaces, navigation and physical output             | M04 working revised contracts                               | 10    |
-| M06 | Child-media Composition and transform editor                  | M04 and M05 working contracts                               | 5     |
-| M07 | Child-media Matrix, playback and virtualized grid             | M06; M08 configuration for app controls                     | 4     |
-| M08 | Reusable optional app control and shared runtime demand       | Existing Matrix playback; revised M04 ownership             | 4     |
-| M11 | Feedback: stable rendering, simpler authoring, shared UX      | Existing M04–M08 product contracts; one gate at a time      | 10    |
-| M12 | Feedback: stable panels, Matrix groups/layout, polish         | Existing M04–M11 contracts; one gate at a time              | 11    |
-| M13 | Latest feedback: smooth interaction, Matrix controls, media UX | Existing M04–M12 functional contracts; one gate at a time   | 14    |
-| M10 | Tiered Video playback, transport, seeking and subtitles       | Existing media/runtime; first pass 1,2,5,6,7,4; gate 3 after M14, then gate 8 | 8     |
-| M14 | Shared 2D interaction, Composition, Screen and Matrix feedback | M10 first-pass gates 1,2,4–7; one gate at a time              | 10    |
-| M09 | Actual-app qualification and Windows artifact                 | All retained feature/qualification gates, including M10–M14 | 1     |
+| ID  | Outcome                                                           | Functional dependency                                                      | Gates |
+| --- | ----------------------------------------------------------------- | -------------------------------------------------------------------------- | ----- |
+| M00 | Reconciled baseline and qualification workloads                   | Explicit product selection                                                 | 1     |
+| M01 | Functional native host/backend/binding decision                   | M00                                                                        | 4     |
+| M02 | Public multi-app seams and runnable thin shell                    | M01 functional decision                                                    | 7     |
+| M03 | Reusable rendering, channels, time, assets and preview            | M02                                                                        | 9     |
+| M04 | Source variants, Resolution, Reference and Media Preview          | M03 gates 1–3, 5–8                                                         | 8     |
+| M05 | Screens, Surfaces, navigation and physical output                 | M04 working revised contracts                                              | 10    |
+| M06 | Child-media Composition and transform editor                      | M04 and M05 working contracts                                              | 5     |
+| M07 | Child-media Matrix, playback and virtualized grid                 | M06; M08 configuration for app controls                                    | 4     |
+| M08 | Reusable optional app control and shared runtime demand           | Existing Matrix playback; revised M04 ownership                            | 4     |
+| M11 | Feedback: stable rendering, simpler authoring, shared UX          | Existing M04–M08 product contracts; one gate at a time                     | 10    |
+| M12 | Feedback: stable panels, Matrix groups/layout, polish             | Existing M04–M11 contracts; one gate at a time                             | 11    |
+| M13 | Latest feedback: smooth interaction, Matrix controls, media UX    | Existing M04–M12 functional contracts; one gate at a time                  | 14    |
+| M10 | Tiered Video playback, transport, seeking and subtitles           | Functional 1,2,5,6,7 accepted; remaining gates 3,8,4 follow M15            | 8     |
+| M14 | Shared 2D interaction, Composition, Screen and Matrix feedback    | Accepted M10 functional gates 1,2,5–7; retained qualification stays queued | 10    |
+| M15 | Latest feedback: safe controls, Matrix presets, editors, Gradient | Remaining M14 features and public Golden contracts; before remaining Video | 11    |
+| M09 | Actual-app qualification and Windows artifact                     | All retained feature/qualification gates, including M10–M15                | 1     |
 
 ### M00 — Reconcile and define evidence
 
@@ -1084,8 +1104,13 @@ for its added codecs under the same gate-4 contracts. **2026-11-09 amendment:** 
 gates **5 → 6 → 7** before gate-4 acceptance; complete low-priority gate **8** after M14 and
 gate 3, before M09. Preserve the current M10/4 checkpoint and sole-active-gate discipline;
 select gate 5 at the next product boundary, retaining gate 4's exact return requirements.
-M10 now has eight gates, with no acceptance awarded or existing budget relaxed. Use existing
-verified functional contracts; retain unrelated open qualification in its explicit return queue.
+**Current override, 2026-11-17:** functional gates 1,2,5,6,7 are accepted; all remaining
+Video work (3,8 and retained 4) follows M15. The older first-pass-before-M14 wording above
+does not select the next gate. Preserve every bundled/runtime, recovery and performance
+requirement; a reproduced correctness dependency on the active feature path still takes precedence.
+M10 has eight gates, with no acceptance awarded or existing budget relaxed by this amendment.
+Use existing verified functional contracts; retain unrelated open qualification in its explicit
+return queue.
 Video has **one transport per media and one file per channel**; References only mirror outputs.
 Reuse M11's simplified Channels, shared Fit Mode,
 draggable time-style Parameters, icons and stable-preview contracts, with M13's self-contained
@@ -1191,14 +1216,15 @@ remain outside this plan.
 
 Source: the user's editor, Composition, Screen and Matrix feedback in this chat.
 Execute **now, after accepted M10/1,2,5,6,7**, under the explicit 2026-11-14 user revision;
-retain all unfinished M10/4 qualification as release-blocking. M14 precedes M10/3 DXV/WebP,
-M10/8 subtitles and final qualification.
+retain all unfinished M10/4 qualification as release-blocking. M14 and M15 precede all remaining
+Video work, including M10/3 DXV/WebP, M10/8 subtitles and retained M10/4 qualification, then
+final qualification.
 The ten gates below cover every requested behavior; incorporation implements nothing and accepts no gate.
 
 **2026-11-17 execution revision:** the user prioritizes feature delivery over further
 interruption/recovery edge-case and optimization qualification. Implement the remaining usable
-features in order9→10→8→2, then the remaining M10 features, using their functional dependencies
-and relevant correctness checks. Keep incomplete selection, recovery, hardware and performance
+features in order9→10→8→2, then M15 and the remaining M10 features, using their functional
+dependencies and relevant correctness checks. Keep incomplete selection, recovery, hardware and performance
 acceptance in the explicit return queue for a second pass before M09; no requirement or budget
 is waived. M14/1 is user-deferred, not accepted. Its current request-lifetime candidate and exact
 failing regressions are preserved in [the deferred handoff](../progress/evidence/mapgyver-request-lifetime-deferred-2026-11-17.json).
@@ -1311,14 +1337,154 @@ Undo/Redo, copy/reload, bounded offscreen Inspector access and project/connectio
 
 Close each gate only after the complete owning behavioral/software/strict/generated/UI and
 specified actual-app/native checks pass. Update owning architecture docs when implementing;
-planning does not describe these behaviors as already delivered. All ten gates and all four
+planning does not describe these behaviors as already delivered. All ten gates and all eight
 M10 gates remain required before M09. This amendment adds **ten gates and one phase** without
 awarding acceptance or changing retained budgets.
 
+### M15 — Apply the 2026-11-17 latest feedback before remaining Video
+
+Source: [Latest Feedback.md](../../Latest%20Feedback.md) in the repository root, plus the user's
+instruction that remaining Video work follows this feedback. Keep M14/9 Active until accepted
+or Blocked with a named prerequisite and concrete return action; do not switch gates merely to
+edit this plan. Deliver the selected remaining M14 features, then M15, then remaining Video.
+Retain every unfinished qualification gate and its return trigger before M09.
+
+Golden owns parameter admission, reusable gradients/animation, parameter bindings, shared
+selection/viewport interaction and workbench presentation mechanisms. MapGyver owns Matrix
+preset semantics, editor targets/geometry, startup defaults and internal-sender classification.
+App UI consumes public Golden contracts. Authored preset entries, gradient stops and links use
+real typed Parameters, references, metadata and child nodes; no opaque node data or UI-owned
+document. Keep generated protocol and consumers synchronized. Each behavioral gate includes
+backend/UI/script/transport/headless parity where applicable, atomic rejection, grouped history,
+copy/project roundtrip and bounded offscreen editing. No frame-rate tree scans, per-element
+polling, sequential subtree construction or unbounded selection/preset fan-out.
+
+1. **External parameter control clamps safely.** Owner: Golden's authoritative typed Parameter
+   admission/control evaluation, with MapGyver reproducers. Reproduce the reported crash when
+   switching a new Surface's Opacity to Animation, the other opacity case and Video Speed;
+   record the actual failing invariant before fixing it. Every external control path, including
+   animation, bindings and scripting/transport inputs, clamps finite incoming values to the
+   target's declared range before bounded conversion/application. UI-only clamping is insufficient.
+   Preserve a defined safe policy for nonfinite/invalid typed inputs; never panic or corrupt
+   state. Verify lower/upper overshoot, negative values for nonnegative targets, exact bounds,
+   control-mode changes and changed constraints across numeric Parameter types. Verify actual
+   Surface/media opacity and Video Speed, history/reload and healthy sibling controls; finish
+   with actual-app animation edits that reproduce the original flows without a crash.
+2. **Matrix uses ordinary selection and Golden custom colors.** Owners: Golden selection/color
+   metadata and MapGyver Matrix projection/grid. Highlight only explicitly selected Layers,
+   Columns, Cells and Groups with Golden selection styling. Remove cross-selected row/column/
+   Cell outlines and extra header-label outlines; runtime active/playing state stays distinct
+   from selection. Allow all four item kinds to use Golden's custom-color metadata and reflect
+   it in the grid. Verify pointer/keyboard/shared selection, multiselection, nested Groups,
+   disabled/offscreen items, Inspector color edits, history/copy/reload, theme contrast and
+   independent Matrix panels without losing current inspection.
+3. **Matrix presentation has subtle shape and active-state feedback.** Owners: Golden theme
+   tokens and MapGyver grid presentation. Use small rounded corners for panels/Cells and no or
+   very subtle unselected borders. Trial a subtle drop shadow on active Cells with a short
+   transition; review it in the actual app before accepting the visual result. Selection,
+   hover, custom color and playback must remain legible together. Verify light/dark themes,
+   font/display scaling, narrow panels, virtualized sparse grids and interrupted state changes
+   without clipping shadows, changing hit targets or rebuilding per-Cell native previews.
+4. **Matrix configuration presets recall Layer/Column order and enable state.** Owner:
+   MapGyver Matrix authoring/backend intents on public Golden typed-node/history contracts.
+   Users can reorder and enable/disable Layers and Columns, capture that configuration as a
+   named preset and recall it. Presets refer to stable object identities and store only their
+   order and enable state; Cells retain their identities, settings and media, including when
+   Layer/Column positions change. Reuse M14/9 Layer enabled metadata; define Column enable
+   semantics once in the backend without duplicate booleans or UI policy. Define behavior for
+   added/deleted/missing members, nested organization and recall during playback before coding.
+   Provide create/update/rename/delete/recall through contextual UI and command/script APIs;
+   ordinary entries use the generic Inspector. Verify one coherent history operation per recall,
+   all-caller parity, exact Undo/Redo, copy/reload, disabled editing, active/outgoing playback,
+   unchanged Cell contents and bounded sparse/large-Matrix structural work. This gate does not
+   authorize implicit Cell playback snapshots or new play/stop policy.
+5. **Shared editor feedback transitions and subtle handles.** Owners: Golden reusable 2D
+   selection/hover presentation, consumed by Screen Warping, Surface, Composition and Matrix
+   editors. Add short transitions for hover and selection instead of abrupt jumps; make Screen,
+   Surface and Composition outlines/handles more subtle using shared theme/geometry tokens.
+   Preserve accessible contrast and usable hit areas independently of visible handle size.
+   Respect reduced motion, immediate input admission and native-image/control alignment.
+   Verify intermediate presented states, fast hover/select changes, drag/cancel, zoom/resize,
+   keyboard focus and independent editors in the actual app. Coordinate with M14/1–2 rather
+   than duplicating selection stores; M14's unfinished correctness/lifetime requirements stay
+   open. Earlier M13/4 acceptance remains historical; this new feedback requires the added
+   presentation checks without silently changing retained timing budgets.
+6. **Startup and New show the automatic Screen and Surface.** Owners: MapGyver document
+   bootstrap/default editor targets through Golden's panel-follow APIs. On fresh startup and
+   New session, Screen Warping displays the auto-created Screen and Surface Editor displays its
+   auto-created Surface without a manual selection. Resolve actual created identities after
+   atomic bootstrap, including when panels mount later. Preserve explicit loaded-project panel
+   targets and follow/lock behavior. Verify fresh desktop/headless bootstrap, repeated New,
+   hidden/reopened panels, empty/loaded projects and project fencing without synthetic authored
+   edits, extra bootstrap history or stale previous-session targets.
+7. **Surface Editor shows related Surfaces and source-free test patterns.** Owners: MapGyver
+   Surface/source projection and editor, using public Golden canvas/preview contracts. Add an
+   accessible compact navbar icon toggle to show all Surfaces using the selected Surface's
+   source, across every Screen, for calibration in a common source-coordinate view. Toggle-off
+   returns to the selected Surface. Define source identity in the backend, including shared
+   Reference/channel relationships; an absent source must not group all unassigned Surfaces.
+   Render the active test pattern in Surface Editor even without an assigned source. Verify
+   multiple Screens, source changes/loss/recovery, pattern on/off, geometry/selection/Inspector,
+   independent panel targets, undo/reload and bounded queries for large Surface collections;
+   do not allocate another decoder or source renderer per overlay Surface.
+8. **Screen-handle snapping creates persistent shared links.** Owners: Golden public parameter
+   binding/group contracts and MapGyver Screen geometry intents. Add a magnet-icon snap toggle
+   to Screen Warping's toolbar. Dragging a handle near another Screen's handle snaps them
+   together and creates a link, with a small link icon beside the group. Exclude same-Screen
+   handles; support groups larger than two. Moving any member moves the linked members, including
+   edits through Inspector/script/transport. Clicking the group's link icon removes all its
+   links. Use the generic binding system without cycles, UI-maintained parallel links or
+   nonterminating update propagation. Define common coordinate conversion, conflicting existing
+   controls and snap-off behavior explicitly. Verify threshold/zoom behavior, multi-member moves,
+   all-callers, link/unlink history, copy/delete/Undo, reload and missing/recreated targets with
+   bounded group propagation and accurate native handle/output geometry.
+9. **Surface, Composition and Matrix geometry align while moving/scaling.** Owners: Golden
+   reusable viewport snapping hints and MapGyver authoritative geometry intents. Add a magnet
+   toggle to the applicable editor toolbars. While moving or scaling an element, snap close X/Y
+   edges/centers to other elements and show subtle alignment guides. Keep this transient
+   alignment distinct from persistent Screen-handle links. Viewport-dependent proximity hints
+   may be computed in UI; backend intents own the final typed geometry and grouped edit.
+   Define candidate coordinates and exclusions per editor, support zoom/pan/mixed sizes and
+   avoid self-snapping, jitter and full-document scans on pointer movement. Verify move/scale,
+   one/both axes, toggle-off, unavailable sources, zero-scale items, history, native/DOM alignment
+   and sparse/large layouts; inspector/headless geometry must remain valid through the same API.
+10. **Gradient belongs in Golden as a reusable node and Color animation control.** Owners:
+    Golden typed nodes/Parameters, animation runtime and generic Inspector/editor hooks. Expose
+    a standalone Gradient node analogous to Automation and use that same generic gradient
+    model when a Color Parameter uses Animation control mode. Stops are typed child nodes with
+    explicit interpolation/evaluation semantics; do not keep a second MapGyver gradient model
+    or put app policy into Golden. Audit existing gradient ownership before moving it, update
+    public registration/protocol/persistence and all consumers in the same slice, and remove
+    obsolete app-private implementations. Verify stop edits/order, endpoints/interpolation/alpha,
+    empty/single-stop policy, control attach/detach, commands/scripts/callbacks/snippets where
+    applicable, history/copy/reload and actual MapGyver Color animation with no range crash.
+    Keep unrelated Chataigne-only editor improvements deferred; shared regressions remain required.
+11. **Shared Texture defaults exclude internal Screen senders.** Owner: MapGyver backend sender
+    catalog/default policy through Golden's public discovery contracts. On creation, select
+    the first external texture in discovery order or None when no external texture exists;
+    never automatically choose an internally generated Screen-output texture. Label internal
+    choices **(internal)** while preserving their stable identities and deliberate manual use.
+    Reconcile M13/1's older first-sender contract for every factory/command/script/headless path
+    and Auto-mode recovery: losing an external sender must not silently select an internal one.
+    Preserve explicit saved/manual choices and existing reconnect/backoff/fencing. Verify empty,
+    internal-only, mixed and changing catalogs, multiple own outputs, rename/loss/recovery,
+    creation/history/copy/reload and actual SDK discovery with correct pixels; labels alone are
+    not proof of sender provenance.
+
+All eleven gates remain Pending until their owning software/strict/generated/UI and specified
+actual-app/native checks pass. The source mapping is: crash/range → 1; Matrix UI → 2–3;
+Matrix presets → 4; shared transitions/handles → 5; startup → 6; Surface display → 7;
+Screen links → 8; geometry alignment → 9; Gradient → 10; Shared Texture → 11.
+Planning changes the fixed scope from **106 to 117 gates** and **15 to 16 phases**; the accepted
+numerator stays **92**, so overall progress becomes **79%** and phase completion **8/16 (50%)**.
+M14/1,6 and all retained correctness, physical, recovery and performance requirements remain
+required before M09. New features follow the user's feature-first cadence; a checkpoint or a
+passing subset of checks never closes a complete gate.
+
 ### M09 — Qualify the actual app and Windows artifact
 
-**Gate 1:** after all M10–M14 feature/feedback gates, qualify the complete revised bundled Windows x64 product
-and all retained M03–M14 requirements, not only a static render or native probe. Run exact
+**Gate 1:** after all M10–M15 feature/feedback gates, qualify the complete revised bundled Windows x64 product
+and all retained M03–M15 requirements, not only a static render or native probe. Run exact
 binary/assets/dependency
 identity and license checks, Rust/UI/codegen/public-boundary and affected Chataigne regressions,
 Q01/Q02 prescribed release series, revised Q03 soak, Q04 authored/active scale and full Q05
