@@ -74,6 +74,9 @@ fn admit_count(document: &Document, count: u16) -> Result<usize, String> {
 }
 
 pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) -> Result<MediaEditResult, String> {
+    if let MatrixEdit::Preset { edit } = edit {
+        return super::presets::apply(engine, media, edit);
+    }
     if let MatrixEdit::EditCellGeometry { cell, edit } = edit {
         return super::geometry::cell(engine, media, cell, edit);
     }
@@ -104,6 +107,7 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         return Ok(MediaEditResult::Changed);
     };
     match edit {
+        MatrixEdit::Preset { .. } => unreachable!("preset operations are resolved before ordinary edits"),
         MatrixEdit::TransferCell {
             cell,
             layer,

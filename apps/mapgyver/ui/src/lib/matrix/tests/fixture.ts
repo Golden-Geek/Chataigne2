@@ -5,6 +5,7 @@ export function viewportResult(media: string, row = 0): MediaEditResult {
 		snapshot: {
 			label: media,
 			media_types: [],
+			presets: [],
 			project: 'project-1',
 			media,
 			final_output: {

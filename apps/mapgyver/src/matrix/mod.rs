@@ -26,6 +26,7 @@ pub(crate) mod node;
 pub(crate) mod outputs;
 mod placement;
 pub(crate) mod playback;
+pub(crate) mod presets;
 mod projection;
 pub mod protocol;
 mod stops;

@@ -442,6 +442,7 @@ pub(super) fn inspect(
     }
     Ok(MediaEditResult::MatrixViewport {
         snapshot: MatrixViewportSnapshot {
+            presets: super::presets::summaries(engine, media)?,
             label: engine
                 .nodes
                 .get(engine.node_id_by_uuid(media.0).ok_or("Matrix media missing")?)

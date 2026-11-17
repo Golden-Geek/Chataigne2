@@ -38,7 +38,7 @@ import type { VideoFrameState } from "./VideoFrameState";
 import type { VideoSourceStatus } from "./VideoSourceStatus";
 import type { VideoTransportSnapshot } from "./VideoTransportSnapshot";
 
-export type MediaEditResult = { "kind": "Video", snapshot: VideoTransportSnapshot, } | { "kind": "VideoFrame", frame: VideoFrameState | null, } | { "kind": "VideoSource",
+export type MediaEditResult = { "kind": "MatrixPresetCreated", preset: string, } | { "kind": "Video", snapshot: VideoTransportSnapshot, } | { "kind": "VideoFrame", frame: VideoFrameState | null, } | { "kind": "VideoSource",
 /**
  * None when the authored media/channel has retired before this bounded read.
  */

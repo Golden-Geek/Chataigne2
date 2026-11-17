@@ -40,6 +40,7 @@ mod placement;
 mod playback;
 mod playback_acceptance;
 mod presentation;
+mod presets;
 mod reference_assignment;
 mod retained_demand;
 mod stops;

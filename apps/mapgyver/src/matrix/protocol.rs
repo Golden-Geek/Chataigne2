@@ -384,6 +384,7 @@ pub struct MatrixSelectionSnapshot {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct MatrixViewportSnapshot {
+    pub presets: Vec<MatrixPresetSummary>,
     pub label: String,
     pub media_types: Vec<crate::media::protocol::MediaCreationChoice>,
     /// Ephemeral media-manager instance; persisted IDs alone cannot fence project reloads.
@@ -466,6 +467,9 @@ pub enum MatrixAxisItemKind {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MatrixEdit {
+    Preset {
+        edit: MatrixPresetEdit,
+    },
     TransferCell {
         cell: CellId,
         layer: LayerId,
@@ -721,3 +725,4 @@ pub struct MatrixRenderStatus {
     pub submitted: Option<MatrixPlanStamp>,
     pub error: Option<String>,
 }
+pub use super::presets::protocol::{MatrixPresetEdit, MatrixPresetSummary};

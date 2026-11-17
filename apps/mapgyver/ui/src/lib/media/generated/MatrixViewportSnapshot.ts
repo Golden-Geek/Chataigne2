@@ -4,13 +4,14 @@ import type { ColumnGroupId } from "./ColumnGroupId";
 import type { ColumnGroupSnapshot } from "./ColumnGroupSnapshot";
 import type { ColumnSnapshot } from "./ColumnSnapshot";
 import type { MatrixPlaybackSnapshot } from "./MatrixPlaybackSnapshot";
+import type { MatrixPresetSummary } from "./MatrixPresetSummary";
 import type { MatrixSelectionSnapshot } from "./MatrixSelectionSnapshot";
 import type { MatrixViewCell } from "./MatrixViewCell";
 import type { MatrixViewRow } from "./MatrixViewRow";
 import type { MediaCreationChoice } from "./MediaCreationChoice";
 import type { MediaId } from "./MediaId";
 
-export type MatrixViewportSnapshot = { label: string, media_types: Array<MediaCreationChoice>,
+export type MatrixViewportSnapshot = { presets: Array<MatrixPresetSummary>, label: string, media_types: Array<MediaCreationChoice>,
 /**
  * Ephemeral media-manager instance; persisted IDs alone cannot fence project reloads.
  */

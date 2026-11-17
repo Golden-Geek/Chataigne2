@@ -499,6 +499,10 @@ pub struct PictureFileBinding {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    MatrixPresetCreated {
+        #[ts(type = "string")]
+        preset: NodeUuid,
+    },
     Video {
         snapshot: super::video::protocol::VideoTransportSnapshot,
     },

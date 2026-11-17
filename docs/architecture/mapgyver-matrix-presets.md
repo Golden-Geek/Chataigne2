@@ -2,8 +2,9 @@
 
 MapGyver owns configuration capture/recall under `apps/mapgyver/src/matrix`; Golden owns
 typed child nodes, references, metadata, atomic edits/history and the generic Inspector.
-M15/4 is being delivered in slices. Column muting is implemented and functionally verified;
-typed preset storage, capture/recall and contextual/command/script APIs are still pending.
+M15/4 is being delivered in slices. Column muting is functionally verified. Typed preset
+storage and capture/update/recall now live in `matrix/presets`; command conveniences,
+member-management presentation and complete gate qualification remain pending.
 
 - Presets store stable Layer/Column references, relative order and authored enabled metadata.
   They store no Cell contents, playback position, transition state or duplicate enable flags.
@@ -25,8 +26,16 @@ typed preset storage, capture/recall and contextual/command/script APIs are stil
 - Preset capture/recall does not synthesize Play/Stop. Existing media activation, application
   control and fade policies remain authoritative during configuration changes.
 
-Typed preset entries will be real reference/order/enabled Parameters in child nodes, edited
-through the ordinary Inspector. Backend intents resolve defaults and mutation semantics for
-UI, transport, scripts and commands alike. Capture builds one detached subtree; recall plans
-the complete edit set before applying it. This note is the execution contract, not evidence
-that the pending preset feature has been implemented or accepted.
+Preset entries are real reference/order/enabled Parameters. An intrinsic collection lives
+inside the Media Parameters folder, so it does not become a channel or Matrix axis child.
+The shared Media declaration creates one passive collection per Media; operations admit
+Matrix owners only. This keeps persistence/copy ownership in the ordinary declared subtree.
+The Matrix configurations icon opens contextual capture/recall/update/inspect/delete actions;
+the generic Inspector owns preset names. Member-list presentation is a remaining slice.
+
+Backend intents resolve defaults and mutation semantics for UI, transport and the existing
+generic script request API. Capture builds one detached subtree; update inserts its replacement
+entry forest in one batch; recall plans the complete edit set before applying it. Explicit
+capture admits up to 128 presets, bounding the names returned with each Matrix viewport.
+Command-node/script convenience surfaces and complete limit/admission qualification remain
+required before M15/4 acceptance. This note defines behavior; the status ledger owns evidence.

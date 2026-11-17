@@ -54,6 +54,9 @@ use std::sync::OnceLock;
             dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
         video_length_ms: f64 = 0.0 [0.0..9000000000000.0] (label = "Length", read_only = true, widget = "time", unit = "ms",
             dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
+        node matrix_presets: crate::matrix::presets::PresetCollectionNode = (crate::matrix::presets::PresetCollectionNode::new()) (
+            label = "Configurations", show_in_nested_inspector = false
+        );
     }
 )]
 pub struct MediaNode {
@@ -75,6 +78,9 @@ pub struct MediaNode {
     video_range_guard: Option<RevisionGuard>,
 }
 impl MediaNode {
+    pub(crate) fn preset_container(&self) -> Option<golden_core::node::NodeId> {
+        self.matrix_presets.current_id()
+    }
     pub(crate) fn video_control(&self) -> Option<std::sync::Arc<super::video::VideoControl>> {
         (self.kind() == MediaKind::Video).then(|| self.video_control.get_or_init(Default::default).clone())
     }

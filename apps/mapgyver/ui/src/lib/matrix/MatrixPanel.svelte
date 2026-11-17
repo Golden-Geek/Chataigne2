@@ -5,6 +5,7 @@
 		readPanelPersistedState,
 		writePanelPersistedState,
 		ContextMenu,
+		IconButton,
 		type ContextMenuAnchor,
 		type ContextMenuItem,
 		type PanelProps,
@@ -19,6 +20,8 @@
 	import VirtualGrid from './VirtualGrid.svelte';
 	import { followPanelTitle } from '../panel-title.svelte';
 	import { gridActions } from './grid-actions';
+	import { presetActions } from './preset-actions';
+	import settingsIcon from 'golden_ui/style/icons/settings.svg';
 	import { createCellTransfers, type CellDrag } from './cell-transfer';
 	import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
 	import type { ColumnSnapshot } from '../media/generated/ColumnSnapshot';
@@ -137,6 +140,18 @@
 	data-matrix-target={matrixWindow?.media ?? ''}
 	data-content-locked={choice.locked}
 	aria-busy={busy}>
+	{#if matrixWindow}
+		<div class="editor-toolbar">
+			<IconButton
+				icon={settingsIcon}
+				label="Matrix configurations"
+				disabled={busy}
+				onclick={(event) => {
+					items = presetActions(owner, selection);
+					anchor = { kind: 'element', element: event.currentTarget, placement: 'bottom-start' };
+				}} />
+		</div>
+	{/if}
 	<div class="editor-canvas matrix-canvas">
 		{#if view.error || view.readError}<p class="editor-error" role="alert">
 				{view.error || view.readError}

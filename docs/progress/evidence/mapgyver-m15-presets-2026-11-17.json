@@ -1,0 +1,34 @@
+{
+  "gate": "M15/4",
+  "date": "2026-11-17",
+  "slice": "Typed Matrix configuration presets and contextual core workflow",
+  "result": "Functionally verified; full preset gate remains Active",
+  "behavior": [
+    "Typed reference/order/enabled Parameters under an intrinsic Media-owned collection; no Cell snapshots or playback requests",
+    "Capture/update/rename/delete/recall use owning backend intents and ordinary grouped history",
+    "Recall sorts captured Layer/Column members within current parent slots; new members/groups stay in place; missing members skip; reparented members stay under their current parent",
+    "Matrix copies remap preset references to copied members; reload preserves presets",
+    "Configurations icon offers contextual capture/recall/update/inspect-name/delete; generic script request transport accepts the same generated operation"
+  ],
+  "software": {
+    "matrix_tests": { "passed": 161, "failed": 0, "exit_code": 0, "log": "target/m15-presets-tests.log", "scope": "Four new preset tests cover exact order/flags, unchanged Cells and logical playback, grouped history, reload, management, foreign-Matrix rejection, added/deleted/reparented members and copy reference remapping" },
+    "strict_clippy": { "result": "pass", "exit_code": 0, "log": "target/m15-presets-clippy.log" },
+    "generated_contract": "Fresh generate_media_protocol executable export matches checked-in media TypeScript files by SHA256",
+    "ui_type_check": { "errors": 0, "warnings": 0, "exit_code": 0, "log": "target/m15-presets-ui.log" },
+    "grid_browser": { "result": "pass", "exit_code": 0, "log": "target/m15-presets-grid-browser.log", "scope": "Existing production grid selection/colors, appearance, enabled-state and independent-panel checks" },
+    "formatting": "Root and Golden Core cargo fmt; owning authored UI/fixture Prettier; owning diff whitespace check",
+    "default_build": { "result": "pass", "exit_code": 0, "duration": "1m10s", "log": "target/m15-presets-build.log" }
+  },
+  "native": {
+    "pid": 42016,
+    "normal_exit_code": 0,
+    "result": "pass",
+    "app_sha256": "80CA938E518A701E4CBF9F1A9F8910EEA83F3FB3D45C7D01D16F0555759AE17F",
+    "artifacts": "target/m15-presets-native-final-20261117",
+    "log": "target/m15-presets-native-final.log",
+    "scope": "Owned bundled app contextual capture/recall; independently queried backend order and unchanged Cells; visible row order; saved project reload and ordinary Matrix reselection. No GPU pixel/timing/resource qualification claim.",
+    "fixture_correction": "Initial screenshots were taken before reload UI settlement. Final check waits for the loaded project title, reselects Matrix and verifies visible rows. Earlier directories remain local; no application change was inferred from those snapshots."
+  },
+  "remaining": "Command-node/script convenience surfaces; bounded member list/Inspector access; complete admission/limit, all-caller, disabled editing, active/outgoing and sparse/large-Matrix acceptance. Generic script request routing is shared but not a substitute for the explicit planned API checks.",
+  "progress": "95/117 (81%); M15 3/11 (27%); no whole gate awarded for partial delivery"
+}
