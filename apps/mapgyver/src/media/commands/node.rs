@@ -24,6 +24,7 @@ use std::sync::Arc;
         );
         matrix_layer: NodeReference = NodeReference::empty() (label = "Layer", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v4".into()]);
         matrix_column: NodeReference = NodeReference::empty() (label = "Column", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v3".into()]);
+        matrix_preset: NodeReference = NodeReference::empty() (label = "Configuration", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.preset.v1".into()]);
         application_owner: NodeReference = NodeReference::empty() (label = "App control owner", reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v3".into(), "mapgyver.matrix.column_group.v1".into(), "mapgyver.matrix.cell.v5".into()]);
         application_file: File = File::default() (label = "App file", file_allowed_extensions = vec!["exe".into()]);
         launch_mode: Enum = "Configured" (label = "Launch mode", enum_options = crate::parameters::enum_options(&["Configured", "Cut"]), constraint_policy = "reject");
@@ -149,6 +150,26 @@ impl MediaCommandNode {
         let asset = AssetId::from_uuid(self.asset.get_ref().uuid.0);
         let folder = optional(self.target_folder.get_ref());
         Ok(match self.kind()? {
+            kind @ (MediaCommandKind::CaptureMatrixPreset
+            | MediaCommandKind::UpdateMatrixPreset
+            | MediaCommandKind::RecallMatrixPreset
+            | MediaCommandKind::RenameMatrixPreset
+            | MediaCommandKind::DeleteMatrixPreset) => {
+                use crate::matrix::protocol::{MatrixEdit, MatrixPresetEdit};
+                let preset = self.matrix_preset.get_ref().uuid;
+                let edit = match kind {
+                    MediaCommandKind::CaptureMatrixPreset => MatrixPresetEdit::Capture { label: requested },
+                    MediaCommandKind::UpdateMatrixPreset => MatrixPresetEdit::Update { preset },
+                    MediaCommandKind::RecallMatrixPreset => MatrixPresetEdit::Recall { preset },
+                    MediaCommandKind::RenameMatrixPreset => MatrixPresetEdit::Rename { preset, label },
+                    MediaCommandKind::DeleteMatrixPreset => MatrixPresetEdit::Delete { preset },
+                    _ => unreachable!(),
+                };
+                MediaEdit::Matrix {
+                    media,
+                    edit: MatrixEdit::Preset { edit },
+                }
+            }
             MediaCommandKind::VideoPlay => MediaEdit::Video {
                 media,
                 edit: super::super::video::protocol::VideoEdit::Play,

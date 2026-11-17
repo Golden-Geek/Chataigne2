@@ -28,6 +28,11 @@ function sourceExamples(mediaId, channelId, assetId) {
 	// Uncomment the operations you need. Each call is its own atomic history step.
 	// local.dropMatrixMedia("cell", matrixId, layerId, columnId, mediaId, false); // true copies the full media
 	// local.transferMatrixCell("transfer", matrixId, cellId, layerId, columnId, "Drop"); // Drop swaps/moves; Move/Copy/Reference require empty destination
+	// local.captureMatrixPreset("capture", matrixId, "Show"); // MatrixPresetCreated returns preset UUID
+	// local.updateMatrixPreset("update", matrixId, presetId); // replace captured order/enabled state
+	// local.recallMatrixPreset("recall", matrixId, presetId); // keeps Cells and playback intact
+	// local.renameMatrixPreset("rename", matrixId, presetId, "Blackout");
+	// local.deleteMatrixPreset("delete", matrixId, presetId);
 	// local.dropCompositionMedia("drop", compositionMediaId, compositionChannelId, mediaId, "", false, 0, 0); // true copies the full media
 	// local.createCompositionMedia("create-child", compositionMediaId, compositionChannelId, "SolidColor", "", 320, 180);
 	// local.transformCompositionMedia("fit", compositionMediaId, compositionChannelId, childMediaId, "Fit"); // Reset: centered native size; Fit: preserve ratio; Fill: stretch to canvas

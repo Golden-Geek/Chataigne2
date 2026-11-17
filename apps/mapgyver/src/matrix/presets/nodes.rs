@@ -29,7 +29,7 @@ impl Node for PresetCollectionNode {
 }
 
 #[node("mapgyver.matrix.preset.v1", label = "Configuration", can_be_disabled = false, collapsed = true,
-    user_permissions = golden_core::node::NodeUserPermissions { can_edit_name: true, can_remove_and_duplicate: true, ..Default::default() })]
+    user_permissions = golden_core::node::NodeUserPermissions { can_edit_name: true, ..Default::default() })]
 pub struct PresetNode {}
 #[node("mapgyver.matrix.preset.v1", from_struct)]
 impl Node for PresetNode {
@@ -51,7 +51,7 @@ impl Node for PresetNode {
 }
 
 #[node("mapgyver.matrix.preset_entry.v1", label = "Member", can_be_disabled = false, show_in_nested_inspector = false,
-    user_permissions = golden_core::node::NodeUserPermissions { can_edit_name: true, can_remove_and_duplicate: true, ..Default::default() })]
+    user_permissions = golden_core::node::NodeUserPermissions { can_edit_name: true, ..Default::default() })]
 #[children(folder(parameters, label = "Parameters", can_be_disabled = false) {
     target: NodeReference = NodeReference::empty() (label = "Member", reference_target_kind = ReferenceTargetKind::AnyNode,
         reference_allowed_node_types = vec!["mapgyver.matrix.layer.v4".into(), "mapgyver.matrix.column.v3".into()]);
@@ -68,7 +68,7 @@ impl PresetEntryNode {
         node.member_enabled = ParameterHandle::new(enabled);
         node
     }
-    pub(super) fn values(&self) -> (golden_core::node::NodeUuid, i32, bool) {
+    pub(crate) fn values(&self) -> (golden_core::node::NodeUuid, i32, bool) {
         (self.target.get_ref().uuid, self.order.get(), self.member_enabled.get())
     }
 }

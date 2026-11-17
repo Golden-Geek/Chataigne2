@@ -22,6 +22,11 @@ pub(super) const METHODS: &[&str] = &[
     "inspectVideoSource",
     "dropMatrixMedia",
     "transferMatrixCell",
+    "captureMatrixPreset",
+    "updateMatrixPreset",
+    "recallMatrixPreset",
+    "renameMatrixPreset",
+    "deleteMatrixPreset",
     "dropCompositionMedia",
     "createCompositionMedia",
     "transformCompositionMedia",
@@ -111,6 +116,8 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "transformCompositionMedia" | "arrangeCompositionMedia" => 4,
         "dropMatrixMedia" => 5,
         "transferMatrixCell" => 5,
+        "captureMatrixPreset" | "updateMatrixPreset" | "recallMatrixPreset" | "deleteMatrixPreset" => 2,
+        "renameMatrixPreset" => 3,
         "createReference" | "configureReference" | "selectReferenceChannel" => 2,
         _ => return Ok(None),
     };
@@ -118,6 +125,30 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         return Err(format!("{method} expects a request id and {count} argument(s)"));
     }
     Ok(Some(match method {
+        "captureMatrixPreset"
+        | "updateMatrixPreset"
+        | "recallMatrixPreset"
+        | "renameMatrixPreset"
+        | "deleteMatrixPreset" => {
+            use crate::matrix::protocol::{MatrixEdit, MatrixPresetEdit};
+            let edit = match method {
+                "captureMatrixPreset" => MatrixPresetEdit::Capture {
+                    label: optional_text(args, 1)?,
+                },
+                "updateMatrixPreset" => MatrixPresetEdit::Update { preset: uuid(args, 1)? },
+                "recallMatrixPreset" => MatrixPresetEdit::Recall { preset: uuid(args, 1)? },
+                "renameMatrixPreset" => MatrixPresetEdit::Rename {
+                    preset: uuid(args, 1)?,
+                    label: text(args, 2)?.into(),
+                },
+                "deleteMatrixPreset" => MatrixPresetEdit::Delete { preset: uuid(args, 1)? },
+                _ => unreachable!(),
+            };
+            MediaEdit::Matrix {
+                media: MediaId(uuid(args, 0)?),
+                edit: MatrixEdit::Preset { edit },
+            }
+        }
         "inspectVideoSource" => MediaEdit::InspectVideoSource {
             reference: reference(args)?,
         },

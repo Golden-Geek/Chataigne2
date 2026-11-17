@@ -22,6 +22,7 @@ import type { MatrixCellLayoutPage } from "./MatrixCellLayoutPage";
 import type { MatrixEditorPage } from "./MatrixEditorPage";
 import type { MatrixItemId } from "./MatrixItemId";
 import type { MatrixPlaybackSnapshot } from "./MatrixPlaybackSnapshot";
+import type { MatrixPresetMembers } from "./MatrixPresetMembers";
 import type { MatrixSnapshot } from "./MatrixSnapshot";
 import type { MatrixTargetPage } from "./MatrixTargetPage";
 import type { MatrixViewportSnapshot } from "./MatrixViewportSnapshot";
@@ -38,7 +39,7 @@ import type { VideoFrameState } from "./VideoFrameState";
 import type { VideoSourceStatus } from "./VideoSourceStatus";
 import type { VideoTransportSnapshot } from "./VideoTransportSnapshot";
 
-export type MediaEditResult = { "kind": "MatrixPresetCreated", preset: string, } | { "kind": "Video", snapshot: VideoTransportSnapshot, } | { "kind": "VideoFrame", frame: VideoFrameState | null, } | { "kind": "VideoSource",
+export type MediaEditResult = { "kind": "MatrixPresetMembers", page: MatrixPresetMembers, } | { "kind": "MatrixPresetCreated", preset: string, } | { "kind": "Video", snapshot: VideoTransportSnapshot, } | { "kind": "VideoFrame", frame: VideoFrameState | null, } | { "kind": "VideoSource",
 /**
  * None when the authored media/channel has retired before this bounded read.
  */

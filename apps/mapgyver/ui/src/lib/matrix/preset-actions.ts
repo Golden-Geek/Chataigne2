@@ -5,7 +5,8 @@ import type { MatrixPresetEdit } from '../media/generated/MatrixPresetEdit';
 
 export function presetActions(
 	owner: ReturnType<typeof createMatrixEditor>,
-	selection: ReturnType<typeof useDocumentSelection>
+	selection: ReturnType<typeof useDocumentSelection>,
+	inspectMembers: (preset: string) => void | Promise<void>
 ): ContextMenuItem[] {
 	const session = owner.session,
 		generation = session?.snapshotGeneration,
@@ -30,6 +31,13 @@ export function presetActions(
 				{
 					label: 'Update from current configuration',
 					action: () => run({ kind: 'Update', preset: preset.id })
+				},
+				{
+					label: 'Inspect configuration members',
+					closeOnSelect: false,
+					action: () => {
+						if (current()) return inspectMembers(preset.id);
+					}
 				},
 				{
 					label: 'Inspect / rename configuration',

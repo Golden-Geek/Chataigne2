@@ -104,6 +104,65 @@
 	const selectDocumentNode = selection.select;
 	let anchor = $state<ContextMenuAnchor | null>(null);
 	let items = $state.raw<ContextMenuItem[]>([]);
+	async function inspectMembers(
+		preset: string,
+		after: string | null = null,
+		previous: (string | null)[] = []
+	) {
+		const session = owner.session,
+			generation = session?.snapshotGeneration,
+			media = view.media,
+			opened = anchor;
+		const result = await owner.edit({
+			kind: 'Preset',
+			edit: { kind: 'InspectMembers', preset, after, count: 32 }
+		});
+		if (
+			!anchor ||
+			anchor !== opened ||
+			owner.session !== session ||
+			session?.snapshotGeneration !== generation ||
+			view.media !== media ||
+			result?.kind !== 'MatrixPresetMembers'
+		)
+			return;
+		const page = result.page;
+		items = [
+			{
+				label: 'Configurations',
+				closeOnSelect: false,
+				action: () => {
+					items = presetActions(owner, selection, inspectMembers);
+				}
+			},
+			{ separator: true },
+			...page.members.map((member): ContextMenuItem => ({
+				label: member.label,
+				action: () => {
+					selection.select(member.id);
+				}
+			})),
+			...(page.members.length ? [] : [{ label: 'No captured members', disabled: true }]),
+			...(previous.length
+				? [
+						{
+							label: 'Previous members',
+							closeOnSelect: false,
+							action: () => inspectMembers(preset, previous.at(-1)!, previous.slice(0, -1))
+						}
+					]
+				: []),
+			...(page.next
+				? [
+						{
+							label: 'Next members',
+							closeOnSelect: false,
+							action: () => inspectMembers(preset, page.next, [...previous, after])
+						}
+					]
+				: [])
+		];
+	}
 	function menu(
 		event: MouseEvent,
 		row?: MatrixViewRow,
@@ -147,7 +206,7 @@
 				label="Matrix configurations"
 				disabled={busy}
 				onclick={(event) => {
-					items = presetActions(owner, selection);
+					items = presetActions(owner, selection, inspectMembers);
 					anchor = { kind: 'element', element: event.currentTarget, placement: 'bottom-start' };
 				}} />
 		</div>

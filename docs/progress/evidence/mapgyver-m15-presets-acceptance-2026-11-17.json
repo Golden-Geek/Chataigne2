@@ -1,0 +1,43 @@
+{
+  "gate": "M15/4",
+  "date": "2026-11-17",
+  "result": "Accepted",
+  "scope": "Matrix configuration presets; original GPU, resource, recovery and other deferred gates remain unchanged",
+  "prior_evidence": [
+    "docs/progress/evidence/mapgyver-m15-column-enabled-2026-11-17.json",
+    "docs/progress/evidence/mapgyver-m15-presets-2026-11-17.json"
+  ],
+  "requirement_evidence": {
+    "typed_settings_and_stable_identity": "Preset/entry child nodes contain real Member reference, Order and Enabled Parameters; snapshots store no Cells or playback. Media-owned intrinsic collection participates in ordinary copy/persistence.",
+    "membership_and_nested_semantics": "Core tests cover added members keeping their slots, deleted references skipping, groups retaining slots and reparented members staying in their current parent.",
+    "contextual_operations": "Configurations menu provides capture/update/recall, inspection/name editing and delete through the same backend operations. Native capture/recall/visible-order and ordinary save/reload pass; generic Golden name widget is reused unchanged.",
+    "command_and_script_surfaces": "Five command kinds have real typed fields and conditional Inspector visibility. Five named methods are registered on the manager and documented in its embedded script template. The complete command-kind test executes all operations, history and reload; named-script parity runs actual committed callbacks.",
+    "caller_parity_and_rejection": "UI/exclusive headless intent, QuickJS app operation, hosted JSON method and named QuickJS methods share preset semantics and committed callbacks; history replay does not requeue requests. Foreign/missing command references, invalid page sizes/cursors and capacity overflow reject without mutations/history. Golden structural admission prevents generic duplication from bypassing the preset limit.",
+    "history_copy_reload": "Exact grouped Undo/Redo, management/history, saved preset identity and reference remapping to copied Layers/Columns pass core tests. Existing Cell identities/definitions and logical playback remain unchanged.",
+    "disabled_and_active_outgoing_state": "Preset rename/update work while the Matrix is disabled. Recall mutes/resumes outgoing retained content without replacing its pinned source or changing logical playback; current mix and Cell definitions remain stable.",
+    "bounded_sparse_work": "A 1000-Layer by 1000-Column Matrix retains zero materialized Cells through capture/reorder/recall. Preset node growth is bounded by axis count, independent of the million empty addresses. Capture uses a detached tree; update inserts an entry forest; recall queues one prevalidated edit batch.",
+    "bounded_offscreen_inspector": "Immutable member query visits at most the requested 1-128 sibling entries via a validated UUID cursor, without loading the Matrix or preset forest. UI pages32 names and selects real entries. Native next/previous paging and generic Enabled edits succeed on Layer33 while its row is absent from the virtualized grid."
+  },
+  "software": {
+    "selected_tests": { "passed": 224, "failed": 0, "exit_code": 0, "log": "target/m15-preset-controls-selected-tests.log", "scope": "Matrix, command, scripting and generated-contract suites before final test-state cleanup/capacity case" },
+    "final_affected_tests": { "passed": 49, "failed": 0, "exit_code": 0, "log": "target/m15-preset-controls-final-tests.log", "scope": "All preset tests and affected scripting parity after named test-state/lint cleanup, capacity guard and metadata permission correction; reused unchanged command/grid results" },
+    "strict_clippy": { "result": "pass", "exit_code": 0, "log": "target/m15-preset-controls-clippy.log", "duration": "18s" },
+    "generated_contract": "checked_in_typescript_matches_rust_contracts passes in the selected suite; generator, DTOs, command fields and consumers updated together",
+    "ui_types": { "errors": 0, "warnings": 0, "exit_code": 0, "log": "target/m15-preset-controls-ui.log" },
+    "grid_browser": { "result": "pass", "exit_code": 0, "log": "target/m15-preset-controls-grid-browser.log" },
+    "formatting": "Root and Golden Core cargo fmt; owning authored UI/template/native fixture Prettier; owning Git whitespace checks",
+    "normal_build": { "result": "pass", "exit_code": 0, "duration": "1m07s", "log": "target/m15-preset-controls-build.log" }
+  },
+  "native": {
+    "result": "pass",
+    "pid": 54700,
+    "normal_exit_code": 0,
+    "app_sha256": "9BEA0A00202AFBDF6F946E15150BD3AF80543C06FE3BF5DB2177B02D1094D121",
+    "artifacts": "target/m15-preset-controls-native-20261117",
+    "log": "target/m15-preset-controls-native.log",
+    "checks": ["contextual capture", "bounded member chooser", "generic Inspector Enabled edits", "contextual recall and visible order", "stable Cells", "save/reload and Matrix reselection", "next/previous member pages", "offscreen Layer33 member selection/editing"],
+    "visual_review": "Member reference, Order and Enabled appear as ordinary Golden Parameters; Layer33 remains inspectable while grid rows1-5 are visible. Both saved screenshots reviewed."
+  },
+  "progress": { "accepted": 96, "total": 117, "percent": 82, "m15_accepted": 4, "m15_total": 11, "m15_percent": 36, "completed_phases": 8, "total_phases": 16 },
+  "next": "M15/5 shared editor transitions and subtler handles; no manual action needed"
+}

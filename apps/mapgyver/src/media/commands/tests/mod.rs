@@ -17,6 +17,7 @@ use golden_core::{
 };
 
 mod applications;
+mod presets;
 mod queries;
 mod unavailable;
 
@@ -108,6 +109,11 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
         let target = match kind {
             kind if kind.group() == "Video" => create(&mut engine, MediaKind::Video),
             MediaCommandKind::DropMatrixMedia
+            | MediaCommandKind::CaptureMatrixPreset
+            | MediaCommandKind::UpdateMatrixPreset
+            | MediaCommandKind::RecallMatrixPreset
+            | MediaCommandKind::RenameMatrixPreset
+            | MediaCommandKind::DeleteMatrixPreset
             | MediaCommandKind::SetApplicationFile
             | MediaCommandKind::InspectApplication
             | MediaCommandKind::LaunchMatrixColumn
@@ -292,6 +298,7 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
                 ParamValue::Enum("Pause".into()),
             );
         }
+        presets::prepare(&mut engine, command, *kind, target.media);
         let before = to_sparse_project_json_pretty(&engine).unwrap();
         let history = engine.undo_len();
         let ack = invoke(&mut engine, MediaEdit::ExecuteCommand { command });

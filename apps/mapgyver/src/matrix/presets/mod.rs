@@ -39,7 +39,7 @@ pub(crate) fn summaries(engine: &AppEngine, media: MediaId) -> Result<Vec<Matrix
     let parent = collection(engine, media)?;
     let ids = children(engine, parent);
     if ids.len() > MAX_PRESETS {
-        return Err("Matrix supports at most128 configuration presets".into());
+        return Err("Matrix supports at most 128 configuration presets".into());
     }
     ids.into_iter()
         .map(|id| {
@@ -91,9 +91,12 @@ fn capture(engine: &AppEngine, document: &Document) -> Vec<NodeTree> {
 }
 pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixPresetEdit) -> Result<MediaEditResult, String> {
     let parent = collection(engine, media)?;
+    if let MatrixPresetEdit::InspectMembers { preset, after, count } = edit {
+        return inspect(engine, media, preset, after, count);
+    }
     if let MatrixPresetEdit::Capture { label } = edit {
         if children(engine, parent).len() >= MAX_PRESETS {
-            return Err("Matrix supports at most128 configuration presets".into());
+            return Err("Matrix supports at most 128 configuration presets".into());
         }
         let document = Document::load(engine, media)?;
         let mut preset = PresetNode::new();
@@ -138,6 +141,48 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixPresetEd
         _ => unreachable!(),
     }
     Ok(MediaEditResult::Changed)
+}
+
+pub(crate) fn inspect(
+    engine: &AppEngine,
+    media: MediaId,
+    preset: golden_core::node::NodeUuid,
+    after: Option<golden_core::node::NodeUuid>,
+    count: u16,
+) -> Result<MediaEditResult, String> {
+    let parent = resolve(engine, collection(engine, media)?, preset)?;
+    if !(1..=128).contains(&count) {
+        return Err("preset member page size must be between 1 and 128".into());
+    }
+    let mut current = if let Some(after) = after {
+        let id = engine.node_id_by_uuid(after).ok_or("preset member cursor is missing")?;
+        let node = engine.nodes.get(id).unwrap();
+        if node.node_data().parent != Some(parent) || !matches!(node, AppNode::MatrixPresetEntry(_)) {
+            return Err("preset member cursor belongs to another configuration".into());
+        }
+        node.node_data().next_sibling
+    } else {
+        engine.nodes.get(parent).unwrap().node_data().first_child
+    };
+    let mut members = Vec::with_capacity(count.into());
+    while let Some(id) = current {
+        let node = engine.nodes.get(id).unwrap();
+        if !matches!(node, AppNode::MatrixPresetEntry(_)) {
+            return Err("invalid configuration entry".into());
+        }
+        members.push(MatrixPresetSummary {
+            id: node.node_data().meta.uuid,
+            label: node.node_data().meta.label.clone(),
+        });
+        current = node.node_data().next_sibling;
+        if members.len() == usize::from(count) {
+            break;
+        }
+    }
+    let next = current.and_then(|_| members.last().map(|member| member.id));
+    Ok(MediaEditResult::MatrixPresetMembers {
+        page: MatrixPresetMembers { preset, members, next },
+    })
 }
 fn recall(engine: &mut AppEngine, media: MediaId, preset: NodeId) -> Result<(), String> {
     let document = Document::load(engine, media)?;

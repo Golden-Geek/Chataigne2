@@ -10,6 +10,7 @@ mod cell_transfers;
 mod composition;
 mod matrix;
 mod picture_file;
+mod presets;
 mod reference_selection;
 mod target_picker;
 mod video_policy;
@@ -26,6 +27,30 @@ const CALLERS: [Caller; 4] = [Caller::Ui, Caller::QuickJs, Caller::HostedQuickJs
 
 fn named_invocation(operation: &MediaEdit) -> String {
     let (method, args) = match operation {
+        MediaEdit::Matrix {
+            media,
+            edit: crate::matrix::protocol::MatrixEdit::Preset { edit },
+        } => {
+            use crate::matrix::protocol::MatrixPresetEdit;
+            match edit {
+                MatrixPresetEdit::Capture { label } => (
+                    "captureMatrixPreset",
+                    serde_json::json!([media, label.as_deref().unwrap_or("")]),
+                ),
+                MatrixPresetEdit::Update { preset } => ("updateMatrixPreset", serde_json::json!([media, preset])),
+                MatrixPresetEdit::Recall { preset } => ("recallMatrixPreset", serde_json::json!([media, preset])),
+                MatrixPresetEdit::Rename { preset, label } => {
+                    ("renameMatrixPreset", serde_json::json!([media, preset, label]))
+                }
+                MatrixPresetEdit::Delete { preset } => ("deleteMatrixPreset", serde_json::json!([media, preset])),
+                MatrixPresetEdit::InspectMembers { .. } => {
+                    return format!(
+                        "local.editMedia('parity', {:?});",
+                        serde_json::to_string(operation).unwrap()
+                    );
+                }
+            }
+        }
         MediaEdit::InspectVideoSource { reference } => (
             "inspectVideoSource",
             serde_json::json!([reference.media, reference.channel]),
@@ -280,15 +305,17 @@ type VideoPolicyState = (
     crate::media::video::protocol::VideoOnDeactivate,
 );
 
-fn authored(
-    engine: &AppEngine,
-) -> (
-    MediaManagerSnapshot,
-    Vec<crate::media::composition::protocol::CompositionSnapshot>,
-    Vec<crate::matrix::protocol::MatrixSnapshot>,
-    Vec<ApplicationState>,
-    Vec<VideoPolicyState>,
-) {
+#[derive(Debug, PartialEq, serde::Serialize)]
+struct AuthoredState {
+    catalog: MediaManagerSnapshot,
+    compositions: Vec<crate::media::composition::protocol::CompositionSnapshot>,
+    matrices: Vec<crate::matrix::protocol::MatrixSnapshot>,
+    applications: Vec<ApplicationState>,
+    policies: Vec<VideoPolicyState>,
+    presets: Vec<(golden_core::node::NodeUuid, serde_json::Value)>,
+}
+
+fn authored(engine: &AppEngine) -> AuthoredState {
     let catalog = inspect(engine);
     let references = catalog
         .media
@@ -332,7 +359,15 @@ fn authored(
             (media.id, settings.on_activate, settings.on_deactivate)
         })
         .collect();
-    (catalog, compositions, matrices, applications, policies)
+    let presets = presets::authored(engine);
+    AuthoredState {
+        catalog,
+        compositions,
+        matrices,
+        applications,
+        policies,
+        presets,
+    }
 }
 
 /// The observer is installed before measuring history. Only the operation itself earns a step.

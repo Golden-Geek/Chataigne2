@@ -37,6 +37,11 @@ command_kinds! {
     InspectApplicationRuntime => "Inspect App Runtime", "App control", [];
     InspectApplicationCallbacks => "Inspect App Callbacks", "App control", [];
     DropMatrixMedia => "Drop Matrix Media", "Matrix", ["media", "matrix_layer", "matrix_column", "entry", "copy_media"];
+    CaptureMatrixPreset => "Capture Matrix Configuration", "Matrix", ["media", "label"];
+    UpdateMatrixPreset => "Update Matrix Configuration", "Matrix", ["media", "matrix_preset"];
+    RecallMatrixPreset => "Recall Matrix Configuration", "Matrix", ["media", "matrix_preset"];
+    RenameMatrixPreset => "Rename Matrix Configuration", "Matrix", ["media", "matrix_preset", "label"];
+    DeleteMatrixPreset => "Delete Matrix Configuration", "Matrix", ["media", "matrix_preset"];
     DropCompositionMedia => "Drop Composition Media", "Composition", ["media", "channel", "entry", "composition_target", "copy_media", "position"];
     CreateCompositionMedia => "Create Composition Media", "Composition", ["media", "channel", "media_kind", "label", "position"];
     TransformCompositionMedia => "Transform Composition Media", "Composition", ["media", "channel", "composition_target", "composition_transform"];

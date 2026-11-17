@@ -70,6 +70,26 @@ try {
 		await delay(50);
 	}
 	const preset = presets[0];
+	const { page: members } = await matrix({
+		kind: 'Preset',
+		edit: { kind: 'InspectMembers', preset: preset.id, after: null, count: 32 }
+	});
+	await configurations.click();
+	await page.getByRole('menuitem', { name: preset.label, exact: true }).hover();
+	await page.getByRole('menuitem', { name: 'Inspect configuration members', exact: true }).click();
+	await page.getByRole('menuitem', { name: members.members[0].label, exact: true }).click();
+	const inspector = page.locator('.inspector');
+	await page.waitForFunction(
+		(id) => document.querySelector('.inspector')?.getAttribute('data-inspected-uuid') === id,
+		members.members[0].id
+	);
+	const enabled = inspector
+		.locator('.parameter-inspector')
+		.filter({ has: page.locator('.parameter-label', { hasText: /^Enabled$/ }) })
+		.getByRole('checkbox');
+	await enabled.uncheck();
+	await enabled.check();
+	await page.screenshot({ path: path.join(directory, 'preset-member-inspector.png') });
 	const { snapshot: original } = await matrix({ kind: 'Inspect' });
 	const column = original.columns[0].id;
 	const row = original.items.find((item) => item.id.kind === 'Layer').id;
@@ -120,12 +140,59 @@ try {
 		preset,
 		checks: [
 			'contextual capture',
+			'bounded member chooser and generic Inspector enabled editing',
 			'contextual recall and visible row order',
 			'stable Cells',
 			'save/reload and reselect Matrix'
 		],
 		qualification: 'focused normal-use only'
 	};
+	await matrix({ kind: 'AddLayers', parent: null, count: 70 });
+	const { preset: pagingPreset } = await matrix({
+		kind: 'Preset',
+		edit: { kind: 'Capture', label: 'Member paging' }
+	});
+	const { page: firstPage } = await matrix({
+		kind: 'Preset',
+		edit: { kind: 'InspectMembers', preset: pagingPreset, after: null, count: 32 }
+	});
+	const { page: secondPage } = await matrix({
+		kind: 'Preset',
+		edit: { kind: 'InspectMembers', preset: pagingPreset, after: firstPage.next, count: 32 }
+	});
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Medias$/ })
+		.click();
+	await page
+		.getByRole('region', { name: 'Medias', exact: true })
+		.getByRole('button', { name: 'Preset check', exact: true })
+		.click();
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Matrix(?::|$)/ })
+		.click();
+	await configurations.click();
+	await page.getByRole('menuitem', { name: 'Member paging', exact: true }).hover();
+	await page.getByRole('menuitem', { name: 'Inspect configuration members', exact: true }).click();
+	await page.getByRole('menuitem', { name: 'Next members', exact: true }).click();
+	await page.getByRole('menuitem', { name: 'Previous members', exact: true }).click();
+	await page.getByRole('menuitem', { name: 'Next members', exact: true }).click();
+	const offscreen = secondPage.members[0];
+	await page.getByRole('menuitem', { name: offscreen.label, exact: true }).click();
+	await page.waitForFunction(
+		(id) => document.querySelector('.inspector')?.getAttribute('data-inspected-uuid') === id,
+		offscreen.id
+	);
+	const current = (await matrix({ kind: 'Inspect' })).snapshot;
+	const target = current.items.find((item) => item.label === offscreen.label).id.id;
+	assert.equal(await page.locator(`[role="rowheader"][data-row-id="${target}"]`).count(), 0);
+	await enabled.uncheck();
+	await enabled.check();
+	result.checks.push(
+		'next/previous member pages',
+		'offscreen member selection and generic Inspector editing'
+	);
 	await page.screenshot({ path: path.join(directory, 'matrix-presets.png') });
 	await writeFile(path.join(directory, 'result.json'), JSON.stringify(result, null, 2));
 	console.log(JSON.stringify(result));

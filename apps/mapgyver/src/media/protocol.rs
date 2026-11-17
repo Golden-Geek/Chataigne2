@@ -499,6 +499,9 @@ pub struct PictureFileBinding {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    MatrixPresetMembers {
+        page: crate::matrix::protocol::MatrixPresetMembers,
+    },
     MatrixPresetCreated {
         #[ts(type = "string")]
         preset: NodeUuid,

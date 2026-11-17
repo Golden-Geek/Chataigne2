@@ -350,7 +350,7 @@ fn zero_scale_composition_updates_are_accepted_by_every_public_caller() {
             assert!(reply.is_some(), "{caller:?}: {scale:?}");
             let actual = authored(&engine);
             let owner = actual
-                .1
+                .compositions
                 .iter()
                 .find(|snapshot| snapshot.reference == scene.owner)
                 .unwrap();
@@ -453,8 +453,8 @@ fn composition_creation_add_and_copy_return_committed_owned_identities_to_every_
         let MediaEditResult::Created { reference } = serde_json::from_value(reply).unwrap() else {
             panic!()
         };
-        assert_eq!(authored(&engine).1[0].reference, reference);
-        assert!(authored(&engine).1[0].instances.is_empty());
+        assert_eq!(authored(&engine).compositions[0].reference, reference);
+        assert!(authored(&engine).compositions[0].instances.is_empty());
         let scene = scene();
         for edit in [
             CompositionEdit::DropSource {
@@ -489,7 +489,7 @@ fn composition_creation_add_and_copy_return_committed_owned_identities_to_every_
             let MediaEditResult::InstancesCreated { instances } = serde_json::from_value(reply).unwrap() else {
                 panic!()
             };
-            let compositions = authored(&engine).1;
+            let compositions = authored(&engine).compositions;
             let current = compositions
                 .iter()
                 .find(|snapshot| snapshot.reference == scene.owner)

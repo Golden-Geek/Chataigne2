@@ -10,6 +10,10 @@ export const COMMAND_PARAMETER_FIELDS = {
     "composition_target",
     "composition_arrange"
   ],
+  "CaptureMatrixPreset": [
+    "media",
+    "label"
+  ],
   "ConfigureFitMode": [
     "media",
     "fit_mode"
@@ -53,6 +57,10 @@ export const COMMAND_PARAMETER_FIELDS = {
   ],
   "CreateScript": [
     "label"
+  ],
+  "DeleteMatrixPreset": [
+    "media",
+    "matrix_preset"
   ],
   "DropCompositionMedia": [
     "media",
@@ -143,6 +151,10 @@ export const COMMAND_PARAMETER_FIELDS = {
     "channel",
     "picture_file"
   ],
+  "RecallMatrixPreset": [
+    "media",
+    "matrix_preset"
+  ],
   "RelinkAsset": [
     "asset",
     "locator_kind",
@@ -176,6 +188,11 @@ export const COMMAND_PARAMETER_FIELDS = {
   ],
   "RenameFolder": [
     "target_folder",
+    "label"
+  ],
+  "RenameMatrixPreset": [
+    "media",
+    "matrix_preset",
     "label"
   ],
   "RenameMedia": [
@@ -213,6 +230,10 @@ export const COMMAND_PARAMETER_FIELDS = {
   ],
   "UnloadMatrix": [
     "media"
+  ],
+  "UpdateMatrixPreset": [
+    "media",
+    "matrix_preset"
   ],
   "VideoFile": [
     "media",

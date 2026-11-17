@@ -6,12 +6,15 @@ import { MEDIA_NAMESPACE, MEDIA_OPERATION } from './generated/constants.ts';
 
 /** Inspection cancellation during resync is background feedback, not a failed user edit. */
 export function mediaOperationActivity(edit: MediaEdit): 'background' | 'user' {
-	if (edit.kind === 'Matrix')
+	if (edit.kind === 'Matrix') {
+		if (edit.edit.kind === 'Preset' && edit.edit.edit.kind === 'InspectMembers')
+			return 'background';
 		return ['Inspect', 'InspectPlayback', 'InspectTargets', 'InspectViewport'].includes(
 			edit.edit.kind
 		)
 			? 'background'
 			: 'user';
+	}
 	if (edit.kind === 'Applications')
 		return ['Inspect', 'InspectCallbacks', 'InspectRuntime'].includes(edit.edit.kind)
 			? 'background'

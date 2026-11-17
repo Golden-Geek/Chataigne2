@@ -725,4 +725,4 @@ pub struct MatrixRenderStatus {
     pub submitted: Option<MatrixPlanStamp>,
     pub error: Option<String>,
 }
-pub use super::presets::protocol::{MatrixPresetEdit, MatrixPresetSummary};
+pub use super::presets::protocol::{MatrixPresetEdit, MatrixPresetMembers, MatrixPresetSummary};

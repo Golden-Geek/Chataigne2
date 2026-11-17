@@ -1,9 +1,9 @@
 # MapGyver — simple status
 
 - **Updated:** 17 November 2026.
-- **Overall plan acceptance:** `████████░░` **81% — 95/117 checks accepted**. Deferred verification is still counted as unfinished.
-- **Latest finished:** Matrix preset capture/recall, update, names and deletion; Undo/Redo, copies and reload pass focused checks.
-- **Working on next:** Finish preset command/script controls and member editing.
+- **Overall plan acceptance:** `████████░░` **82% — 96/117 checks accepted**. Deferred verification is still counted as unfinished.
+- **Latest finished:** Matrix presets, including commands/scripts, paged member editing, history/copies/reload and recall during playback.
+- **Working on next:** Shared editor hover/selection feedback and subtler handles.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -22,7 +22,7 @@
 - [x] **Matrix selection/colors:** only explicitly selected objects highlight; modifier multiselection works; Layers/Columns/Cells/Groups show Golden custom colors. Inspector color edits, Undo, copies and reload pass focused checks.
 - [x] **Matrix appearance:** quieter borders, small rounded corners and a short active-Cell shadow. Selection/colors remain distinct; reduced motion works; app visual review and focused scaling/narrow-grid checks pass.
 - [x] **Column enable/disable:** Inspector toggles mute current/outgoing content; group inheritance, disabled editing, Undo, copy/reload and resume pass focused checks.
-- [x] **Matrix presets — core workflow:** configurations menu captures, recalls and updates Layer/Column order and enabled states; names/deletion work. Cells and playback stay intact. Command controls and member editing remain below.
+- [x] **Matrix presets:** capture/update/rename/delete/recall Layer/Column order and enabled states; contextual menus, commands and named scripts. Paged member Inspector editing, offscreen access, Undo/Redo, copies/reload and live/outgoing playback pass. Cells stay intact.
 - [x] **App Control:** normal 64-bit launch/readiness/sharing/reconnect/stop workflows. The remaining 32-bit case is listed below.
 - [x] **Video:** common H.264/HEVC/ProRes profiles and HAP; playback, loop, seek/frame stepping, transport Inspector and Matrix activation/deactivation policies.
 - [x] **Editor manipulation:** the smoothness improvements you accepted in Screen Warping, Surface Source and Composition.
@@ -30,16 +30,15 @@
 
 ## Next features — implementation order
 
-1. **NOW — Finish Matrix presets:** command/script convenience controls, member editing in the generic Inspector, then remaining focused acceptance. Core capture/recall is usable.
-2. **Shared editor feedback:** short hover/selection transitions and subtler handles/outlines.
-3. **Startup/New editor targets:** immediately show the automatic Screen and Surface without manual selection.
-4. **Surface Editor:** show related Surfaces sharing a source; show test patterns even without a source.
-5. **Screen-handle links:** magnet snapping creates persistent linked handle groups; provide unlink controls.
-6. **Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
-7. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
-8. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
-9. **Extended Video codecs:** DXV and WebP/animated WebP.
-10. **Subtitles:** optional, disableable subtitle controls and display.
+1. **NOW — Shared editor feedback:** short hover/selection transitions and subtler handles/outlines.
+2. **Startup/New editor targets:** immediately show the automatic Screen and Surface without manual selection.
+3. **Surface Editor:** show related Surfaces sharing a source; show test patterns even without a source.
+4. **Screen-handle links:** magnet snapping creates persistent linked handle groups; provide unlink controls.
+5. **Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
+6. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+7. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
+8. **Extended Video codecs:** DXV and WebP/animated WebP.
+9. **Subtitles:** optional, disableable subtitle controls and display.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 
