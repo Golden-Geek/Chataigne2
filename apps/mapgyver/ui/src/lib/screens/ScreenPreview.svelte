@@ -138,7 +138,7 @@
 		label="Screen view"
 		native>
 		<NativePreview
-			nativeInput
+			nativeInput={inputAvailable}
 			nativeBackdrop
 			lifetime={documentIdentity}
 			onpresentationchange={presentationChanged}

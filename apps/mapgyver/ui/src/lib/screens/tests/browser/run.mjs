@@ -129,6 +129,34 @@ try {
 	await page.mouse.up();
 	await page.getByRole('button', { name: 'Toggle warp input availability', exact: true }).click();
 	await page.getByRole('button', { name: 'Toggle warp metadata busy', exact: true }).click();
+	const capturedCorner = page.getByRole('button', { name: 'Warp corner 1', exact: true });
+	const heldAt = await point(capturedCorner);
+	await page.mouse.move(heldAt.x, heldAt.y);
+	await page.mouse.down();
+	const capture = () =>
+		view
+			.locator('svg[aria-label="Surface mapping controls"]')
+			.evaluate((node) => node.hasPointerCapture(1));
+	assert.equal(await capture(), true);
+	const availability = page.getByRole('button', {
+		name: 'Toggle warp input availability',
+		exact: true
+	});
+	// Change connection availability without releasing the held pointer.
+	await availability.evaluate((node) => {
+		if (node instanceof HTMLElement) node.click();
+	});
+	assert.equal(await capture(), false, 'Connection loss releases a not-yet-dragging control');
+	await availability.evaluate((node) => {
+		if (node instanceof HTMLElement) node.click();
+	});
+	await page.mouse.move(heldAt.x + 24, heldAt.y + 12);
+	await page.mouse.up();
+	assert.equal(
+		await page.getByLabel('Geometry starts').textContent(),
+		'0',
+		'Reconnected input cannot resume the previous held pointer'
+	);
 	await page.getByRole('button', { name: 'Show Composition', exact: true }).click();
 	await page.getByRole('button', { name: 'Toggle spatial metadata busy', exact: true }).click();
 	const composition = page.getByLabel('Composition view', { exact: true });

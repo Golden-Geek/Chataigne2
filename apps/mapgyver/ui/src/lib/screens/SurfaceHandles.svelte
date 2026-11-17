@@ -171,7 +171,7 @@
 	}
 	$effect(() => {
 		const current = selected;
-		if (pointer && pointer.reference.surface !== current) cancel();
+		if (pointer && (!selectionAvailable || pointer.reference.surface !== current)) cancel();
 	});
 	onDestroy(cancel);
 </script>

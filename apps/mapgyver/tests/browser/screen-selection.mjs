@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { setTimeout as delay } from 'node:timers/promises';
-import { observeRejectedRequests } from './intent-observer.mjs';
+import { observeRejectedRequests, observeNativeRejectedRequests } from './intent-observer.mjs';
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
-export async function verifyScreenSelection({ base, post, page: nativePage = null }) {
+export async function verifyScreenSelection({ base, post, page: nativePage = null, beforeNew }) {
 	let history;
 	async function screens(payload) {
 		const ack = await post('/api/ui/intent', {
@@ -60,7 +60,11 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 	page.setDefaultTimeout(6000);
 	const errors = [];
 	page.on('pageerror', (error) => errors.push(String(error)));
-	const rejected = observeRejectedRequests(page, () => 'Screen selection');
+	const nativeReceipts = nativePage
+		? await observeNativeRejectedRequests(page, () => 'Screen selection')
+		: null;
+	const rejected =
+		nativeReceipts?.rejected ?? observeRejectedRequests(page, () => 'Screen selection');
 	const tab = (name) => page.getByRole('tab').filter({ hasText: new RegExp(`^${name}(?::|$)`) });
 	const main = page.locator('[data-panel-id="screen-warp"]');
 	const groups = (target) => target.getByRole('group', { name: /^Warp handles for / });
@@ -291,6 +295,7 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 			before,
 			'Undo restores the complete authored scene'
 		);
+		const additional = await beforeNew?.({ screen, a, b, mainId: 'screen-warp', peerId: secondId });
 		await post('/api/ui/project-new', {});
 		await main
 			.getByRole('application', { name: 'Screen view', exact: true })
@@ -310,6 +315,15 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 				pageErrors: []
 			})
 		);
+		return {
+			screen,
+			pointerDownSelection: true,
+			exactUndo: true,
+			additional,
+			observed: nativeReceipts?.observed,
+			rejected,
+			errors
+		};
 	} finally {
 		await browser?.close();
 	}
