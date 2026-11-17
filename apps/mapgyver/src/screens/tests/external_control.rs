@@ -153,6 +153,86 @@ fn video_speed_animation_adapts_to_declared_step() {
 }
 
 #[test]
+fn video_declarations_restore_omitted_bounds_and_keep_explicit_valid_overrides() {
+    use golden_core::{engine::ProjectNodeRecord, node::NodeUuid};
+    fn find(record: &mut ProjectNodeRecord, uuid: NodeUuid) -> Option<&mut ProjectNodeRecord> {
+        if record.uuid == uuid {
+            return Some(record);
+        }
+        record.children.iter_mut().find_map(|child| find(child, uuid))
+    }
+    let mut engine = fixture();
+    use crate::media::protocol::{MEDIA_NAMESPACE, MEDIA_OPERATION, MediaEdit, MediaEditResult, MediaKind};
+    let ack = apply_project_intent(
+        &mut engine,
+        UiEditIntent::InvokeAppOperation {
+            namespace: MEDIA_NAMESPACE.into(),
+            operation: MEDIA_OPERATION.into(),
+            payload: serde_json::to_value(MediaEdit::CreateMedia {
+                media_kind: MediaKind::Video,
+                label: None,
+            })
+            .unwrap(),
+        },
+    );
+    assert!(ack.success);
+    let MediaEditResult::Created { reference } = serde_json::from_value(ack.result.unwrap().value).unwrap() else {
+        panic!()
+    };
+    let owner = engine.node_id_by_uuid(reference.media.0).unwrap();
+    let parameter = super::parameters::parameters(&engine, owner)["parameters/video_speed"];
+    let uuid = engine.nodes.get(parameter).unwrap().node_data().meta.uuid;
+    animate(&mut engine, parameter);
+    engine.run_tick(Duration::from_millis(17)).unwrap();
+    let canonical = engine
+        .nodes
+        .get(parameter)
+        .unwrap()
+        .engine_param_snapshot()
+        .unwrap()
+        .constraints;
+    let saved = golden_core::app::to_sparse_project_json_pretty(&engine).unwrap();
+    for explicit in [false, true] {
+        let mut envelope: serde_json::Value = serde_json::from_str(&saved).unwrap();
+        let mut project: golden_core::engine::ProjectFile = serde_json::from_str(&saved).unwrap();
+        let data = find(&mut project.root, uuid)
+            .unwrap()
+            .data
+            .as_mut()
+            .unwrap()
+            .as_object_mut()
+            .unwrap();
+        let mut expected = canonical.clone();
+        if explicit {
+            expected.range = RangeConstraint::uniform(Some(-8.), Some(8.));
+            data.insert("constraints".into(), serde_json::to_value(&expected).unwrap());
+        } else {
+            data.remove("constraints");
+        }
+        envelope["root"] = serde_json::to_value(project.root).unwrap();
+        let mut loaded: AppEngine =
+            golden_core::app::from_sparse_project_json(&serde_json::to_string(&envelope).unwrap()).unwrap();
+        loaded.settle_edit_notifications(16).unwrap();
+        let parameter = loaded.node_id_by_uuid(uuid).unwrap();
+        assert_eq!(
+            loaded
+                .nodes
+                .get(parameter)
+                .unwrap()
+                .engine_param_snapshot()
+                .unwrap()
+                .constraints,
+            expected
+        );
+        loaded.run_tick(Duration::from_millis(17)).unwrap();
+        let ParamValue::Float(value) = value(&loaded, parameter) else {
+            panic!()
+        };
+        assert!((value * 100. - (value * 100.).round()).abs() < 1e-9);
+    }
+}
+
+#[test]
 fn proxy_and_both_binding_directions_use_current_target_constraints() {
     use golden_core::parameter::{Parameter, ParameterChangeCheck};
     for (mode, spec) in [

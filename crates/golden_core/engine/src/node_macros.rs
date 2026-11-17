@@ -847,6 +847,13 @@ macro_rules! define_node_enum {
                 $crate::__dispatch_node_enum!(self, project_decode_data, data; $($variant),*)
             }
 
+            fn project_prepare_declarations(
+                &mut self,
+                read: &mut dyn FnMut(&str) -> Result<Option<$crate::parameter::ParamValue>, String>,
+            ) -> Result<(), String> {
+                $crate::__dispatch_node_enum!(self, project_prepare_declarations, read; $($variant),*)
+            }
+
             #[inline(always)]
             fn project_create(node_type: &str) -> Option<Self>
             where

@@ -30,6 +30,12 @@ Those dependent writes participate in the owning transaction and history.
 Sparse persistence may omit locked constraints only against a matching owner declaration.
 A generic Parameter constructor baseline does not supply conditional range/step metadata;
 records without that declared baseline retain their constraints explicitly.
+Before sparse expansion, the public pure `Node::project_prepare_declarations` hook reads
+only typed constructor inputs that affect declarations. Media supplies its saved Kind;
+Golden owns the declared-Parameter lookup and keys baseline caches by the inputs read for
+both the node and its parent. Canonical conditional metadata is therefore restored even
+when a saved record omits it, without replacing explicit valid overrides. Live and immutable
+captured saves share the same sparse Parameter payload rules.
 
 Channel source differences stay expanded in the generic Inspector. Picture rows edit their
 own real File Parameter; path, Browse and Clear share Golden's compact file widget. They do

@@ -385,7 +385,7 @@ disjoint codec/conversion/orientation phases. JPEG admission remains conservativ
 not verified. No M03 qualification budget changed or is claimed satisfied. Physical 4K output,
 color/alpha accuracy, timing and resource qualification retain their existing gates and failures.
 Remaining M04 source/recovery/UI parity checks are tracked in the
-[active acceptance ledger](../../docs/progress/mapgyver-status.md#m04-acceptance-items).
+[active acceptance ledger](../../docs/progress/mapgyver-ledger.md#m04-acceptance-items).
 The native feasibility probe under `tools/mapgyver/native-probe` remains a separate
 diagnostic executable; it is not the app's rendering implementation.
 

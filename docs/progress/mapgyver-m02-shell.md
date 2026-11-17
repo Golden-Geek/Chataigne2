@@ -3,7 +3,7 @@
 The app owns identity, project policy, UI composition and resources. Golden owns the shared
 desktop/headless host, transport, persistence codecs and workbench. The MapGyver shell uses
 those public boundaries; it contains no Chataigne modules or product Media/Screen placeholders.
-Current acceptance counts belong to the [ledger](mapgyver-status.md#m02-acceptance-items).
+Current acceptance counts belong to the [agent ledger](mapgyver-ledger.md#m02-acceptance-items).
 
 ## Implementation boundaries
 

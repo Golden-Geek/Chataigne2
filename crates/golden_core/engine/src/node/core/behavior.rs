@@ -168,6 +168,17 @@ pub trait Node: Send + Any {
         ))
     }
 
+    /// Seeds unbound declaration inputs before persistence materializes a constructor baseline.
+    /// Owners opt in when typed Parameter values determine declared structure. Read only those
+    /// inputs; ordinary values, controls and metadata are restored by the project codec afterward.
+    /// This hook must remain pure: no runtime activation, IO or graph mutation.
+    fn project_prepare_declarations(
+        &mut self,
+        _read: &mut dyn FnMut(&str) -> Result<Option<ParamValue>, String>,
+    ) -> Result<(), String> {
+        Ok(())
+    }
+
     #[doc(hidden)]
     fn project_create(_node_type: &str) -> Option<Self>
     where

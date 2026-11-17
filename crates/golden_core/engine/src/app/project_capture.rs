@@ -3,12 +3,11 @@ use std::sync::Arc;
 
 use crate::engine::{Engine, PROJECT_FILE_VERSION, ProjectFile, ProjectNodeRecord, ProjectPersistenceError};
 use crate::node::{Node, NodeId, NodeMeta, NodeUuid, UserNodeRole};
-use crate::parameter::Parameter;
 
 use super::sparse::{
-    baseline_has_user_items, diff_project_data_against_baseline, find_declared_child_baseline,
+    baseline_has_user_items, find_declared_child_baseline, project_data_for_sparse_record,
     project_meta_delta_from_runtime, project_meta_for_sparse_record, project_meta_from_runtime,
-    raw_project_data_from_runtime, sparse_baseline_child_identity_count, sparse_json_cache_key,
+    project_persisted_data_from_runtime, sparse_baseline_child_identity_count, sparse_json_cache_key,
 };
 use super::{Folder, ProjectNode, node_is_app_data_persisted};
 
@@ -257,7 +256,7 @@ where
     });
     let self_matches_parent_baseline = if let Some(baseline) = matched_parent_baseline {
         project_meta_delta_from_runtime(&captured.meta, Some(&baseline.meta)).is_empty()
-            && project_persisted_data_from_runtime_capture(&node, Some(baseline))?.is_none()
+            && project_persisted_data_from_runtime(&node, Some(baseline), true)?.is_none()
     } else {
         false
     };
@@ -319,7 +318,7 @@ where
         self_baseline.map(|baseline| &baseline.meta),
         allow_omission && matched_parent_baseline.is_some(),
     );
-    let data = project_data_for_sparse_record_capture(
+    let data = project_data_for_sparse_record(
         &node,
         matched_parent_baseline,
         self_baseline,
@@ -495,43 +494,6 @@ where
         }
     }
     Ok(T::project_create_node(current.node_type.as_ref()))
-}
-
-fn project_data_for_sparse_record_capture<T: Node>(
-    node: &T,
-    matched_parent_baseline: Option<&ProjectNodeRecord>,
-    self_baseline: Option<&ProjectNodeRecord>,
-    use_declared_overlay_delta: bool,
-) -> Result<Option<serde_json::Value>, ProjectPersistenceError> {
-    if use_declared_overlay_delta {
-        return project_persisted_data_from_runtime_capture(node, matched_parent_baseline);
-    }
-    if matched_parent_baseline.is_some() {
-        return raw_project_data_from_runtime(node);
-    }
-    project_persisted_data_from_runtime_capture(node, self_baseline)
-}
-
-fn project_persisted_data_from_runtime_capture<T: Node>(
-    node: &T,
-    baseline: Option<&ProjectNodeRecord>,
-) -> Result<Option<serde_json::Value>, ProjectPersistenceError> {
-    let node_type = node.get_type().to_string();
-    let data = if let Some(parameter) = node.as_any().downcast_ref::<Parameter>() {
-        let persist_runtime_value = baseline.is_none() || !parameter.read_only || parameter.persist_read_only_value;
-        let persist_constraints = baseline.is_none() || node.node_data().meta.user_permissions.can_edit_constraints;
-        parameter.project_encode_data_against_baseline(
-            baseline.and_then(|record| record.data.as_ref()),
-            persist_runtime_value,
-            persist_constraints,
-        )
-    } else {
-        node.project_encode_data().map(|current| {
-            diff_project_data_against_baseline(&current, baseline.and_then(|record| record.data.as_ref()))
-        })
-    }
-    .map_err(|message| ProjectPersistenceError::Codec { node_type, message })?;
-    Ok((!data.is_null()).then_some(data))
 }
 
 fn sparse_encode_baseline_cache_key(

@@ -4,6 +4,26 @@ MapGyver is a Windows x64 video mapping app alongside Chataigne. MapGyver owns p
 authoring and behavior; Golden owns reusable engine, worker, GPU and workbench mechanisms.
 See the [architecture](../architecture/mapgyver.md) and [current status](../progress/mapgyver-status.md).
 
+## User feedback delivery cadence — 2026-11-17
+
+- The simple status file above is the user's single progress view. Keep exact gates, evidence,
+  return triggers and the execution board in the [agent ledger](../progress/mapgyver-ledger.md).
+  Reconcile both before continuing; update both at each delivered milestone.
+- Deliver functional **M15 feedback → remaining Video features → deferred deep verification → M09**.
+  This user revision supersedes older per-feedback full-matrix and acceptance-first ordering.
+- For each small feedback slice, finish all owning-layer changes and run one targeted validation
+  cycle: formatting, relevant behavior/type/contract checks and a short app smoke when needed.
+  Compile the required target once; reuse compiled artifacts and passing unchanged-layer evidence.
+- Batch full cross-app regressions, Intel/other-GPU profiles, sustained performance, physical
+  combinations, recovery and edge-case matrices later. Do not make them routine prerequisites
+  for every UI or parameter tweak. Broaden checks when the actual changed contract warrants it.
+- Functional milestones may advance to the next feature with deep qualification explicitly Pending.
+  Deferred requirements remain release-blocking and are never represented as Accepted.
+- Reproduced ordinary-use crashes, data loss or broken required behavior still interrupt delivery.
+  Fix the owning behavior without turning the slice into an unrelated optimization investigation.
+- No existing requirement, failure record, resource/timing budget or final release check is waived.
+  Commit and push each coherent milestone before the next implementation batch.
+
 This is the single execution entrypoint. The revised proposal is merged here as of
 **2026-11-02** and takes precedence over conflicting earlier requirements.
 The **2026-11-03 feedback** is incorporated in **M11** below and supersedes conflicting
@@ -100,7 +120,7 @@ actual run, not as qualification.
 acceptance gates. **All remaining Video work follows this feedback:** M10/3 extended codecs,
 M10/8 subtitles and retained M10/4 qualification return after M15. The remaining M14 feature
 order is **9 → 10 → 8 → 2**; all four are functionally delivered with qualification Pending.
-M15/1 parameter-control safety is the sole Active feature. Deliver the M15 feedback
+M15/1 parameter-control safety is now Accepted; M15/2 Matrix selection/custom colors is selected next. Deliver the M15 feedback
 before returning to Video and final acceptance closure. Reproduced correctness defects
 on the active product path remain prerequisites; the reported parameter-control crash is
 M15/1's first correction, not optional optimization or deferred edge-case qualification.
@@ -1352,7 +1372,7 @@ awarding acceptance or changing retained budgets.
 Source: [Latest Feedback.md](../../Latest%20Feedback.md) in the repository root, plus the user's
 instruction that remaining Video work follows this feedback. Follow the M14 feature-first
 execution revision above: selected M14 features9,10,8,2 are functionally delivered, with their
-remaining qualification Pending in the return queue. M15/1 is the selected next feature;
+remaining qualification Pending in the return queue. M15/1 is Accepted and M15/2 is next;
 deliver M15 before remaining Video, retaining user-deferred M14/1 and blocked M14/6.
 Retain every unfinished qualification gate and its return trigger before M09.
 
@@ -1478,12 +1498,15 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
     creation/history/copy/reload and actual SDK discovery with correct pixels; labels alone are
     not proof of sender provenance.
 
-All eleven gates remain Pending until their owning software/strict/generated/UI and specified
-actual-app/native checks pass. The source mapping is: crash/range → 1; Matrix UI → 2–3;
+M15/1 is Accepted with its complete control/persistence/native proof;2–11 remain open.
+Functional delivery uses the user's targeted-check cadence above, retaining deferred deep
+checks before M09. A gate is Accepted only when its complete owning scope is verified.
+The source mapping is: crash/range → 1; Matrix UI → 2–3;
 Matrix presets → 4; shared transitions/handles → 5; startup → 6; Surface display → 7;
 Screen links → 8; geometry alignment → 9; Gradient → 10; Shared Texture → 11.
 Planning changes the fixed scope from **106 to 117 gates** and **15 to 16 phases**; the accepted
-numerator stays **92**, so overall progress becomes **79%** and phase completion **8/16 (50%)**.
+numerator initially stayed **92**, making overall progress **79%** and phase completion **8/16 (50%)**.
+M15/1 acceptance now raises the numerator to **93/117**; rounding still gives **79%**.
 M14/1,6 and all retained correctness, physical, recovery and performance requirements remain
 required before M09. New features follow the user's feature-first cadence; a checkpoint or a
 passing subset of checks never closes a complete gate.
@@ -1510,15 +1533,17 @@ are required. Release/signing/publication need a separate instruction.
 
 ## Verification and status maintenance
 
-At every coherent milestone run relevant owning Rust tests/strict Clippy, generated-contract
-drift checks, Svelte/UI checks and affected Chataigne regressions. Use meaningful tests beside
-their owner under `tests/`. Run formatting at the root and Golden Core manifests. Native/
-hardware validation follows inspected terminal success of its compile/software prerequisites.
+Use the targeted validation cadence above for each coherent feedback milestone. Select checks
+for the changed behavior and contracts; batch full cross-app, Intel/GPU and edge-case matrices
+in the deferred verification lane. Use meaningful tests beside their owner under `tests/`.
+Run formatting at the root and Golden Core manifests. Native/hardware validation follows
+inspected terminal success of its compile/software prerequisites.
 
-Keep [mapgyver-status.md](../progress/mapgyver-status.md) a compact **current-state page**:
-overall and phase/subphase bars, verified counts, one active gate, a return queue with concrete
-blockers/triggers, current usable capability, next deliverable and one replaceable batch entry.
-Update it in place; do not append dated reports, command transcripts or historical dashboards.
-Put necessary detailed evidence in an owning report or small evidence artifact and link it.
-Progress counts only complete verified gates; partial/checkpointed/unavailable work stays open.
-Document denominator changes and retain prior evidence without treating it as proof of changed code.
+Keep [mapgyver-status.md](../progress/mapgyver-status.md) the user's **only progress checklist**:
+finished capabilities, next features in execution order, built-but-unqualified work with reasons,
+and exact manual needs. Use short list items; no historical logs, dense phase tables or long prose.
+Keep the formal phase/subphase dashboard, verified counts, one active gate, return triggers,
+current batch and evidence links in [mapgyver-ledger.md](../progress/mapgyver-ledger.md).
+Update both in place at each milestone. Progress counts only complete verified gates;
+partial/checkpointed/unavailable work stays open. Document denominator changes in the ledger
+and retain prior evidence without treating it as proof of changed code.

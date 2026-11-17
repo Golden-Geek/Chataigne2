@@ -3,7 +3,7 @@
 Golden Video owns executable render-plan/resource contracts. MapGyver owns authored media/channel
 identity, defaults, automatic-size intent and editor policy. The shared desktop host owns native
 windows and WebView UI-thread access. This evidence covers the compiler and subsequent bounded
-worker/shared-time deliveries; accepted counts belong to the [nine fixed M03 gates](mapgyver-status.md#m03-acceptance-items).
+worker/shared-time deliveries; accepted counts belong to the [nine fixed M03 gates](mapgyver-ledger.md#m03-acceptance-items).
 
 ## Current recovery qualification
 

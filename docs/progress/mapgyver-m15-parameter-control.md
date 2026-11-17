@@ -1,5 +1,7 @@
 # Safe Parameter control admission (M15/1)
 
+**Accepted — 2026-11-17.** [Acceptance receipt](evidence/mapgyver-m15-controls-2026-11-17.json).
+
 Golden owns numeric admission, dependent control evaluation and Parameter persistence.
 MapGyver owns the Surface/media/Video reproducers and ordinary Inspector verification.
 The [architecture](../architecture/mapgyver-parameters.md) defines those boundaries.
@@ -24,38 +26,48 @@ Already admissible stepped values stay exact across repeated admission and histo
 Bounded edit settlement evaluates controls before dispatch drains their source notifications.
 Dependent writes share the owning transaction and Undo. New sparse saves preserve constraints
 when no matching owner declaration supplies them; generic constructor defaults are insufficient.
+Sparse expansion now prepares only the typed inputs requested by a pure owner hook before
+materializing declarations. Media reads Kind; Golden decodes the declared Parameter and
+includes requested node/parent inputs in the baseline cache key. Missing Video constraints
+therefore come from the original DSL, while an explicit valid constraint override survives.
+Immutable captured saves use the same sparse Parameter payload helpers as live saves.
 
 ## Verified scope — 2026-11-17
 
-- Current app library:737 passed,8 ignored, including direct inputs/Undo, Proxy and both
+- Current app library:738 passed,8 ignored, including direct inputs/Undo, Proxy and both
   Binding directions, grouped binding Undo, script admission/nonfinite rejection, changed
   live bounds, invalid-oscillator/healthy-sibling behavior and Video Speed's exact new-save
-  constraint roundtrip. Log: `target/m15-parameter-reload-verified.log`, exit0.
+  constraint roundtrip, omitted-metadata restoration and explicit valid overrides.
+  Log: `target/m15-declaration-restore-app.log`, exit0.
 - Parameters:32 passed,1 ignored, including each numeric kind with changed bounds,
   scalar/integer/vector/Color/CSS admission, projections, steps and invalid data.
   Log: `target/m15-parameter-types-final.log`, exit0.
-- Current Engine, including the final sparse-codec change:700 passed,3 ignored, in the
-  existing software-only `cargo test-fast` profile. Log: `target/m15-sparse-engine-final.log`, exit0.
-- Current strict libraries/tests Clippy passes with `MapGyver/native-qualification` and
-  `-D warnings`; `target/m15-sparse-clippy-final.log`, exit0. Both final checks terminated
-  at17:05UTC. Browser fixture Node/Prettier checks and root/Core formatting pass.
-  The last fresh default bundled app build predates the sparse change; a rebuild remains required.
+- Current Engine:700 passed,3 ignored, in the existing software-only `test-fast` profile.
+  `target/m15-declaration-restore-engine.log`, exit0. Strict app/Engine library/test Clippy
+  passes with warnings denied; `target/m15-declaration-restore-clippy.log`, exit0.
+- Fresh default bundled build passes: `target/m15-declaration-restore-build.log`, exit0.
+  Browser fixture Node/Prettier and root/Core formatting pass.
 
-The actual bundled Inspector fixture completed Animation/Manual, mode Undo/Redo and Manual
-edits for Surface Opacity, Composition Opacity and Video Speed. Reloaded Surface/Composition
-kept animating; reloaded Video Speed failed its step assertion. The owned app shut down
-normally. This failed cohort is retained at `target/m15-native-controls-20261117-1645`.
-Its app SHA256 is `E5180048A7CBC3F5349A4B1B817F86E25A725C1D0DB7D3780A94386A9B93AA62`.
-It predates the sparse correction and establishes no native proof for that correction.
+The earlier failed native cohort at `target/m15-native-controls-20261117-1645` exposed
+the missing Speed constraints. It remains failed evidence, not acceptance.
 
-## Exact remaining requirement
+## Acceptance — 2026-11-17
 
-M15/1 stays Active. Restore canonical conditional Parameter metadata when a saved record
-already omits it; the encoder correction fixes new saves and does not repair those records.
-Then rebuild and rerun the existing bundled Inspector fixture, including all three active
-controls through save/reload. Do not open M15/2 or claim acceptance yet.
+The current bundled fixture passes on owned PID51440, normal exit0. Surface Opacity,
+Composition Opacity and Video Speed each pass Animation/Manual, mode Undo/Redo, manual0.5
+editing, normal save/reload and an omitted-Speed-constraints copy of the same private project.
+All 198 observed values are finite and bounded; every target continues animating.
+Speed stays on its 0.01 grid.
+The actual captured save contains that step before removal.768 requests/receipts are
+observed with no rejection or page error. Original mode/history/reload requirements,
+numeric-type/changed-bound admission, script/binding/transport paths and healthy-sibling
+safety have verified scope in the owning regressions above.
 
-The16:16–17:00UTC batch stops new implementation/experiments at17:00, finishes existing
-validation and checkpoints verified progress. Next product delivery after control safety is
-Matrix selection/custom colors. Performance, recovery and unusual-scenario qualification
-stay in the second pass; no new benchmark/probe framework was added.
+App SHA256: `9ED731A0ED33AF9E73A8F1E1CBC0F76D23BC1D54EE3142C42156BACFAD254DCC`.
+Local artifacts: `target/m15-native-controls-20261117-1742`.
+This is control/persistence correctness; the native Video node has no loaded file and
+establishes no decoder, frame-rate, GPU-cost, codec or recovery qualification.
+
+M15/1 has no remaining acceptance item. Next functional delivery is Matrix selection/custom
+colors. The user explicitly selects targeted checks per feedback change and a later deep/
+Intel/edge-case pass; original release requirements remain in the internal ledger.

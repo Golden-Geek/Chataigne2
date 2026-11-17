@@ -486,6 +486,17 @@ impl Node for MediaNode {
     fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
         crate::parameters::reject_opaque(data)
     }
+    fn project_prepare_declarations(
+        &mut self,
+        read: &mut dyn FnMut(&str) -> Result<Option<ParamValue>, String>,
+    ) -> Result<(), String> {
+        if let Some(value) = read("parameters/media_kind")?
+            && !self.media_kind.apply_runtime_value(&value)
+        {
+            return Err("Media Kind declaration input must be an enum".into());
+        }
+        Ok(())
+    }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
         if self.kind() == MediaKind::Video {
             self.video_settings()?.validate()?;

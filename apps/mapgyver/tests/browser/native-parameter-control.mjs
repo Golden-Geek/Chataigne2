@@ -1,6 +1,6 @@
 // Ordinary bundled Inspector control-mode edits; backend requests only prepare/observe fixtures.
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
@@ -190,6 +190,35 @@ try {
 			(value) => value.split(' ').includes('animation')
 		);
 		results[index].afterReload = await samples(target);
+	}
+	stage = 'restore declaration metadata omitted from a valid saved record';
+	const omitted = JSON.parse(await readFile(project, 'utf8'));
+	let changed = 0;
+	function omitSpeedConstraints(node) {
+		if (node.meta?.decl_id === 'parameters/video_speed') {
+			assert.equal(
+				node.data?.constraints?.step,
+				0.01,
+				'captured saves preserve conditional Speed metadata'
+			);
+			delete node.data.constraints;
+			changed++;
+		}
+		for (const child of node.children ?? []) omitSpeedConstraints(child);
+	}
+	omitSpeedConstraints(omitted.root);
+	assert.equal(changed, 1);
+	const omittedProject = path.join(directory, 'Omitted constraints.mapgyver');
+	await writeFile(omittedProject, JSON.stringify(omitted, null, 2));
+	await post('/api/ui/project-load', { path: omittedProject });
+	for (const [index, target] of targets.entries()) {
+		stage = `omitted-metadata ${target.name}`;
+		await target.show();
+		await wait(
+			() => trigger(target.label).getAttribute('class'),
+			(value) => value.split(' ').includes('animation')
+		);
+		results[index].afterOmittedMetadataReload = await samples(target);
 	}
 	assert.deepEqual(errors, []);
 	assert.deepEqual(receipts.rejected, []);

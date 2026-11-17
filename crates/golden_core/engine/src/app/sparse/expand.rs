@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use crate::engine::{Engine, ProjectFile, ProjectNodeRecord, ProjectPersistenceError};
-use crate::node::{Folder, NodeMeta, UserNodeRole};
+use crate::node::{Folder, NodeMeta, NodeUuid, UserNodeRole};
 
 use super::super::ProjectNode;
 use super::{merge_sparse_record_with_baseline, sparse_json_cache_key, sparse_overlay_has_payload};
@@ -30,6 +30,7 @@ where
 struct SparseExpansionCache {
     limits: crate::engine::LifecycleLimits,
     structural_baselines: HashMap<String, ProjectNodeRecord>,
+    declaration_inputs: HashMap<NodeUuid, super::declarations::DeclarationInputs>,
 }
 
 impl SparseExpansionCache {
@@ -42,7 +43,13 @@ impl SparseExpansionCache {
     where
         T: ProjectNode + From<Folder>,
     {
-        let key = sparse_expansion_baseline_cache_key(record, parent_record)?;
+        let (recreated, inputs) = decode_sparse_baseline_node_with_inputs(parent_node, record)?;
+        let key = format!(
+            "{}|declarations:{}|parent_declarations:{}",
+            sparse_expansion_baseline_cache_key(record, parent_record)?,
+            serde_json::to_string(&inputs)?,
+            serde_json::to_string(&parent_record.and_then(|parent| self.declaration_inputs.get(&parent.uuid)))?
+        );
         if let Some(baseline) = self.structural_baselines.get(&key) {
             let mut baseline = baseline.clone();
             // Every materialization must own fresh uuids: overlay-matched children take
@@ -60,6 +67,7 @@ impl SparseExpansionCache {
             parent_node,
             parent_record,
             self.limits,
+            recreated,
         )?;
         self.structural_baselines.insert(key, baseline.clone());
         Ok(baseline)
@@ -117,7 +125,10 @@ where
             )
         }
     };
-    let current_node = decode_sparse_baseline_node(parent_node, &expanded)?;
+    let (current_node, inputs) = decode_sparse_baseline_node_with_inputs(parent_node, &expanded)?;
+    if !inputs.is_empty() {
+        cache.declaration_inputs.insert(record.uuid, inputs);
+    }
 
     let children = current_node
         .project_migrate_children(&record.children)
@@ -135,11 +146,11 @@ fn build_structural_baseline_record_from_expanded_record<T>(
     parent_node: Option<&T>,
     parent_record: Option<&ProjectNodeRecord>,
     limits: crate::engine::LifecycleLimits,
+    recreated: T,
 ) -> Result<ProjectNodeRecord, ProjectPersistenceError>
 where
     T: ProjectNode + From<Folder>,
 {
-    let recreated = decode_sparse_baseline_node(parent_node, record)?;
     let attach_under_parent = record.user_role == UserNodeRole::ItemRoot
         && parent_node.is_some_and(|parent| {
             parent.user_container_accepts_item(record.node_type.as_str(), recreated.user_item_kind())
@@ -212,6 +223,16 @@ fn decode_sparse_baseline_node<T>(
 where
     T: ProjectNode + From<Folder>,
 {
+    decode_sparse_baseline_node_with_inputs(parent_node, record).map(|(node, _)| node)
+}
+
+fn decode_sparse_baseline_node_with_inputs<T>(
+    parent_node: Option<&T>,
+    record: &ProjectNodeRecord,
+) -> Result<(T, super::declarations::DeclarationInputs), ProjectPersistenceError>
+where
+    T: ProjectNode + From<Folder>,
+{
     let data = record.data.clone().unwrap_or(serde_json::Value::Null);
     let meta = record.meta.clone().into_runtime(record.uuid);
 
@@ -246,7 +267,8 @@ where
     node_data.user_role = record.user_role;
     record.meta.apply_to_runtime(&mut node_data.meta, record.uuid);
 
-    Ok(node)
+    let inputs = super::declarations::prepare(&mut node, record)?;
+    Ok((node, inputs))
 }
 
 fn decode_sparse_node_without_parent_factory<T>(

@@ -6,6 +6,7 @@ use crate::engine::{Engine, ProjectNodeMeta, ProjectNodeRecord, ProjectPersisten
 use crate::node::{DeclId, Node, NodeMeta, NodeUuid, UserNodeRole};
 use crate::parameter::Parameter;
 
+mod declarations;
 mod encode;
 mod expand;
 
@@ -159,7 +160,7 @@ pub(super) fn project_meta_delta_from_runtime(meta: &NodeMeta, baseline: Option<
     current.delta_against(&baseline.without_runtime_fields())
 }
 
-fn project_data_for_sparse_record<T: Node>(
+pub(super) fn project_data_for_sparse_record<T: Node>(
     node: &T,
     matched_parent_baseline: Option<&ProjectNodeRecord>,
     self_baseline: Option<&ProjectNodeRecord>,
@@ -176,7 +177,7 @@ fn project_data_for_sparse_record<T: Node>(
     project_persisted_data_from_runtime(node, self_baseline, false)
 }
 
-fn project_persisted_data_from_runtime<T: Node>(
+pub(super) fn project_persisted_data_from_runtime<T: Node>(
     node: &T,
     baseline: Option<&ProjectNodeRecord>,
     declared_baseline: bool,
