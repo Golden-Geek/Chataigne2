@@ -5,7 +5,7 @@ const closest = (target: EventTarget | null, selector: string) =>
 
 interface PressSelection {
 	disabled?: boolean;
-	select(): void;
+	select(event: PointerEvent | MouseEvent | KeyboardEvent): void;
 }
 
 /** Select on down; reserve click for keyboard/accessibility activation, preserving native drag. */
@@ -18,16 +18,16 @@ export function selectOnPress(node: HTMLElement | SVGElement, initial: PressSele
 		return !options.disabled && !event.defaultPrevented && (!target || target === node);
 	};
 	function down(event: PointerEvent) {
-		if (event.button === 0 && owns(event)) options.select();
+		if (event.button === 0 && owns(event)) options.select(event);
 	}
 	function click(event: MouseEvent) {
-		if (event.detail === 0 && owns(event)) options.select();
+		if (event.detail === 0 && owns(event)) options.select(event);
 	}
 	function key(event: KeyboardEvent) {
 		if ((event.key === 'Enter' || event.key === ' ') && owns(event)) {
 			event.preventDefault();
 			event.stopPropagation();
-			options.select();
+			options.select(event);
 		}
 	}
 	node.addEventListener('pointerdown', down as EventListener);

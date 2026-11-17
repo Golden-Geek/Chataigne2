@@ -33,6 +33,15 @@ Enter and Space. Embedded rename, launch and Parameter controls retain their own
 handling. Layer and Group titles sit at the top left, with hierarchy indentation applied
 to the title rather than reducing the controls' available width.
 
+Grid selection paint reads Golden's explicit document selection by UUID, independently of
+the retained row/Column edit address. A selected Cell does not select its headers; labels
+have no additional selection outline. Golden's modifier policy handles additive/toggle
+selection, shared across panels. Visible objects read `presentation.color` through the graph
+index and Golden's color resolver; the grid never stores a separate authored color or scans
+Cell collections. Layers, Columns and Groups declare color-edit permission; Cells inherit
+the ordinary user-item permission. Inspector color edits, history, copies and project loading
+therefore use the same metadata as the outliner. Playback markers remain separate.
+
 Layer and Group sibling order in the document and grid is front to back. The Matrix capture
 boundary reverses each immediate sibling set for Golden's back-to-front compositing draw
 order. Nested Groups apply the same rule locally and remain one composited input in their

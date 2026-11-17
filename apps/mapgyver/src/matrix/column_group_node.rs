@@ -10,7 +10,7 @@ use std::sync::OnceLock;
 pub const COLUMN_GROUP_TYPE: &str = "mapgyver.matrix.column_group.v1";
 
 #[node("mapgyver.matrix.column_group.v1", label = "Column Group", user_permissions = golden_core::node::NodeUserPermissions {
-    can_edit_name: true, can_remove_and_duplicate: true, ..Default::default()
+    can_edit_name: true, can_edit_color: true, can_remove_and_duplicate: true, ..Default::default()
 })]
 #[children(
     folder(parameters, label = "Parameters", can_be_disabled = false) {

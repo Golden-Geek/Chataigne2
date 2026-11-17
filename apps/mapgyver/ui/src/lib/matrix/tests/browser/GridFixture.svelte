@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { appState, type UiNodeDto, type ParamValue } from 'golden_ui';
+	import { appState, nodeSelectionMode, type UiNodeDto, type ParamValue } from 'golden_ui';
 	import { createFixtureSession, fixtureNode } from 'golden_ui/testing/session';
 	import VirtualGrid from '../../VirtualGrid.svelte';
 	import { viewportResult } from '../fixture';
@@ -48,25 +48,42 @@
 			channel: { media: 'matrix', channel: `layer-output-${index}` }
 		}
 	}));
-	snapshot.cells = snapshot.rows.flatMap((row) =>
-		snapshot.columns.map((column) => ({
-			cell: {
-				id: `cell-${row.item.id.id}-${column.id}`,
-				media: null,
-				layer: row.item.id.id,
-				definition: {
-					column: column.id,
-					source: null,
-					application: 'cell-app',
-					transition: null,
-					settings: { position: [0, 0], size: null, fit_mode: 'Fit', opacity: 1, enabled: true }
-				}
-			},
-			source_label: null,
-			source_preview: null,
-			source_missing: true
-		}))
-	);
+	snapshot.rows.unshift({
+		depth: 0,
+		item: {
+			id: { kind: 'Group', id: 'layer-group' },
+			parent: null,
+			label: 'Layer Group',
+			settings: { expose_channel: false, enabled: true, opacity: 1, blend: 'Normal' },
+			layer: null,
+			channel: { media: 'matrix', channel: 'group-output' }
+		}
+	});
+	snapshot.rows[1].depth = 1;
+	snapshot.rows[1].item.parent = 'layer-group';
+	snapshot.rows[2].item.settings.enabled = false;
+	snapshot.row_total = 3;
+	snapshot.cells = snapshot.rows
+		.filter((row) => row.item.id.kind === 'Layer')
+		.flatMap((row) =>
+			snapshot.columns.map((column) => ({
+				cell: {
+					id: `cell-${row.item.id.id}-${column.id}`,
+					media: null,
+					layer: row.item.id.id,
+					definition: {
+						column: column.id,
+						source: null,
+						application: 'cell-app',
+						transition: null,
+						settings: { position: [0, 0], size: null, fit_mode: 'Fit', opacity: 1, enabled: true }
+					}
+				},
+				source_label: null,
+				source_preview: null,
+				source_missing: true
+			}))
+		);
 	const nodes: UiNodeDto[] = [fixtureNode(0, 'Project', [1])];
 	const byUuid = new Map<string, UiNodeDto>();
 	function node(uuid: string, label: string, parent: UiNodeDto) {
@@ -84,9 +101,13 @@
 	for (const item of [
 		snapshot.column_groups[0],
 		...snapshot.columns,
-		...snapshot.rows.map((row) => ({ id: row.item.id.id, label: row.item.label }))
+		...snapshot.rows.map((row) => ({
+			id: row.item.id.id,
+			label: row.item.label,
+			parent: row.item.parent
+		}))
 	]) {
-		const owner = node(item.id, item.label, matrix);
+		const owner = node(item.id, item.label, item.parent ? byUuid.get(item.parent)! : matrix);
 		const parameters = node(`${item.id}-parameters`, 'Parameters', owner);
 		parameters.decl_id = 'parameters';
 		const stop = node(`${item.id}-stop`, 'Stop', parameters);
@@ -121,7 +142,8 @@
 		item: {
 			...row.item,
 			channel: { ...row.item.channel, media: snapshot.media },
-			id: { kind: 'Layer', id: uuid(row.item.id.id) }
+			parent: row.item.parent ? uuid(row.item.parent) : null,
+			id: { kind: row.item.id.kind, id: uuid(row.item.id.id) }
 		}
 	}));
 	snapshot.columns = snapshot.columns.map((column) => ({
@@ -150,23 +172,32 @@
 		launches = $state(0);
 	let disabled = $state(false),
 		comparison = $state(false);
-	function choose(uuid: string) {
+	function choose(uuid: string, event?: PointerEvent | MouseEvent | KeyboardEvent) {
 		selectedNode = uuid;
 		selections++;
-		fixture.session.selectNode(byActual.get(uuid)!.node_id, 'REPLACE');
+		fixture.session.selectNode(
+			byActual.get(uuid)!.node_id,
+			event ? nodeSelectionMode(event) : 'REPLACE'
+		);
 		onselect(aliases.get(uuid)!);
 	}
-	function cell(row: MatrixViewRow, column: ColumnSnapshot) {
+	function cell(
+		row: MatrixViewRow,
+		column: ColumnSnapshot,
+		event: PointerEvent | MouseEvent | KeyboardEvent
+	) {
 		selected = { item: row.item.id, column: column.id };
 		choose(
 			snapshot.cells.find(
 				(value) => value.cell.layer === row.item.id.id && value.cell.definition.column === column.id
-			)!.cell.id
+			)!.cell.id,
+			event
 		);
 	}
-	fixture.handleIntent(async () => {
+	fixture.handleIntent((intent) => {
+		if (intent.kind === 'patchMeta') return null;
 		mutations++;
-		return fixture.editAcknowledgement();
+		return Promise.resolve(fixture.editAcknowledgement());
 	});
 	onMount(() => {
 		const previous = appState.session;
@@ -191,6 +222,25 @@
 		<output aria-label="Grid launches">{launches}</output>
 	</div>
 	<div class="actions">
+		<button onclick={() => fixture.session.selectNode(byUuid.get('layer-1')!.node_id, 'REPLACE')}
+			>Select Layer B externally</button>
+		<button
+			onclick={async () => {
+				for (const alias of [
+					'layer-0',
+					'layer-group',
+					'column-0',
+					'group',
+					'cell-layer-0-column-0'
+				]) {
+					const target = byUuid.get(alias)!;
+					await fixture.session.client?.sendIntent({
+						kind: 'patchMeta',
+						node: target.node_id,
+						patch: { presentation: { color: { r: 0.9, g: 0.15, b: 0.25, a: 1 } } }
+					});
+				}
+			}}>Set grid custom colors</button>
 		<button
 			onclick={() => {
 				disabled = !disabled;
@@ -205,23 +255,22 @@
 			<VirtualGrid
 				{snapshot}
 				{selected}
-				selectedGroup={selectedNode}
 				{disabled}
 				observation={null}
 				applicationRuntime={null}
 				viewport={() => {}}
 				select={cell}
-				selectRow={(row) => {
+				selectRow={(row, event) => {
 					selected = { item: row.item.id, column: selected?.column ?? null };
-					choose(row.item.id.id);
+					choose(row.item.id.id, event);
 				}}
-				selectColumn={(column) => {
+				selectColumn={(column, event) => {
 					selected = { item: selected?.item ?? null, column: column.id };
-					choose(column.id);
+					choose(column.id, event);
 				}}
-				selectGroup={(group) => {
+				selectGroup={(group, event) => {
 					selected = null;
-					choose(group.id);
+					choose(group.id, event);
 				}}
 				clearSelection={() => {
 					selected = null;

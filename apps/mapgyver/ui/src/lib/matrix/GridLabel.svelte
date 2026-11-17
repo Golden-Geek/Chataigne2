@@ -3,15 +3,13 @@
 	import { selectOnPress } from 'golden_ui';
 	let {
 		label,
-		selected,
 		disabled,
 		select,
 		rename
 	}: {
 		label: string;
-		selected: boolean;
 		disabled: boolean;
-		select(): void;
+		select(event: PointerEvent | MouseEvent | KeyboardEvent): void;
 		rename(value: string): Promise<boolean>;
 	} = $props();
 	let editing = $state(false),
@@ -62,7 +60,6 @@
 {:else}
 	<button
 		{disabled}
-		aria-pressed={selected}
 		use:selectOnPress={{ select, disabled }}
 		title={`Select ${label}`}
 		ondblclick={start}>{label}</button>
@@ -81,9 +78,5 @@
 	}
 	button {
 		text-align: left;
-	}
-	button[aria-pressed='true'] {
-		box-shadow: inset 0 0 0 0.08rem var(--gc-color-focus);
-		background: color-mix(in srgb, var(--gc-color-focus) 15%, transparent);
 	}
 </style>

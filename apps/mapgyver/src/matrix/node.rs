@@ -21,7 +21,7 @@ enum Kind {
 }
 
 #[node("mapgyver.matrix.element.v2", label = "Matrix element", user_permissions = golden_core::node::NodeUserPermissions {
-    can_edit_name: true, ..Default::default()
+    can_edit_name: true, can_edit_color: true, ..Default::default()
 })]
 #[children(folder(parameters, label = "Parameters", can_be_disabled = false) {
     stop: ParamValue = ParamValue::Trigger() (label = "Stop");

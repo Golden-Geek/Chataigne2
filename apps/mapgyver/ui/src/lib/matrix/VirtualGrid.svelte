@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		IconButton,
+		appState,
 		registerCommandHandler,
 		selectOnPress,
 		viewportContour,
@@ -33,6 +34,8 @@
 	import { rowDropTarget, type GridDrag } from './grid-drag';
 	import { CELL_DRAG_TYPE, readCellDrag, type CellDrag } from './cell-transfer';
 	import { sameSelection } from './selection';
+	import { getContainerColorForNode } from 'golden_ui/store/node-types';
+	type SelectionInput = PointerEvent | MouseEvent | KeyboardEvent;
 	let {
 		snapshot,
 		selected,
@@ -47,7 +50,6 @@
 		selectColumn,
 		selectGroup,
 		clearSelection,
-		selectedGroup,
 		trigger,
 		drop,
 		cellSource,
@@ -66,12 +68,11 @@
 		viewport(value: MatrixViewport): void;
 		scroll?: { top: number; left: number };
 		onscrollposition?(value: { top: number; left: number }, media: string): void;
-		select(row: MatrixViewRow, column: ColumnSnapshot): void;
-		selectRow(row: MatrixViewRow): void;
-		selectColumn(column: ColumnSnapshot): void;
-		selectGroup(group: ColumnGroupSnapshot): void;
+		select(row: MatrixViewRow, column: ColumnSnapshot, event: SelectionInput): void;
+		selectRow(row: MatrixViewRow, event: SelectionInput): void;
+		selectColumn(column: ColumnSnapshot, event: SelectionInput): void;
+		selectGroup(group: ColumnGroupSnapshot, event: SelectionInput): void;
 		clearSelection(): void;
-		selectedGroup: string | null;
 		trigger(row: MatrixViewRow, column: ColumnSnapshot): void;
 		drop(row: MatrixViewRow, column: ColumnSnapshot, source: string, copy: boolean): void;
 		cellSource(cell: string): CellDrag | null;
@@ -88,6 +89,17 @@
 			group?: ColumnGroupSnapshot
 		): void;
 	} = $props();
+	const session = $derived(appState.session);
+	const selectedNodes = $derived(new Set(session?.selectedNodesIds ?? []));
+	// Coordinates retain the sparse edit/clipboard address; only document identities select paint.
+	function isSelected(uuid: string | undefined) {
+		const node = uuid ? session?.graph.state.nodesById.getByUuid(uuid) : null;
+		return node != null && selectedNodes.has(node.node_id);
+	}
+	function itemColor(uuid: string | undefined) {
+		const node = uuid ? session?.graph.state.nodesById.getByUuid(uuid) : null;
+		return node?.meta.presentation?.color ? getContainerColorForNode(node) : null;
+	}
 	const layerRequests = $derived(
 		new Map(snapshot.playback.layers.map((request) => [request.layer, request] as const))
 	);
@@ -474,7 +486,8 @@
 					left={projection.left}
 					origin={projection.columnOrigin}
 					columnSize={projection.column}
-					selected={selectedGroup}
+					{isSelected}
+					{itemColor}
 					{disabled}
 					select={selectGroup}
 					{edit}
@@ -489,11 +502,12 @@
 							role="columnheader"
 							tabindex="0"
 							data-column-id={column.id}
-							aria-selected={selected?.column === column.id}
-							class:selected={selected?.column === column.id}
-							use:selectOnPress={{ disabled, select: () => selectColumn(column) }}
+							aria-selected={isSelected(column.id)}
+							style:--matrix-item-color={itemColor(column.id)}
+							class:custom-color={itemColor(column.id) != null}
+							use:selectOnPress={{ disabled, select: (event) => selectColumn(column, event) }}
 							use:viewportContour={{
-								selected: selected?.column === column.id,
+								selected: isSelected(column.id),
 								identity: documentIdentity
 							}}
 							aria-colindex={column.axis_index + 2}
@@ -504,9 +518,8 @@
 							style:left={`${projection.columnOrigin + column.axis_index * projection.column}rem`}>
 							<GridLabel
 								label={column.label}
-								selected={selected?.column === column.id}
 								{disabled}
-								select={() => selectColumn(column)}
+								select={(event) => selectColumn(column, event)}
 								rename={async (label) =>
 									Boolean(await edit({ kind: 'RenameColumn', column: column.id, label }))} />
 							<div class="column-state">
@@ -556,11 +569,12 @@
 							role="rowheader"
 							tabindex="0"
 							aria-label={row.item.label}
-							aria-selected={selected?.item?.id === row.item.id.id}
-							class:selected={selected?.item?.id === row.item.id.id}
-							use:selectOnPress={{ disabled, select: () => selectRow(row) }}
+							aria-selected={isSelected(row.item.id.id)}
+							style:--matrix-item-color={itemColor(row.item.id.id)}
+							class:custom-color={itemColor(row.item.id.id) != null}
+							use:selectOnPress={{ disabled, select: (event) => selectRow(row, event) }}
 							use:viewportContour={{
-								selected: selected?.item?.id === row.item.id.id,
+								selected: isSelected(row.item.id.id),
 								enabled: row.item.settings.enabled,
 								identity: documentIdentity
 							}}
@@ -571,9 +585,8 @@
 								<div class="row-title-label">
 									<GridLabel
 										label={row.item.label}
-										selected={selected?.item?.id === row.item.id.id}
 										{disabled}
-										select={() => selectRow(row)}
+										select={(event) => selectRow(row, event)}
 										rename={async (label) =>
 											Boolean(await edit({ kind: 'RenameItem', item: row.item.id, label }))} />
 								</div>
@@ -608,15 +621,13 @@
 									class:group-cell={row.item.id.kind === 'Group'}
 									role="gridcell"
 									{disabled}
-									aria-selected={selected?.item?.id === row.item.id.id &&
-										selected?.column === column.id}
+									aria-selected={isSelected(cell?.cell.id)}
+									style:--matrix-item-color={itemColor(cell?.cell.id)}
+									class:custom-color={itemColor(cell?.cell.id) != null}
 									aria-colindex={column.axis_index + 2}
-									class:selected={selected?.item?.id === row.item.id.id &&
-										selected?.column === column.id}
-									use:selectOnPress={{ disabled, select: () => select(row, column) }}
+									use:selectOnPress={{ disabled, select: (event) => select(row, column, event) }}
 									use:viewportContour={{
-										selected:
-											selected?.item?.id === row.item.id.id && selected?.column === column.id,
+										selected: isSelected(cell?.cell.id),
 										identity: documentIdentity
 									}}
 									ondblclick={() => {
@@ -679,7 +690,7 @@
 												label={`Add Media to ${row.item.label} / ${column.label}`}
 												{disabled}
 												onclick={(event) => {
-													select(row, column);
+													select(row, column, event);
 													menu(event, row, column, true);
 												}} /></span>
 									{/if}
@@ -810,9 +821,9 @@
 		flex: 1;
 		min-inline-size: 0;
 	}
-	.row-label.selected,
-	.heading.selected {
-		box-shadow: inset 0 0 0 0.08rem var(--gc-color-focus);
+	.row-label.custom-color,
+	.heading.custom-color {
+		background: color-mix(in srgb, var(--matrix-item-color) 18%, var(--gc-color-header));
 	}
 	.group .row-label {
 		border-left: 0.2rem solid var(--gc-color-accent);
@@ -859,9 +870,8 @@
 		background: var(--gc-color-node-enabled);
 		border-color: var(--gc-color-node-enabled);
 	}
-	.cell.selected {
-		outline: 0.15rem solid var(--gc-color-focus);
-		outline-offset: -0.2rem;
+	.cell.custom-color {
+		background: color-mix(in srgb, var(--matrix-item-color) 14%, var(--gc-color-panel));
 	}
 	.cell.has-preview {
 		background: transparent;
@@ -878,6 +888,9 @@
 		-webkit-line-clamp: 2;
 		line-clamp: 2;
 		background: var(--gc-color-panel);
+	}
+	.custom-color .source-label {
+		background: color-mix(in srgb, var(--matrix-item-color) 20%, var(--gc-color-panel));
 	}
 	.add,
 	.remove {

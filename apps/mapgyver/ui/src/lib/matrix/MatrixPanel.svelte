@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		appState,
+		nodeSelectionMode,
 		readPanelPersistedState,
 		writePanelPersistedState,
 		ContextMenu,
@@ -180,31 +181,30 @@
 						};
 					}}
 					edit={(value) => owner.edit(value)}
-					selectRow={(row) => {
+					selectRow={(row, event) => {
 						controller.select(row.item.id, view.selected?.column ?? null, row.item.id.id);
-						selectDocumentNode(row.item.id.id);
+						selectDocumentNode(row.item.id.id, nodeSelectionMode(event));
 					}}
-					selectColumn={(column) => {
+					selectColumn={(column, event) => {
 						controller.select(view.selected?.item ?? null, column.id, column.id);
-						selectDocumentNode(column.id);
+						selectDocumentNode(column.id, nodeSelectionMode(event));
 					}}
-					selectedGroup={view.node}
 					clearSelection={() => {
 						if (!matrixWindow) return;
 						controller.select(null, null, null);
 						selectDocumentNode(matrixWindow.media);
 					}}
-					selectGroup={(group) => {
+					selectGroup={(group, event) => {
 						controller.select(null, null, group.id);
-						selectDocumentNode(group.id);
+						selectDocumentNode(group.id, nodeSelectionMode(event));
 					}}
-					select={(row, column) => {
+					select={(row, column, event) => {
 						const cell = matrixWindow?.cells.find(
 							(cell) =>
 								cell.cell.layer === row.item.id.id && cell.cell.definition.column === column.id
 						);
 						controller.select(row.item.id, column.id, cell?.cell.id ?? row.item.id.id);
-						selectDocumentNode(cell?.cell.id ?? row.item.id.id);
+						selectDocumentNode(cell?.cell.id ?? row.item.id.id, nodeSelectionMode(event));
 					}}
 					drop={async (row, column, source, copy) => {
 						if (row.item.id.kind !== 'Layer') return;

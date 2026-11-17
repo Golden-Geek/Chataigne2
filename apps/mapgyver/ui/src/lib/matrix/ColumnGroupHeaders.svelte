@@ -22,7 +22,8 @@
 		left,
 		origin,
 		columnSize,
-		selected,
+		isSelected,
+		itemColor,
 		disabled,
 		select,
 		edit,
@@ -42,9 +43,10 @@
 		left: number;
 		origin: number;
 		columnSize: number;
-		selected: string | null;
+		isSelected(uuid: string): boolean;
+		itemColor(uuid: string): string | null;
 		disabled: boolean;
-		select(group: ColumnGroupSnapshot): void;
+		select(group: ColumnGroupSnapshot, event: PointerEvent | MouseEvent | KeyboardEvent): void;
 		edit(value: MatrixEdit): Promise<unknown>;
 		drag(event: DragEvent, group: string): void;
 	} = $props();
@@ -71,8 +73,11 @@
 				{@const last = Math.min(end, group.axis_start + group.axis_count)}
 				<div
 					class="band"
-					use:selectOnPress={{ disabled, select: () => select(group) }}
-					use:viewportContour={{ selected: selected === group.id, identity }}
+					use:selectOnPress={{ disabled, select: (event) => select(group, event) }}
+					use:viewportContour={{ selected: isSelected(group.id), identity }}
+					aria-selected={isSelected(group.id)}
+					style:--matrix-item-color={itemColor(group.id)}
+					class:custom-color={itemColor(group.id) != null}
 					role="columnheader"
 					tabindex="0"
 					data-column-group-id={group.id}
@@ -88,9 +93,8 @@
 					style:width={`${(last - first) * columnSize}rem`}>
 					<GridLabel
 						label={group.label}
-						selected={selected === group.id}
 						{disabled}
-						select={() => select(group)}
+						select={(event) => select(group, event)}
 						rename={async (label) =>
 							Boolean(await edit({ kind: 'RenameColumnGroup', group: group.id, label }))} />
 					<ParameterTrigger
@@ -123,6 +127,9 @@
 {/if}
 
 <style>
+	.band.custom-color {
+		background: color-mix(in srgb, var(--matrix-item-color) 18%, var(--gc-color-header));
+	}
 	.marker {
 		width: 0.35rem;
 		height: 0.35rem;

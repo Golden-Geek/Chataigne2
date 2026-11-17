@@ -46,9 +46,132 @@ export async function gridSelectionChecks(page) {
 	assert.equal(await selected.textContent(), 'none', 'hover does not select');
 	assert.equal(await cell.evaluate((element) => getComputedStyle(element).backgroundColor), fill);
 	await press(cell, 'cell-layer-0-column-0');
+	assert.equal(
+		await grid.locator('[aria-selected="true"]').count(),
+		1,
+		'Cell selection cannot cross-select its headers'
+	);
+	assert.equal(await cell.getAttribute('aria-selected'), 'true');
 	await press(grid.getByRole('button', { name: 'Layer A', exact: true }), 'layer-0');
+	assert.equal(
+		await grid.locator('[aria-selected="true"]').count(),
+		1,
+		'Layer selection cannot retain a Cell or Column outline'
+	);
 	await press(grid.getByRole('button', { name: 'Column A', exact: true }), 'column-0');
+	assert.equal(
+		await grid.locator('[aria-selected="true"]').count(),
+		1,
+		'Column selection cannot retain a row or Cell outline'
+	);
+	assert.equal(
+		await grid.locator('button[aria-pressed="true"]').count(),
+		0,
+		'Header labels have no second selection outline'
+	);
 	await press(grid.getByRole('button', { name: 'Group A', exact: true }), 'group');
+	assert.equal(await grid.locator('[aria-selected="true"]').count(), 1);
+	await press(grid.getByRole('button', { name: 'Layer Group', exact: true }), 'layer-group');
+	assert.equal(
+		await grid.locator('[aria-selected="true"]').count(),
+		1,
+		'A nested row group selects only its own header'
+	);
+	await page.keyboard.down('Control');
+	await cell.click({ position: await cellPoint() });
+	await page.keyboard.up('Control');
+	assert.equal(
+		await grid.locator('[aria-selected="true"]').count(),
+		2,
+		'Control adds an explicit second selection'
+	);
+	await page.keyboard.down('Control');
+	await cell.click({ position: await cellPoint() });
+	await page.keyboard.up('Control');
+	assert.equal(
+		await grid.locator('[aria-selected="true"]').count(),
+		1,
+		'Control toggles only the requested Cell'
+	);
+	const colored = [
+		cell,
+		grid.locator('[role="rowheader"][aria-label="Layer A"]'),
+		grid.locator('[data-column-id][role="columnheader"]').first(),
+		grid.locator('[data-column-group-id]').first(),
+		grid.locator('[role="rowheader"][aria-label="Layer Group"]')
+	];
+	const beforeColors = await Promise.all(
+		colored.map((node) => node.evaluate((element) => getComputedStyle(element).backgroundColor))
+	);
+	await page.getByRole('button', { name: 'Set grid custom colors', exact: true }).click();
+	for (const [index, node] of colored.entries()) {
+		await page
+			.waitForFunction(
+				(element) => element?.classList.contains('custom-color'),
+				await node.elementHandle()
+			)
+			.catch(async (error) => {
+				throw new Error(
+					`Custom color target ${index}: ${await node.getAttribute('class')}; ${error}`
+				);
+			});
+		assert.notEqual(
+			await node.evaluate((element) => getComputedStyle(element).backgroundColor),
+			beforeColors[index],
+			'Golden metadata change updates grid paint'
+		);
+	}
+	await page.getByRole('button', { name: 'Select Layer B externally', exact: true }).click();
+	for (const theme of [
+		{ header: '#181818', panel: '#1f2021', text: '#bababa' },
+		{ header: '#f0f0f0', panel: '#ffffff', text: '#202020' }
+	]) {
+		const ratios = await page.evaluate(
+			({ theme }) => {
+				const root = document.documentElement,
+					previous = root.style.cssText;
+				root.style.setProperty('--gc-color-header', theme.header);
+				root.style.setProperty('--gc-color-panel', theme.panel);
+				root.style.setProperty('--gc-color-text', theme.text);
+				const canvas = document.createElement('canvas');
+				canvas.width = canvas.height = 1;
+				const context = /** @type {CanvasRenderingContext2D} */ (
+					canvas.getContext('2d', { willReadFrequently: true })
+				);
+				if (!context) throw new Error('2D context unavailable');
+				/** @param {string} color */
+				function luminance(color) {
+					context.fillStyle = color;
+					context.fillRect(0, 0, 1, 1);
+					const values = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3).map((part) => {
+						const value = part / 255;
+						return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+					});
+					return values[0] * 0.2126 + values[1] * 0.7152 + values[2] * 0.0722;
+				}
+				const results = [...document.querySelectorAll('.custom-color')].map((element) => {
+					const style = getComputedStyle(element),
+						a = luminance(style.color),
+						b = luminance(style.backgroundColor);
+					return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+				});
+				root.style.cssText = previous;
+				return results;
+			},
+			{ theme }
+		);
+		assert(ratios.length >= 5);
+		assert(
+			ratios.every((ratio) => ratio >= 4.5),
+			`Custom-color text contrast: ${JSON.stringify({ theme, ratios })}`
+		);
+	}
+	assert.equal(await grid.locator('[aria-selected="true"]').count(), 1);
+	assert.equal(
+		await grid.locator('[role="rowheader"][aria-label="Layer B"]').getAttribute('aria-selected'),
+		'true',
+		'Shared selection updates even a disabled Layer independently of retained grid coordinates'
+	);
 	for (const [selector, expected] of [
 		['[role="rowheader"][aria-label="Layer B"]', 'layer-1'],
 		['[role="columnheader"][data-column-id]', 'column-0'],
@@ -163,6 +286,21 @@ export async function gridSelectionChecks(page) {
 	assert.equal(
 		Number(await page.getByLabel('Grid clears').textContent()),
 		Number(clearsBefore) + 1
+	);
+	await other.getByRole('button', { name: 'Layer B', exact: true }).click();
+	assert.equal(
+		await grid.locator('[role="rowheader"][aria-label="Layer B"]').getAttribute('aria-selected'),
+		'true',
+		'Independent panels paint the same explicit document selection'
+	);
+	assert.equal(await other.locator('[aria-selected="true"]').count(), 1);
+	assert.equal(
+		await other
+			.locator('[role="rowheader"][aria-label="Layer A"]')
+			.getAttribute('class')
+			.then((value) => value?.includes('custom-color')),
+		true,
+		'Independent panels read the same Golden colors'
 	);
 	await page.getByRole('button', { name: 'Toggle independent grid', exact: true }).click();
 

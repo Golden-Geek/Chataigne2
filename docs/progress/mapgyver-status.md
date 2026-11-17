@@ -1,9 +1,9 @@
 # MapGyver — simple status
 
 - **Updated:** 17 November 2026.
-- **Overall plan acceptance:** `████████░░` **79% — 93/117 checks accepted**. Deferred verification is still counted as unfinished.
-- **Latest finished:** parameter-control safety, including animation and save/reload.
-- **Working on next:** Matrix selection and custom colors.
+- **Overall plan acceptance:** `████████░░` **80% — 94/117 checks accepted**. Deferred verification is still counted as unfinished.
+- **Latest finished:** Matrix selection and custom colors, including Inspector edits, Undo and save/reload.
+- **Working on next:** Matrix appearance and active-Cell feedback.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -19,6 +19,7 @@
 - [x] **Display recovery:** the previously tested unplug/replug and monitor-rearrangement cases.
 - [x] **Composition:** owned media, transforms, front/back ordering, contextual actions, enable state and zero-scale handling.
 - [x] **Matrix:** Layers, Columns, Cells, Groups, sparse scrolling, media drops/copies/references and normal playback/crossfades.
+- [x] **Matrix selection/colors:** only explicitly selected objects highlight; modifier multiselection works; Layers/Columns/Cells/Groups show Golden custom colors. Inspector color edits, Undo, copies and reload pass focused checks.
 - [x] **App Control:** normal 64-bit launch/readiness/sharing/reconnect/stop workflows. The remaining 32-bit case is listed below.
 - [x] **Video:** common H.264/HEVC/ProRes profiles and HAP; playback, loop, seek/frame stepping, transport Inspector and Matrix activation/deactivation policies.
 - [x] **Editor manipulation:** the smoothness improvements you accepted in Screen Warping, Surface Source and Composition.
@@ -26,22 +27,21 @@
 
 ## Next features — implementation order
 
-1. **NOW — Matrix selection and custom colors:** highlight only explicitly selected Layers/Columns/Cells/Groups; show Golden custom colors.
-2. **Matrix appearance:** subtle borders/rounded corners and clearer active-Cell feedback.
-3. **Matrix configuration presets:** save/recall Layer/Column order and enabled states without changing Cell contents.
-4. **Shared editor feedback:** short hover/selection transitions and subtler handles/outlines.
-5. **Startup/New editor targets:** immediately show the automatic Screen and Surface without manual selection.
-6. **Surface Editor:** show related Surfaces sharing a source; show test patterns even without a source.
-7. **Screen-handle links:** magnet snapping creates persistent linked handle groups; provide unlink controls.
-8. **Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
-9. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
-10. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
-11. **Extended Video codecs:** DXV and WebP/animated WebP.
-12. **Subtitles:** optional, disableable subtitle controls and display.
+1. **NOW — Matrix appearance:** subtle borders/rounded corners and clearer active-Cell feedback.
+2. **Matrix configuration presets:** save/recall Layer/Column order and enabled states without changing Cell contents.
+3. **Shared editor feedback:** short hover/selection transitions and subtler handles/outlines.
+4. **Startup/New editor targets:** immediately show the automatic Screen and Surface without manual selection.
+5. **Surface Editor:** show related Surfaces sharing a source; show test patterns even without a source.
+6. **Screen-handle links:** magnet snapping creates persistent linked handle groups; provide unlink controls.
+7. **Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
+8. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+9. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
+10. **Extended Video codecs:** DXV and WebP/animated WebP.
+11. **Subtitles:** optional, disableable subtitle controls and display.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 
-1. **Shared editor selection/hover:** ordinary behavior exists. Reconnect can split a Source drag into multiple Undo steps; an old Screen request after New can be rejected. Fix and finish interruption checks.
+1. **Shared editor selection/hover:** ordinary behavior exists. Reconnect can split a Source drag into multiple Undo steps; an old Screen request after New can be rejected. Fix and finish interruption checks. Wider Matrix stress/interruption coverage is part of the final regression batch.
 2. **External-display defaults:** allocation code and no-external checks pass. **Manual later:** one/two external monitors, occupied destinations and native New shortcut; the two-external case may need another monitor.
 3. **Matrix enabled state and fading Layer Stop:** implemented and functionally checked. Complete interrupted fades, shared-consumer and final-resource retirement combinations.
 4. **Smooth Frame/Home navigation:** implemented and functionally checked. Finish Matrix-specific, resize/large-document and independent image/control-alignment checks.

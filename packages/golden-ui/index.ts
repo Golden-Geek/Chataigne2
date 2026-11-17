@@ -110,6 +110,7 @@ export { default as ViewportHandle } from './components/viewport/ViewportHandle.
 export { default as ViewportTarget } from './components/viewport/ViewportTarget.svelte';
 export { viewportContour, viewportContourAppearance } from './components/viewport/contour';
 export { selectOnPress, clearViewportSelection } from './components/viewport/selection';
+export { nodeSelectionMode } from './components/panels/outliner/node-selection';
 export { pointBounds, type ViewBounds } from './components/viewport/geometry';
 export { createViewportPointer, type ViewportPointerTarget } from './components/viewport/pointer';
 export { selectedEditorItem } from './store/editor-selection';

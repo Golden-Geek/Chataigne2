@@ -120,7 +120,8 @@ actual run, not as qualification.
 acceptance gates. **All remaining Video work follows this feedback:** M10/3 extended codecs,
 M10/8 subtitles and retained M10/4 qualification return after M15. The remaining M14 feature
 order is **9 → 10 → 8 → 2**; all four are functionally delivered with qualification Pending.
-M15/1 parameter-control safety is now Accepted; M15/2 Matrix selection/custom colors is selected next. Deliver the M15 feedback
+M15/1 parameter-control safety and M15/2 Matrix selection/custom colors are Accepted for their
+owning contracts. M15/3 Matrix appearance is next. Deliver the M15 feedback
 before returning to Video and final acceptance closure. Reproduced correctness defects
 on the active product path remain prerequisites; the reported parameter-control crash is
 M15/1's first correction, not optional optimization or deferred edge-case qualification.
@@ -1372,7 +1373,7 @@ awarding acceptance or changing retained budgets.
 Source: [Latest Feedback.md](../../Latest%20Feedback.md) in the repository root, plus the user's
 instruction that remaining Video work follows this feedback. Follow the M14 feature-first
 execution revision above: selected M14 features9,10,8,2 are functionally delivered, with their
-remaining qualification Pending in the return queue. M15/1 is Accepted and M15/2 is next;
+remaining qualification Pending in the return queue. M15/1–2 are Accepted, and M15/3 is next;
 deliver M15 before remaining Video, retaining user-deferred M14/1 and blocked M14/6.
 Retain every unfinished qualification gate and its return trigger before M09.
 
@@ -1498,7 +1499,10 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
     creation/history/copy/reload and actual SDK discovery with correct pixels; labels alone are
     not proof of sender provenance.
 
-M15/1 is Accepted with its complete control/persistence/native proof;2–11 remain open.
+M15/1–2 are Accepted with their owning software/native proofs;3–11 remain open.
+M15/2 covers explicit/shared/modifier selection, nested/disabled/offscreen objects, Inspector
+colors, history/copy/reload, representative theme contrast and independent panels. Wider app
+stress/interruption and retained GPU/resource qualification return in the deferred pass before M09.
 Functional delivery uses the user's targeted-check cadence above, retaining deferred deep
 checks before M09. A gate is Accepted only when its complete owning scope is verified.
 The source mapping is: crash/range → 1; Matrix UI → 2–3;
@@ -1507,6 +1511,7 @@ Screen links → 8; geometry alignment → 9; Gradient → 10; Shared Texture �
 Planning changes the fixed scope from **106 to 117 gates** and **15 to 16 phases**; the accepted
 numerator initially stayed **92**, making overall progress **79%** and phase completion **8/16 (50%)**.
 M15/1 acceptance now raises the numerator to **93/117**; rounding still gives **79%**.
+M15/2 acceptance raises it to **94/117 (80%)** and M15 to **2/11 (18%)**; the denominator is unchanged.
 M14/1,6 and all retained correctness, physical, recovery and performance requirements remain
 required before M09. New features follow the user's feature-first cadence; a checkpoint or a
 passing subset of checks never closes a complete gate.
