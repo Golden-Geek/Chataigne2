@@ -97,6 +97,7 @@ pub(super) fn inspect(engine: &AppEngine, query: ScreenEditorQuery) -> Result<Sc
         has_more_surfaces: false,
         selected_surface: None,
         surface: None,
+        source_preview: None,
     };
     if !page.document_matches {
         return Ok(page);
@@ -182,6 +183,12 @@ pub(super) fn inspect(engine: &AppEngine, query: ScreenEditorQuery) -> Result<Sc
             .push(node.parameter_bindings(engine, selected.reference.surface));
     }
     page.target = Some(target);
+    page.source_preview = page
+        .surface
+        .as_ref()
+        .map(|surface| super::source_preview::source(engine, &surface.definition, &snapshot.definition))
+        .transpose()?
+        .flatten();
     page.screen = Some(snapshot);
     Ok(page)
 }

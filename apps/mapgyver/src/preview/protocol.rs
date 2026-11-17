@@ -64,6 +64,11 @@ pub struct ScreenRuntimeStatus {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum PreviewSource {
+    /// Procedural source chosen by the app's Surface editor projection, not authored media.
+    Calibration {
+        mode: crate::screens::protocol::Calibration,
+        extent: Extent2D,
+    },
     Channel {
         reference: ChannelReference,
     },
@@ -85,7 +90,7 @@ impl PreviewSource {
                 media,
                 channel: crate::media::protocol::ChannelId(cell.0),
             }),
-            Self::Screen { .. } => None,
+            Self::Screen { .. } | Self::Calibration { .. } => None,
         }
     }
 }

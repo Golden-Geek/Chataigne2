@@ -6,4 +6,6 @@ export const previewKey = (source: PreviewSource): string =>
 		? JSON.stringify(['Channel', source.reference.media, source.reference.channel])
 		: source.kind === 'MatrixCell'
 			? JSON.stringify(['MatrixCell', source.media, source.cell])
-			: JSON.stringify(['Screen', source.screen]);
+			: source.kind === 'Screen'
+				? JSON.stringify(['Screen', source.screen])
+				: JSON.stringify(['Calibration', source.mode, source.extent.width, source.extent.height]);

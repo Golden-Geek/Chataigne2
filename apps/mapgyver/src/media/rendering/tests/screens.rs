@@ -305,7 +305,7 @@ fn mixed_project_screen_routes_are_rejected_before_replacing_the_live_renderer_p
 }
 
 #[test]
-fn calibration_needs_no_source_and_restores_the_authored_channel_crop_quad_and_opacity() {
+fn calibration_needs_no_source_and_uses_the_authored_crop_quad_and_opacity() {
     let mut engine = engine();
     let source = create(&mut engine, MediaKind::SolidColor);
     let (screen, surface) = screen(&mut engine, source);
@@ -376,14 +376,7 @@ fn calibration_needs_no_source_and_restores_the_authored_channel_crop_quad_and_o
         };
         assert_eq!(layers.len(), 1);
         assert_eq!(layers[0].opacity.get(), original.opacity);
-        assert_eq!(
-            layers[0].mapping.unwrap().crop(),
-            if mode == Calibration::Off {
-                original.crop
-            } else {
-                UnitRect::FULL
-            }
-        );
+        assert_eq!(layers[0].mapping.unwrap().crop(), original.crop);
         match (mode, &layers[0].source) {
             (Calibration::Grid, LayerSource::Pattern(Pattern::Canvas(_)))
             | (Calibration::ColorBars, LayerSource::Pattern(Pattern::Bars(_)))

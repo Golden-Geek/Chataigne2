@@ -218,7 +218,7 @@ impl ScreenAntiAliasing {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS, Default)]
 pub enum Calibration {
     #[default]
     Off,
@@ -457,6 +457,8 @@ pub struct ScreenEditorPage {
     pub selected_surface: Option<SurfaceId>,
     /// Independent lookup keeps off-page selected geometry editable.
     pub surface: Option<SurfaceSnapshot>,
+    /// Backend-owned choice between the full channel, active calibration, or no image.
+    pub source_preview: Option<crate::preview::protocol::PreviewSource>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]

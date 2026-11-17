@@ -12,3 +12,10 @@ test('preview kinds have separate identities and channel property order is irrel
 		previewKey({ kind: 'Screen', screen: 'other' })
 	);
 });
+
+test('calibration identity shares matching images and fences mode and dimensions', () => {
+	const first = { kind: 'Calibration', mode: 'Grid', extent: { width: 96, height: 64 } } as const;
+	assert.equal(previewKey(first), previewKey({ ...first, extent: { height: 64, width: 96 } }));
+	assert.notEqual(previewKey(first), previewKey({ ...first, mode: 'ColorBars' }));
+	assert.notEqual(previewKey(first), previewKey({ ...first, extent: { width: 64, height: 96 } }));
+});

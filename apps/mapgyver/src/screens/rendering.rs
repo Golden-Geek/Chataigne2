@@ -12,7 +12,7 @@ use crate::{
 };
 use golden_core::node::Node;
 use golden_io::RevisionGuard;
-use golden_video::plan::{BlendMode, Layer, LayerSource, ProjectiveMapping, SampleFilter, UnitRect};
+use golden_video::plan::{BlendMode, Layer, LayerSource, ProjectiveMapping, SampleFilter};
 use golden_video::{Extent2D, Opacity, OutputId, TextureId};
 use std::collections::{HashMap, HashSet};
 
@@ -255,16 +255,11 @@ impl CapturedScreen {
         for surface in self.surfaces.iter().filter(|surface| surface.enabled) {
             // A freely edited quad can temporarily have no finite homography. Keep the
             // authored state and healthy peer layers; never publish an unsafe GPU mapping.
-            let crop = if surface.calibration == Calibration::Off {
-                surface.crop
-            } else {
-                UnitRect::FULL
-            };
-            let Ok(mapping) = ProjectiveMapping::new(crop, surface.quad) else {
+            let Ok(mapping) = ProjectiveMapping::new(surface.crop, surface.quad) else {
                 continue;
             };
             let source = if let Some(pattern) = super::calibration::pattern(surface.calibration, extent, assets)? {
-                // Calibration covers the complete authored quad; the saved source crop is retained.
+                // Patterns share the source-coordinate domain and crop mapping of media.
                 LayerSource::Pattern(pattern)
             } else {
                 let Some(source) = surface.source else { continue };

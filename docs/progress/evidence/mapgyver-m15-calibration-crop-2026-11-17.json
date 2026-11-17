@@ -1,0 +1,18 @@
+{
+  "gate":"M15/7",
+  "date":"2026-11-17",
+  "result":"Accepted crop revision",
+  "request":"Calibration must show the same selected Surface source section in Screen Warping as media does.",
+  "cause":"CapturedScreen::layers explicitly replaced the authored crop with UnitRect::FULL whenever calibration was active. Existing tests encoded that old full-quad policy.",
+  "change":"All procedural and texture layers now build ProjectiveMapping from surface.crop and surface.quad. Surface Source remains the whole unwarped image for crop selection; Screen Warping and native output share the corrected Screen layer preparation.",
+  "checks":{
+    "render_tests":{"passed":8,"failed":0,"exit_code":0,"log":"target/m15-pattern-crop-tests.log","scope":"Existing calibration test now requires the same non-full crop for Grid/ColorBars/Off, preserving quad/opacity/source; existing Screen sharing, alpha, invalid mapping, quota and source-preview checks pass"},
+    "strict_lint":{"exit_code":0,"log":"target/m15-pattern-crop-clippy.log"},
+    "build":{"exit_code":0,"log":"target/m15-pattern-crop-build.log","duration":"1m07s"},
+    "native":{"pid":36444,"window":4588670,"exit_code":0,"checks":3,"artifacts":"target/m15-pattern-crop-native-20261117","log":"target/m15-pattern-crop-native.log","app_sha256":"D57CDFECE61CCBB2B782F70D6EAB45960BF9A73880767484D67DF744315D7A41"},
+    "native_pixels":"Computer Use sky Windows.Graphics.Capture observed the full eight-bar Source image with crop origin0.25/0.25,size0.5/0.5; Screen Warping showed only its middle cyan/green/magenta/red bars; Grid showed the enlarged cropped center without the complete outer pattern. Installed-view assertions and exact retained crop pass; app exits normally.",
+    "format":"Root and Golden Core cargo fmt, owning browser fixture Prettier/Node syntax and staged whitespace checks pass"
+  },
+  "scope":"New user-requested sampling policy at the existing Screen rendering boundary. Original Source/related native evidence remains valid for unchanged mechanisms; no added phase/denominator or retained timing/resource/Intel/final qualification credit.",
+  "progress":"M15/7 Accepted including the crop revision;98/117 (84%),M15 6/11 (55%), phases8/16 unchanged; linked handles M15/8 next."
+}

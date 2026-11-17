@@ -218,6 +218,9 @@
 			}} />
 	{:else if sourceMode}
 		<SurfaceSourcePreview
+			preview={cropSurface.definition.source
+				? { kind: 'Channel', reference: cropSurface.definition.source }
+				: null}
 			inputAvailable={cropInputAvailable}
 			surface={cropSurface}
 			selected={selected === 'crop-origin' || selected === 'crop-size'}

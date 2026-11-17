@@ -14,6 +14,7 @@
 	import CropHandles from './CropHandles.svelte';
 	let {
 		surface,
+		preview,
 		inputAvailable,
 		selected,
 		select,
@@ -29,6 +30,7 @@
 		selectRelated = () => {}
 	}: {
 		surface: SurfaceSnapshot;
+		preview: PreviewSource | null;
 		inputAvailable: boolean;
 		selected: boolean;
 		select(handle: 'origin' | 'size'): boolean;
@@ -54,9 +56,7 @@
 	function setOverlays(next: OverlayPrimitive[]) {
 		overlays = next;
 	}
-	const identity = $derived<PreviewSource | null>(
-		surface.definition.source ? { kind: 'Channel', reference: surface.definition.source } : null
-	);
+	const identity = $derived(preview);
 	const source = $derived(JSON.stringify(identity));
 	const status = $derived(identity ? owner.statuses.get(previewKey(identity)) : undefined);
 	const extent = $derived(status?.extent);

@@ -1,7 +1,7 @@
 //! App-owned mapping authoring. Native outputs and render resources are not project state.
 
 mod authoring;
-mod calibration;
+pub(crate) mod calibration;
 pub(crate) mod catalog_runtime;
 pub(crate) mod creation;
 pub mod display_matching;
@@ -17,6 +17,7 @@ pub mod rendering;
 mod rows;
 mod screen_node;
 mod scripting;
+mod source_preview;
 mod surface_node;
 mod target;
 

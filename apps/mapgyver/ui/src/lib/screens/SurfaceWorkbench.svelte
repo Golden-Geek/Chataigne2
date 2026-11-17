@@ -288,6 +288,7 @@
 				stop={() => gesture.stop()} />
 		{:else if editor === 'source' && surface}
 			<SurfaceSourcePreview
+				preview={controller.page?.source_preview ?? null}
 				{actions}
 				related={related.surfaces}
 				selectRelated={(uuid) => {

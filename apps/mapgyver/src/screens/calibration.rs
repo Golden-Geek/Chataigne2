@@ -62,7 +62,7 @@ fn color(r: f32, g: f32, b: f32) -> LinearColor {
     LinearColor::from_straight(r, g, b, 1.).expect("fixed calibration color")
 }
 
-pub(super) fn work_count(mode: Calibration, extent: Extent2D) -> usize {
+pub(crate) fn work_count(mode: Calibration, extent: Extent2D) -> usize {
     if mode != Calibration::Grid {
         return 1;
     }
@@ -222,7 +222,7 @@ fn palette() -> [LinearColor; 8] {
     .map(|[r, g, b]| color(r, g, b))
 }
 
-pub(super) fn pattern(
+pub(crate) fn pattern(
     mode: Calibration,
     extent: Extent2D,
     assets: &mut CalibrationAssets,

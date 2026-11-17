@@ -83,7 +83,12 @@ fn native_active_areas_are_black_even_without_sources_while_the_workbench_keeps_
     });
     // The second screen has no available texture. It still owns an active black rectangle.
     preview
-        .append(&mut submission, &HashMap::new(), &HashMap::from([(screens[0], source)]))
+        .append(
+            &mut submission,
+            &HashMap::new(),
+            &HashMap::from([(screens[0], source)]),
+            &mut Default::default(),
+        )
         .unwrap();
     let pass = |id| {
         submission

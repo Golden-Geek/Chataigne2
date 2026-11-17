@@ -139,6 +139,16 @@ fn capture_preview_with_time(
             return Err("preview exceeds admitted distinct source count".into());
         }
         match source {
+            PreviewSource::Calibration { mode, extent } => {
+                super::layout::validate_calibration(mode, extent)?;
+                statuses.push(PreviewStatus {
+                    source,
+                    extent: Some(extent),
+                    error: None,
+                    message: None,
+                    matrix: None,
+                });
+            }
             PreviewSource::Channel { reference } => channels.push(reference),
             source @ PreviewSource::MatrixCell { .. } => editors.push(source),
             PreviewSource::Screen { screen } => {
@@ -240,6 +250,7 @@ pub(crate) fn capture_presentation_with_time(
             PreviewSource::Channel { reference } => Some(*reference),
             PreviewSource::MatrixCell { .. } => None,
             PreviewSource::Screen { .. } => None,
+            PreviewSource::Calibration { .. } => None,
         })
         .collect::<Vec<_>>();
     for route in &result.screens {

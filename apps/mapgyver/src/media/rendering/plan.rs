@@ -93,11 +93,15 @@ pub(super) fn build(
             .is_some_and(|channel| !channel.public_output)
     });
     let channel_passes = super::derived::base_passes(capture) + usize::from(hidden_route);
+    let preview_passes = preview.map(super::PreviewLayout::pass_count).transpose()?.unwrap_or(0);
     if routes
         .len()
         .saturating_add(screens.iter().filter(|route| route.output.is_some()).count())
         > limits.max_outputs
-        || channel_passes.saturating_add(screen_count) > limits.max_passes
+        || channel_passes
+            .saturating_add(screen_count)
+            .saturating_add(preview_passes)
+            > limits.max_passes
     {
         return Err("channel scene exceeds admitted route/channel counts".into());
     }
@@ -152,7 +156,10 @@ pub(super) fn build(
                 tiles * route.screen.work_count(route.extent) + if tiles > 1 { tiles } else { 0 }
             })
             .sum::<usize>()
-        + preview.map_or(0, super::PreviewLayout::maximum_dependencies);
+        + preview
+            .map(super::PreviewLayout::maximum_dependencies)
+            .transpose()?
+            .unwrap_or(0);
     let mut images = HashSet::new();
     let image_guards = capture
         .assets
@@ -175,11 +182,7 @@ pub(super) fn build(
             .max_passes
             .saturating_sub(channel_passes)
             .saturating_sub(screen_count)
-            .saturating_sub(if preview.is_some() {
-                super::PreviewLayout::PASS_COUNT
-            } else {
-                0
-            }),
+            .saturating_sub(preview_passes),
     )?;
     for reference in references {
         if let std::collections::hash_map::Entry::Vacant(slot) = entries.entry(reference) {
@@ -657,7 +660,7 @@ pub(super) fn build(
             return Err("preview output duplicates an output route".into());
         }
         let screen_targets = screen_entries.iter().map(|(id, entry)| (*id, entry.target)).collect();
-        preview.append(&mut submission, &source_targets, &screen_targets)?;
+        preview.append(&mut submission, &source_targets, &screen_targets, calibration)?;
     }
     for channel in &mut channels {
         if !captured[&channel.reference].public_output {
