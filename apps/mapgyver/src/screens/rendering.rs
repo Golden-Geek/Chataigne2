@@ -189,6 +189,18 @@ pub fn capture_outputs(
 }
 
 impl CapturedScreen {
+    pub(crate) fn raster_tiles(
+        &self,
+        extent: Extent2D,
+        limits: &golden_video::plan::PlanLimits,
+    ) -> Result<Vec<golden_video::plan::RasterTile>, String> {
+        if self.anti_aliasing == super::protocol::ScreenAntiAliasing::Smooth4x {
+            golden_video::plan::supersample_tiles(extent, 4, limits.max_texture_dimension, limits.max_passes / 3)
+                .ok_or_else(|| "4× Screen raster exceeds admitted texture dimensions or pass count".into())
+        } else {
+            Ok(vec![golden_video::plan::RasterTile { origin: [0, 0], extent }])
+        }
+    }
     pub(crate) fn work_count(&self, extent: Extent2D) -> usize {
         self.surfaces
             .iter()

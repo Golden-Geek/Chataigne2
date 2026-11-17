@@ -81,6 +81,12 @@ pub struct ProjectiveMapping {
 }
 
 impl ProjectiveMapping {
+    pub(super) fn from_viewport_rows(crop: UnitRect, inverse: [[f32; 4]; 3]) -> Result<Self, MappingError> {
+        if inverse.iter().flatten().any(|value| !value.is_finite()) {
+            return Err(MappingError);
+        }
+        Ok(Self { crop, inverse })
+    }
     /// Prepare and validate inverse coefficients, including GPU f32 corner correspondence.
     pub fn new(crop: UnitRect, quad: Quad) -> Result<Self, MappingError> {
         if !crop.is_valid() {

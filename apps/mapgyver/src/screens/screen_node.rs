@@ -33,7 +33,7 @@ mod selection;
         width: i32 = 1920 [1..8192] (label = "Width", description = "Physical output pixels.", constraint_policy = "reject");
         height: i32 = 1080 [1..8192] (label = "Height", description = "Physical output pixels.", constraint_policy = "reject");
         sender: String = "Screen".to_owned() (label = "Sender name", description = "Disabled uses MapGyver - <Screen name>. The custom value is preserved.", enabled = self.initial_sender_enabled, can_be_disabled = true);
-        anti_aliasing: Enum = "Raw" (label = "Anti-aliasing", enum_options = crate::parameters::enum_options(&["Raw", "Smooth (2×)"]), constraint_policy = "reject");
+        anti_aliasing: Enum = "Raw" (label = "Anti-aliasing", enum_options = crate::parameters::enum_options(&["Raw", "Smooth (2×)", "Smooth (4×)"]), constraint_policy = "reject");
         frame_rate_mode: Enum = "Follow display" (label = "Frame rate", enum_options = crate::parameters::enum_options(&["Follow display", "Explicit"]), constraint_policy = "reject", description = "Follow the resolved display refresh. Shared Texture or unknown display refresh uses 60 FPS. Editing and previews retain their independent cadence.");
         frames_per_second: f64 = 60.0 [1.0..1000.0] (label = "FPS", constraint_policy = "reject");
         display_edid: String = String::new() (label = "Display EDID", read_only = true, persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false);

@@ -12,6 +12,26 @@ ratio, each final pixel averages its four intermediate texels. Golden decodes an
 before interpolation; both intermediate and final targets are linear premultiplied RGBA8.
 This reuses the existing shader contract instead of adding an app-specific Golden operation.
 
+M14 adds **Smooth (4×)**: four samples on each axis, or sixteen shader evaluations per final
+pixel. Two linear 2:1 Sample passes resolve all sixteen contributors; a single 4:1 bilinear
+sample would omit twelve of them. Both intermediate writes retain the same RGBA8 contract.
+Raw and Smooth (2×) keep their original graph and admission behavior.
+
+Golden's bounded integer raster partition and viewport homography support 4× at 4K without
+raising the production 8192-pixel texture-dimension limit. A 3840×2160 Screen uses four logical
+1920×1080 tiles, each rasterized at7680×4320, resolved through3840×2160 to1920×1080, then copied
+into its exact final pixel rectangle. The assembly uses replacement blits, with no overlapping
+alpha blending or seam interpolation. Odd extents partition integer pixels exactly. Sources and
+logical calibration dimensions remain shared; tile-local coordinates evaluate the original
+full-output mapping. At1080p one tile needs three passes; at4K four tiles plus assembly need
+thirteen. Existing aggregate pass, dependency, byte, native residency and GPU retirement limits
+can reject this more expensive choice; there is no hidden quality downgrade or budget increase.
+
+For one Surface, untiled4× plan textures total21 times the final pixel count (16+4+1).
+Tiled4K adds a separate final assembly target, totaling22 times the final count before producer,
+conversion, scratch and retiring allocations. Sustained cost and retained overload/recovery
+qualification stay in the second pass; implementing this option does not accept those gates.
+
 Calibration layout, stroke widths and resolution readouts use the logical final extent;
 the higher raster density changes sample coverage, not authored dimensions or displayed
 resolution. Calibration is generated in the high-resolution pass rather than upscaling a

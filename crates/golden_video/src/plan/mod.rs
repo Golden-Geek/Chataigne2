@@ -10,6 +10,7 @@ mod pattern;
 mod placement;
 mod region;
 mod region_fit;
+mod supersampling;
 mod weight;
 
 pub use canvas::{
@@ -24,6 +25,7 @@ pub use pattern::{GridPattern, LayerSource, Pattern};
 pub use placement::{MAX_REGION_TILES, RegionGeometry, RegionPlacement, RegionTile};
 pub use region::{BlitRegion, UnitRect};
 pub use region_fit::RegionFit;
+pub use supersampling::{RasterTile, supersample_tiles};
 
 use crate::{LinearColor, Opacity, OutputId, PassId, TextureDescriptor, TextureId};
 use serde::{Deserialize, Serialize};

@@ -219,7 +219,7 @@ fn mapping_edits_invalidate_capture_without_reallocating_screen_identity_and_del
         )
         .unwrap();
     installed(&renderer, request);
-    let target = renderer.screen_entries[&screen];
+    let target = renderer.screen_entries[&screen].clone();
     screen_edit(
         &mut engine,
         ScreenEdit::ConfigureSurface {

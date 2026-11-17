@@ -5,6 +5,7 @@ mod derived;
 mod feedback;
 mod fit;
 mod plan;
+mod screen_raster;
 mod sources;
 pub use crate::preview::layout::PreviewLayout;
 
@@ -43,10 +44,11 @@ struct Entry {
     scratch: Option<TextureId>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct ScreenEntry {
     target: TextureId,
     supersample: Option<TextureId>,
+    smooth4: Vec<[TextureId; 3]>,
 }
 
 pub struct ChannelRenderer {

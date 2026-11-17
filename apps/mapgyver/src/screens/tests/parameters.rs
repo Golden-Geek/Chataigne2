@@ -79,10 +79,10 @@ fn screen_antialiasing_is_typed_history_safe_and_persisted() {
     assert_eq!(original.anti_aliasing, ScreenAntiAliasing::Raw);
     let capture = super::super::rendering::capture_screen(&engine, screen, 8).unwrap();
     let history = engine.undo_len();
-    assert!(set(&mut engine, field, ParamValue::Enum("Smooth (2×)".into())).success);
+    assert!(set(&mut engine, field, ParamValue::Enum("Smooth (4×)".into())).success);
     assert!(!capture.is_current());
     let smooth = screen_definition(&engine, screen);
-    assert_eq!(smooth.anti_aliasing, ScreenAntiAliasing::Smooth2x);
+    assert_eq!(smooth.anti_aliasing, ScreenAntiAliasing::Smooth4x);
     assert_eq!(smooth.target, original.target);
     assert_eq!(engine.undo_len(), history + 1);
     assert!(engine.undo().unwrap());
@@ -175,6 +175,15 @@ fn screen_antialiasing_defaults_raw_and_checks_extent_arithmetic() {
     );
     assert!(
         ScreenAntiAliasing::Smooth2x
+            .render_extent(Extent2D::new(u32::MAX, 1).unwrap())
+            .is_err()
+    );
+    assert_eq!(
+        ScreenAntiAliasing::Smooth4x.render_extent(extent).unwrap(),
+        Extent2D::new(7680, 4320).unwrap()
+    );
+    assert!(
+        ScreenAntiAliasing::Smooth4x
             .render_extent(Extent2D::new(u32::MAX, 1).unwrap())
             .is_err()
     );

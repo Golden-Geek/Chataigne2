@@ -174,6 +174,7 @@ pub enum ScreenAntiAliasing {
     #[default]
     Raw,
     Smooth2x,
+    Smooth4x,
 }
 
 impl ScreenAntiAliasing {
@@ -181,12 +182,14 @@ impl ScreenAntiAliasing {
         match self {
             Self::Raw => "Raw",
             Self::Smooth2x => "Smooth (2×)",
+            Self::Smooth4x => "Smooth (4×)",
         }
     }
     pub(crate) fn parse(value: &str) -> Option<Self> {
         match value {
             "Raw" => Some(Self::Raw),
             "Smooth (2×)" => Some(Self::Smooth2x),
+            "Smooth (4×)" => Some(Self::Smooth4x),
             _ => None,
         }
     }
@@ -194,14 +197,21 @@ impl ScreenAntiAliasing {
         match self {
             Self::Raw => 1,
             Self::Smooth2x => 2,
+            Self::Smooth4x => 3,
         }
     }
     pub(crate) fn render_extent(self, extent: Extent2D) -> Result<Extent2D, String> {
         match self {
             Self::Raw => Ok(extent),
-            Self::Smooth2x => Extent2D::new(
-                extent.width().checked_mul(2).ok_or("Smooth Screen width overflows")?,
-                extent.height().checked_mul(2).ok_or("Smooth Screen height overflows")?,
+            Self::Smooth2x | Self::Smooth4x => Extent2D::new(
+                extent
+                    .width()
+                    .checked_mul(if self == Self::Smooth4x { 4 } else { 2 })
+                    .ok_or("Smooth Screen width overflows")?,
+                extent
+                    .height()
+                    .checked_mul(if self == Self::Smooth4x { 4 } else { 2 })
+                    .ok_or("Smooth Screen height overflows")?,
             )
             .map_err(|error| error.to_string()),
         }

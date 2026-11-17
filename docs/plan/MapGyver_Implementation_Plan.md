@@ -98,11 +98,17 @@ actual run, not as qualification.
 **Latest feedback and execution-order revision, 2026-11-17:**
 [Latest Feedback.md](../../Latest%20Feedback.md) is incorporated in **M15** as eleven fixed
 acceptance gates. **All remaining Video work follows this feedback:** M10/3 extended codecs,
-M10/8 subtitles and retained M10/4 qualification return after M15. Preserve M14/9 as the sole
-Active gate and the selected remaining M14 feature order **9 → 10 → 8 → 2**, then deliver
+M10/8 subtitles and retained M10/4 qualification return after M15. The remaining M14 feature
+order is **9 → 10 → 8 → 2**;9,10 and8 are functionally delivered with qualification Pending.
+M14/2 is the sole Active feature. Then deliver
 M15 before returning to Video and final acceptance closure. Reproduced correctness defects
 on the active product path remain prerequisites; the reported parameter-control crash is
 M15/1's first correction, not optional optimization or deferred edge-case qualification.
+The user's renewed feature priority keeps sustained performance tuning, recovery and unusual
+scenario matrices in the second pass. Verify ordinary feature behavior before delivery;
+reopen deferred work early only for a reproduced blocker on that behavior. Keep each deferred
+requirement and its concrete return action in the status board; do not turn it into another
+feature-delivery prerequisite or count it as accepted.
 M15 supersedes conflicting Matrix selection/presentation, sender-default, editor-feedback
 and gradient ownership contracts. It extends M14's shared editor work without accepting or
 removing any unfinished M14 requirement. Existing acceptance retains its original tested

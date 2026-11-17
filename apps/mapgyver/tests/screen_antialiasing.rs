@@ -112,52 +112,62 @@ fn native_screen_raw_smooth_warp_alpha_history_and_reload() {
                 },
             },
         );
-        let mut fixture = Fixture::new(adapter.id);
-        for alpha in [1.0, 0.5] {
-            let rgba = [0.5, 0.125, 1.0, alpha];
-            media_edit(
-                &mut engine,
-                MediaEdit::ConfigureChannel {
-                    reference,
-                    source: ChannelSource::SolidColor { rgba },
-                },
-            );
-            media_edit(
-                &mut engine,
-                MediaEdit::ConfigureMediaResolution {
-                    media: reference.media,
-                    size: SizePolicy::Fixed {
-                        extent: Extent2D::new(8, 8).unwrap(),
+        for dimension in [4096, 64] {
+            let mut fixture = Fixture::with_raster_dimension(adapter.id, dimension);
+            for alpha in [1.0, 0.5] {
+                let rgba = [0.5, 0.125, 1.0, alpha];
+                media_edit(
+                    &mut engine,
+                    MediaEdit::ConfigureChannel {
+                        reference,
+                        source: ChannelSource::SolidColor { rgba },
                     },
-                },
-            );
-            for mode in [ScreenAntiAliasing::Raw, ScreenAntiAliasing::Smooth2x] {
-                set_mode(&mut engine, screen, mode);
-                fixture.publish_screen(&engine, screen);
-                let samples = if mode == ScreenAntiAliasing::Raw { 1 } else { 2 };
-                let expected = Image::screen_quad(32, 24, rgba.map(f64::from), quad, samples);
-                fixture.pixels(adapter.id, &expected, &format!("{mode:?}-alpha-{alpha}"));
+                );
+                media_edit(
+                    &mut engine,
+                    MediaEdit::ConfigureMediaResolution {
+                        media: reference.media,
+                        size: SizePolicy::Fixed {
+                            extent: Extent2D::new(8, 8).unwrap(),
+                        },
+                    },
+                );
+                for mode in [
+                    ScreenAntiAliasing::Raw,
+                    ScreenAntiAliasing::Smooth2x,
+                    ScreenAntiAliasing::Smooth4x,
+                ] {
+                    set_mode(&mut engine, screen, mode);
+                    fixture.publish_screen(&engine, screen);
+                    let samples = match mode {
+                        ScreenAntiAliasing::Raw => 1,
+                        ScreenAntiAliasing::Smooth2x => 2,
+                        ScreenAntiAliasing::Smooth4x => 4,
+                    };
+                    let expected = Image::screen_quad(32, 24, rgba.map(f64::from), quad, samples);
+                    fixture.pixels(adapter.id, &expected, &format!("{mode:?}-alpha-{alpha}"));
+                }
             }
+            let smooth = Image::screen_quad(32, 24, [0.5, 0.125, 1.0, 0.5], quad, 4);
+            assert!(engine.undo().unwrap());
+            fixture.publish_screen(&engine, screen);
+            fixture.pixels(
+                adapter.id,
+                &Image::screen_quad(32, 24, [0.5, 0.125, 1.0, 0.5], quad, 2),
+                "undo-prior-AA",
+            );
+            assert!(engine.redo().unwrap());
+            fixture.publish_screen(&engine, screen);
+            fixture.pixels(adapter.id, &smooth, "redo-Smooth");
+            drop(fixture);
+            let saved = golden_core::app::to_sparse_project_json_pretty(&engine).unwrap();
+            let mut loaded = golden_core::app::from_sparse_project_json::<AppNode>(&saved).unwrap();
+            loaded.apply_edits().unwrap();
+            let mut fixture = Fixture::with_raster_dimension(adapter.id, dimension);
+            fixture.publish_screen(&loaded, screen);
+            fixture.pixels(adapter.id, &smooth, "reload-Smooth");
+            drop(fixture);
         }
-        let smooth = Image::screen_quad(32, 24, [0.5, 0.125, 1.0, 0.5], quad, 2);
-        assert!(engine.undo().unwrap());
-        fixture.publish_screen(&engine, screen);
-        fixture.pixels(
-            adapter.id,
-            &Image::screen_quad(32, 24, [0.5, 0.125, 1.0, 0.5], quad, 1),
-            "undo-Raw",
-        );
-        assert!(engine.redo().unwrap());
-        fixture.publish_screen(&engine, screen);
-        fixture.pixels(adapter.id, &smooth, "redo-Smooth");
-        drop(fixture);
-        let saved = golden_core::app::to_sparse_project_json_pretty(&engine).unwrap();
-        let mut loaded = golden_core::app::from_sparse_project_json::<AppNode>(&saved).unwrap();
-        loaded.apply_edits().unwrap();
-        let mut fixture = Fixture::new(adapter.id);
-        fixture.publish_screen(&loaded, screen);
-        fixture.pixels(adapter.id, &smooth, "reload-Smooth");
-        drop(fixture);
         eprintln!(
             "Screen AA adapter={:?} description={} completed",
             adapter.id, adapter.description

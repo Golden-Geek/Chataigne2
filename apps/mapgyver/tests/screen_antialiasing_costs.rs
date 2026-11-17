@@ -321,7 +321,11 @@ fn screen_raw_smooth_native_costs() {
             "sustained series requires one explicitly selected GPU"
         );
         for (width, height) in [(1920, 1080), (3840, 2160)] {
-            for mode in [ScreenAntiAliasing::Raw, ScreenAntiAliasing::Smooth2x] {
+            for mode in [
+                ScreenAntiAliasing::Raw,
+                ScreenAntiAliasing::Smooth2x,
+                ScreenAntiAliasing::Smooth4x,
+            ] {
                 if selected_case
                     .as_ref()
                     .is_some_and(|selected| selected != &format!("{width}-{mode:?}"))

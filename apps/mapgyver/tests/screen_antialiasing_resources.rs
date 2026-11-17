@@ -273,6 +273,9 @@ fn qualify(adapter: &AdapterInfo, width: u32, height: u32) -> Value {
                 (ScreenAntiAliasing::Raw, true) => 3,
                 (ScreenAntiAliasing::Smooth2x, false) => 6,
                 (ScreenAntiAliasing::Smooth2x, true) => 10,
+                (ScreenAntiAliasing::Smooth4x, _) => {
+                    unreachable!("retained M12 resource cohort covers Raw and 2× only")
+                }
             };
             let generation_bytes = factor * pixels + 256;
             assert_eq!(resources.active.unwrap().bytes, generation_bytes);

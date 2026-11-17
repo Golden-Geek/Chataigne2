@@ -39,7 +39,7 @@ fn hosted_screen_antialiasing_uses_typed_parameters_and_one_step_history() {
     let (screen, _) = create(&mut engine);
     let original = super::super::inspect(&engine).unwrap().screens[0].definition.clone();
     let smooth = ScreenDefinition {
-        anti_aliasing: ScreenAntiAliasing::Smooth2x,
+        anti_aliasing: ScreenAntiAliasing::Smooth4x,
         ..original.clone()
     };
     let request = serde_json::to_string(&ScreenEdit::ConfigureScreen {

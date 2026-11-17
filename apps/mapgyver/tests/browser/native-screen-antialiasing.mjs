@@ -62,12 +62,17 @@ try {
 	const choice = controls.choice('Anti-aliasing');
 	await choice.waitFor();
 	assert.equal(await choice.inputValue(), 'Raw');
-	assert.deepEqual(await choice.locator('option').allTextContents(), ['Raw', 'Smooth (2×)']);
+	assert.deepEqual(await choice.locator('option').allTextContents(), [
+		'Raw',
+		'Smooth (2×)',
+		'Smooth (4×)'
+	]);
 	const original = await inspect();
 	for (const [label, mode] of [
 		['Smooth (2×)', 'Smooth2x'],
+		['Smooth (4×)', 'Smooth4x'],
 		['Raw', 'Raw'],
-		['Smooth (2×)', 'Smooth2x']
+		['Smooth (4×)', 'Smooth4x']
 	]) {
 		await choice.selectOption({ label });
 		const definition = await waitFor(inspect, (definition) => definition.anti_aliasing === mode);
@@ -79,7 +84,7 @@ try {
 			result: 'pass',
 			pid: native.app.pid,
 			scope:
-				'actual WebView2 standard typed Screen Inspector, Raw default, both options and repeated switching preserve endpoint/enabled state',
+				'actual WebView2 standard typed Screen Inspector, Raw default, all three options and repeated switching preserve endpoint/enabled state',
 			definition: await inspect(),
 			page_errors: errors
 		})

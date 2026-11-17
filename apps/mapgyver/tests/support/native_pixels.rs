@@ -36,16 +36,24 @@ impl Fixture {
         Self::with_outputs(adapter, 2)
     }
     pub fn with_outputs(adapter: AdapterId, routes: usize) -> Self {
+        Self::with_dimension(adapter, routes, 4096, 16)
+    }
+    pub fn with_raster_dimension(adapter: AdapterId, dimension: u32) -> Self {
+        // Tiled 4× plus the complete production preview uses nineteen passes.
+        // Match production's existing cap; keep all older fixture limits unchanged.
+        Self::with_dimension(adapter, 2, dimension, 24)
+    }
+    fn with_dimension(adapter: AdapterId, routes: usize, dimension: u32, max_passes: usize) -> Self {
         let extent = Extent2D::new(32, 24).unwrap();
         let names = (0..=routes)
             .map(|i| format!("MapGyverRaster-{}-{i}", uuid::Uuid::new_v4()))
             .collect::<Vec<_>>();
         let limits = PlanLimits {
-            max_passes: 16,
+            max_passes,
             max_external_textures: 0,
             max_outputs: routes + 1,
             max_dependencies: 128,
-            max_texture_dimension: 4096,
+            max_texture_dimension: dimension,
             max_texture_bytes: 64 * 1024 * 1024,
         };
         let runtime = VideoRuntime::spawn_d3d11(

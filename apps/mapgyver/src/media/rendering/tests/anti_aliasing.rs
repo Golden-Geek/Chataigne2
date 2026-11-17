@@ -154,6 +154,86 @@ fn smooth_rasterizes_calibration_at_double_density_with_unchanged_logical_layout
 }
 
 #[test]
+fn four_density_resolves_all_subpixels_and_preserves_producers_and_output_identity() {
+    let mut engine = engine();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    resize(&mut engine, source, 8);
+    let (screen, _) = super::screens::screen(&mut engine, source);
+    let limits = config().plan_limits;
+    let mut next = 3;
+    let raw = prepare(&engine, screen, None, limits, &mut next).unwrap();
+    mode(&mut engine, screen, ScreenAntiAliasing::Smooth4x);
+    let smooth = prepare(&engine, screen, Some(&raw), limits, &mut next).unwrap();
+    let passes = &smooth.submission.plan.passes;
+    assert_eq!(passes.len(), 4);
+    assert_eq!(
+        format!("{:?}", passes[0]),
+        format!("{:?}", raw.submission.plan.passes[0])
+    );
+    assert_eq!(passes[1].descriptor.extent, Extent2D::new(256, 128).unwrap());
+    assert_eq!(passes[2].descriptor.extent, Extent2D::new(128, 64).unwrap());
+    assert_eq!(passes[3].descriptor.extent, Extent2D::new(64, 32).unwrap());
+    for index in [2, 3] {
+        assert!(
+            matches!(passes[index].operation, RenderOperation::Sample { source, filter: SampleFilter::Linear } if source == passes[index - 1].output)
+        );
+    }
+    assert_eq!(passes[3].output, raw.screens[&screen].target);
+    mode(&mut engine, screen, ScreenAntiAliasing::Smooth2x);
+    let two = prepare(&engine, screen, Some(&smooth), limits, &mut next).unwrap();
+    mode(&mut engine, screen, ScreenAntiAliasing::Raw);
+    let restored = prepare(&engine, screen, Some(&two), limits, &mut next).unwrap();
+    assert_eq!(
+        format!("{:?}", restored.submission.plan),
+        format!("{:?}", raw.submission.plan)
+    );
+    mode(&mut engine, screen, ScreenAntiAliasing::Smooth4x);
+    let again = prepare(&engine, screen, Some(&restored), limits, &mut next).unwrap();
+    assert_eq!(
+        format!("{:?}", again.submission.plan),
+        format!("{:?}", smooth.submission.plan)
+    );
+}
+
+#[test]
+fn four_density_tiles_within_existing_dimensions_and_rejects_pass_and_memory_overruns() {
+    let mut engine = engine();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    resize(&mut engine, source, 8);
+    let (screen, _) = super::screens::screen(&mut engine, source);
+    mode(&mut engine, screen, ScreenAntiAliasing::Smooth4x);
+    let mut limits = config().plan_limits;
+    limits.max_texture_dimension = 128;
+    let prepared = prepare(&engine, screen, None, limits, &mut 3).unwrap();
+    let passes = &prepared.submission.plan.passes;
+    assert_eq!(
+        passes.len(),
+        8,
+        "one shared producer, two three-pass tiles, one assembly"
+    );
+    assert!(
+        passes
+            .iter()
+            .all(|pass| pass.descriptor.extent.width() <= 128 && pass.descriptor.extent.height() <= 128)
+    );
+    let RenderOperation::Regions { regions, .. } = &passes.last().unwrap().operation else {
+        panic!()
+    };
+    assert_eq!(regions.len(), 2);
+    assert_eq!([regions[0].destination.x, regions[1].destination.x], [0., 0.5]);
+    assert!(
+        regions
+            .iter()
+            .all(|region| region.destination.width == 0.5 && region.destination.height == 1.)
+    );
+    limits.max_passes = 7;
+    assert!(prepare(&engine, screen, None, limits, &mut 3).is_err());
+    limits.max_passes = 8;
+    limits.max_texture_bytes = 64 * 32 * 4;
+    assert!(prepare(&engine, screen, None, limits, &mut 3).is_err());
+}
+
+#[test]
 fn smooth_is_rejected_without_fallback_at_existing_pass_dimension_and_byte_limits() {
     let mut engine = engine();
     let source = create(&mut engine, MediaKind::SolidColor);

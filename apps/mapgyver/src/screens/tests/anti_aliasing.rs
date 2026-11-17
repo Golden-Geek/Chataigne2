@@ -11,7 +11,7 @@ fn copying_a_screen_retains_independent_output_settings_through_history_and_proj
     let mut engine = fixture();
     let (screen, _) = create(&mut engine);
     let mut original = super::super::inspect(&engine).unwrap().screens[0].definition.clone();
-    original.anti_aliasing = ScreenAntiAliasing::Smooth2x;
+    original.anti_aliasing = ScreenAntiAliasing::Smooth4x;
     original.frame_rate = ScreenFrameRate::Explicit { fps: 29.97 };
     original.enabled = false;
     apply(

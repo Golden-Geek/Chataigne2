@@ -72,6 +72,14 @@ fn quantize(pixel: Pixel) -> Pixel {
 impl Image {
     /// Independent convex-polygon coverage at pixel centers, followed by a box resolve.
     pub fn screen_quad(width: usize, height: usize, straight: Pixel, quad: [[f64; 2]; 4], samples: usize) -> Self {
+        if samples == 4 {
+            // Independent subpixel coverage, with the actual RGBA8 write after each 2:1 resolve.
+            return Self::screen_quad(width * 4, height * 4, straight, quad, 1)
+                .resized(width * 2, height * 2)
+                .quantized_target()
+                .resized(width, height)
+                .quantized_target();
+        }
         assert!(matches!(samples, 1 | 2));
         let source = Self::solid(1, 1, straight);
         let count = (samples * samples) as f64;
@@ -101,6 +109,12 @@ impl Image {
             }
         }
         result
+    }
+
+    fn quantized_target(mut self) -> Self {
+        self.pixels.iter_mut().for_each(|pixel| *pixel = quantize(*pixel));
+        self.bounds.iter_mut().for_each(|bounds| *bounds = bounds.quantized());
+        self
     }
 
     pub fn solid(width: usize, height: usize, straight: Pixel) -> Self {
