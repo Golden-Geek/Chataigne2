@@ -1426,6 +1426,10 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
    all-caller parity, exact Undo/Redo, copy/reload, disabled editing, active/outgoing playback,
    unchanged Cell contents and bounded sparse/large-Matrix structural work. This gate does not
    authorize implicit Cell playback snapshots or new play/stop policy.
+   The [preset semantics](../architecture/mapgyver-matrix-presets.md) define membership/order,
+   missing objects and live playback before implementation. Column render muting is delivered
+   with software/native Inspector/history/reload proof; typed preset entries, capture/recall
+   and management/command/script APIs remain Active. This partial delivery does not close M15/4.
 5. **Shared editor feedback transitions and subtle handles.** Owners: Golden reusable 2D
    selection/hover presentation, consumed by Screen Warping, Surface, Composition and Matrix
    editors. Add short transitions for hover and selection instead of abrupt jumps; make Screen,

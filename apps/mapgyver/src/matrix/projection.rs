@@ -19,6 +19,7 @@ pub(crate) struct RenderIndex {
     pub applications: std::sync::Arc<super::application_axis::ApplicationAxis>,
     pub items: HashMap<MatrixItemId, RenderItem>,
     pub cells: HashMap<ColumnId, BTreeMap<usize, CellSource>>,
+    pub column_enabled: HashMap<ColumnId, bool>,
 }
 pub(crate) struct CellSource {
     pub layer: LayerId,
@@ -94,6 +95,21 @@ impl RenderIndex {
             }
         }
         Ok(Self {
+            column_enabled: document
+                .columns
+                .iter()
+                .map(|(column, id)| {
+                    (
+                        *column,
+                        engine
+                            .nodes
+                            .get(*id)
+                            .expect("validated Column")
+                            .node_data()
+                            .effective_enabled,
+                    )
+                })
+                .collect(),
             applications: super::application_axis::for_document(engine, document, control)?,
             items,
             cells,

@@ -101,6 +101,10 @@
 		const node = uuid ? session?.graph.state.nodesById.getByUuid(uuid) : null;
 		return node?.meta.presentation?.color ? getContainerColorForNode(node) : null;
 	}
+	function isEnabled(uuid: string) {
+		const node = session?.graph.state.nodesById.getByUuid(uuid);
+		return node != null && session?.isNodeEnabledInHierarchy(node.node_id) === true;
+	}
 	const layerRequests = $derived(
 		new Map(snapshot.playback.layers.map((request) => [request.layer, request] as const))
 	);
@@ -489,6 +493,7 @@
 					columnSize={projection.column}
 					{isSelected}
 					{itemColor}
+					{isEnabled}
 					{disabled}
 					select={selectGroup}
 					{edit}
@@ -506,9 +511,11 @@
 							aria-selected={isSelected(column.id)}
 							style:--matrix-item-color={itemColor(column.id)}
 							class:custom-color={itemColor(column.id) != null}
+							class:disabled-item={!isEnabled(column.id)}
 							use:selectOnPress={{ disabled, select: (event) => selectColumn(column, event) }}
 							use:viewportContour={{
 								selected: isSelected(column.id),
+								enabled: isEnabled(column.id),
 								identity: documentIdentity
 							}}
 							aria-colindex={column.axis_index + 2}

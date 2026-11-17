@@ -4,6 +4,7 @@ import { build, preview } from 'vite';
 import { chromium } from 'playwright-core';
 import { gridSelectionChecks } from './selection.mjs';
 import { gridAppearanceChecks } from './appearance.mjs';
+import { gridColumnEnabledChecks } from './column-enabled.mjs';
 
 const configFile = fileURLToPath(
 	new URL('../../../screens/tests/browser/vite.config.ts', import.meta.url)
@@ -27,6 +28,7 @@ try {
 	await page.goto(`http://127.0.0.1:${address.port}`);
 	await gridSelectionChecks(page);
 	await gridAppearanceChecks(page);
+	await gridColumnEnabledChecks(page);
 	assert.deepEqual(errors, []);
 	console.log(
 		JSON.stringify({

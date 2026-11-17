@@ -24,6 +24,7 @@
 		columnSize,
 		isSelected,
 		itemColor,
+		isEnabled,
 		disabled,
 		select,
 		edit,
@@ -45,6 +46,7 @@
 		columnSize: number;
 		isSelected(uuid: string): boolean;
 		itemColor(uuid: string): string | null;
+		isEnabled(uuid: string): boolean;
 		disabled: boolean;
 		select(group: ColumnGroupSnapshot, event: PointerEvent | MouseEvent | KeyboardEvent): void;
 		edit(value: MatrixEdit): Promise<unknown>;
@@ -74,7 +76,12 @@
 				<div
 					class="band"
 					use:selectOnPress={{ disabled, select: (event) => select(group, event) }}
-					use:viewportContour={{ selected: isSelected(group.id), identity }}
+					use:viewportContour={{
+						selected: isSelected(group.id),
+						enabled: isEnabled(group.id),
+						identity
+					}}
+					class:disabled-item={!isEnabled(group.id)}
 					aria-selected={isSelected(group.id)}
 					style:--matrix-item-color={itemColor(group.id)}
 					class:custom-color={itemColor(group.id) != null}

@@ -1,0 +1,29 @@
+{
+  "gate": "M15/4",
+  "date": "2026-11-17",
+  "slice": "Column enable/disable",
+  "result": "Functionally verified; full preset gate remains Active",
+  "behavior": [
+    "Golden enabled metadata and Column Group inheritance suppress current/outgoing Matrix Cell rendering",
+    "Retained bindings track Column visibility separately from pinned source/settings; replaced/deleted Cells cannot bypass muting",
+    "Logical playback identity and authored Cells stay intact; re-enable resumes the current mix",
+    "Disabled Columns remain selectable and renameable; grid pulses honor inherited disablement"
+  ],
+  "software": {
+    "matrix_tests": {"passed": 157, "failed": 0, "log": "target/m15-column-enabled-tests.log", "scope": "Includes new mute/resume, unchanged playback/history/copy/reload, group inheritance/disabled edits and replaced/deleted outgoing-source cases; fixed binding capacity retained"},
+    "strict_clippy": {"result": "pass", "log": "target/m15-column-enabled-clippy.log"},
+    "ui_type_check": {"errors": 0, "warnings": 0},
+    "grid_browser": "Pass: Column/Group metadata toggles, child-state preservation, disabled selection and inherited pulse guards, alongside existing selection/color/appearance checks",
+    "default_build": {"result": "pass", "log": "target/m15-column-enabled-build.log", "duration": "1m10s"}
+  },
+  "native": {
+    "pid": 48800,
+    "normal_exit_code": 0,
+    "result": "pass",
+    "app_sha256": "A49BAE82880A1E42E41A601A28EAF8183FCAF26F2AD65EEFD8A168FB9BED6B9B",
+    "artifacts": "target/m15-column-enabled-20261117",
+    "scope": "Bundled Inspector toggle, disabled Column pulse guard, Undo/Redo, rename while disabled, unchanged Cell definitions/logical playback, persisted disabled state and re-enable; no GPU pixel/timing or codec qualification claim"
+  },
+  "remaining": "Typed preset collection/entries, capture/update/recall, management UI, command/script APIs and complete M15/4 acceptance. Deferred production qualification is unchanged.",
+  "progress": "95/117 (81%); M15 3/11 (27%); no whole gate awarded for this prerequisite slice"
+}

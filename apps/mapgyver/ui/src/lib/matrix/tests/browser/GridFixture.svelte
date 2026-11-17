@@ -251,6 +251,18 @@
 		<output aria-label="Grid launches">{launches}</output>
 	</div>
 	<div class="actions">
+		{#each ['group', 'column-0'] as alias}
+			<button
+				onclick={async () => {
+					const target = byUuid.get(alias)!;
+					const current = fixture.session.getNodeData(target.node_id)!;
+					await fixture.session.sendIntent({
+						kind: 'patchMeta',
+						node: target.node_id,
+						patch: { enabled: !current.meta.enabled }
+					});
+				}}>Toggle {alias} enabled</button>
+		{/each}
 		<button
 			onclick={() => {
 				active = !active;

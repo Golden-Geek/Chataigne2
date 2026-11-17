@@ -5,6 +5,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
 import { verifyMatrixAppearance } from './matrix-appearance.mjs';
+import { verifyMatrixColumnEnabled } from './matrix-column-enabled.mjs';
 
 const directory = path.resolve(process.argv[2]);
 await mkdir(directory, { recursive: true });
@@ -217,6 +218,9 @@ try {
 				wait
 			})
 		: null;
+	const columnEnabled = process.argv.includes('--column-enabled')
+		? await verifyMatrixColumnEnabled({ page, grid, column, matrix, post, directory, wait })
+		: null;
 	assert.deepEqual(errors, []);
 	await page.screenshot({ path: path.join(directory, 'matrix-selection-color.png') });
 	const result = {
@@ -225,7 +229,8 @@ try {
 		scope:
 			'Native bundled UI explicit Cell/Layer/Column/Group selection; Inspector colors and Undo/Redo for all five headers/item kinds; saved project reload. Nested copies have current-source Rust proof. No GPU/deep qualification.',
 		colors,
-		appearance
+		appearance,
+		columnEnabled
 	};
 	await writeFile(path.join(directory, 'result.json'), JSON.stringify(result, null, 2));
 	console.log(JSON.stringify(result));

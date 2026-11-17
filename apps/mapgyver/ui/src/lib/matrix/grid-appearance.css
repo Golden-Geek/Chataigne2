@@ -26,6 +26,10 @@
 	border-radius: 0.2rem;
 }
 
+.matrix-viewport-shell .disabled-item {
+	opacity: 0.6;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.matrix-viewport-shell :is(.cell, .row-label, .heading, .band) {
 		transition: none;

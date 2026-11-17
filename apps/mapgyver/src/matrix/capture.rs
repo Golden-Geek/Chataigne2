@@ -202,7 +202,13 @@ pub(crate) fn capture(
                         .cells
                         .get(&entry.clip.column)
                         .and_then(|cells| cells.get(&index.items[&item.unwrap()].order));
-                    let source = match timeline.bindings.resolve(entry.clip, layer, reference, candidate) {
+                    let source = match timeline.bindings.resolve(
+                        entry.clip,
+                        layer,
+                        reference,
+                        candidate,
+                        index.column_enabled.get(&entry.clip.column).copied(),
+                    ) {
                         Ok(Some(source)) => source,
                         Ok(None) => continue,
                         Err(_) => return Ok(None),
@@ -283,7 +289,13 @@ pub(crate) fn capture(
                         }
                         let current = MatrixItemId::Layer { id: cell.layer };
                         let owner = index.items[&current].channel;
-                        match timeline.bindings.resolve(entry.clip, cell.layer, owner, Some(cell)) {
+                        match timeline.bindings.resolve(
+                            entry.clip,
+                            cell.layer,
+                            owner,
+                            Some(cell),
+                            index.column_enabled.get(&entry.clip.column).copied(),
+                        ) {
                             Ok(Some(_)) => {
                                 if let Some(child) = immediate_child(&index, current, scope, &mut children) {
                                     next = index.items[&child].end;
@@ -308,7 +320,13 @@ pub(crate) fn capture(
                             .cells
                             .get(&entry.clip.column)
                             .and_then(|cells| cells.get(&item.order));
-                        match timeline.bindings.resolve(entry.clip, *layer, item.channel, candidate) {
+                        match timeline.bindings.resolve(
+                            entry.clip,
+                            *layer,
+                            item.channel,
+                            candidate,
+                            index.column_enabled.get(&entry.clip.column).copied(),
+                        ) {
                             Ok(Some(_)) => {
                                 immediate_child(&index, current, scope, &mut children);
                             }

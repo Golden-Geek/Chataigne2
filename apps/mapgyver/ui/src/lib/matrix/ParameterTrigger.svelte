@@ -33,7 +33,8 @@
 			session.status !== 'connected' ||
 			session.loading.visible ||
 			session.historyBusy ||
-			!node?.meta.enabled ||
+			!node ||
+			!session.isNodeEnabledInHierarchy(node.node_id) ||
 			!parameter?.meta.enabled ||
 			!value ||
 			value.value.kind !== 'trigger' ||

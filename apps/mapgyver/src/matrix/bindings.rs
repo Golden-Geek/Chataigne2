@@ -14,6 +14,7 @@ struct Binding {
     source: Option<MediaSource>,
     output: Option<ChannelReference>,
     settings: super::protocol::CellSettings,
+    column_enabled: bool,
 }
 pub(crate) struct BindingCapacity;
 impl Bindings {
@@ -27,9 +28,15 @@ impl Bindings {
         layer: LayerId,
         owner: ChannelReference,
         candidate: Option<&CellSource>,
+        column_enabled: Option<bool>,
     ) -> Result<Option<MediaSource>, BindingCapacity> {
         let key = (clip.id, layer);
         if let Some(binding) = self.entries.get_mut(&key) {
+            // Column visibility applies to the whole clip, including replaced/deleted Cells.
+            // If the Column disappears, retain its last observed visibility with its pixels.
+            if let Some(enabled) = column_enabled {
+                binding.column_enabled = enabled;
+            }
             // Live edits follow the same authored source; replacement/deletion cannot redirect
             // settings of retained outgoing content to another Cell's definition.
             if let Some(cell) =
@@ -50,6 +57,7 @@ impl Bindings {
         self.entries.insert(
             key,
             Binding {
+                column_enabled: column_enabled.unwrap_or(true),
                 owner,
                 source,
                 settings: candidate
@@ -73,7 +81,11 @@ impl Bindings {
         binding.output
     }
     pub fn settings(&self, clip: Clip, layer: LayerId) -> super::protocol::CellSettings {
-        self.entries[&(clip.id, layer)].settings
+        let binding = &self.entries[&(clip.id, layer)];
+        super::protocol::CellSettings {
+            enabled: binding.settings.enabled && binding.column_enabled,
+            ..binding.settings
+        }
     }
     pub fn layers(&self) -> HashSet<LayerId> {
         self.entries

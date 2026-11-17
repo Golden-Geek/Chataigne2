@@ -44,7 +44,10 @@ fn clip_bindings_pin_sources_and_empty_decisions_with_a_fixed_recoverable_metada
         version: 10,
     };
     assert_eq!(
-        bindings.resolve(clip, row, owner, Some(&source)).ok().flatten(),
+        bindings
+            .resolve(clip, row, owner, Some(&source), Some(true))
+            .ok()
+            .flatten(),
         Some(source.source)
     );
     let edited = CellSource {
@@ -60,7 +63,10 @@ fn clip_bindings_pin_sources_and_empty_decisions_with_a_fixed_recoverable_metada
         version: 11,
     };
     assert_eq!(
-        bindings.resolve(clip, row, owner, Some(&edited)).ok().flatten(),
+        bindings
+            .resolve(clip, row, owner, Some(&edited), Some(true))
+            .ok()
+            .flatten(),
         Some(source.source)
     );
     assert_eq!(bindings.settings(clip, row), source.settings);
@@ -74,21 +80,39 @@ fn clip_bindings_pin_sources_and_empty_decisions_with_a_fixed_recoverable_metada
         source: source.source,
         version: source.version,
     };
-    bindings.resolve(clip, row, owner, Some(&live_edit)).ok().unwrap();
+    bindings
+        .resolve(clip, row, owner, Some(&live_edit), Some(true))
+        .ok()
+        .unwrap();
     assert_eq!(bindings.settings(clip, row), live_edit.settings);
-    bindings.resolve(clip, row, owner, None).ok().unwrap();
+    bindings.resolve(clip, row, owner, None, None).ok().unwrap();
     assert_eq!(bindings.settings(clip, row), live_edit.settings);
     let new_row = LayerId(uuid());
+    bindings.resolve(clip, row, owner, None, Some(false)).ok().unwrap();
+    assert!(!bindings.settings(clip, row).enabled);
+    bindings.resolve(clip, row, owner, None, None).ok().unwrap();
+    assert!(
+        !bindings.settings(clip, row).enabled,
+        "missing Columns retain their last visibility"
+    );
+    assert_eq!(
+        bindings
+            .resolve(clip, row, owner, Some(&edited), Some(true))
+            .ok()
+            .flatten(),
+        Some(source.source)
+    );
+    assert_eq!(bindings.settings(clip, row), live_edit.settings);
     assert!(
         bindings
-            .resolve(clip, new_row, owner, Some(&edited))
+            .resolve(clip, new_row, owner, Some(&edited), Some(true))
             .ok()
             .flatten()
             .is_none()
     );
     assert!(
         bindings
-            .resolve(clip, new_row, owner, Some(&source))
+            .resolve(clip, new_row, owner, Some(&source), Some(true))
             .ok()
             .flatten()
             .is_none()
@@ -99,7 +123,10 @@ fn clip_bindings_pin_sources_and_empty_decisions_with_a_fixed_recoverable_metada
         ..clip
     };
     assert_eq!(
-        bindings.resolve(next, row, owner, Some(&edited)).ok().flatten(),
+        bindings
+            .resolve(next, row, owner, Some(&edited), Some(true))
+            .ok()
+            .flatten(),
         Some(edited.source)
     );
     let mut frame = super::super::timeline::Frame::default();
@@ -120,11 +147,19 @@ fn clip_bindings_pin_sources_and_empty_decisions_with_a_fixed_recoverable_metada
         )]
     );
     for _ in 1..MAX_BINDINGS {
-        assert!(bindings.resolve(next, LayerId(uuid()), owner, Some(&edited)).is_ok());
+        assert!(
+            bindings
+                .resolve(next, LayerId(uuid()), owner, Some(&edited), Some(true))
+                .is_ok()
+        );
     }
     assert_eq!(bindings.edges().len(), MAX_BINDINGS);
-    assert!(bindings.resolve(next, LayerId(uuid()), owner, Some(&edited)).is_err());
+    assert!(
+        bindings
+            .resolve(next, LayerId(uuid()), owner, Some(&edited), Some(true))
+            .is_err()
+    );
     bindings.retain_frame(&super::super::timeline::Frame::default());
     assert!(bindings.edges().is_empty());
-    assert!(bindings.resolve(next, row, owner, Some(&edited)).is_ok());
+    assert!(bindings.resolve(next, row, owner, Some(&edited), Some(true)).is_ok());
 }
