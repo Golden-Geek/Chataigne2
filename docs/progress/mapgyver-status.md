@@ -1,10 +1,10 @@
 # MapGyver — simple status
 
 - **Updated:** 18 November 2026.
-- **Overall plan acceptance:** `████████░░` **81% — 98/121 checks accepted**. Four new feedback checks were added; accepted work is unchanged. Deferred verification is still counted as unfinished.
+- **Overall plan acceptance:** `████████░░` **82% — 99/121 checks accepted**. Screen-handle links are now accepted. Deferred verification is still counted as unfinished.
 - **Latest delivered:** Same-Screen Surface snapping and link/unlink controls; all linked Surfaces update during dragging. Your magnet SVG is colored when on, grey when off; no paging arrows.
-- **Working on now:** Finish Screen-link acceptance: a repeated native run exposed an intermittent Undo issue; native window visual confirmation is also pending. Custom colors and Matrix Group presentation follow.
-- **Manual action needed from you now: none.**
+- **Working on next:** Custom colors for Screens, Surfaces, Medias and Folders, including reset to the default.
+- **Manual action needed from you now: none.** The Screen-link check passed and its test window closed.
 
 ## Done — code and normal-use checks passed
 
@@ -16,7 +16,7 @@
 - [x] **Screens/Surfaces:** creation, warping, crop/source editing, opacity, enable/disable, calibration and native outputs.
 - [x] **Initial document/editors:** startup and New create and immediately show the automatic Screen and Surface. Hidden/reopened panels, saved targets/locks, reload and empty projects pass; no extra Undo steps.
 - [x] **Surface Editor display:** related Surfaces across Screens/References, independent toggles/locks, bounded paging, selection/Inspector and Undo/reload. ColorBars/Grid work without a source and obey its crop in Screen Warping/output mapping. Native patterns/contours, cropped ColorBars/Grid, mixed pattern/channel panels and70-Surface toolbar paging pass.
-- [x] **Surface-handle links:** snapping/link/unlink between different Surfaces in the same Screen. Focused backend/UI/browser checks pass; an actual held-pointer run verifies peer contours and both GPU images before release. Native repeatable Undo/visual acceptance remains below.
+- [x] **Surface-handle links:** same-Screen snapping/link/unlink, supplied colored/grey magnet and live updates of all peers. Five native drag/link/Undo cycles, three-member groups, held-pointer GPU images and foreground image/control alignment pass.
 - [x] **Output settings:** GPU preferences, per-Screen frame-rate settings and optional/custom sender names.
 - [x] **Display recovery:** the previously tested unplug/replug and monitor-rearrangement cases.
 - [x] **Composition:** owned media, transforms, front/back ordering, contextual actions, enable state and zero-scale handling.
@@ -33,16 +33,15 @@
 
 ## Next features — implementation order
 
-1. **NOW — Screen-handle links:** fix/verify intermittent native drag Undo (one repeat restored an intermediate point), then finish native window visual confirmation. Live peer updates, snap thresholds/zoom and output pixels are checked. Keep this task current through completion.
-2. **NEXT — Custom colors:** Screens, Surfaces, Medias and Folders can have custom colors, with reset to the normal default.
-3. **Matrix color menus:** Set Color / Reset Color on Layer, Cell and Column context menus, including corresponding Groups.
-4. **Compact Layer Groups:** one-line default headers, with Opacity and Blend Mode in the Inspector.
-5. **Readable nested Groups:** visible left-side wrapping rails in each Group's color, with clear membership at multiple nesting levels.
-6. **Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
-7. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
-8. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
-9. **Extended Video codecs:** DXV and WebP/animated WebP.
-10. **Subtitles:** optional, disableable subtitle controls and display.
+1. **NOW — Custom colors:** Screens, Surfaces, Medias and Folders can have custom colors, with reset to the normal default.
+2. **Matrix color menus:** Set Color / Reset Color on Layer, Cell and Column context menus, including corresponding Groups.
+3. **Compact Layer Groups:** one-line default headers, with Opacity and Blend Mode in the Inspector.
+4. **Readable nested Groups:** visible left-side wrapping rails in each Group's color, with clear membership at multiple nesting levels.
+5. **Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
+6. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+7. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
+8. **Extended Video codecs:** DXV and WebP/animated WebP.
+9. **Subtitles:** optional, disableable subtitle controls and display.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 

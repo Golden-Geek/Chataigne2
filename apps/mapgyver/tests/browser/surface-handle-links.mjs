@@ -17,6 +17,49 @@ let token,
 	stage = 'prepare';
 const checks = [],
 	errors = [];
+// Correlate authored operations with their real edit-group receipts, including sockets
+// connected before Playwright attached. Read-only metadata requests are excluded.
+const historyTrace = [],
+	pendingHistory = new Set();
+const observer = await page.context().newCDPSession(page);
+observer.on('Network.webSocketFrameSent', ({ response }) => {
+	try {
+		const frame = JSON.parse(response.payloadData);
+		if (frame.kind !== 'intent') return;
+		const intent = frame.intent;
+		if (
+			!['beginEdit', 'endEdit'].includes(intent.kind) &&
+			!['EditSurfaceGeometry', 'LinkScreenCorners'].includes(intent.payload?.kind)
+		)
+			return;
+		pendingHistory.add(frame.request_id);
+		historyTrace.push({ stage, request: frame.request_id, intent });
+	} catch {}
+});
+observer.on('Network.webSocketFrameReceived', ({ response }) => {
+	try {
+		const frame = JSON.parse(response.payloadData),
+			update = frame.update;
+		if (
+			frame.kind !== 'control' ||
+			!['applied', 'rejected'].includes(update.phase) ||
+			!pendingHistory.delete(update.request_id)
+		)
+			return;
+		historyTrace.push({
+			stage,
+			receipt: {
+				request_id: update.request_id,
+				phase: update.phase,
+				acknowledgement: {
+					success: update.acknowledgement?.success,
+					history: update.acknowledgement?.history
+				}
+			}
+		});
+	} catch {}
+});
+await observer.send('Network.enable');
 page.on('pageerror', (error) => errors.push(String(error)));
 async function post(route, body) {
 	const response = await fetch(host.base + route, {
@@ -69,18 +112,69 @@ async function select(label) {
 	await settled();
 }
 async function move(corner, point, release = true, offset = 0) {
+	const first = historyTrace.length;
 	const handle = panel.getByRole('button', { name: `Warp corner ${corner + 1}`, exact: true });
+	// A completed document read does not prove the renderer installed its new hit map.
+	// Use the public accepted-frame query before starting another pointer sequence.
+	const identity = await panel.locator('.native-preview').evaluate((element) => ({
+		session: element.dataset.previewSession,
+		view: element.dataset.previewView,
+		source: element.dataset.previewSource
+	}));
+	const hit = await handle.getAttribute('data-native-hit-id');
+	const deadline = Date.now() + 5000;
+	for (;;) {
+		const box = await handle.boundingBox();
+		assert(box);
+		const sample = await page.evaluate(
+			async ({ identity, point }) =>
+				JSON.parse(
+					await window.__TAURI_INTERNALS__.invoke('native_presentation_control', {
+						request: JSON.stringify({ kind: 'Pointer', ...identity, point })
+					})
+				),
+			{ identity, point: [box.x + box.width / 2, box.y + box.height / 2] }
+		);
+		if (sample.sample?.hit === hit) break;
+		assert(Date.now() < deadline, `native handle not installed: ${JSON.stringify(sample)}`);
+		await delay(20);
+	}
 	const box = await handle.boundingBox(),
 		rect = await panel.locator('svg[aria-label="Surface mapping controls"]').boundingBox();
 	assert(box && rect);
 	await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+	// Native hit readiness and document authoring readiness are independent. Undo's
+	// restored DOM/link state can arrive before the editor's history-fenced read.
+	await settled();
 	await page.mouse.down();
 	await page.mouse.move(rect.x + point.x * rect.width + offset, rect.y + point.y * rect.height, {
 		steps: 8
 	});
 	if (release) {
 		await page.mouse.up();
+		// Native input projection is asynchronous: aria-busy may still be false
+		// before its queued pointerdown starts. Await this drag's EndEdit receipt.
+		const deadline = Date.now() + 5000;
+		for (;;) {
+			const end = historyTrace.slice(first).find((item) => item.intent?.kind === 'endEdit');
+			const receipt = end && historyTrace.find((item) => item.receipt?.request_id === end.request);
+			if (receipt) {
+				assert.equal(receipt.receipt.phase, 'applied');
+				assert.equal(receipt.receipt.acknowledgement.history.active_edit_session, false);
+				break;
+			}
+			assert(Date.now() < deadline, 'native drag did not acknowledge EndEdit');
+			await delay(10);
+		}
 		await settled();
+		assert.equal(
+			historyTrace.slice(first).filter((item) => item.intent?.kind === 'beginEdit').length,
+			1
+		);
+		assert.equal(
+			historyTrace.slice(first).filter((item) => item.intent?.kind === 'endEdit').length,
+			1
+		);
 	}
 }
 async function pointEqual(reference, corner, expected) {
@@ -254,23 +348,39 @@ try {
 	stage = 'ready with colored magnet and two Surface outputs';
 	await review('initial');
 	const originalA = await surface(a);
-	await move(1, { x: 0.55, y: 0.2 }, true, 3);
-	await panel.getByRole('button', { name: 'Unlink corner group 2', exact: true }).waitFor();
-	await pointEqual(a, 1, { x: 0.55, y: 0.2 });
-	await intent({ kind: 'undo' });
-	await settled();
-	assert.deepEqual((await surface(a)).definition.quad, originalA.definition.quad);
-	await panel
-		.getByRole('button', { name: 'Unlink corner group 2', exact: true })
-		.waitFor({ state: 'detached' });
-	assert.equal(
-		await panel.getByRole('button', { name: 'Unlink corner group 2', exact: true }).count(),
-		0
-	);
+	for (let attempt = 1; attempt <= 5; attempt++) {
+		stage = `drag-and-link-${attempt}`;
+		await move(1, { x: 0.55, y: 0.2 }, true, 3);
+		await panel.getByRole('button', { name: 'Unlink corner group 2', exact: true }).waitFor();
+		await pointEqual(a, 1, { x: 0.55, y: 0.2 });
+		stage = 'undo-drag-and-link';
+		await intent({ kind: 'undo' });
+		await settled();
+		assert.deepEqual((await surface(a)).definition.quad, originalA.definition.quad);
+		await page.waitForFunction(
+			({ surface, x }) => {
+				const points = document
+					.querySelector(`polygon[data-native-hit-id="${surface}"]`)
+					?.getAttribute('points')
+					?.split(' ');
+				return points && Math.abs(Number(points[1].split(',')[0]) - x) < 1e-6;
+			},
+			{ surface: a.surface, x: originalA.definition.quad.corners[1].x }
+		);
+		await panel
+			.getByRole('button', { name: 'Unlink corner group 2', exact: true })
+			.waitFor({ state: 'detached' });
+		assert.equal(
+			await panel.getByRole('button', { name: 'Unlink corner group 2', exact: true }).count(),
+			0
+		);
+	}
 	await intent({ kind: 'redo' });
 	await settled();
 	await panel.getByRole('button', { name: 'Unlink corner group 2', exact: true }).waitFor();
-	checks.push('drag and link share one Undo/Redo step');
+	checks.push(
+		'five native drags each acknowledge one group and reverse geometry/link in one Undo; final Redo restores link'
+	);
 	await magnet.click();
 	await settled();
 	const held = { x: 0.5, y: 0.35 };
@@ -344,5 +454,12 @@ try {
 	);
 	throw error;
 } finally {
-	await host.close();
+	try {
+		await writeFile(
+			path.join(directory, 'history-trace.json'),
+			JSON.stringify(historyTrace, null, 2)
+		);
+	} finally {
+		await host.close();
+	}
 }

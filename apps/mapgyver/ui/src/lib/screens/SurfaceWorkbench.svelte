@@ -316,7 +316,7 @@
 				{actions}
 				{screen}
 				selected={surface?.reference.surface ?? null}
-				disabled={controller.busy || (choice.snap && screenHandles.loading)}
+				disabled={controller.busy}
 				select={selectSurface}
 				start={(reference, handle) => gesture.start(reference, handle)}
 				pixelsActive={() => gesture.pixelsActive}

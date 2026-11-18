@@ -6,9 +6,15 @@ import { SCREEN_NAMESPACE, SCREEN_OPERATION } from './generated/constants.ts';
 
 /** Selection/history refreshes are inspections, including the per-panel editor query. */
 export const screenOperationActivity = (edit: ScreenEdit): 'background' | 'user' =>
-	['InspectRow', 'InspectManager', 'InspectScreen', 'InspectSurface', 'InspectEditor'].includes(
-		edit.kind
-	)
+	[
+		'InspectRow',
+		'InspectManager',
+		'InspectScreen',
+		'InspectSurface',
+		'InspectEditor',
+		'InspectScreenHandles',
+		'InspectRelatedSurfaces'
+	].includes(edit.kind)
 		? 'background'
 		: 'user';
 

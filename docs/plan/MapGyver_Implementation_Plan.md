@@ -144,7 +144,7 @@ These additions are **next in line afterward: 12 → 13 → 14 → 15**, before 
 M15/9–11 or Video work. Do not interrupt or park M15/8 to start this feedback.
 Keep one gate Active. This supersedes older next-feature ordering, adds no implementation or
 acceptance, and preserves every existing requirement and return trigger. M15 now has 15 gates;
-overall scope is **121**, with **98 accepted (81%)** and **8/16 phases complete (50%)**.
+overall scope is **121**, with **99 accepted (82%)** and **8/16 phases complete (50%)**.
 
 ## Entry, order and delivery
 
@@ -1385,9 +1385,10 @@ awarding acceptance or changing retained budgets.
 Source: [Latest Feedback.md](../../Latest%20Feedback.md) in the repository root, plus the user's
 instruction that remaining Video work follows this feedback. Follow the M14 feature-first
 execution revision above: selected M14 features9,10,8,2 are functionally delivered, with their
-remaining qualification Pending in the return queue. M15/1–4,6–7 are Accepted; M15/5 is functionally
+remaining qualification Pending in the return queue. M15/1–4,6–8 are Accepted; M15/5 is functionally
 delivered with native presentation qualification Pending. The 2026-11-18 amendment retains
-M15/8 as the current task through completion, then selects 12–15 before 9–11.
+M15/8 as the current task through completion, then selects 12–15 before 9–11. M15/8 is now
+complete; M15/12 custom colors is the next Active gate.
 Deliver M15 before remaining Video, retaining user-deferred M14/1 and blocked M14/6.
 Retain every unfinished qualification gate and its return trigger before M09.
 
@@ -1518,9 +1519,11 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
    arrows. Candidate pages may load automatically within the editor's existing bounded scope.
    Verify held-pointer peer contours and actual output pixels, not only the released state.
    [Functional delivery](../progress/evidence/mapgyver-m15-surface-links-2026-11-18.json)
-   passes focused software checks and held-pointer peer/output proof. A repeated native run
-   restored an intermediate point after Undo; repeatable native history and native window
-   visual confirmation remain required. M15/8 stays Active with no acceptance credit.
+   passes focused software checks, five native drag/link/Undo cycles and held-pointer
+   peer/output proof. The corrected fixture waits independently for native hit and authoring
+   readiness. Guarded foreground pixels match all eight image edges to DOM geometry, and all
+   four corner hits plus the unlink hit match. Three-member merge/unlink and normal shutdown pass.
+   M15/8 is Accepted; retained high-refresh/Intel/presentation-motion qualification is unchanged.
 9. **Surface, Composition and Matrix geometry align while moving/scaling.** Owners: Golden
    reusable viewport snapping hints and MapGyver authoritative geometry intents. Add a magnet
    toggle to the applicable editor toolbars. While moving or scaling an element, snap close X/Y
@@ -1589,7 +1592,7 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
     rows without rendering all descendants, stealing hit targets or confusing selection/playback
     cues. Coordinate with the compact header in 14; do not remove Group rendering behavior.
 
-M15/1–4,6–7 are Accepted with their owning software/native proofs;5,8–15 remain open.
+M15/1–4,6–8 are Accepted with their owning software/native proofs;5,9–15 remain open.
 M15/2 covers explicit/shared/modifier selection, nested/disabled/offscreen objects, Inspector
 colors, history/copy/reload, representative theme contrast and independent panels. Wider app
 stress/interruption and retained GPU/resource qualification return in the deferred pass before M09.
@@ -1610,6 +1613,8 @@ M15/7 Surface-display acceptance raises it to **98/117 (84%)**, M15 **6/11 (55%)
 The 2026-11-18 feedback adds four fixed gates: **117 → 121**, with **98 accepted unchanged**;
 overall acceptance becomes **81%**, M15 **6/15 (40%)**, and phase completion remains **8/16 (50%)**.
 This is added scope only; no prior acceptance is removed and no new gate is accepted by planning.
+M15/8 Surface-link acceptance raises the numerator to **99/121 (82%)** and M15 to **7/15 (47%)**;
+phase completion stays **8/16 (50%)**. The denominator and all deferred gates remain unchanged.
 M14/1,6 and all retained correctness, physical, recovery and performance requirements remain
 required before M09. New features follow the user's feature-first cadence; a checkpoint or a
 passing subset of checks never closes a complete gate.

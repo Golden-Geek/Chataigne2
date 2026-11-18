@@ -1,7 +1,7 @@
 {
   "date": "2026-11-18",
   "gate": "M15/8",
-  "state": "Active: functional delivery; native history and visual acceptance unfinished",
+  "state": "Accepted",
   "delivered": [
     "Backend permits different Surfaces within one Screen; rejects same-Surface and other-Screen links for every caller",
     "Supplied magnet SVG, colored on and grey off; no snap paging arrows",
@@ -17,7 +17,7 @@
     "clippy": { "exit": 0, "log": "target/m15-same-screen-clippy.log" },
     "build": { "exit": 0, "log": "target/m15-same-screen-build-final.log", "app_sha256": "DFE3FB86EB5A81BB54AF7D0A42387CD6BD3B39A9A918AE2B4D1A83C16BD456F8" }
   },
-  "native_functional": {
+  "earlier_native_functional": {
     "result": "target/m15-surface-links-held-20261118/result.json",
     "pid": 29208,
     "exit": 0,
@@ -26,9 +26,36 @@
     "three_member_merge": { "red_pixels": 6631, "blue_pixels": 6631, "background_pixels": 22104, "edge_pixels_excluded": 5594, "oracle": "pass", "icon_unlink": "pass" },
     "history": "One cohort passed drag/link single-step Undo/Redo; repeatability is NOT established"
   },
-  "unfinished": [
-    { "requirement": "Repeatable native single-step drag/link Undo", "failed_result": "target/m15-surface-links-visual-20261118", "original_corner_x": 0.44999998807907104, "after_one_undo_x": 0.47612106800079346, "cause": "unproven", "next": "Inspect existing failed trace and edit-group completion boundary; distinguish fixture readiness from product history defect" },
-    { "requirement": "Native window visual confirmation", "missing": "Computer Use native pipe unavailable after reset/retry; owned PrintWindow capture returned black", "return": "Observe owned window once supported desktop capture reconnects or user is available; SDK output pixels do not substitute for window presentation" }
+  "follow_up": {
+    "delivered": "Candidate-list refresh no longer disables otherwise available geometry input; candidate/related inspections use background activity",
+    "rust": "7 focused link tests pass, including five multi-sample/link Undo/Redo cycles",
+    "ui": "6 focused operation/group tests pass; svelte-check 0 errors/0 warnings",
+    "lint": "cargo clippy -p MapGyver --lib --tests -- -D warnings: exit 0",
+    "build": "cargo build -p MapGyver: exit 0; 1m40s",
+    "app_sha256": "02E14A760603F96D55536C9D665AE81ABA007AF9B0C357DC04D4BD5AF7C2CC69",
+    "native_baseline": "target/m15-links-history-baseline-20261118/result.json; PID13028; full fixture exit 0",
+    "native_repeat": "target/m15-links-authoring-ready-20261118/result.json; PID27192; native script and normal app shutdown exit 0. Five native drag/link/Undo cycles, final Redo, held-pointer peer/output pixels, three-member merge and icon unlink pass",
+    "fixture": "Waits independently for accepted native handle hit and authoring readiness immediately before pointer-down, restored DOM and exact EndEdit receipt; correlates compact authored-operation/history receipts",
+    "limits": "NVIDIA functional cohort only. No Intel, high-refresh timing, resource or full-regression qualification."
+  },
+  "native_window": {
+    "activation": "User confirmed Foreground for owned PID27192 at 09:46 UTC; no user edits requested",
+    "capture": "Visible owned foreground window with PID/HWND/DPI/bounds/cursor guards; 1518x1010, DPI120, DPR1.25, stationary cursor",
+    "rgb_sha256": "5a764d5606e35285859238187aa597724fecd9b100de276e1f44abdfc7f6043d",
+    "review": "Red and blue image edges meet the shared warped corner; native outlines/handles and unlink glyph align. Magnet is grey in this snap-off held-check stage; colored-on SVG and computed filter were checked by the fixture",
+    "oracle": "apps/mapgyver/tests/native/linked_surface_window.py",
+    "physical_edge_probes": 32,
+    "max_color_boundary_offset_px": 2.3125,
+    "limit_px": 3,
+    "tolerance_scope": "Colored fill boundary inset by rendered contour stroke (up to 2 physical pixels here), plus pixel-center rounding. This does not claim subpixel precision or revise other gates' budgets",
+    "native_matching_hits": "4 corners and unlink group icon; accepted-frame hit identity matches each DOM control",
+    "archive": "mapgyver-m15-surface-links-window-2026-11-18.zip",
+    "archive_sha256": "e3c94c0e8b8fef6e7cb32b7a89f20d9dbe1b17d2ec3474b0d0acd8f04d9eff36"
+  },
+  "earlier_attempts": [
+    { "failed_result": "target/m15-surface-links-visual-20261118", "original_corner_x": 0.44999998807907104, "after_one_undo_x": 0.47612106800079346, "cause": "unproven; no product root-cause claim", "resolution_scope": "Corrected fixture requires authoring-ready immediately before input plus accepted native hit and EndEdit receipt; five complete native cycles pass" },
+    { "results": ["target/m15-links-history-ack-20261118", "target/m15-links-history-final-20261118", "target/m15-links-ready-20261118"], "failure": "second drag did not begin after Undo when the fixture waited for native-hit/DOM readiness without rechecking authoring readiness immediately before pointer-down; these cohorts are not acceptance" },
+    { "capture": "Computer Use pipe unavailable; PrintWindow black; first foreground capture rejected; bounded foreground wait expired. Only the later PID/HWND-guarded foreground capture after user activation is accepted" }
   ],
-  "acceptance": "No gate closed. Counts remain 98/121 overall and 6/15 M15. No Intel, sustained timing or full-regression claim. Earlier failed/preliminary cohorts remain unaccepted."
+  "acceptance": "M15/8 closes: 99/121 (82%) overall; M15 7/15 (47%); 8/16 phases complete. Fixed denominator unchanged. M15/12 custom colors is next. Earlier failed/preliminary cohorts remain unaccepted; every retained qualification gate/budget remains."
 }

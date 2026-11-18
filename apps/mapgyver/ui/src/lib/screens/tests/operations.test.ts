@@ -59,3 +59,16 @@ test('each independent editor refresh stays background through the ordinary invo
 test('authoring still retains visible user activity', () => {
 	assert.equal(screenOperationActivity({ kind: 'CreateScreen', label: null }), 'user');
 });
+
+test('snap and related-Surface metadata reads stay background', () => {
+	const reference = { screen: 'screen', surface: 'surface' };
+	for (const edit of [
+		{
+			kind: 'InspectScreenHandles',
+			query: { document: 'doc', reference, include_candidates: true, cursor: null }
+		},
+		{ kind: 'InspectRelatedSurfaces', query: { document: 'doc', reference, cursor: null } }
+	] satisfies ScreenEdit[]) {
+		assert.equal(screenOperationActivity(edit), 'background');
+	}
+});

@@ -39,11 +39,19 @@ geometry scope. No paging arrows, peer previews, source leases or full-document 
 scans are introduced. Proximity uses a0.65rem displayed radius and the current zoomed
 canvas bounds. The supplied magnet SVG is colored when active and grey when off.
 Turning snapping off suppresses new links; authored links continue operating.
+Candidate and related-Surface inspections are background reads. Candidate refresh does
+not disable otherwise available geometry input; its metadata is optional snapping context,
+and the backend still validates every final link against current document state.
 
 The final drag/link request is flushed before the existing Golden edit group closes.
-Focused tests and one native cohort reverse both in one Undo, but a repeated native run
-restored an intermediate drag point; repeatable native history remains unaccepted.
+Focused tests and five native drag/link/Undo cycles reverse both in one Undo. Earlier
+automation failures are retained in the receipt; the corrected fixture requires authoring
+readiness immediately before pointer-down as well as accepted native hit readiness.
 Typed Parameter projection stays live during manipulation
 for every linked Surface, while the active handle retains its immediate presentation.
-Held-pointer peer contours and independent red/blue output pixels pass. M15/8 remains
-open for the intermittent native Undo issue and native window visual confirmation.
+Held-pointer peer contours and independent red/blue output pixels pass. The guarded
+foreground capture also matches all eight image edges to DOM geometry (32 color-boundary
+probes within the contour-stroke/pixel-rounding allowance) and all four corner/unlink native
+hits. M15/8 is Accepted; see the [receipt](../progress/evidence/mapgyver-m15-surface-links-2026-11-18.json).
+The native fixture waits for each exact EndEdit receipt; the five-cycle backend history
+test passes. This does not requalify retained high-refresh, Intel or presentation-motion gates.

@@ -31,6 +31,40 @@ fn position(engine: &AppEngine, corner: ScreenCorner) -> Point {
 }
 
 #[test]
+fn streamed_corner_samples_and_final_link_reverse_to_the_pre_drag_state() {
+    let mut engine = fixture();
+    let (_, a) = create(&mut engine);
+    let b = peer(&mut engine, a.screen);
+    let before = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    for _ in 0..5 {
+        super::gestures::session(&mut engine, true);
+        for x in [0.46306056, 0.47612107, 0.55] {
+            apply(
+                &mut engine,
+                ScreenEdit::EditSurfaceGeometry {
+                    reference: a,
+                    edit: SurfaceGeometryEdit::QuadCorner {
+                        corner: 1,
+                        point: Point { x, y: 0.2 },
+                    },
+                },
+            );
+            apply(&mut engine, ScreenEdit::InspectSurface { reference: a });
+        }
+        link(&mut engine, member(a, 1), member(b, 0));
+        super::gestures::session(&mut engine, false);
+        assert_eq!(engine.undo_len(), history + 1);
+        let linked = to_sparse_project_json_pretty(&engine).unwrap();
+        assert!(engine.undo().unwrap());
+        assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), before);
+        assert!(engine.redo().unwrap());
+        assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), linked);
+        assert!(engine.undo().unwrap());
+    }
+}
+
+#[test]
 fn groups_propagate_geometry_and_generic_parameter_edits_from_every_member_in_one_transaction() {
     let mut engine = fixture();
     let (screen, _) = create(&mut engine);
