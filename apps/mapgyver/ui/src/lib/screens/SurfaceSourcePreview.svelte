@@ -59,6 +59,7 @@
 		overlays = next;
 	}
 	const identity = $derived(preview);
+	const project = $derived(appState.session?.projectGeneration ?? 0);
 	const source = $derived(JSON.stringify(identity));
 	const status = $derived(identity ? owner.statuses.get(previewKey(identity)) : undefined);
 	const extent = $derived(status?.extent);
@@ -73,7 +74,7 @@
 		onoverlays={(next) => {
 			relatedOverlays = next;
 		}} />
-	{#key `${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}:${source}`}
+	{#key `${project}:${surface.reference.surface}:${source}`}
 		<CropHandles
 			{snapping}
 			{related}
@@ -102,7 +103,7 @@
 		actions={toolbar}
 		nativeFrame={identity !== null && nativeFrame}
 		aspect={extent ? extent.width / extent.height : 16 / 9}
-		identity={`${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}`}
+		identity={`${project}:${surface.reference.surface}`}
 		selection={selected ? pointBounds(cropCorners(surface, presentation)) : null}
 		onselectionclear={() => {
 			if (inputAvailable) onselectionclear();
@@ -114,7 +115,7 @@
 			<NativePreview
 				nativeInput={inputAvailable}
 				nativeBackdrop
-				lifetime={`${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}`}
+				lifetime={project}
 				onpresentationchange={presentationChanged}
 				overlayCapacity={80}
 				session={owner.session}

@@ -2,8 +2,8 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `████████░░` **85% — 116/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** OSCQuery is accepted, including Copy OSC Address and address display in Help.
-- **Working on next:** Seamless switching in Surface Editor and Media Preview.
+- **Latest delivered:** Surface Editor keeps its native view when switching between Surfaces.
+- **Working on next:** Keep the previous image visible while a replacement source loads in Surface Editor and Media Preview.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -60,7 +60,7 @@
 
 ## Next features — implementation order
 
-1. **NOW — Seamless previews.** Remove black flashes in Surface Editor and Media Preview, and reuse the source when two Surfaces share media.
+1. **NOW — Seamless previews.** Surface Editor kept one native view through 13 switches, including Surfaces sharing a channel. All 42 sampled frames showed a valid image. Still to do: hold that image while a replacement loads and verify reuse with a live producer. [Checks](evidence/mapgyver-m16-surface-preview-selection-2026-11-19.json)
 2. **Linked outlines in Screen Warping.** Fix outline flicker while dragging linked handles.
 3. **Extended Video formats.** Add DXV, WebP (including animated WebP), and MKV playback
     with selectable embedded subtitles and audio tracks.

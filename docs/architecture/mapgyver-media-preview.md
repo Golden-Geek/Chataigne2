@@ -43,6 +43,10 @@ slot's source reuses its native view and Golden's existing last-frame retention 
 is installed; document fences still retire stale views. This is presentation lifetime, not a
 second media identity or authored setting.
 
+Surface Source also keeps the native registration for the project and panel lifetime. The
+selected Surface still owns its crop handles and camera. Selecting a Surface assigned to the
+same channel keeps the native source key and the existing source demand.
+
 `ChannelPreview` fits native geometry to the available panel while preserving source aspect.
 The shared `NativePreview` retires registration when explicitly hidden or outside its viewport,
 and re-registers on return. Its existing retirement covers remain alive until the host confirms
