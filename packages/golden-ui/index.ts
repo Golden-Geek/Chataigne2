@@ -113,6 +113,8 @@ export { selectOnPress, clearViewportSelection } from './components/viewport/sel
 export { nodeSelectionMode } from './components/panels/outliner/node-selection';
 export { pointBounds, type ViewBounds } from './components/viewport/geometry';
 export { createViewportPointer, type ViewportPointerTarget } from './components/viewport/pointer';
+export { ViewportAlignment, type AlignmentGuide } from './components/viewport/alignment';
+export { default as ViewportGuides } from './components/viewport/ViewportGuides.svelte';
 export { selectedEditorItem } from './store/editor-selection';
 export { default as Outliner } from './components/panels/outliner/OutlinerPanel.svelte';
 export { default as OutlinerItem } from './components/panels/outliner/OutlinerItem.svelte';

@@ -1,16 +1,24 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import { ViewportHandle, ViewportTarget, viewportContour } from 'golden_ui';
+	import {
+		ViewportHandle,
+		ViewportTarget,
+		ViewportGuides,
+		viewportContour,
+		type AlignmentGuide
+	} from 'golden_ui';
 	import type { RectGeometryMode } from '../media/generated/RectGeometryMode';
 	import type { Point } from '../media/generated/Point';
 	import type { LayoutRect } from './rect-presentation';
-	import { displayRect } from './rect-presentation';
+	import { displayRect, projectRect } from './rect-presentation';
+	import { createGeometryAlignment } from './alignment';
 	import type { LayerPresentation } from './layer-gesture';
 	import type { CellPresentation } from './cell-gesture';
 	import { createViewportPointer } from 'golden_ui';
 	import { SPATIAL_RESIZE_HANDLES } from './handles';
 	let {
 		objects,
+		snapping = false,
 		presentation = null,
 		kind,
 		identity,
@@ -27,6 +35,7 @@
 		enter
 	}: {
 		objects: LayoutRect[];
+		snapping?: boolean;
 		presentation?: LayerPresentation | CellPresentation | null;
 		kind: 'Layer' | 'Cell';
 		identity?: string;
@@ -44,15 +53,38 @@
 	} = $props();
 	let svg: SVGSVGElement;
 	let ghost = $state<Point | null>(null);
+	let guides = $state<AlignmentGuide[]>([]);
+	const alignment = createGeometryAlignment(
+		() => svg,
+		() => snapping,
+		(next) => {
+			guides = next;
+		}
+	);
+	const bounds = (object: LayoutRect) =>
+		object.size
+			? {
+					x: object.position[0],
+					y: object.position[1],
+					width: object.size.width,
+					height: object.size.height
+				}
+			: null;
 	const pointer = createViewportPointer({
 		canvas: () => svg,
 		extent: () => canvas,
 		ghost: (at) => {
 			ghost = at;
 		},
-		move: (at) => move(at),
-		finish: () => finish(),
-		stop: () => stop()
+		move: (at) => move(alignment.move(at)),
+		finish: () => {
+			alignment.clear();
+			finish();
+		},
+		stop: () => {
+			alignment.clear();
+			stop();
+		}
 	});
 	const displayed = $derived(objects.map((object) => displayRect(object, presentation)));
 	const item = $derived(displayed.find((object) => object.id === selected));
@@ -68,7 +100,21 @@
 			selectable: selectionAvailable && !active,
 			editable: !disabled,
 			select: () => select(object.id),
-			begin: (at) => start(object.id, mode, at)
+			begin: (at) => {
+				if (!start(object.id, mode, at)) return false;
+				const origin = {
+					position: [...object.position] as [number, number],
+					size: object.size ? { ...object.size } : null
+				};
+				alignment.begin(
+					objects.map((item) => ({ id: item.id, bounds: bounds(item) })),
+					object.id,
+					canvas,
+					(point) => bounds(projectRect(object, origin, mode, at, point)),
+					{ centers: mode === 'Translate' }
+				);
+				return true;
+			}
 		});
 	}
 	$effect(() => {
@@ -134,6 +180,7 @@
 		{/if}
 	{/each}
 </svg>
+<ViewportGuides {guides} width={canvas.width} height={canvas.height} />
 
 {#each displayed as object (object.id)}
 	{#if !object.size && object.id !== selected}<ViewportTarget

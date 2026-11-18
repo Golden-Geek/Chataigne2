@@ -1,5 +1,17 @@
 # 2D document viewport
 
+`ViewportAlignment` supplies presentation-only edge/center proximity hints. Callers freeze a
+bounded candidate page and exclude the edited object at pointer-down. The shared helper indexes
+candidate axes once and queries them by binary search, evaluates only the moving shape, and
+retains an acquired guide through a slightly larger release radius. It solves coupled canvas
+coordinates for rotated scale projections and ignores fixed resize edges and invalid geometry.
+Use `{ centers: false }` for resize gestures: the moving edges can meet target edges or centers,
+without the moving body's changing center unexpectedly holding a resize. `ViewportGuides`
+paints noninteractive, screen-width dashed guides. Thresholds come from the current measured
+viewport, so zoom/pan and non-square document axes retain the same screen-space proximity.
+Neither helper owns document state, mutation semantics or history. Send the adjusted pointer
+sample through the caller's ordinary authoritative geometry intent.
+
 `Viewport2D` owns presentation-only camera state, pointer-anchored zoom, Space/middle-drag
 panning, selection framing and Home. Callers supply the document aspect ratio and normalized
 selection bounds; domain edits remain with the app's authoring operations. `ViewportHandle`

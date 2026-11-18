@@ -2,8 +2,8 @@
 
 - **Updated:** 18 November 2026.
 - **Overall plan acceptance:** `████████░░` **85% — 103/121 checks accepted**. Nested Group rails are now accepted. Deferred verification is still counted as unfinished.
-- **Latest delivered:** Inspector-inspired Matrix Group wraps: softly tinted bodies, rounded lower returns and colored header accents. Inset child cards keep selection and hover contours clear of ancestor borders; nested colors/reset, scrolling, collapse and reparent/reorder work.
-- **Working on next:** Move/scale snapping and subtle alignment guides in Surface, Composition and Matrix editors.
+- **Latest delivered:** Geometry snapping works in Surface Source, Composition and Matrix Layer/Cell views. The bundled app passed move, Composition/Layer resize, toggle-off and Undo/Redo checks.
+- **Working on next:** Finish geometry snapping verification, including native image alignment, crop and Cell resize, and zoom/pan.
 - **Manual action needed from you now: none.** Group-rail checks passed and the owned test window has closed.
 
 ## Done — code and normal-use checks passed
@@ -37,7 +37,7 @@
 
 ## Next features — implementation order
 
-1. **NOW — Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
+1. **NOW — Geometry alignment:** implemented and usable. Finish native image alignment and the remaining editor checks.
 2. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
 3. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
 4. **Extended Video codecs:** DXV and WebP/animated WebP.

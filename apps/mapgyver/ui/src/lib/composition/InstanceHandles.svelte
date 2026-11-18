@@ -1,6 +1,14 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import { ViewportHandle, ViewportTarget, viewportContour } from 'golden_ui';
+	import {
+		ViewportHandle,
+		ViewportTarget,
+		ViewportGuides,
+		pointBounds,
+		viewportContour,
+		type AlignmentGuide
+	} from 'golden_ui';
+	import { createGeometryAlignment } from '../spatial/alignment';
 	import type { CompositionSnapshot } from '../media/generated/CompositionSnapshot';
 	import type { InstanceId } from '../media/generated/InstanceId';
 	import type { InstanceReference } from '../media/generated/InstanceReference';
@@ -16,6 +24,7 @@
 	import { customNodeColor } from '../node-color.svelte';
 	let {
 		composition,
+		snapping = false,
 		presentation = null,
 		selected,
 		disabled,
@@ -28,6 +37,7 @@
 		stop
 	}: {
 		composition: CompositionSnapshot;
+		snapping?: boolean;
 		presentation?: InstancePresentation | null;
 		selected: InstanceId | null;
 		disabled: boolean;
@@ -56,15 +66,35 @@
 	);
 	let canvas: SVGSVGElement;
 	let ghost = $state<Point | null>(null);
+	let guides = $state<AlignmentGuide[]>([]);
+	const alignment = createGeometryAlignment(
+		() => canvas,
+		() => snapping,
+		(next) => {
+			guides = next;
+		}
+	);
+	function sourceExtent(item: InstanceSnapshot) {
+		return item.definition.source
+			? (owner.statuses.get(previewKey({ kind: 'Channel', reference: item.definition.source }))
+					?.extent ?? null)
+			: null;
+	}
 	const pointer = createViewportPointer({
 		canvas: () => canvas,
 		extent: () => composition.canvas,
 		ghost: (at) => {
 			ghost = at;
 		},
-		move: (at) => move(at),
-		finish: () => finish(),
-		stop: () => stop()
+		move: (at) => move(alignment.move(at)),
+		finish: () => {
+			alignment.clear();
+			finish();
+		},
+		stop: () => {
+			alignment.clear();
+			stop();
+		}
 	});
 	function down(event: PointerEvent, item: InstanceSnapshot, mode: InstanceGeometryMode) {
 		pointer.start(event, {
@@ -82,7 +112,26 @@
 					},
 					start: at
 				};
-				return start(item.reference, handle);
+				if (!start(item.reference, handle)) return false;
+				if (mode === 'Rotate') alignment.clear();
+				else {
+					const extent = sourceExtent(item);
+					alignment.begin(
+						composition.instances.map((entry) => ({
+							id: entry.reference.instance,
+							bounds: pointBounds(instanceDisplay(entry, sourceExtent(entry), null).points)
+						})),
+						item.reference.instance,
+						composition.canvas,
+						(point) =>
+							pointBounds(
+								instanceDisplay(item, extent, { reference: item.reference, handle, sample: point })
+									.points
+							),
+						{ centers: mode === 'Translate' }
+					);
+				}
+				return true;
 			}
 		});
 	}
@@ -147,6 +196,7 @@
 		{/if}
 	{/each}
 </svg>
+<ViewportGuides {guides} width={composition.canvas.width} height={composition.canvas.height} />
 
 {#each visible as item (item.reference.instance)}
 	{@const extent = item.definition.source

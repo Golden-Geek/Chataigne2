@@ -7,6 +7,7 @@
 	import { SPATIAL_PAGE_SIZE } from './targets';
 	import SpatialViewport from './SpatialViewport.svelte';
 	import RectLayoutControls from './RectLayoutControls.svelte';
+	import AlignmentToggle from './AlignmentToggle.svelte';
 	import { createLayerEditor } from './layer-editor.svelte';
 	import { matrixLayerPaintRows, displayRect } from './rect-presentation';
 	import type { RectGeometryMode } from '../media/generated/RectGeometryMode';
@@ -66,6 +67,7 @@
 			: null
 	);
 	const geometry = createLayerEditor(owner, () => props.present);
+	let snapping = $state(false);
 	const selected = $derived(
 		selectedEditorItem(
 			geometry.activeLayer ?? owner.view.selected?.item?.id,
@@ -154,6 +156,7 @@
 				{geometry.state.error || owner.view.error || owner.view.readError}
 			</p>{/if}
 		{#snippet actions()}
+			<AlignmentToggle bind:enabled={snapping} disabled={geometry.state.active} />
 			{#if selected?.item.layer}
 				<IconButton
 					icon={arrowIcon}
@@ -205,6 +208,7 @@
 				label="Matrix Layer layout view"
 				{actions}>
 				<RectLayoutControls
+					{snapping}
 					identity={snapshot.final_output.reference.channel}
 					{objects}
 					presentation={geometry.presentation}

@@ -5,6 +5,8 @@ import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
 import type { LayerPresentation } from './layer-gesture';
 import type { CellPresentation } from './cell-gesture';
 import { SPATIAL_RESIZE_HANDLES } from './handles.ts';
+import type { RectGeometryMode } from '../media/generated/RectGeometryMode';
+import type { Point } from '../media/generated/Point';
 export interface LayoutRect {
 	id: string;
 	label: string;
@@ -38,8 +40,19 @@ export function displayRect(
 		'kind' in handle && handle.kind === 'Translate'
 			? { position: handle.origin, size: object.size }
 			: handle.origin;
-	const dx = draft.sample.x - handle.start.x,
-		dy = draft.sample.y - handle.start.y;
+	return projectRect(object, origin, mode, handle.start, draft.sample);
+}
+
+/** Control-space prediction shared by immediate feedback and transient alignment hints. */
+export function projectRect(
+	object: LayoutRect,
+	origin: { position: [number, number]; size: Extent2D | null },
+	mode: RectGeometryMode,
+	start: Point,
+	point: Point
+): LayoutRect {
+	const dx = point.x - start.x,
+		dy = point.y - start.y;
 	if (mode === 'Translate')
 		return {
 			...object,

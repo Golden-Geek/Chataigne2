@@ -12,6 +12,7 @@
 	import { usePreview } from '../preview/context.svelte';
 	import { previewKey } from '../preview/identity';
 	import CropHandles from './CropHandles.svelte';
+	import AlignmentToggle from '../spatial/AlignmentToggle.svelte';
 	let {
 		surface,
 		preview,
@@ -46,6 +47,7 @@
 		selectRelated?(uuid: string): void;
 	} = $props();
 	const owner = usePreview();
+	let snapping = $state(false);
 	let cropControls = $state<{ keydown(event: KeyboardEvent): void }>();
 	let overlays = $state<OverlayPrimitive[]>([]);
 	let relatedOverlays = $state<OverlayPrimitive[]>([]);
@@ -73,6 +75,8 @@
 		}} />
 	{#key `${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}:${source}`}
 		<CropHandles
+			{snapping}
+			{related}
 			bind:this={cropControls}
 			{surface}
 			{selected}
@@ -90,8 +94,12 @@
 {/snippet}
 
 <section aria-label="Surface Source preview">
+	{#snippet toolbar()}
+		<AlignmentToggle bind:enabled={snapping} disabled={!!presentation} />
+		{@render actions?.()}
+	{/snippet}
 	<Viewport2D
-		{actions}
+		actions={toolbar}
 		nativeFrame={identity !== null && nativeFrame}
 		aspect={extent ? extent.width / extent.height : 16 / 9}
 		identity={`${appState.session?.projectGeneration ?? 0}:${surface.reference.surface}`}

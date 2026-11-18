@@ -4,6 +4,29 @@ MapGyver's spatial panel shares viewport, native image lifetime, pointer/keyboar
 mechanisms. Composition and Matrix adapters retain their own document queries and typed
 authoring operations. Matrix documents are never converted into Compositions.
 
+Geometry alignment is a transient pointer preference, with an independent colored/grey magnet
+toggle in Surface Source, Composition and Matrix Layer/Cell toolbars. It never creates Screen
+corner links or changes Inspector/headless behavior. `spatial/alignment.ts` adapts Golden's
+`ViewportAlignment` to the current canvas rectangle and a half-rem acquire / three-quarter-rem
+release radius. It indexes the current bounded candidate page once per admitted drag, excludes
+the edited UUID, and includes canvas/source bounds. Rotation gestures bypass snapping.
+
+Composition candidates use world-axis bounds of displayed source quads; missing extents and
+zero-area candidate quads are excluded, while collapsed selected transforms retain normal
+typed edit behavior. Matrix candidates use the current Layer/Cell page's canvas-texel bounds,
+excluding Groups and unknown Cell sizes. Surface Source uses normalized crops of the currently
+shown related-Surface page, plus source bounds; hidden/off-page related crops are not fetched for
+snapping. Disabled but displayed objects remain alignment targets. No pointer sample scans the
+whole document or allocates another preview lease. Gesture origin/projection and candidates are
+frozen at admission; current viewport measurement keeps tolerance stable under zoom and resize.
+
+Movement offers the moving shape's edges and centers. Resize offers its changing edges to
+candidate edges/centers and ignores fixed edges. Immediate control prediction and snap hints
+share `instanceDisplay`, `projectRect` and `cropCorners`; only the existing backend intents
+author and validate final geometry. One drag remains one Golden edit group. DOM guides clear on
+release/cancel and have no hit targets; Surface Source additionally sends the same normalized
+guides to its native overlay compositor, with no new authored data or protocol declarations.
+
 `media/spatial/protocol.rs` owns the shared eight resize directions and the rectangle gesture
 contract: immutable origin, start and current canvas-texel points, and Translate or Resize mode.
 Rust generates the TypeScript declarations. Composition uses the same resize directions with

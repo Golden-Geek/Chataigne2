@@ -1,0 +1,18 @@
+{
+  "gate": "M15/9",
+  "state": "Functional checkpoint. Acceptance remains open.",
+  "capability": "The Align geometry magnet enables transient edge and center snapping and live guides in Surface Source, Composition and Matrix Layer and Cell editors. Moving edges can snap to target centers during resize. Each editor uses its visible candidate page and canvas bounds. Existing typed geometry intents and drag history remain authoritative.",
+  "checks": {
+    "viewport_alignment_and_pointer": "13 passed. Covers acquisition and release hysteresis, one or both axes, normalized coordinates, coupled rotated resize, missing and degenerate candidates, and constant per-sample projection count with 10000 candidates.",
+    "app_presentation": "8 focused projection tests passed for crop, warp, rotated and collapsed Composition items, Matrix rectangles and unknown Cell extents.",
+    "ui": "MapGyver Svelte check passed with zero errors or warnings. Existing editor browser regression passed.",
+    "build": "Normal cargo build -p MapGyver --bin MapGyver passed.",
+    "app_sha256": "FD7BA059BCA9CD1E7671BD3C504AC739A44FBAAC63C9E445DEC45F4F656587C6",
+    "bundled_app": "native-geometry-alignment.mjs passed in owned MapGyver WebView PID 46544. Verified Composition move, resize, held guides, toggle-off and one-step Undo/Redo; Matrix Layer move and resize; Matrix Cell move; and Surface Source normalized move against a related crop. The fixture observed exact backend updates and normal shutdown."
+  },
+  "remaining": [
+    "Verify native rendered pixels against snapped DOM controls and guide positions.",
+    "Exercise Surface crop resize and Matrix Cell resize while snapping. Verify zoom/pan, cancel, unavailable and zero-scale input, and sparse/large layouts in the app.",
+    "Confirm existing Inspector and headless geometry behavior at the common typed intent boundary."
+  ]
+}

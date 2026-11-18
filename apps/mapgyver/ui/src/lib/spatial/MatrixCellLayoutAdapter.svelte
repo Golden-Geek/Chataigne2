@@ -1,4 +1,5 @@
 <script lang="ts">
+	import AlignmentToggle from './AlignmentToggle.svelte';
 	import { onDestroy, untrack } from 'svelte';
 	import { observeEditor } from 'golden_ui/store/editor-observation.svelte';
 	import { usePanelVisibility } from 'golden_ui/dockview/panel-visibility.svelte';
@@ -32,9 +33,10 @@
 		oncell(cell: string | null): void;
 		onlabel(label: string | null): void;
 	} = $props();
-	const state = $state(cellLayoutState());
+	const layoutState = $state(cellLayoutState());
+	let snapping = $state(false);
 	const panel = usePanelVisibility();
-	const reader = new CellLayoutReader(() => appState.session, state, invokeMediaEdit);
+	const reader = new CellLayoutReader(() => appState.session, layoutState, invokeMediaEdit);
 	const geometry = createCellEditor(reader, () => props.present);
 	const selection = useDocumentSelection(),
 		preview = usePreview();
@@ -49,14 +51,16 @@
 		}),
 		topics: [MEDIA_NAMESPACE],
 		owners: () => (reader.page ? [reader.page.layer] : []),
-		interacting: () => state.interacting,
+		interacting: () => layoutState.interacting,
 		refresh: (query, resolve) => reader.refresh(query, resolve)
 	});
 	const parameters = $derived(
-		panel.visible && reader.page ? geometry.projection.read(state.generation, reader.page.at) : null
+		panel.visible && reader.page
+			? geometry.projection.read(layoutState.generation, reader.page.at)
+			: null
 	);
 	const page = $derived(
-			reader.page && parameters && !state.interacting
+			reader.page && parameters && !layoutState.interacting
 				? projectCellLayoutPage(reader.page, parameters)
 				: reader.page
 		),
@@ -162,10 +166,11 @@
 	data-composition-locked={props.locked}
 	aria-busy={reader.busy || geometry.state.active || !props.present}>
 	<div class="editor-canvas">
-		{#if state.error || geometry.state.error}<p class="editor-error" role="alert">
-				{state.error || geometry.state.error}
+		{#if layoutState.error || geometry.state.error}<p class="editor-error" role="alert">
+				{layoutState.error || geometry.state.error}
 			</p>{/if}
 		{#snippet actions()}
+			<AlignmentToggle bind:enabled={snapping} disabled={geometry.state.active} />
 			<IconButton
 				class="previous"
 				icon={arrowIcon}
@@ -218,6 +223,7 @@
 				previewLabel={selected?.label}
 				{actions}>
 				<RectLayoutControls
+					{snapping}
 					identity={props.layer}
 					{objects}
 					presentation={geometry.presentation}

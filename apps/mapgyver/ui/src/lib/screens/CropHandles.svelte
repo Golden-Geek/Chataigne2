@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import { ViewportHandle, viewportContour } from 'golden_ui';
+	import { ViewportHandle, ViewportGuides, viewportContour, type AlignmentGuide } from 'golden_ui';
+	import { createGeometryAlignment } from '../spatial/alignment';
+	import type { RelatedSurface } from './generated/RelatedSurface';
 	import { capturePreviewPointer, type OverlayPrimitive } from 'golden_video_ui';
-	import { overlayRem } from './overlays';
+	import { overlayRem, quadOverlay } from './overlays';
 	import { cropOverlays } from './crop-overlays';
 	import type { UnitRect } from './generated/UnitRect';
 	import type { Point } from './generated/Point';
@@ -13,6 +15,8 @@
 	import { pointBounds } from 'golden_ui';
 	let {
 		crop,
+		snapping = false,
+		related = [],
 		selected,
 		selectionAvailable,
 		select,
@@ -26,6 +30,8 @@
 		onoverlays = () => {}
 	}: {
 		crop: UnitRect;
+		snapping?: boolean;
+		related?: RelatedSurface[];
 		selected: boolean;
 		selectionAvailable: boolean;
 		select(handle: 'origin' | 'size'): boolean;
@@ -48,15 +54,43 @@
 		moved: boolean;
 	} | null = null;
 	let ghost = $state<Point | null>(null);
+	let guides = $state<AlignmentGuide[]>([]);
+	const alignment = createGeometryAlignment(
+		() => canvas,
+		() => snapping,
+		(next) => {
+			guides = next;
+		}
+	);
 	let hovered = $state(false);
 	let focused = $state(false);
 	let focusedCorner = $state<number | null>(null);
 	const corners = $derived(cropCorners(surface, presentation));
 	const bounds = $derived(pointBounds(corners)!);
 	$effect(() => {
-		onoverlays(
-			cropOverlays(corners, selected, ghost, overlayRem(), hovered || focused, focusedCorner)
-		);
+		onoverlays([
+			...cropOverlays(corners, selected, ghost, overlayRem(), hovered || focused, focusedCorner),
+			...guides.map((guide) => ({
+				...quadOverlay(
+					guide.axis === 'x'
+						? [
+								{ x: guide.value, y: 0 },
+								{ x: guide.value, y: 1 },
+								{ x: guide.value, y: 1 },
+								{ x: guide.value, y: 0 }
+							]
+						: [
+								{ x: 0, y: guide.value },
+								{ x: 1, y: guide.value },
+								{ x: 1, y: guide.value },
+								{ x: 0, y: guide.value }
+							],
+					overlayRem(),
+					{ color: '70aaffcc' }
+				),
+				dash: [overlayRem() * 0.25, overlayRem() * 0.2] as [number, number]
+			}))
+		]);
 	});
 	$effect(() => {
 		if (!selected || !selectionAvailable) cancel();
@@ -78,6 +112,18 @@
 		if (!select(handle.kind === 'CropOrigin' ? 'origin' : 'size')) return;
 		const origin = point(event);
 		if (!editable || !origin || !start(handle)) return;
+		const initial = { ...surface, definition: { ...surface.definition, crop: { ...crop } } };
+		alignment.begin(
+			related.map((entry) => ({
+				id: entry.surface.reference.surface,
+				bounds: pointBounds(cropCorners(entry.surface, null))
+			})),
+			surface.reference.surface,
+			{ width: 1, height: 1 },
+			(sample) =>
+				pointBounds(cropCorners(initial, { reference: initial.reference, handle, sample })),
+			{ centers: handle.kind === 'CropOrigin' }
+		);
 		drag = {
 			id: event.pointerId,
 			x: event.clientX,
@@ -104,13 +150,14 @@
 			return;
 		}
 		ghost = next;
-		move({ x: next.x - drag.offset.x, y: next.y - drag.offset.y });
+		move(alignment.move({ x: next.x - drag.offset.x, y: next.y - drag.offset.y }));
 	}
 	function cancel() {
 		if (!drag) return;
 		const previous = drag;
 		drag = null;
 		ghost = null;
+		alignment.clear();
 		if (canvas.hasPointerCapture(previous.id)) canvas.releasePointerCapture(previous.id);
 		stop();
 	}
@@ -121,6 +168,7 @@
 		const previous = drag;
 		drag = null;
 		ghost = null;
+		alignment.clear();
 		if (previous.moved) finish();
 		else stop();
 		if (canvas.hasPointerCapture(previous.id)) canvas.releasePointerCapture(previous.id);
@@ -185,6 +233,7 @@
 		}}
 		onpointerdown={(event) => down(event, { kind: 'CropOrigin' })} />
 </svg>
+<ViewportGuides {guides} width={1} height={1} native />
 
 {#if selected}{#each corners as corner, index}
 		<ViewportHandle

@@ -9,6 +9,7 @@
 	import type { Point } from '../media/generated/Point';
 	import type { InstanceHandle, InstancePresentation } from './instance-gesture';
 	import InstanceHandles from './InstanceHandles.svelte';
+	import AlignmentToggle from '../spatial/AlignmentToggle.svelte';
 	import { usePreview } from '../preview/context.svelte';
 	import { previewKey } from '../preview/identity';
 	import { instanceDisplay, gizmo } from './presentation';
@@ -45,6 +46,7 @@
 		actions?: Snippet;
 	} = $props();
 	const owner = usePreview();
+	let snapping = $state(false);
 	const instance = $derived(
 		composition.instances.find((item) => item.reference.instance === selected)
 	);
@@ -107,8 +109,13 @@
 	}
 </script>
 
+{#snippet toolbar()}
+	<AlignmentToggle bind:enabled={snapping} disabled={active} />
+	{@render actions?.()}
+{/snippet}
+
 <SpatialViewport
-	{actions}
+	actions={toolbar}
 	{channel}
 	canvas={composition.canvas}
 	identity={channel.reference.channel}
@@ -125,6 +132,7 @@
 	}}
 	label="Composition view">
 	<InstanceHandles
+		{snapping}
 		{presentation}
 		{composition}
 		{selected}
