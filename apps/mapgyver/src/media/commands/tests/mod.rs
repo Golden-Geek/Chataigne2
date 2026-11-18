@@ -290,6 +290,9 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
                 ParamValue::Float(750.5),
             );
         }
+        if *kind == MediaCommandKind::VideoLoopStart {
+            set(&mut engine, command, "video_loop_start_ms", ParamValue::Float(500.25));
+        }
         if *kind == MediaCommandKind::VideoCrop {
             set(&mut engine, command, "video_start_ms", ParamValue::Float(125.25));
             set(&mut engine, command, "video_end_ms", ParamValue::Float(875.5));
@@ -330,6 +333,13 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
                 .unwrap()
                 .settings;
             assert_eq!(settings.auto_smooth_loop_ms, 750.5);
+            assert!(!settings.looping);
+        }
+        if *kind == MediaCommandKind::VideoLoopStart {
+            let settings = crate::media::video::authoring::inspect(&engine, target.media)
+                .unwrap()
+                .settings;
+            assert_eq!(settings.loop_start_ms, 500.25);
             assert!(!settings.looping);
         }
         if *kind == MediaCommandKind::VideoCrop {

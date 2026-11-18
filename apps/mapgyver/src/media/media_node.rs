@@ -71,8 +71,12 @@ use std::sync::OnceLock;
         video_speed: f64 = 1.0 [-16.0..16.0] (label = "Speed", step = 0.01,
             dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video, constraint_policy = "reject");
         video_looping: bool = false (label = "Loop", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
+        video_loop_start_ms: f64 = 0.0 [0.0..9000000000000.0] (
+            label = "Loop Start", description = "Play the intro once and repeat from this source time. Zero follows Start.",
+            widget = "time", unit = "ms", constraint_policy = "reject", enabled = self.video_looping.get(), can_be_disabled = false,
+            dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
         video_auto_smooth_loop_ms: f64 = 0.0 [0.0..9000000000000.0] (
-            label = "Auto-Smooth Loop", description = "Overlap the end and beginning while Loop is on. Zero plays a regular loop.",
+            label = "Auto-Smooth Loop", description = "Overlap the end and the start of the repeat section while Loop is on. Zero plays a hard loop.",
             widget = "time", unit = "ms", constraint_policy = "reject", enabled = self.video_looping.get(), can_be_disabled = false,
             dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
         video_playing: bool = false (label = "Playing", read_only = true,
@@ -115,6 +119,7 @@ impl MediaNode {
         settings.end_ms = super::video::protocol::crop_end_from_parameter(self.video_end_ms.get());
         settings.speed = self.video_speed.get();
         settings.looping = self.video_looping.get();
+        settings.loop_start_ms = self.video_loop_start_ms.get();
         settings.auto_smooth_loop_ms = self.video_auto_smooth_loop_ms.get();
         settings.play_at_load = self.video_play_at_load.get();
         settings.on_activate =
@@ -142,6 +147,7 @@ impl MediaNode {
             ],
             VideoEdit::Speed { speed } => vec![(self.video_speed.id(), ParamValue::Float(*speed))],
             VideoEdit::Loop { looping } => vec![(self.video_looping.id(), ParamValue::Bool(*looping))],
+            VideoEdit::LoopStart { start_ms } => vec![(self.video_loop_start_ms.id(), ParamValue::Float(*start_ms))],
             VideoEdit::AutoSmoothLoop { duration_ms } => {
                 vec![(self.video_auto_smooth_loop_ms.id(), ParamValue::Float(*duration_ms))]
             }
@@ -167,19 +173,21 @@ impl MediaNode {
             self.video_end_ms.id(),
             self.video_speed.id(),
             self.video_looping.id(),
+            self.video_loop_start_ms.id(),
             self.video_auto_smooth_loop_ms.id(),
         ]
         .contains(&id)
     }
     fn sync_video_loop_parameter(&self, ctx: &mut ProcessCtx) {
-        // The dependent value and node identity survive toggles and remain available to callers.
-        self.video_auto_smooth_loop_ms.patch_meta(
-            ctx,
-            golden_core::node::NodeMetaPatch {
-                enabled: Some(self.video_looping.get()),
-                ..Default::default()
-            },
-        );
+        for parameter in [&self.video_loop_start_ms, &self.video_auto_smooth_loop_ms] {
+            parameter.patch_meta(
+                ctx,
+                golden_core::node::NodeMetaPatch {
+                    enabled: Some(self.video_looping.get()),
+                    ..Default::default()
+                },
+            );
+        }
     }
     fn publish_video(&self, ctx: &mut ProcessCtx, parameter: Option<(golden_core::node::NodeId, ParamValue)>) {
         if self.video_ready
@@ -656,6 +664,12 @@ impl Node for MediaNode {
                 }
                 (id, ParamValue::Float(value)) if id == self.video_speed.id() => settings.speed = *value,
                 (id, ParamValue::Bool(value)) if id == self.video_looping.id() => settings.looping = *value,
+                (id, ParamValue::Float(value)) if id == self.video_loop_start_ms.id() => {
+                    let previous = settings.loop_start_ms;
+                    settings.loop_start_ms = *value;
+                    settings
+                        .validate_loop_start_change(previous, self.video_control().unwrap().source_duration_ms()?)?;
+                }
                 (id, ParamValue::Float(value)) if id == self.video_auto_smooth_loop_ms.id() => {
                     settings.auto_smooth_loop_ms = *value
                 }

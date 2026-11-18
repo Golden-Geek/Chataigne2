@@ -46,7 +46,7 @@ impl TransportSample {
     }
 
     pub(crate) fn frame_position(self) -> Result<golden_video::scheduling::FramePosition, String> {
-        let raw = self.cycle_origin() + self.position.as_nanos() as i128;
+        let raw = self.unwrapped_position();
         // Reverse looping maps the exact seam to the previous cycle's final image.
         let raw = raw - i128::from(self.playing && self.looping && self.reverse && self.position == self.cycle_end());
         Ok(golden_video::scheduling::FramePosition {
@@ -73,8 +73,18 @@ impl TransportSample {
     pub(super) fn cycle_origin(self) -> i128 {
         self.timeline.map_or_else(
             || i128::from(self.cycle) * self.duration.as_nanos() as i128,
-            |timeline| timeline.origin_nanos(self.cycle),
+            |timeline| timeline.origin_nanos(self.cycle, self.reverse),
         )
+    }
+    pub(super) fn unwrapped_position(self) -> i128 {
+        self.cycle_origin() + self.position.as_nanos() as i128
+    }
+
+    fn held_anchor(self) -> Result<i64, TransportError> {
+        if self.cycle == 0 || self.timeline.is_none_or(|timeline| timeline.loop_start().is_zero()) {
+            return nanos(self.position);
+        }
+        i64::try_from(self.unwrapped_position()).map_err(|_| TransportError::Overflow)
     }
     pub(super) fn cycle_start(self) -> Duration {
         self.timeline.map_or(Duration::ZERO, |timeline| {
@@ -92,11 +102,15 @@ impl TransportSample {
         if !self.playing && (self.position.is_zero() || self.position == self.duration) {
             return None;
         }
-        self.timeline?.blend_at(self.position, self.reverse)
+        self.timeline?.blend_at(self.position, self.cycle, self.reverse)
     }
     #[cfg(feature = "video-files")]
     pub(super) fn needs_loop_companion(self) -> bool {
-        self.timeline.is_some() && (self.playing || self.loop_blend().is_some())
+        self.has_loop_overlap() && (self.playing || self.loop_blend().is_some())
+    }
+    #[cfg(feature = "video-files")]
+    pub(super) fn has_loop_overlap(self) -> bool {
+        self.timeline.is_some_and(|timeline| !timeline.overlap().is_zero())
     }
     /// Project a bounded ahead sample against the same epoch, without observing a second clock.
     pub(super) fn at_presentation_position(self, position: ShowPosition) -> Option<Self> {
@@ -148,6 +162,8 @@ pub struct MediaTransport<C: Clock> {
     playing: bool,
     looping: bool,
     loop_overlap: Duration,
+    loop_start: Duration,
+    held_repeat: bool,
 }
 
 impl<C: Clock> MediaTransport<C> {
@@ -160,6 +176,8 @@ impl<C: Clock> MediaTransport<C> {
             playing: false,
             looping: false,
             loop_overlap: Duration::ZERO,
+            loop_start: Duration::ZERO,
+            held_repeat: false,
         })
     }
 
@@ -194,18 +212,19 @@ impl<C: Clock> MediaTransport<C> {
     }
 
     fn project(&self, raw: i64, mapping: TimeMapping) -> Result<TransportSample, TransportError> {
-        let reverse = self.rate.numerator() < 0;
+        let reverse = self.reverse();
         let crop_duration = self.duration();
         let duration = nanos(crop_duration)?;
-        let timeline = (self.looping && !self.loop_overlap.is_zero())
-            .then(|| LoopTimeline::new(crop_duration, self.loop_overlap))
+        let timeline = (self.looping && (!self.loop_overlap.is_zero() || !self.loop_start.is_zero()))
+            .then(|| LoopTimeline::with_loop_start(crop_duration, self.loop_start, self.loop_overlap))
             .flatten();
-        let (position, cycle, playing) = if self.playing && self.looping && duration > 0 {
+        let loops = self.looping && duration > 0 && (self.loop_start.is_zero() || timeline.is_some());
+        let (position, cycle, playing) = if loops && (self.playing || self.held_repeat) {
             if let Some(timeline) = timeline {
                 let projected = timeline
                     .sample(ShowPosition::from_nanos(raw), reverse)
                     .ok_or(TransportError::Overflow)?;
-                (nanos(projected.position)?, projected.cycle, true)
+                (nanos(projected.position)?, projected.cycle, self.playing)
             } else {
                 let position = raw.rem_euclid(duration);
                 let cycle = raw.div_euclid(duration);
@@ -228,7 +247,7 @@ impl<C: Clock> MediaTransport<C> {
             playing,
             mapping,
             duration: crop_duration,
-            looping: self.looping,
+            looping: loops,
             source_range: self.source_range,
             timeline,
             reverse,
@@ -264,7 +283,11 @@ impl<C: Clock> MediaTransport<C> {
         if current.playing {
             return Ok(());
         }
+        let anchor = current.held_anchor()?;
         let mut position = nanos(current.position)?;
+        if anchor != position {
+            return self.reanchor(anchor, true);
+        }
         if self.rate.numerator() > 0 && position == duration {
             position = 0;
         } else if self.rate.numerator() < 0 && position == 0 {
@@ -283,7 +306,7 @@ impl<C: Clock> MediaTransport<C> {
         if current.playing {
             return Ok(());
         }
-        self.reanchor(nanos(current.position)?, true)
+        self.reanchor(current.held_anchor()?, true)
     }
 
     /// Freeze at the current shared position, without changing the chosen rate.
@@ -292,7 +315,9 @@ impl<C: Clock> MediaTransport<C> {
         if !current.playing {
             return Ok(());
         }
-        self.reanchor(nanos(current.position)?, false)
+        self.reanchor(current.held_anchor()?, false)?;
+        self.held_repeat = !self.loop_start.is_zero() && current.cycle != 0;
+        Ok(())
     }
 
     /// Pause and return every channel to the shared zero position.
@@ -320,14 +345,19 @@ impl<C: Clock> MediaTransport<C> {
             return Ok(());
         }
         let current = self.sample()?;
+        let same_direction = (rate.numerator() < 0) == self.reverse();
+        let held = current.held_anchor()?;
+        let anchor = if same_direction { held } else { nanos(current.position)? };
         // A paused mapping stays paused; changing its future speed cannot invalidate the
         // exact frame neighbours needed by an immediately following Step command.
         if !current.playing {
+            if held != anchor {
+                self.reanchor(anchor, false)?;
+            }
             self.rate = rate;
             return Ok(());
         }
-        self.authority
-            .discontinuity(ShowPosition::from_nanos(nanos(current.position)?), rate)?;
+        self.authority.discontinuity(ShowPosition::from_nanos(anchor), rate)?;
         self.rate = rate;
         self.playing = current.playing;
         Ok(())
@@ -339,15 +369,30 @@ impl<C: Clock> MediaTransport<C> {
     }
 
     pub(super) fn set_loop_policy(&mut self, looping: bool, overlap: Duration) -> Result<(), TransportError> {
+        self.set_loop_section(looping, Duration::ZERO, overlap)
+    }
+
+    pub(super) fn set_loop_section(
+        &mut self,
+        looping: bool,
+        start: Duration,
+        overlap: Duration,
+    ) -> Result<(), TransportError> {
+        let start = if looping { start } else { Duration::ZERO };
         let overlap = if looping { overlap } else { Duration::ZERO };
-        if looping == self.looping && overlap == self.loop_overlap {
+        if looping == self.looping && start == self.loop_start && overlap == self.loop_overlap {
             return Ok(());
         }
         let current = self.sample()?;
         self.reanchor(nanos(current.position)?, current.playing)?;
         self.looping = looping;
+        self.loop_start = start;
         self.loop_overlap = overlap;
         Ok(())
+    }
+
+    fn reverse(&self) -> bool {
+        self.rate.numerator() < 0
     }
 
     fn validate_position(&self, position: Duration) -> Result<i64, TransportError> {
@@ -368,6 +413,7 @@ impl<C: Clock> MediaTransport<C> {
             if playing { self.rate } else { PlaybackRate::PAUSED },
         )?;
         self.playing = playing;
+        self.held_repeat = false;
         Ok(())
     }
 }

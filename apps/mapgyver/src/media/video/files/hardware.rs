@@ -150,7 +150,7 @@ impl Run {
             if !sample.needs_loop_companion() {
                 loop_pair = None;
             }
-            if sample.timeline.is_some() {
+            if sample.has_loop_overlap() {
                 // Fade publications never use timestamp-only reuse. Let the former ordinary
                 // image release its ring slot once its consumers and clock window retire.
                 cached = None;
@@ -159,7 +159,7 @@ impl Run {
                 if let Some(image) = publisher.poll()? {
                     let expected = pending.take().expect("one clock fence per submitted conversion");
                     let expected: PreparedFrame = expected;
-                    if expected.sample.timeline.is_none() {
+                    if !expected.sample.has_loop_overlap() {
                         cached = Some((expected.timestamp, image.clone()));
                     }
                     ready = Some((expected, image));
@@ -252,7 +252,7 @@ impl Run {
                         None
                     };
                     let changed = reader.advance(target.channel_position(reader.duration))?;
-                    let fade_changed = target.timeline.is_some()
+                    let fade_changed = target.has_loop_overlap()
                         && !reader.catching_up
                         && (scheduling::timed(target) || cursor != Some(target));
                     if changed || fade_changed {
@@ -350,7 +350,7 @@ impl Run {
                                 .submit(frame.d3d11_frame().ok_or("native decoder returned software storage")?)?
                         };
                         if submitted {
-                            if target.timeline.is_none() {
+                            if !target.has_loop_overlap() {
                                 software_image = None;
                             }
                             let frame = reader.neighbours()?.ok_or("Selected Video timestamps unavailable")?;
@@ -399,6 +399,9 @@ impl Run {
                                     image.clone(),
                                 ));
                                 cursor = Some(target);
+                                if target.timeline.is_some() {
+                                    loop_cursor = Some(super::super::frames::loop_window(target, frame)?);
+                                }
                                 waiting = true;
                             } else {
                                 self.control.refresh_gpu_neighbours(

@@ -36,16 +36,19 @@ pub(super) fn loop_window(
     use golden_time::ShowPosition;
     use golden_video::scheduling::FrameWindow;
     let window = window(sample, frame)?;
-    let Some(timeline) = sample.timeline.filter(|_| sample.playing) else {
+    let Some(timeline) = sample
+        .timeline
+        .filter(|timeline| sample.playing && !timeline.overlap().is_zero())
+    else {
         return Ok(window);
     };
     let position = sample.frame_position()?.position.as_nanos();
     let origin = sample.cycle_origin();
     let seam_start = origin
         + if sample.reverse {
-            0
+            sample.cycle_start().as_nanos() as i128
         } else {
-            timeline.cycle_duration().as_nanos() as i128
+            sample.duration.saturating_sub(timeline.overlap()).as_nanos() as i128
         };
     let seam_end = seam_start + timeline.overlap().as_nanos() as i128;
     let position = i128::from(position);

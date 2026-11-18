@@ -525,7 +525,9 @@ impl VideoControl {
             || state.settings.end_ms != settings.end_ms
             || state.settings.speed != settings.speed
             || state.settings.looping != settings.looping
-            || (settings.looping && state.settings.auto_smooth_loop_ms != settings.auto_smooth_loop_ms)
+            || (settings.looping
+                && (state.settings.auto_smooth_loop_ms != settings.auto_smooth_loop_ms
+                    || state.settings.loop_start_ms != settings.loop_start_ms))
             || state.settings.play_at_load != settings.play_at_load
         {
             state.manual_revision = state
@@ -719,12 +721,20 @@ impl State {
             .durations
             .first_key_value()
             .map_or(self.source_duration, |(shortest, _)| *shortest);
-        let overlap = self.transport.source_range().map_or(Duration::ZERO, |range| {
-            let shortest_cropped = range.end().min(shortest).saturating_sub(range.start());
-            Duration::from_secs_f64(self.settings.auto_smooth_loop_ms / 1_000.0).min(shortest_cropped / 2)
-        });
+        let (looping, start, overlap) =
+            self.transport
+                .source_range()
+                .map_or((self.settings.looping, Duration::ZERO, Duration::ZERO), |range| {
+                    let source_start =
+                        Duration::from_secs_f64(self.settings.loop_start_ms / 1_000.0).max(range.start());
+                    let start = source_start - range.start();
+                    let shared_tail = range.end().min(shortest).saturating_sub(source_start);
+                    let overlap =
+                        Duration::from_secs_f64(self.settings.auto_smooth_loop_ms / 1_000.0).min(shared_tail / 2);
+                    (self.settings.looping && start < range.duration(), start, overlap)
+                });
         self.transport
-            .set_loop_policy(self.settings.looping, overlap)
+            .set_loop_section(looping, start, overlap)
             .map_err(|error| error.to_string())
     }
 }

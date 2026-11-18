@@ -1,13 +1,15 @@
 use super::*;
 
 #[test]
-fn auto_smooth_loop_stays_authored_while_disabled_and_copies_independently() {
+fn intro_and_smooth_loop_controls_survive_disabled_history_copy_and_reload() {
     let mut engine = fixture();
     let reference = create(&mut engine, MediaKind::Video);
     let overlap = parameter(&engine, reference.media.0, "video_auto_smooth_loop_ms");
+    let loop_start = parameter(&engine, reference.media.0, "video_loop_start_ms");
     let looping = parameter(&engine, reference.media.0, "video_looping");
     let overlap_enabled = |engine: &AppEngine, node| engine.nodes.get(node).unwrap().node_data().meta.enabled;
     assert!(!overlap_enabled(&engine, overlap));
+    assert!(!overlap_enabled(&engine, loop_start));
     assert!(!engine.nodes.get(overlap).unwrap().node_data().meta.can_be_disabled);
     assert_eq!(state(&mut engine, reference.media).settings.auto_smooth_loop_ms, 0.0);
 
@@ -18,6 +20,8 @@ fn auto_smooth_loop_stays_authored_while_disabled_and_copies_independently() {
         VideoEdit::AutoSmoothLoop { duration_ms: 765.25 },
     );
     assert_eq!(authored.settings.auto_smooth_loop_ms, 765.25);
+    let authored = edit(&mut engine, reference.media, VideoEdit::LoopStart { start_ms: 4250.0 });
+    assert_eq!(authored.settings.loop_start_ms, 4250.0);
     assert!(!authored.settings.looping);
     assert!(!overlap_enabled(&engine, overlap));
     let history = engine.undo_len();
@@ -33,13 +37,16 @@ fn auto_smooth_loop_stays_authored_while_disabled_and_copies_independently() {
     engine.settle_edit_notifications(16).unwrap();
     assert_eq!(engine.undo_len(), history + 1);
     assert!(overlap_enabled(&engine, overlap));
+    assert!(overlap_enabled(&engine, loop_start));
     assert!(engine.undo().unwrap());
     engine.settle_edit_notifications(16).unwrap();
     assert!(!overlap_enabled(&engine, overlap));
+    assert!(!overlap_enabled(&engine, loop_start));
     assert_eq!(state(&mut engine, reference.media).settings.auto_smooth_loop_ms, 765.25);
     assert!(engine.redo().unwrap());
     engine.settle_edit_notifications(16).unwrap();
     assert!(overlap_enabled(&engine, overlap));
+    assert!(overlap_enabled(&engine, loop_start));
 
     let ack = apply_project_intent(
         &mut engine,
@@ -52,6 +59,25 @@ fn auto_smooth_loop_stays_authored_while_disabled_and_copies_independently() {
     assert!(ack.success, "{ack:?}");
     engine.settle_edit_notifications(16).unwrap();
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    edit(
+        &mut engine,
+        reference.media,
+        VideoEdit::Crop {
+            start_ms: 1000.0,
+            end_ms: Some(7500.0),
+        },
+    );
+    let invalid = invoke(
+        &mut engine,
+        MediaEdit::Video {
+            media: reference.media,
+            edit: VideoEdit::LoopStart { start_ms: 7500.0 },
+        },
+    );
+    assert!(!invalid.success);
+    assert!(engine.undo().unwrap());
+    engine.settle_edit_notifications(16).unwrap();
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), saved);
     for duration_ms in [-1.0, 9_000_000_000_001.0] {
         assert!(
             !invoke(
@@ -79,6 +105,7 @@ fn auto_smooth_loop_stays_authored_while_disabled_and_copies_independently() {
     let restored = state(&mut loaded, reference.media);
     assert!(!restored.settings.looping);
     assert_eq!(restored.settings.auto_smooth_loop_ms, 550.75);
+    assert_eq!(restored.settings.loop_start_ms, 4250.0);
     assert!(!overlap_enabled(
         &loaded,
         parameter(&loaded, reference.media.0, "video_auto_smooth_loop_ms")
@@ -104,8 +131,10 @@ fn auto_smooth_loop_stays_authored_while_disabled_and_copies_independently() {
         .unwrap()
         .id;
     assert_eq!(state(&mut loaded, copy).settings.auto_smooth_loop_ms, 550.75);
+    assert_eq!(state(&mut loaded, copy).settings.loop_start_ms, 4250.0);
     edit(&mut loaded, copy, VideoEdit::Loop { looping: true });
     edit(&mut loaded, copy, VideoEdit::AutoSmoothLoop { duration_ms: 200.0 });
+    edit(&mut loaded, copy, VideoEdit::LoopStart { start_ms: 1000.0 });
     assert!(overlap_enabled(
         &loaded,
         parameter(&loaded, copy.0, "video_auto_smooth_loop_ms")

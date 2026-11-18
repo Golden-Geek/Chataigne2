@@ -32,7 +32,7 @@ impl AudioTimeline {
         let Self(sample) = self;
         let rate = sample.mapping.rate();
         let step = i128::from(offset_ns) * i128::from(rate.numerator()) / i128::from(rate.denominator());
-        let raw = sample.cycle_origin() + sample.position.as_nanos() as i128 + step;
+        let raw = sample.unwrapped_position() + step;
         let crop_end = sample.duration.as_nanos() as i128;
         let reverse = rate.numerator() < 0;
         let (position, blend) = if let Some(timeline) = sample.timeline {

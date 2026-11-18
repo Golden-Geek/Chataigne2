@@ -5,7 +5,7 @@ use std::time::Duration;
 fn at(timeline: LoopTimeline, raw: i64, reverse: bool) -> LoopSample {
     let sample = timeline.sample(ShowPosition::from_nanos(raw), reverse).unwrap();
     assert_eq!(
-        timeline.origin_nanos(sample.cycle) + sample.position.as_nanos() as i128,
+        timeline.origin_nanos(sample.cycle, reverse) + sample.position.as_nanos() as i128,
         i128::from(raw)
     );
     sample
@@ -121,11 +121,39 @@ fn source_bounds_apply_only_to_repeats_and_explicit_blends_include_exact_endpoin
     assert_eq!(timeline.source_bounds(1, false), (ns(6), ns(20)));
     assert_eq!(timeline.source_bounds(-1, true), (ns(0), ns(14)));
     for (position, reverse, expected) in [(20, false, 6), (0, true, 14)] {
-        let blend = timeline.blend_at(ns(position), reverse).unwrap();
+        let blend = timeline.blend_at(ns(position), 0, reverse).unwrap();
         assert_eq!(blend.secondary_position, ns(expected));
         assert_eq!(blend.secondary_weight, 1.0);
         assert_eq!(blend.primary_weight(), 0.0);
     }
-    assert!(timeline.blend_at(ns(21), false).is_none());
-    assert!(timeline.blend_at(Duration::MAX, true).is_none());
+    assert!(timeline.blend_at(ns(21), 0, false).is_none());
+    assert!(timeline.blend_at(Duration::MAX, 0, true).is_none());
+}
+
+#[test]
+fn the_full_first_pass_joins_the_same_tail_in_both_directions() {
+    let ns = Duration::from_nanos;
+    let timeline = LoopTimeline::with_loop_start(ns(20), ns(12), ns(2)).unwrap();
+    assert_eq!(timeline.cycle_duration(), ns(6));
+    assert_eq!(timeline.source_bounds(0, false), (ns(0), ns(20)));
+    assert_eq!(timeline.source_bounds(1, false), (ns(14), ns(20)));
+    assert_eq!(timeline.source_bounds(-1, true), (ns(12), ns(18)));
+    assert!(LoopTimeline::with_loop_start(ns(20), ns(20), ns(2)).is_none());
+    for repeat in [0, 1, 2, 10_000] {
+        let seam = 20 + repeat * 6;
+        let outgoing = at(timeline, seam - 1, false);
+        let blend = outgoing.blend.unwrap();
+        assert_eq!(outgoing.position, ns(19));
+        assert_eq!((blend.secondary_position, blend.secondary_weight), (ns(13), 0.5));
+        let next = at(timeline, seam, false);
+        assert_eq!((next.cycle, next.position), (repeat + 1, ns(14)));
+    }
+    for repeat in [0, 1, 2, 10_000] {
+        let seam = -repeat * 6;
+        let outgoing = at(timeline, seam + 1, true);
+        let blend = outgoing.blend.unwrap();
+        assert_eq!((blend.secondary_position, blend.secondary_weight), (ns(19), 0.5));
+        let next = at(timeline, seam, true);
+        assert_eq!((next.cycle, next.position), (-repeat - 1, ns(18)));
+    }
 }

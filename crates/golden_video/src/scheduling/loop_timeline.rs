@@ -37,6 +37,7 @@ pub struct LoopSample {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct LoopTimeline {
     duration: i64,
+    loop_start: i64,
     overlap: i64,
 }
 
@@ -44,9 +45,28 @@ impl LoopTimeline {
     /// Admit a known nonzero duration on the signed timeline. The overlap is capped at half
     /// the footage, so its two source ranges never overlap each other and repeats still advance.
     pub fn new(duration: Duration, requested_overlap: Duration) -> Option<Self> {
+        Self::with_loop_start(duration, Duration::ZERO, requested_overlap)
+    }
+
+    /// Play the full range on the first pass and repeat the tail from `loop_start`.
+    /// The overlap is bounded by half of that repeat section.
+    pub fn with_loop_start(duration: Duration, loop_start: Duration, requested_overlap: Duration) -> Option<Self> {
         let duration = i64::try_from(duration.as_nanos()).ok()?;
-        let overlap = requested_overlap.as_nanos().min((duration / 2) as u128) as i64;
-        (duration > 0).then_some(Self { duration, overlap })
+        let loop_start = i64::try_from(loop_start.as_nanos()).ok()?;
+        if loop_start >= duration {
+            return None;
+        }
+        let overlap = requested_overlap.as_nanos().min(((duration - loop_start) / 2) as u128) as i64;
+        Some(Self {
+            duration,
+            loop_start,
+            overlap,
+        })
+    }
+
+    /// First file-relative coordinate in the authored repeat section.
+    pub fn loop_start(self) -> Duration {
+        media_time(self.loop_start)
     }
 
     /// Effective overlap in media time, independent of playback speed.
@@ -61,7 +81,11 @@ impl LoopTimeline {
 
     /// First file position in the next repeat, once the incoming overlap was consumed.
     pub fn restart_position(self, reverse: bool) -> Duration {
-        media_time(if reverse { self.period() } else { self.overlap })
+        media_time(if reverse {
+            self.duration - self.overlap
+        } else {
+            self.loop_start + self.overlap
+        })
     }
 
     /// Bounds of file timestamps that belong to the cycle. The caller owns endpoint inclusion
@@ -69,8 +93,8 @@ impl LoopTimeline {
     pub fn source_bounds(self, cycle: i64, reverse: bool) -> (Duration, Duration) {
         let (first, last) = match (cycle == 0, reverse) {
             (true, _) => (0, self.duration),
-            (false, false) => (self.overlap, self.duration),
-            (false, true) => (0, self.period()),
+            (false, false) => (self.loop_start + self.overlap, self.duration),
+            (false, true) => (self.loop_start, self.duration - self.overlap),
         };
         (media_time(first), media_time(last))
     }
@@ -79,8 +103,13 @@ impl LoopTimeline {
     ///
     /// Keep this wide until after adding the frame's file timestamp. Near the limits of the
     /// signed clock, an offset itself can fall outside that range while the sum still fits.
-    pub fn origin_nanos(self, cycle: i64) -> i128 {
-        i128::from(cycle) * i128::from(self.period())
+    pub fn origin_nanos(self, cycle: i64, reverse: bool) -> i128 {
+        let phase = if reverse && cycle != 0 {
+            i128::from(self.loop_start)
+        } else {
+            0
+        };
+        i128::from(cycle) * i128::from(self.period()) - phase
     }
 
     /// Project the unwrapped coordinate from the shared clock. Reverse owns the upper seam
@@ -92,51 +121,62 @@ impl LoopTimeline {
         let period = i128::from(self.period());
         let duration = i128::from(self.duration);
         let overlap = i128::from(self.overlap);
+        let loop_start = i128::from(self.loop_start);
         let (position, cycle) = if reverse {
             if raw > 0 && raw <= duration {
                 (raw, 0)
             } else {
                 // Reverse intervals contain their upper endpoint and exclude the lower one.
                 let distance = raw - 1;
-                (distance.rem_euclid(period) + 1, distance.div_euclid(period))
+                (
+                    loop_start + distance.rem_euclid(period) + 1,
+                    distance.div_euclid(period),
+                )
             }
         } else if raw >= 0 && raw < duration {
             (raw, 0)
         } else {
-            let distance = raw - overlap;
-            (distance.rem_euclid(period) + overlap, distance.div_euclid(period))
+            let distance = raw - loop_start - overlap;
+            (
+                distance.rem_euclid(period) + loop_start + overlap,
+                distance.div_euclid(period),
+            )
         };
         let position = position as i64;
+        let cycle = i64::try_from(cycle).ok()?;
         Some(LoopSample {
             position: media_time(position),
-            cycle: i64::try_from(cycle).ok()?,
-            blend: self.blend(position, reverse),
+            cycle,
+            blend: self.blend(position, cycle, reverse),
         })
     }
 
     fn period(self) -> i64 {
-        self.duration - self.overlap
+        self.duration - self.loop_start - self.overlap
     }
 
     /// Project the blend at a file position, including explicit seeks or paused playback.
     /// The exact terminal endpoint evaluates to full incoming weight. Positions outside
     /// the source duration do not describe a seam.
-    pub fn blend_at(self, position: Duration, reverse: bool) -> Option<LoopBlend> {
+    pub fn blend_at(self, position: Duration, cycle: i64, reverse: bool) -> Option<LoopBlend> {
         let position = i64::try_from(position.as_nanos()).ok()?;
         (position <= self.duration)
-            .then(|| self.blend(position, reverse))
+            .then(|| self.blend(position, cycle, reverse))
             .flatten()
     }
 
-    fn blend(self, position: i64, reverse: bool) -> Option<LoopBlend> {
+    fn blend(self, position: i64, cycle: i64, reverse: bool) -> Option<LoopBlend> {
         if self.overlap == 0 {
             return None;
         }
-        let (consumed, incoming) = if reverse && position <= self.overlap {
-            (self.overlap - position, self.period() + position)
-        } else if !reverse && position >= self.period() {
-            let consumed = position - self.period();
-            (consumed, consumed)
+        let reverse_start = if cycle == 0 { 0 } else { self.loop_start };
+        let forward_start = self.duration - self.overlap;
+        let (consumed, incoming) = if reverse && (reverse_start..=reverse_start + self.overlap).contains(&position) {
+            let consumed = reverse_start + self.overlap - position;
+            (consumed, self.duration - consumed)
+        } else if !reverse && position >= forward_start {
+            let consumed = position - forward_start;
+            (consumed, self.loop_start + consumed)
         } else {
             return None;
         };

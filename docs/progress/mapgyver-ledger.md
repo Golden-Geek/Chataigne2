@@ -8,8 +8,8 @@ Internal execution/evidence ledger. The user-facing checklist is `mapgyver-statu
 
 **Displays:** Latest native Surface-link fixture used the laptop at2560x1600/125% and an owned main-window Screen preview on NVIDIA. [Earlier physical hotplug, arrangement and restoration](evidence/mapgyver-m05-hotplug-2026-11-06.json) remain accepted for their tested two-display/both-GPU scope. Current control checks do not requalify external topology.
 
-**Current topic:** [Video audio](evidence/mapgyver-m16-video-audio-2026-11-18.json) passes normal use, including two independent channels in one Media. M16/1 retains OS-level signal capture and a physical disconnect/reconnect.
-**Next action:** M16/2 adds intro-to-loop playback, including a separate loop Video and optional audio source.
+**Current topic:** [Single-file Video intro and loop](evidence/mapgyver-m16-video-intro-loop-2026-11-18.json) passes native picture and audio checks. M16/2 remains Active.
+**Next action:** Add a separate loop Video and optional independent loop audio on the same transport, including file-loss recovery and timed handoff.
 **Overlay prerequisite cleared:** On2026-11-16 the user checked native Settings and confirmed Off, then instructed standing Off state for now (recorded16:23UTC). Use it until the user reports or authoritative evidence shows a change; do not ask before each run. All original GPU/correctness/resource budgets remain. Desktop-helper repairs are not required for this finite SDK pixel fixture.
 **Retained blockers:** M10/4 retains unfinished age/full-GPU-path, shared-consumer, profile/repeated/performance-tier/resource/recovery qualification. [NVIDIA H.264](evidence/mapgyver-m10-h264-nvidia-2026-11-14.json) meets original cadence/CPU envelopes for one cohort and has complete connected direct-File pixel/PTS evidence. Its4K30 age upper59.3588/58.7843ms does not establish50ms; shared Reference is held-only and whole GPU path remains unproved. Earlier [two4K60 HAP](evidence/mapgyver-m10-two-4k60-hap-2026-11-13.json), [ProRes](evidence/mapgyver-m10-prores-alpha-sustained-2026-11-13.json), [resident Intel](evidence/mapgyver-m10-resident-sustained-2026-11-13.json) and [HAP variants](evidence/mapgyver-m10-hap-variants-sustained-2026-11-13.json) retain exact failures/scopes. The2026-11-16 native Settings confirmation and standing Off instruction govern subsequent cohorts. The M14 raster run establishes no M10 timing/performance claim. M08/4 WOW64 and M03/9 timing/growth debt remain; user-accepted smoothness/AA stay accepted.
 **Current native limit:** [Corrected M03 lifecycle](evidence/mapgyver-m03-late-drain-2026-11-05.json) confirms 53.602 MiB peak growth against 32 MiB across all 100 cycles, with matching environment identities and fresh paired overlay-Off observations. Handles/live allocations return and shutdown takes 116 ms; peak growth still fails. The untracked private-memory cause is unproven; earlier failures remain preserved.
@@ -138,7 +138,7 @@ or gate was accepted by merging the plan.
 
 ## Execution board and return queue
 
-**Current delivered feature:** [Video audio](evidence/mapgyver-m16-video-audio-2026-11-18.json) plays two embedded audio streams on independent virtual outputs with per-channel Volume and mute, including seek, project reload and reopening a WASAPI stream.
+**Current delivered feature:** [Single-file Video intro and loop](evidence/mapgyver-m16-video-intro-loop-2026-11-18.json) plays the cropped intro once and repeats from the authored Loop Start. Two natural wraps, Screen pixels, WASAPI mixer signals and the held smooth blend passed.
 
 M16/2 Video intro and loop is the sole Active gate. The following features are earlier SGF feedback (M16/3–6) → codecs → Gradient. M16/1 and M10/8–10 retain native qualification Pending. M15/5 retains presentation qualification Pending; M15/1–4,6–9,11–15 are Accepted. Selected M14 features retain qualification
 Pending; M14/1 is user-deferred and M14/6 retains external/keyboard return triggers.
@@ -230,7 +230,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | Accepted | M16/13 | [Empty Cell hover verification](evidence/mapgyver-m16-empty-cell-hover-2026-11-18.json). The contour survives crossing onto and off the Add Media button within the Cell, clears on exit, and permits mouse and keyboard activation. |
 | Accepted | M16/14 | [Compact controls verification](evidence/mapgyver-m16-compact-controls-2026-11-18.json). Right-edge vertical Opacity and compact Blend Mode use the Inspector's typed Parameters. Keyboard access, Undo/Redo, narrow-dock layout, adaptive preview geometry and sparse reload pass. |
 | Pending | M16/1 | [Video audio](evidence/mapgyver-m16-video-audio-2026-11-18.json) passed functional checks on a live WASAPI stream. Return in the hardware qualification batch with a controllable audio endpoint. Measure the routed output through OS-level capture, disconnect that exact device during playback and verify automatic restoration at the current transport time. |
-| Active | M16/2 | Deliver the single-file end loop and separate loop file, with optional independent loop audio. Verify handoff, repeated playback and synchronization. |
+| Active | M16/2 | [Single-file intro and tail loop](evidence/mapgyver-m16-video-intro-loop-2026-11-18.json) passed. Remaining: separate loop Video and optional independent loop audio, with native handoff, repeated seams, seek, Stop, missing-file recovery and persistence. |
 | Pending | M16/3 | After M16/2, deliver Matrix Cells that inherit media audio, use their own audio, or play audio only. Verify routing and playback transitions. |
 | Pending | M16/4 | After M16/3, deliver a `golden_core` OSCQuery service for all Golden apps with Preferences, Zeroconf, full hierarchy, undoable edits, OSC address UI and client-specific feedback. Verify shared-host reuse, app port defaults, service recovery and burst behavior. |
 | Pending | M16/5 | After M16/4, remove transient black frames in Surface Editor and Media Preview. Verify native same-source reuse and different-source continuity. |
@@ -275,7 +275,7 @@ all-target strict checks already pass; no bare-d3d11 all-target pass is claimed.
   investigation and its limits; fix `2d29e381` is pushed. Do not reopen unchanged source probes.
   Git delivery uses existing HTTPS credentials per command; the saved SSH remote is unchanged.
   Preserve concurrent user work and the running user's locked executable.
-- **Current batch — Video audio playback (2026-11-18 20:03–20:48 UTC):** [Functional checkpoint](evidence/mapgyver-m16-video-audio-2026-11-18.json) passed 13 bundled WASAPI mixer cases and 13 focused Rust tests. M16/1 returns for OS-level signals and physical device recovery. M16/2 is next. Overall acceptance stays 113/137.
+- **Current batch — Single-file Video intro and loop (2026-11-18 20:37–21:22 UTC):** [Checkpoint](evidence/mapgyver-m16-video-intro-loop-2026-11-18.json) passed 40 focused Rust tests and bundled NVIDIA Screen pixels plus live WASAPI mixer signals. The two wraps returned to crop-relative 3000 ms. M16/2 stays Active for the separate loop file and optional loop audio. Overall acceptance stays 113/137.
 
 ## Feedback delivery cadence
 

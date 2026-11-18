@@ -3,6 +3,7 @@ use super::*;
 mod audio;
 mod fade;
 mod frames;
+mod intro_loop;
 mod membership;
 #[cfg(feature = "video-files")]
 mod metadata;

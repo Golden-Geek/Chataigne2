@@ -76,6 +76,8 @@ pub struct VideoTransportSettings {
     pub end_ms: Option<f64>,
     pub speed: f64,
     pub looping: bool,
+    /// Source time of the repeat entry. Zero follows the crop start.
+    pub loop_start_ms: f64,
     /// Authored duration in milliseconds. Loop off keeps the value for later.
     pub auto_smooth_loop_ms: f64,
     pub play_at_load: bool,
@@ -91,6 +93,7 @@ impl Default for VideoTransportSettings {
             end_ms: None,
             speed: 1.0,
             looping: false,
+            loop_start_ms: 0.0,
             auto_smooth_loop_ms: 0.0,
             play_at_load: false,
             on_activate: VideoOnActivate::default(),
@@ -108,6 +111,9 @@ impl VideoTransportSettings {
         }
         if !self.auto_smooth_loop_ms.is_finite() || !(0.0..=9_000_000_000_000.0).contains(&self.auto_smooth_loop_ms) {
             return Err("Video Auto-Smooth Loop must be finite milliseconds in 0..9000000000000".into());
+        }
+        if !(0.0..=9_000_000_000_000.0).contains(&self.loop_start_ms) {
+            return Err("Video Loop Start must be finite milliseconds in 0..9000000000000".into());
         }
         if !(0.0..=9_000_000_000_000.0).contains(&self.start_ms) {
             return Err("Video Start must be finite milliseconds in 0..9000000000000".into());
@@ -133,6 +139,27 @@ impl VideoTransportSettings {
         // Only bound a new Start, leaving an already authored range editable after relinking.
         if self.start_ms != previous_start_ms && self.start_ms >= duration {
             return Err("Video Start must precede the end of the available source".into());
+        }
+        Ok(())
+    }
+
+    pub(crate) fn validate_loop_start_change(
+        &self,
+        previous: f64,
+        source_duration_ms: Option<f64>,
+    ) -> Result<(), String> {
+        if self.loop_start_ms == previous || self.loop_start_ms == 0.0 {
+            return Ok(());
+        }
+        let start = Duration::try_from_secs_f64(self.loop_start_ms / 1_000.0)
+            .map_err(|_| "Video Loop Start must be finite and nonnegative")?;
+        let end = [self.end_ms, source_duration_ms]
+            .into_iter()
+            .flatten()
+            .filter(|item| *item > 0.0)
+            .reduce(f64::min);
+        if end.is_some_and(|end| Duration::from_secs_f64(end / 1_000.0) <= start) {
+            return Err("Video Loop Start must precede the available End".into());
         }
         Ok(())
     }
@@ -166,6 +193,9 @@ pub enum VideoEdit {
     },
     Loop {
         looping: bool,
+    },
+    LoopStart {
+        start_ms: f64,
     },
     AutoSmoothLoop {
         duration_ms: f64,

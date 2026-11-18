@@ -2,8 +2,8 @@
 
 - **Updated:** 18 November 2026.
 - **Overall plan acceptance:** `████████░░` **82% — 113/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** Video playback has independent audio routing, volume and mute for each channel.
-- **Working on next:** Video intro and loop, including an optional separate loop file and audio.
+- **Latest delivered:** A Video can play its intro once, then repeat from the authored Loop Start with picture and audio.
+- **Working on next:** Separate loop Video files and optional loop audio.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -48,10 +48,11 @@
 - [x] **App presentation:** MapGyver identity/icon, official calibration pattern, font/menu/Inspector improvements and thumbnail Fit behavior.
 - [x] **Audio Preferences:** enable output, choose System Default or a specific device, and add or remap virtual outputs. Native stream, missing-device selection, project replacement and restart passed. [Checks](evidence/mapgyver-m16-audio-output-settings-2026-11-18.json)
 - [x] **Video audio:** open **Inspector → Channels → Audio** to assign the left and right signals to named virtual outputs, set Volume, or mute that channel. Two clips, live remapping, gain, pause/seek/stop, device reopening and project reload passed. [Checks](evidence/mapgyver-m16-video-audio-2026-11-18.json)
+- [x] **Single-file Video intro and loop:** enable Loop and set **Loop Start** to a source time. The intro plays once and the picture and audio repeat the tail. Natural wraps, held smooth blend, seek, Stop, and saved settings passed. [Checks](evidence/mapgyver-m16-video-intro-loop-2026-11-18.json)
 
 ## Next features — implementation order
 
-1. **NOW — Video intro and loop.** Loop the end of one file or play a separate loop file, with optional separate loop audio.
+1. **NOW — Separate Video loop file.** Play a separate Video after the intro and allow independent loop audio.
 2. **Matrix Cell audio.** Use the media's audio, give the Cell its own audio, or play audio only.
 3. **OSCQuery for all Golden apps.** Implement discovery, undoable node edits and live feedback in Golden Core, with configurable ports per app.
 4. **Seamless previews.** Remove black flashes in Surface Editor and Media Preview, and reuse the source when two Surfaces share media.

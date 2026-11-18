@@ -104,3 +104,32 @@ fn matrix_start_and_stop_use_crop_zero() {
     assert_eq!(stopped.position, Duration::ZERO);
     assert_eq!(stopped.channel_position(seconds(20)), seconds(4));
 }
+
+#[test]
+fn a_shorter_source_disables_the_effective_tail_until_its_authored_start_is_available() {
+    let control = VideoControl::default();
+    control.prepare(seconds(10)).unwrap();
+    control
+        .configure(
+            VideoTransportSettings {
+                start_ms: 2000.0,
+                end_ms: Some(8000.0),
+                looping: true,
+                loop_start_ms: 6000.0,
+                auto_smooth_loop_ms: 9000.0,
+                ..Default::default()
+            },
+            false,
+            None,
+        )
+        .unwrap();
+    let initial = control.sample().unwrap().timeline.unwrap();
+    assert_eq!((initial.loop_start(), initial.overlap()), (seconds(4), seconds(1)));
+    control.prepare(seconds(5)).unwrap();
+    let transport = control.sample().unwrap();
+    assert!(!transport.looping);
+    assert!(transport.timeline.is_none());
+    assert_eq!(control.settings().unwrap().loop_start_ms, 6000.0);
+    control.prepare(seconds(10)).unwrap();
+    assert_eq!(control.sample().unwrap().timeline, Some(initial));
+}

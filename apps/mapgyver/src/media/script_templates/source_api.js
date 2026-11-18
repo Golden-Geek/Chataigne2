@@ -19,6 +19,7 @@ function sourceExamples(mediaId, channelId, assetId) {
 	// local.seekVideo("seek", mediaId, 1250.5); // crop-relative milliseconds; edits the same Parameter as the Inspector
 	// local.setVideoSpeed("speed", mediaId, 0.5); local.setVideoLoop("loop", mediaId, true);
 	// local.setVideoAutoSmoothLoop("loop-overlap", mediaId, 750); // milliseconds; 0 disables smoothing
+	// local.setVideoLoopStart("loop-start", mediaId, 1500); // source milliseconds; 0 follows Start
 	// local.setVideoPlayAtLoad("load", mediaId, true);
 	// local.setVideoOnActivate("activate", mediaId, "Resume"); // PlayFromStart (default), Resume, Nothing
 	// local.setVideoOnDeactivate("deactivate", mediaId, "Pause"); // Stop (default), Pause, Nothing

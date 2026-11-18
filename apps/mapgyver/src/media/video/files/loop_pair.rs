@@ -76,7 +76,7 @@ impl LoopPair {
             if sample.reverse {
                 sample.duration
             } else {
-                Duration::ZERO
+                sample.timeline.map_or(Duration::ZERO, |timeline| timeline.loop_start())
             },
             |value| value.secondary_position,
         );

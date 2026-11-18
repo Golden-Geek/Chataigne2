@@ -20,6 +20,10 @@ start_ms: number,
  */
 end_ms: number | null, speed: number, looping: boolean,
 /**
+ * Source time of the repeat entry. Zero follows the crop start.
+ */
+loop_start_ms: number,
+/**
  * Authored duration in milliseconds. Loop off keeps the value for later.
  */
 auto_smooth_loop_ms: number, play_at_load: boolean, on_activate: VideoOnActivate, on_deactivate: VideoOnDeactivate, };

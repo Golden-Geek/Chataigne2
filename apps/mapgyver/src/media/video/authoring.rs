@@ -140,6 +140,11 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: VideoEdit) -> 
             candidate.end_ms = *end_ms;
         }
         VideoEdit::Speed { speed } => candidate.speed = *speed,
+        VideoEdit::LoopStart { start_ms } => {
+            let before = candidate.loop_start_ms;
+            candidate.loop_start_ms = *start_ms;
+            candidate.validate_loop_start_change(before, control.source_duration_ms()?)?;
+        }
         VideoEdit::AutoSmoothLoop { duration_ms } => candidate.auto_smooth_loop_ms = *duration_ms,
         VideoEdit::PlayAtLoad { enabled } => candidate.play_at_load = *enabled,
         _ => {}

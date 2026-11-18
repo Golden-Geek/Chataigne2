@@ -257,6 +257,10 @@ export const COMMAND_PARAMETER_FIELDS = {
     "media",
     "video_looping"
   ],
+  "VideoLoopStart": [
+    "media",
+    "video_loop_start_ms"
+  ],
   "VideoOnActivate": [
     "media",
     "video_on_activate"

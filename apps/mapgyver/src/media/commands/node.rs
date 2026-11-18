@@ -108,6 +108,8 @@ use std::sync::Arc;
             constraint_policy = "reject");
         video_speed: f64 = 1.0 [-16.0..16.0] (label = "Speed", constraint_policy = "reject");
         video_looping: bool = false (label = "Loop");
+        video_loop_start_ms: f64 = 0.0 [0.0..9000000000000.0] (
+            label = "Loop Start", widget = "time", unit = "ms", constraint_policy = "reject");
         video_auto_smooth_loop_ms: f64 = 0.0 [0.0..9000000000000.0] (
             label = "Auto-Smooth Loop", widget = "time", unit = "ms", constraint_policy = "reject");
         video_play_at_load: bool = false (label = "Play at Load");
@@ -228,6 +230,12 @@ impl MediaCommandNode {
                 media,
                 edit: super::super::video::protocol::VideoEdit::AutoSmoothLoop {
                     duration_ms: self.video_auto_smooth_loop_ms.get(),
+                },
+            },
+            MediaCommandKind::VideoLoopStart => MediaEdit::Video {
+                media,
+                edit: super::super::video::protocol::VideoEdit::LoopStart {
+                    start_ms: self.video_loop_start_ms.get(),
                 },
             },
             MediaCommandKind::VideoCrop => MediaEdit::Video {
