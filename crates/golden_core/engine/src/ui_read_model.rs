@@ -11,12 +11,16 @@
 //! the same actor turn completes. Incremental publication advances copy-on-write projection roots
 //! in O(changed nodes); only an explicit snapshot consumer pays for O(N) materialization.
 
+mod parameter_feedback;
 mod projection;
 mod projection_store;
 mod retained_events;
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex, OnceLock, RwLock};
+
+use golden_io::{RevisionReader, RevisionSource};
+pub use parameter_feedback::{PublishedParameterChange, PublishedParameterFeedback};
 
 use crate::app::ProjectGeneration;
 use crate::contexts::{UiUserContextsDto, UserContextValueType};
@@ -186,6 +190,7 @@ pub struct UiReadModel {
     latest_event_time: Mutex<Option<EngineTime>>,
     /// Latest runtime timing metrics sampled by the host loop.
     runtime_stats: Mutex<Option<UiRuntimeStatsDto>>,
+    event_revision: OnceLock<RevisionSource>,
 }
 
 impl UiReadModel {
@@ -225,6 +230,7 @@ impl UiReadModel {
             last_evicted_event_time: Mutex::new(None),
             latest_event_time: Mutex::new(latest_event_time),
             runtime_stats: Mutex::new(None),
+            event_revision: OnceLock::new(),
         }
     }
 
@@ -296,6 +302,12 @@ impl UiReadModel {
             project_generation: projection.header.project_generation.get(),
             at: projection.header.at,
         }
+    }
+
+    /// Wakes consumers after an event batch or replacement has been published. This is a
+    /// notification to read the model, independent of the engine's replay cursor.
+    pub fn event_revision(&self) -> RevisionReader {
+        self.event_revision.get_or_init(RevisionSource::default).reader()
     }
 
     /// Replays within one project lifetime without holding publication across scope filtering.
@@ -430,6 +442,9 @@ impl UiReadModel {
         } else {
             RetainedEventLog::default()
         };
+        if let Some(revision) = self.event_revision.get() {
+            revision.advance();
+        }
         RetiredUiReadModelState {
             _projection: previous_projection,
             _snapshot: previous_snapshot,
@@ -538,6 +553,10 @@ impl UiReadModel {
         if let Some(t) = batch_time {
             let mut guard = self.latest_event_time.lock().expect("ui read model poisoned");
             *guard = Some(guard.map_or(t, |existing| existing.max(t)));
+            drop(guard);
+            if let Some(revision) = self.event_revision.get() {
+                revision.advance();
+            }
         }
 
         batch

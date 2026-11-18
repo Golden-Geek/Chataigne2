@@ -11,6 +11,7 @@ base64.workspace = true
 dom_query = "0.27"
 getrandom = "0.4"
 golden_engine = { path = "../../engine" }
+golden_io.workspace = true
 golden_persistence.workspace = true
 golden_protocol = { path = "../../services/protocol" }
 futures-util = "0.3"

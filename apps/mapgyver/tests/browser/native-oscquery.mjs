@@ -20,7 +20,15 @@ await once(reservation, 'listening');
 const selectedPort = reservation.address().port;
 await new Promise((resolve) => reservation.close(resolve));
 const native = await openNativeEditor();
-let token, failure, defaultPort, info, rootContents, oscEdit, managerCommands, lanControl;
+let token,
+	failure,
+	defaultPort,
+	info,
+	rootContents,
+	oscEdit,
+	managerCommands,
+	lanControl,
+	liveFeedback;
 
 async function post(route, body) {
 	const response = await fetch(native.base + route, {
@@ -192,6 +200,42 @@ async function checkScreenCommands() {
 	}
 }
 
+async function checkLiveFeedback() {
+	const tree = await (await query('/screens')).json();
+	const opacity = findOpacity(tree);
+	const address = opacity.FULL_PATH;
+	const changed = opacity.VALUE[0] === 0.625 ? 0.375 : 0.625;
+	const socket = new WebSocket(`ws://127.0.0.1:${selectedPort}/`);
+	socket.binaryType = 'arraybuffer';
+	const next = (type) => once(socket, type, { signal: AbortSignal.timeout(5000) });
+	try {
+		await next('open');
+		const acknowledged = next('message');
+		socket.send(JSON.stringify({ COMMAND: 'LISTEN', DATA: address }));
+		const [ack] = await acknowledged;
+		assert.equal(JSON.parse(ack.data).DATA.ok, true);
+		const feedback = next('message');
+		const started = performance.now();
+		await sendFloat(address, changed);
+		const [event] = await feedback;
+		const elapsedMs = performance.now() - started;
+		const packet = Buffer.from(event.data);
+		const end = packet.indexOf(0);
+		assert.equal(packet.subarray(0, end).toString(), address);
+		const tag = Math.ceil((end + 1) / 4) * 4;
+		assert.equal(packet.subarray(tag, tag + 2).toString(), ',f');
+		assert.equal(packet.readFloatBE(tag + 4), changed);
+		assert(elapsedMs < 140, `OSCQuery feedback was delayed by ${elapsedMs}ms`);
+		const closed = next('close');
+		assert((await post('/api/ui/project-new', {})).ok);
+		await closed;
+		assert((await query('/?HOST_INFO'))?.ok);
+		return { address, sent: changed, received: changed, elapsedMs, projectRetirement: 'pass' };
+	} finally {
+		socket.close();
+	}
+}
+
 try {
 	token = (await post('/api/ui/session', {})).token;
 	const { nodes } = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
@@ -257,8 +301,10 @@ try {
 		oscEdit = { address: opacity.FULL_PATH, original, changed, undoAndRedo: 'pass' };
 		managerCommands = await checkScreenCommands();
 		if (process.argv.includes('--lan')) lanControl = await checkLanControl(allowLan);
+		liveFeedback = await checkLiveFeedback();
+	} else {
+		assert((await post('/api/ui/project-new', {})).ok);
 	}
-	assert((await post('/api/ui/project-new', {})).ok);
 	const replaced = (await post('/api/ui/snapshot', { scope: 'wholeGraph' })).nodes;
 	const savedCategory = replaced.find((node) => node.decl_id === 'oscquery');
 	assert(savedCategory.meta.enabled, 'OSCQuery enablement survives project replacement');
@@ -287,7 +333,8 @@ try {
 				rootContents,
 				oscEdit,
 				managerCommands,
-				lanControl
+				lanControl,
+				liveFeedback
 			},
 			null,
 			2

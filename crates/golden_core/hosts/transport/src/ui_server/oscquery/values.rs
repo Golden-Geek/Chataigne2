@@ -81,6 +81,35 @@ pub(super) fn incoming(target: &ParamValue, args: &[OscType]) -> Option<ParamVal
     })
 }
 
+pub(super) fn outgoing(value: &ParamValue) -> Option<Vec<OscType>> {
+    use OscType as Osc;
+    use ParamValue as Param;
+    let text = |value: &str| (!value.contains('\0')).then(|| vec![Osc::String(value.into())]);
+    let floats = |values: &[f64]| {
+        values
+            .iter()
+            .map(|value| {
+                let value = *value as f32;
+                value.is_finite().then_some(Osc::Float(value))
+            })
+            .collect::<Option<Vec<_>>>()
+    };
+    match value {
+        Param::Trigger() => Some(vec![Osc::Inf]),
+        Param::Int(value) => Some(vec![Osc::Int(*value)]),
+        Param::Float(value) => floats(&[*value]),
+        Param::Bool(value) => Some(vec![Osc::Int(i32::from(*value))]),
+        Param::Str(value) | Param::File(value) | Param::Enum(value) => text(value),
+        Param::Bytes(bytes) => Some(vec![Osc::Blob(bytes.clone())]),
+        Param::Vec2(x, y) => floats(&[*x, *y]),
+        Param::Vec3(x, y, z) => floats(&[*x, *y, *z]),
+        Param::Color(r, g, b, a) => floats(&[*r, *g, *b, *a]),
+        Param::CssValue(value) => text(&value.to_string()),
+        Param::Reference(value) if value.is_empty() => text(""),
+        Param::Reference(value) => text(&value.uuid.0.to_string()),
+    }
+}
+
 fn number(value: &OscType) -> Option<f64> {
     let value = match value {
         OscType::Float(value) => f64::from(*value),

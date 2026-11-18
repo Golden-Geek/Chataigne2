@@ -1,4 +1,4 @@
-use super::{Settings, graph, preferences};
+use super::{Settings, feedback::Feedback, graph, preferences};
 use crate::ui_server::{ServerState, save_preferences_after_change};
 use golden_engine::{app::ProjectLifecycle, parameter::Color, ui_read_model::UiSnapshotCapture};
 use golden_protocol::{NodeMetaPatch, UiEditIntent, UiNodeDto, UiSubscriptionScope};
@@ -13,6 +13,24 @@ struct Request {
     data: Value,
     #[serde(rename = "ID")]
     id: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum SubscriptionData {
+    Address(String),
+    AddressOnly((String,)),
+    AddressAndFeedback((String, bool)),
+    Options {
+        address: String,
+        #[serde(rename = "sendFeedback", default)]
+        send_feedback: bool,
+    },
+}
+
+pub(super) struct Reply {
+    pub(super) data: Value,
+    pub(super) initial_value: Option<Vec<u8>>,
 }
 
 #[derive(Deserialize)]
@@ -70,12 +88,30 @@ struct Prepared<'a> {
     add_address: Option<String>,
 }
 
-pub(super) fn handle<T: ProjectLifecycle>(state: &ServerState<T>, settings: Settings, text: &str) -> Value {
+pub(super) fn handle<T: ProjectLifecycle>(
+    state: &ServerState<T>,
+    settings: Settings,
+    feedback: &mut Feedback,
+    text: &str,
+) -> Reply {
     let request = match serde_json::from_str::<Request>(text) {
         Ok(request) => request,
-        Err(_) => return json!({ "COMMAND": "RESULT", "DATA": { "ok": false, "error": "Invalid OSCQuery command" } }),
+        Err(_) => {
+            return Reply {
+                data: json!({ "COMMAND": "RESULT", "DATA": { "ok": false, "error": "Invalid OSCQuery command" } }),
+                initial_value: None,
+            };
+        }
     };
-    let result = apply(state, settings, &request);
+    let mut initial_value = None;
+    let result = if matches!(request.command.as_str(), "LISTEN" | "IGNORE") {
+        subscription(state, settings, feedback, &request).map(|initial| {
+            initial_value = initial;
+            None
+        })
+    } else {
+        apply(state, settings, &request)
+    };
     let mut response = json!({ "COMMAND": "RESULT", "DATA": { "command": request.command, "ok": result.is_ok() } });
     if let Some(id) = request.id {
         response["ID"] = json!(id);
@@ -85,7 +121,37 @@ pub(super) fn handle<T: ProjectLifecycle>(state: &ServerState<T>, settings: Sett
         Ok(None) => {}
         Err(error) => response["DATA"]["error"] = json!(error),
     }
-    response
+    Reply {
+        data: response,
+        initial_value,
+    }
+}
+
+fn subscription<T: ProjectLifecycle>(
+    state: &ServerState<T>,
+    settings: Settings,
+    feedback: &mut Feedback,
+    request: &Request,
+) -> Result<Option<Vec<u8>>, String> {
+    let data = payload(&request.data)?;
+    let (address, send_feedback) = match data {
+        SubscriptionData::Address(address) | SubscriptionData::AddressOnly((address,)) => (address, false),
+        SubscriptionData::AddressAndFeedback((address, send_feedback))
+        | SubscriptionData::Options { address, send_feedback } => (address, send_feedback),
+    };
+    if request.command == "IGNORE" {
+        feedback.ignore(&address);
+        return Ok(None);
+    }
+    let snapshot = state.read_model.capture_snapshot(UiSubscriptionScope::WholeGraph);
+    if preferences::enabled_settings(&snapshot) != Some(settings)
+        || snapshot.project_generation().get() != feedback.project_generation()
+    {
+        return Err("OSCQuery listener or project changed".into());
+    }
+    feedback
+        .subscribe(&snapshot, address, send_feedback)
+        .map_err(str::to_owned)
 }
 
 fn apply<T: ProjectLifecycle>(

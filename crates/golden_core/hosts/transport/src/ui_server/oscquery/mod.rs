@@ -1,5 +1,6 @@
 //! The shared host publishes a coherent OSCQuery hierarchy and accepts OSC on an opt-in port.
 mod commands;
+mod feedback;
 mod graph;
 mod input;
 mod lan;
@@ -240,7 +241,8 @@ fn respond<T: ProjectLifecycle>(
                 "WS_PORT": address.port(),
                 "EXTENSIONS": {
                     "ACCESS": true, "TYPE": true, "VALUE": true, "RANGE": true,
-                    "GOLDEN_META": true, "GOLDEN_ADD_TYPES": true, "GOLDEN_COMMANDS": true
+                    "GOLDEN_META": true, "GOLDEN_ADD_TYPES": true, "GOLDEN_COMMANDS": true,
+                    "LISTEN": true, "IGNORE": true
                 }
             }),
         );

@@ -1,6 +1,6 @@
 # MapGyver agent ledger
 
-**Updated: 2026-11-18 · Overall: `████████░░` 84% · 8/17 phases complete**
+**Updated: 2026-11-19 · Overall: `████████░░` 84% · 8/17 phases complete**
 
 **Accepted: 115/137 gates. Phase completion: 8/17 (47%). M16 has 10/14 Accepted (71%). M16/4 OSCQuery is Active.**
 
@@ -8,8 +8,8 @@ Internal execution/evidence ledger. The user-facing checklist is `mapgyver-statu
 
 **Displays:** Latest native Surface-link fixture used the laptop at2560x1600/125% and an owned main-window Screen preview on NVIDIA. [Earlier physical hotplug, arrangement and restoration](evidence/mapgyver-m05-hotplug-2026-11-06.json) remain accepted for their tested two-display/both-GPU scope. Current control checks do not requalify external topology.
 
-**Current topic:** [OSCQuery LAN access and discovery](evidence/mapgyver-m16-oscquery-lan-2026-11-18.json) verified. M16/4 remains Active.
-**Next action:** Add per-client LISTEN/IGNORE and rate-limited OSC feedback, then Copy OSC Address and the Help preference.
+**Current topic:** [OSCQuery feedback](evidence/mapgyver-m16-oscquery-feedback-2026-11-19.json) verified. M16/4 remains Active.
+**Next action:** Add Copy OSC Address to node menus and Show OSC Address in Help to Interface Preferences. Verify address parity in the workbench before closing M16/4.
 **Overlay prerequisite cleared:** On2026-11-16 the user checked native Settings and confirmed Off, then instructed standing Off state for now (recorded16:23UTC). Use it until the user reports or authoritative evidence shows a change; do not ask before each run. All original GPU/correctness/resource budgets remain. Desktop-helper repairs are not required for this finite SDK pixel fixture.
 **Retained blockers:** M10/4 retains unfinished age/full-GPU-path, shared-consumer, profile/repeated/performance-tier/resource/recovery qualification. [NVIDIA H.264](evidence/mapgyver-m10-h264-nvidia-2026-11-14.json) meets original cadence/CPU envelopes for one cohort and has complete connected direct-File pixel/PTS evidence. Its4K30 age upper59.3588/58.7843ms does not establish50ms; shared Reference is held-only and whole GPU path remains unproved. Earlier [two4K60 HAP](evidence/mapgyver-m10-two-4k60-hap-2026-11-13.json), [ProRes](evidence/mapgyver-m10-prores-alpha-sustained-2026-11-13.json), [resident Intel](evidence/mapgyver-m10-resident-sustained-2026-11-13.json) and [HAP variants](evidence/mapgyver-m10-hap-variants-sustained-2026-11-13.json) retain exact failures/scopes. The2026-11-16 native Settings confirmation and standing Off instruction govern subsequent cohorts. The M14 raster run establishes no M10 timing/performance claim. M08/4 WOW64 and M03/9 timing/growth debt remain; user-accepted smoothness/AA stay accepted.
 **Current native limit:** [Corrected M03 lifecycle](evidence/mapgyver-m03-late-drain-2026-11-05.json) confirms 53.602 MiB peak growth against 32 MiB across all 100 cycles, with matching environment identities and fresh paired overlay-Off observations. Handles/live allocations return and shutdown takes 116 ms; peak growth still fails. The untracked private-memory cause is unproven; earlier failures remain preserved.
@@ -138,7 +138,7 @@ or gate was accepted by merging the plan.
 
 ## Execution board and return queue
 
-**Current delivered feature:** [OSCQuery LAN access](evidence/mapgyver-m16-oscquery-lan-2026-11-18.json) publishes the active IPv4 endpoint through Zeroconf when Allow LAN Control is on. A real browser and the bundled app passed discovery, network control and return to loopback.
+**Current delivered feature:** [OSCQuery LISTEN and IGNORE](evidence/mapgyver-m16-oscquery-feedback-2026-11-19.json) send isolated values immediately and bundle bursts per client. Two-client isolation, final values, trigger pulses and subscription retirement passed.
 
 M16/4 OSCQuery is the sole Active gate. The following features are earlier SGF feedback (M16/5–6) → codecs → Gradient. M16/1 and M10/8–10 retain native qualification Pending. M15/5 retains presentation qualification Pending; M15/1–4,6–9,11–15 are Accepted. Selected M14 features retain qualification
 Pending; M14/1 is user-deferred and M14/6 retains external/keyboard return triggers.
@@ -232,7 +232,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | Pending | M16/1 | [Video audio](evidence/mapgyver-m16-video-audio-2026-11-18.json) passed functional checks on a live WASAPI stream. Return in the hardware qualification batch with a controllable audio endpoint. Measure the routed output through OS-level capture, disconnect that exact device during playback and verify automatic restoration at the current transport time. |
 | Accepted | M16/2 | [Separate loop Video and audio](evidence/mapgyver-m16-separate-loop-2026-11-18.json) passed native handoff, repeated seams, seek, Stop and automatic file recovery. Typed history, duplicate and reload pass. Larger-frame and sustained timing remain in the Video qualification lane. |
 | Accepted | M16/3 | [Matrix Cell audio](evidence/mapgyver-m16-matrix-cell-audio-2026-11-18.json) passes inheritance, own-file replacement, audio-only Cells, native crossfade, virtual routing, Stop and project reload. The pre-existing relocation fixture remains in M09. |
-| Active | M16/4 | [Local HTTP hierarchy](evidence/mapgyver-m16-oscquery-hierarchy-2026-11-18.json), app defaults, port recovery, project replacement, [UDP parameter edits](evidence/mapgyver-m16-oscquery-input-2026-11-18.json), [undoable manager and metadata commands](evidence/mapgyver-m16-oscquery-commands-2026-11-18.json) and [Zeroconf and LAN control](evidence/mapgyver-m16-oscquery-lan-2026-11-18.json) verified. Remaining: per-client feedback under burst load and OSC address UI. |
+| Active | M16/4 | [HTTP hierarchy](evidence/mapgyver-m16-oscquery-hierarchy-2026-11-18.json), app defaults, port recovery, project replacement, [UDP parameter edits](evidence/mapgyver-m16-oscquery-input-2026-11-18.json), [manager and metadata commands](evidence/mapgyver-m16-oscquery-commands-2026-11-18.json), [Zeroconf](evidence/mapgyver-m16-oscquery-lan-2026-11-18.json) and [per-client feedback](evidence/mapgyver-m16-oscquery-feedback-2026-11-19.json) verified. Remaining: Copy OSC Address and address display in Help. |
 | Pending | M16/5 | After M16/4, remove transient black frames in Surface Editor and Media Preview. Verify native same-source reuse and different-source continuity. |
 | Pending | M16/6 | After M16/5, fix the linked Screen Warping outline flicker. Verify stable native outline updates throughout drags and history changes. |
 | Pending | M10/3 | Return after M16/6 for DXV, WebP (including animated WebP), and MKV with embedded subtitle and audio track selection. Use M10/8 subtitle controls and M16/1 audio routing, and qualify the added formats under the same bundled recovery, performance and license requirements. |
@@ -275,7 +275,7 @@ all-target strict checks already pass; no bare-d3d11 all-target pass is claimed.
   investigation and its limits; fix `2d29e381` is pushed. Do not reopen unchanged source probes.
   Git delivery uses existing HTTPS credentials per command; the saved SSH remote is unchanged.
   Preserve concurrent user work and the running user's locked executable.
-- **Current handoff — OSCQuery LAN discovery (2026-11-18, 22:41–22:53 UTC, cutoff 23:26):** [Checkpoint](evidence/mapgyver-m16-oscquery-lan-2026-11-18.json) passes 99 ordinary transport tests, the live discovery/port-change/withdrawal fixture, strict lint and bundled MapGyver LAN control and project replacement. M16/4 stays Active at 115/137 overall. Per-client feedback follows.
+- **Current handoff — OSCQuery feedback (2026-11-18, 22:55–23:12 UTC, cutoff 23:40):** [Checkpoint](evidence/mapgyver-m16-oscquery-feedback-2026-11-19.json) passes 100 transport tests, strict lint, live LAN and bundled MapGyver. The isolated update took 0.297 ms in the neutral fixture. A 24-edit burst reached its final value in two frames and retained four trigger pulses. M16/4 stays Active at 115/137 overall. Address controls follow.
 
 ## Feedback delivery cadence
 

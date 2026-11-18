@@ -1,0 +1,39 @@
+{
+	"date": "2026-11-19",
+	"gate": "M16/4",
+	"scope": "Per-connection OSCQuery LISTEN/IGNORE, immediate changes and coalesced binary OSC bundles",
+	"transport": {
+		"ordinaryTestsPassed": 100,
+		"strictClippyAllTargets": "pass",
+		"liveLanRegression": "pass",
+		"fixture": "crates/golden_core/hosts/transport/src/ui_server/oscquery/tests/feedback.rs",
+		"isolatedFeedbackMs": 0.297,
+		"burst": {
+			"valueEdits": 24,
+			"triggerPulsesSent": 4,
+			"triggerPulsesReceived": 4,
+			"feedbackFrames": 2,
+			"bundledFrames": 1,
+			"lastValue": 0.75
+		},
+		"verified": [
+			"Exact-address subscriptions and optional current values in array and object forms",
+			"Two real WebSocket clients receive only the controls each requested",
+			"Binary OSC message for an isolated edit and an immediate-timetag bundle for a burst",
+			"IGNORE, obsolete address retirement and a fresh connection with no inherited subscription"
+		]
+	},
+	"bundledMapGyver": {
+		"fixture": "apps/mapgyver/tests/browser/native-oscquery.mjs --lan",
+		"receipt": "target/m164-mapgyver-osc-feedback-0aec109c/result.json",
+		"result": "pass",
+		"address": "/screens/screen/surface1/parameters/opacity",
+		"sentByUdp": 0.625,
+		"receivedByWebSocket": 0.625,
+		"elapsedMs": 0.6605,
+		"projectRetirement": "pass"
+	},
+	"remaining": [
+		"Copy OSC Address in node menus and the Interface preference for OSC addresses in Help"
+	]
+}

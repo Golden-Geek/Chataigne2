@@ -3161,6 +3161,7 @@ dependencies = [
  "futures-util",
  "getrandom 0.4.3",
  "golden_engine",
+ "golden_io",
  "golden_persistence",
  "golden_protocol",
  "httparse",

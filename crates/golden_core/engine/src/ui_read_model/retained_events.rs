@@ -60,20 +60,19 @@ impl RetainedEventLog {
     /// Returns a cloned suffix after a logarithmic seek to the first event newer
     /// than `from`. Events sharing the cursor time are excluded as a group.
     pub(super) fn events_after(&self, from: Option<EngineTime>) -> Vec<UiEventDto> {
-        match from {
-            Some(cursor) => self
-                .events
-                .range((
-                    Excluded(RetainedEventKey {
-                        time: cursor,
-                        ordinal: u64::MAX,
-                    }),
-                    Unbounded,
-                ))
-                .map(|(_, retained)| retained.event.clone())
-                .collect(),
-            None => self.events.values().map(|retained| retained.event.clone()).collect(),
-        }
+        self.iter_after(from).cloned().collect()
+    }
+
+    pub(super) fn iter_after(&self, from: Option<EngineTime>) -> impl Iterator<Item = &UiEventDto> {
+        let start = from.map_or(Unbounded, |time| {
+            Excluded(RetainedEventKey {
+                time,
+                ordinal: u64::MAX,
+            })
+        });
+        self.events
+            .range((start, Unbounded))
+            .map(|(_, retained)| &retained.event)
     }
 
     /// Appends one event and returns the highest time evicted by the capacity limit.

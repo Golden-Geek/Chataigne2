@@ -25,4 +25,12 @@ Connect a WebSocket to `/` on the `WS_PORT` reported by `HOST_INFO`. Send text m
 
 Creation, removal, ordering and metadata edits use normal Golden intents. If the project or target metadata changes between resolution and admission, the edit is rejected so a client can read the current address and state before retrying. The service closes established WebSockets when the port changes or the preference is disabled.
 
-The remaining gate covers client-specific WebSocket value feedback and copying or showing the current address in the UI. The `ADD`, `REMOVE`, `RENAME` and `MOVE` envelopes follow the legacy command layout. Golden catalog types and metadata fields are available through the corresponding query attributes. [Legacy OSC remote control](https://github.com/benkuper/juce_organicui/blob/master/remotecontrol/OSCRemoteControl.cpp)
+## Live feedback
+
+Send `LISTEN` or `IGNORE` with an exact parameter address in `DATA`. Each connection has its own subscriptions. To request the current value when subscribing, use `[address, true]` or `{address, sendFeedback: true}`. Trigger subscriptions begin with the next pulse. The command result is text and feedback is binary OSC. [OSCQuery proposal](https://github.com/Vidvox/OSCQueryProposal) [Legacy OSC remote control](https://github.com/benkuper/juce_organicui/blob/master/remotecontrol/OSCRemoteControl.cpp)
+
+Isolated committed updates are sent as soon as the read model publishes them. During a burst, the client receives immediate-timetag OSC bundles spaced at least 20 ms apart. A bundle contains the latest value of each changed control and retains trigger pulses in publication order. The worker observes only subscribed parameter events and resolves paths again when the graph changes. Removing or remapping a path retires that subscription. Project replacement closes the connection so a new client starts with the current project's addresses.
+
+Each connection supports up to 128 subscriptions. Feedback frames are limited to 64 KiB and 512 messages. A client whose backlog exceeds the event window or bundle limit must reconnect and subscribe again.
+
+The remaining gate covers copying or showing the current address in the UI. The `ADD`, `REMOVE`, `RENAME` and `MOVE` envelopes follow the legacy command layout. Golden catalog types and metadata fields are available through the corresponding query attributes. [Legacy OSC remote control](https://github.com/benkuper/juce_organicui/blob/master/remotecontrol/OSCRemoteControl.cpp)

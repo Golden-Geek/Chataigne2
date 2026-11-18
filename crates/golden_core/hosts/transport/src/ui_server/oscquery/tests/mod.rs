@@ -1,4 +1,5 @@
 use super::*;
+mod feedback;
 use crate::ui_server::{UiServerConfig, UiServerShutdown};
 use golden_engine::{
     app::create_new_project_engine,
@@ -355,7 +356,7 @@ fn shared_host_rebinds_and_serves_live_oscquery_from_the_golden_projection() {
     assert_eq!(info["OSC_PORT"], first.port());
     assert_eq!(info["OSC_TRANSPORT"], "UDP");
     assert_eq!(info["EXTENSIONS"]["VALUE"], true);
-    assert!(info["EXTENSIONS"].get("LISTEN").is_none());
+    assert_eq!(info["EXTENSIONS"]["LISTEN"], true);
 
     let mixer = chosen(&initial, initial.root(), "mixer");
     let gain = chosen(&initial, mixer.node_id, "gain");
