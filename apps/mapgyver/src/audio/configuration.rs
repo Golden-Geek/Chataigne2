@@ -3,7 +3,7 @@ use super::preferences::{ChoiceEdit, DEFAULT, Settings, UNASSIGNED, option};
 use golden_audio::{
     AudioChannelId, AudioConfiguration, AudioDeviceCatalogEntry, AudioDeviceDescriptor, AudioDeviceId,
     AudioDeviceInspectorState, AudioDeviceMatch, AudioDeviceSelection, AudioDeviceTargetId, AudioDirection,
-    AudioRecoveryPolicy, AudioRouteId, BackendId, DirectionConfiguration, GainDb, OutputPatchRoute,
+    AudioRecoveryPolicy, AudioRouteId, BackendId, DirectionConfiguration, GainDb, OutputPatchRoute, PlaybackRoute,
     VirtualOutputChannel, match_device_selection,
 };
 use std::collections::HashSet;
@@ -92,7 +92,7 @@ pub(super) fn resolve(
     );
     let ports = ports.into();
     let mut seen = HashSet::new();
-    for output in &settings.outputs {
+    for (index, output) in settings.outputs.iter().enumerate() {
         let id = output
             .key
             .parse::<AudioChannelId>()
@@ -103,6 +103,16 @@ pub(super) fn resolve(
         configuration.virtual_outputs.push(VirtualOutputChannel {
             id,
             label: output.label.clone(),
+            gain: GainDb::UNITY,
+        });
+        let lane = u16::try_from(index).map_err(|_| "Too many playback channels")?;
+        // The playback patch addresses planar lanes in configuration order. Its local route IDs
+        // use a separate UUID version from authored virtual channel IDs (v4).
+        let lane_id = uuid::Uuid::from_u128(0xdcf42302_11ec_8d43_88ce_09c514d00000 + u128::from(lane));
+        configuration.playback_patch.push(PlaybackRoute {
+            id: AudioRouteId::from_uuid(lane_id),
+            source_channel: lane,
+            destination: id,
             gain: GainDb::UNITY,
         });
         if let Some(channel) = channels

@@ -89,6 +89,8 @@ pub use playback::{
     AudioFileProbe, PlaybackPreparation, PlaybackPreparationFailure, PlaybackPreparationResult, PlaybackScheduler,
     PlaybackSchedulerConfig, PlaybackSchedulerRequest, decode_audio_file, probe_audio_file,
 };
+#[cfg(all(feature = "analysis", feature = "playback"))]
+pub use playback::{PcmPlaybackReader, PcmPlaybackWriter, PcmRenderCursor, pcm_playback_bus};
 pub use realtime::{
     AnalysisCaptureError, AnalysisFrame, AnalysisFrameReader, AnalysisFrameTag, AnalysisFrameWriter,
     AnalysisRecycleError, AnalysisWriterRetirement, GainMailboxTarget, OrderedRealtimeControlReader,

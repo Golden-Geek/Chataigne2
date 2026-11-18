@@ -6,4 +6,6 @@ MapGyver stores the selected device and virtual outputs as typed Preferences in 
 
 The shared Golden desktop host starts the audio service once in desktop and headless sessions. MapGyver projects Preferences into the public Golden Audio configuration on a worker. Golden Audio owns device discovery, stream negotiation, recovery and the render callback. The current service uses Golden Audio's standard 48 kHz engine clock. Its output-control inspection reports stream and route state.
 
-Video sample delivery, per-channel gain and native signal verification are the remaining work in [M16/1](../plan/MapGyver_Implementation_Plan.md#earlier-sgf-feedback-m1616).
+Golden Video can decode and seek embedded audio as timestamped stereo PCM at the engine rate. Golden Audio's managed playback bus accepts fixed-size blocks tagged with the render frame and routing generation. Its render cursor reports the monotonic clock anchor and queued device-bridge frames. Pause, seek or a project change can invalidate queued blocks. MapGyver projects each bus lane onto a virtual output before the physical patch.
+
+Connecting the Video transport to that bus, exposing per-channel route and gain controls, and verifying the actual signal through device loss are the remaining work in [M16/1](../plan/MapGyver_Implementation_Plan.md#earlier-sgf-feedback-m1616).

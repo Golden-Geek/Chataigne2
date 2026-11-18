@@ -5,6 +5,8 @@ mod cache;
 #[cfg(feature = "playback")]
 mod decoder;
 mod format;
+#[cfg(all(feature = "analysis", feature = "playback"))]
+mod pcm;
 #[cfg(feature = "playback")]
 mod resample;
 #[cfg(feature = "playback")]
@@ -22,6 +24,8 @@ pub use format::{
     AudioFileFormat, AudioFileFormatDescriptor, audio_file_format_for_extension, supported_audio_extensions,
     supported_audio_formats,
 };
+#[cfg(all(feature = "analysis", feature = "playback"))]
+pub use pcm::{PcmPlaybackReader, PcmPlaybackWriter, PcmRenderCursor, pcm_playback_bus};
 #[cfg(feature = "playback")]
 pub use scheduler::{
     PlaybackPreparation, PlaybackPreparationFailure, PlaybackPreparationResult, PlaybackScheduler,

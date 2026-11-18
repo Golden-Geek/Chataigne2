@@ -15,13 +15,17 @@ use crate::{
     AnalysisController, AnalysisObservationSnapshot, AudioCallbackTimestamp, AudioChannelId, AudioDirection,
     AudioEngineConfig, AudioError, AudioErrorCategory, AudioStreamHandler, ClockBridgeConfig, CommandSequence,
     ConfigGeneration, DriftControllerConfig, EngineLimits, GainDb, InputClockReader, InputClockWriter, InputReadError,
-    InputWriteError, InterleavedInput, InterleavedOutput, PlanPublishError, PlanarBuffer, PlaybackRendererRetirement,
-    PlaybackVoiceRenderer, RealtimePlanRetirement, RealtimePlanSlot, RealtimeScope, RenderPlan, RenderPlanPublisher,
-    RenderProcessor, RenderRuntimeObservation, acknowledged_plan_exchange, analysis_pipeline, input_clock_bridge,
+    InputWriteError, InterleavedInput, InterleavedOutput, PcmPlaybackReader, PlanPublishError, PlanarBuffer,
+    PlaybackRendererRetirement, PlaybackVoiceRenderer, RealtimePlanRetirement, RealtimePlanSlot, RealtimeScope,
+    RenderPlan, RenderPlanPublisher, RenderProcessor, RenderRuntimeObservation, acknowledged_plan_exchange,
+    analysis_pipeline, input_clock_bridge,
 };
 
 mod controls;
 use controls::{RenderControlReader, RenderControlWriter, render_controls};
+
+#[cfg(test)]
+mod tests;
 
 const CONTROL_QUEUE_CAPACITY: usize = 4_096;
 const OUTPUT_QUEUE_MIN_BLOCKS: usize = 8;
@@ -73,6 +77,7 @@ struct InputRuntimeBridge {
 struct OutputRuntimeBridge {
     producer: Producer<f32>,
     channels: usize,
+    capacity: usize,
     prefilled: Arc<AtomicBool>,
     consumer_started: Arc<AtomicBool>,
 }
@@ -127,6 +132,12 @@ struct RuntimeThreadRetirement {
     playback: PlaybackRendererRetirement,
 }
 
+struct PlaybackBus {
+    voices: PlaybackVoiceRenderer,
+    pcm: Option<PcmPlaybackReader>,
+    buffer: PlanarBuffer,
+}
+
 #[derive(Debug)]
 pub(super) struct ManagedRenderRuntime {
     input_publisher: RenderPlanPublisher<Option<InputRuntimeBridge>>,
@@ -147,6 +158,7 @@ impl ManagedRenderRuntime {
         config: &AudioEngineConfig,
         limits: &EngineLimits,
         playback: PlaybackVoiceRenderer,
+        pcm: Option<PcmPlaybackReader>,
     ) -> Result<Self, AudioError> {
         let (input_publisher, inputs) = acknowledged_plan_exchange(Box::new(None));
         let (output_publisher, outputs) = acknowledged_plan_exchange(Box::new(None));
@@ -157,7 +169,14 @@ impl ManagedRenderRuntime {
         let thread_shutdown = Arc::clone(&shutdown);
         let block_frames = config.internal_block_frames.get() as usize;
         let sample_rate = config.sample_rate.get();
-        let playback_buffer = PlanarBuffer::new(usize::from(limits.max_virtual_outputs), block_frames)?;
+        if let Some(pcm) = &pcm {
+            pcm.validate(config.internal_block_frames, limits)?;
+        }
+        let playback = PlaybackBus {
+            voices: playback,
+            pcm,
+            buffer: PlanarBuffer::new(usize::from(limits.max_virtual_outputs), block_frames)?,
+        };
         let (priority_sender, priority_receiver) = sync_channel(1);
         let worker = thread::Builder::new()
             .name("golden-audio-render".to_owned())
@@ -175,7 +194,6 @@ impl ManagedRenderRuntime {
                     outputs,
                     control_reader,
                     playback,
-                    playback_buffer,
                     block_frames,
                     sample_rate,
                     thread_observation,
@@ -371,6 +389,7 @@ impl ManagedRenderRuntime {
         self.publish_output_bridge(Some(OutputRuntimeBridge {
             producer,
             channels: channel_count,
+            capacity: sample_capacity,
             prefilled: Arc::clone(&prefilled),
             consumer_started: Arc::clone(&consumer_started),
         }))?;
@@ -547,8 +566,7 @@ fn run_render_thread(
     mut inputs: RealtimePlanSlot<Option<InputRuntimeBridge>>,
     mut outputs: RealtimePlanSlot<Option<OutputRuntimeBridge>>,
     mut controls: RenderControlReader,
-    mut playback: PlaybackVoiceRenderer,
-    mut playback_buffer: PlanarBuffer,
+    mut playback: PlaybackBus,
     block_frames: usize,
     sample_rate: u32,
     observation: Arc<SharedRenderObservation>,
@@ -588,7 +606,6 @@ fn run_render_thread(
                 inputs.active_mut(),
                 outputs.active_mut(),
                 &mut playback,
-                &mut playback_buffer,
                 block_frames,
                 &observation,
             );
@@ -619,7 +636,7 @@ fn run_render_thread(
         plans: controls.retire(),
         inputs: inputs.retire(),
         outputs: outputs.retire(),
-        playback: playback.into_retirement(),
+        playback: playback.voices.into_retirement(),
     }
 }
 
@@ -647,23 +664,38 @@ fn render_block(
     plan: &mut Option<RenderRuntimePlan>,
     input: &mut Option<InputRuntimeBridge>,
     output: &mut Option<OutputRuntimeBridge>,
-    playback: &mut PlaybackVoiceRenderer,
-    playback_buffer: &mut PlanarBuffer,
+    playback: &mut PlaybackBus,
     block_frames: usize,
     observation: &SharedRenderObservation,
 ) {
-    let _ = playback.render(playback_buffer, block_frames);
+    let _ = playback.voices.render(&mut playback.buffer, block_frames);
+    let generation = plan.as_ref().map_or(ConfigGeneration::INITIAL, |plan| plan.generation);
+    let frame = observation.rendered_frames.load(Ordering::Relaxed);
+    if let Some(pcm) = &mut playback.pcm {
+        pcm.mix(generation, frame, &mut playback.buffer);
+    }
     if let Some(plan) = plan {
         fill_physical_input(plan, input.as_mut(), block_frames, observation);
         let _ = plan.processor.render(
             &plan.physical_inputs,
-            playback_buffer,
+            &playback.buffer,
             &mut plan.physical_outputs,
             block_frames,
         );
     }
-    if let Some(output) = output {
+    if let Some(output) = output.as_mut() {
         write_physical_output(plan.as_ref(), output, block_frames, observation);
+    }
+    if let Some(pcm) = &playback.pcm {
+        let queued_output_frames = output.as_ref().map_or(0, |bridge| {
+            (bridge.capacity - bridge.producer.slots()) / bridge.channels
+        });
+        pcm.publish_cursor(
+            generation,
+            frame.saturating_add(block_frames as u64),
+            queued_output_frames,
+            Instant::now(),
+        );
     }
 }
 

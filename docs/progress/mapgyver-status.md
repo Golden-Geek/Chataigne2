@@ -3,7 +3,7 @@
 - **Updated:** 18 November 2026.
 - **Overall plan acceptance:** `████████░░` **82% — 113/137 checks accepted, 8/17 phases complete**.
 - **Latest delivered:** Audio Preferences open a real Windows output and map named virtual outputs to physical channels.
-- **Working on next:** Play Video audio through those routes and add per-channel volume.
+- **Working on next:** Connect Video playback to the verified PCM decoder and output path, then expose route and volume controls on each Video channel.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed

@@ -76,6 +76,8 @@ pub struct AudioEngineBuilder {
     pub backend_policy: BackendPolicy,
     backends: Vec<Arc<dyn AudioBackend>>,
     managed_render_runtime: bool,
+    #[cfg(all(feature = "analysis", feature = "playback"))]
+    pcm_playback: Option<crate::PcmPlaybackReader>,
     ordered_events: bool,
 }
 
@@ -87,6 +89,8 @@ impl Default for AudioEngineBuilder {
             backend_policy: BackendPolicy::default(),
             backends: vec![Arc::new(NullBackend)],
             managed_render_runtime: false,
+            #[cfg(all(feature = "analysis", feature = "playback"))]
+            pcm_playback: None,
             ordered_events: false,
         }
     }
@@ -140,6 +144,15 @@ impl AudioEngineBuilder {
         self
     }
 
+    /// Adds an app-fed PCM source to the managed engine's normal playback patch.
+    #[cfg(all(feature = "analysis", feature = "playback"))]
+    #[must_use]
+    pub fn with_pcm_playback(mut self, source: crate::PcmPlaybackReader) -> Self {
+        self.managed_render_runtime = true;
+        self.pcm_playback = Some(source);
+        self
+    }
+
     pub fn build(self) -> Result<AudioEngine, AudioError> {
         self.config.validate()?;
         self.limits.validate()?;
@@ -189,6 +202,7 @@ impl AudioEngineBuilder {
                 playback_renderer
                     .take()
                     .expect("playback renderer is present during engine construction"),
+                self.pcm_playback,
             )?)
         } else {
             None

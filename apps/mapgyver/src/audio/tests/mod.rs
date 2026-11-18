@@ -75,6 +75,11 @@ fn physical_output_layout_changes_restore_the_same_authored_channel_keys() {
     let settings = Settings::capture(&engine).unwrap();
     let (config, _) = configuration::resolve(&settings, Some(&backend), &inventory).unwrap();
     assert_eq!(config.output_patch.len(), 2);
+    config.validate(&Default::default()).unwrap();
+    for (index, route) in config.playback_patch.iter().enumerate() {
+        assert_eq!(usize::from(route.source_channel), index);
+        assert_eq!(route.destination, config.virtual_outputs[index].id);
+    }
     assert!(
         config
             .output_patch
@@ -107,6 +112,7 @@ fn physical_output_layout_changes_restore_the_same_authored_channel_keys() {
     let settings = Settings::capture(&loaded).unwrap();
     let (recovered, _) = configuration::resolve(&settings, Some(&backend), &inventory).unwrap();
     assert_eq!(recovered.virtual_outputs, config.virtual_outputs);
+    assert_eq!(recovered.playback_patch, config.playback_patch);
     assert_eq!(recovered.output_patch, config.output_patch);
     assert_eq!(recovered.physical_outputs[0].as_str(), "output:1");
 }

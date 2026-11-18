@@ -6,6 +6,7 @@
 
 use ffmpeg_next as ffmpeg;
 use std::path::Path;
+mod audio;
 mod buffer;
 mod hap;
 mod image;
@@ -13,6 +14,7 @@ mod layout;
 mod parallelism;
 mod software_pool;
 pub mod subtitles;
+pub use audio::{AudioChunk, AudioReader};
 pub use hap::{HapFormat, HapFrame};
 pub use image::{ConversionError, SoftwareImageConverter};
 pub use layout::{SoftwareFrameLayout, SoftwarePlaneLayout};
