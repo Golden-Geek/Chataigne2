@@ -1,9 +1,9 @@
 # MapGyver — simple status
 
 - **Updated:** 18 November 2026.
-- **Overall plan acceptance:** `████████░░` **84% — 98/117 checks accepted**. Deferred verification is still counted as unfinished.
+- **Overall plan acceptance:** `████████░░` **81% — 98/121 checks accepted**. Four new feedback checks were added; accepted work is unchanged. Deferred verification is still counted as unfinished.
 - **Latest delivered:** Screen-handle binding backend: link/merge/unlink, multi-member moves and history/reload pass focused checks. Magnet/link controls are next.
-- **Working on next:** Screen-handle magnet snapping and unlink icons; the binding backend is implemented and functionally checked.
+- **Working on now:** Screen-handle magnet snapping and unlink icons; keep this current task through completion. Custom colors and Matrix Group presentation follow immediately afterward.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -33,12 +33,16 @@
 
 ## Next features — implementation order
 
-1. **NOW — Screen-handle links:** add magnet snapping and link/unlink icons using the completed backend, then verify viewport thresholds/zoom and native geometry.
-2. **Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
-3. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
-4. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
-5. **Extended Video codecs:** DXV and WebP/animated WebP.
-6. **Subtitles:** optional, disableable subtitle controls and display.
+1. **NOW — Screen-handle links:** finish magnet snapping and link/unlink controls using the completed backend, then verify viewport thresholds/zoom and native geometry. Keep this task current through completion.
+2. **NEXT — Custom colors:** Screens, Surfaces, Medias and Folders can have custom colors, with reset to the normal default.
+3. **Matrix color menus:** Set Color / Reset Color on Layer, Cell and Column context menus, including corresponding Groups.
+4. **Compact Layer Groups:** one-line default headers, with Opacity and Blend Mode in the Inspector.
+5. **Readable nested Groups:** visible left-side wrapping rails in each Group's color, with clear membership at multiple nesting levels.
+6. **Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
+7. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+8. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
+9. **Extended Video codecs:** DXV and WebP/animated WebP.
+10. **Subtitles:** optional, disableable subtitle controls and display.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 

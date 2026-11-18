@@ -9,7 +9,7 @@ See the [architecture](../architecture/mapgyver.md) and [current status](../prog
 - The simple status file above is the user's single progress view. Keep exact gates, evidence,
   return triggers and the execution board in the [agent ledger](../progress/mapgyver-ledger.md).
   Reconcile both before continuing; update both at each delivered milestone.
-- Deliver functional **M15 feedback → remaining Video features → deferred deep verification → M09**.
+- Deliver functional **current Screen-handle links (M15/8) → M15 color/Group feedback (12–15) → remaining M15 feedback → remaining Video features → deferred deep verification → M09**.
   This user revision supersedes older per-feedback full-matrix and acceptance-first ordering.
 - For each small feedback slice, finish all owning-layer changes and run one targeted validation
   cycle: formatting, relevant behavior/type/contract checks and a short app smoke when needed.
@@ -137,6 +137,15 @@ and gradient ownership contracts. It extends M14's shared editor work without ac
 removing any unfinished M14 requirement. Existing acceptance retains its original tested
 scope; this update adds **eleven gates and one phase**, implements nothing and accepts no gate.
 
+**User priority revision, 2026-11-18:** add four fixed M15 gates (12–15) for custom colors
+on Screens/Surfaces/Medias/Folders, Matrix color-menu actions, compact Layer Groups and readable
+colored nested Groups. **Keep Screen-handle links (M15/8) as the current task through completion.**
+These additions are **next in line afterward: 12 → 13 → 14 → 15**, before remaining
+M15/9–11 or Video work. Do not interrupt or park M15/8 to start this feedback.
+Keep one gate Active. This supersedes older next-feature ordering, adds no implementation or
+acceptance, and preserves every existing requirement and return trigger. M15 now has 15 gates;
+overall scope is **121**, with **98 accepted (81%)** and **8/16 phases complete (50%)**.
+
 ## Entry, order and delivery
 
 1. Read AGENTS.md, this plan and the compact status page. Reconcile the checkout, current
@@ -153,7 +162,8 @@ scope; this update adds **eleven gates and one phase**, implements nothing and a
    and M07 Matrix redesign together → delivered M11/M12/M13 functional contracts →
    M10 functional Video (1 → 2 → 5 → 6 → 7, accepted) →
    remaining M14 features (9 → 10 → 8 → 2) →
-   M15 latest feedback (1–11) →
+   current M15/8 Screen-handle links → M15 next color/Group feedback (12 → 13 → 14 → 15) →
+   remaining M15 feedback (9 → 10 → 11) →
    M10/3 DXV/WebP → M10/8 subtitles →
    remaining acceptance closure → M09 final qualification**.
    M08's shared configuration/runtime contract precedes dependent Matrix app controls; this
@@ -314,7 +324,7 @@ Counts refer to the numbered acceptance gates below, not commits or elapsed work
 | M13 | Latest feedback: smooth interaction, Matrix controls, media UX    | Existing M04–M12 functional contracts; one gate at a time                  | 14    |
 | M10 | Tiered Video playback, transport, seeking and subtitles           | Functional 1,2,5,6,7 accepted; remaining gates 3,8,4 follow M15            | 8     |
 | M14 | Shared 2D interaction, Composition, Screen and Matrix feedback    | Accepted M10 functional gates 1,2,5–7; retained qualification stays queued | 10    |
-| M15 | Latest feedback: safe controls, Matrix presets, editors, Gradient | Remaining M14 features and public Golden contracts; before remaining Video | 11    |
+| M15 | Latest feedback: controls, colors/Groups, presets, editors, Gradient | Public Golden contracts; finish 8, then 12–15, then 9–11 before Video | 15    |
 | M09 | Actual-app qualification and Windows artifact                     | All retained feature/qualification gates, including M10–M15                | 1     |
 
 ### M00 — Reconcile and define evidence
@@ -1376,8 +1386,9 @@ Source: [Latest Feedback.md](../../Latest%20Feedback.md) in the repository root,
 instruction that remaining Video work follows this feedback. Follow the M14 feature-first
 execution revision above: selected M14 features9,10,8,2 are functionally delivered, with their
 remaining qualification Pending in the return queue. M15/1–4,6–7 are Accepted; M15/5 is functionally
-delivered with native presentation qualification Pending, and M15/8 is next;
-deliver M15 before remaining Video, retaining user-deferred M14/1 and blocked M14/6.
+delivered with native presentation qualification Pending. The 2026-11-18 amendment retains
+M15/8 as the current task through completion, then selects 12–15 before 9–11.
+Deliver M15 before remaining Video, retaining user-deferred M14/1 and blocked M14/6.
 Retain every unfinished qualification gate and its return trigger before M09.
 
 Golden owns parameter admission, reusable gradients/animation, parameter bindings, shared
@@ -1534,7 +1545,42 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
     creation/history/copy/reload and actual SDK discovery with correct pixels; labels alone are
     not proof of sender provenance.
 
-M15/1–4,6–7 are Accepted with their owning software/native proofs;5,8–11 remain open.
+12. **Screens, Surfaces, Medias and Folders support custom color.** Owners: Golden public
+    typed custom-color metadata/Inspector mechanisms and MapGyver node declarations and
+    manager/editor projections. Reuse the existing Golden color model without parallel UI-only
+    settings. Users can set and reset color for each kind, including nested manager Folders;
+    reset restores its normal default appearance. Reflect the same authored color consistently
+    in relevant outliners/editor object cues while keeping selection and runtime state distinct.
+    Verify all four kinds, generic Inspector and backend/script/transport parity, Undo/Redo,
+    copy/duplicate and project reload, default/reset behavior and light/dark contrast. Keep
+    projection and offscreen inspection bounded; custom color must not alter rendered media.
+13. **Matrix contextual menus expose Set Color / Reset Color.** Owners: Golden reusable color
+    actions and MapGyver Matrix contextual-menu registration. Include those exact actions for
+    Layers, Cells and Columns, reusing their existing custom-color authority and picker rather
+    than a separate Matrix color setting. Include Layer/Column Groups wherever these menus
+    represent their corresponding item kind. Verify correct context target, existing
+    multiselection conventions, default/custom/reset states, offscreen selection, Inspector
+    synchronization, grouped Undo/Redo and copy/reload. Earlier M15/2 acceptance covers its
+    original Inspector workflow only; it does not accept these new menu actions.
+14. **Matrix Layer Groups default to a compact single-line header.** Owner: MapGyver Matrix
+    presentation on Golden workbench/Inspector contracts. Hide inline Opacity and Blend Mode
+    controls by default so a Group occupies one line. Preserve the authored typed controls and
+    their rendering semantics; both remain editable in the generic Inspector. Keep essential
+    name, expand/collapse, selection and contextual actions usable. Verify new/existing Groups,
+    nested/collapsed/empty Groups, narrow panels and font/display scaling, correct virtualized
+    row geometry/hit targets, and unchanged opacity/blend/history/project behavior.
+15. **Colored left-side wrapping makes Matrix Layer Group membership obvious.** Owner:
+    MapGyver Matrix hierarchy presentation using Golden custom colors/theme tokens. Give each
+    Group an elegant, visible left-side rail/bracket that wraps its visible children, colored
+    from that Group item's custom color (with the normal theme fallback after reset). Combine
+    restrained indentation and distinct nested rails so multiple nesting levels remain readable
+    and each Layer's containing Group is obvious. Review the actual app for light/dark themes,
+    selected/hovered/disabled states, custom/reset colors, multiple nested Groups, collapse,
+    reparent/reorder and viewport clipping/scrolling. Keep rails coherent across virtualized
+    rows without rendering all descendants, stealing hit targets or confusing selection/playback
+    cues. Coordinate with the compact header in 14; do not remove Group rendering behavior.
+
+M15/1–4,6–7 are Accepted with their owning software/native proofs;5,8–15 remain open.
 M15/2 covers explicit/shared/modifier selection, nested/disabled/offscreen objects, Inspector
 colors, history/copy/reload, representative theme contrast and independent panels. Wider app
 stress/interruption and retained GPU/resource qualification return in the deferred pass before M09.
@@ -1542,7 +1588,8 @@ Functional delivery uses the user's targeted-check cadence above, retaining defe
 checks before M09. A gate is Accepted only when its complete owning scope is verified.
 The source mapping is: crash/range → 1; Matrix UI → 2–3;
 Matrix presets → 4; shared transitions/handles → 5; startup → 6; Surface display → 7;
-Screen links → 8; geometry alignment → 9; Gradient → 10; Shared Texture → 11.
+Screen links → 8; geometry alignment → 9; Gradient → 10; Shared Texture → 11;
+2026-11-18 custom colors → 12; Matrix color menus → 13; compact Groups → 14; nested Group rails → 15.
 Planning changes the fixed scope from **106 to 117 gates** and **15 to 16 phases**; the accepted
 numerator initially stayed **92**, making overall progress **79%** and phase completion **8/16 (50%)**.
 M15/1 acceptance now raises the numerator to **93/117**; rounding still gives **79%**.
@@ -1551,6 +1598,9 @@ M15/3 presentation acceptance raises it to **95/117 (81%)**, M15 **3/11 (27%)**,
 M15/4 preset acceptance raises it to **96/117 (82%)**, M15 **4/11 (36%)**, with unchanged scope.
 M15/6 startup acceptance raises it to **97/117 (83%)**, M15 **5/11 (45%)**, with unchanged scope.
 M15/7 Surface-display acceptance raises it to **98/117 (84%)**, M15 **6/11 (55%)**, with unchanged scope.
+The 2026-11-18 feedback adds four fixed gates: **117 → 121**, with **98 accepted unchanged**;
+overall acceptance becomes **81%**, M15 **6/15 (40%)**, and phase completion remains **8/16 (50%)**.
+This is added scope only; no prior acceptance is removed and no new gate is accepted by planning.
 M14/1,6 and all retained correctness, physical, recovery and performance requirements remain
 required before M09. New features follow the user's feature-first cadence; a checkpoint or a
 passing subset of checks never closes a complete gate.
