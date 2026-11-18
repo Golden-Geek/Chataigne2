@@ -39,6 +39,13 @@
       "Normal app shutdown and independent observer retirement"
     ]
   },
+  "feedbackRecheck": {
+    "buildRevision": "c00a8bafb756452705483f7e840aeeca0ab2cb76",
+    "localReceipt": "target/mapgyver-subtitle-feedback/run-Egf3Lk/result.json",
+    "result": "pass",
+    "distinctPixelChecks": 19,
+    "verified": "In the same Media, the second channel used its own embedded track while the first used a local SRT. Editing the second kept the first channel's output identical. Using the Inspector to disable the first kept the second channel's output identical."
+  },
   "pending": [
     "Moving native Media Preview and output at multiple speeds, including reverse and hard/smooth loop boundaries on full and cropped ranges",
     "Broader native consumer, mixed-duration and file replacement coverage during playback",
