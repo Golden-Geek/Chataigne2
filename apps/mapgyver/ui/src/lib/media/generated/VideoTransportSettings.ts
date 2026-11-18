@@ -6,4 +6,8 @@ import type { VideoPlaybackMode } from "./VideoPlaybackMode";
 /**
  * Authored transport options and current runtime intent; never an opaque persistence record.
  */
-export type VideoTransportSettings = { mode: VideoPlaybackMode, position_ms: number, speed: number, looping: boolean, play_at_load: boolean, on_activate: VideoOnActivate, on_deactivate: VideoOnDeactivate, };
+export type VideoTransportSettings = { mode: VideoPlaybackMode, position_ms: number, speed: number, looping: boolean,
+/**
+ * Authored duration in milliseconds. Loop off keeps the value for later.
+ */
+auto_smooth_loop_ms: number, play_at_load: boolean, on_activate: VideoOnActivate, on_deactivate: VideoOnDeactivate, };

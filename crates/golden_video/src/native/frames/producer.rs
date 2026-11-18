@@ -25,9 +25,11 @@ use windows::{
     Win32::Graphics::Direct3D11::*,
     core::{Error, HRESULT, Interface},
 };
+mod crossfade;
 mod diagnostics;
 mod software;
 mod submission;
+pub use crossfade::GpuFrameInput;
 
 /// Source-local conversion/admission failure, separate from renderer state.
 #[derive(Debug, thiserror::Error)]
@@ -54,6 +56,8 @@ struct Pending {
     software_upload: Option<crate::native::SoftwareUploadTrace>,
     traced: bool,
     _input: Input,
+    head: Option<Input>,
+    crossfade_uploads: [Option<crate::native::SoftwareUploadTrace>; 2],
 }
 pub(super) enum Input {
     Software {
@@ -91,12 +95,14 @@ pub struct GpuFramePublisher {
     conversion: Conversion,
     pending: Option<Pending>,
     slots: Vec<Slot>,
+    crossfade: Option<crossfade::Crossfade>,
     completion: FenceCompletion,
     generation: DeviceGeneration,
     serial: u64,
     diagnostics: Option<diagnostics::ProducerDiagnostics>,
     device: Device,
     _lease: Arc<dyn Send + Sync>,
+    budget: GpuFrameBudget,
     uploads: Option<GpuFrameBudget>,
 }
 impl GpuFramePublisher {
@@ -165,7 +171,7 @@ impl GpuFramePublisher {
             },
             lease,
             wake,
-            budget.upload_accounting(),
+            budget,
         )
     }
     /// Upload/sample reference-decoded HAP blocks on one exact adapter. No CPU pixel decode.
@@ -193,14 +199,7 @@ impl GpuFramePublisher {
             .ok_or(GpuFrameError::Capacity)?;
         let device = Device::new(adapter)?;
         let input = super::hap::HapImage::new(&device, frame)?;
-        Self::assemble(
-            device,
-            descriptor,
-            Conversion::Hap(input),
-            lease,
-            wake,
-            budget.upload_accounting(),
-        )
+        Self::assemble(device, descriptor, Conversion::Hap(input), lease, wake, budget)
     }
     fn assemble(
         device: Device,
@@ -208,7 +207,7 @@ impl GpuFramePublisher {
         conversion: Conversion,
         lease: Arc<dyn Send + Sync>,
         wake: Option<golden_io::WorkerNotifier>,
-        uploads: Option<GpuFrameBudget>,
+        budget: &GpuFrameBudget,
     ) -> Result<Self, GpuFrameError> {
         let slots = (0..3)
             .map(|index| Slot::new_leased(&device, descriptor, index, Some(lease.clone())))
@@ -223,13 +222,15 @@ impl GpuFramePublisher {
             conversion,
             pending: None,
             slots,
+            crossfade: None,
             completion,
             generation: DeviceGeneration::new(uuid::Uuid::new_v4(), 1),
             serial: 0,
             diagnostics: None,
             device,
             _lease: lease,
-            uploads,
+            budget: budget.clone(),
+            uploads: budget.upload_accounting(),
         })
     }
     /// Stable immutable source binding, shared by every render consumer/generation.
@@ -251,6 +252,16 @@ impl GpuFramePublisher {
     /// Submit one copy/conversion. False means busy/retained slots; keep the previous image.
     pub fn submit(&mut self, frame: &D3d11Frame) -> Result<bool, GpuFrameError> {
         self.healthy()?;
+        self.validate_decoded(frame)?;
+        self.submit_owned(
+            &frame.texture,
+            frame.slice,
+            Input::Decoded {
+                _frame: frame.retain()?,
+            },
+        )
+    }
+    fn validate_decoded(&self, frame: &D3d11Frame) -> Result<(), GpuFrameError> {
         let Conversion::Video {
             storage,
             interpretation: flags,
@@ -272,13 +283,7 @@ impl GpuFramePublisher {
         {
             return Err(GpuFrameError::Layout);
         }
-        self.submit_owned(
-            &frame.texture,
-            frame.slice,
-            Input::Decoded {
-                _frame: frame.retain()?,
-            },
-        )
+        Ok(())
     }
     pub(super) fn submit_owned(
         &mut self,
@@ -305,26 +310,7 @@ impl GpuFramePublisher {
             .diagnostics
             .as_mut()
             .map(|diagnostics| diagnostics.gpu.begin(&self.device.context, token));
-        let extent = self.stream.descriptor().extent;
-        unsafe {
-            self.device.context.CopySubresourceRegion(
-                &input.texture,
-                0,
-                0,
-                0,
-                0,
-                texture,
-                slice,
-                Some(&D3D11_BOX {
-                    left: 0,
-                    top: 0,
-                    front: 0,
-                    right: extent.width(),
-                    bottom: extent.height(),
-                    back: 1,
-                }),
-            )
-        };
+        copy_visible_planes(&self.device.context, input, texture, slice);
         shader.draw(&self.device.context, input, &self.slots[index].texture);
         Ok(true)
     }
@@ -386,6 +372,8 @@ impl GpuFramePublisher {
             software_upload: None,
             traced: false,
             _input: input,
+            head: None,
+            crossfade_uploads: [None; 2],
         });
         self.serial = serial;
         Ok(Some(index))
@@ -418,6 +406,31 @@ impl GpuFramePublisher {
             fault: self.fault.clone(),
         }))
     }
+}
+
+fn copy_visible_planes(context: &ID3D11DeviceContext, input: &Image, texture: &ID3D11Texture2D, slice: u32) {
+    let extent = input.descriptor.extent;
+    // SAFETY: both resources are on this context's exact device with the same native
+    // plane format, and the retained input frame covers this validated visible region.
+    unsafe {
+        context.CopySubresourceRegion(
+            &input.texture,
+            0,
+            0,
+            0,
+            0,
+            texture,
+            slice,
+            Some(&D3D11_BOX {
+                left: 0,
+                top: 0,
+                front: 0,
+                right: extent.width(),
+                bottom: extent.height(),
+                back: 1,
+            }),
+        )
+    };
 }
 impl Drop for GpuFramePublisher {
     fn drop(&mut self) {

@@ -158,6 +158,9 @@ fn hardware_intel_source_upload_totals_include_unsampled_frames_without_counting
             SourceSubmissionPayload::Software(upload) => software_bytes += upload.bytes,
             SourceSubmissionPayload::Resident => resident += 1,
             SourceSubmissionPayload::Hap { bytes } => assert!(bytes > 0),
+            SourceSubmissionPayload::SoftwareCrossfade(_) | SourceSubmissionPayload::HapCrossfade { .. } => {
+                panic!("single-frame fixture unexpectedly blended two frames")
+            }
         }
     }
     assert_eq!(

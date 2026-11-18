@@ -15,6 +15,7 @@ function sourceExamples(mediaId, channelId, assetId) {
 	// local.playVideo("play", mediaId); local.pauseVideo("pause", mediaId); local.stopVideo("stop", mediaId);
 	// local.seekVideo("seek", mediaId, 1250.5); // milliseconds; generic Inspector edits the same Parameter
 	// local.setVideoSpeed("speed", mediaId, 0.5); local.setVideoLoop("loop", mediaId, true);
+	// local.setVideoAutoSmoothLoop("loop-overlap", mediaId, 750); // milliseconds; 0 disables smoothing
 	// local.setVideoPlayAtLoad("load", mediaId, true);
 	// local.setVideoOnActivate("activate", mediaId, "Resume"); // PlayFromStart (default), Resume, Nothing
 	// local.setVideoOnDeactivate("deactivate", mediaId, "Pause"); // Stop (default), Pause, Nothing

@@ -69,6 +69,38 @@ try {
 		.getByRole('region', { name: 'Medias', exact: true })
 		.getByRole('button', { name: label, exact: true })
 		.click();
+	const looping = parameter('Loop').locator('input[type=checkbox]');
+	const overlap = parameter('Auto-Smooth Loop').locator('input.time-field');
+	const transport = async () =>
+		(await edit({ kind: 'InspectVideo', media: reference.media })).snapshot.settings;
+	await overlap.waitFor();
+	assert.equal(await overlap.isDisabled(), true);
+	assert.equal(clockMilliseconds(await overlap.inputValue()), 0);
+	assert.equal((await transport()).auto_smooth_loop_ms, 0);
+	await looping.check();
+	await wait(() => overlap.isEnabled(), Boolean, 'Loop enables overlap editor');
+	await overlap.fill('00:00:00.125');
+	await overlap.press('Enter');
+	await wait(
+		transport,
+		(value) => value.auto_smooth_loop_ms === 125,
+		'Inspector commits overlap in milliseconds'
+	);
+	await looping.uncheck();
+	await wait(() => overlap.isDisabled(), Boolean, 'Loop off disables overlap editor');
+	assert.equal(clockMilliseconds(await overlap.inputValue()), 125);
+	assert.equal((await transport()).auto_smooth_loop_ms, 125);
+	await looping.check();
+	await wait(() => overlap.isEnabled(), Boolean, 'Loop re-enables overlap editor');
+	assert.equal(clockMilliseconds(await overlap.inputValue()), 125);
+	await overlap.fill('00:00:00.000');
+	await overlap.press('Enter');
+	await wait(
+		transport,
+		(value) => value.auto_smooth_loop_ms === 0,
+		'restore ordinary Loop for status smoke'
+	);
+	await looping.uncheck();
 	const length = parameter('Length').locator('input.time-field');
 	const playing = parameter('Playing').locator('input[type=checkbox]');
 	const lengthValue = async () => clockMilliseconds(await length.inputValue());

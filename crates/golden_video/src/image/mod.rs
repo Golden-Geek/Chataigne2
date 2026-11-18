@@ -4,10 +4,14 @@ use thiserror::Error;
 
 use crate::TextureDescriptor;
 mod atlas;
+#[cfg(feature = "ffmpeg")]
+mod crossfade;
 mod font;
 mod storage;
 mod stream;
 pub use atlas::ImageAtlas;
+#[cfg(feature = "ffmpeg")]
+pub use crossfade::crossfade_srgba8;
 pub use font::FontAtlas;
 pub(crate) use storage::StorageLease;
 pub use storage::{ImageStorageAllocation, ImageStorageBudget};
@@ -43,6 +47,9 @@ pub enum ImageError {
     /// Tight format-sized texels do not match the declared image extent.
     #[error("image pixels do not match their tightly packed descriptor")]
     Layout,
+    /// The two software fade inputs must share the supported decoded descriptor.
+    #[error("crossfade requires matching straight-alpha sRGB RGBA8 images")]
+    CrossfadeDescriptor,
     /// CPU image storage limits must be positive and cannot grow after admission.
     #[error("invalid CPU image storage limit")]
     StorageLimit,

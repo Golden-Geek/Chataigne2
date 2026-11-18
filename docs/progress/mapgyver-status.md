@@ -1,9 +1,9 @@
 # MapGyver — simple status
 
 - **Updated:** 18 November 2026.
-- **Overall plan acceptance:** `█████████░` **86% — 104/121 checks accepted**. M15/9 geometry alignment is accepted.
-- **Latest delivered:** Geometry snapping and guides work while moving and resizing in Surface Source, Composition and Matrix Layer/Cell editors. Bundled app and held native Composition pixel checks pass.
-- **Working on next:** Resume the remaining editor and Video features in the implementation plan.
+- **Overall plan acceptance:** `█████████░` **85% — 104/122 checks accepted, 8/16 phases complete**. The Video amendment adds the M10/9 fade-loop gate.
+- **Latest delivered:** Video can blend the end of a clip into its beginning. The Inspector and NVIDIA output checks passed.
+- **Working on next:** Shared Texture should auto-select external senders while keeping explicit manual choices.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -32,16 +32,17 @@
 - [x] **Matrix presets:** capture/update/rename/delete/recall Layer/Column order and enabled states; contextual menus, commands and named scripts. Paged member Inspector editing, offscreen access, Undo/Redo, copies/reload and live/outgoing playback pass. Cells stay intact.
 - [x] **App Control:** normal 64-bit launch/readiness/sharing/reconnect/stop workflows. The remaining 32-bit case is listed below.
 - [x] **Video:** common H.264/HEVC/ProRes profiles and HAP; playback, loop, seek/frame stepping, transport Inspector and Matrix activation/deactivation policies.
+- [x] **Video fade-loop:** enable Loop and set **Auto-Smooth Loop** in the Video Inspector. Zero gives a hard loop. Direct and Reference output show the same held blend, and playback resumes from the part of the beginning already shown.
 - [x] **Editor manipulation:** the smoothness improvements you accepted in Screen Warping, Surface Source and Composition.
 - [x] **Editor feedback — functional:** shared120ms hover/selection paint, softer handles, keyboard cues and reduced motion. Geometry/input stay immediate; browser and native Screen/Source input checks pass.
 - [x] **App presentation:** MapGyver identity/icon, official calibration pattern, font/menu/Inspector improvements and thumbnail Fit behavior.
 
 ## Next features — implementation order
 
-1. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
-2. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
+1. **NOW — Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
+2. **Subtitles:** optional, disableable subtitle controls and display.
 3. **Extended Video codecs:** DXV and WebP/animated WebP.
-4. **Subtitles:** optional, disableable subtitle controls and display.
+4. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 
@@ -51,11 +52,12 @@
 4. **Matrix enabled state and fading Layer Stop:** implemented and functionally checked. Complete interrupted fades, shared-consumer and final-resource retirement combinations.
 5. **Smooth Frame/Home navigation:** implemented and functionally checked. Finish Matrix-specific, resize/large-document and independent image/control-alignment checks.
 6. **4× anti-aliasing:** implemented; normal/tiled output checks pass. Finish sustained 1080p/4K cost, memory/overload and recovery checks.
-7. **Video performance/stress:** normal playback/seeking is usable. Intel stress efficiency, 4K latency, shared consumers, complete GPU-path and repeated codec/profile runs remain unqualified; some measurements miss their targets.
-8. **Shared Texture format coverage:** ordinary supported formats work. Remaining NVIDIA/D3D9, adapter-loss and allocation cases need matching sender/hardware coverage.
-9. **32-bit App Control retirement:** the 64-bit path works; the WOW64 accounting/retirement case still fails. Requires a correction before release.
-10. **Long-run resources and physical latency:** retained peak-memory growth and GPU/timing limits are not all met. Complete the sustained and mixed-display timing checks; fix remaining failures before release.
-11. **Full regression and Windows qualification:** reconcile/fix the remaining parallel Video and older Matrix/tool-fixture failures, then run the complete app/installer checks.
+7. **Video fade-loop:** finish moving-seam pixels in preview and output, reverse and multichannel cases, and file/device recovery during the overlap.
+8. **Video performance/stress:** normal playback/seeking is usable. Intel stress efficiency, 4K latency, shared consumers, complete GPU-path and repeated codec/profile runs remain unqualified; some measurements miss their targets.
+9. **Shared Texture format coverage:** ordinary supported formats work. Remaining NVIDIA/D3D9, adapter-loss and allocation cases need matching sender/hardware coverage.
+10. **32-bit App Control retirement:** the 64-bit path works; the WOW64 accounting/retirement case still fails. Requires a correction before release.
+11. **Long-run resources and physical latency:** retained peak-memory growth and GPU/timing limits are not all met. Complete the sustained and mixed-display timing checks; fix remaining failures before release.
+12. **Full regression and Windows qualification:** reconcile/fix the remaining parallel Video and older Matrix/tool-fixture failures, then run the complete app/installer checks.
 
 ## Checking cadence from now on
 

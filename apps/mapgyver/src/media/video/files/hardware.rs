@@ -2,7 +2,8 @@
 use super::super::control::scheduling;
 use super::*;
 use golden_video::decode::{DecodeStorage, HapFormat};
-use golden_video::native::{GpuFrameError, GpuFramePublisher};
+use golden_video::native::{GpuFrameError, GpuFrameInput, GpuFramePublisher};
+use loop_pair::LoopPair;
 
 #[derive(Clone, Copy)]
 struct PreparedFrame {
@@ -94,7 +95,7 @@ impl Run {
                 .and_then(|frames| frames.checked_add(bytes))
                 .ok_or("HAP storage overflow")?;
         }
-        let cpu_lease = match cpu_lease {
+        let mut cpu_lease = match cpu_lease {
             Some(lease) => lease,
             None => Arc::new(
                 self.budget
@@ -116,6 +117,8 @@ impl Run {
         let mut cached = None;
         let mut retry = None;
         let mut cursor = None;
+        let mut loop_cursor = None;
+        let mut loop_pair: Option<LoopPair> = None;
         let mut epoch = None;
         let mut software_image: Option<(i64, Arc<golden_video::image::ImageData>)> = None;
         let mut installed = false;
@@ -128,6 +131,7 @@ impl Run {
             if epoch != Some(sample.epoch) {
                 epoch = Some(sample.epoch);
                 cursor = None;
+                loop_cursor = None;
                 retry = None;
                 if let Some(publisher) = &publisher {
                     // Old windows plus a completed rejected image can otherwise pin all three
@@ -136,11 +140,21 @@ impl Run {
                 }
             }
             let mut waiting = false;
+            if !sample.needs_loop_companion() {
+                loop_pair = None;
+            }
+            if sample.timeline.is_some() {
+                // Fade publications never use timestamp-only reuse. Let the former ordinary
+                // image release its ring slot once its consumers and clock window retire.
+                cached = None;
+            }
             if let Some(publisher) = &mut publisher {
                 if let Some(image) = publisher.poll()? {
                     let expected = pending.take().expect("one clock fence per submitted conversion");
                     let expected: PreparedFrame = expected;
-                    cached = Some((expected.timestamp, image.clone()));
+                    if expected.sample.timeline.is_none() {
+                        cached = Some((expected.timestamp, image.clone()));
+                    }
                     ready = Some((expected, image));
                 }
                 if let Some((expected, image)) = &ready {
@@ -183,13 +197,19 @@ impl Run {
                     } else if self.control.sample()?.epoch != expected.sample.epoch {
                         ready = None;
                         cursor = None;
+                        loop_cursor = None;
                     }
                 }
                 waiting = publisher.is_pending() || ready.is_some();
+                if !waiting && !sample.needs_loop_companion() {
+                    let _ = publisher.release_crossfade();
+                }
             }
             if !waiting {
                 let target = if let Some(target) = retry {
                     Some(target)
+                } else if sample.timeline.is_some() {
+                    scheduling::loop_target(sample, loop_cursor)?
                 } else {
                     scheduling::target(
                         sample,
@@ -200,7 +220,26 @@ impl Run {
                     )?
                 };
                 if let Some(target) = target {
-                    if reader.advance(target.channel_position(reader.duration))? {
+                    let blend = if target.needs_loop_companion() {
+                        let pair = match &mut loop_pair {
+                            Some(pair) => pair,
+                            slot @ None => slot.insert(LoopPair::open(self, worker, &reader, &cpu_lease)?),
+                        };
+                        pair.orient(target, &mut reader, &mut cpu_lease);
+                        let (prepared, blend) = pair.prepare(target)?;
+                        if !prepared && blend.is_some() {
+                            worker.wait_until(checkpoint, pacing::deadline(turn_started, sample.playing, true));
+                            continue;
+                        }
+                        blend
+                    } else {
+                        None
+                    };
+                    let changed = reader.advance(target.channel_position(reader.duration))?;
+                    let fade_changed = target.timeline.is_some()
+                        && !reader.catching_up
+                        && (scheduling::timed(target) || cursor != Some(target));
+                    if changed || fade_changed {
                         retry = Some(target);
                         let image = if software {
                             let timestamp = reader.frame().timestamp();
@@ -251,7 +290,40 @@ impl Run {
                                 publisher.as_mut().unwrap().record_software_upload_timing();
                             }
                         }
-                        let submitted = if let Some(image) = image {
+                        let submitted = if let Some(blend) = blend {
+                            let publisher = publisher.as_mut().expect("loop publisher ready");
+                            publisher.prepare_crossfade()?;
+                            let pair = loop_pair.as_mut().expect("loop companion ready");
+                            let (primary, secondary) = if let Some(image) = image {
+                                (
+                                    GpuFrameInput::Software(image),
+                                    GpuFrameInput::Software(pair.software_image()?),
+                                )
+                            } else if let Some(frame) = frame.hap_frame() {
+                                (
+                                    GpuFrameInput::Hap(frame),
+                                    GpuFrameInput::Hap(
+                                        pair.reader()
+                                            .frame()
+                                            .hap_frame()
+                                            .ok_or("loop companion HAP storage changed")?,
+                                    ),
+                                )
+                            } else {
+                                (
+                                    GpuFrameInput::Decoded(
+                                        frame.d3d11_frame().ok_or("native decoder returned software storage")?,
+                                    ),
+                                    GpuFrameInput::Decoded(
+                                        pair.reader()
+                                            .frame()
+                                            .d3d11_frame()
+                                            .ok_or("loop companion native storage changed")?,
+                                    ),
+                                )
+                            };
+                            publisher.submit_crossfade(primary, secondary, blend.secondary_weight)?
+                        } else if let Some(image) = image {
                             publisher.as_mut().unwrap().submit_software(image)?
                         } else if let Some(frame) = frame.hap_frame() {
                             publisher.as_mut().unwrap().submit_hap(frame)?
@@ -262,14 +334,16 @@ impl Run {
                                 .submit(frame.d3d11_frame().ok_or("native decoder returned software storage")?)?
                         };
                         if submitted {
-                            software_image = None;
+                            if target.timeline.is_none() {
+                                software_image = None;
+                            }
                             let frame = reader.neighbours()?.ok_or("Selected Video timestamps unavailable")?;
+                            let window = super::super::frames::loop_window(target, frame).ok();
                             if let Some(sink) = &hardware.submission_sink {
                                 // Submission is recorded before completion/publication, including
                                 // frames later superseded or never sampled by a renderer.
                                 // Unprojectable diagnostic timing stays unknown; it must not
                                 // turn an otherwise valid paused conversion into a source fault.
-                                let window = super::super::frames::window(target, frame).ok();
                                 publisher.as_mut().unwrap().trace_pending_submission(sink, window);
                             }
                             pending = Some(PreparedFrame {
@@ -279,8 +353,9 @@ impl Run {
                             });
                             retry = None;
                             cursor = Some(target);
+                            loop_cursor = if target.timeline.is_some() { window } else { None };
                             reader.mark_published();
-                            if software && target.playing {
+                            if software && target.playing && target.timeline.is_none() {
                                 let now = self.control.sample()?;
                                 if now.playing && now.epoch == target.epoch {
                                     reader.prepare_next(now.channel_position(reader.duration))?;

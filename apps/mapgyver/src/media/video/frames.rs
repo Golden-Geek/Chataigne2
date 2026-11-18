@@ -8,24 +8,81 @@ pub(super) fn window(
     frame: Neighbours,
 ) -> Result<golden_video::scheduling::FrameWindow, String> {
     use golden_time::ShowPosition;
-    let origin = i128::from(sample.cycle) * sample.duration.as_nanos() as i128;
+    let origin = sample.cycle_origin();
     let coordinate = |position: Duration| -> Result<ShowPosition, String> {
         i64::try_from(origin + position.as_nanos() as i128)
             .map(ShowPosition::from_nanos)
             .map_err(|_| "Video frame window overflow".into())
     };
+    let timed_loop = sample.looping && sample.playing;
+    let timed_fade = timed_loop && sample.timeline.is_some();
     let end = frame
         .next
-        .or(sample.looping.then_some(sample.duration))
+        .map(|next| if timed_fade { next.min(sample.cycle_end()) } else { next })
+        .or(sample.looping.then_some(sample.cycle_end()))
         .map(coordinate)
         .transpose()?;
     golden_video::scheduling::FrameWindow::new(
         sample.epoch,
-        coordinate(frame.position)?,
+        coordinate(if timed_fade {
+            frame.position.max(sample.cycle_start())
+        } else {
+            frame.position
+        })?,
         end,
         ShowPosition::from_nanos(i64::try_from(frame.position.as_nanos()).map_err(|_| "Video PTS overflow")?),
     )
     .ok_or_else(|| "Invalid Video frame interval".into())
+}
+
+/// Split a decoded interval at the start of the seam and into bounded fade samples.
+/// The same clock window gates both the published image and frame-step observations.
+pub(super) fn loop_window(
+    sample: TransportSample,
+    frame: Neighbours,
+) -> Result<golden_video::scheduling::FrameWindow, String> {
+    use golden_time::ShowPosition;
+    use golden_video::scheduling::FrameWindow;
+    let window = window(sample, frame)?;
+    let Some(timeline) = sample.timeline.filter(|_| sample.playing) else {
+        return Ok(window);
+    };
+    let position = sample.frame_position()?.position.as_nanos();
+    let origin = sample.cycle_origin();
+    let seam_start = origin
+        + if sample.reverse {
+            0
+        } else {
+            timeline.cycle_duration().as_nanos() as i128
+        };
+    let seam_end = seam_start + timeline.overlap().as_nanos() as i128;
+    let position = i128::from(position);
+    let (lower, upper) = if position < seam_start {
+        (i128::MIN, seam_start)
+    } else if position >= seam_end {
+        (seam_end, i128::MAX)
+    } else {
+        // Use an absolute media-time grid to avoid an accumulation of rounded periods.
+        const QUANTUM_NS: i128 = 16_666_667;
+        let lower = seam_start + (position - seam_start) / QUANTUM_NS * QUANTUM_NS;
+        (lower, (lower + QUANTUM_NS).min(seam_end))
+    };
+    let start = window
+        .start()
+        .as_nanos()
+        .max(i64::try_from(lower.max(i128::from(i64::MIN))).map_err(|_| "Video loop start overflows")?);
+    let end = window
+        .end()
+        .map(|end| end.as_nanos())
+        .unwrap_or(i64::MAX)
+        .min(i64::try_from(upper.min(i128::from(i64::MAX))).map_err(|_| "Video loop end overflows")?);
+    FrameWindow::new(
+        sample.epoch,
+        ShowPosition::from_nanos(start),
+        Some(ShowPosition::from_nanos(end)),
+        window.pts(),
+    )
+    .ok_or_else(|| "Invalid Video loop frame interval".into())
 }
 
 #[derive(Clone, Copy, Debug)]

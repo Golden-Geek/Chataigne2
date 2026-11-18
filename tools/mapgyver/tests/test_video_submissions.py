@@ -47,6 +47,19 @@ def analyze(events=None, bindings=None, snapshots=None, captures=None):
 
 
 class SourceAttributionTests(unittest.TestCase):
+    def test_crossfade_counts_each_cpu_upload_under_one_source_submission(self):
+        row = submission()
+        tail, head = row["payload"]["Software"], submission(2)["payload"]["Software"]
+        row["payload"] = {"SoftwareCrossfade": [tail, head]}
+        packed = submission(stream="hap", kind="hap")
+        packed["payload"] = {"HapCrossfade": {"bytes": [4, 4]}}
+        result = analyze({"SourceSubmission": [row, packed]}, bindings=[binding(), binding("hap")],
+                         snapshots=[budget(2, 2)])
+        self.assertTrue(result["source_worker_cpu_uploads"]["complete_cpu_payload_pts_attribution"])
+        self.assertEqual(result["source_worker_cpu_uploads"]["observed"]["software"], {"calls": 2, "bytes": 16})
+        self.assertEqual(result["source_worker_cpu_uploads"]["observed"]["hap"], {"calls": 2, "bytes": 8})
+        self.assertTrue(all(source["submissions"] == 1 for source in result["sources"]))
+
     def test_unsampled_repeated_pts_and_alias_captures_keep_actual_upload_counts(self):
         first, second = submission(), submission(2)
         witness = {"stream": "gpu", "sequence": 2, "software_upload": second["payload"]["Software"],

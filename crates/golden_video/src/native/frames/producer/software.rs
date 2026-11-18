@@ -1,6 +1,7 @@
 //! Software RGBA upload on its source worker, before immutable shared GPU publication.
 use super::*;
 use crate::image::ImageData;
+use crate::native::{CpuInterval, SoftwareUploadTrace, texture::Texture, timing::Clock};
 
 impl GpuFramePublisher {
     /// Admit three RGBA8 slots on one exact adapter before native device creation.
@@ -31,7 +32,7 @@ impl GpuFramePublisher {
             },
             lease,
             wake,
-            budget.upload_accounting(),
+            budget,
         )
     }
 
@@ -69,35 +70,49 @@ impl GpuFramePublisher {
             .diagnostics
             .as_mut()
             .map(|diagnostics| diagnostics.gpu.begin(&self.device.context, token));
-        let begin = clock.and_then(|clock| clock.stamp());
-        // SAFETY: validated tight RGBA8 storage, exact descriptor, keyed ownership of a free
-        // slot, source-worker context. No earlier GPU reader can still own this slot.
-        unsafe {
-            self.device.context.UpdateSubresource(
-                &self.slots[index].texture.texture,
-                0,
-                None,
-                image.pixels().as_ptr().cast(),
-                image.descriptor().extent.width() * 4,
-                0,
-            );
-        }
+        let upload = upload_image(
+            &self.device.context,
+            &self.slots[index].texture,
+            &image,
+            self.stream.id(),
+            next,
+            *clock,
+        );
         *sequence = next;
-        self.pending.as_mut().unwrap().software_upload = Some(crate::native::SoftwareUploadTrace {
-            stream: self.stream.id(),
-            sequence: next,
-            row_pitch: image.descriptor().extent.width() * 4,
-            rows: image.descriptor().extent.height(),
-            bytes: image.pixels().len() as u64,
-            cpu: begin
-                .zip(clock.and_then(|clock| clock.stamp()))
-                .filter(|(begin, end)| end >= begin)
-                .map(|(begin, end)| crate::native::CpuInterval { begin, end }),
-        });
+        self.pending.as_mut().unwrap().software_upload = Some(upload);
         // Keep optional accounting outside the measured source API interval.
         if let Some(uploads) = &self.uploads {
             uploads.record_upload(super::super::budget::UploadKind::Software, image.pixels().len() as u64);
         }
         Ok(true)
+    }
+}
+
+pub(super) fn upload_image(
+    context: &ID3D11DeviceContext,
+    target: &Texture,
+    image: &ImageData,
+    stream: uuid::Uuid,
+    sequence: u64,
+    clock: Option<Clock>,
+) -> SoftwareUploadTrace {
+    let extent = image.descriptor().extent;
+    let row_pitch = extent.width() * 4;
+    let begin = clock.and_then(Clock::stamp);
+    // SAFETY: the caller validated tightly packed source and exact target descriptor
+    // and owns the scratch or free keyed slot on this immediate context.
+    unsafe {
+        context.UpdateSubresource(&target.texture, 0, None, image.pixels().as_ptr().cast(), row_pitch, 0);
+    }
+    SoftwareUploadTrace {
+        stream,
+        sequence,
+        row_pitch,
+        rows: extent.height(),
+        bytes: image.pixels().len() as u64,
+        cpu: begin
+            .zip(clock.and_then(Clock::stamp))
+            .filter(|(begin, end)| end >= begin)
+            .map(|(begin, end)| CpuInterval { begin, end }),
     }
 }

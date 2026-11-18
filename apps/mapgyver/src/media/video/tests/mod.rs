@@ -1,4 +1,5 @@
 use super::*;
+mod fade;
 mod frames;
 mod membership;
 #[cfg(feature = "video-files")]

@@ -282,6 +282,14 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
         if *kind == MediaCommandKind::VideoPlayAtLoad {
             set(&mut engine, command, "video_play_at_load", ParamValue::Bool(true));
         }
+        if *kind == MediaCommandKind::VideoAutoSmoothLoop {
+            set(
+                &mut engine,
+                command,
+                "video_auto_smooth_loop_ms",
+                ParamValue::Float(750.5),
+            );
+        }
         if *kind == MediaCommandKind::VideoOnActivate {
             set(
                 &mut engine,
@@ -303,6 +311,13 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
         let history = engine.undo_len();
         let ack = invoke(&mut engine, MediaEdit::ExecuteCommand { command });
         assert!(ack.success, "{kind:?}: {ack:?}");
+        if *kind == MediaCommandKind::VideoAutoSmoothLoop {
+            let settings = crate::media::video::authoring::inspect(&engine, target.media)
+                .unwrap()
+                .settings;
+            assert_eq!(settings.auto_smooth_loop_ms, 750.5);
+            assert!(!settings.looping);
+        }
         if matches!(
             kind,
             MediaCommandKind::VideoOnActivate | MediaCommandKind::VideoOnDeactivate

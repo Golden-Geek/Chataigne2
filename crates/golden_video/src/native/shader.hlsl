@@ -12,6 +12,13 @@ cbuffer VideoParameters : register(b3) {
     uint video_interpretation;
 };
 
+cbuffer CrossfadeParameters : register(b4) {
+    float crossfade_weight;
+    uint crossfade_encoding;
+    uint crossfade_alpha;
+    uint crossfade_reserved;
+};
+
 cbuffer Parameters : register(b0) {
     uint2 source_extent;
     uint source_encoding;
@@ -109,6 +116,28 @@ float3 decode_rgb(float3 encoded) {
 
 float3 encode_rgb(float3 value) {
     return float3(encode_srgb(value.r), encode_srgb(value.g), encode_srgb(value.b));
+}
+
+float4 decode_crossfade_input(float4 value) {
+    float coverage = crossfade_alpha == ALPHA_OPAQUE ? 1 : value.a;
+    if (coverage <= 0) return 0;
+    float3 color = crossfade_alpha == ALPHA_PREMULTIPLIED ? value.rgb / coverage : value.rgb;
+    if (crossfade_encoding == ENCODING_SRGB) color = decode_rgb(color);
+    return float4(color * coverage, coverage);
+}
+
+float4 ps_crossfade(Vertex input) : SV_Target {
+    int3 texel = int3(int2(input.position.xy), 0);
+    float4 tail = decode_crossfade_input(source_image.Load(texel));
+    float4 head = decode_crossfade_input(previous_image.Load(texel));
+    // Interpolate premultiplied linear light with complementary weights. This
+    // preserves coverage and prevents hidden RGB from bleeding through a fade.
+    float4 result = lerp(tail, head, crossfade_weight);
+    if (result.a <= 0) return 0;
+    float3 color = result.rgb / result.a;
+    if (crossfade_encoding == ENCODING_SRGB) color = encode_rgb(color);
+    if (crossfade_alpha == ALPHA_PREMULTIPLIED) color *= result.a;
+    return float4(color, result.a);
 }
 
 float decode_bt709(float value) {

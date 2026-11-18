@@ -444,7 +444,7 @@ impl VideoControl {
         image: golden_video::image::ImageData,
         frame: super::frames::Neighbours,
     ) -> Result<bool, String> {
-        let window = super::frames::window(expected, frame)?;
+        let window = super::frames::loop_window(expected, frame)?;
         self.publish_with(channel, owner, expected, || stream.replace_frame(image, window))
     }
     fn publish_with<T>(
@@ -482,6 +482,7 @@ impl VideoControl {
             || state.settings.position_ms != settings.position_ms
             || state.settings.speed != settings.speed
             || state.settings.looping != settings.looping
+            || (settings.looping && state.settings.auto_smooth_loop_ms != settings.auto_smooth_loop_ms)
             || state.settings.play_at_load != settings.play_at_load
         {
             state.manual_revision = state
@@ -607,7 +608,7 @@ impl State {
             .last_key_value()
             .map_or(Duration::ZERO, |(duration, _)| *duration);
         if duration == self.transport.duration() {
-            return Ok(());
+            return self.update_loop_policy();
         }
         let first = self.transport.duration().is_zero();
         let extended = duration > self.transport.duration();
@@ -630,9 +631,7 @@ impl State {
         let rate = PlaybackRate::new((self.settings.speed * 1_000_000.0).round() as i32, 1_000_000)
             .map_err(|e| e.to_string())?;
         self.transport.set_rate(rate).map_err(|e| e.to_string())?;
-        self.transport
-            .set_looping(self.settings.looping)
-            .map_err(|e| e.to_string())?;
+        self.update_loop_policy()?;
         if self.settings.mode == VideoPlaybackMode::Stopped {
             self.transport.stop().map_err(|e| e.to_string())?;
             self.seek_pending = false;
@@ -656,5 +655,17 @@ impl State {
             VideoPlaybackMode::Stopped => unreachable!(),
         }
         .map_err(|e| e.to_string())
+    }
+
+    fn update_loop_policy(&mut self) -> Result<(), String> {
+        let overlap = self
+            .durations
+            .first_key_value()
+            .map_or(Duration::ZERO, |(shortest, _)| {
+                Duration::from_secs_f64(self.settings.auto_smooth_loop_ms / 1_000.0).min(*shortest / 2)
+            });
+        self.transport
+            .set_loop_policy(self.settings.looping, overlap)
+            .map_err(|error| error.to_string())
     }
 }

@@ -103,6 +103,37 @@ fn unsupported_codec_and_absent_adapter_never_silently_select_software() {
     );
 }
 
+#[test]
+#[ignore = "native paired D3D11 decode and separate bounded pool ownership"]
+fn hardware_companion_shares_exact_device_but_not_codec_frame_pool() {
+    let choices: Vec<_> = crate::native::adapters()
+        .unwrap()
+        .into_iter()
+        .filter(|a| !a.software)
+        .collect();
+    assert!(!choices.is_empty());
+    let path = fixture("h264-color.mp4");
+    for choice in choices {
+        let budget = GpuFrameBudget::new(512 * 1024 * 1024);
+        let mut main = Decoder::open_native(&path, limits(), choice.id, budget.clone()).unwrap();
+        let mut alternate = main.open_companion_with_interrupt(&path, limits(), || false).unwrap();
+        let first = main.next_frame().unwrap().unwrap();
+        let second = main.next_frame().unwrap().unwrap();
+        let head = alternate.next_frame().unwrap().unwrap();
+        let first_gpu = first.d3d11_frame().unwrap();
+        let head_gpu = head.d3d11_frame().unwrap();
+        let first_device = unsafe { first_gpu.texture.GetDevice().unwrap() };
+        let head_device = unsafe { head_gpu.texture.GetDevice().unwrap() };
+        assert_eq!(first_device.as_raw(), head_device.as_raw());
+        assert_ne!(first_gpu.texture.as_raw(), head_gpu.texture.as_raw());
+        assert_eq!(head.timestamp(), first.timestamp());
+        assert!(second.timestamp() > head.timestamp());
+        assert_eq!(budget.snapshot().decoder_pools.allocations, 2);
+        drop((head, second, first, alternate, main));
+        assert_eq!(budget.retained_bytes(), 0);
+    }
+}
+
 /// Test-only blocking readback. The production decoder never maps/transfers hardware pixels.
 fn luma(frame: &D3d11Frame) -> u8 {
     use windows::Win32::Graphics::Direct3D11::*;

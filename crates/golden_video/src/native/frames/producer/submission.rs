@@ -15,19 +15,29 @@ impl GpuFramePublisher {
         if pending.traced {
             return false;
         }
-        let payload = match &pending._input {
-            Input::Software { .. } => {
+        let payload = match (&pending._input, &pending.head) {
+            (Input::Software { .. }, Some(Input::Software { .. })) => {
+                let [Some(tail), Some(head)] = pending.crossfade_uploads else {
+                    return false;
+                };
+                SourceSubmissionPayload::SoftwareCrossfade([tail, head])
+            }
+            (Input::Hap { _frame: tail }, Some(Input::Hap { _frame: head })) => SourceSubmissionPayload::HapCrossfade {
+                bytes: [tail.blocks().len() as u64, head.blocks().len() as u64],
+            },
+            (Input::Software { .. }, None) => {
                 let Some(upload) = pending.software_upload else {
                     return false;
                 };
                 SourceSubmissionPayload::Software(upload)
             }
-            Input::Hap { _frame } => SourceSubmissionPayload::Hap {
+            (Input::Hap { _frame }, None) => SourceSubmissionPayload::Hap {
                 bytes: _frame.blocks().len() as u64,
             },
-            Input::Decoded { .. } => SourceSubmissionPayload::Resident,
+            (Input::Decoded { .. }, None | Some(Input::Decoded { .. })) => SourceSubmissionPayload::Resident,
             #[cfg(test)]
-            Input::Texture { .. } => SourceSubmissionPayload::Resident,
+            (Input::Texture { .. }, None) => SourceSubmissionPayload::Resident,
+            _ => return false,
         };
         pending.traced = true;
         sink.record(SourceSubmissionTrace {

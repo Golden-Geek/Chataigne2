@@ -34,6 +34,7 @@ const MAX_SOFTWARE_GPU_PIXELS: u64 = 1920 * 1080;
 mod diagnostics;
 #[cfg(all(windows, feature = "native-video"))]
 mod hardware;
+mod loop_pair;
 mod pacing;
 #[cfg(all(windows, feature = "native-video"))]
 #[derive(Clone)]
@@ -530,7 +531,7 @@ impl Run {
                 info.codec, info.width, info.height
             );
         }
-        let lease = Arc::new(self.budget.admit_software(&mut decoder)?);
+        let mut lease = Arc::new(self.budget.admit_software(&mut decoder)?);
         #[cfg(all(windows, feature = "native-video"))]
         if let Some(hardware) = &self.hardware
             && hardware.has_storage_budget()
@@ -542,14 +543,49 @@ impl Run {
         self.control
             .channel_duration(self.reference.channel, owner, reader.duration)?;
         let mut stream: Option<ImageStream> = None;
+        let mut loop_pair: Option<loop_pair::LoopPair> = None;
+        let mut loop_cursor: Option<golden_video::scheduling::FrameWindow> = None;
         while !worker.cancellation().is_cancelled() {
             let turn_started = Instant::now();
             let checkpoint = worker.wake_checkpoint();
             let revision = self.control.revisions();
             let _subscription = revision.guard_at(revision.current()).subscribe(worker.wake_notifier());
             let sample = self.control.sample()?;
-            if let Some(image) = reader.poll(sample.channel_position(reader.duration))? {
-                let image = image.retain(lease.clone());
+            let image = if sample.needs_loop_companion() {
+                let position = sample.frame_position()?;
+                if loop_cursor.is_some_and(|window| window.contains(position)) {
+                    None
+                } else {
+                    let pair = match &mut loop_pair {
+                        Some(pair) => pair,
+                        slot @ None => slot.insert(loop_pair::LoopPair::open(self, worker, &reader, &lease)?),
+                    };
+                    pair.orient(sample, &mut reader, &mut lease);
+                    let (prepared, blend) = pair.prepare(sample)?;
+                    reader.advance(sample.channel_position(reader.duration))?;
+                    if reader.catching_up || (!prepared && blend.is_some()) {
+                        None
+                    } else {
+                        let image = reader.software_image()?.retain(lease.clone());
+                        reader.mark_published();
+                        let published = if let Some(blend) = blend {
+                            pair.blend_software(self, image, blend)?
+                        } else {
+                            image
+                        };
+                        Some(published)
+                    }
+                }
+            } else {
+                if loop_pair.take().is_some() {
+                    loop_cursor = None;
+                    reader.invalidate_publication();
+                }
+                reader
+                    .poll(sample.channel_position(reader.duration))?
+                    .map(|image| image.retain(lease.clone()))
+            };
+            if let Some(image) = image {
                 let next = stream.get_or_insert_with(|| {
                     let stream = ImageStream::new(image.descriptor());
                     if std::env::var_os("MAPGYVER_NATIVE_DIAGNOSTICS").is_some_and(|value| !value.is_empty()) {
@@ -557,14 +593,14 @@ impl Run {
                     }
                     stream
                 });
-                if self.control.publish_frame(
-                    self.reference.channel,
-                    owner,
-                    sample,
-                    next,
-                    image,
-                    reader.neighbours()?.ok_or("Selected Video timestamps unavailable")?,
-                )? {
+                let neighbours = reader.neighbours()?.ok_or("Selected Video timestamps unavailable")?;
+                if self
+                    .control
+                    .publish_frame(self.reference.channel, owner, sample, next, image, neighbours)?
+                {
+                    if sample.timeline.is_some() {
+                        loop_cursor = Some(super::frames::loop_window(sample, neighbours)?);
+                    }
                     let mut output = self.output.lock().unwrap();
                     if output.stream.is_none() {
                         output.stream = Some(Stream::Software(next.clone()));

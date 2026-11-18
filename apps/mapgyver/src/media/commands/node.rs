@@ -92,6 +92,8 @@ use std::sync::Arc;
         video_position_ms: f64 = 0.0 [0.0..9000000000000.0] (label = "Position", widget = "time", unit = "ms", constraint_policy = "reject");
         video_speed: f64 = 1.0 [-16.0..16.0] (label = "Speed", constraint_policy = "reject");
         video_looping: bool = false (label = "Loop");
+        video_auto_smooth_loop_ms: f64 = 0.0 [0.0..9000000000000.0] (
+            label = "Auto-Smooth Loop", widget = "time", unit = "ms", constraint_policy = "reject");
         video_play_at_load: bool = false (label = "Play at Load");
         video_on_activate: Enum = "PlayFromStart" (label = "On Activate", enum_options = super::super::video::protocol::VideoOnActivate::options(), constraint_policy = "reject");
         video_on_deactivate: Enum = "Stop" (label = "On Deactivate", enum_options = crate::parameters::enum_options(&["Stop", "Pause", "Nothing"]), constraint_policy = "reject");
@@ -204,6 +206,12 @@ impl MediaCommandNode {
                 media,
                 edit: super::super::video::protocol::VideoEdit::Loop {
                     looping: self.video_looping.get(),
+                },
+            },
+            MediaCommandKind::VideoAutoSmoothLoop => MediaEdit::Video {
+                media,
+                edit: super::super::video::protocol::VideoEdit::AutoSmoothLoop {
+                    duration_ms: self.video_auto_smooth_loop_ms.get(),
                 },
             },
             MediaCommandKind::VideoOnActivate => MediaEdit::Video {

@@ -21,6 +21,7 @@ command_kinds! {
     VideoSeek => "Seek Video", "Video", ["media", "video_position_ms"];
     VideoSpeed => "Set Video Speed", "Video", ["media", "video_speed"];
     VideoLoop => "Set Video Loop", "Video", ["media", "video_looping"];
+    VideoAutoSmoothLoop => "Set Video Auto-Smooth Loop", "Video", ["media", "video_auto_smooth_loop_ms"];
     VideoPlayAtLoad => "Set Play at Load", "Video", ["media", "video_play_at_load"];
     VideoOnActivate => "Set Video On Activate", "Video", ["media", "video_on_activate"];
     VideoOnDeactivate => "Set Video On Deactivate", "Video", ["media", "video_on_deactivate"];

@@ -12,6 +12,7 @@ pub(super) const METHODS: &[&str] = &[
     "seekVideo",
     "setVideoSpeed",
     "setVideoLoop",
+    "setVideoAutoSmoothLoop",
     "setVideoPlayAtLoad",
     "setVideoOnActivate",
     "setVideoOnDeactivate",
@@ -92,6 +93,7 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "seekVideo"
         | "setVideoSpeed"
         | "setVideoLoop"
+        | "setVideoAutoSmoothLoop"
         | "setVideoPlayAtLoad"
         | "inspectVideoFrame"
         | "inspectVideoSource"
@@ -177,6 +179,12 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
             media: MediaId(uuid(args, 0)?),
             edit: super::video::protocol::VideoEdit::Speed {
                 speed: number(args, 1)?,
+            },
+        },
+        "setVideoAutoSmoothLoop" => MediaEdit::Video {
+            media: MediaId(uuid(args, 0)?),
+            edit: super::video::protocol::VideoEdit::AutoSmoothLoop {
+                duration_ms: number(args, 1)?,
             },
         },
         "setVideoLoop" | "setVideoPlayAtLoad" => {

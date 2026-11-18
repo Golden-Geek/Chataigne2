@@ -279,6 +279,13 @@ pub enum SourceSubmissionPayload {
         /// Number of compressed BC bytes passed to the upload API.
         bytes: u64,
     },
+    /// Two actual software uploads in one blended source publication.
+    SoftwareCrossfade([SoftwareUploadTrace; 2]),
+    /// Two compressed BC uploads in one blended source publication, tail then head.
+    HapCrossfade {
+        /// Exact uploaded byte counts, excluding fixed shader/constants setup.
+        bytes: [u64; 2],
+    },
 }
 
 /// One actual pending source conversion. Ring loss remains explicit in diagnostic health.

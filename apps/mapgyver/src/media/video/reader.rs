@@ -58,6 +58,19 @@ pub(super) fn duration(ticks: i64, base: TimeBase) -> Result<Duration, String> {
     Ok(Duration::from_nanos(nanos))
 }
 impl Reader {
+    pub(super) fn open_companion(
+        &self,
+        path: &std::path::Path,
+        limits: golden_video::decode::DecodeLimits,
+        cancelled: impl FnMut() -> bool + Send + 'static,
+    ) -> Result<Decoder, Failure> {
+        Ok(self.decoder.open_companion_with_interrupt(path, limits, cancelled)?)
+    }
+
+    pub(super) fn storage(&self) -> DecodeStorage {
+        self.decoder.storage()
+    }
+
     pub fn cpu_layouts(&self) -> CpuLayouts {
         CpuLayouts {
             decoded_storage: self.decoder.cpu_frame_budget().map(|budget| budget.snapshot()),

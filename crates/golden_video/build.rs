@@ -90,6 +90,7 @@ fn compile_native_shaders() {
         ("IMPORT_PIXEL", s!("ps_import"), s!("ps_5_0"), "ps_import.dxbc"),
         ("VIDEO_PIXEL", s!("ps_video"), s!("ps_5_0"), "ps_video.dxbc"),
         ("HAP_PIXEL", s!("ps_hap"), s!("ps_5_0"), "ps_hap.dxbc"),
+        ("CROSSFADE_PIXEL", s!("ps_crossfade"), s!("ps_5_0"), "ps_crossfade.dxbc"),
         (
             "IMPORT_UINT_PIXEL",
             s!("ps_import_uint"),
@@ -103,7 +104,7 @@ fn compile_native_shaders() {
             "ps_import_sint.dxbc",
         ),
     ] {
-        if name == "HAP_PIXEL" && std::env::var_os("CARGO_FEATURE_FFMPEG").is_none() {
+        if matches!(name, "HAP_PIXEL" | "CROSSFADE_PIXEL") && std::env::var_os("CARGO_FEATURE_FFMPEG").is_none() {
             continue;
         }
         let mut code = None;

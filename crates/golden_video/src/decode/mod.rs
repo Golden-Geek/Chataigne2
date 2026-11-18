@@ -162,6 +162,9 @@ pub enum DecodeError {
     /// A failed decoder must be reopened rather than reused after partial input consumption.
     #[error("video decoder failed; reopen the file")]
     ReopenRequired,
+    /// A second reader no longer describes the original stream.
+    #[error("companion video stream no longer matches the original source")]
+    CompanionMismatch,
     /// A seek is outside the container's declared stream interval.
     #[error("video seek timestamp is outside the declared stream")]
     OutsideStream,
@@ -264,6 +267,36 @@ impl Decoder {
                 },
             )
         })
+    }
+
+    /// Open a second, independently seekable reader for the same local stream.
+    /// D3D11 readers retain the original hardware device and reserve a separate
+    /// codec frame pool. Software and HAP readers have independent storage budgets.
+    pub fn open_companion_with_interrupt(
+        &self,
+        path: &Path,
+        limits: DecodeLimits,
+        interrupt: impl FnMut() -> bool + Send + 'static,
+    ) -> Result<Self, DecodeError> {
+        #[cfg(all(windows, feature = "d3d11"))]
+        if let DecoderKind::D3d11(device) = &self.kind {
+            let companion = Self::open_configured(path, limits, interrupt, |input, index| {
+                let stream = input.stream(index).ok_or(ffmpeg::Error::StreamNotFound)?;
+                if stream.parameters().id().name() != self.info.codec {
+                    return Err(DecodeError::CompanionMismatch);
+                }
+                Ok(DecoderKind::D3d11(device.companion()?))
+            })?;
+            return self.match_companion(companion);
+        }
+        self.match_companion(Self::open_with_interrupt(path, limits, interrupt)?)
+    }
+
+    fn match_companion(&self, other: Self) -> Result<Self, DecodeError> {
+        if other.info() != self.info() || other.storage() != self.storage() {
+            return Err(DecodeError::CompanionMismatch);
+        }
+        Ok(other)
     }
 
     fn open_configured(

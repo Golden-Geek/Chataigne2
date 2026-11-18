@@ -2,6 +2,7 @@ use super::*;
 use crate::media::video::MediaTransport;
 use golden_time::{Clock, MonotonicTime, PlaybackRate, TimeError};
 use golden_video::scheduling::FrameBuffer;
+mod fade;
 mod transitions;
 
 struct Fixed;

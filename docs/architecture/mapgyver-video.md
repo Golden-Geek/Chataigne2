@@ -100,6 +100,23 @@ position. Frame stepping pauses at an exact timestamp supplied by the selected c
 decoder. The worker prepares the current, previous and next presentation timestamps; neither
 the UI nor the operation adapter divides by a nominal frame rate.
 
+Auto-Smooth Loop is a typed millisecond duration in the generic Inspector. Loop off disables
+the editor, preserves the value and uses ordinary playback. A zero duration also uses the
+ordinary path. The longest known channel still supplies the shared transport duration. The
+effective overlap is capped at half the shortest known channel duration, and a shorter
+channel holds its final frame before the shared seam. An unknown-duration file cannot
+publish frames until its own duration is known.
+
+Golden Video projects the current clock position to two file timestamps inside the overlap.
+The incoming weight is smoothstep of the overlap progress. After the first seam, playback
+continues after the consumed part of the incoming clip, in either direction. Clock
+discontinuities reanchor the projection and reject results from old epochs. One channel
+worker owns both decoders and can promote the warmed incoming reader at the seam. Native
+decode companions share the exact device with separately admitted codec pools. The GPU
+publisher blends in linear premultiplied space and publishes one image to the existing shared
+channel stream. Software fallback preserves the same color math and storage accounting.
+The ordinary path carries no companion decoder or blend scratch allocation.
+
 Golden's `Decoder` retains original stream timestamps and explicit software or hardware storage.
 Its ordinary open methods preserve HAP blocks and otherwise select software;
 `open_native` requests D3D11 decode on an exact adapter while preserving HAP blocks for

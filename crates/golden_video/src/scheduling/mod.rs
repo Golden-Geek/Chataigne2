@@ -1,6 +1,9 @@
 //! Bounded presentation windows. Producers prepare ahead; consumers select by one clock position.
 use golden_time::{ShowPosition, TimeEpoch};
 
+mod loop_timeline;
+pub use loop_timeline::{LoopBlend, LoopSample, LoopTimeline};
+
 /// One source timeline observation, independent of its renderer's clock origin.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FramePosition {

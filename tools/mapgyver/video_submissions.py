@@ -71,8 +71,7 @@ def capture_complete(capture):
             == capture.get("observed_events"))
 
 
-def payload(row):
-    value = row["payload"]
+def payload(row, value):
     if value == "Resident":
         return "resident", 0, None
     if not isinstance(value, dict) or len(value) != 1:
@@ -90,6 +89,22 @@ def payload(row):
         raise ValueError("source RGBA payload disagrees with its immutable descriptor")
     integer(value["sequence"], "source upload sequence", 1)
     return "software", size, value
+
+
+def payloads(row):
+    value = row["payload"]
+    if isinstance(value, dict) and len(value) == 1:
+        if "SoftwareCrossfade" in value:
+            frames = value["SoftwareCrossfade"]
+            if not isinstance(frames, list) or len(frames) != 2:
+                raise ValueError("crossfade must submit two software payloads")
+            return [payload(row, {"Software": frame}) for frame in frames]
+        if "HapCrossfade" in value:
+            frames = value["HapCrossfade"]["bytes"]
+            if not isinstance(frames, list) or len(frames) != 2:
+                raise ValueError("crossfade must submit two HAP payloads")
+            return [payload(row, {"Hap": {"bytes": size}}) for size in frames]
+    return [payload(row, value)]
 
 
 def analyze_source_submissions(events, bindings, snapshots, captures):
@@ -142,23 +157,25 @@ def analyze_source_submissions(events, bindings, snapshots, captures):
         if item["_descriptor"] is not None and item["_descriptor"] != descriptor:
             raise ValueError("source lifetime changed its immutable descriptor")
         item["_descriptor"] = descriptor
-        kind, size, upload = payload(row)
-        if upload is not None:
-            upload_key = (upload["stream"], upload["sequence"])
-            if upload_key in upload_ids:
-                raise ValueError("one upload identity belongs to multiple source submissions")
-            upload_ids[upload_key] = row
         item["submissions"] += 1
-        if kind == "resident":
-            item["resident_submissions"] += 1
-        else:
-            for target in (item[kind], observed[kind]):
-                target["calls"] += 1
-                target["bytes"] += size
+        uploaded = False
+        for kind, size, upload in payloads(row):
+            if upload is not None:
+                upload_key = (upload["stream"], upload["sequence"])
+                if upload_key in upload_ids:
+                    raise ValueError("one upload identity belongs to multiple source submissions")
+                upload_ids[upload_key] = row
+            if kind == "resident":
+                item["resident_submissions"] += 1
+            else:
+                uploaded = True
+                for target in (item[kind], observed[kind]):
+                    target["calls"] += 1
+                    target["bytes"] += size
         frame = row.get("frame")
         if frame is None:
             item["unknown_frame_submissions"] += 1
-            unknown_cpu_frames += kind != "resident"
+            unknown_cpu_frames += uploaded
         else:
             for field in ("pts_nanos", "start_nanos"):
                 integer(frame[field], field, -(1 << 63), (1 << 63) - 1)

@@ -18,7 +18,7 @@ mod hap;
 #[cfg(feature = "ffmpeg")]
 mod producer;
 #[cfg(feature = "ffmpeg")]
-pub use producer::{GpuFrameError, GpuFramePublisher};
+pub use producer::{GpuFrameError, GpuFrameInput, GpuFramePublisher};
 
 struct Fault {
     code: AtomicI32,

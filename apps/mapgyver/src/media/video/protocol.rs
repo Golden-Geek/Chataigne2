@@ -70,6 +70,8 @@ pub struct VideoTransportSettings {
     pub position_ms: f64,
     pub speed: f64,
     pub looping: bool,
+    /// Authored duration in milliseconds. Loop off keeps the value for later.
+    pub auto_smooth_loop_ms: f64,
     pub play_at_load: bool,
     pub on_activate: VideoOnActivate,
     pub on_deactivate: VideoOnDeactivate,
@@ -81,6 +83,7 @@ impl Default for VideoTransportSettings {
             position_ms: 0.0,
             speed: 1.0,
             looping: false,
+            auto_smooth_loop_ms: 0.0,
             play_at_load: false,
             on_activate: VideoOnActivate::default(),
             on_deactivate: VideoOnDeactivate::default(),
@@ -94,6 +97,9 @@ impl VideoTransportSettings {
         }
         if !self.speed.is_finite() || !(-16.0..=16.0).contains(&self.speed) {
             return Err("Video speed must be finite in -16..16".into());
+        }
+        if !self.auto_smooth_loop_ms.is_finite() || !(0.0..=9_000_000_000_000.0).contains(&self.auto_smooth_loop_ms) {
+            return Err("Video Auto-Smooth Loop must be finite milliseconds in 0..9000000000000".into());
         }
         Ok(())
     }
@@ -119,6 +125,9 @@ pub enum VideoEdit {
     },
     Loop {
         looping: bool,
+    },
+    AutoSmoothLoop {
+        duration_ms: f64,
     },
     PlayAtLoad {
         enabled: bool,

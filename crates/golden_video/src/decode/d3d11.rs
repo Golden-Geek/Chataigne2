@@ -108,6 +108,28 @@ impl Drop for HardwareDevice {
     }
 }
 impl HardwareDevice {
+    pub(super) fn companion(&self) -> Result<Self, DecodeError> {
+        // The independent codecs retain the same initialized device, but have separate
+        // admission outcomes. Both pools charge the original shared source budget.
+        let buffer = unsafe { ffmpeg::ffi::av_buffer_ref(self.buffer) };
+        if buffer.is_null() {
+            return Err(ffmpeg::Error::Other {
+                errno: ffmpeg::error::ENOMEM,
+            }
+            .into());
+        }
+        Ok(Self {
+            buffer,
+            adapter: self.adapter,
+            admission: Arc::new(Admission {
+                budget: self.admission.budget.clone(),
+                exhausted: AtomicBool::new(false),
+                unsupported: AtomicBool::new(false),
+            }),
+            _local: PhantomData,
+        })
+    }
+
     fn new(adapter: AdapterId, codec: ffmpeg::codec::Id, budget: GpuFrameBudget) -> Result<Self, DecodeError> {
         let hardware = ffmpeg::ffi::AVHWDeviceType::AV_HWDEVICE_TYPE_D3D11VA;
         // SAFETY: static codec/config descriptors remain valid throughout FFmpeg's lifetime.

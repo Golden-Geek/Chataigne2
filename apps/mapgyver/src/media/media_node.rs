@@ -51,6 +51,10 @@ use std::sync::OnceLock;
         video_speed: f64 = 1.0 [-16.0..16.0] (label = "Speed", step = 0.01,
             dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video, constraint_policy = "reject");
         video_looping: bool = false (label = "Loop", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
+        video_auto_smooth_loop_ms: f64 = 0.0 [0.0..9000000000000.0] (
+            label = "Auto-Smooth Loop", description = "Overlap the end and beginning while Loop is on. Zero plays a regular loop.",
+            widget = "time", unit = "ms", constraint_policy = "reject", enabled = self.video_looping.get(), can_be_disabled = false,
+            dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
         video_playing: bool = false (label = "Playing", read_only = true,
             dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
         video_length_ms: f64 = 0.0 [0.0..9000000000000.0] (label = "Length", read_only = true, widget = "time", unit = "ms",
@@ -89,6 +93,7 @@ impl MediaNode {
         let mut settings = self.video_control().ok_or("media is not Video")?.settings()?;
         settings.speed = self.video_speed.get();
         settings.looping = self.video_looping.get();
+        settings.auto_smooth_loop_ms = self.video_auto_smooth_loop_ms.get();
         settings.play_at_load = self.video_play_at_load.get();
         settings.on_activate =
             super::video::protocol::VideoOnActivate::parse(self.video_on_activate.get_ref().as_str())?;
@@ -111,6 +116,9 @@ impl MediaNode {
             }
             VideoEdit::Speed { speed } => vec![(self.video_speed.id(), ParamValue::Float(*speed))],
             VideoEdit::Loop { looping } => vec![(self.video_looping.id(), ParamValue::Bool(*looping))],
+            VideoEdit::AutoSmoothLoop { duration_ms } => {
+                vec![(self.video_auto_smooth_loop_ms.id(), ParamValue::Float(*duration_ms))]
+            }
             VideoEdit::PlayAtLoad { enabled } => vec![(self.video_play_at_load.id(), ParamValue::Bool(*enabled))],
             VideoEdit::OnActivate { policy } => {
                 vec![(self.video_on_activate.id(), ParamValue::Enum(policy.key().into()))]
@@ -131,8 +139,19 @@ impl MediaNode {
             self.video_current_position_ms.id(),
             self.video_speed.id(),
             self.video_looping.id(),
+            self.video_auto_smooth_loop_ms.id(),
         ]
         .contains(&id)
+    }
+    fn sync_video_loop_parameter(&self, ctx: &mut ProcessCtx) {
+        // The dependent value and node identity survive toggles and remain available to callers.
+        self.video_auto_smooth_loop_ms.patch_meta(
+            ctx,
+            golden_core::node::NodeMetaPatch {
+                enabled: Some(self.video_looping.get()),
+                ..Default::default()
+            },
+        );
     }
     fn publish_video(&self, ctx: &mut ProcessCtx, parameter: Option<(golden_core::node::NodeId, ParamValue)>) {
         if self.video_ready
@@ -365,6 +384,7 @@ impl Node for MediaNode {
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
         self.pulses.ready();
         self.video_ready = true;
+        self.sync_video_loop_parameter(ctx);
         if let Some(control) = self.video_control() {
             control.activate_media();
             let owner = self.id();
@@ -472,6 +492,9 @@ impl Node for MediaNode {
             return;
         }
         if self.video_parameter(parameter) {
+            if parameter == self.video_looping.id() {
+                self.sync_video_loop_parameter(ctx);
+            }
             let Some(golden_core::events::EventKind::ParamChanged { new_value: value, .. }) =
                 ctx.current_event().map(|event| &event.kind)
             else {
@@ -561,6 +584,9 @@ impl Node for MediaNode {
                 }
                 (id, ParamValue::Float(value)) if id == self.video_speed.id() => settings.speed = *value,
                 (id, ParamValue::Bool(value)) if id == self.video_looping.id() => settings.looping = *value,
+                (id, ParamValue::Float(value)) if id == self.video_auto_smooth_loop_ms.id() => {
+                    settings.auto_smooth_loop_ms = *value
+                }
                 (id, ParamValue::Bool(value)) if id == self.video_play_at_load.id() => settings.play_at_load = *value,
                 (id, ParamValue::Enum(value)) if id == self.video_on_activate.id() => {
                     settings.on_activate = super::video::protocol::VideoOnActivate::parse(value)?;

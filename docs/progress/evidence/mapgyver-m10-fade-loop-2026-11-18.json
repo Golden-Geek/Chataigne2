@@ -1,0 +1,56 @@
+{
+  "gate": "M10/9",
+  "date": "2026-11-18",
+  "state": "functionally verified; full qualification pending",
+  "behavior": [
+    "Auto-Smooth Loop defaults to zero and retains its value while disabled by Loop.",
+    "One authoritative clock places the overlap and resumes after the consumed head. Active overlap is bounded by half the shortest known channel duration.",
+    "Workers blend linear premultiplied color and publish one stream per file channel. Direct consumers and References share that stream."
+  ],
+  "software": {
+    "rustProfile": "cargo test-fast -p MapGyver -p golden_video --features MapGyver/native-qualification --lib",
+    "fadeFilter": "24 MapGyver and 3 Golden Video tests passed, with 2 native tests run separately",
+    "finalTransportFilter": "4 passed, including reverse Stop preserving the first frame",
+    "otherFilters": "6 loop timeline, 1 decoder storage, 1 generated-contract, 1 hosted script and 1 typed command test passed",
+    "pythonSubmissionAccounting": "16 passed",
+    "checks": ["root and Golden Core cargo fmt", "Rust media protocol generation", "MapGyver UI: 0 errors and 0 warnings", "clippy -D warnings", "normal bundled MapGyver build"]
+  },
+  "nativeKernels": {
+    "devices": ["Intel 8086:7d67", "NVIDIA 10de:2c59"],
+    "tests": ["same-device companion with distinct charged codec frame pools", "alpha-correct crossfade to two consumers, with bounded storage and retirement"]
+  },
+  "bundledApp": {
+    "sha256": "b7a161cdec6f99d3ce18e1fb5e955dd678ca6561e6a0cc47c1878cec0197894f",
+    "checkout": "MapGyver working checkout, including the existing unrelated local workspace edits",
+    "inspector": {
+      "fixture": "apps/mapgyver/tests/browser/native-video-status.mjs",
+      "pid": 9036,
+      "result": "pass",
+      "scope": "New typed field at zero, disabled while Loop is off, entering 125 ms and retaining it across Loop toggles. Existing status, seek and Play at Load checks passed."
+    },
+    "output": {
+      "fixture": "apps/mapgyver/tests/browser/native-video-fade-loop.mjs",
+      "pid": 30276,
+      "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "adapterKey": "dxgi:00000000:000155d6",
+      "result": "pass",
+      "source": "2-second 160×120 H.264, red first second and blue second second",
+      "overlapMs": 500,
+      "colorSamplesRgba": {
+        "head": [255, 38, 0, 255],
+        "tail": [0, 28, 255, 255],
+        "overlapQuarter": [110, 34, 237, 255],
+        "overlapMiddle": [188, 34, 188, 255],
+        "overlapThreeQuarters": [237, 38, 110, 255],
+        "referenceMiddle": [188, 34, 188, 255]
+      },
+      "captureScope": "Nine independent Spout images, three interior samples each. Zero and Loop off matched the original tail. Turning Loop on restored the same blend.",
+      "liveTransportWrapsMs": [[1990.267275, 502.630575], [1996.710525, 510.138075]],
+      "liveScope": "Position sampled across two real playback wraps at 0.75×. Pixel comparisons were held seeks."
+    }
+  },
+  "return": {
+    "trigger": "Retained Video qualification after product features, or an earlier reproduced dependent correctness blocker.",
+    "checks": ["moving native preview and output pixels across repeated seams", "reverse, short, unknown and mixed-duration native channels", "file loss, relink and device recovery during overlap", "full shared-consumer, storage and load matrix with caller and persistence coverage"]
+  }
+}

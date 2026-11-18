@@ -1,4 +1,5 @@
 use super::*;
+mod crossfade;
 mod hap;
 mod hap_external;
 mod identity;

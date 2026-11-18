@@ -38,6 +38,27 @@ fn invalid_admission_and_missing_paths_fail_before_opening_ffmpeg() {
 }
 
 #[test]
+fn companion_reader_retains_storage_metadata_and_its_own_read_position() {
+    for name in ["h264.mp4", "hap.mov"] {
+        let path = fixture(name);
+        let mut main = Decoder::open(&path, limits()).unwrap();
+        let first = main.next_frame().unwrap().unwrap().timestamp();
+        let second = main.next_frame().unwrap().unwrap().timestamp();
+        assert!(second > first);
+        let mut head = main.open_companion_with_interrupt(&path, limits(), || false).unwrap();
+        assert_eq!(main.storage(), head.storage());
+        assert_eq!(main.info(), head.info());
+        assert_eq!(head.next_frame().unwrap().unwrap().timestamp(), first);
+        assert!(main.next_frame().unwrap().unwrap().timestamp() > second);
+        assert_eq!(head.next_frame().unwrap().unwrap().timestamp(), second);
+        assert!(matches!(
+            main.open_companion_with_interrupt(&fixture("prores.mov"), limits(), || false),
+            Err(DecodeError::CompanionMismatch)
+        ));
+    }
+}
+
+#[test]
 fn software_storage_cannot_expose_foreign_hardware_pixel_pointers() {
     let mut frame = ffmpeg::frame::Video::empty();
     frame.set_format(ffmpeg::format::Pixel::D3D11);

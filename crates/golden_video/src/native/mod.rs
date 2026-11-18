@@ -43,7 +43,7 @@ pub use frames::{
     GpuImage, SourceUploadSnapshot, SourceUploadTotals,
 };
 #[cfg(feature = "ffmpeg")]
-pub use frames::{GpuFrameError, GpuFramePublisher};
+pub use frames::{GpuFrameError, GpuFrameInput, GpuFramePublisher};
 pub use identity::PhysicalAdapterId;
 pub use inputs::{SourceSnapshot, SourceState};
 pub use memory::{

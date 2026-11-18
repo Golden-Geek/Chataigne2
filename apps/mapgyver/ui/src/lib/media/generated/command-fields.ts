@@ -235,6 +235,10 @@ export const COMMAND_PARAMETER_FIELDS = {
     "media",
     "matrix_preset"
   ],
+  "VideoAutoSmoothLoop": [
+    "media",
+    "video_auto_smooth_loop_ms"
+  ],
   "VideoFile": [
     "media",
     "channel",

@@ -1,6 +1,7 @@
 #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
 use golden_time::MonotonicTime;
 use golden_time::{Clock, PlaybackRate, ShowPosition, TimeAuthority, TimeEpoch, TimeError, TimeMapping};
+use golden_video::scheduling::{LoopBlend, LoopTimeline};
 use std::time::Duration;
 
 /// One immutable media-wide observation. Every channel samples this same position.
@@ -17,14 +18,15 @@ pub struct TransportSample {
     pub(crate) mapping: TimeMapping,
     pub(crate) duration: Duration,
     pub(crate) looping: bool,
+    pub(super) timeline: Option<LoopTimeline>,
+    pub(super) reverse: bool,
 }
 
 impl TransportSample {
     pub(crate) fn frame_position(self) -> Result<golden_video::scheduling::FramePosition, String> {
-        let raw = i128::from(self.cycle) * self.duration.as_nanos() as i128 + self.position.as_nanos() as i128;
+        let raw = self.cycle_origin() + self.position.as_nanos() as i128;
         // Reverse looping maps the exact seam to the previous cycle's final image.
-        let raw =
-            raw - i128::from(self.looping && self.mapping.rate().numerator() < 0 && self.position == self.duration);
+        let raw = raw - i128::from(self.playing && self.looping && self.reverse && self.position == self.cycle_end());
         Ok(golden_video::scheduling::FramePosition {
             epoch: self.epoch,
             position: ShowPosition::from_nanos(i64::try_from(raw).map_err(|_| "Video presentation overflow")?),
@@ -34,7 +36,49 @@ impl TransportSample {
     /// Shorter channels hold their last available frame until the whole media reaches its end.
     /// The decoder selects the frame at/before this timestamp; duration is not a frame number.
     pub fn channel_position(self, channel_duration: Duration) -> Duration {
-        self.position.min(channel_duration)
+        let position = if self.timeline.is_some() && self.playing && self.reverse && self.position == self.cycle_end() {
+            self.position.saturating_sub(Duration::from_nanos(1))
+        } else {
+            self.position
+        };
+        position.min(channel_duration)
+    }
+    pub(super) fn cycle_origin(self) -> i128 {
+        self.timeline.map_or_else(
+            || i128::from(self.cycle) * self.duration.as_nanos() as i128,
+            |timeline| timeline.origin_nanos(self.cycle),
+        )
+    }
+    pub(super) fn cycle_start(self) -> Duration {
+        self.timeline.map_or(Duration::ZERO, |timeline| {
+            timeline.source_bounds(self.cycle, self.reverse).0
+        })
+    }
+    pub(super) fn cycle_end(self) -> Duration {
+        self.timeline.map_or(self.duration, |timeline| {
+            timeline.source_bounds(self.cycle, self.reverse).1
+        })
+    }
+    pub(super) fn loop_blend(self) -> Option<LoopBlend> {
+        // Stop and a paused seek to zero show the original first frame, including when
+        // the chosen playback direction is reverse and its next seam starts at the head.
+        if !self.playing && self.position.is_zero() {
+            return None;
+        }
+        self.timeline?.blend_at(self.position, self.reverse)
+    }
+    #[cfg(feature = "video-files")]
+    pub(super) fn needs_loop_companion(self) -> bool {
+        self.timeline.is_some() && (self.playing || self.loop_blend().is_some())
+    }
+    /// Project a bounded ahead sample against the same epoch, without observing a second clock.
+    pub(super) fn at_presentation_position(self, position: ShowPosition) -> Option<Self> {
+        let projected = self.timeline?.sample(position, self.reverse)?;
+        Some(Self {
+            cycle: projected.cycle,
+            position: projected.position,
+            ..self
+        })
     }
 }
 
@@ -76,6 +120,7 @@ pub struct MediaTransport<C: Clock> {
     rate: PlaybackRate,
     playing: bool,
     looping: bool,
+    loop_overlap: Duration,
 }
 
 impl<C: Clock> MediaTransport<C> {
@@ -87,6 +132,7 @@ impl<C: Clock> MediaTransport<C> {
             rate: PlaybackRate::NORMAL,
             playing: false,
             looping: false,
+            loop_overlap: Duration::ZERO,
         })
     }
 
@@ -118,17 +164,28 @@ impl<C: Clock> MediaTransport<C> {
     }
 
     fn project(&self, raw: i64, mapping: TimeMapping) -> Result<TransportSample, TransportError> {
+        let reverse = self.rate.numerator() < 0;
+        let timeline = (self.looping && !self.loop_overlap.is_zero())
+            .then(|| LoopTimeline::new(self.duration(), self.loop_overlap))
+            .flatten();
         let (position, cycle, playing) = if self.playing && self.looping && self.duration > 0 {
-            let position = raw.rem_euclid(self.duration);
-            let cycle = raw.div_euclid(self.duration);
-            if self.rate.numerator() < 0 && position == 0 {
-                (
-                    self.duration,
-                    cycle.checked_sub(1).ok_or(TransportError::Overflow)?,
-                    true,
-                )
+            if let Some(timeline) = timeline {
+                let projected = timeline
+                    .sample(ShowPosition::from_nanos(raw), reverse)
+                    .ok_or(TransportError::Overflow)?;
+                (nanos(projected.position)?, projected.cycle, true)
             } else {
-                (position, cycle, true)
+                let position = raw.rem_euclid(self.duration);
+                let cycle = raw.div_euclid(self.duration);
+                if reverse && position == 0 {
+                    (
+                        self.duration,
+                        cycle.checked_sub(1).ok_or(TransportError::Overflow)?,
+                        true,
+                    )
+                } else {
+                    (position, cycle, true)
+                }
             }
         } else {
             let ended = self.duration == 0
@@ -144,6 +201,8 @@ impl<C: Clock> MediaTransport<C> {
             mapping,
             duration: self.duration(),
             looping: self.looping,
+            timeline,
+            reverse,
         })
     }
 
@@ -242,12 +301,18 @@ impl<C: Clock> MediaTransport<C> {
 
     /// Change loop policy while preserving the current visible position.
     pub fn set_looping(&mut self, looping: bool) -> Result<(), TransportError> {
-        if looping == self.looping {
+        self.set_loop_policy(looping, Duration::ZERO)
+    }
+
+    pub(super) fn set_loop_policy(&mut self, looping: bool, overlap: Duration) -> Result<(), TransportError> {
+        let overlap = if looping { overlap } else { Duration::ZERO };
+        if looping == self.looping && overlap == self.loop_overlap {
             return Ok(());
         }
         let current = self.sample()?;
         self.reanchor(nanos(current.position)?, current.playing)?;
         self.looping = looping;
+        self.loop_overlap = overlap;
         Ok(())
     }
 

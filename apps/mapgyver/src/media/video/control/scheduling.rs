@@ -1,10 +1,10 @@
 //! Media policy projects decoded PTS windows onto Golden's bounded presentation mechanism.
 use crate::media::protocol::ChannelId;
-use crate::media::video::frames::window;
+use crate::media::video::frames::{loop_window, window};
 use crate::media::video::{TransportSample, VideoControl, frames::Neighbours};
 use golden_video::{
     native::{GpuFrameClock, GpuFramePublication, GpuFrameStream, GpuImage},
-    scheduling::FramePosition,
+    scheduling::{FramePosition, FrameWindow},
 };
 use std::time::{Duration, Instant};
 
@@ -43,7 +43,7 @@ impl VideoControl {
             drop(retired);
             return Ok(true);
         }
-        let window = window(expected, frame)?;
+        let window = loop_window(expected, frame)?;
         let position = now.frame_position()?;
         let result = stream
             .replace_scheduled(image, window, position)
@@ -85,6 +85,39 @@ impl VideoControl {
 
 pub(in crate::media::video) fn timed(sample: TransportSample) -> bool {
     sample.playing && sample.mapping.rate().numerator() != 0
+}
+
+/// Keep one interval ahead in either direction. Never derive a second media clock for
+/// the incoming leg. The two timestamp requests come from the same projected sample.
+pub(in crate::media::video) fn loop_target(
+    sample: TransportSample,
+    cursor: Option<FrameWindow>,
+) -> Result<Option<TransportSample>, String> {
+    if !timed(sample) {
+        return Ok(Some(sample));
+    }
+    let Some(cursor) = cursor.filter(|cursor| cursor.epoch() == sample.epoch) else {
+        return Ok(Some(sample));
+    };
+    let now = sample.frame_position()?;
+    if cursor.contains(now) {
+        let next = if now.reverse {
+            cursor
+                .start()
+                .as_nanos()
+                .checked_sub(1)
+                .map(golden_time::ShowPosition::from_nanos)
+        } else {
+            cursor.end()
+        };
+        return Ok(next.and_then(|next| sample.at_presentation_position(next)));
+    }
+    let awaiting = if now.reverse {
+        cursor.end().is_some_and(|end| now.position >= end)
+    } else {
+        now.position < cursor.start()
+    };
+    Ok((!awaiting).then_some(sample))
 }
 
 /// Only one forward future frame is prepared. Reverse retains its exact bounded seek route.
