@@ -12,7 +12,10 @@ const color = (hex: string): [number, number, number, number] => [
 export const overlayRem = () =>
 	Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
 
-export function imageFrameOverlay(rem: number): OverlayPrimitive {
+export function imageFrameOverlay(
+	rem: number,
+	customColor: string | null = null
+): OverlayPrimitive {
 	return {
 		hit: null,
 		shape: {
@@ -25,7 +28,7 @@ export function imageFrameOverlay(rem: number): OverlayPrimitive {
 			]
 		},
 		fill: [0, 0, 0, 0],
-		stroke: color('666666'),
+		stroke: color(customColor ?? '666666'),
 		width: 0.0625 * rem,
 		dash: null
 	};
@@ -35,6 +38,7 @@ export function quadOverlay(
 	corners: readonly Point[],
 	rem: number,
 	{
+		color: customColor = null as string | null,
 		selected = false,
 		hovered = false,
 		enabled = true,
@@ -42,7 +46,13 @@ export function quadOverlay(
 		hit = null as string | null
 	} = {}
 ): OverlayPrimitive {
-	const appearance = viewportContourAppearance({ selected, hovered, enabled, valid });
+	const appearance = viewportContourAppearance({
+		color: customColor,
+		selected,
+		hovered,
+		enabled,
+		valid
+	});
 	return {
 		hit,
 		shape: {

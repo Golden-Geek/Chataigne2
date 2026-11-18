@@ -106,3 +106,49 @@ pub(crate) fn lookup_script_child_by_key_and_type(
 pub(crate) fn core_node_script_descriptor(node_data: &NodeData, node_type: &str) -> NodeScriptDescriptor {
     NodeScriptDescriptor::for_node(node_data, node_type)
 }
+
+/// Script and UI colors share the ordinary authored presentation metadata/history path.
+pub(super) fn call_color_method(
+    data: &NodeData,
+    ctx: &mut ProcessCtx,
+    method: &str,
+    args: &[ParamValue],
+) -> Result<bool, String> {
+    if !matches!(method, "setColor" | "resetColor") {
+        return Ok(false);
+    }
+    if !data.meta.user_permissions.can_edit_color {
+        return Err("node does not permit custom color editing".into());
+    }
+    let color = if method == "resetColor" {
+        if !args.is_empty() {
+            return Err("resetColor expects no arguments".into());
+        }
+        None
+    } else {
+        let [red, green, blue, alpha] = args else {
+            return Err("setColor expects four numeric RGBA components".into());
+        };
+        let number = |value: &ParamValue| match value {
+            ParamValue::Float(value) if value.is_finite() => Ok(*value),
+            ParamValue::Int(value) => Ok(*value as f64),
+            _ => Err("setColor expects finite numeric RGBA components".to_string()),
+        };
+        Some(golden_values::ColorValue::new(
+            number(red)?,
+            number(green)?,
+            number(blue)?,
+            number(alpha)?,
+        ))
+    };
+    let mut presentation = data.meta.presentation.clone();
+    presentation.color = color;
+    ctx.patch_node_meta(
+        data.id,
+        super::NodeMetaPatch {
+            presentation: Some(presentation),
+            ..Default::default()
+        },
+    );
+    Ok(true)
+}

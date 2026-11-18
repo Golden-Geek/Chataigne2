@@ -4,6 +4,7 @@
 	import type { RelatedSurface } from './generated/RelatedSurface';
 	import { overlayRem, quadOverlay } from './overlays';
 	import { cropCorners } from './gesture-presentation';
+	import { customNodeColor } from '../node-color.svelte';
 	let {
 		surfaces,
 		available,
@@ -26,6 +27,7 @@
 		onoverlays(
 			surfaces.map((entry) =>
 				quadOverlay(cropCorners(entry.surface, null), overlayRem(), {
+					color: customNodeColor(entry.surface.reference.surface),
 					hit: `related:${entry.surface.reference.surface}`,
 					selected: isSelected(entry),
 					hovered:
@@ -48,6 +50,7 @@
 		{@const { surface, screen_label } = entry}
 		<rect
 			use:viewportContour={{
+				color: customNodeColor(surface.reference.surface),
 				selected: isSelected(entry),
 				enabled: surface.definition.enabled,
 				onhover: (value) => {

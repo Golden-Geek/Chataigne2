@@ -11,6 +11,7 @@
 	import { surfaceQuad } from './gesture-presentation';
 	import { nearestHandle } from './handle-snap';
 	import { linkOverlays } from './link-overlays';
+	import { customNodeColor } from '../node-color.svelte';
 	import type { ScreenHandleCandidate } from './generated/ScreenHandleCandidate';
 	import type { ScreenHandleGroup } from './generated/ScreenHandleGroup';
 	import type { CornerLinkEdit } from './warp-edit-group';
@@ -95,9 +96,10 @@
 	$effect(() => {
 		const rem = overlayRem();
 		onoverlays([
-			imageFrameOverlay(rem),
+			imageFrameOverlay(rem, customNodeColor(screen.id)),
 			...visible.map((item) =>
 				quadOverlay(surfaceQuad(item, presentation, extent), rem, {
+					color: customNodeColor(item.reference.surface),
 					hit: item.reference.surface,
 					selected: item.reference.surface === selected,
 					hovered: item.reference.surface === hovered || item.reference.surface === focusedSurface,
@@ -269,6 +271,7 @@
 	{#each visible as item (item.reference.surface)}
 		<polygon
 			use:viewportContour={{
+				color: customNodeColor(item.reference.surface),
 				selected: item.reference.surface === selected,
 				enabled: item.definition.enabled,
 				valid: item.mapping_valid,

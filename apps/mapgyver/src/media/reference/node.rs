@@ -9,7 +9,7 @@ use golden_io::{RevisionGuard, RevisionSource};
 use golden_video::Extent2D;
 
 #[node("mapgyver.media.reference.v4", label = "Reference", user_permissions = golden_core::node::NodeUserPermissions {
-    can_edit_name: true, can_remove_and_duplicate: true, ..Default::default()
+    can_edit_name: true, can_edit_color: true, can_remove_and_duplicate: true, ..Default::default()
 })]
 #[children(folder(parameters, label = "Parameters") {
     target: NodeReference = NodeReference::empty() (

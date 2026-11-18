@@ -16,6 +16,7 @@
 	import type { ScreenHandleCandidate } from './generated/ScreenHandleCandidate';
 	import type { ScreenHandleGroup } from './generated/ScreenHandleGroup';
 	import type { CornerLinkEdit } from './warp-edit-group';
+	import { customNodeColor } from '../node-color.svelte';
 	let {
 		snapping = false,
 		candidates = [],
@@ -54,6 +55,7 @@
 		actions?: Snippet;
 	} = $props();
 	const owner = usePreview();
+	const screenColor = $derived(customNodeColor(screen.id));
 	let overlays = $state<OverlayPrimitive[]>([]);
 	let nativeFrame = $state(false);
 	function presentationChanged(painted: boolean) {
@@ -123,6 +125,7 @@
 
 <section aria-label="Screen preview">
 	<Viewport2D
+		frameColor={screenColor ? `#${screenColor}` : undefined}
 		{actions}
 		{nativeFrame}
 		aspect={extent ? extent.width / extent.height : 16 / 9}

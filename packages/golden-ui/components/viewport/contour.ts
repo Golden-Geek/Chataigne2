@@ -1,4 +1,6 @@
 export interface ViewportContourState {
+	/** Optional authored RGBA hex without '#'; selection/hover/errors retain their cues. */
+	color?: string | null;
 	selected?: boolean;
 	hovered?: boolean;
 	enabled?: boolean;
@@ -7,6 +9,7 @@ export interface ViewportContourState {
 
 /** UI paint shared by DOM contours and a host's native overlay projection. Sizes are rem. */
 export function viewportContourAppearance({
+	color = null,
 	selected = false,
 	hovered = false,
 	enabled = true,
@@ -14,7 +17,7 @@ export function viewportContourAppearance({
 }: ViewportContourState = {}) {
 	return {
 		fill: selected ? (valid ? '78aafa0f' : 'a51d2c18') : '00000000',
-		stroke: !valid ? 'ff5364' : selected ? '70aaff' : hovered ? 'c0d8ff' : 'a2b0c5',
+		stroke: !valid ? 'ff5364' : selected ? '70aaff' : hovered ? 'c0d8ff' : (color ?? 'a2b0c5'),
 		width: selected || (hovered && valid) ? 0.1 : 0.0625,
 		dash: enabled ? null : ([0.3, 0.2] as const)
 	};
@@ -54,7 +57,10 @@ export function viewportContour(node: SVGElement | HTMLElement, initial: Contour
 						: hovered || focused
 							? 'hover'
 							: 'idle';
-			node.style.borderColor = `var(--gc-viewport-contour-${state}, #${appearance.stroke})`;
+			node.style.borderColor =
+				state === 'idle' && options.color
+					? `#${appearance.stroke}`
+					: `var(--gc-viewport-contour-${state}, #${appearance.stroke})`;
 			node.style.borderWidth = `${appearance.width}rem`;
 			node.style.borderStyle = options.enabled === false ? 'dashed' : 'solid';
 		}

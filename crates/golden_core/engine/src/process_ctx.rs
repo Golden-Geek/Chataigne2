@@ -142,6 +142,8 @@ const CORE_SCRIPT_METHODS: &[&str] = &[
     "setName",
     "setEnabled",
     "setDescription",
+    "setColor",
+    "resetColor",
     "setReadOnly",
     "addNode",
     "removeNode",

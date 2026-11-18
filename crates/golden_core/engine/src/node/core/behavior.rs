@@ -355,6 +355,9 @@ pub trait Node: Send + Any {
         if self.engine_call_custom_script_method(ctx, method, args)? {
             return Ok(true);
         }
+        if super::script_support::call_color_method(self.node_data(), ctx, method, args)? {
+            return Ok(true);
+        }
         match method {
             "setName" => {
                 let Some(label) = args.first().and_then(ParamValue::as_str) else {

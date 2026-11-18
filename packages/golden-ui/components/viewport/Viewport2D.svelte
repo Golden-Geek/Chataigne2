@@ -14,6 +14,7 @@
 		label = '2D editor view',
 		native = false,
 		nativeFrame = false,
+		frameColor,
 		onselectionclear,
 		onkeydown: onEditorKeyDown,
 		onfocusout,
@@ -28,6 +29,8 @@
 		native?: boolean;
 		/** An installed underlay owns the image frame and surrounding canvas paint. */
 		nativeFrame?: boolean;
+		/** Authored object accent; never changes canvas content or navigation. */
+		frameColor?: string;
 		/** Unconsumed background primary-down or idle Escape; adapters resolve their edited owner. */
 		onselectionclear?(event: PointerEvent | KeyboardEvent): void;
 		onkeydown?(event: KeyboardEvent): void;
@@ -203,6 +206,7 @@
 <!-- Canvas keyboard navigation needs a focusable application surface with nested tools. -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
 <div
+	style:--gc-viewport-frame-color={frameColor}
 	bind:this={element}
 	class="viewport-2d"
 	data-native-preview-backdrop={native ? '' : undefined}
@@ -308,7 +312,7 @@
 		background: #000;
 		/* Paint the themed surround without putting an opaque ancestor over native pixels. */
 		box-shadow: 0 0 0 100vmax var(--gc-color-panel, #252525);
-		outline: 0.0625rem solid var(--gc-panel-border-color, #666);
+		outline: 0.0625rem solid var(--gc-viewport-frame-color, var(--gc-panel-border-color, #666));
 		pointer-events: auto;
 		--preview-unavailable-background: #000;
 	}

@@ -9,6 +9,7 @@ mod folders;
 mod parameters;
 mod picture_file;
 mod picture_import;
+mod presentation;
 mod preview_selection;
 mod queries;
 mod resolution;

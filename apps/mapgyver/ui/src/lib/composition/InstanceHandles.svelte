@@ -13,6 +13,7 @@
 	import { instanceDisplay } from './presentation';
 	import rotateCursor from './rotate-cursor.svg';
 	import { createViewportPointer } from 'golden_ui';
+	import { customNodeColor } from '../node-color.svelte';
 	let {
 		composition,
 		presentation = null,
@@ -117,6 +118,7 @@
 		{#if extent}
 			<polygon
 				use:viewportContour={{
+					color: customNodeColor(item.reference.instance),
 					selected: item.reference.instance === selected,
 					enabled: item.definition.enabled,
 					identity: composition.reference.channel

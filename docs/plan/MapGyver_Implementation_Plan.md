@@ -144,7 +144,7 @@ These additions are **next in line afterward: 12 → 13 → 14 → 15**, before 
 M15/9–11 or Video work. Do not interrupt or park M15/8 to start this feedback.
 Keep one gate Active. This supersedes older next-feature ordering, adds no implementation or
 acceptance, and preserves every existing requirement and return trigger. M15 now has 15 gates;
-overall scope is **121**, with **99 accepted (82%)** and **8/16 phases complete (50%)**.
+overall scope is **121**, with **100 accepted (83%)** and **8/16 phases complete (50%)**.
 
 ## Entry, order and delivery
 
@@ -1385,10 +1385,10 @@ awarding acceptance or changing retained budgets.
 Source: [Latest Feedback.md](../../Latest%20Feedback.md) in the repository root, plus the user's
 instruction that remaining Video work follows this feedback. Follow the M14 feature-first
 execution revision above: selected M14 features9,10,8,2 are functionally delivered, with their
-remaining qualification Pending in the return queue. M15/1–4,6–8 are Accepted; M15/5 is functionally
+remaining qualification Pending in the return queue. M15/1–4,6–8,12 are Accepted; M15/5 is functionally
 delivered with native presentation qualification Pending. The 2026-11-18 amendment retains
 M15/8 as the current task through completion, then selects 12–15 before 9–11. M15/8 is now
-complete; M15/12 custom colors is the next Active gate.
+complete; M15/12 custom colors is also complete; M15/13 Matrix color menus is the next Active gate.
 Deliver M15 before remaining Video, retaining user-deferred M14/1 and blocked M14/6.
 Retain every unfinished qualification gate and its return trigger before M09.
 
@@ -1566,6 +1566,10 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
     Verify all four kinds, generic Inspector and backend/script/transport parity, Undo/Redo,
     copy/duplicate and project reload, default/reset behavior and light/dark contrast. Keep
     projection and offscreen inspection bounded; custom color must not alter rendered media.
+    [Accepted object-color delivery](../progress/evidence/mapgyver-m15-object-colors-2026-11-18.json) verifies all kinds,
+    normal Inspector set/reset, public script methods, history/copy/reload, bounded editor
+    accents and light/dark WebView appearance. M15/12 is Accepted; retained presentation
+    motion/Intel/GPU/resource qualification is unchanged.
 13. **Matrix contextual menus expose Set Color / Reset Color.** Owners: Golden reusable color
     actions and MapGyver Matrix contextual-menu registration. Include those exact actions for
     Layers, Cells and Columns, reusing their existing custom-color authority and picker rather
@@ -1592,7 +1596,7 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
     rows without rendering all descendants, stealing hit targets or confusing selection/playback
     cues. Coordinate with the compact header in 14; do not remove Group rendering behavior.
 
-M15/1–4,6–8 are Accepted with their owning software/native proofs;5,9–15 remain open.
+M15/1–4,6–8,12 are Accepted with their owning software/native proofs;5,9–11,13–15 remain open.
 M15/2 covers explicit/shared/modifier selection, nested/disabled/offscreen objects, Inspector
 colors, history/copy/reload, representative theme contrast and independent panels. Wider app
 stress/interruption and retained GPU/resource qualification return in the deferred pass before M09.
@@ -1615,6 +1619,8 @@ overall acceptance becomes **81%**, M15 **6/15 (40%)**, and phase completion rem
 This is added scope only; no prior acceptance is removed and no new gate is accepted by planning.
 M15/8 Surface-link acceptance raises the numerator to **99/121 (82%)** and M15 to **7/15 (47%)**;
 phase completion stays **8/16 (50%)**. The denominator and all deferred gates remain unchanged.
+M15/12 object-color acceptance raises this to **100/121 (83%)**, M15 **8/15 (53%)**.
+No phase completes and no retained qualification is waived.
 M14/1,6 and all retained correctness, physical, recovery and performance requirements remain
 required before M09. New features follow the user's feature-first cadence; a checkpoint or a
 passing subset of checks never closes a complete gate.

@@ -2,6 +2,14 @@ import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { viewportContour, viewportContourAppearance } from '../contour';
 
+test('authored contours preserve selection, hover and error cues and reset to the default', () => {
+	assert.equal(viewportContourAppearance({ color: 'e04080ff' }).stroke, 'e04080ff');
+	assert.equal(viewportContourAppearance({ color: 'e04080ff', selected: true }).stroke, '70aaff');
+	assert.equal(viewportContourAppearance({ color: 'e04080ff', hovered: true }).stroke, 'c0d8ff');
+	assert.equal(viewportContourAppearance({ color: 'e04080ff', valid: false }).stroke, 'ff5364');
+	assert.equal(viewportContourAppearance({ color: null }).stroke, 'a2b0c5');
+});
+
 function fixture(svg = true) {
 	const node = Object.assign(new EventTarget(), {
 		ownerDocument: { defaultView: new EventTarget() },
@@ -29,6 +37,18 @@ test('DOM contours expose theme fallbacks without changing state precedence or b
 	f.action.update({ ...f.options, selected: true, valid: false, enabled: false });
 	assert.equal(f.node.style.borderColor, 'var(--gc-viewport-contour-invalid, #ff5364)');
 	assert.equal(f.node.style.borderStyle, 'dashed');
+	f.action.destroy();
+});
+
+test('custom DOM border replaces only the idle theme fallback and clears on reset', () => {
+	const f = fixture(false);
+	f.action.update({ ...f.options, color: 'e04080ff' });
+	assert.equal(f.node.style.borderColor, '#e04080ff');
+	f.send('pointerenter');
+	assert.equal(f.node.style.borderColor, 'var(--gc-viewport-contour-hover, #c0d8ff)');
+	f.send('pointerleave');
+	f.action.update(f.options);
+	assert.equal(f.node.style.borderColor, 'var(--gc-viewport-contour-idle, #a2b0c5)');
 	f.action.destroy();
 });
 
