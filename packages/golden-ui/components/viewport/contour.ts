@@ -25,6 +25,8 @@ export function viewportContourAppearance({
 
 interface ContourOptions extends Omit<ViewportContourState, 'hovered'> {
 	identity?: string;
+	/** Optional enclosing hit area, resolved at mount. Focus and paint stay on the contour node. */
+	hoverWithin?: string;
 	onhover?(hovered: boolean): void;
 	onfocus?(focused: boolean): void;
 }
@@ -36,6 +38,7 @@ export function viewportContour(node: SVGElement | HTMLElement, initial: Contour
 	let focused = false;
 	const view = node.ownerDocument.defaultView!;
 	const svg = node.namespaceURI === 'http://www.w3.org/2000/svg';
+	const pointerArea = (initial.hoverWithin && node.closest(initial.hoverWithin)) || node;
 	node.dataset.viewportContour = '';
 	function paint() {
 		const appearance = viewportContourAppearance({ ...options, hovered: hovered || focused });
@@ -95,9 +98,9 @@ export function viewportContour(node: SVGElement | HTMLElement, initial: Contour
 	}
 	node.addEventListener('focus', focus);
 	node.addEventListener('blur', blur);
-	node.addEventListener('pointerenter', enter as EventListener);
+	pointerArea.addEventListener('pointerenter', enter as EventListener);
 	for (const event of ['pointerleave', 'pointerdown', 'pointercancel', 'lostpointercapture']) {
-		node.addEventListener(event, clear);
+		pointerArea.addEventListener(event, clear);
 	}
 	paint();
 	return {
@@ -114,9 +117,9 @@ export function viewportContour(node: SVGElement | HTMLElement, initial: Contour
 			blur();
 			node.removeEventListener('focus', focus);
 			node.removeEventListener('blur', blur);
-			node.removeEventListener('pointerenter', enter as EventListener);
+			pointerArea.removeEventListener('pointerenter', enter as EventListener);
 			for (const event of ['pointerleave', 'pointerdown', 'pointercancel', 'lostpointercapture']) {
-				node.removeEventListener(event, clear);
+				pointerArea.removeEventListener(event, clear);
 			}
 		}
 	};

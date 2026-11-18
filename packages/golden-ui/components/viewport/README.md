@@ -49,6 +49,10 @@ border. Transparent rotation hit zones use `paint={false}`. Reduced motion disab
 editing an object. `Viewport2D`, `ViewportHandle` and `ViewportTarget` load `feedback.css`;
 standalone contour hosts can import that public stylesheet explicitly.
 
+For a contour with sibling controls, pass `hoverWithin` with a selector for their common
+ancestor. The action resolves that hit area at mount and continues to paint the original
+node. Moving between controls in the hit area keeps its hover state.
+
 Layout spacing and handles use relative units. Measured content dimensions and camera offsets
 use CSS pixels to match browser pointer coordinates; these are computed geometry, not fixed
 layout sizes. Set `native` only for a native underlay aperture: its DOM background must stay

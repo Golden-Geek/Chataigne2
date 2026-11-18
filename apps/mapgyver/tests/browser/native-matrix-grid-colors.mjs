@@ -140,6 +140,57 @@ try {
 	const cell = grid.locator(`[data-cell-id="${cellId}"]`);
 	const row = grid.locator(`[role="rowheader"][data-row-id="${layer.id.id}"]`);
 	const header = grid.locator(`[role="columnheader"][data-column-id="${column.id}"]`);
+	stage = 'empty Cell hover and Add Media access';
+	await wait(
+		() => grid.locator('xpath=ancestor::section[1]').getAttribute('aria-busy'),
+		(value) => value === 'false'
+	);
+	const emptyColumn = snapshot.columns[1];
+	const empty = grid.getByTitle(`${layer.label} / ${emptyColumn.label}`, { exact: true });
+	const add = grid.getByRole('button', {
+		name: `Add Media to ${layer.label} / ${emptyColumn.label}`,
+		exact: true
+	});
+	const mediaChoice = page.getByRole('menuitem', { name: 'Solid Color', exact: true });
+	await empty.scrollIntoViewIfNeeded();
+	assert.equal(await empty.getAttribute('data-cell-id'), null);
+	const emptyBounds = await empty.boundingBox();
+	assert(emptyBounds);
+	const body = { x: emptyBounds.width * 0.2, y: emptyBounds.height * 0.75 };
+	const contour = () =>
+		empty.evaluate((element) => [element.dataset.viewportHovered, element.style.borderColor]);
+	await empty.hover({ position: body });
+	const hovered = await contour();
+	assert.equal(hovered[0], 'true');
+	assert.match(hovered[1], /--gc-viewport-contour-hover/);
+	await add.hover();
+	assert.deepEqual(await contour(), hovered, 'crossing onto Add Media retains the outline');
+	await empty.hover({ position: body });
+	assert.deepEqual(await contour(), hovered, 'crossing back into the Cell retains the outline');
+	await header.hover();
+	const [outside, idleBorder] = await contour();
+	assert.equal(outside, 'false');
+	assert.match(idleBorder, /--gc-viewport-contour-idle/);
+	await empty.hover({ position: body });
+	await add.click();
+	await mediaChoice.waitFor();
+	await page.keyboard.press('Escape');
+	await mediaChoice.waitFor({ state: 'hidden' });
+	await header.hover();
+	await empty.focus();
+	await page.keyboard.press('Tab');
+	assert(await add.evaluate((element) => element === document.activeElement));
+	await page.keyboard.press('Enter');
+	await mediaChoice.waitFor();
+	await page.keyboard.press('Escape');
+	await mediaChoice.waitFor({ state: 'hidden' });
+	assert.equal(await empty.getAttribute('data-cell-id'), null);
+	const emptyCellHover = {
+		hoverContinuous: true,
+		clearsOnExit: true,
+		mouseMenu: true,
+		keyboardMenu: true
+	};
 	async function context(target) {
 		await wait(
 			() => grid.locator('xpath=ancestor::section[1]').getAttribute('aria-busy'),
@@ -417,6 +468,7 @@ try {
 			? 'Bundled Matrix Set Color/Reset Color for all five kinds; two accepted writes in one Undo, Redo, Inspector parity, preserved multiselection, atomic empty Cell color, offscreen palette and reload. Nested copies have current-source Rust proof. No GPU/deep qualification.'
 			: 'Native bundled UI explicit Cell/Layer/Column/Group selection; Inspector colors and Undo/Redo for all five headers/item kinds; saved project reload. Nested copies have current-source Rust proof. No GPU/deep qualification.',
 		contextMenus,
+		emptyCellHover,
 		colors,
 		appearance,
 		columnEnabled,

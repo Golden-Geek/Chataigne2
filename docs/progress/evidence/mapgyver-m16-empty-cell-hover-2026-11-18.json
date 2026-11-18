@@ -1,0 +1,24 @@
+{
+  "date": "2026-11-18",
+  "gate": "M16/13",
+  "result": "accepted",
+  "software": {
+    "contourTests": 9,
+    "svelteCheck": { "errors": 0, "warnings": 0 },
+    "formattingAndNodeSyntax": "pass"
+  },
+  "bundledApp": {
+    "fixture": "apps/mapgyver/tests/browser/native-matrix-grid-colors.mjs",
+    "processId": 40484,
+    "exitCode": 0,
+    "localReceipt": "target/m1613-hover-b46f4b46/result.json",
+    "checks": [
+      "The hover contour stays active from the empty Cell body to Add Media and back",
+      "Moving to the Column header clears Cell hover and restores the idle border",
+      "A mouse click opens Add Media",
+      "Tab reaches Add Media and Enter opens the same menu while the pointer is outside the Cell",
+      "Opening and dismissing either menu leaves the Cell unallocated",
+      "Existing grid selection, Inspector color, Undo/Redo and save/reload checks pass"
+    ]
+  }
+}

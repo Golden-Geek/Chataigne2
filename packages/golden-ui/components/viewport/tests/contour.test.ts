@@ -10,15 +10,20 @@ test('authored contours preserve selection, hover and error cues and reset to th
 	assert.equal(viewportContourAppearance({ color: null }).stroke, 'a2b0c5');
 });
 
-function fixture(svg = true) {
+function fixture(svg = true, pointerArea?: EventTarget) {
 	const node = Object.assign(new EventTarget(), {
 		ownerDocument: { defaultView: new EventTarget() },
 		namespaceURI: svg ? 'http://www.w3.org/2000/svg' : 'http://www.w3.org/1999/xhtml',
 		style: {} as CSSStyleDeclaration,
-		dataset: {} as DOMStringMap
+		dataset: {} as DOMStringMap,
+		closest: () => pointerArea ?? null
 	});
 	const changes: boolean[] = [];
-	const options = { identity: 'one', onhover: (value: boolean) => changes.push(value) };
+	const options = {
+		identity: 'one',
+		hoverWithin: pointerArea ? '[data-hit-area]' : undefined,
+		onhover: (value: boolean) => changes.push(value)
+	};
 	const action = viewportContour(node as unknown as SVGElement, options);
 	const send = (type: string, buttons = 0, pointerType = 'mouse') => {
 		node.dispatchEvent(Object.assign(new Event(type), { buttons, pointerType }));
@@ -79,6 +84,21 @@ test('non-bubbling native enter/leave events share the same DOM hover lifecycle'
 	assert.deepEqual(f.changes, [true, false]);
 	assert.equal(f.node.style.stroke, '#a2b0c5');
 	f.action.destroy();
+});
+
+test('a compound hit area keeps the painted child hovered until the pointer leaves the area', () => {
+	const area = new EventTarget();
+	const f = fixture(false, area);
+	const enter = () => area.dispatchEvent(Object.assign(new Event('pointerenter'), { buttons: 0 }));
+	enter();
+	assert.equal(f.node.dataset.viewportHovered, 'true');
+	f.send('pointerleave');
+	assert.deepEqual(f.changes, [true]);
+	area.dispatchEvent(new Event('pointerleave'));
+	assert.deepEqual(f.changes, [true, false]);
+	f.action.destroy();
+	enter();
+	assert.equal(f.node.dataset.viewportHovered, 'false');
 });
 
 test('touch and captured button movement cannot introduce hover; press, cancel, capture loss and blur retire it', () => {

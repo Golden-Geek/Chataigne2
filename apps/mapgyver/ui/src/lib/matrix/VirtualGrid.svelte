@@ -643,6 +643,7 @@
 									use:selectOnPress={{ disabled, select: (event) => select(row, column, event) }}
 									use:viewportContour={{
 										selected: isSelected(cell?.cell.id),
+										hoverWithin: '[data-cell-drop]',
 										identity: documentIdentity
 									}}
 									ondblclick={() => {
