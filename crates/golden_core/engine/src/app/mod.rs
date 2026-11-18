@@ -362,7 +362,18 @@ where
     if json.trim().is_empty() {
         return Ok(None);
     }
-    insert_sparse_subtree_json(engine, engine.root, None, json).map(Some)
+    // Preferences cross project boundaries. Remap graph UUIDs without applying copy defaults.
+    let project = golden_persistence::decode_project_document(json)?;
+    let expanded = sparse::expand_sparse_project_file::<T>(project, engine.lifecycle_limits())?;
+    engine
+        .insert_remapped_project_subtree(
+            expanded,
+            engine.root,
+            None,
+            crate::node::NodeCreationContext::ProjectLoad,
+            T::project_decode_node,
+        )
+        .map(Some)
 }
 
 /// Serializes the live Preferences tree for app-data persistence.

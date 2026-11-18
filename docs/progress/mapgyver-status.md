@@ -1,9 +1,9 @@
 # MapGyver — simple status
 
 - **Updated:** 18 November 2026.
-- **Overall plan acceptance:** `████████░░` **82% — 113/137 checks accepted, 8/17 phases complete**. Compact Matrix controls passed.
-- **Latest delivered:** Each Matrix Layer has a vertical Opacity slider on the right and a compact Blend Mode selector in its header.
-- **Working on next:** Audio output and routing.
+- **Overall plan acceptance:** `████████░░` **82% — 113/137 checks accepted, 8/17 phases complete**.
+- **Latest delivered:** Audio Preferences open a real Windows output and map named virtual outputs to physical channels.
+- **Working on next:** Play Video audio through those routes and add per-channel volume.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -46,10 +46,11 @@
 - [x] **Editor manipulation:** the smoothness improvements you accepted in Screen Warping, Surface Source and Composition.
 - [x] **Editor feedback — functional:** shared120ms hover/selection paint, softer handles, keyboard cues and reduced motion. Geometry/input stay immediate; browser and native Screen/Source input checks pass.
 - [x] **App presentation:** MapGyver identity/icon, official calibration pattern, font/menu/Inspector improvements and thumbnail Fit behavior.
+- [x] **Audio Preferences:** enable output, choose System Default or a specific device, and add or remap virtual outputs. Native stream, missing-device selection, project replacement and restart passed. [Checks](evidence/mapgyver-m16-audio-output-settings-2026-11-18.json)
 
 ## Next features — implementation order
 
-1. **NOW — Audio output and routing.** Use Golden Audio for device output and playback across Video and Matrix. Map virtual channels to physical outputs in Preferences and set per-channel volume on Video media.
+1. **NOW — Video audio and routing.** Feed Video audio through the new virtual outputs. Add per-channel volume and verify the signal, gain and recovery on a real device.
 2. **Video intro and loop.** Loop the end of one file or play a separate loop file, with optional separate loop audio.
 3. **Matrix Cell audio.** Use the media's audio, give the Cell its own audio, or play audio only.
 4. **OSCQuery for all Golden apps.** Implement discovery, undoable node edits and live feedback in Golden Core, with configurable ports per app.

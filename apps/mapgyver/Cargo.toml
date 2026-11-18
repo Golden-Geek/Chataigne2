@@ -23,6 +23,7 @@ golden_assets.workspace = true
 image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg"] }
 png = "=0.18.1"
 golden_core = { path = "../../crates/golden_core" }
+golden_audio.workspace = true
 golden_io.workspace = true
 uuid.workspace = true
 golden_video = { path = "../../crates/golden_video" }

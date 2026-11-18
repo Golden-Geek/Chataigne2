@@ -59,6 +59,7 @@ name = "MapGyver"
 version = "0.1.0"
 dependencies = [
  "golden_assets",
+ "golden_audio",
  "golden_codegen_support",
  "golden_core",
  "golden_io",

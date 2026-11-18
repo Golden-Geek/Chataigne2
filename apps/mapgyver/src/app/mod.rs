@@ -27,6 +27,8 @@ golden_core::define_node_enum!(
         Screen(crate::screens::ScreenNode),
         Surface(crate::screens::SurfaceNode),
         VideoPreferences(crate::preferences::VideoPreferencesNode),
+        AudioPreferences(crate::audio::AudioPreferencesNode),
+        AudioOutput(crate::audio::OutputNode),
     }
 );
 
@@ -94,6 +96,8 @@ impl ProjectLifecycle for AppNode {
             crate::media::query_operation(engine, operation, payload)
         } else if namespace == crate::screens::protocol::SCREEN_NAMESPACE {
             crate::screens::query_operation(engine, operation, payload)
+        } else if namespace == crate::audio::NAMESPACE && operation == "inspect-output" {
+            Some(crate::audio::inspect(engine))
         } else {
             None
         }
@@ -142,19 +146,21 @@ pub fn run() -> std::io::Result<()> {
             url: "http://127.0.0.1:5174",
         }),
     };
-    let services = golden_core::app::HostServices::default().with_headless(|runtime| {
-        #[cfg(feature = "video-files")]
-        let videos = crate::media::video::metadata::Service::start(runtime.clone())?;
-        let applications = crate::applications::headless::HeadlessApplications::start(runtime)?;
-        #[cfg(feature = "video-files")]
-        {
-            Ok((applications, videos))
-        }
-        #[cfg(not(feature = "video-files"))]
-        {
-            Ok(applications)
-        }
-    });
+    let services = golden_core::app::HostServices::default()
+        .with_background(crate::audio::start)
+        .with_headless(|runtime| {
+            #[cfg(feature = "video-files")]
+            let videos = crate::media::video::metadata::Service::start(runtime.clone())?;
+            let applications = crate::applications::headless::HeadlessApplications::start(runtime)?;
+            #[cfg(feature = "video-files")]
+            {
+                Ok((applications, videos))
+            }
+            #[cfg(not(feature = "video-files"))]
+            {
+                Ok(applications)
+            }
+        });
     #[cfg(all(windows, feature = "native-video"))]
     let services = services.with_native_presentation(crate::preview::host::presentation);
     golden_core::app::run_default_with_services::<AppNode, tauri::Wry>(tauri::generate_context!(), config, services)

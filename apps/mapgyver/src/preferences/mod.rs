@@ -60,6 +60,7 @@ pub(crate) fn tree(default_data_folder: String) -> NodeTree {
     let mut video = VideoPreferencesNode::new();
     video.node_data_mut().meta.decl_id = DeclId(VIDEO_DECL_ID.into());
     root.push_child(NodeTree::new(video));
+    root.push_child(crate::audio::tree());
     root
 }
 

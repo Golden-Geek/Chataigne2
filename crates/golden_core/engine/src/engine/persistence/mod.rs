@@ -234,6 +234,26 @@ impl<T: Node> Engine<T> {
         project: ProjectFile,
         parent: NodeId,
         prev_sibling: Option<NodeId>,
+        decode_node: Decode,
+    ) -> Result<NodeId, ProjectPersistenceError>
+    where
+        Decode: FnMut(&str, &serde_json::Value, &NodeMeta) -> Result<T, String>,
+    {
+        self.insert_remapped_project_subtree(
+            project,
+            parent,
+            prev_sibling,
+            NodeCreationContext::Duplicate,
+            decode_node,
+        )
+    }
+
+    pub(crate) fn insert_remapped_project_subtree<Decode>(
+        &mut self,
+        project: ProjectFile,
+        parent: NodeId,
+        prev_sibling: Option<NodeId>,
+        creation: NodeCreationContext,
         mut decode_node: Decode,
     ) -> Result<NodeId, ProjectPersistenceError>
     where
@@ -260,11 +280,7 @@ impl<T: Node> Engine<T> {
                 Ok(root) => root,
                 Err(error) => return Err(self.abort_project_subtree_commit(commit_checkpoint, error)),
             };
-        if let Err(error) = self.replay_loaded_subtree_lifecycle(
-            imported_root,
-            NodeCreationContext::Duplicate,
-            LoadedReadyMode::Immediate,
-        ) {
+        if let Err(error) = self.replay_loaded_subtree_lifecycle(imported_root, creation, LoadedReadyMode::Immediate) {
             return Err(self.abort_project_subtree_commit(commit_checkpoint, error));
         }
         let imported_node_ids = match self.collect_loaded_subtree_node_ids(imported_root) {

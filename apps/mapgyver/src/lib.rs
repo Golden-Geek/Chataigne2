@@ -2,6 +2,7 @@
 
 pub mod app;
 pub mod applications;
+mod audio;
 pub mod matrix;
 pub mod media;
 mod parameters;

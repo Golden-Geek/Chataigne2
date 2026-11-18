@@ -13,12 +13,14 @@ pub(crate) type HeadlessFactory<T> = Box<dyn FnOnce(ProductionRuntime<T>) -> io:
 pub struct HostServices<T: ProjectLifecycle, R: Runtime> {
     pub(crate) presentation: Option<PresentationFactory<T, R>>,
     pub(crate) headless: Option<HeadlessFactory<T>>,
+    pub(crate) background: Option<HeadlessFactory<T>>,
 }
 impl<T: ProjectLifecycle, R: Runtime> Default for HostServices<T, R> {
     fn default() -> Self {
         Self {
             presentation: None,
             headless: None,
+            background: None,
         }
     }
 }
@@ -38,6 +40,18 @@ impl<T: ProjectLifecycle, R: Runtime> HostServices<T, R> {
         factory: impl FnOnce(ProductionRuntime<T>) -> io::Result<S> + Send + 'static,
     ) -> Self {
         self.headless = Some(Box::new(move |runtime| {
+            factory(runtime).map(|service| Box::new(service) as Box<dyn Send>)
+        }));
+        self
+    }
+
+    /// Start an app service in either host mode after listener binding. The guard is retained
+    /// for that host's lifetime and owns cancellation and background retirement.
+    pub fn with_background<S: Send + 'static>(
+        mut self,
+        factory: impl FnOnce(ProductionRuntime<T>) -> io::Result<S> + Send + 'static,
+    ) -> Self {
+        self.background = Some(Box::new(move |runtime| {
             factory(runtime).map(|service| Box::new(service) as Box<dyn Send>)
         }));
         self

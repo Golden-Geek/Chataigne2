@@ -409,7 +409,11 @@ where
     T: ProjectLifecycle + 'static,
     R: Runtime,
 {
-    let HostServices { presentation, headless } = services;
+    let HostServices {
+        presentation,
+        headless,
+        background,
+    } = services;
     args.validate_webview_automation()?;
     validate_platform(presentation.is_some(), args.headless)?;
     if !cfg!(target_os = "windows") && !args.headless && args.automation_shutdown_file.is_some() {
@@ -472,7 +476,9 @@ where
         // Headless mode renders no frontend. A requested dev server is already gated by
         // `spawn_frontend_dev_server`; bundled assets start with the UI server below.
         let run_result = run_with_ui_server_config_and_ready(engine, config, move |runtime| {
-            headless.map(|factory| factory(runtime)).transpose()
+            let shared = background.map(|factory| factory(runtime.clone())).transpose()?;
+            let mode = headless.map(|factory| factory(runtime)).transpose()?;
+            Ok((shared, mode))
         });
         drop(dev_server_process);
         let watched = watcher.map_or(Ok(()), |watcher| watcher.finish());
@@ -499,14 +505,17 @@ where
 
     wait_for_ui_server(&endpoint.connect_addr, UI_STARTUP_TIMEOUT)?;
 
-    let presentation = presentation
-        .map(|factory| {
-            let runtime = runtime_rx
-                .recv_timeout(UI_STARTUP_TIMEOUT)
-                .map_err(|error| Error::other(format!("authoritative runtime was not ready: {error}")))?;
-            factory(runtime)
-        })
-        .transpose()?;
+    let (background, presentation) = if background.is_some() || presentation.is_some() {
+        let runtime = runtime_rx
+            .recv_timeout(UI_STARTUP_TIMEOUT)
+            .map_err(|error| Error::other(format!("authoritative runtime was not ready: {error}")))?;
+        (
+            background.map(|factory| factory(runtime.clone())).transpose()?,
+            presentation.map(|factory| factory(runtime)).transpose()?,
+        )
+    } else {
+        (None, None)
+    };
 
     let dev_server_process = if args.dev && configured_frontend_url.is_none() {
         spawn_frontend_dev_server(dev_server, &frontend_url, &endpoint.connect_addr, args.show_output)?
@@ -531,6 +540,7 @@ where
         args.automation_webview_debug_port,
         presentation,
     );
+    drop(background);
     drop(dev_server_process);
     run_result
 }
