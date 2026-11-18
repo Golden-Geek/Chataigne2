@@ -8,6 +8,7 @@ import { verifyMatrixAppearance } from './matrix-appearance.mjs';
 import { verifyMatrixColumnEnabled } from './matrix-column-enabled.mjs';
 
 const directory = path.resolve(process.argv[2]);
+const contextMenus = process.argv.includes('--context-menus');
 await mkdir(directory, { recursive: true });
 const native = await openNativeEditor();
 const { page } = native;
@@ -96,6 +97,22 @@ try {
 	const cell = grid.locator(`[data-cell-id="${cellId}"]`);
 	const row = grid.locator(`[role="rowheader"][data-row-id="${layer.id.id}"]`);
 	const header = grid.locator(`[role="columnheader"][data-column-id="${column.id}"]`);
+	async function context(target) {
+		await wait(
+			() => grid.locator('xpath=ancestor::section[1]').getAttribute('aria-busy'),
+			(value) => value === 'false'
+		);
+		const box = await target.boundingBox();
+		assert(box);
+		const cellTarget = (await target.getAttribute('role')) === 'gridcell';
+		await target.click({
+			button: 'right',
+			position: {
+				x: cellTarget ? box.width * 0.8 : Math.min(50, box.width * 0.3),
+				y: cellTarget ? box.height * 0.75 : Math.min(16, box.height * 0.3)
+			}
+		});
+	}
 	async function choose(target, uuid) {
 		stage = `select ${uuid}`;
 		await wait(
@@ -135,9 +152,22 @@ try {
 	const colors = [];
 	for (const { node, uuid } of targets) {
 		await choose(node, uuid);
-		await page.locator('.inspector-header').click({ button: 'right' });
+		const selectionBefore = await grid.locator('[aria-selected="true"]').count();
+		if (contextMenus) await context(node);
+		else await page.locator('.inspector-header').click({ button: 'right' });
+		assert.equal(await grid.locator('[aria-selected="true"]').count(), selectionBefore);
+		assert(await page.getByRole('menuitem', { name: 'Reset Color', exact: true }).isDisabled());
 		await page.getByRole('menuitem', { name: 'Set Color', exact: true }).click();
 		const color = page.locator('.gc-node-context-color-submenu .cp-input-hex');
+		await color.fill('4080B0');
+		await color.press('Tab');
+		await wait(
+			() =>
+				node.evaluate((element) =>
+					getComputedStyle(element).getPropertyValue('--matrix-item-color')
+				),
+			(value) => value.includes('64') && value.includes('128') && value.includes('176')
+		);
 		await color.fill('D63C50');
 		await color.press('Tab');
 		await page.keyboard.press('Escape');
@@ -146,10 +176,18 @@ try {
 			() => node.getAttribute('class'),
 			(value) => value.includes('custom-color')
 		);
-		const colored = await node.evaluate((element) =>
-			getComputedStyle(element).getPropertyValue('--matrix-item-color')
+		const colored = await wait(
+			() =>
+				node.evaluate((element) =>
+					getComputedStyle(element).getPropertyValue('--matrix-item-color')
+				),
+			(value) => value.includes('214') && value.includes('60') && value.includes('80')
 		);
 		assert(colored.includes('214') && colored.includes('60') && colored.includes('80'), colored);
+		const inspectorColor = await page
+			.locator('.inspector-header')
+			.evaluate((element) => getComputedStyle(element).getPropertyValue('--node-accent-color'));
+		assert.equal(inspectorColor.replaceAll(' ', ''), colored.replaceAll(' ', ''));
 		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
 		await wait(
 			() => node.getAttribute('class'),
@@ -160,7 +198,78 @@ try {
 			() => node.getAttribute('class'),
 			(value) => value.includes('custom-color')
 		);
+		if (contextMenus) {
+			await context(node);
+			await page.getByRole('menuitem', { name: 'Reset Color', exact: true }).click();
+			await wait(
+				() => node.getAttribute('class'),
+				(value) => !value.includes('custom-color')
+			);
+			await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+			await wait(
+				() => node.getAttribute('class'),
+				(value) => value.includes('custom-color')
+			);
+		}
 		colors.push({ uuid, colored });
+	}
+	if (contextMenus) {
+		stage = 'context target preserves multiselection';
+		await choose(row, layer.id.id);
+		await header
+			.getByRole('button', { name: column.label, exact: true })
+			.click({ modifiers: ['Control'] });
+		const selected = () =>
+			grid
+				.locator('[aria-selected="true"]')
+				.evaluateAll((nodes) =>
+					nodes
+						.map(
+							(node) =>
+								node.getAttribute('data-row-id') ??
+								node.getAttribute('data-column-id') ??
+								node.getAttribute('data-cell-id')
+						)
+						.sort()
+				);
+		const before = await selected();
+		assert.equal(before.length, 2);
+		await context(cell);
+		await page.getByRole('menuitem', { name: 'Reset Color', exact: true }).click();
+		await wait(
+			() => cell.getAttribute('class'),
+			(value) => !value.includes('custom-color')
+		);
+		assert.deepEqual(await selected(), before);
+		assert((await row.getAttribute('class')).includes('custom-color'));
+		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		await wait(
+			() => cell.getAttribute('class'),
+			(value) => value.includes('custom-color')
+		);
+		stage = 'empty Cell first color is one Undo';
+		const emptyColumn = snapshot.columns[1].id;
+		const empty = grid.locator(
+			`[data-cell-layer="${layer.id.id}"][data-cell-column="${emptyColumn}"] [role="gridcell"]`
+		);
+		assert.equal(await empty.getAttribute('data-cell-id'), null);
+		await context(empty);
+		assert(await page.getByRole('menuitem', { name: 'Reset Color', exact: true }).isDisabled());
+		await page.getByRole('menuitem', { name: 'Set Color', exact: true }).click();
+		const input = page.locator('.gc-node-context-color-submenu .cp-input-hex');
+		await input.fill('80C040');
+		await input.press('Tab');
+		await page.keyboard.press('Escape');
+		await wait(
+			() => empty.getAttribute('class'),
+			(value) => value.includes('custom-color')
+		);
+		await page.getByTitle('Ctrl/Cmd+Z', { exact: true }).click();
+		await wait(
+			() => empty.getAttribute('data-cell-id'),
+			(value) => value === null
+		);
+		assert.deepEqual(await selected(), before);
 	}
 	stage = 'selected colored Cell remains editable offscreen';
 	await choose(cell, cellId);
@@ -169,6 +278,10 @@ try {
 		() => grid.getAttribute('aria-rowcount'),
 		(value) => Number(value) >= 36
 	);
+	if (contextMenus) {
+		await context(cell);
+		await page.getByRole('menuitem', { name: 'Set Color', exact: true }).click();
+	}
 	await grid.evaluate((element) => {
 		element.scrollTop = element.scrollHeight;
 	});
@@ -177,6 +290,12 @@ try {
 		(value) => value === 0
 	);
 	assert.equal(await page.locator('.inspector').getAttribute('data-inspected-uuid'), cellId);
+	if (contextMenus) {
+		const input = page.locator('.gc-node-context-color-submenu .cp-input-hex');
+		await input.fill('D63C50');
+		await input.press('Tab');
+		await page.keyboard.press('Escape');
+	}
 	await grid.evaluate((element) => {
 		element.scrollTop = 0;
 	});
@@ -226,8 +345,10 @@ try {
 	const result = {
 		result: 'pass',
 		pid: native.app.pid,
-		scope:
-			'Native bundled UI explicit Cell/Layer/Column/Group selection; Inspector colors and Undo/Redo for all five headers/item kinds; saved project reload. Nested copies have current-source Rust proof. No GPU/deep qualification.',
+		scope: contextMenus
+			? 'Bundled Matrix Set Color/Reset Color for all five kinds; two accepted writes in one Undo, Redo, Inspector parity, preserved multiselection, atomic empty Cell color, offscreen palette and reload. Nested copies have current-source Rust proof. No GPU/deep qualification.'
+			: 'Native bundled UI explicit Cell/Layer/Column/Group selection; Inspector colors and Undo/Redo for all five headers/item kinds; saved project reload. Nested copies have current-source Rust proof. No GPU/deep qualification.',
+		contextMenus,
 		colors,
 		appearance,
 		columnEnabled

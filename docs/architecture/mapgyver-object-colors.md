@@ -19,6 +19,16 @@ Selection, hover and invalid-geometry cues retain their distinct shared Golden a
 DOM/native Surface outlines share `viewportContourAppearance`; Golden's optional viewport
 frame accent keeps the DOM fallback consistent with the native Screen frame.
 
+Golden's `NodeColorMenu` and `nodeColorMenuItems` share the same picker and metadata target
+between the generic node menu and Matrix's contextual menus. Each palette visit groups its
+changes into one Undo step, using the shared latest-edit gesture to bound requests. Closing
+flushes the last color; replacing the document invalidates the target. Right-click color
+actions affect only their context object and preserve the document's multiselection.
+
+Matrix supplies a sparse Cell target through its typed `SetCellColor` operation. The backend
+validates the address and creates a missing Cell with its color in one edit; Reset never
+creates a missing Cell. Existing Cells preserve their other presentation metadata. Returned
+Cell identity keeps the palette bound to its object when that row leaves the virtual viewport.
+
 Colors affect editor presentation only. They do not change channel definitions, media pixels,
-mapping geometry, enable state or runtime status. Matrix item context-menu changes belong to
-the following M15/13 gate; this feature does not accept that separate requirement.
+mapping geometry, enable state or runtime status.

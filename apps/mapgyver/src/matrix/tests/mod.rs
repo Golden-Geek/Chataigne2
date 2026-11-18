@@ -12,6 +12,7 @@ use golden_core::{
 mod applications;
 mod bindings;
 mod bulk_authoring;
+mod cell_colors;
 mod cell_creation;
 mod cell_drops;
 mod cell_duplicate_lifetime;

@@ -20,6 +20,9 @@
 	import VirtualGrid from './VirtualGrid.svelte';
 	import { followPanelTitle } from '../panel-title.svelte';
 	import { gridActions } from './grid-actions';
+	import NodeColorMenu from 'golden_ui/components/common/NodeColorMenu.svelte';
+	import { nodeColorMenuItems } from 'golden_ui/components/common/node-color-menu.ts';
+	import { matrixColorTarget } from './color-target';
 	import { presetActions } from './preset-actions';
 	import settingsIcon from 'golden_ui/style/icons/settings.svg';
 	import { createCellTransfers, type CellDrag } from './cell-transfer';
@@ -104,6 +107,7 @@
 	const selectDocumentNode = selection.select;
 	let anchor = $state<ContextMenuAnchor | null>(null);
 	let items = $state.raw<ContextMenuItem[]>([]);
+	let colors = $state<ReturnType<typeof NodeColorMenu>>();
 	async function inspectMembers(
 		preset: string,
 		after: string | null = null,
@@ -171,7 +175,29 @@
 		group?: ColumnGroupSnapshot
 	) {
 		if (busy) return;
-		items = gridActions(owner, selection, row, column, creationOnly, group, undefined, transfers);
+		items = gridActions(
+			owner,
+			selection,
+			row,
+			column,
+			creationOnly,
+			group,
+			undefined,
+			transfers,
+			(address) => {
+				const target = matrixColorTarget(owner, address);
+				return target
+					? nodeColorMenuItems(
+							target,
+							(target, point) => colors?.open(target, point),
+							() => {
+								anchor = null;
+								items = [];
+							}
+						)
+					: [];
+			}
+		);
 		anchor =
 			event.type === 'click' && event.detail === 0 && event.currentTarget instanceof HTMLElement
 				? { kind: 'element', element: event.currentTarget, placement: 'bottom-start' }
@@ -191,6 +217,8 @@
 		items = [];
 	});
 </script>
+
+<NodeColorMenu bind:this={colors} />
 
 <section
 	class="workbench-editor"

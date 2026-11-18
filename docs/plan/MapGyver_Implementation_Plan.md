@@ -1385,10 +1385,10 @@ awarding acceptance or changing retained budgets.
 Source: [Latest Feedback.md](../../Latest%20Feedback.md) in the repository root, plus the user's
 instruction that remaining Video work follows this feedback. Follow the M14 feature-first
 execution revision above: selected M14 features9,10,8,2 are functionally delivered, with their
-remaining qualification Pending in the return queue. M15/1–4,6–8,12 are Accepted; M15/5 is functionally
+remaining qualification Pending in the return queue. M15/1–4,6–8,12–13 are Accepted; M15/5 is functionally
 delivered with native presentation qualification Pending. The 2026-11-18 amendment retains
 M15/8 as the current task through completion, then selects 12–15 before 9–11. M15/8 is now
-complete; M15/12 custom colors is also complete; M15/13 Matrix color menus is the next Active gate.
+complete; M15/12 custom colors is also complete; M15/13 Matrix color menus is also complete; M15/14 compact Layer Groups is the next Active gate.
 Deliver M15 before remaining Video, retaining user-deferred M14/1 and blocked M14/6.
 Retain every unfinished qualification gate and its return trigger before M09.
 
@@ -1578,6 +1578,9 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
     multiselection conventions, default/custom/reset states, offscreen selection, Inspector
     synchronization, grouped Undo/Redo and copy/reload. Earlier M15/2 acceptance covers its
     original Inspector workflow only; it does not accept these new menu actions.
+    [Accepted Matrix menus](../progress/evidence/mapgyver-m15-matrix-color-menus-2026-11-18.json) now verify all five kinds,
+    shared picker/grouped history, sparse Cells, context-only multiselection, Inspector/offscreen
+    synchronization, metadata copies and reload. M15/13 is Accepted; retained qualification is unchanged.
 14. **Matrix Layer Groups default to a compact single-line header.** Owner: MapGyver Matrix
     presentation on Golden workbench/Inspector contracts. Hide inline Opacity and Blend Mode
     controls by default so a Group occupies one line. Preserve the authored typed controls and
@@ -1596,7 +1599,7 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
     rows without rendering all descendants, stealing hit targets or confusing selection/playback
     cues. Coordinate with the compact header in 14; do not remove Group rendering behavior.
 
-M15/1–4,6–8,12 are Accepted with their owning software/native proofs;5,9–11,13–15 remain open.
+M15/1–4,6–8,12–13 are Accepted with their owning software/native proofs;5,9–11,14–15 remain open.
 M15/2 covers explicit/shared/modifier selection, nested/disabled/offscreen objects, Inspector
 colors, history/copy/reload, representative theme contrast and independent panels. Wider app
 stress/interruption and retained GPU/resource qualification return in the deferred pass before M09.
@@ -1621,6 +1624,8 @@ M15/8 Surface-link acceptance raises the numerator to **99/121 (82%)** and M15 t
 phase completion stays **8/16 (50%)**. The denominator and all deferred gates remain unchanged.
 M15/12 object-color acceptance raises this to **100/121 (83%)**, M15 **8/15 (53%)**.
 No phase completes and no retained qualification is waived.
+M15/13 Matrix color-menu acceptance raises this to **101/121 (83%)**, M15 **9/15 (60%)**.
+The fixed denominator and retained qualification are unchanged by this acceptance.
 M14/1,6 and all retained correctness, physical, recovery and performance requirements remain
 required before M09. New features follow the user's feature-first cadence; a checkpoint or a
 passing subset of checks never closes a complete gate.

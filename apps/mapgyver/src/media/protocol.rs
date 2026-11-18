@@ -526,6 +526,9 @@ pub enum MediaEditResult {
         cell: crate::matrix::protocol::CellId,
         application: crate::applications::protocol::ApplicationId,
     },
+    MatrixCellColorSet {
+        cell: Option<crate::matrix::protocol::CellId>,
+    },
     MatrixColumnGroupCreated {
         group: crate::matrix::protocol::ColumnGroupId,
     },

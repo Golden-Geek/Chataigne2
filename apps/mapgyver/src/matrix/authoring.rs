@@ -139,6 +139,9 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         MatrixEdit::EnsureCell { layer, column } => {
             return super::cell_applications::prepare(engine, &document, layer, column);
         }
+        MatrixEdit::SetCellColor { layer, column, color } => {
+            return super::cells::set_color(engine, &document, layer, column, color);
+        }
         MatrixEdit::DropSource {
             layer,
             column,

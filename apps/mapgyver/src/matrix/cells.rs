@@ -38,6 +38,56 @@ pub(super) fn ensure(
         .ok_or("Cell creation did not settle".into())
 }
 
+pub(super) fn set_color(
+    engine: &mut AppEngine,
+    document: &Document,
+    layer: LayerId,
+    column: ColumnId,
+    color: Option<golden_core::color::Color>,
+) -> Result<MediaEditResult, String> {
+    let parent = document.item(MatrixItemId::Layer { id: layer })?;
+    document.column(column)?;
+    if color.is_some_and(|color| {
+        [color.red, color.green, color.blue, color.alpha]
+            .iter()
+            .any(|value| !value.is_finite() || !(0.0..=1.0).contains(value))
+    }) {
+        return Err("Cell color must contain finite RGBA values in 0..1".into());
+    }
+    let cell = if let Some(id) = document.cells.get(&(layer, column)) {
+        let meta = &engine.nodes.get(*id).ok_or("Cell is missing")?.node_data().meta;
+        if !meta.user_permissions.can_edit_color {
+            return Err("Cell color is not editable".into());
+        }
+        let mut presentation = meta.presentation.clone();
+        let cell = CellId(meta.uuid);
+        presentation.color = color;
+        engine.edits.push(Edit::PatchMeta {
+            node: *id,
+            patch: golden_core::node::NodeMetaPatch {
+                presentation: Some(presentation),
+                ..Default::default()
+            },
+        });
+        Some(cell)
+    } else if color.is_some() {
+        document.admit(1)?;
+        let mut node = CellNode::from_address("Cell".into(), column, None);
+        node.bind_runtime(binding(engine, document));
+        node.node_data_mut().meta.presentation.color = color;
+        let cell = CellId(node.node_data().meta.uuid);
+        engine.edits.push(Edit::AddUserItemTree {
+            parent,
+            prev_sibling: engine.nodes.get(parent).unwrap().node_data().last_child,
+            tree: NodeTree::new(node),
+        });
+        Some(cell)
+    } else {
+        None
+    };
+    Ok(MediaEditResult::MatrixCellColorSet { cell })
+}
+
 pub(super) fn create_media(
     engine: &mut AppEngine,
     document: &Document,

@@ -639,6 +639,11 @@ pub enum MatrixEdit {
         layer: LayerId,
         column: ColumnId,
     },
+    SetCellColor {
+        layer: LayerId,
+        column: ColumnId,
+        color: Option<golden_core::color::Color>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]

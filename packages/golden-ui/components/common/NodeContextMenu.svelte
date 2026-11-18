@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { slide } from 'svelte/transition';
 	import ContextMenu from './ContextMenu.svelte';
-	import ColorPicker from './ColorPicker.svelte';
+	import NodeColorMenu from './NodeColorMenu.svelte';
+	import { nodeColorMenuItems, nodeColorTarget } from './node-color-menu';
 	import NodeConstraintMenu from './NodeConstraintMenu.svelte';
 	import { appState } from '../../store/workbench.svelte';
 	import { createUserItemAndSelect, sendPatchMetaIntent } from '../../store/ui-intents';
@@ -15,7 +15,7 @@
 		openNodeContextMenu
 	} from '../../store/node-context-menu.svelte';
 	import { resolveNodeContextMenuItems } from './node-context-menu-registry';
-	import type { NodeId, UiColorDto, UiCreatableUserItem, UiNodeDto } from '../../types';
+	import type { NodeId, UiCreatableUserItem, UiNodeDto } from '../../types';
 	import { getMainViewportBounds, remToPx } from './floating-panel';
 	import { buildCreatableItemMenu } from './creatable-item-menu';
 	import { getPanelByType, showPanel } from '../../store/ui-panels';
@@ -27,7 +27,6 @@
 	} from '../../store/session/node-tree-clipboard';
 	import addIcon from '../../style/icons/node/add.svg';
 	import copyPathIcon from '../../style/icons/copy.svg';
-	import colorIcon from '../../style/icons/parameter/color.svg';
 	import settingsIcon from '../../style/icons/settings.svg';
 	import duplicateIcon from '../../style/icons/duplicate.svg';
 	import deleteIcon from '../../style/icons/delete.svg';
@@ -70,21 +69,10 @@
 	let contextNodeId = $derived(nodeContextMenuState.nodeId);
 	let contextPosition = $derived(nodeContextMenuState.position);
 	let menuTreeDiv: HTMLDivElement | null = $state(null);
-	let colorSubMenuDiv: HTMLDivElement | null = $state(null);
-	let colorAnchorElement: HTMLElement | null = $state(null);
-
 	let constraints = $state<ReturnType<typeof NodeConstraintMenu>>();
-	let colorSubMenu = $state({ open: false });
-	let isColorEditing = $state(false);
-
-	const closeColorSubMenu = (): void => {
-		colorSubMenu.open = false;
-		colorAnchorElement = null;
-		isColorEditing = false;
-	};
+	let colors = $state<ReturnType<typeof NodeColorMenu>>();
 
 	const closeMenu = (): void => {
-		closeColorSubMenu();
 		constraints?.close();
 		closeNodeContextMenu();
 	};
@@ -162,28 +150,6 @@
 		node.style.top = `${Math.min(Math.max(minTop, anchorRect.top), maxTop)}px`;
 	};
 
-	const updateColorSubMenuPosition = (): void => {
-		if (!colorSubMenuDiv || !colorSubMenu.open || !colorAnchorElement) {
-			return;
-		}
-		applyPanelPosition(colorSubMenuDiv, colorAnchorElement);
-	};
-
-	const captureColorSubMenuContainer = () => {
-		return (node: HTMLDivElement) => {
-			colorSubMenuDiv = node;
-			let raf = requestAnimationFrame(() => {
-				updateColorSubMenuPosition();
-			});
-			return () => {
-				cancelAnimationFrame(raf);
-				if (colorSubMenuDiv === node) {
-					colorSubMenuDiv = null;
-				}
-			};
-		};
-	};
-
 	const captureMenuTree = (node: HTMLDivElement | null): void => {
 		menuTreeDiv = node;
 	};
@@ -192,7 +158,7 @@
 		if (!(target instanceof Node)) {
 			return false;
 		}
-		return menuTreeDiv?.contains(target) === true || colorSubMenuDiv?.contains(target) === true;
+		return menuTreeDiv?.contains(target) === true;
 	};
 
 	const handleWindowContextMenu = (event: MouseEvent): void => {
@@ -228,11 +194,9 @@
 				target.host.closest<HTMLElement>('[data-node-context-child-creation]')?.dataset
 					.nodeContextChildCreation !== 'false'
 		});
-		closeColorSubMenu();
 	};
 
 	const handleWindowViewportChange = (): void => {
-		updateColorSubMenuPosition();
 		constraints?.reposition();
 	};
 
@@ -296,7 +260,6 @@
 		);
 	});
 	let canSetColor = $derived(Boolean(activeNode?.meta.user_permissions.can_edit_color));
-	let hasCustomColor = $derived(Boolean(activeNode?.meta.presentation?.color));
 	let canSetConstraints = $derived(
 		Boolean(
 			activeNode?.meta.user_permissions.can_edit_constraints && activeNode.data.kind === 'parameter'
@@ -316,56 +279,6 @@
 		});
 	});
 	let creatableItems = $derived(activeNode?.creatable_user_items ?? []);
-
-	const clamp01 = (value: number): number => {
-		if (!Number.isFinite(value)) {
-			return 0;
-		}
-		return Math.max(0, Math.min(1, value));
-	};
-
-	const normalizeColor = (candidate: unknown): UiColorDto => {
-		if (Array.isArray(candidate)) {
-			return {
-				r: clamp01(Number(candidate[0] ?? 0)),
-				g: clamp01(Number(candidate[1] ?? 0)),
-				b: clamp01(Number(candidate[2] ?? 0)),
-				a: clamp01(Number(candidate[3] ?? 1))
-			};
-		}
-		if (candidate && typeof candidate === 'object') {
-			const value = candidate as { r?: unknown; g?: unknown; b?: unknown; a?: unknown };
-			return {
-				r: clamp01(Number(value.r ?? 0)),
-				g: clamp01(Number(value.g ?? 0)),
-				b: clamp01(Number(value.b ?? 0)),
-				a: clamp01(Number(value.a ?? 1))
-			};
-		}
-		return { r: 1, g: 1, b: 1, a: 1 };
-	};
-
-	const currentNodeColor = (node: UiNodeDto | null): UiColorDto => {
-		const color = node?.meta.presentation?.color ?? node?.meta.presentation?.default_color;
-		return {
-			r: clamp01(color?.r ?? 1),
-			g: clamp01(color?.g ?? 1),
-			b: clamp01(color?.b ?? 1),
-			a: clamp01(color?.a ?? 1)
-		};
-	};
-
-	let activeNodeColor = $derived.by((): UiColorDto => {
-		return currentNodeColor(activeNode);
-	});
-	let colorDraft = $state<UiColorDto>({ r: 1, g: 1, b: 1, a: 1 });
-
-	$effect(() => {
-		if (isColorEditing) {
-			return;
-		}
-		colorDraft = activeNodeColor;
-	});
 
 	const relativeDeclPath = (targetNodeId: NodeId): string => {
 		if (!graphState || graphState.rootId === null) {
@@ -471,61 +384,6 @@
 		void requestRemoveNodesById([activeNode.node_id]).catch(() => {});
 	};
 
-	const setNodeColor = (nextColor: UiColorDto): void => {
-		if (!activeNode) {
-			return;
-		}
-		const existingPresentation = activeNode.meta.presentation ?? {};
-		void sendPatchMetaIntent(activeNode.node_id, {
-			presentation: {
-				...existingPresentation,
-				color: nextColor
-			}
-		});
-	};
-
-	const resetNodeColor = (): void => {
-		if (!activeNode || !canSetColor || !hasCustomColor) {
-			return;
-		}
-		const presentation = { ...(activeNode.meta.presentation ?? {}) };
-		delete presentation.color;
-		void sendPatchMetaIntent(activeNode.node_id, { presentation });
-	};
-
-	const openColorSubMenu = (event: MouseEvent): void => {
-		if (!canSetColor) {
-			return;
-		}
-		const currentTarget = event.currentTarget as HTMLElement | null;
-		if (!currentTarget) {
-			return;
-		}
-		colorAnchorElement = currentTarget;
-		colorSubMenu.open = true;
-
-		queueMicrotask(() => {
-			updateColorSubMenuPosition();
-		});
-	};
-
-	const applyPickedColor = (nextColor: unknown): void => {
-		if (!activeNode || !canSetColor) {
-			return;
-		}
-		const normalized = normalizeColor(nextColor);
-		colorDraft = normalized;
-		setNodeColor(normalized);
-	};
-
-	const startColorEdit = (): void => {
-		isColorEditing = true;
-	};
-
-	const endColorEdit = (): void => {
-		isColorEditing = false;
-	};
-
 	const selectCopyScriptControlPath = (_event: MouseEvent): void => {
 		copyScriptControlPath();
 		closeMenu();
@@ -565,19 +423,6 @@
 			return;
 		}
 		void createUserItemAndSelect(activeNode.node_id, item);
-		closeMenu();
-	};
-
-	const selectSetColor = (event: MouseEvent): void => {
-		if (colorSubMenu.open) {
-			closeColorSubMenu();
-			return;
-		}
-		openColorSubMenu(event);
-	};
-
-	const selectResetColor = (_event: MouseEvent): void => {
-		resetNodeColor();
 		closeMenu();
 	};
 
@@ -648,21 +493,14 @@
 		if (canSetColor || canSetConstraints) {
 			items.push({ separator: true });
 		}
-		if (canSetColor) {
-			items.push({
-				id: 'set-color',
-				label: 'Set Color',
-				icon: colorIcon,
-				className: colorSubMenu.open ? 'gc-node-context-item-open' : '',
-				action: selectSetColor
-			});
-			items.push({
-				id: 'reset-color',
-				label: 'Reset Color',
-				icon: colorIcon,
-				disabled: !hasCustomColor,
-				action: selectResetColor
-			});
+		if (canSetColor && session) {
+			items.push(
+				...nodeColorMenuItems(
+					nodeColorTarget(session, activeNode),
+					(target, point) => colors?.open(target, point),
+					closeMenu
+				)
+			);
 		}
 		if (canSetConstraints) {
 			items.push({
@@ -765,9 +603,6 @@
 	});
 	let menuItems = $derived(rootMenuItems);
 	let showMenu = $derived(contextNodeId !== null && activeNode !== null && menuItems.length > 0);
-	let showColorSubMenu = $derived(
-		showMenu && colorSubMenu.open && canSetColor && colorAnchorElement !== null
-	);
 
 	$effect(() => {
 		if (contextNodeId === null) {
@@ -778,36 +613,13 @@
 		}
 		closeMenu();
 	});
-
-	$effect(() => {
-		if (canSetColor || !colorSubMenu.open) {
-			return;
-		}
-		closeColorSubMenu();
-	});
-
-	$effect(() => {
-		if (showMenu || !colorSubMenu.open) {
-			return;
-		}
-		closeColorSubMenu();
-	});
-
-	$effect(() => {
-		if (!showColorSubMenu) {
-			return;
-		}
-		queueMicrotask(() => {
-			updateColorSubMenuPosition();
-		});
-	});
 </script>
 
 <ContextMenu
 	open={showMenu}
 	items={menuItems}
 	anchor={menuAnchor}
-	insideElements={[menuTreeDiv, colorSubMenuDiv, ...(constraints?.insideElements() ?? [])]}
+	insideElements={[menuTreeDiv, ...(constraints?.insideElements() ?? [])]}
 	closeOnContextMenuOutside={false}
 	closeOnSelect={false}
 	minWidthRem={12}
@@ -820,21 +632,7 @@
 	}}
 	onMenuTreeMount={captureMenuTree} />
 
-{#if showColorSubMenu}
-	<div
-		class="gc-node-context-color-submenu"
-		{@attach captureColorSubMenuContainer()}
-		transition:slide={{ axis: 'x', duration: 150 }}>
-		<ColorPicker
-			forceExpanded={true}
-			color={colorDraft}
-			onchange={(nextColor: unknown) => {
-				applyPickedColor(nextColor);
-			}}
-			onStartEdit={startColorEdit}
-			onEndEdit={endColorEdit} />
-	</div>
-{/if}
+<NodeColorMenu bind:this={colors} />
 
 <NodeConstraintMenu
 	bind:this={constraints}
@@ -854,21 +652,5 @@
 
 	:global(.gc-node-context-menu .gc-context-item.gc-node-context-item-open) {
 		background: color-mix(in srgb, var(--gc-color-selection) 24%, transparent);
-	}
-
-	.gc-node-context-color-submenu {
-		position: fixed;
-		left: -10000px;
-		top: -10000px;
-		min-inline-size: min(16rem, var(--gc-node-context-panel-max-inline-size, calc(100vw - 0.9rem)));
-		max-inline-size: min(
-			24rem,
-			42vw,
-			var(--gc-node-context-panel-max-inline-size, calc(100vw - 0.9rem))
-		);
-		overflow: auto;
-		overscroll-behavior: contain;
-		box-sizing: border-box;
-		z-index: 1301;
 	}
 </style>

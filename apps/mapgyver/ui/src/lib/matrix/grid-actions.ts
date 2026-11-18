@@ -16,7 +16,8 @@ export function gridActions(
 	creationOnly = false,
 	group?: ColumnGroupSnapshot,
 	axis?: 'Column' | 'Layer',
-	transfers?: Pick<ReturnType<typeof createCellTransfers>, 'copy' | 'clipboardActions'>
+	transfers?: Pick<ReturnType<typeof createCellTransfers>, 'copy' | 'clipboardActions'>,
+	colors: (target: string | { layer: string; column: string }) => ContextMenuItem[] = () => []
 ): ContextMenuItem[] {
 	const session = owner.session,
 		generation = session?.snapshotGeneration,
@@ -65,6 +66,7 @@ export function gridActions(
 	}
 	if (group)
 		return [
+			...colors(group.id),
 			{
 				label: 'Inspect Column Group settings',
 				action: () => {
@@ -107,6 +109,7 @@ export function gridActions(
 		if (creationOnly) return create;
 		return [
 			inspect,
+			...colors({ layer, column: column.id }),
 			...(transfers
 				? [
 						...(cell
@@ -156,6 +159,7 @@ export function gridActions(
 	}
 	if (row)
 		return [
+			...colors(row.item.id.id),
 			{
 				label: 'Inspect row settings',
 				action: () => {
@@ -173,6 +177,7 @@ export function gridActions(
 		];
 	if (column)
 		return [
+			...colors(column.id),
 			{
 				label: 'Inspect Column settings',
 				action: () => {
