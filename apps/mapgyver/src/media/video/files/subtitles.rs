@@ -62,7 +62,27 @@ impl Overlay {
         reader: &Reader,
         sample: TransportSample,
     ) {
-        let result = self.update(run, worker, reader, sample);
+        self.service_sequence(
+            run,
+            worker,
+            reader,
+            sample,
+            sample.channel_position(reader.duration),
+            false,
+        );
+    }
+
+    pub(super) fn service_sequence(
+        &mut self,
+        run: &Run,
+        worker: &WorkerContext<(), ()>,
+        intro: &Reader,
+        sample: TransportSample,
+        position: Duration,
+        in_repeat: bool,
+    ) {
+        let position = sample.source_range.map(|_| (position, in_repeat));
+        let result = self.update(run, worker, intro, position);
         if let Err(error) = result {
             if self.failure.as_ref() != Some(&error) {
                 eprintln!("[mapgyver-video] Subtitles for {}: {error}", run.file.display());
@@ -77,7 +97,7 @@ impl Overlay {
         run: &Run,
         worker: &WorkerContext<(), ()>,
         reader: &Reader,
-        sample: TransportSample,
+        position: Option<(Duration, bool)>,
     ) -> Result<(), String> {
         let settings = run.subtitle_channel.settings()?;
         if self.settings.as_ref().is_none_or(|old| !Arc::ptr_eq(old, &settings)) {
@@ -142,8 +162,10 @@ impl Overlay {
             return Ok(());
         }
         self.cue.clear();
-        if sample.source_range.is_some() {
-            for cue in timeline.active_at(sample.channel_position(reader.duration)).take(4) {
+        if let Some((position, in_repeat)) = position
+            && (!in_repeat || matches!(input, Input::Local(_)))
+        {
+            for cue in timeline.active_at(position).take(4) {
                 if !self.cue.is_empty() && self.cue.len() < 4096 {
                     self.cue.push('\n');
                 }

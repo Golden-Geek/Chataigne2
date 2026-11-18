@@ -58,6 +58,10 @@ pub(super) fn duration(ticks: i64, base: TimeBase) -> Result<Duration, String> {
     Ok(Duration::from_nanos(nanos))
 }
 impl Reader {
+    pub(super) fn with_output_extent(mut self, extent: golden_video::Extent2D, bytes: u64) -> Result<Self, Failure> {
+        self.converter = Some(SoftwareImageConverter::with_extent(bytes, extent)?);
+        Ok(self)
+    }
     #[cfg(all(windows, feature = "native-video"))]
     pub(super) fn info(&self) -> &golden_video::decode::StreamInfo {
         self.decoder.info()

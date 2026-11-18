@@ -1,6 +1,7 @@
 use super::*;
 mod crop;
 mod matrix;
+mod sequence;
 
 fn seconds(value: u64) -> Duration {
     Duration::from_secs(value)

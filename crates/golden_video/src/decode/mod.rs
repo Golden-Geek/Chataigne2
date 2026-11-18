@@ -272,6 +272,20 @@ impl Decoder {
         })
     }
 
+    /// Open an RGBA-convertible software reader, including software decoding of HAP.
+    /// Use when a common image canvas is required across unrelated source formats.
+    pub fn open_software_with_interrupt(
+        path: &Path,
+        limits: DecodeLimits,
+        interrupt: impl FnMut() -> bool + Send + 'static,
+    ) -> Result<Self, DecodeError> {
+        Self::open_configured(path, limits, interrupt, |_, _| {
+            Ok(DecoderKind::Software(Box::new(software_pool::Allocator::new(
+                limits.max_cpu_frame_bytes,
+            )?)))
+        })
+    }
+
     /// Open a second, independently seekable reader for the same local stream.
     /// D3D11 readers retain the original hardware device and reserve a separate
     /// codec frame pool. Software and HAP readers have independent storage budgets.

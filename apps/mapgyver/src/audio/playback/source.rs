@@ -42,15 +42,21 @@ impl Sources {
                     continue;
                 };
                 let path = locator.resolve(root);
+                let repeat = source
+                    .repeat
+                    .as_ref()
+                    .map(|(file, duration)| (file.resolve(root), duration.unwrap_or(Duration::MAX)));
                 let next = match old.remove(&source.channel.0.0) {
-                    Some(mut voice) if voice.generation == source.generation && voice.path == path => {
+                    Some(mut voice)
+                        if voice.generation == source.generation && voice.path == path && voice.repeat == repeat =>
+                    {
                         voice.duration = duration;
                         self.membership_changed |= voice.refresh_file(now);
                         voice
                     }
                     previous => {
                         self.membership_changed |= previous.is_some_and(|voice| voice.active.is_some());
-                        Voice::new(&control, path, source, duration)
+                        Voice::new(&control, path, source, duration, repeat)
                     }
                 };
                 self.voices.insert(next.channel.0.0, next);
@@ -142,16 +148,23 @@ struct Voice {
     binding: Arc<crate::audio::voice::Binding>,
     path: PathBuf,
     duration: Duration,
+    repeat: Option<(PathBuf, Duration)>,
     active: Option<Active>,
-    heads: [Head; 2],
+    heads: [Head; 4],
     gain: GainSmoother,
     target_gain: GainDb,
     next_file_check: Option<Instant>,
-    fingerprint: Option<(u64, SystemTime)>,
+    fingerprints: [Option<(u64, SystemTime)>; 2],
 }
 
 impl Voice {
-    fn new(control: &Arc<VideoControl>, path: PathBuf, source: Source, duration: Duration) -> Self {
+    fn new(
+        control: &Arc<VideoControl>,
+        path: PathBuf,
+        source: Source,
+        duration: Duration,
+        repeat: Option<(PathBuf, Duration)>,
+    ) -> Self {
         Self {
             control: control.clone(),
             channel: source.channel,
@@ -159,12 +172,13 @@ impl Voice {
             binding: source.binding,
             path,
             duration,
+            repeat,
             active: None,
             heads: Default::default(),
             gain: GainSmoother::settled(0.0),
             target_gain: GainDb::SILENCE,
             next_file_check: None,
-            fingerprint: None,
+            fingerprints: [None, None],
         }
     }
 
@@ -179,12 +193,18 @@ impl Voice {
             return false;
         }
         self.next_file_check = Some(now + Duration::from_secs(1));
-        let fingerprint = fs::metadata(&self.path)
-            .ok()
-            .and_then(|info| Some((info.len(), info.modified().ok()?)));
-        if self.fingerprint != fingerprint {
+        let fingerprint = |path: &Path| {
+            fs::metadata(path)
+                .ok()
+                .and_then(|info| Some((info.len(), info.modified().ok()?)))
+        };
+        let next = [
+            fingerprint(&self.path),
+            self.repeat.as_ref().and_then(|(path, _)| fingerprint(path)),
+        ];
+        if self.fingerprints != next {
             self.release();
-            self.fingerprint = fingerprint;
+            self.fingerprints = next;
             return true;
         }
         false
@@ -231,20 +251,19 @@ impl Voice {
             self.target_gain = routing.gain;
             self.gain.set_target(routing.gain.to_linear(), (rate / 100).max(1));
         }
-        if self.heads[0].no_audio || self.heads[0].retry_at.is_some_and(|due| Instant::now() < due) {
-            return;
-        }
+        let repeat_duration = self.repeat.as_ref().map(|(_, duration)| *duration);
         for frame in 0..frames {
             let mut stereo = (0.0, 0.0);
-            let positions = timeline.positions(frame_nanos(frame as u64, rate), self.duration);
+            let positions = timeline.samples(frame_nanos(frame as u64, rate), self.duration, repeat_duration);
             for (head, sample) in positions.into_iter().enumerate() {
-                let Some((position, weight)) = sample else {
+                let Some(sample) = sample else {
                     continue;
                 };
-                match self.read_sample(head, position, rate, guard, cancel) {
+                let head = head + usize::from(sample.repeat) * 2;
+                match self.read_sample(head, sample.position, rate, guard, cancel) {
                     Ok(Some((left, right))) => {
-                        stereo.0 += left * weight;
-                        stereo.1 += right * weight;
+                        stereo.0 += left * sample.weight;
+                        stereo.1 += right * sample.weight;
                     }
                     Ok(None) => {}
                     Err(_) => {
@@ -270,6 +289,15 @@ impl Voice {
         guard: &RevisionGuard,
         cancel: &WorkerCancellation,
     ) -> Result<Option<(f32, f32)>, DecodeError> {
+        let path = if head >= 2 {
+            &self
+                .repeat
+                .as_ref()
+                .expect("sample selects an authored repeat source")
+                .0
+        } else {
+            &self.path
+        };
         let head = &mut self.heads[head];
         if head.no_audio || head.retry_at.is_some_and(|due| Instant::now() < due) {
             return Ok(None);
@@ -279,7 +307,7 @@ impl Voice {
             let control = Arc::downgrade(&self.control);
             let guard = guard.clone();
             let cancel = cancel.clone();
-            head.decoder = AudioReader::open(&self.path, rate, move || {
+            head.decoder = AudioReader::open(path, rate, move || {
                 cancel.is_cancelled()
                     || !guard.is_current()
                     || control

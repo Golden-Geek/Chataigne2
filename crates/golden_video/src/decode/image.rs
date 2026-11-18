@@ -35,6 +35,7 @@ pub enum ConversionError {
 pub struct SoftwareImageConverter {
     conversion: Option<Conversion>,
     budget: ImageStorageBudget,
+    extent: Option<Extent2D>,
 }
 struct Conversion {
     scaler: Context,
@@ -47,7 +48,14 @@ impl SoftwareImageConverter {
         Ok(Self {
             conversion: None,
             budget: ImageStorageBudget::new(max_bytes).map_err(|_| ConversionError::Capacity)?,
+            extent: None,
         })
+    }
+    /// Convert to a fixed output canvas, even if the decoded stream has a different extent.
+    pub fn with_extent(max_bytes: u64, extent: Extent2D) -> Result<Self, ConversionError> {
+        let mut converter = Self::new(max_bytes)?;
+        converter.extent = Some(extent);
+        Ok(converter)
     }
     /// Read-only observer that does not keep scratch or output pixels alive.
     pub fn storage_budget(&self) -> ImageStorageBudget {
@@ -79,14 +87,15 @@ impl SoftwareImageConverter {
             return Err(ConversionError::UnsupportedTransfer);
         }
         let failed = ConversionError::Failed;
-        let extent = Extent2D::new(input.width(), input.height()).map_err(|e| failed(e.to_string()))?;
-        if input.width() > 16384 || input.height() > 16384 {
+        let extent = self
+            .extent
+            .unwrap_or(Extent2D::new(input.width(), input.height()).map_err(|e| failed(e.to_string()))?);
+        let (width, height) = (extent.width(), extent.height());
+        if input.width() > 16384 || input.height() > 16384 || width > 16384 || height > 16384 {
             return Err(ConversionError::Capacity);
         }
-        let row = input.width() as usize * 4;
-        let bytes = row
-            .checked_mul(input.height() as usize)
-            .ok_or(ConversionError::Capacity)?;
+        let row = width as usize * 4;
+        let bytes = row.checked_mul(height as usize).ok_or(ConversionError::Capacity)?;
         if self.conversion.as_ref().is_none_or(|conversion| {
             let d = conversion.scaler.input();
             d.format != input.format() || d.width != input.width() || d.height != input.height()
@@ -103,12 +112,12 @@ impl SoftwareImageConverter {
                     input.width(),
                     input.height(),
                     ffmpeg::format::Pixel::RGBA,
-                    input.width(),
-                    input.height(),
+                    width,
+                    height,
                     Flags::BILINEAR,
                 )
                 .map_err(|e| failed(e.to_string()))?,
-                output: scratch::create(input.width(), input.height(), &self.budget)?,
+                output: scratch::create(width, height, &self.budget)?,
             });
         }
         let Conversion { scaler, output } = self.conversion.as_mut().unwrap();
@@ -139,7 +148,7 @@ impl SoftwareImageConverter {
             Transfer::Linear => Some(linear_table()),
             _ => Some(bt709_table()),
         };
-        for bytes in output.data(0).chunks(output.stride(0)).take(input.height() as usize) {
+        for bytes in output.data(0).chunks(output.stride(0)).take(height as usize) {
             let start = pixels.len();
             pixels.extend_from_slice(&bytes[..row]);
             if let Some(table) = table {

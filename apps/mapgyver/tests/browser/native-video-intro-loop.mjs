@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { promisify } from 'node:util';
@@ -12,6 +12,11 @@ import { openNativeEditor } from './native-editor.mjs';
 const directory = path.resolve(process.argv[2]);
 await mkdir(directory);
 const clip = path.join(directory, 'intro-tail.mp4');
+const separate = process.argv.includes('--separate');
+const readyClip = path.join(directory, 'staged-loop.mp4');
+const loopClip = path.join(directory, 'loop.mp4');
+const readyAudio = path.join(directory, 'staged-loop.wav');
+const loopAudio = path.join(directory, 'loop.wav');
 const sdk = path.resolve(
 	process.env.MAPGYVER_QUALIFICATION_BINARY ?? 'target/debug/native_qualification.exe'
 );
@@ -32,13 +37,15 @@ await run('ffmpeg', [
 	'-f',
 	'lavfi',
 	'-i',
-	`aevalsrc=${tone}:s=44100:d=6`,
+	`aevalsrc=${separate ? '0.012*sin(2*PI*440*t)|0' : tone}:s=44100:d=6`,
 	'-vf',
-	[
-		"drawbox=color=red:t=fill:enable='lt(t,3)'",
-		"drawbox=color=blue:t=fill:enable='between(t,3,4.49)'",
-		"drawbox=color=lime:t=fill:enable='gte(t,4.5)'"
-	].join(','),
+	separate
+		? 'drawbox=color=red:t=fill'
+		: [
+				"drawbox=color=red:t=fill:enable='lt(t,3)'",
+				"drawbox=color=blue:t=fill:enable='between(t,3,4.49)'",
+				"drawbox=color=lime:t=fill:enable='gte(t,4.5)'"
+			].join(','),
 	'-c:v',
 	'libx264',
 	'-pix_fmt',
@@ -49,6 +56,44 @@ await run('ffmpeg', [
 	'192k',
 	clip
 ]);
+if (separate) {
+	await run('ffmpeg', [
+		'-hide_banner',
+		'-loglevel',
+		'error',
+		'-n',
+		'-f',
+		'lavfi',
+		'-i',
+		'color=blue:s=128x96:r=24:d=2.5',
+		'-f',
+		'lavfi',
+		'-i',
+		'aevalsrc=0.012*sin(2*PI*550*t)|0:s=44100:d=2.5',
+		'-vf',
+		"drawbox=color=lime:t=fill:enable='gte(t,1.25)'",
+		'-c:v',
+		'libx264',
+		'-pix_fmt',
+		'yuv420p',
+		'-c:a',
+		'aac',
+		readyClip
+	]);
+	await run('ffmpeg', [
+		'-hide_banner',
+		'-loglevel',
+		'error',
+		'-n',
+		'-f',
+		'lavfi',
+		'-i',
+		'aevalsrc=0|0.012*sin(2*PI*640*t):s=44100:d=2.5',
+		'-c:a',
+		'pcm_s16le',
+		readyAudio
+	]);
+}
 
 const hardware = JSON.parse(await run(sdk, ['--role', 'hardware']));
 const native = await openNativeEditor();
@@ -85,6 +130,20 @@ const inspect = async () => (await edit({ kind: 'InspectVideo', media: video.med
 const transport = async (editValue) =>
 	(await edit({ kind: 'Video', media: video.media, edit: editValue })).snapshot;
 const audio = () => op('mapgyver.audio', 'inspect-output', null);
+async function setChannelFile(declId, file) {
+	const { nodes } = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
+	const channel = nodes.find((node) => node.uuid === video.channel);
+	assert(channel, 'Video channel exists in the project graph');
+	const descendants = new Set(channel.children);
+	for (const id of descendants) {
+		const node = nodes.find((node) => node.node_id === id);
+		if (node.decl_id.endsWith(`/${declId}`)) {
+			return intent({ kind: 'setParam', node: id, value: { File: file }, behaviour: 'Append' });
+		}
+		for (const child of node.children ?? []) descendants.add(child);
+	}
+	assert.fail(`Missing Video channel file Parameter ${declId}`);
+}
 async function wait(read, accept, label, timeout = 7000) {
 	const deadline = Date.now() + timeout;
 	for (;;) {
@@ -189,7 +248,12 @@ try {
 		(value) => value.status.state === 'Ready',
 		'Video played by an actual Screen'
 	);
-	assert.equal((await transport({ kind: 'Crop', start_ms: 500, end_ms: 5500 })).length_ms, 5000);
+	const introEnd = separate ? 3000 : 5500;
+	const repeatStart = separate ? 2500 : 3000;
+	assert.equal(
+		(await transport({ kind: 'Crop', start_ms: 500, end_ms: introEnd })).length_ms,
+		introEnd - 500
+	);
 	await transport({ kind: 'Loop', looping: true });
 	await page
 		.getByRole('tab')
@@ -203,13 +267,64 @@ try {
 		.locator('.parameter-inspector')
 		.filter({ has: page.getByText('Loop Start', { exact: true }) })
 		.locator('input.time-field');
-	await loopStart.fill('00:00:03.500');
+	await loopStart.fill(separate ? '00:00:02.000' : '00:00:03.500');
 	await loopStart.press('Enter');
 	await wait(
 		inspect,
-		(value) => value.settings.loop_start_ms === 3500,
+		(value) => value.settings.loop_start_ms === (separate ? 2000 : 3500),
 		'Inspector authors source-time Loop Start'
 	);
+	if (separate) {
+		const channelRow = page
+			.locator('.channels-section .node-inspector')
+			.filter({ has: page.getByText('Loop File', { exact: true }) });
+		await channelRow.getByText('Loop File', { exact: true }).last().waitFor({ state: 'visible' });
+		await setChannelFile('video_loop_file', loopClip);
+		await transport({ kind: 'Stop' });
+		await transport({ kind: 'Play' });
+		await wait(
+			inspect,
+			(value) => !value.playing && value.position_ms === repeatStart,
+			'missing repeat holds end of the cropped intro'
+		);
+		await capture('missing repeat preserves the intro output', (pixel) => dominant(pixel, 0));
+		await rename(readyClip, loopClip);
+		await wait(
+			inspect,
+			(value) => value.length_ms === 5000 && value.playing && value.position_ms >= repeatStart,
+			'repeat appears and the same clock resumes'
+		);
+		await capture(
+			'natural handoff uses the different-size loop file',
+			(pixel) => dominant(pixel, 1) || dominant(pixel, 2)
+		);
+		await wait(
+			levels,
+			(value) => value[left] > 0.005 && silent(value[right]),
+			'repeat uses its own embedded audio without an override'
+		);
+		await transport({ kind: 'Stop' });
+		await setChannelFile('video_loop_audio', loopAudio);
+		await transport({ kind: 'Seek', position_ms: repeatStart + 250 });
+		await transport({ kind: 'Play' });
+		await wait(
+			inspect,
+			(value) => value.playing && value.position_ms >= repeatStart + 500,
+			'playback continues with the loop audio file missing'
+		);
+		await wait(
+			levels,
+			(value) => silent(value[left]) && silent(value[right]),
+			'an unavailable override leaves the loop silent'
+		);
+		await rename(readyAudio, loopAudio);
+		await wait(
+			levels,
+			(value) => silent(value[left]) && value[right] > 0.005,
+			'loop audio recovers at the current transport position'
+		);
+		await transport({ kind: 'Stop' });
+	}
 	await transport({ kind: 'Stop' });
 	await capture('held cropped intro is red', (pixel) => dominant(pixel, 0));
 	await wait(
@@ -232,12 +347,13 @@ try {
 			const after = value.position_ms;
 			if (before - after > 1000) {
 				assert(
-					before > 4800 && after >= 3000 && after < 3200,
+					before > 4800 && after >= repeatStart && after < repeatStart + 200,
 					`unexpected hard seam ${before} → ${after}`
 				);
 				wraps.push({ before, after });
 			}
-			if (wraps.length) assert(after >= 3000, 'the intro cannot replay after the first seam');
+			if (wraps.length)
+				assert(after >= repeatStart, 'the intro cannot replay after the first seam');
 			before = after;
 			return wraps.length === 2;
 		},
@@ -255,10 +371,18 @@ try {
 	);
 
 	await transport({ kind: 'Pause' });
+	if (separate) {
+		await transport({ kind: 'Seek', position_ms: repeatStart });
+		await capture('seek to the first repeat frame is blue', (pixel) => dominant(pixel, 2));
+		await transport({ kind: 'Seek', position_ms: repeatStart - 25 });
+		await capture('seek just before the repeat still shows the intro', (pixel) =>
+			dominant(pixel, 0)
+		);
+	}
 	await transport({ kind: 'AutoSmoothLoop', duration_ms: 500 });
 	await transport({ kind: 'Seek', position_ms: 4750 });
 	await capture(
-		'held smooth seam blends green with blue from Loop Start',
+		'held smooth seam blends the end and beginning of the repeat section',
 		([r, g, b, a]) => a === 255 && r < 35 && g > 110 && b > 110
 	);
 	assert.equal((await inspect()).position_ms, 4750);

@@ -36,6 +36,7 @@ mod diagnostics;
 mod hardware;
 mod loop_pair;
 mod pacing;
+mod sequence;
 #[cfg(all(windows, feature = "native-video"))]
 mod subtitles;
 #[cfg(all(windows, feature = "native-video"))]
@@ -184,6 +185,7 @@ struct Output {
 struct Entry {
     file: PathBuf,
     binding: crate::media::protocol::AssetLocator,
+    sequence: Option<sequence::Source>,
     control: Arc<VideoControl>,
     output: Arc<Mutex<Output>>,
     _worker: BoundedWorker<(), ()>,
@@ -333,19 +335,30 @@ impl Files {
         {
             if let Some(ChannelSource::Video { file: Some(file) }) = channel.definition.as_ref().map(|d| &d.source) {
                 let control = channel.video.clone().ok_or("Video capture has no transport owner")?;
-                wanted.insert(channel.reference, (file.resolve(&self.root), control, file.clone()));
+                let sequence = control
+                    .sequence_file(channel.reference.channel)?
+                    .map(|file| sequence::Source {
+                        repeat: file.map(|file| file.resolve(&self.root)),
+                    });
+                wanted.insert(
+                    channel.reference,
+                    (file.resolve(&self.root), control, file.clone(), sequence),
+                );
             }
         }
         if wanted.len() > MAX_SOURCES {
             return Err("Video demand exceeds eight admitted file workers".into());
         }
         self.entries.retain(|reference, entry| {
-            wanted.get(reference).is_some_and(|(file, control, binding)| {
-                *file == entry.file && *binding == entry.binding && Arc::ptr_eq(control, &entry.control)
+            wanted.get(reference).is_some_and(|(file, control, binding, sequence)| {
+                *file == entry.file
+                    && *binding == entry.binding
+                    && *sequence == entry.sequence
+                    && Arc::ptr_eq(control, &entry.control)
             })
         });
         let mut pending = false;
-        for (reference, (file, control, binding)) in wanted {
+        for (reference, (file, control, binding, sequence)) in wanted {
             if self.entries.contains_key(&reference) {
                 continue;
             }
@@ -357,6 +370,7 @@ impl Files {
                 hardware: self.hardware.clone(),
                 owner,
                 file: file.clone(),
+                sequence: sequence.clone(),
                 #[cfg(all(windows, feature = "native-video"))]
                 project_root: self.root.clone(),
                 #[cfg(all(windows, feature = "native-video"))]
@@ -396,6 +410,7 @@ impl Files {
                 Entry {
                     file,
                     binding,
+                    sequence,
                     control,
                     output,
                     _worker: worker,
@@ -455,6 +470,7 @@ struct Run {
     hardware: Option<Hardware>,
     owner: uuid::Uuid,
     file: PathBuf,
+    sequence: Option<sequence::Source>,
     #[cfg(all(windows, feature = "native-video"))]
     project_root: PathBuf,
     #[cfg(all(windows, feature = "native-video"))]
@@ -511,6 +527,9 @@ impl Run {
         }
     }
     fn play(&self, worker: &WorkerContext<(), ()>, owner: uuid::Uuid) -> Result<(), Failure> {
+        if let Some(sequence) = &self.sequence {
+            return self.play_sequence(worker, owner, sequence);
+        }
         #[cfg(all(windows, feature = "native-video"))]
         if let Some(hardware) = &self.hardware
             && hardware.has_storage_budget()

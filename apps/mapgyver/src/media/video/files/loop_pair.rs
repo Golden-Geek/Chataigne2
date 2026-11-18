@@ -108,17 +108,26 @@ impl LoopPair {
         primary: golden_video::image::ImageData,
         blend: LoopBlend,
     ) -> Result<golden_video::image::ImageData, Failure> {
-        use golden_video::image::{ImageError, ImageStorageBudget, crossfade_srgba8};
-        let bytes = primary.pixels().len();
-        let capacity = |error: String| Failure(VideoSourceError::new(VideoSourceErrorKind::Capacity, error));
-        let lease = run.budget.reserve_bytes(bytes as u64).map_err(capacity)?;
-        let budget = ImageStorageBudget::new(bytes as u64).map_err(|error| capacity(error.to_string()))?;
         let incoming = self.software_image()?;
-        let weight = golden_video::Opacity::new(blend.secondary_weight).map_err(|error| error.to_string())?;
-        let result = crossfade_srgba8(&primary, &incoming, weight, &budget).map_err(|error| match error {
-            ImageError::Capacity => capacity(error.to_string()),
-            _ => Failure::from(error.to_string()),
-        })?;
-        Ok(result.retain(Arc::new(lease)))
+        crossfade(run, &primary, &incoming, blend.secondary_weight)
     }
+}
+
+pub(super) fn crossfade(
+    run: &Run,
+    primary: &golden_video::image::ImageData,
+    incoming: &golden_video::image::ImageData,
+    weight: f32,
+) -> Result<golden_video::image::ImageData, Failure> {
+    use golden_video::image::{ImageError, ImageStorageBudget, crossfade_srgba8};
+    let bytes = primary.pixels().len() as u64;
+    let capacity = |error: String| Failure(VideoSourceError::new(VideoSourceErrorKind::Capacity, error));
+    let lease = run.budget.reserve_bytes(bytes).map_err(capacity)?;
+    let budget = ImageStorageBudget::new(bytes).map_err(|error| capacity(error.to_string()))?;
+    let weight = golden_video::Opacity::new(weight).map_err(|error| error.to_string())?;
+    let result = crossfade_srgba8(primary, incoming, weight, &budget).map_err(|error| match error {
+        ImageError::Capacity => capacity(error.to_string()),
+        _ => Failure::from(error.to_string()),
+    })?;
+    Ok(result.retain(Arc::new(lease)))
 }

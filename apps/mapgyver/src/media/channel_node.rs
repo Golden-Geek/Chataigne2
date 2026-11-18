@@ -28,6 +28,7 @@ mod subtitles;
             enum_options = crate::parameters::enum_options(&["Picture", "Video", "SolidColor", "SharedTexture", "Composition", "Matrix"]));
         rgba: Color = Color::new(1.0, 1.0, 1.0, 1.0) [0.0..1.0] (label = "Color", description = "Straight linear-light RGBA.", constraint_policy = "reject");
         file: File = File::default() (label = "File", description = "This channel's project-relative or native absolute source path.", dependency = |node: &Self| matches!(node.kind(), super::protocol::MediaKind::Picture | super::protocol::MediaKind::Video));
+        video_loop_file: File = File::default() (label = "Loop File", description = "Optional video played after this channel's intro when Loop is enabled.", dependency = |node: &Self| node.kind() == MediaKind::Video);
         sender: String = String::new() (label = "Spout sender");
         sender_choice: Enum = "" (label = "Sender", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::SharedTexture,
             enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
@@ -44,6 +45,7 @@ mod subtitles;
                 enum_options = crate::audio::voice::default_options(), dependency = |node: &Self| node.kind() == MediaKind::Video);
             audio_gain: f64 = 0.0 [-120.0..24.0] (label = "Volume", unit = "dB", description = "Audio gain for this Video channel.",
                 dependency = |node: &Self| node.kind() == MediaKind::Video);
+            video_loop_audio: File = File::default() (label = "Loop Audio File", description = "Optional audio played from the start of the repeat section through this channel's outputs.", dependency = |node: &Self| node.kind() == MediaKind::Video);
         }
         folder(video_subtitles, label = "Subtitles", enabled = false, can_be_disabled = true) {
             video_subtitle_track: Enum = "None" (
@@ -94,6 +96,7 @@ impl ChannelNode {
             let binding = super::video::bindings::Registration::new(
                 super::protocol::ChannelId(self.node_data().meta.uuid),
                 super::assets::parse_file(self.file.get_ref().as_str()).expect("validated Video File"),
+                self.video_loop_files().expect("validated Video loop files"),
             );
             let watch = ctx
                 .node_waker()
@@ -111,6 +114,13 @@ impl ChannelNode {
             self.publish_video_subtitles(ctx);
             self.refresh_subtitle_tracks(ctx);
         }
+    }
+
+    fn video_loop_files(&self) -> Result<super::video::bindings::LoopFiles, String> {
+        Ok(super::video::bindings::LoopFiles {
+            picture: super::assets::parse_file(self.video_loop_file.get_ref().as_str())?,
+            audio: super::assets::parse_file(self.video_loop_audio.get_ref().as_str())?,
+        })
     }
     pub(super) fn initialize_sender_defaults(
         &mut self,
@@ -448,10 +458,18 @@ impl Node for ChannelNode {
             }
             self.refresh_subtitle_tracks(ctx);
         }
+        if [self.video_loop_file.id(), self.video_loop_audio.id()].contains(&parameter)
+            && let Some(binding) = &self.video_binding
+            && let Err(error) = self.video_loop_files().and_then(|files| binding.set_loop_files(files))
+        {
+            ctx.set_node_warning(self.id(), error);
+        }
         if [
             self.source_kind.id(),
             self.rgba.id(),
             self.file.id(),
+            self.video_loop_file.id(),
+            self.video_loop_audio.id(),
             self.sender.id(),
             self.output_kind.id(),
             self.output_item.id(),
@@ -550,6 +568,7 @@ impl Node for ChannelNode {
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
         super::assets::parse_file(self.file.get_ref().as_str())?;
+        self.video_loop_files()?;
         if self.kind() == MediaKind::Video {
             self.subtitle_settings(false)?.validate()?;
         }
@@ -600,7 +619,7 @@ impl Node for ChannelNode {
         if self.is_subtitle_parameter(change.parameter) {
             return self.validate_subtitle_parameter(change);
         }
-        if change.parameter == self.file.id()
+        if [self.file.id(), self.video_loop_file.id(), self.video_loop_audio.id()].contains(&change.parameter)
             && let ParamValue::File(path) = change.value
         {
             super::assets::parse_file(path)?;

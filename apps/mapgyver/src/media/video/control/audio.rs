@@ -22,6 +22,15 @@ impl VideoControl {
                 file: file.locator.clone(),
                 duration: file.duration,
                 binding: file.audio.clone(),
+                repeat: file
+                    .loop_files
+                    .audio
+                    .as_ref()
+                    .map(|file| (file.clone(), None))
+                    .or_else(|| {
+                        let duration = file.repeat?.duration?;
+                        Some((file.loop_files.picture.clone()?, Some(duration)))
+                    }),
             })
             .collect()
     }
@@ -35,7 +44,7 @@ impl VideoControl {
             .transport
             .sample_at(state.clock.monotonic_at(instant).ok()?)
             .ok()?;
-        AudioTimeline::new(sample)
+        AudioTimeline::with_repeat(sample, state.repeat_boundary())
     }
 
     pub(crate) fn owns_audio(&self, channel: ChannelId, generation: uuid::Uuid) -> bool {

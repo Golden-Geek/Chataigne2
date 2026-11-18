@@ -10,6 +10,7 @@ mod audio;
 mod matrix;
 #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
 pub(super) mod scheduling;
+mod sequence;
 #[cfg(test)]
 mod tests;
 pub use matrix::MatrixVideoUse;
@@ -24,6 +25,9 @@ struct State {
     files: std::collections::HashMap<super::super::protocol::ChannelId, super::bindings::File>,
     durations: std::collections::BTreeMap<Duration, usize>,
     source_duration: Duration,
+    separate_repeat: bool,
+    repeat_duration: Duration,
+    shortest_repeat_duration: Option<Duration>,
     frames: super::frames::Frames,
     feedback: Option<super::feedback::Publisher>,
     feedback_sequence: u64,
@@ -55,6 +59,9 @@ impl Default for VideoControl {
                 files: Default::default(),
                 durations: Default::default(),
                 source_duration: Duration::ZERO,
+                separate_repeat: false,
+                repeat_duration: Duration::ZERO,
+                shortest_repeat_duration: None,
                 frames: Default::default(),
                 feedback: None,
                 feedback_sequence: 0,
@@ -302,7 +309,14 @@ impl VideoControl {
         owner: uuid::Uuid,
         locator: Option<super::super::protocol::AssetLocator>,
     ) -> Result<(), String> {
-        self.bind_file_with_settings(channel, owner, locator, Arc::default(), Arc::default())
+        self.bind_file_with_settings(
+            channel,
+            owner,
+            locator,
+            Arc::default(),
+            Arc::default(),
+            Default::default(),
+        )
     }
     pub(super) fn bind_file_with_settings(
         &self,
@@ -311,13 +325,22 @@ impl VideoControl {
         locator: Option<super::super::protocol::AssetLocator>,
         subtitles: Arc<super::bindings::ChannelSubtitles>,
         #[allow(unused_variables)] audio: Arc<crate::audio::voice::Binding>,
+        loop_files: super::bindings::LoopFiles,
     ) -> Result<(), String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
-        if state
+        if let Some(file) = state
             .files
-            .get(&channel)
-            .is_some_and(|file| file.owner == owner && file.locator == locator)
+            .get_mut(&channel)
+            .filter(|file| file.owner == owner && file.locator == locator)
         {
+            if file.loop_files != loop_files {
+                if file.loop_files.picture != loop_files.picture {
+                    file.repeat = loop_files.picture.as_ref().map(|_| super::bindings::RepeatFile::new());
+                }
+                file.loop_files = loop_files;
+                state.update_repeat()?;
+                self.1.advance();
+            }
             return Ok(());
         }
         if !state.files.contains_key(&channel) && state.files.len() >= 4096 {
@@ -337,8 +360,11 @@ impl VideoControl {
                 #[cfg(feature = "video-files")]
                 audio,
                 metadata_error: None,
+                repeat: loop_files.picture.as_ref().map(|_| super::bindings::RepeatFile::new()),
+                loop_files,
             },
         );
+        state.update_repeat()?;
         state.duration_changed(old.and_then(|file| file.duration), None)?;
         self.1.advance();
         drop(state);
@@ -351,6 +377,7 @@ impl VideoControl {
         {
             let old = state.files.remove(&channel).and_then(|file| file.duration);
             state.frames.remove(channel);
+            let _ = state.update_repeat();
             let _ = state.duration_changed(old, None);
             self.1.advance();
             drop(state);
@@ -371,7 +398,13 @@ impl VideoControl {
         Ok(state
             .files
             .iter()
-            .filter_map(|(channel, file)| file.locator.clone().map(|locator| (*channel, file.generation, locator)))
+            .flat_map(|(channel, file)| {
+                let intro = file.locator.clone().map(|locator| (*channel, file.generation, locator));
+                let repeat = intro
+                    .as_ref()
+                    .and_then(|_| Some((*channel, file.repeat?.generation, file.loop_files.picture.clone()?)));
+                [intro, repeat].into_iter().flatten()
+            })
             .collect())
     }
     #[cfg(any(feature = "video-files", test))]
@@ -382,6 +415,19 @@ impl VideoControl {
         duration: Duration,
     ) -> Result<bool, String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
+        if let Some(repeat) = state
+            .files
+            .get_mut(&channel)
+            .and_then(|file| file.repeat.as_mut())
+            .filter(|file| file.generation == generation)
+        {
+            if repeat.duration != Some(duration) {
+                repeat.duration = Some(duration);
+                state.update_repeat()?;
+                self.1.advance();
+            }
+            return Ok(true);
+        }
         let Some(file) = state
             .files
             .get_mut(&channel)
@@ -410,10 +456,9 @@ impl VideoControl {
         generation: uuid::Uuid,
     ) -> bool {
         self.0.lock().is_ok_and(|state| {
-            state
-                .files
-                .get(&channel)
-                .is_some_and(|file| file.generation == generation)
+            state.files.get(&channel).is_some_and(|file| {
+                file.generation == generation || file.repeat.is_some_and(|file| file.generation == generation)
+            })
         })
     }
     pub(crate) fn claim_channel(
@@ -700,10 +745,14 @@ impl State {
     }
 
     fn update_source_range(&mut self) -> Result<(), String> {
-        let start = Duration::from_secs_f64(self.settings.start_ms / 1_000.0);
-        let end = self.settings.end_ms.map_or(self.source_duration, |end| {
-            Duration::from_secs_f64(end / 1_000.0).min(self.source_duration)
-        });
+        let (start, intro_end) = self.intro_bounds();
+        let end = if self.settings.looping && self.separate_repeat && intro_end > start {
+            intro_end
+                .saturating_add(self.repeat_duration)
+                .min(Duration::from_nanos(i64::MAX as u64))
+        } else {
+            intro_end
+        };
         let range = SourceRange::new(start, end);
         if range != self.transport.source_range() {
             self.transport
@@ -716,6 +765,14 @@ impl State {
         Ok(())
     }
 
+    fn intro_bounds(&self) -> (Duration, Duration) {
+        let start = Duration::from_secs_f64(self.settings.start_ms / 1_000.0);
+        let end = self.settings.end_ms.map_or(self.source_duration, |end| {
+            Duration::from_secs_f64(end / 1_000.0).min(self.source_duration)
+        });
+        (start, end)
+    }
+
     fn update_loop_policy(&mut self) -> Result<(), String> {
         let shortest = self
             .durations
@@ -725,6 +782,18 @@ impl State {
             self.transport
                 .source_range()
                 .map_or((self.settings.looping, Duration::ZERO, Duration::ZERO), |range| {
+                    if self.separate_repeat {
+                        let intro_end = self.intro_bounds().1;
+                        let tail = range.end().saturating_sub(intro_end);
+                        let overlap = Duration::from_secs_f64(self.settings.auto_smooth_loop_ms / 1_000.0)
+                            .min(self.shortest_repeat_duration.unwrap_or(tail) / 2)
+                            .min(tail / 2);
+                        return (
+                            self.settings.looping && !tail.is_zero(),
+                            intro_end - range.start(),
+                            overlap,
+                        );
+                    }
                     let source_start =
                         Duration::from_secs_f64(self.settings.loop_start_ms / 1_000.0).max(range.start());
                     let start = source_start - range.start();

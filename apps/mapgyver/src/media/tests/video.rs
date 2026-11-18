@@ -14,6 +14,7 @@ mod boundaries;
 mod crop;
 mod fade_loop;
 mod policy;
+mod sequence;
 mod subtitles;
 
 fn state(engine: &mut AppEngine, media: MediaId) -> VideoTransportSnapshot {

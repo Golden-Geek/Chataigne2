@@ -3,6 +3,43 @@ use crate::media::video::audio::AudioTimeline;
 use golden_video::scheduling::SourceRange;
 
 #[test]
+fn separate_loop_projects_pcm_into_each_file_and_never_restarts_the_intro() {
+    let (clock, mut transport) = fixture();
+    transport.set_loop_section(true, seconds(6), seconds(1)).unwrap();
+    transport.play().unwrap();
+    for (offset_ms, repeat, expected_ms) in [
+        (5000, false, 5000),
+        (6000, true, 0),
+        (9500, true, 3500),
+        (10000, true, 1000),
+        (13000, true, 1000),
+    ] {
+        clock.set(offset_ms * 1_000_000);
+        let sample = audio_timeline(transport.sample().unwrap());
+        let actual = sample.samples(0, seconds(6), Some(seconds(4)))[0].unwrap();
+        assert_eq!(
+            (actual.repeat, actual.position),
+            (repeat, Duration::from_millis(expected_ms))
+        );
+        if offset_ms == 9500 {
+            let pair = sample.samples(0, seconds(6), Some(seconds(4))).map(Option::unwrap);
+            assert_eq!(pair[1].position, Duration::from_millis(500));
+            assert_eq!(pair.map(|sample| sample.weight), [0.5, 0.5]);
+            assert!(
+                sample
+                    .samples(0, seconds(6), None)
+                    .into_iter()
+                    .all(|sample| sample.is_none())
+            );
+        }
+    }
+}
+
+fn audio_timeline(sample: TransportSample) -> AudioTimeline {
+    AudioTimeline::with_repeat(sample, Some(seconds(6))).unwrap()
+}
+
+#[test]
 fn audio_uses_crop_loop_and_reverse_positions_from_the_video_clock() {
     let (_, mut transport) = fixture();
     transport

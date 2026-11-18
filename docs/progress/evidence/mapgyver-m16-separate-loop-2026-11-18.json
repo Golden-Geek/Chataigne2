@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-18",
+  "gate": "M16/2",
+  "result": "accepted functional picture and audio looping for single-file tails and separate repeat assets",
+  "software": {
+    "mapgyverTests": 15,
+    "goldenVideoTests": 7,
+    "strictClippy": "pass",
+    "svelteCheck": { "errors": 0, "warnings": 0 },
+    "authoring": "Typed channel Loop File and Loop Audio File parameters are independent across channels and survive Undo, Redo, duplicate and reload. Old repeat metadata is rejected after relink.",
+    "audio": "The fake clock verifies exact local PCM positions in both clip phases, two repeats, overlap positions and weights, and silence when the repeat has no audio source."
+  },
+  "native": {
+    "fixture": "apps/mapgyver/tests/browser/native-video-intro-loop.mjs --separate",
+    "receipt": "target/m162-separate-loop-f4cd4e3a/result.json",
+    "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "cropMs": [500, 3000],
+    "introExtent": [160, 120],
+    "loopExtent": [128, 96],
+    "hardWrapsCropRelativeMs": [[4983.6452, 2510.6721], [4978.0127, 2504.5522]],
+    "pixels": {
+      "source": "independent Spout SDK observer of the bundled app's Screen output",
+      "introAndMissingLoopRgba": [255, 38, 0, 255],
+      "handoffAndRepeatStartRgba": [0, 28, 255, 255],
+      "heldMidpointOf500msSmoothOverlapRgba": [0, 161, 188, 255],
+      "stoppedRgba": [255, 38, 0, 255]
+    },
+    "audio": {
+      "source": "live WASAPI virtual-output RMS",
+      "introLeftAndRight": [0.008459, 0],
+      "repeatOverrideLeftAndRight": [0, 0.008482886],
+      "verified": "The repeat uses its own embedded audio with no override. An unavailable override plays silence and automatically recovers when the WAV appears. Stop retires its signal."
+    },
+    "alsoVerified": "An initially missing loop picture holds the end of the intro and resumes on the same clock after the file appears. Seek lands on the correct side of the clip boundary. The existing single-file loop and per-channel subtitle smoke both pass on this build.",
+    "singleFileRegression": "target/m162-single-loop-2e38e263/result.json",
+    "subtitleRegression": "target/m162-loop-subtitle-regression/run-Tiw2aW/result.json"
+  },
+  "retainedQualification": "Separate-file sequences currently use bounded software decoding and stable intro-sized pixels. Performance at larger sizes, moving seam cadence across adapters, and physical audio endpoint tests remain in the wider Video and audio qualification lanes. The worker keeps the primary image and retries when a smooth overlap decoder cannot acquire storage."
+}

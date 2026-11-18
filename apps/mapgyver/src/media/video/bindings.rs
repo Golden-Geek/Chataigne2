@@ -7,8 +7,16 @@ use std::sync::{Arc, Mutex, Weak};
 
 struct State {
     file: Option<AssetLocator>,
+    loop_files: LoopFiles,
     target: Weak<VideoControl>,
 }
+
+#[derive(Clone, Default, PartialEq, Eq)]
+pub(crate) struct LoopFiles {
+    pub picture: Option<AssetLocator>,
+    pub audio: Option<AssetLocator>,
+}
+
 pub(crate) struct Registration {
     pub channel: ChannelId,
     pub owner: uuid::Uuid,
@@ -17,12 +25,13 @@ pub(crate) struct Registration {
     audio: Arc<crate::audio::voice::Binding>,
 }
 impl Registration {
-    pub fn new(channel: ChannelId, file: Option<AssetLocator>) -> Arc<Self> {
+    pub fn new(channel: ChannelId, file: Option<AssetLocator>, loop_files: LoopFiles) -> Arc<Self> {
         Arc::new(Self {
             channel,
             owner: uuid::Uuid::new_v4(),
             state: Mutex::new(State {
                 file,
+                loop_files,
                 target: Weak::new(),
             }),
             subtitles: Arc::default(),
@@ -51,28 +60,34 @@ impl Registration {
     pub fn set_file(&self, file: Option<AssetLocator>) -> Result<(), String> {
         let mut state = self.state.lock().map_err(|_| "Video binding poisoned")?;
         state.file = file;
-        if let Some(target) = state.target.upgrade() {
-            target.bind_file_with_settings(
-                self.channel,
-                self.owner,
-                state.file.clone(),
-                self.subtitles.clone(),
-                self.audio.clone(),
-            )?;
-        }
-        Ok(())
+        state
+            .target
+            .upgrade()
+            .map_or(Ok(()), |target| self.install(&state, &target))
+    }
+    pub fn set_loop_files(&self, files: LoopFiles) -> Result<(), String> {
+        let mut state = self.state.lock().map_err(|_| "Video binding poisoned")?;
+        state.loop_files = files;
+        state
+            .target
+            .upgrade()
+            .map_or(Ok(()), |target| self.install(&state, &target))
     }
     pub fn bind(&self, control: &Arc<VideoControl>) -> Result<(), String> {
         let mut state = self.state.lock().map_err(|_| "Video binding poisoned")?;
-        control.bind_file_with_settings(
+        self.install(&state, control)?;
+        state.target = Arc::downgrade(control);
+        Ok(())
+    }
+    fn install(&self, state: &State, target: &VideoControl) -> Result<(), String> {
+        target.bind_file_with_settings(
             self.channel,
             self.owner,
             state.file.clone(),
             self.subtitles.clone(),
             self.audio.clone(),
-        )?;
-        state.target = Arc::downgrade(control);
-        Ok(())
+            state.loop_files.clone(),
+        )
     }
     pub fn audio(&self) -> &crate::audio::voice::Binding {
         &self.audio
@@ -186,4 +201,23 @@ pub(super) struct File {
     #[cfg(feature = "video-files")]
     pub audio: Arc<crate::audio::voice::Binding>,
     pub metadata_error: Option<super::protocol::VideoSourceError>,
+    pub loop_files: LoopFiles,
+    pub repeat: Option<RepeatFile>,
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct RepeatFile {
+    #[cfg(any(feature = "video-files", test))]
+    pub generation: uuid::Uuid,
+    pub duration: Option<std::time::Duration>,
+}
+
+impl RepeatFile {
+    pub fn new() -> Self {
+        Self {
+            #[cfg(any(feature = "video-files", test))]
+            generation: uuid::Uuid::new_v4(),
+            duration: None,
+        }
+    }
 }
