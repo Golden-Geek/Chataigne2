@@ -143,16 +143,20 @@ pub(in crate::media::video) fn target(
     let Some(frame) = frame else {
         return Ok(Some(sample));
     };
+    let Some(range) = sample.source_range else {
+        return Ok(None);
+    };
     let current = sample.channel_position(channel_duration);
     if frame.position > current {
         return Ok(None);
     }
-    if !published || frame.next.is_some_and(|next| next <= current) {
+    let next = frame.next_in_range(range).filter(|next| *next < channel_duration);
+    if !published || next.is_some_and(|next| next <= current) {
         return Ok(Some(sample));
     }
-    if let Some(next) = frame.next {
+    if let Some(next) = next {
         return Ok(Some(TransportSample {
-            position: next,
+            position: range.relative_position(next),
             ..sample
         }));
     }

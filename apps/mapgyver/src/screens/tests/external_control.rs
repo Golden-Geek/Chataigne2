@@ -99,7 +99,7 @@ fn video_speed_animation_adapts_to_declared_step() {
         panic!()
     };
     let media = engine.node_id_by_uuid(reference.media.0).unwrap();
-    let parameter = super::parameters::parameters(&engine, media)["parameters/video_speed"];
+    let parameter = child(&engine, media, "parameters/video_speed");
     animate(&mut engine, parameter);
     engine
         .run_tick(Duration::from_millis(17))
@@ -180,7 +180,7 @@ fn video_declarations_restore_omitted_bounds_and_keep_explicit_valid_overrides()
         panic!()
     };
     let owner = engine.node_id_by_uuid(reference.media.0).unwrap();
-    let parameter = super::parameters::parameters(&engine, owner)["parameters/video_speed"];
+    let parameter = child(&engine, owner, "parameters/video_speed");
     let uuid = engine.nodes.get(parameter).unwrap().node_data().meta.uuid;
     animate(&mut engine, parameter);
     engine.run_tick(Duration::from_millis(17)).unwrap();

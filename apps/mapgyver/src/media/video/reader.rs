@@ -186,8 +186,9 @@ impl Reader {
     pub fn advance(&mut self, position: Duration) -> Result<bool, Failure> {
         self.catching_up = true;
         let base = self.decoder.info().time_base;
-        let ticks = position.min(self.duration).as_nanos() * u128::from(base.denominator)
-            / (u128::from(base.numerator) * 1_000_000_000);
+        let last = self.duration.saturating_sub(Duration::from_nanos(1));
+        let ticks =
+            position.min(last).as_nanos() * u128::from(base.denominator) / (u128::from(base.numerator) * 1_000_000_000);
         let target = i64::try_from(i128::from(self.origin) + i128::try_from(ticks).map_err(|_| "Video seek overflow")?)
             .map_err(|_| "Video seek overflow")?;
         let jump = self.requested.is_none_or(|old| {
@@ -265,7 +266,8 @@ impl Reader {
                 .next
                 .as_ref()
                 .map(|frame| self.position(frame.timestamp()))
-                .transpose()?,
+                .transpose()?
+                .filter(|&position| position < self.duration),
         }))
     }
     /// A keyframe seek may not reveal its predecessor. Publish the requested image first,

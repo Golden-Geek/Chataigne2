@@ -9,6 +9,7 @@ use golden_core::{
 use std::time::Duration;
 
 mod boundaries;
+mod crop;
 mod fade_loop;
 mod policy;
 

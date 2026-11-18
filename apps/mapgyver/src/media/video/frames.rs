@@ -1,38 +1,30 @@
 //! Bounded source-owned timestamp observations; no decoding on parameter/operation callers.
 use super::{TransportSample, protocol::*};
 use crate::media::protocol::{AssetLocator, ChannelId, ChannelReference, MediaId};
+use golden_video::scheduling::SourceRange;
 use std::{collections::HashMap, time::Duration};
 
 pub(super) fn window(
     sample: TransportSample,
     frame: Neighbours,
 ) -> Result<golden_video::scheduling::FrameWindow, String> {
-    use golden_time::ShowPosition;
-    let origin = sample.cycle_origin();
-    let coordinate = |position: Duration| -> Result<ShowPosition, String> {
-        i64::try_from(origin + position.as_nanos() as i128)
-            .map(ShowPosition::from_nanos)
-            .map_err(|_| "Video frame window overflow".into())
-    };
+    let range = sample.source_range.ok_or("Video frame range unavailable")?;
     let timed_loop = sample.looping && sample.playing;
-    let timed_fade = timed_loop && sample.timeline.is_some();
-    let end = frame
-        .next
-        .map(|next| if timed_fade { next.min(sample.cycle_end()) } else { next })
-        .or(sample.looping.then_some(sample.cycle_end()))
-        .map(coordinate)
-        .transpose()?;
-    golden_video::scheduling::FrameWindow::new(
-        sample.epoch,
-        coordinate(if timed_fade {
-            frame.position.max(sample.cycle_start())
-        } else {
-            frame.position
-        })?,
-        end,
-        ShowPosition::from_nanos(i64::try_from(frame.position.as_nanos()).map_err(|_| "Video PTS overflow")?),
-    )
-    .ok_or_else(|| "Invalid Video frame interval".into())
+    let active = if timed_loop {
+        sample.cycle_start()..sample.cycle_end()
+    } else {
+        Duration::ZERO..range.duration()
+    };
+    range
+        .frame_window(
+            sample.epoch,
+            sample.cycle_origin(),
+            active,
+            frame.position,
+            frame.next_in_range(range),
+            !timed_loop,
+        )
+        .ok_or_else(|| "Invalid Video frame interval".into())
 }
 
 /// Split a decoded interval at the start of the seam and into bounded fade samples.
@@ -87,10 +79,30 @@ pub(super) fn loop_window(
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Neighbours {
+    /// Timestamp in the original source, before cropping or looping.
     pub position: Duration,
     pub previous: Option<Duration>,
     pub previous_ready: bool,
     pub next: Option<Duration>,
+}
+impl Neighbours {
+    pub(super) fn next_in_range(self, range: SourceRange) -> Option<Duration> {
+        // A channel shorter than the crop's Start holds its last image.
+        self.next.filter(|next| range.contains(*next) && *next > range.start())
+    }
+
+    fn relative(self, range: SourceRange) -> Self {
+        let position = range.relative_position(self.position);
+        Self {
+            position,
+            previous: self
+                .previous
+                .map(|previous| range.relative_position(previous))
+                .filter(|previous| *previous < position),
+            previous_ready: self.previous_ready || position.is_zero(),
+            next: self.next_in_range(range).map(|next| range.relative_position(next)),
+        }
+    }
 }
 struct Source {
     owner: uuid::Uuid,
@@ -172,6 +184,7 @@ impl Frames {
         }
     }
     fn current(&self, channel: ChannelId, file: &AssetLocator, now: TransportSample) -> Option<Neighbours> {
+        let range = now.source_range?;
         let source = self.0.get(&channel)?;
         if source.file != *file {
             return None;
@@ -180,10 +193,10 @@ impl Frames {
             return source
                 .scheduled
                 .sample(now.frame_position().ok()?)
-                .map(|(_, frame)| *frame);
+                .map(|(_, frame)| frame.relative(range));
         }
         let (sample, frame) = source.frame?;
-        (source.file == *file && (sample.epoch, sample.cycle) == (now.epoch, now.cycle)).then_some(frame)
+        ((sample.epoch, sample.cycle) == (now.epoch, now.cycle)).then(|| frame.relative(range))
     }
     #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
     pub(super) fn observe_scheduled(

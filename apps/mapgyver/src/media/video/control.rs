@@ -1,5 +1,6 @@
 use super::{MediaTransport, protocol::*};
 use golden_time::{PlaybackRate, SystemClock};
+use golden_video::scheduling::SourceRange;
 use std::{sync::Mutex, time::Duration};
 mod matrix;
 #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
@@ -17,6 +18,7 @@ struct State {
     retired: bool,
     files: std::collections::HashMap<super::super::protocol::ChannelId, super::bindings::File>,
     durations: std::collections::BTreeMap<Duration, usize>,
+    source_duration: Duration,
     frames: super::frames::Frames,
     feedback: Option<super::feedback::Publisher>,
     feedback_sequence: u64,
@@ -47,6 +49,7 @@ impl Default for VideoControl {
                 retired: false,
                 files: Default::default(),
                 durations: Default::default(),
+                source_duration: Duration::ZERO,
                 frames: Default::default(),
                 feedback: None,
                 feedback_sequence: 0,
@@ -77,6 +80,10 @@ impl VideoControl {
     pub(crate) fn settings(&self) -> Result<VideoTransportSettings, String> {
         Ok(self.0.lock().map_err(|_| "Video control poisoned")?.settings.clone())
     }
+    pub(crate) fn source_duration_ms(&self) -> Result<Option<f64>, String> {
+        let state = self.0.lock().map_err(|_| "Video control poisoned")?;
+        Ok((!state.source_duration.is_zero()).then(|| super::frames::millis(state.source_duration)))
+    }
     pub(crate) fn bounded_position(&self, position_ms: f64) -> Result<f64, String> {
         if !position_ms.is_finite() {
             return Err("Current Position must be finite".into());
@@ -92,7 +99,7 @@ impl VideoControl {
         } else {
             VideoPlaybackMode::Paused
         };
-        state.ready_once = !state.transport.duration().is_zero();
+        state.ready_once = !state.source_duration.is_zero();
         state.load_pending = settings.play_at_load && !state.ready_once;
         state.explicit_mode = false;
         state.retain_play_position = false;
@@ -480,6 +487,8 @@ impl VideoControl {
         if seek
             || explicit
             || state.settings.position_ms != settings.position_ms
+            || state.settings.start_ms != settings.start_ms
+            || state.settings.end_ms != settings.end_ms
             || state.settings.speed != settings.speed
             || state.settings.looping != settings.looping
             || (settings.looping && state.settings.auto_smooth_loop_ms != settings.auto_smooth_loop_ms)
@@ -524,12 +533,8 @@ impl VideoControl {
     #[cfg(test)]
     pub fn prepare(&self, duration: Duration) -> Result<(), String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
-        let first = state.transport.duration().is_zero();
-        if state.transport.duration() != duration {
-            state.duration_changes.advance();
-        }
-        state.transport.set_duration(duration).map_err(|e| e.to_string())?;
-        state.position_range.set(0.0, super::frames::millis(duration))?;
+        let first = state.source_duration.is_zero();
+        state.source_duration = duration;
         state.ready_once |= !duration.is_zero();
         state.load_pending = false;
         state.apply(first)?;
@@ -544,6 +549,7 @@ impl VideoControl {
             media,
             settings: state.settings.clone(),
             ready: !state.transport.duration().is_zero(),
+            length_ms: (!state.source_duration.is_zero()).then(|| super::frames::millis(sample.duration)),
             position_ms: sample.position.as_secs_f64() * 1000.0,
             playing: sample.playing,
         })
@@ -607,22 +613,22 @@ impl State {
             .durations
             .last_key_value()
             .map_or(Duration::ZERO, |(duration, _)| *duration);
-        if duration == self.transport.duration() {
+        if duration == self.source_duration {
             return self.update_loop_policy();
         }
-        let first = self.transport.duration().is_zero();
-        let extended = duration > self.transport.duration();
+        let extended = duration > self.source_duration;
+        self.source_duration = duration;
         self.seek_pending |= duration.is_zero();
-        self.duration_changes.advance();
-        self.transport.set_duration(duration).map_err(|e| e.to_string())?;
-        self.position_range.set(0.0, super::frames::millis(duration))?;
         if !duration.is_zero() {
             self.ready_once = true;
             self.load_pending = false;
         }
-        self.apply(first || extended)
+        self.apply(extended)
     }
     fn apply(&mut self, play_requested: bool) -> Result<(), String> {
+        let previously_empty = self.transport.duration().is_zero();
+        self.update_source_range()?;
+        let play_requested = play_requested || previously_empty;
         // Accepted transport positions never wait outside the currently known timeline.
         self.settings.position_ms = self
             .settings
@@ -657,13 +663,32 @@ impl State {
         .map_err(|e| e.to_string())
     }
 
+    fn update_source_range(&mut self) -> Result<(), String> {
+        let start = Duration::from_secs_f64(self.settings.start_ms / 1_000.0);
+        let end = self.settings.end_ms.map_or(self.source_duration, |end| {
+            Duration::from_secs_f64(end / 1_000.0).min(self.source_duration)
+        });
+        let range = SourceRange::new(start, end);
+        if range != self.transport.source_range() {
+            self.transport
+                .set_source_range(range)
+                .map_err(|error| error.to_string())?;
+            self.position_range
+                .set(0.0, super::frames::millis(self.transport.duration()))?;
+            self.duration_changes.advance();
+        }
+        Ok(())
+    }
+
     fn update_loop_policy(&mut self) -> Result<(), String> {
-        let overlap = self
+        let shortest = self
             .durations
             .first_key_value()
-            .map_or(Duration::ZERO, |(shortest, _)| {
-                Duration::from_secs_f64(self.settings.auto_smooth_loop_ms / 1_000.0).min(*shortest / 2)
-            });
+            .map_or(self.source_duration, |(shortest, _)| *shortest);
+        let overlap = self.transport.source_range().map_or(Duration::ZERO, |range| {
+            let shortest_cropped = range.end().min(shortest).saturating_sub(range.start());
+            Duration::from_secs_f64(self.settings.auto_smooth_loop_ms / 1_000.0).min(shortest_cropped / 2)
+        });
         self.transport
             .set_loop_policy(self.settings.looping, overlap)
             .map_err(|error| error.to_string())

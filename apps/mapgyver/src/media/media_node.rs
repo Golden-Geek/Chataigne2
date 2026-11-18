@@ -48,6 +48,14 @@ use std::sync::OnceLock;
             enum_options = crate::parameters::enum_options(&["Stop", "Pause", "Nothing"]), constraint_policy = "reject");
         video_current_position_ms: f64 = 0.0 [0.0..9000000000000.0] (label = "Current Position", widget = "time_slider", unit = "ms", transient_value = true,
             dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video, constraint_policy = "clamp_adapt");
+        video_start_ms: f64 = 0.0 [0.0..9000000000000.0] (
+            label = "Start", description = "Start of the cropped video in source time.",
+            widget = "time", unit = "ms", constraint_policy = "reject",
+            dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
+        video_end_ms: f64 = 0.0 [0.0..9000000000000.0] (
+            label = "End", description = "End of the cropped video in source time. Zero follows the source end. Playback ends at the available duration if it is shorter.",
+            widget = "time", unit = "ms", constraint_policy = "reject",
+            dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
         video_speed: f64 = 1.0 [-16.0..16.0] (label = "Speed", step = 0.01,
             dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video, constraint_policy = "reject");
         video_looping: bool = false (label = "Loop", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
@@ -91,6 +99,8 @@ impl MediaNode {
     }
     pub(crate) fn video_settings(&self) -> Result<super::video::protocol::VideoTransportSettings, String> {
         let mut settings = self.video_control().ok_or("media is not Video")?.settings()?;
+        settings.start_ms = self.video_start_ms.get();
+        settings.end_ms = super::video::protocol::crop_end_from_parameter(self.video_end_ms.get());
         settings.speed = self.video_speed.get();
         settings.looping = self.video_looping.get();
         settings.auto_smooth_loop_ms = self.video_auto_smooth_loop_ms.get();
@@ -114,6 +124,10 @@ impl MediaNode {
             VideoEdit::Seek { position_ms } => {
                 vec![(self.video_current_position_ms.id(), ParamValue::Float(*position_ms))]
             }
+            VideoEdit::Crop { start_ms, end_ms } => vec![
+                (self.video_start_ms.id(), ParamValue::Float(*start_ms)),
+                (self.video_end_ms.id(), ParamValue::Float(end_ms.unwrap_or(0.0))),
+            ],
             VideoEdit::Speed { speed } => vec![(self.video_speed.id(), ParamValue::Float(*speed))],
             VideoEdit::Loop { looping } => vec![(self.video_looping.id(), ParamValue::Bool(*looping))],
             VideoEdit::AutoSmoothLoop { duration_ms } => {
@@ -137,6 +151,8 @@ impl MediaNode {
             self.video_on_activate.id(),
             self.video_on_deactivate.id(),
             self.video_current_position_ms.id(),
+            self.video_start_ms.id(),
+            self.video_end_ms.id(),
             self.video_speed.id(),
             self.video_looping.id(),
             self.video_auto_smooth_loop_ms.id(),
@@ -581,6 +597,21 @@ impl Node for MediaNode {
                     if [self.video_play.id(), self.video_pause.id(), self.video_stop.id()].contains(&id) => {}
                 (id, ParamValue::Float(value)) if id == self.video_current_position_ms.id() => {
                     settings.position_ms = *value
+                }
+                (id, ParamValue::Float(_)) if [self.video_start_ms.id(), self.video_end_ms.id()].contains(&id) => {
+                    let Some(ParamValue::Float(start_ms)) = change.parameter_value(self.video_start_ms.id()) else {
+                        return Err("Video Start requires a time value".into());
+                    };
+                    let Some(ParamValue::Float(end_ms)) = change.parameter_value(self.video_end_ms.id()) else {
+                        return Err("Video End requires a time value".into());
+                    };
+                    let previous_start_ms = settings.start_ms;
+                    settings.start_ms = start_ms;
+                    settings.end_ms = super::video::protocol::crop_end_from_parameter(end_ms);
+                    settings.validate_crop_start_change(
+                        previous_start_ms,
+                        self.video_control().unwrap().source_duration_ms()?,
+                    )?;
                 }
                 (id, ParamValue::Float(value)) if id == self.video_speed.id() => settings.speed = *value,
                 (id, ParamValue::Bool(value)) if id == self.video_looping.id() => settings.looping = *value,

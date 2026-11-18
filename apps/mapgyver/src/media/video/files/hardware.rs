@@ -137,6 +137,10 @@ impl Run {
                     // Old windows plus a completed rejected image can otherwise pin all three
                     // slots and prevent the new epoch from ever producing its replacement.
                     drop(publisher.stream().begin_epoch(sample.epoch)?);
+                    if sample.source_range.is_none() {
+                        publisher.stream().publish(None)?;
+                        reader.invalidate_publication();
+                    }
                 }
             }
             let mut waiting = false;
@@ -204,6 +208,12 @@ impl Run {
                 if !waiting && !sample.needs_loop_companion() {
                     let _ = publisher.release_crossfade();
                 }
+            }
+            if sample.source_range.is_none() {
+                cached = None;
+                software_image = None;
+                worker.wait_until(checkpoint, pacing::deadline(turn_started, false, waiting));
+                continue;
             }
             if !waiting {
                 let target = if let Some(target) = retry {

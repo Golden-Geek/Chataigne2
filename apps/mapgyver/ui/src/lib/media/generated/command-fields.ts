@@ -239,6 +239,11 @@ export const COMMAND_PARAMETER_FIELDS = {
     "media",
     "video_auto_smooth_loop_ms"
   ],
+  "VideoCrop": [
+    "media",
+    "video_start_ms",
+    "video_end_ms"
+  ],
   "VideoFile": [
     "media",
     "channel",

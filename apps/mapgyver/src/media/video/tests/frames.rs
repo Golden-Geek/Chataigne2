@@ -100,3 +100,87 @@ fn timestamp_parameter_projection_never_rounds_before_the_target_frame() {
         assert!(Duration::from_secs_f64(millis / 1000.0) >= position);
     }
 }
+
+#[test]
+fn frame_position_and_steps_are_relative_to_the_crop_and_exclude_the_end() {
+    use super::super::frames::Frames;
+    use golden_video::scheduling::SourceRange;
+
+    let ms = Duration::from_millis;
+    let control = VideoControl::default();
+    let channel = ChannelId(NodeUuid(uuid::Uuid::new_v4()));
+    let media = MediaId(NodeUuid(uuid::Uuid::new_v4()));
+    let owner = uuid::Uuid::new_v4();
+    let file = AssetLocator::ProjectRelative {
+        path: "crop.mp4".to_owned().try_into().unwrap(),
+    };
+    let range = SourceRange::new(ms(125), ms(400)).unwrap();
+    let mut sample = crate::media::video::TransportSample {
+        source_range: Some(range),
+        duration: range.duration(),
+        position: range.duration(),
+        ..control.sample().unwrap()
+    };
+    let mut frames = Frames::default();
+    frames.claim(channel, owner, file.clone());
+    frames.observe(
+        channel,
+        owner,
+        sample,
+        Neighbours {
+            position: ms(300),
+            previous: Some(ms(200)),
+            previous_ready: true,
+            next: Some(ms(400)),
+        },
+    );
+    let state = frames.inspect(media, channel, &file, sample).unwrap();
+    assert_eq!(state.position_ms, 175.0);
+    assert_eq!(state.previous_ms, Some(75.0));
+    assert_eq!(state.next_ms, None);
+    assert_eq!(
+        frames.step(channel, &file, sample, VideoStepDirection::Previous),
+        Ok(ms(75))
+    );
+    assert_eq!(
+        frames.step(channel, &file, sample, VideoStepDirection::Next),
+        Ok(ms(275))
+    );
+
+    sample.position = ms(75);
+    frames.observe(
+        channel,
+        owner,
+        sample,
+        Neighbours {
+            position: ms(200),
+            previous: Some(ms(100)),
+            previous_ready: true,
+            next: Some(ms(300)),
+        },
+    );
+    assert_eq!(
+        frames.step(channel, &file, sample, VideoStepDirection::Previous),
+        Ok(Duration::ZERO)
+    );
+
+    sample.position = Duration::ZERO;
+    frames.observe(
+        channel,
+        owner,
+        sample,
+        Neighbours {
+            position: ms(100),
+            previous: None,
+            previous_ready: false,
+            next: Some(ms(200)),
+        },
+    );
+    let state = frames.inspect(media, channel, &file, sample).unwrap();
+    assert_eq!(state.position_ms, 0.0);
+    assert!(state.previous_ready);
+    assert_eq!(
+        frames.step(channel, &file, sample, VideoStepDirection::Next),
+        Ok(ms(75))
+    );
+}

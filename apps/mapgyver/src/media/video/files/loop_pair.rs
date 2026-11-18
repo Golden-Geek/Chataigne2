@@ -72,15 +72,16 @@ impl LoopPair {
     /// bounded reader turns, and the incoming role never owns a public rendering stream.
     pub(super) fn prepare(&mut self, sample: TransportSample) -> Result<(bool, Option<LoopBlend>), Failure> {
         let blend = sample.loop_blend();
-        let position = blend.map_or(
+        let relative = blend.map_or(
             if sample.reverse {
-                self.incoming.duration
+                sample.duration
             } else {
                 Duration::ZERO
             },
             |value| value.secondary_position,
         );
-        self.incoming.advance(position)?;
+        self.incoming
+            .advance(sample.source_position(relative, self.incoming.duration))?;
         Ok((!self.incoming.catching_up, blend))
     }
 

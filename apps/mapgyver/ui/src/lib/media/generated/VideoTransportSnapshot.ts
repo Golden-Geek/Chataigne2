@@ -5,4 +5,8 @@ import type { VideoTransportSettings } from "./VideoTransportSettings";
 /**
  * Runtime readiness is separate from accepted authored playback intent.
  */
-export type VideoTransportSnapshot = { media: MediaId, settings: VideoTransportSettings, ready: boolean, position_ms: number, playing: boolean, };
+export type VideoTransportSnapshot = { media: MediaId, settings: VideoTransportSettings, ready: boolean, position_ms: number,
+/**
+ * Effective crop length, once a source duration is available.
+ */
+length_ms: number | null, playing: boolean, };

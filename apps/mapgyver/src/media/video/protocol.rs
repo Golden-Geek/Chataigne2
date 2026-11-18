@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use ts_rs::TS;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -67,7 +68,12 @@ impl VideoOnDeactivate {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct VideoTransportSettings {
     pub mode: VideoPlaybackMode,
+    /// Crop-relative milliseconds.
     pub position_ms: f64,
+    /// Authored source time in milliseconds.
+    pub start_ms: f64,
+    /// Authored exclusive source end in milliseconds. None follows the source end.
+    pub end_ms: Option<f64>,
     pub speed: f64,
     pub looping: bool,
     /// Authored duration in milliseconds. Loop off keeps the value for later.
@@ -81,6 +87,8 @@ impl Default for VideoTransportSettings {
         Self {
             mode: VideoPlaybackMode::Paused,
             position_ms: 0.0,
+            start_ms: 0.0,
+            end_ms: None,
             speed: 1.0,
             looping: false,
             auto_smooth_loop_ms: 0.0,
@@ -101,8 +109,37 @@ impl VideoTransportSettings {
         if !self.auto_smooth_loop_ms.is_finite() || !(0.0..=9_000_000_000_000.0).contains(&self.auto_smooth_loop_ms) {
             return Err("Video Auto-Smooth Loop must be finite milliseconds in 0..9000000000000".into());
         }
+        if !(0.0..=9_000_000_000_000.0).contains(&self.start_ms) {
+            return Err("Video Start must be finite milliseconds in 0..9000000000000".into());
+        }
+        if self.end_ms.is_some_and(|end| {
+            !(0.0..=9_000_000_000_000.0).contains(&end)
+                || Duration::from_secs_f64(end / 1000.0) <= Duration::from_secs_f64(self.start_ms / 1000.0)
+        }) {
+            return Err("Video End must be finite milliseconds after Start and at most 9000000000000".into());
+        }
         Ok(())
     }
+
+    pub(crate) fn validate_crop_start_change(
+        &self,
+        previous_start_ms: f64,
+        source_duration_ms: Option<f64>,
+    ) -> Result<(), String> {
+        let Some(duration) = source_duration_ms.filter(|duration| *duration > 0.0) else {
+            return Ok(());
+        };
+        // Relinking may shorten the effective range while preserving the authored crop.
+        // Only bound a new Start, leaving an already authored range editable after relinking.
+        if self.start_ms != previous_start_ms && self.start_ms >= duration {
+            return Err("Video Start must precede the end of the available source".into());
+        }
+        Ok(())
+    }
+}
+
+pub(crate) fn crop_end_from_parameter(end_ms: f64) -> Option<f64> {
+    (end_ms != 0.0).then_some(end_ms)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -119,6 +156,10 @@ pub enum VideoEdit {
     Stop,
     Seek {
         position_ms: f64,
+    },
+    Crop {
+        start_ms: f64,
+        end_ms: Option<f64>,
     },
     Speed {
         speed: f64,
@@ -151,6 +192,8 @@ pub struct VideoTransportSnapshot {
     pub settings: VideoTransportSettings,
     pub ready: bool,
     pub position_ms: f64,
+    /// Effective crop length, once a source duration is available.
+    pub length_ms: Option<f64>,
     pub playing: bool,
 }
 

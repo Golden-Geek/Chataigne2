@@ -6,7 +6,19 @@ import type { VideoPlaybackMode } from "./VideoPlaybackMode";
 /**
  * Authored transport options and current runtime intent; never an opaque persistence record.
  */
-export type VideoTransportSettings = { mode: VideoPlaybackMode, position_ms: number, speed: number, looping: boolean,
+export type VideoTransportSettings = { mode: VideoPlaybackMode,
+/**
+ * Crop-relative milliseconds.
+ */
+position_ms: number,
+/**
+ * Authored source time in milliseconds.
+ */
+start_ms: number,
+/**
+ * Authored exclusive source end in milliseconds. None follows the source end.
+ */
+end_ms: number | null, speed: number, looping: boolean,
 /**
  * Authored duration in milliseconds. Loop off keeps the value for later.
  */

@@ -545,12 +545,29 @@ impl Run {
         let mut stream: Option<ImageStream> = None;
         let mut loop_pair: Option<loop_pair::LoopPair> = None;
         let mut loop_cursor: Option<golden_video::scheduling::FrameWindow> = None;
+        let mut publication_scope = None;
         while !worker.cancellation().is_cancelled() {
             let turn_started = Instant::now();
             let checkpoint = worker.wake_checkpoint();
             let revision = self.control.revisions();
             let _subscription = revision.guard_at(revision.current()).subscribe(worker.wake_notifier());
             let sample = self.control.sample()?;
+            let scope = (sample.epoch, sample.cycle, sample.playing);
+            if publication_scope != Some(scope) {
+                publication_scope = Some(scope);
+                reader.invalidate_publication();
+                if sample.source_range.is_none() {
+                    loop_pair = None;
+                    loop_cursor = None;
+                    if let Some(stream) = &stream {
+                        stream.publish(None)?;
+                    }
+                }
+            }
+            if sample.source_range.is_none() {
+                worker.wait_until(checkpoint, pacing::deadline(turn_started, false, false));
+                continue;
+            }
             let image = if sample.needs_loop_companion() {
                 let position = sample.frame_position()?;
                 if loop_cursor.is_some_and(|window| window.contains(position)) {

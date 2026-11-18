@@ -145,3 +145,35 @@ fn hosted_video_methods_commit_once_and_report_actual_readiness_and_rejection() 
     assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), after);
     assert_eq!(replies(&engine).len(), 14, "history does not replay requests");
 }
+
+#[test]
+fn hosted_video_crop_accepts_a_typed_open_end_and_commits_each_call_once() {
+    let mut engine = fixture();
+    let media = create(&mut engine, MediaKind::Video).media.0.0;
+    script(
+        &mut engine,
+        format!(
+            r#"
+            function init() {{
+                local.listen({{level:1}});
+                local.setVideoCrop('crop', '{media}', 250.75, 700);
+                local.setVideoCrop('through-end', '{media}', 300, null);
+            }}
+            function onAppOperationResult(reply) {{ gc.emit('media-method-reply', reply); }}
+            "#
+        ),
+    );
+    let history = engine.undo_len();
+    service_script_app_operations(&mut engine).unwrap();
+    let results = replies(&engine);
+    assert_eq!(results.len(), 2);
+    assert!(results.iter().all(|reply| reply["status"] == "applied"), "{results:?}");
+    assert_eq!(engine.undo_len(), history + 2);
+    let settings = |request: &str| {
+        &results.iter().find(|reply| reply["request_id"] == request).unwrap()["value"]["snapshot"]["settings"]
+    };
+    assert_eq!(settings("crop")["start_ms"], 250.75);
+    assert_eq!(settings("crop")["end_ms"], 700.0);
+    assert_eq!(settings("through-end")["start_ms"], 300.0);
+    assert!(settings("through-end")["end_ms"].is_null());
+}

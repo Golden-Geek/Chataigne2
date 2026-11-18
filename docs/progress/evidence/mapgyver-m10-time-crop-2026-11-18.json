@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-18",
+  "gate": "M10/10",
+  "state": "functionally verified, native preview and wider qualification pending",
+  "behavior": [
+    "Typed Start and End select a shared source range. Zero End follows the available source end. Current Position and Length use crop-relative time.",
+    "A paused seek to the maximum keeps the exact control position and displays the last in-range image. Hard-loop frame intervals are half-open source PTS windows on the shared clock.",
+    "Crop edits preserve the current source coordinate when possible and invalidate old decode windows. Stop and Matrix Play from Start return to the crop start.",
+    "Shorter channels hold their last image. The blend duration is limited by the shortest known crop intersection. A replacement ending at or before Start gives a zero-length unavailable crop while retaining the authored endpoints."
+  ],
+  "software": {
+    "videoFilter": { "MapGyverPassed": 130, "GoldenVideoPassed": 3 },
+    "additionalFocused": "3 SourceRange tests, 6 loop timeline tests, current Rust/TypeScript contract check, and typed command parity passed",
+    "coverage": "Forward and reverse window bounds, 1,000 exact hard seam offsets, seek/step, shared mixed-duration policy, shorter-file crop recovery, Matrix start, atomic typed history, QuickJS null End, independent copy and reload",
+    "checks": ["root and Golden Core cargo fmt", "strict clippy", "MapGyver Svelte check: 0 errors, 0 warnings", "Prettier", "bundled app compilation"]
+  },
+  "native": {
+    "fixture": "apps/mapgyver/tests/browser/native-video-time-crop.mjs",
+    "appSha256": "fdcfa40ebeb35b4dd692e869b430d9629a1eee39419ff3e87e02d6deccac607a",
+    "checkout": "Working checkout including existing unrelated local workspace edits",
+    "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "adapterKey": "dxgi:00000000:000155d6",
+    "result": "pass",
+    "source": "1600 ms numbered 160×120 H.264 at 10 fps",
+    "cropMs": [400, 1200],
+    "lengthMs": 800,
+    "heldCaptureAssertions": 14,
+    "frameAtCropZero": 4,
+    "frameAtExactEnd": 11,
+    "hardFrameSequence": [6, 7, 8, 9, 10, 11, 4, 5, 6, 7, 8, 9, 10, 11, 4, 5, 6, 7, 8, 9, 10, 11, 4],
+    "hardWrapsMs": [[795.3761, 3.2148], [797.04645, 6.34675], [797.90505, 6.35985]],
+    "smoothWrapsMs": [[791.8181, 200.21085], [795.7602, 204.18105]],
+    "liveSpeed": 0.5,
+    "scope": "Real bundled Inspector Start/End and Undo/Redo, clamped Position, step bounds, Loop-off terminal hold, hard-loop SDK frame order, smooth crop overlap and held Reference pixels, a live typed crop change, open End and project roundtrip."
+  },
+  "return": {
+    "trigger": "Retained Video qualification after functional features, or a reproduced dependent correctness issue",
+    "checks": ["moving native Media Preview parity across the crop seams", "native mixed-duration channels and replacement boundary cases", "wider moving/reverse crop boundary qualification"]
+  }
+}

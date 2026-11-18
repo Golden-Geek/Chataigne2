@@ -72,8 +72,8 @@ is coalesced and deferred until the session ends or its client disconnects, then
 Other targets keep receiving feedback. These runtime markers reset when a Parameter is removed
 and never enter persistence/history. Availability bounds can carry their own revision guard.
 Current Position uses this transient storage with the generic `time_slider` Inspector. The
-Video owner normalizes every actual seek to the currently known longest-channel timeline,
-including zero while duration is unknown. Duration feedback updates the same Parameter's
+Video owner normalizes every seek to the effective crop-relative timeline, including zero
+while duration is unknown. Duration feedback updates the same Parameter's
 availability range; shrinking it clamps the visible value. Requests beyond a shorter duration
 are not remembered and revived when metadata later extends the timeline. A new media/project
 lifetime starts at zero. Repeated seeks are normal Parameter intents, with no separate
@@ -87,25 +87,31 @@ This scalar clock feedback does not establish decoded-frame latency or performan
 complete native transport acceptance remains M10/5 work.
 
 Background metadata probing supplies the longest authored channel duration, including variants
-without render consumers. Each channel samples at the lesser of
-that shared position and its own duration, holding its final frame while longer channels run.
+without render consumers. Typed Start and End define a shared half-open crop. A zero End in
+the Inspector follows source duration. An authored End beyond current footage is retained
+and clipped at runtime. If a replacement ends at or before the saved Start, Length is zero
+and the stream withdraws its image until a valid range returns.
+
+Position and Length are crop-relative. At the exact maximum, a seek reports End and samples
+the last frame in the crop. Crop edits reanchor at the current source position clamped to
+the new range. Stop and Matrix Play from Start use crop zero. A shorter channel holds its
+last image when the shared source coordinate exceeds its duration.
 Temporary file loss must retain last-known metadata; clearing a channel's authored File is a
 different operation from an unavailable endpoint. No whole-file timestamp index is required.
 
 Timeline discontinuities issue a new Golden Time epoch. Changing future Speed while paused
 or repeating Pause preserves the current frame neighbours, so an immediate Step stays valid.
-Loop cycles are separately fenced, including
-reverse boundaries, so an old seek result cannot publish into a later cycle at the same wrapped
-position. Frame stepping pauses at an exact timestamp supplied by the selected channel's
-decoder. The worker prepares the current, previous and next presentation timestamps; neither
-the UI nor the operation adapter divides by a nominal frame rate.
+Loop cycles are separately fenced, including reverse boundaries, so an old seek result
+cannot publish into a later cycle at the same wrapped position. Golden Video clips decoded
+presentation intervals to the active range and preserves their original source PTS for
+diagnostics. The worker supplies exact frame neighbours for stepping without estimating a
+nominal frame rate. A hard loop uses the integer-nanosecond crop length every cycle.
 
 Auto-Smooth Loop is a typed millisecond duration in the generic Inspector. Loop off disables
 the editor, preserves the value and uses ordinary playback. A zero duration also uses the
-ordinary path. The longest known channel still supplies the shared transport duration. The
-effective overlap is capped at half the shortest known channel duration, and a shorter
-channel holds its final frame before the shared seam. An unknown-duration file cannot
-publish frames until its own duration is known.
+ordinary path. The effective overlap is capped at half the shortest known channel's
+intersection with the crop. A range with no shared intersection uses the hard loop. An
+unknown-duration file cannot publish frames until its own duration is known.
 
 Golden Video projects the current clock position to two file timestamps inside the overlap.
 The incoming weight is smoothstep of the overlap progress. After the first seam, playback

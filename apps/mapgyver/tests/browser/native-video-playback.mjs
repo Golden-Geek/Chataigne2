@@ -274,9 +274,14 @@ try {
 		assert.deepEqual((await state(reference.media)).settings, {
 			mode: 'Paused',
 			position_ms: 0,
+			start_ms: 0,
+			end_ms: null,
 			speed: 1,
 			looping: false,
-			play_at_load: false
+			auto_smooth_loop_ms: 0,
+			play_at_load: false,
+			on_activate: 'PlayFromStart',
+			on_deactivate: 'Stop'
 		});
 		const speedInput = parameter('Speed').locator('input.number-field');
 		for (const speed of [0.5, 1]) {
@@ -602,9 +607,14 @@ try {
 	assert.deepEqual((await state(first.media)).settings, {
 		mode: 'Paused',
 		position_ms: 0,
+		start_ms: 0,
+		end_ms: null,
 		speed: 0.5,
 		looping: true,
-		play_at_load: false
+		auto_smooth_loop_ms: 0,
+		play_at_load: false,
+		on_activate: 'PlayFromStart',
+		on_deactivate: 'Stop'
 	});
 	await pixels('Loaded HAP Reference resets runtime position', 0, 'hap');
 	assert.equal((await state(copied.media)).settings.position_ms, 0);

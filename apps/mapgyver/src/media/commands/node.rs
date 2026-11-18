@@ -90,6 +90,11 @@ use std::sync::Arc;
         picture_file: File = File::default() (label = "File");
         video_file: File = File::default() (label = "File");
         video_position_ms: f64 = 0.0 [0.0..9000000000000.0] (label = "Position", widget = "time", unit = "ms", constraint_policy = "reject");
+        video_start_ms: f64 = 0.0 [0.0..9000000000000.0] (
+            label = "Start", widget = "time", unit = "ms", constraint_policy = "reject");
+        video_end_ms: f64 = 0.0 [0.0..9000000000000.0] (
+            label = "End", description = "Zero follows the source end.", widget = "time", unit = "ms",
+            constraint_policy = "reject");
         video_speed: f64 = 1.0 [-16.0..16.0] (label = "Speed", constraint_policy = "reject");
         video_looping: bool = false (label = "Loop");
         video_auto_smooth_loop_ms: f64 = 0.0 [0.0..9000000000000.0] (
@@ -212,6 +217,13 @@ impl MediaCommandNode {
                 media,
                 edit: super::super::video::protocol::VideoEdit::AutoSmoothLoop {
                     duration_ms: self.video_auto_smooth_loop_ms.get(),
+                },
+            },
+            MediaCommandKind::VideoCrop => MediaEdit::Video {
+                media,
+                edit: super::super::video::protocol::VideoEdit::Crop {
+                    start_ms: self.video_start_ms.get(),
+                    end_ms: super::super::video::protocol::crop_end_from_parameter(self.video_end_ms.get()),
                 },
             },
             MediaCommandKind::VideoOnActivate => MediaEdit::Video {

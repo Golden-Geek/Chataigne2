@@ -12,8 +12,9 @@ function init() {
 function sourceExamples(mediaId, channelId, assetId) {
 	// local.createMedia("video", "Video", "Clip"); // one transport, one File per channel
 	// local.configureVideoFile("file", mediaId, channelId, "clips/example.mov");
+	// local.setVideoCrop("crop", mediaId, 1000, 5000); // source milliseconds; null End follows source end
 	// local.playVideo("play", mediaId); local.pauseVideo("pause", mediaId); local.stopVideo("stop", mediaId);
-	// local.seekVideo("seek", mediaId, 1250.5); // milliseconds; generic Inspector edits the same Parameter
+	// local.seekVideo("seek", mediaId, 1250.5); // crop-relative milliseconds; edits the same Parameter as the Inspector
 	// local.setVideoSpeed("speed", mediaId, 0.5); local.setVideoLoop("loop", mediaId, true);
 	// local.setVideoAutoSmoothLoop("loop-overlap", mediaId, 750); // milliseconds; 0 disables smoothing
 	// local.setVideoPlayAtLoad("load", mediaId, true);

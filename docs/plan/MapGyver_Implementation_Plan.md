@@ -10,7 +10,8 @@ See the [architecture](../architecture/mapgyver.md) and [current status](../prog
   return triggers and the execution board in the [agent ledger](../progress/mapgyver-ledger.md).
   Reconcile both before continuing; update both at each delivered milestone.
 - Deliver functional **geometry alignment (M15/9) → Video fade-loop (M10/9) →
-  Shared Texture defaults (M15/11) → subtitles (M10/8) → extended Video codecs (M10/3) →
+  Shared Texture defaults (M15/11) → Video time cropping (M10/10) → subtitles (M10/8) →
+  extended Video codecs (M10/3) →
   Golden Gradient (M15/10) → deferred deep verification → M09**.
   This user revision supersedes older per-feedback full-matrix and acceptance-first ordering.
 - For each small feedback slice, finish all owning-layer changes and run one targeted validation
@@ -158,6 +159,11 @@ retained, and M15/11 is Accepted. The amendment adds one gate (**121 → 122**).
 gates at the geometry checkpoint count as **85%** across this scope. M10 is **5/9 (56%)** and
 phase completion is **8/16 (50%)**.
 
+
+**User Video time-cropping amendment, 2026-11-18.** M10/10 follows M15/11
+Shared Texture defaults and precedes M10/8 subtitles. This adds one gate (122 → 123).
+Current acceptance is 105/123 (85%), M10 is 5/10 (50%), and eight of sixteen phases are Accepted.
+
 ## Entry, order and delivery
 
 1. Read AGENTS.md, this plan and the compact status page. Reconcile the checkout, current
@@ -176,7 +182,7 @@ phase completion is **8/16 (50%)**.
    remaining M14 features (9 → 10 → 8 → 2) →
    current M15/8 Screen-handle links → M15 next color/Group feedback (12 → 13 → 14 → 15) →
    M15/9 geometry alignment → M10/9 Video fade-loop → M15/11 sender defaults →
-   M10/8 subtitles → M10/3 DXV/WebP → M15/10 Gradient →
+   M10/10 Video time cropping → M10/8 subtitles → M10/3 DXV/WebP → M15/10 Gradient →
    remaining acceptance closure → M09 final qualification**.
    M08's shared configuration/runtime contract precedes dependent Matrix app controls; this
    dependency does not authorize two active gates. Deliver their coherent slices sequentially.
@@ -334,7 +340,7 @@ Counts refer to the numbered acceptance gates below, not commits or elapsed work
 | M11 | Feedback: stable rendering, simpler authoring, shared UX          | Existing M04–M08 product contracts; one gate at a time                     | 10    |
 | M12 | Feedback: stable panels, Matrix groups/layout, polish             | Existing M04–M11 contracts; one gate at a time                             | 11    |
 | M13 | Latest feedback: smooth interaction, Matrix controls, media UX    | Existing M04–M12 functional contracts; one gate at a time                  | 14    |
-| M10 | Tiered Video playback, transport, seeking, fade-loop and subtitles | Functional 1,2,5,6,7 accepted. Remaining features follow the 2026-11-18 Video amendment. | 9 |
+| M10 | Tiered Video playback, transport, seeking, fade-loop, time cropping and subtitles | Functional 1,2,5,6,7 accepted. Time cropping and fade-loop retain qualification. | 10 |
 | M14 | Shared 2D interaction, Composition, Screen and Matrix feedback    | Accepted M10 functional gates 1,2,5–7; retained qualification stays queued | 10    |
 | M15 | Latest feedback: controls, colors/Groups, presets, editors, Gradient | Public Golden contracts; finish 8, then 12–15, then 9–11 before Video | 15    |
 | M09 | Actual-app qualification and Windows artifact                     | All retained feature/qualification gates, including M10–M15                | 1     |
@@ -1156,11 +1162,11 @@ gates **5 → 6 → 7** before gate-4 acceptance; complete low-priority gate **8
 gate 3, before M09. Preserve the current M10/4 checkpoint and sole-active-gate discipline;
 select gate 5 at the next product boundary, retaining gate 4's exact return requirements.
 **Current override, 2026-11-18:** functional gates 1,2,5,6,7 are accepted. Fade-loop (9)
-is functionally verified and awaits full qualification. Sender defaults precede subtitles,
+is functionally verified and awaits full qualification. Time cropping follows sender defaults and precedes subtitles,
 then extended codecs, Gradient and retained qualification. The older first-pass-before-M14 wording above
 does not select the next gate. Preserve every bundled/runtime, recovery and performance
 requirement; a reproduced correctness dependency on the active feature path still takes precedence.
-M10 has nine gates. This functional checkpoint adds no acceptance and preserves existing budgets.
+M10 has ten gates. Fade-loop and time cropping are functionally verified and retain qualification.
 Use existing verified functional contracts; retain unrelated open qualification in its explicit
 return queue.
 Video has **one transport per media and one file per channel**; References only mirror outputs.
@@ -1247,7 +1253,8 @@ Library capability is not acceptance of any codec/profile in MapGyver.
    Verify all enum combinations, zero/nonzero/interrupted transitions, same-video reactivation,
    shared consumers, manual transport interaction, Matrix enabled/Layer Stop contracts, and
    UI/script/headless parity, history/copy/reload with actual native playback observations.
-8. **Low priority — disableable subtitles container.** Owners: MapGyver Video's typed subtitle
+8. **Low priority — disableable subtitles container.** Deliver after Video time cropping (gate 10).
+   Owners: MapGyver Video's typed subtitle
    authoring and source-selection policy; reusable parsing/rendering mechanisms belong in Golden.
    Add a container that can be disabled, an enum listing available subtitles, typed subtitle
    **Size**, **Font** and **Positioning** settings, and a **File** Parameter for local subtitles.
@@ -1279,6 +1286,28 @@ Library capability is not acceptance of any codec/profile in MapGyver.
    [Functional checkpoint](../progress/evidence/mapgyver-m10-fade-loop-2026-11-18.json).
    Return in retained qualification for moving preview/output pixels, mixed/reverse playback,
    relink and device recovery, and the wider resource/consumer cases.
+
+10. **Video time cropping.** Deliver after M15/11 and before gate 8. MapGyver owns the Video
+    range and transport policy. Golden Video owns reusable timestamp sampling and loop preparation.
+    Expose typed **Start** and **End** time Parameters in the generic Inspector for the shared
+    Video transport. Default to the full source range. Validate the range in the backend against
+    the available duration and define bounded behavior when files or channel durations change.
+    **Current Position** uses crop-relative time. Position `0` maps to source **Start** and its
+    maximum, `End − Start`, maps to source **End**. The read-only **Length** is `End − Start`.
+    Apply those bounds to seek, scrub and frame stepping. Stop and Matrix Play from Start return
+    to crop-relative zero.
+    Treat **End** as exclusive during playback. At the exact maximum, a paused seek reports the
+    endpoint and displays the last in-range frame. Use source presentation timestamps for a
+    frame-perfect hard-loop seam, from the last in-range frame back to the first, without a
+    duplicated or skipped boundary frame or cumulative drift. Auto-Smooth Loop uses the cropped
+    tail and head, bounds overlap to the cropped duration, and resumes after the consumed overlap.
+    Use frame-numbered fixtures to verify endpoint seeks and steps, playback with Loop disabled,
+    repeated hard and smooth loops, crop edits while paused or playing, and mixed channel
+    durations. Check native preview/output and Reference parity, all caller paths, Undo/Redo,
+    independent copy and project reload.
+    [Functional checkpoint](../progress/evidence/mapgyver-m10-time-crop-2026-11-18.json).
+    Return for moving native Media Preview, mixed-duration and replacement cases, and wider
+    reverse/native crop checks during retained Video qualification.
 
 Use frame-numbered fixtures for exact seeks, mixed frame rates and stale-seek rejection.
 Record cold/warm seek latency, timestamp accuracy, sustained throughput and per-format software
