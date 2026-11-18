@@ -95,6 +95,12 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
     if let MatrixEdit::LaunchColumn { column, mode } = edit {
         return super::controls::launch_column(engine, media, column, mode);
     }
+    if let MatrixEdit::NavigateColumn { direction } = edit {
+        return super::controls::matrix_pulse(engine, media, super::controls::Action::NavigateColumn(direction));
+    }
+    if let MatrixEdit::NavigateColumnGroup { direction } = edit {
+        return super::controls::matrix_pulse(engine, media, super::controls::Action::NavigateColumnGroup(direction));
+    }
     if matches!(edit, MatrixEdit::InspectPlayback) {
         return super::playback::inspect(engine, media);
     }
@@ -151,7 +157,9 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         MatrixEdit::InspectTargets { .. } => unreachable!(),
         MatrixEdit::DropColumnItem { .. } => unreachable!(),
         MatrixEdit::InspectViewport { .. } => unreachable!(),
-        MatrixEdit::LaunchColumn { .. } => unreachable!(),
+        MatrixEdit::LaunchColumn { .. }
+        | MatrixEdit::NavigateColumn { .. }
+        | MatrixEdit::NavigateColumnGroup { .. } => unreachable!(),
         MatrixEdit::InspectPlayback => unreachable!(),
         MatrixEdit::ClearPlayback => unreachable!(),
         MatrixEdit::Inspect => {

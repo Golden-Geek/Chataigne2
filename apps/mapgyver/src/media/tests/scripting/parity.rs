@@ -29,6 +29,14 @@ fn named_invocation(operation: &MediaEdit) -> String {
     let (method, args) = match operation {
         MediaEdit::Matrix {
             media,
+            edit: crate::matrix::protocol::MatrixEdit::NavigateColumn { direction },
+        } => ("navigateMatrixColumn", serde_json::json!([media, direction])),
+        MediaEdit::Matrix {
+            media,
+            edit: crate::matrix::protocol::MatrixEdit::NavigateColumnGroup { direction },
+        } => ("navigateMatrixColumnGroup", serde_json::json!([media, direction])),
+        MediaEdit::Matrix {
+            media,
             edit: crate::matrix::protocol::MatrixEdit::Preset { edit },
         } => {
             use crate::matrix::protocol::MatrixPresetEdit;

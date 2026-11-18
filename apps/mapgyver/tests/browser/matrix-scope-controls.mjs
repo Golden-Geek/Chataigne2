@@ -145,7 +145,7 @@ export async function verifyMatrixScopeControls({ page, matrix, wait, sent }) {
 		await trigger(cell(0, 0), 'play');
 		await trigger(cell(1, 1), 'play');
 		const control = all
-			? page.locator('[data-matrix-stop-all]')
+			? page.locator('[data-matrix-control="stop_all"]')
 			: page.locator(`[data-matrix-control="stop"][data-owner-uuid="${owner}"]`);
 		const parameter = Number(await control.getAttribute('data-parameter-id'));
 		assert(Number.isSafeInteger(parameter) && parameter > 0);

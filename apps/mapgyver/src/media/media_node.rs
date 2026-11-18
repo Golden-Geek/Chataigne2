@@ -4,6 +4,7 @@ use super::{
     protocol::{ChannelDefinition, MediaFitMode, MediaKind},
 };
 use crate::matrix::protocol::{EmptyCellPolicy, MatrixSettings};
+use crate::matrix::{controls::Action as MatrixControl, protocol::MatrixNavigationDirection as Direction};
 use golden_core::{
     node,
     node::{Node, ParameterHandle, ParameterValidationContext, UserContainerRules, UserCreatableItem},
@@ -36,6 +37,14 @@ use std::sync::OnceLock;
             enum_options = crate::parameters::enum_options(&["Manual", "Auto"]), constraint_policy = "reject");
         empty_cell: Enum = "Transparent" (label = "Empty cell", enum_options = crate::parameters::enum_options(&["Transparent"]));
         stop_all: ParamValue = ParamValue::Trigger() (label = "Stop All", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Matrix);
+        previous_column: ParamValue = ParamValue::Trigger() (
+            label = "Previous Column", dependency = |node: &Self| node.kind() == MediaKind::Matrix);
+        next_column: ParamValue = ParamValue::Trigger() (
+            label = "Next Column", dependency = |node: &Self| node.kind() == MediaKind::Matrix);
+        previous_column_group: ParamValue = ParamValue::Trigger() (
+            label = "Previous Column Group", dependency = |node: &Self| node.kind() == MediaKind::Matrix);
+        next_column_group: ParamValue = ParamValue::Trigger() (
+            label = "Next Column Group", dependency = |node: &Self| node.kind() == MediaKind::Matrix);
         video_play: ParamValue = ParamValue::Trigger() (label = "Play", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
         video_pause: ParamValue = ParamValue::Trigger() (label = "Pause", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
         video_stop: ParamValue = ParamValue::Trigger() (label = "Stop", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
@@ -203,8 +212,31 @@ impl MediaNode {
             }
         }
     }
-    pub(crate) fn stop_all_parameter(&self) -> Option<golden_core::node::NodeId> {
-        (self.kind() == MediaKind::Matrix).then(|| self.stop_all.id())
+    fn matrix_control_parameters(&self) -> [(MatrixControl, golden_core::node::NodeId); 5] {
+        [
+            (MatrixControl::StopAll, self.stop_all.id()),
+            (
+                MatrixControl::NavigateColumn(Direction::Previous),
+                self.previous_column.id(),
+            ),
+            (MatrixControl::NavigateColumn(Direction::Next), self.next_column.id()),
+            (
+                MatrixControl::NavigateColumnGroup(Direction::Previous),
+                self.previous_column_group.id(),
+            ),
+            (
+                MatrixControl::NavigateColumnGroup(Direction::Next),
+                self.next_column_group.id(),
+            ),
+        ]
+    }
+    pub(crate) fn matrix_control_parameter(&self, action: MatrixControl) -> Option<golden_core::node::NodeId> {
+        if self.kind() != MediaKind::Matrix {
+            return None;
+        }
+        self.matrix_control_parameters()
+            .into_iter()
+            .find_map(|(control, parameter)| (control == action).then_some(parameter))
     }
     pub(crate) fn claim_control(&mut self, action: crate::matrix::controls::Action, token: uuid::Uuid) -> bool {
         self.pulses.claim(action, token)
@@ -520,11 +552,13 @@ impl Node for MediaNode {
             self.publish_video(ctx, Some((parameter, value)));
             return;
         }
-        if parameter == self.stop_all.id() {
-            if self.kind() == MediaKind::Matrix {
-                self.pulses
-                    .invoke(ctx, &self.node_data, crate::matrix::controls::Action::StopAll);
-            }
+        if self.kind() == MediaKind::Matrix
+            && let Some(action) = self
+                .matrix_control_parameters()
+                .into_iter()
+                .find_map(|(action, id)| (id == parameter).then_some(action))
+        {
+            self.pulses.invoke(ctx, &self.node_data, action);
             return;
         }
         self.membership.advance();

@@ -23,23 +23,30 @@ smoothstep interpolation; Linear remains selectable on overrides. Cut still uses
 Column v3 and Cell v4 reject the former schemas, and the generated transition DTO exposes
 `Smooth` without an old-name alias. Generic Golden widgets own metadata, entry and history.
 
-The current M13/6 slice provides these intrinsic Trigger Parameters:
+Matrix provides these intrinsic Trigger Parameters:
 
 | Owner                 | Declaration                         | Behavior                                                                                         |
 | --------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------ |
 | Column                | `parameters/play`, `parameters/cut` | Configured transition or immediate launch of that Column.                                        |
 | Cell                  | `parameters/play`, `parameters/cut` | Independent launch on its Layer, preserving the Column anchor and other Layers.                  |
 | Matrix media          | `parameters/stop_all`               | Immediate Cut to empty across the base Column and every independent Layer request.               |
+| Matrix media          | Previous/Next Column and Previous/Next Column Group | Configured launch in document order, scoped to Columns or top-level Column Groups. |
 | Layer                 | `parameters/stop`                   | Fade the complete current mix using resolved Cell → Column → Layer duration/curve; zero cuts.     |
 | Layer Group           | `parameters/stop`                   | Cut every playing clip on its current descendant Layers.                                         |
 | Column / Column Group | `parameters/stop`                   | Cut matching Column clips across every Layer, including independent launches and outgoing clips. |
 | Cell                  | `parameters/stop`                   | Cut only that Layer/Column address, preserving other outgoing contributions on the Layer.        |
 
-The Matrix grid's top-left Stop All uses Golden's ordinary Trigger editor on that same
-Parameter. Compact grid Play and Stop buttons send Parameter intents to their exact real
-nodes, using Golden's declaration-only child index. The previous Installed dropdown is
-removed. Runtime submission markers remain observational; pressing a control does not
-claim the renderer has submitted a frame.
+The Matrix grid's top-left toolbar exposes Previous/Next Column, Previous/Next Column Group
+and Stop All. The generic Inspector exposes the same Triggers. Compact grid Play and Stop
+buttons send Parameter intents to their exact nodes using Golden's declaration-only child
+index. Runtime submission markers report frames independently of these triggers.
+
+Column navigation follows the document order through nested Column Groups. Group navigation
+steps among top-level Column Groups, skipping Groups without an enabled Column. A Group
+launches its first enabled descendant Column with the configured transition. The Matrix's
+last requested Column anchors both controls. An ungrouped Column anchors Group navigation at
+its own position in the axis. After Stop All, Next starts from the beginning and Previous
+starts from the end. Navigation at a boundary holds the current playback.
 
 `controls::Pulses` captures an owner UUID and action into Golden's existing bounded operation
 service. The service resolves current ownership and rejects missing, disabled or mismatched
@@ -87,8 +94,11 @@ clears those inputs as well as independent playback. Previously captured render/
 plans remain owned until their consumers release them; these controls do not bypass GPU
 completion or process retirement barriers.
 
-High-level `LaunchColumn`, `LaunchCell` and `ClearPlayback` resolve and fire those same real
-Parameters. This also covers grid double-click/context actions, script and command callers.
+High-level `LaunchColumn`, `LaunchCell`, `NavigateColumn`, `NavigateColumnGroup` and
+`ClearPlayback` resolve and fire those same real Parameters. This also covers grid double-click,
+context actions, script and command callers. Named script methods `navigateMatrixColumn` and
+`navigateMatrixColumnGroup` take a Matrix ID and `"Previous"` or `"Next"`. `unloadMatrix` fires
+Stop All.
 Their `MatrixControlInvoked` result identifies the owner and Parameter UUIDs. It acknowledges
 the invocation; deferred playback admission and frame submission are separate observations.
 Callers inspect playback for applied state; deferred rejection appears as a warning on the

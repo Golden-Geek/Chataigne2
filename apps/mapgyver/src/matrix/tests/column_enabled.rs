@@ -4,7 +4,7 @@ use super::{
 };
 use golden_core::node::{Node, NodeUuid};
 
-fn enabled(engine: &mut AppEngine, uuid: NodeUuid, value: bool) {
+pub(super) fn enabled(engine: &mut AppEngine, uuid: NodeUuid, value: bool) {
     let node = engine.node_id_by_uuid(uuid).unwrap();
     let ack = apply_project_intent(
         engine,

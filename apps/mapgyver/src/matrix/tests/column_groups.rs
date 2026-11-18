@@ -1,7 +1,7 @@
 use super::*;
 use crate::applications::protocol::{ApplicationId, ApplicationWindow};
 
-fn group(engine: &mut AppEngine, media: MediaId, parent: Option<ColumnGroupId>) -> ColumnGroupId {
+pub(super) fn group(engine: &mut AppEngine, media: MediaId, parent: Option<ColumnGroupId>) -> ColumnGroupId {
     let MediaEditResult::MatrixColumnGroupCreated { group } =
         edit(engine, media, MatrixEdit::AddColumnGroup { parent, label: None })
     else {
@@ -10,7 +10,12 @@ fn group(engine: &mut AppEngine, media: MediaId, parent: Option<ColumnGroupId>) 
     group
 }
 
-fn nested_columns(engine: &mut AppEngine, media: MediaId, parent: ColumnGroupId, count: u16) -> Vec<ColumnId> {
+pub(super) fn nested_columns(
+    engine: &mut AppEngine,
+    media: MediaId,
+    parent: ColumnGroupId,
+    count: u16,
+) -> Vec<ColumnId> {
     let MediaEditResult::MatrixCreated { columns, .. } = edit(
         engine,
         media,

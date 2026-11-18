@@ -251,7 +251,7 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 			() => grid.getByTitle('Layer 1 / Column 5', { exact: true }).getAttribute('data-requested'),
 			(value) => value === 'false'
 		);
-		await grid.locator('[data-matrix-stop-all]').click();
+		await grid.getByRole('button', { name: 'Trigger Stop All', exact: true }).click();
 		await wait(runtime, (s) =>
 			s.applications.some(
 				(a) => a.runtime === runtimeId && a.phase === 'Idle' && a.process_id === null
@@ -306,7 +306,7 @@ export async function verifyColumnApplicationsUi({ base, edit }) {
 		);
 		assert.equal(retained.applications.find((a) => a.runtime === runtimeId).process_id, pid);
 		assert.equal(retained.applications.find((a) => a.runtime === runtimeId).launch, held.launch);
-		await grid.locator('[data-matrix-stop-all]').click();
+		await grid.getByRole('button', { name: 'Trigger Stop All', exact: true }).click();
 		await wait(runtime, (s) =>
 			s.applications.some(
 				(a) => a.runtime === runtimeId && a.phase === 'Idle' && a.process_id === null

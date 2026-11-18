@@ -5,13 +5,25 @@
 		owner,
 		field,
 		label,
+		title = label,
 		icon = stopIcon,
+		tinted = false,
 		disabled = false
 	}: {
 		owner: string;
-		field: 'play' | 'cut' | 'stop';
+		field:
+			| 'play'
+			| 'cut'
+			| 'stop'
+			| 'stop_all'
+			| 'previous_column'
+			| 'next_column'
+			| 'previous_column_group'
+			| 'next_column_group';
 		label: string;
+		title?: string;
 		icon?: string;
+		tinted?: boolean;
 		disabled?: boolean;
 	} = $props();
 	const session = $derived(appState.session);
@@ -60,9 +72,25 @@
 <IconButton
 	{icon}
 	{label}
+	{title}
+	class={tinted ? 'matrix-tinted-trigger' : undefined}
+	style={tinted ? `--matrix-trigger-glyph: url("${icon}")` : undefined}
 	disabled={readOnly}
 	onclick={invoke}
 	data-matrix-control={field}
 	data-owner-uuid={owner}
 	data-parameter-uuid={parameter?.uuid}
 	data-parameter-id={parameter?.node_id} />
+
+<style>
+	:global(.matrix-tinted-trigger img) {
+		display: none;
+	}
+	:global(.matrix-tinted-trigger::before) {
+		content: '';
+		inline-size: 1.2rem;
+		block-size: 1.2rem;
+		background-color: currentColor;
+		mask: var(--matrix-trigger-glyph) center / contain no-repeat;
+	}
+</style>

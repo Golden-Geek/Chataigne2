@@ -1,9 +1,9 @@
 # MapGyver — simple status
 
 - **Updated:** 18 November 2026.
-- **Overall plan acceptance:** `█████████░` **85% — 105/123 checks accepted, 8/16 phases complete**. The time-cropping amendment adds one gate.
-- **Latest delivered:** Select a Video channel and open **Subtitles** in the Inspector. Each channel has its own embedded track or local file, size, font and position.
-- **Working on next:** Extended Video codecs.
+- **Overall plan acceptance:** `████████░░` **77% — 106/137 checks accepted, 8/17 phases complete**. Matrix transport passed.
+- **Latest delivered:** Use the Matrix editor’s top-left icons to step between Columns or top-level Column Groups, or to Stop All.
+- **Working on next:** Previous/Next Cell on each Matrix Layer.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -22,6 +22,7 @@
 - [x] **Display recovery:** the previously tested unplug/replug and monitor-rearrangement cases.
 - [x] **Composition:** owned media, transforms, front/back ordering, contextual actions, enable state and zero-scale handling.
 - [x] **Matrix:** Layers, Columns, Cells, Groups, sparse scrolling, media drops/copies/references and normal playback/crossfades.
+- [x] **Matrix transport:** top-left Previous/Next Column, Previous/Next top-level Column Group and Stop All. The same triggers are in the Inspector. Keyboard, script and transport checks passed. [Checks](evidence/mapgyver-m16-matrix-transport-2026-11-18.json)
 - [x] **Matrix selection/colors:** only explicitly selected objects highlight; modifier multiselection works; Layers/Columns/Cells/Groups show Golden custom colors. Inspector color edits, Undo, copies and reload pass focused checks.
 - [x] **Matrix color menus:** right-click Layers, Cells, Columns and both Group kinds to Set Color / Reset Color. Shared picker, grouped Undo/Redo, empty Cells, unchanged multiselection, Inspector synchronization, offscreen access and reload pass.
 - [x] **Compact Layer Groups:** one-line headers; Opacity/Blend Mode in the Inspector. Nested/empty collapse, hidden selection, Undo/Redo, old/new projects, reload and scaled/narrow geometry pass.
@@ -41,8 +42,22 @@
 
 ## Next features — implementation order
 
-1. **Extended Video codecs:** DXV and WebP/animated WebP.
-2. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+1. **NOW — Layer transport.** Add Previous/Next Cell on each Layer.
+2. **Column Group transport.** Play starts the first Column. Previous/Next steps through direct Columns and Groups.
+3. **Cell Auto Next.** Choose None, End of Media or Specific Time. Video can advance early by the transition duration.
+4. **Previous/Next wait modes.** Launch directly, after the first active finite medium ends, or after all active finite media end.
+5. **Matrix transition indicators.** Animate the green bottom lines on Cells and Columns to show incoming and outgoing weight.
+6. **Empty Cell hover.** Keep the outline visible over the `+` button.
+7. **Compact Matrix controls.** Place a vertical Opacity slider on the right and use a smaller Blend Mode control without a visible label.
+8. **Audio output and routing.** Use Golden Audio for device output and playback across Video and Matrix. Map virtual channels to physical outputs in Preferences and set per-channel volume on Video media.
+9. **Video intro and loop.** Loop the end of one file or play a separate loop file, with optional separate loop audio.
+10. **Matrix Cell audio.** Use the media's audio, give the Cell its own audio, or play audio only.
+11. **OSCQuery for all Golden apps.** Implement discovery, undoable node edits and live feedback in Golden Core, with configurable ports per app.
+12. **Seamless previews.** Remove black flashes in Surface Editor and Media Preview, and reuse the source when two Surfaces share media.
+13. **Linked outlines in Screen Warping.** Fix outline flicker while dragging linked handles.
+14. **Extended Video formats.** Add DXV, WebP (including animated WebP), and MKV playback
+    with selectable embedded subtitles and audio tracks.
+15. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 

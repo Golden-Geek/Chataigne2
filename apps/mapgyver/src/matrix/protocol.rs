@@ -564,6 +564,12 @@ pub enum MatrixEdit {
         column: ColumnId,
         mode: LaunchMode,
     },
+    NavigateColumn {
+        direction: MatrixNavigationDirection,
+    },
+    NavigateColumnGroup {
+        direction: MatrixNavigationDirection,
+    },
     InspectPlayback,
     ClearPlayback,
     Inspect,
@@ -692,6 +698,12 @@ pub enum CellGeometryEdit {
 pub enum LaunchMode {
     Configured,
     Cut,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub enum MatrixNavigationDirection {
+    Previous,
+    Next,
 }
 
 /// Committed desired state, distinct from UI selection and actual renderer installation.

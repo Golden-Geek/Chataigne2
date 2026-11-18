@@ -8,6 +8,7 @@ use golden_core::node::{Node, NodeId};
 use std::{collections::HashMap, sync::Arc};
 mod cell_layout;
 mod group_spans;
+pub(super) mod navigation;
 pub(crate) use cell_layout::inspect as inspect_cells;
 
 pub(crate) struct ViewIndex {
@@ -19,6 +20,7 @@ pub(crate) struct ViewIndex {
     columns: Vec<(ColumnId, NodeId)>,
     axis: Vec<ColumnItemId>,
     groups: HashMap<ColumnGroupId, (ColumnGroupSnapshot, NodeId)>,
+    top_level_groups: Vec<ColumnGroupId>,
     axis_depth: u8,
     column_nodes: HashMap<ColumnId, NodeId>,
     column_positions: HashMap<ColumnId, usize>,
@@ -137,6 +139,13 @@ impl ViewIndex {
                 .map(|g| g.depth + 1)
                 .max()
                 .unwrap_or(0),
+            top_level_groups: document
+                .snapshot
+                .column_groups
+                .iter()
+                .filter(|group| group.parent.is_none())
+                .map(|group| group.id)
+                .collect(),
             groups: document
                 .snapshot
                 .column_groups

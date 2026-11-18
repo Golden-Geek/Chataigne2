@@ -125,6 +125,8 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         media,
         edit:
             operation @ (crate::matrix::protocol::MatrixEdit::LaunchColumn { .. }
+            | crate::matrix::protocol::MatrixEdit::NavigateColumn { .. }
+            | crate::matrix::protocol::MatrixEdit::NavigateColumnGroup { .. }
             | crate::matrix::protocol::MatrixEdit::ClearPlayback),
     } = edit
     {

@@ -1,4 +1,8 @@
 //! Real Parameter pulses enter the same bounded app-operation service as script commands.
+use super::{
+    protocol::{LaunchMode, MatrixNavigationDirection},
+    view::navigation::{self, AxisTarget},
+};
 use crate::{
     app::{AppEngine, AppNode},
     media::protocol::{MediaEditResult, MediaId, MediaKind},
@@ -23,6 +27,8 @@ pub(crate) enum Action {
     Cut,
     StopAll,
     Stop,
+    NavigateColumn(MatrixNavigationDirection),
+    NavigateColumnGroup(MatrixNavigationDirection),
 }
 
 #[derive(Deserialize, Serialize)]
@@ -109,7 +115,7 @@ impl Pulses {
 fn pulse(engine: &mut AppEngine, owner: NodeId, action: Action) -> Result<MediaEditResult, String> {
     let node = engine.nodes.get(owner).ok_or("Matrix control owner is missing")?;
     let parameter = match (node, action) {
-        (AppNode::Media(node), Action::StopAll) => node.stop_all_parameter(),
+        (AppNode::Media(node), action) => node.matrix_control_parameter(action),
         (AppNode::MatrixColumn(node), action) => node.control_parameter(action),
         (AppNode::MatrixCell(node), action) => node.control_parameter(action),
         _ => None,
@@ -175,9 +181,13 @@ pub(super) fn launch_cell(
 }
 
 pub(super) fn clear(engine: &mut AppEngine, media: MediaId) -> Result<MediaEditResult, String> {
+    matrix_pulse(engine, media, Action::StopAll)
+}
+
+pub(super) fn matrix_pulse(engine: &mut AppEngine, media: MediaId, action: Action) -> Result<MediaEditResult, String> {
     super::playback::root(engine, media)?;
     let id = engine.node_id_by_uuid(media.0).ok_or("Matrix is missing")?;
-    pulse(engine, id, Action::StopAll)
+    pulse(engine, id, action)
 }
 
 fn launch_action(mode: super::protocol::LaunchMode) -> Action {
@@ -231,15 +241,21 @@ pub(crate) fn apply(
         ancestor = node.node_data().parent;
     }
     let media = media.ok_or("control is outside a Matrix")?;
-    let mode = match invocation.action {
-        Action::Play => super::protocol::LaunchMode::Configured,
-        Action::Cut => super::protocol::LaunchMode::Cut,
-        Action::StopAll | Action::Stop => super::protocol::LaunchMode::Cut,
+    let mode = if invocation.action == Action::Cut {
+        LaunchMode::Cut
+    } else {
+        LaunchMode::Configured
     };
     let result: MediaEditResult = match (node, invocation.action) {
         (_, Action::Stop) => super::stops::stop(engine, media, invocation.owner)?,
         (AppNode::Media(owner), Action::StopAll) if owner.kind() == MediaKind::Matrix => {
             super::playback::unload(engine, media)?
+        }
+        (AppNode::Media(owner), Action::NavigateColumn(direction)) if owner.kind() == MediaKind::Matrix => {
+            navigation::launch(engine, media, direction, AxisTarget::Column)?
+        }
+        (AppNode::Media(owner), Action::NavigateColumnGroup(direction)) if owner.kind() == MediaKind::Matrix => {
+            navigation::launch(engine, media, direction, AxisTarget::TopLevelGroup)?
         }
         (AppNode::MatrixColumn(_), Action::Play | Action::Cut) => {
             super::playback::launch(engine, media, super::protocol::ColumnId(invocation.owner), mode)?

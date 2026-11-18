@@ -24,6 +24,8 @@ pub(super) const METHODS: &[&str] = &[
     "inspectVideoFrame",
     "inspectVideoSource",
     "inspectVideoSubtitles",
+    "navigateMatrixColumn",
+    "navigateMatrixColumnGroup",
     "dropMatrixMedia",
     "transferMatrixCell",
     "captureMatrixPreset",
@@ -121,6 +123,7 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "dropCompositionMedia" => 7,
         "createCompositionMedia" => 6,
         "transformCompositionMedia" | "arrangeCompositionMedia" => 4,
+        "navigateMatrixColumn" | "navigateMatrixColumnGroup" => 2,
         "dropMatrixMedia" => 5,
         "transferMatrixCell" => 5,
         "captureMatrixPreset" | "updateMatrixPreset" | "recallMatrixPreset" | "deleteMatrixPreset" => 2,
@@ -132,6 +135,18 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         return Err(format!("{method} expects a request id and {count} argument(s)"));
     }
     Ok(Some(match method {
+        "navigateMatrixColumn" => MediaEdit::Matrix {
+            media: MediaId(uuid(args, 0)?),
+            edit: crate::matrix::protocol::MatrixEdit::NavigateColumn {
+                direction: choice(args, 1)?,
+            },
+        },
+        "navigateMatrixColumnGroup" => MediaEdit::Matrix {
+            media: MediaId(uuid(args, 0)?),
+            edit: crate::matrix::protocol::MatrixEdit::NavigateColumnGroup {
+                direction: choice(args, 1)?,
+            },
+        },
         "captureMatrixPreset"
         | "updateMatrixPreset"
         | "recallMatrixPreset"

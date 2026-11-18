@@ -134,10 +134,7 @@ export async function verifyMatrixAppearance({
 	await page.emulateMedia({ reducedMotion: 'reduce' });
 	assert.equal(await cell.evaluate((node) => getComputedStyle(node).transitionDuration), '0s');
 	await page.emulateMedia({ reducedMotion: 'no-preference' });
-	await panel
-		.locator('[data-matrix-stop-all]')
-		.getByRole('button', { name: 'Trigger Stop All', exact: true })
-		.click();
+	await panel.getByRole('button', { name: 'Trigger Stop All', exact: true }).click();
 	await wait(
 		() => cell.getAttribute('data-submitted'),
 		(value) => value === 'false'

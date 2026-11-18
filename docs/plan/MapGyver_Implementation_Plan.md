@@ -9,9 +9,10 @@ See the [architecture](../architecture/mapgyver.md) and [current status](../prog
 - The simple status file above is the user's single progress view. Keep exact gates, evidence,
   return triggers and the execution board in the [agent ledger](../progress/mapgyver-ledger.md).
   Reconcile both before continuing; update both at each delivered milestone.
-- Deliver functional **geometry alignment (M15/9) → Video fade-loop (M10/9) →
-  Shared Texture defaults (M15/11) → Video time cropping (M10/10) → subtitles (M10/8) →
-  extended Video codecs (M10/3) →
+- Deliver functional **M15 color/Group feedback (12–15) → geometry alignment (M15/9) →
+  Video fade-loop (M10/9) → Shared Texture defaults (M15/11) → Video time cropping (M10/10) →
+  subtitles (M10/8) → SGF Matrix feedback (M16/7–14) → earlier SGF feedback (M16/1–6) →
+  extended Video formats (M10/3) →
   Golden Gradient (M15/10) → deferred deep verification → M09**.
   This user revision supersedes older per-feedback full-matrix and acceptance-first ordering.
 - For each small feedback slice, finish all owning-layer changes and run one targeted validation
@@ -50,8 +51,8 @@ gate and suspended desktop state; select M13/1 at the next product-delivery boun
 checkpointing that gate, retaining every unfinished qualification gate and its return trigger.
 
 The user's **2026-11-08 feedback** is incorporated in **M14** as ten acceptance gates.
-**Video first pass (M10/1,2,4: common codecs, HAP and bundled integration, without DXV/WebP)
-comes first, then M14, then extended codecs (M10/3) and remaining acceptance closure.**
+**Video first pass (M10/1,2,4: common codecs, HAP and bundled integration)
+comes first, then M14, then extended formats (M10/3) and remaining acceptance closure.**
 This explicit priority overrides the earlier all-feedback-before-Video ordering above and below.
 Unrelated M03/9, M08/4, M12/8 and M13 qualification no longer prevent first-pass Video product
 delivery; their complete requirements, failures and investigation limits remain in the return
@@ -67,13 +68,13 @@ Do not schedule further qualification of those accepted scopes unless new user f
 reproduced dependency defect warrants it. This supersedes their older return requirements and
 closes two fixed gates by explicit user decision. M14/8's new 4x AA implementation and functional
 checks remain required; this acceptance does not implement that feature. Continue M10 first
-pass, M14 and extended codecs in the order above. Other ownership, recovery, correctness,
+pass, M14 and extended formats in the order above. Other ownership, recovery, correctness,
 memory and final-product requirements remain unchanged.
 
 The user's **2026-11-09 Video feedback** is incorporated in **M10/5–8** below.
 **High priority: transport Parameters (5), smooth paused/playing seek (6) and Matrix transport
 policy (7), all required before first-pass Video acceptance. Low priority: subtitles (8), after
-M14 and extended codecs, before M09.** Keep M10/4 as the sole active gate and checkpoint its
+M14 and extended formats, before M09.** Keep M10/4 as the sole active gate and checkpoint its
 current work before selecting the new high-priority gates at the next product boundary.
 Earlier M10/1–2 evidence retains its tested scope; it does not verify the changed controls or
 reported seek regression. This planning amendment adds four pending gates and implements nothing.
@@ -113,14 +114,14 @@ Video software failures remain required correction/rerun work before M09; sequen
 evidence does not establish a full parallel-suite pass.
 Retain unfinished MapGyver selection/navigation and every other gate in the return queue.
 M14/3–5,7 acceptance adds four verified gates; the denominator is unchanged.
-Then finish extended codecs,
+Then finish extended formats,
 subtitles and retained acceptance before M09, subject to the M15 priority below. The user also
 freshly observed native NVIDIA Overlay Off on this date; record that observation with any
 actual run, not as qualification.
 
 **Latest feedback and execution-order revision, 2026-11-17:**
 [Latest Feedback.md](../../Latest%20Feedback.md) is incorporated in **M15** as eleven fixed
-acceptance gates. **All remaining Video work follows this feedback:** M10/3 extended codecs,
+acceptance gates. **All remaining Video work follows this feedback:** M10/3 extended formats,
 M10/8 subtitles and retained M10/4 qualification return after M15. The remaining M14 feature
 order is **9 → 10 → 8 → 2**; all four are functionally delivered with qualification Pending.
 M15/1–4 controls, Matrix selection/colors, appearance and configuration presets are Accepted
@@ -147,22 +148,30 @@ These additions are **next in line afterward: 12 → 13 → 14 → 15**, before 
 M15/9–11 or Video work. Do not interrupt or park M15/8 to start this feedback.
 Keep one gate Active. This supersedes older next-feature ordering, adds no implementation or
 acceptance, and preserves every existing requirement and return trigger. M15 now has 15 gates;
-overall scope is **121**, with **100 accepted (83%)** and **8/16 phases complete (50%)**.
+overall scope is **121**, with **99 accepted (82%)** and **8/16 phases complete (50%)**.
 
 **User Video amendment and task order, 2026-11-18:** add **M10/9 Video auto-smooth looping**.
 After the current color/Group tasks M15/12–15, deliver **geometry alignment (M15/9) →
 Video fade-loop (M10/9) → Shared Texture defaults (M15/11) → subtitles (M10/8) →
-extended Video codecs (M10/3) → Golden Gradient (M15/10)**, then retained qualification
-and M09. This supersedes conflicting all-M15-before-Video and codec-before-subtitles ordering
-above and below. M15/9 is Accepted. M10/9 is functionally verified, with full qualification
+extended Video formats (M10/3) → Golden Gradient (M15/10)**, then retained qualification
+and M09. This supersedes the earlier ordering of M15, subtitles and extended formats.
+M15/9 is Accepted. M10/9 is functionally verified, with full qualification
 retained, and M15/11 is Accepted. The amendment adds one gate (**121 → 122**). The 104 accepted
 gates at the geometry checkpoint count as **85%** across this scope. M10 is **5/9 (56%)** and
-phase completion is **8/16 (50%)**.
+phase completion is **8/16 (50%)** before the SGF amendment.
 
+**SGF Feedback priority, 2026-11-18.** Deliver [M16](#m16--deliver-sgf-feedback-after-subtitles)
+immediately after M10/8 subtitles and before M10/3 extended formats. M16 adds six Pending
+gates and one phase, bringing acceptance at that amendment from
+104/122 (85%) to **104/128 (81%)** and phase completion to **8/17 (47%)**.
 
-**User Video time-cropping amendment, 2026-11-18.** M10/10 follows M15/11
-Shared Texture defaults and precedes M10/8 subtitles. This adds one gate (122 → 123).
-Current acceptance is 105/123 (85%), M10 is 5/10 (50%), and eight of sixteen phases are Accepted.
+**User Video time-cropping amendment, 2026-11-18.** Deliver **M10/10** after M15/11 Shared
+Texture defaults and immediately before M10/8 subtitles. This adds one Pending gate within M10.
+Overall acceptance is **104/129 (81%)**, M10 is **5/10 (50%)**, and phase completion is **8/17 (47%)**.
+
+**New SGF Matrix feedback, 2026-11-18.** Deliver **M16/7–14** after the subtitle functional
+checkpoint, followed by **M16/1–6**, starting with audio output and routing. This adds eight gates
+and brings the plan to **137 gates** across **17 phases**.
 
 ## Entry, order and delivery
 
@@ -181,14 +190,15 @@ Current acceptance is 105/123 (85%), M10 is 5/10 (50%), and eight of sixteen pha
    M10 functional Video (1 → 2 → 5 → 6 → 7, accepted) →
    remaining M14 features (9 → 10 → 8 → 2) →
    current M15/8 Screen-handle links → M15 next color/Group feedback (12 → 13 → 14 → 15) →
-   M15/9 geometry alignment → M10/9 Video fade-loop → M15/11 sender defaults →
-   M10/10 Video time cropping → M10/8 subtitles → M10/3 DXV/WebP → M15/10 Gradient →
-   remaining acceptance closure → M09 final qualification**.
+   M15/9 geometry alignment → M10/9 Video fade-loop → M15/11 Shared Texture defaults →
+   M10/10 Video time cropping → M10/8 subtitles → M16/7–14 SGF Matrix feedback →
+   M16/1–6 earlier SGF feedback → M10/3 extended formats (DXV, WebP and MKV) →
+   M15/10 Golden Gradient → remaining acceptance closure → M09 final qualification**.
    M08's shared configuration/runtime contract precedes dependent Matrix app controls; this
    dependency does not authorize two active gates. Deliver their coherent slices sequentially.
    M10/1,2,5,6,7 are accepted for their tested scopes. The 2026-11-14 user revision selects
    M14 now while M10/4 qualification stays in the explicit return queue and blocks M09.
-   The 2026-11-18 amendment interleaves remaining M15 and M10 features. It preserves the
+   The 2026-11-17 revision puts M15 before every remaining M10 gate; it preserves the
    user-deferred M14/1 and blocked M14/6 return requirements for acceptance closure before M09.
    M13/4's existing failed numerical evidence remains historical under the user's acceptance
    above; do not requalify that scope without new feedback or a reproduced dependency defect.
@@ -312,7 +322,7 @@ Historical batches, pauses and execution instructions in the
   cancellation, project/device fencing and completion-based final-use retirement.
 - No compatibility layer is planned. Version changed document structures explicitly and reject
   unsupported old records clearly; never reinterpret old records silently.
-- M10/5–8 own the Video feedback; M15 owns the latest feedback contract and explicitly
+- M10/5–10 own the Video feedback; M15 owns the latest feedback contract and explicitly
   supersedes conflicting M04–M14 behavior. Unchanged M13/M14 requirements remain binding.
   Authored/playback controls are real Golden nodes and
   Parameters, including triggers and optional-Parameter metadata. Interaction feedback must
@@ -321,9 +331,10 @@ Historical batches, pauses and execution instructions in the
 ## Milestones and dependencies
 
 IDs remain stable. Accepted M10 functional gates **1,2,5,6,7 → remaining M14 features →
-M15 → remaining Video → retained acceptance closure → M09** is the current execution order.
-M10/4 remains unfinished and release-blocking, with return after M15. M04–M14 retain earlier
-evidence within its tested scope; M15 owns the latest changed contracts.
+M15/12–15 → M15/9 → M10/9 → M15/11 → M10/10 → M10/8 → M16/7–14 → M16/1–6 → M10/3 → M15/10 →
+retained acceptance closure → M09** is the current execution order.
+M10/4 remains unfinished and release-blocking, with return in retained acceptance closure.
+Earlier evidence retains its tested scope. M16 owns the new SGF contracts.
 Counts refer to the numbered acceptance gates below, not commits or elapsed work.
 
 | ID  | Outcome                                                           | Functional dependency                                                      | Gates |
@@ -340,10 +351,11 @@ Counts refer to the numbered acceptance gates below, not commits or elapsed work
 | M11 | Feedback: stable rendering, simpler authoring, shared UX          | Existing M04–M08 product contracts; one gate at a time                     | 10    |
 | M12 | Feedback: stable panels, Matrix groups/layout, polish             | Existing M04–M11 contracts; one gate at a time                             | 11    |
 | M13 | Latest feedback: smooth interaction, Matrix controls, media UX    | Existing M04–M12 functional contracts; one gate at a time                  | 14    |
-| M10 | Tiered Video playback, transport, seeking, fade-loop, time cropping and subtitles | Functional 1,2,5,6,7 accepted. Time cropping and fade-loop retain qualification. | 10 |
+| M10 | Tiered Video playback, transport, seeking, fade-loop, time cropping and subtitles | Functional 1,2,5,6,7 accepted; remaining features follow the 2026-11-18 task order | 10    |
 | M14 | Shared 2D interaction, Composition, Screen and Matrix feedback    | Accepted M10 functional gates 1,2,5–7; retained qualification stays queued | 10    |
-| M15 | Latest feedback: controls, colors/Groups, presets, editors, Gradient | Public Golden contracts; finish 8, then 12–15, then 9–11 before Video | 15    |
-| M09 | Actual-app qualification and Windows artifact                     | All retained feature/qualification gates, including M10–M15                | 1     |
+| M15 | Latest feedback: controls, colors/Groups, presets, editors, Gradient | Public Golden contracts; 12–15, then 9; 11 and 10 interleave with Video as ordered above | 15    |
+| M16 | SGF Feedback: Matrix transport and UI, audio, OSCQuery and editor fixes | M10/8 subtitles → M16/7–14 → M16/1–6                                | 14    |
+| M09 | Actual-app qualification and Windows artifact                     | All retained feature/qualification gates, including M10–M16                | 1     |
 
 ### M00 — Reconcile and define evidence
 
@@ -1155,18 +1167,20 @@ one phase, preserving every older unfinished acceptance requirement and numeric 
 ### M10 — Deliver Video playback in codec tiers
 
 **2026-11-08 priority:** deliver **gates 1 → 2 → 4** as the first pass before M14; defer
-**gate 3 (DXV/WebP)** until after M14. Gate 4 qualifies the complete first-pass codec set and
-does not depend on gate 3. Gate 3 subsequently includes bundled integration/recovery/performance
-for its added codecs under the same gate-4 contracts. **2026-11-09 amendment:** add high-priority
+**gate 3 (extended formats)** until after M14. Gate 4 qualifies the complete first-pass codec set
+independently of gate 3. Gate 3 subsequently includes bundled integration/recovery/performance
+for its added formats under the same gate-4 contracts. **2026-11-09 amendment:** add high-priority
 gates **5 → 6 → 7** before gate-4 acceptance; complete low-priority gate **8** after M14 and
 gate 3, before M09. Preserve the current M10/4 checkpoint and sole-active-gate discipline;
 select gate 5 at the next product boundary, retaining gate 4's exact return requirements.
-**Current override, 2026-11-18:** functional gates 1,2,5,6,7 are accepted. Fade-loop (9)
-is functionally verified and awaits full qualification. Time cropping follows sender defaults and precedes subtitles,
-then extended codecs, Gradient and retained qualification. The older first-pass-before-M14 wording above
+**Current override, 2026-11-17:** functional gates 1,2,5,6,7 are accepted; all remaining
+Video work (3,8 and retained 4) follows M15. The older first-pass-before-M14 wording above
 does not select the next gate. Preserve every bundled/runtime, recovery and performance
 requirement; a reproduced correctness dependency on the active feature path still takes precedence.
-M10 has ten gates. Fade-loop and time cropping are functionally verified and retain qualification.
+**Latest override, 2026-11-18:** after M15/12–15, deliver M15/9 → M10/9 → M15/11 →
+M10/10 → M10/8 → M16/7–14 → M16/1–6 → M10/3 → M15/10, then retained qualification and M09.
+Video time cropping precedes subtitles. M10 has ten gates. Fade-loop and time cropping are
+functionally verified with full qualification Pending.
 Use existing verified functional contracts; retain unrelated open qualification in its explicit
 return queue.
 Video has **one transport per media and one file per channel**; References only mirror outputs.
@@ -1193,8 +1207,17 @@ Library capability is not acceptance of any codec/profile in MapGyver.
    Parameters, commands/functions/callbacks/snippets and UI/script/headless/history/project parity.
 2. **Performance playback:** HAP, HAP Alpha, HAP Q, concurrent high-resolution files and shared
    consumers; compressed textures, alpha/color correctness and one decoder/render owner.
-3. **Extended compatibility:** DXV and WebP, including animated WebP. Record codec/profile variants
-   individually; unverified variants remain explicit follow-up requirements within this gate.
+3. **Extended format compatibility.** Support DXV, WebP (including animated WebP), and
+   Matroska (`.mkv`) playback with selectable embedded subtitle and audio tracks.
+   Golden Video owns MKV demuxing and stream discovery. MapGyver Video exposes per-channel
+   track selection through typed Parameters in the generic Inspector. Show embedded track
+   names and languages when available, and define defaults and fallback behavior for missing
+   or unsupported tracks. Reuse the M10/8 subtitle controls and M16/1 Golden Audio routing.
+   Verify in the bundled app with MKV fixtures containing multiple distinguishable subtitle
+   and audio tracks. Switch tracks during playback without resetting the shared transport,
+   verify subtitle timing and audio/video sync through seek, crop and loop, and verify that
+   selections survive project reload. Record supported container, codec and profile combinations
+   individually. Unverified variants remain explicit follow-up requirements within this gate.
 4. **First-pass bundled integration (after gates 1 and 2):** pinned redistribution/build/license
    dependencies, exact seek fixtures, bounded file/decode workers and queues,
    coalesced superseding seeks/stale-result rejection,
@@ -1206,11 +1229,12 @@ Library capability is not acceptance of any codec/profile in MapGyver.
    Expose **Playing** as read-only status and **Play**, **Pause**, **Stop** as trigger Parameters.
    Add authored boolean **Play at Load**, default false; enabling it starts playback on project/
    media load when the file is ready, respecting cancellation and current transport intents.
-   Expose video **Length** as a read-only time Parameter, reflecting the longest loaded channel.
+   Expose video **Length** as a read-only time Parameter, reflecting the longest loaded channel
+   for uncropped media. Gate 10 defines the cropped Length and Current Position bounds.
    Remove **Seek To**. Replace it with one editable time Parameter, **Current Position**, which
-   also receives actual transport feedback. Backend-owned bounds are **0 to the longest video
-   duration across channels**, updated when files/channels change, so the generic Inspector
-   automatically presents a ranged slider and no caller can seek outside that interval.
+   also receives actual transport feedback. For uncropped media, backend-owned bounds are
+   **0 to the longest video duration across channels**, updated when files/channels change.
+   The generic Inspector uses those bounds for its slider, and all callers use the same range.
    Suspend incoming position feedback while the user is seeking so it cannot fight the edit;
    resume authoritative feedback after the latest seek settles, without a stale-position jump.
    Unknown/unavailable duration must have truthful feedback and bounded edit behavior.
@@ -1313,16 +1337,15 @@ Library capability is not acceptance of any codec/profile in MapGyver.
 Use frame-numbered fixtures for exact seeks, mixed frame rates and stale-seek rejection.
 Record cold/warm seek latency, timestamp accuracy, sustained throughput and per-format software
 upload cost. Do not start native acceptance until prerequisite software/build checks succeed.
-Audio, effects, mesh warp, edge blending, streaming and cross-platform/cross-adapter guarantees
-remain outside this plan.
+Audio delivery is defined in M16. Effects, mesh warp, edge blending, streaming and
+cross-platform/cross-adapter guarantees remain outside the current scope.
 
 ### M14 — Apply the 2026-11-08 feedback after first-pass Video
 
 Source: the user's editor, Composition, Screen and Matrix feedback in this chat.
 Execute **now, after accepted M10/1,2,5,6,7**, under the explicit 2026-11-14 user revision;
 retain all unfinished M10/4 qualification as release-blocking. M14 and M15 precede all remaining
-Video work, including M10/3 DXV/WebP, M10/8 subtitles and retained M10/4 qualification, then
-final qualification.
+Video work in the current task order above, with retained M10/4 qualification before M09.
 The ten gates below cover every requested behavior; incorporation implements nothing and accepts no gate.
 
 **2026-11-17 execution revision:** the user prioritizes feature delivery over further
@@ -1454,8 +1477,9 @@ remaining qualification Pending in the return queue. M15/1–4,6–9,12–15 are
 delivered with native presentation qualification Pending. The 2026-11-18 amendment retains
 M15/8 as the current task through completion, then selects 12–15 before 9–11. M15/8 is now
 complete; M15/12 custom colors is also complete; M15/13 Matrix color menus is also complete; M15/14 compact Layer Groups is also complete; M15/15 nesting rails is also complete; M15/9 geometry alignment is Accepted.
-Interleave M15 and Video as specified by the 2026-11-18 Video amendment. Retain user-deferred M14/1 and blocked M14/6.
-Retain every unfinished qualification gate and its return trigger before M09.
+The current task order interleaves M15, Video and SGF Feedback. After M15/12–15, deliver
+M15/9 → M10/9 → M15/11 → M10/10 → M10/8 → M16/7–14 → M16/1–6 → M10/3 → M15/10. Retain user-deferred M14/1,
+blocked M14/6 and every other unfinished qualification gate with its return trigger before M09.
 
 Golden owns parameter admission, reusable gradients/animation, parameter bindings, shared
 selection/viewport interaction and workbench presentation mechanisms. MapGyver owns Matrix
@@ -1699,29 +1723,127 @@ overall acceptance becomes **81%**, M15 **6/15 (40%)**, and phase completion rem
 This is added scope only; no prior acceptance is removed and no new gate is accepted by planning.
 M15/8 Surface-link acceptance raises the numerator to **99/121 (82%)** and M15 to **7/15 (47%)**;
 phase completion stays **8/16 (50%)**. The denominator and all deferred gates remain unchanged.
-M15/12 object-color acceptance raises this to **100/121 (83%)**, M15 **8/15 (53%)**.
+M15/12 object-color acceptance raises this to **100/122 (82%)**, M15 **8/15 (53%)**.
 No phase completes and no retained qualification is waived.
-M15/13 Matrix color-menu acceptance raises this to **101/121 (83%)**, M15 **9/15 (60%)**.
+M15/13 Matrix color-menu acceptance raises this to **101/122 (83%)**, M15 **9/15 (60%)**.
 The fixed denominator and retained qualification are unchanged by this acceptance.
-M15/14 compact Group acceptance raises this to **102/121 (84%)**, M15 **10/15 (67%)**.
+M15/14 compact Group acceptance raises this to **102/122 (84%)**, M15 **10/15 (67%)**.
 No phase completes; no retained qualification is waived.
-M15/15 Group-rail acceptance raises this to **103/121 (85%)**, M15 **11/15 (73%)**.
+M15/15 Group-rail acceptance raises this to **103/122 (84%)**, M15 **11/15 (73%)**.
 The fixed denominator, remaining phase gates and all qualification budgets remain unchanged.
-M15/9 acceptance raises this to **104/121 (86%)**, M15 **12/15 (80%)**.
+M15/9 acceptance raises this to **104/122 (85%)**, M15 **12/15 (80%)**.
 M14/1,6 and all retained correctness, physical, recovery and performance requirements remain
 required before M09. New features follow the user's feature-first cadence; a checkpoint or a
 passing subset of checks never closes a complete gate.
 
+### M16 — Deliver SGF Feedback after subtitles
+
+After the M10/8 subtitles functional checkpoint, deliver gates **7–14 → 1–6** before returning
+to M10/3 extended formats. Deferred subtitle qualification stays in the Video return queue.
+
+Use typed Parameters and child nodes with the generic Inspector. Apply the existing validation
+cadence and retain full acceptance in the ledger until verified.
+
+#### Matrix transport and UI (M16/7–14)
+
+7. **Matrix-level transport.** Add Previous/Next Column for Matrix-wide column launches and
+   separate Previous/Next triggers for top-level Column Groups. Expose the Matrix-level
+   triggers, including Stop, as accessible icon actions in the editor's top-left area.
+   Verify ordinary and grouped columns, top-level group navigation with nested groups present,
+   Stop, and parity across editor, script and transport calls.
+8. **Layer-level transport.** Add Previous/Next Cell on each Layer. Step within that Layer
+   and preserve the Matrix's column anchor and playback on other Layers. Verify independent
+   Layer navigation with sparse, empty and disabled Cells and through all trigger entry points.
+9. **Column Group transport.** Group Play launches the first Column in that Group. Group
+   Previous/Next steps among its direct children in document order, handling both Columns
+   and nested Groups as one step each. Verify mixed and nested child order, empty Groups and
+   trigger behavior after reorder.
+10. **Cell Auto Next.** Add a typed mode with **None**, **End of Media** and **Specific Time**,
+    plus a time setting for Specific Time. End of Media initially uses Video's effective
+    playback range. Offer an option to start the next Cell one effective transition duration
+    before the Video ends so the outgoing Video keeps playing during the transition. Keep the
+    end signal extensible to other finite media and audio-only Cells. Verify disabled, timed,
+    Video-end and overlapping advances, including cropped Video and a transition longer than
+    the remaining playback time.
+11. **Previous/Next wait modes.** Apply typed **Direct**, **First Media End** and **All Media End**
+    wherever Previous/Next triggers are exposed. Direct launches immediately. First Media End
+    waits for the first active finite medium to finish, and All Media End waits for all active
+    finite media in the trigger's scope to finish. Define behavior for no eligible media and
+    looping sources. Verify single and mixed durations, repeated requests, Stop and interrupted
+    transitions so stale waits cannot launch a new target.
+12. **Matrix transition indicators.** Use the green bottom lines on Cells and Columns to
+    show live transition weight. Grow incoming lines from zero to full width with the left
+    edge anchored. Shrink outgoing lines from full width to zero with the right edge anchored.
+    Verify interrupted and immediate transitions and correct progress when rows enter the
+    virtualized viewport.
+13. **Empty Cell hover continuity.** Keep the hover outline visible as the pointer crosses
+    between an empty Cell and its `+` button. Verify the outline clears on exit and that
+    the button still opens Add Media by mouse and keyboard.
+14. **Compact Matrix opacity and blend controls.** Move Opacity to a vertical slider along
+    the right edge of the Matrix editor. Use a smaller Blend Mode control with an accessible
+    name and no visible label. Bind both to the existing typed Parameters. Verify Inspector
+    synchronization, Undo/Redo, keyboard access and layout in a narrow dock.
+
+MapGyver owns Matrix trigger scope, playback and transition decisions. The editor dispatches
+the same typed intents as scripts, transport and headless callers and uses bounded runtime
+feedback for transition indicators. Gates 7–9 update the existing M07/M12 navigation layout
+and retain the applicable M13/M14 trigger, stop and enablement contracts.
+
+#### Earlier SGF feedback (M16/1–6)
+
+Use the public `golden_audio` API for device I/O, routing and audio playback in gates 1–3.
+MapGyver owns authored routes and Video and Matrix transport policy, and maps its typed
+settings into the audio runtime configuration. [Golden Audio crate documentation](../../crates/golden_audio/README.md)
+
+1. **Audio output and routing.** Add audio-device settings in Preferences with virtual
+   channels mapped to physical output channels. Video media route audio to virtual channels
+   with per-channel volume. Keep virtual channel identities and authored routes stable when a
+   device is missing, changes layout or reconnects. Run device I/O and mixing at the runtime
+   boundary. Verify actual output, gain and channel mapping, device loss and recovery, and
+   route persistence across restart and project reload.
+2. **Video intro and loop.** Support an authored loop at the end of a single Video file or a
+   separate loop file after the intro. Allow a separate audio source for the loop. Integrate
+   both modes with Video's shared transport and document their interaction with Auto-Smooth
+   Loop. Verify intro-to-loop handoff, repeated loop seams, audio synchronization, seek and
+   stop behavior, missing-file recovery, and typed edits through history, copy and reload.
+3. **Matrix Cell audio.** Let each Cell use its media's audio, override it with its own audio,
+   or play audio without visual media. Use the same virtual output routing and existing Matrix
+   transport and transition policies. Verify each mode with native audio output, including
+   activation, transition, stop and project reload.
+4. **OSCQuery for all Golden apps.** Implement the app-agnostic service in the `golden_core`
+   transport layer and expose it through the shared Golden runtime. Provide a disableable
+   Preferences folder and a configurable port. Apps can supply their own defaults, including
+   **42000** for Chataigne and **43000** for MapGyver. Advertise enabled services through
+   Zeroconf and expose the full app node hierarchy for discovery and control. Review
+   `juce_organicui` for extension behavior. Route undoable
+   actions, manager item add/remove/reorder and all editable node metadata, including name
+   and color, through the same backend intents as local callers. Add **Copy OSC Address** to
+   node context menus and **Show OSC Address in Help** under **Preferences → Interface** for
+   the bottom-bar node help. Implement client-specific `LISTEN`, with immediate feedback for
+   isolated changes and rate-limited bundles for bursts. Verify reuse through an app-neutral
+   Golden host fixture and check the configured defaults in Chataigne and MapGyver. Verify
+   service discovery, enable/disable, port changes and recovery, hierarchy and mutation/history
+   parity, address display, subscription isolation and feedback under burst load.
+5. **Seamless Surface Editor and Media Preview switching.** Keep the last valid frame visible
+   until the replacement is ready. Reuse the live source when two Surfaces resolve to the same
+   media so changing selection avoids a reload. Fix verified occurrences in other panels if
+   they share the same lifecycle defect. Verify repeated same-source and different-source
+   switches in the native app, including rapid selection, frame continuity and source reuse.
+6. **Stable linked outlines in Screen Warping.** Reproduce the supplied linked-handle issue and
+   keep both Surface outlines on the current drag geometry throughout the gesture. Verify
+   native drags across linked Surfaces, including rapid movement, release and Undo/Redo.
+
 ### M09 — Qualify the actual app and Windows artifact
 
-**Gate 1:** after all M10–M15 feature/feedback gates, qualify the complete revised bundled Windows x64 product
-and all retained M03–M15 requirements, not only a static render or native probe. Run exact
-binary/assets/dependency
+**Gate 1:** after all M10–M16 feature/feedback gates, qualify the complete revised bundled
+Windows x64 product and all retained M03–M16 requirements. Run exact binary/assets/dependency
 identity and license checks, Rust/UI/codegen/public-boundary and affected Chataigne regressions,
 Q01/Q02 prescribed release series, revised Q03 soak, Q04 authored/active scale and full Q05
 recovery/retirement. Include seven media kinds, Media Preview, revised editors, all three output
-modes, optional app control and footer statistics through a public Golden contribution hook:
-actual video FPS, active GPU, frame time and resource usage. Publish bounded worker observations.
+modes, optional app control and SGF audio, OSCQuery, editor and Matrix transport workflows.
+The footer reports actual
+video FPS, active GPU, frame time and resource usage through a public Golden contribution hook.
+Publish bounded worker observations.
 
 The [qualification contract](../progress/mapgyver-qualification-contract.md) explicitly replaces
 the obsolete two-channel Composition fixture with single-output Composition and Reference use,

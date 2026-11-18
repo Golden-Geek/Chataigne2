@@ -29,7 +29,7 @@
 	import ColumnGroupHeaders from './ColumnGroupHeaders.svelte';
 	import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
 	import CellPreviews from './CellPreviews.svelte';
-	import StopAllControl from './StopAllControl.svelte';
+	import MatrixTransport from './MatrixTransport.svelte';
 	import ParameterTrigger from './ParameterTrigger.svelte';
 	import { rowDropTarget, type GridDrag } from './grid-drag';
 	import { CELL_DRAG_TYPE, readCellDrag, type CellDrag } from './cell-transfer';
@@ -474,7 +474,7 @@
 					style:top={`${projection.top}rem`}
 					style:height={`${projection.header}rem`}
 					style:left={`${projection.left}rem`}>
-					<StopAllControl media={snapshot.media} {disabled} />
+					<MatrixTransport media={snapshot.media} {disabled} />
 				</div>
 				<GridCreationHeaders
 					{projection}
