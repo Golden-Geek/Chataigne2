@@ -45,10 +45,27 @@ do not rebuild the index. Collapse removes descendant grid rows and preview dema
 independently selected objects remain inspectable. Authored Group settings, playback/render
 configuration and source ownership remain independent of expansion.
 
+`view/group_spans.rs` caches each visible Layer Group's row interval and Group-prefix counts.
+A viewport reply includes only Groups represented in its bounded rows and their ancestors,
+including ancestors whose headers are offscreen. Reparent/reorder and collapse reuse the
+normal view-index invalidation; no descendant list is transferred for drawing membership.
+`GroupRails` projects those intervals through the shared row geometry, clips them to the
+visible data area and sticky label gutter, and paints softly tinted rounded container wraps.
+The treatment follows Golden Inspector containers: a restrained left accent and quiet lower
+return, with row cards inset into the body. The overlay paints below the row cards, so child
+selection and hover contours never cross or compete with an ancestor's wrapping border. Clipped ends
+continue vertically instead of implying that the Group starts or ends at the viewport edge.
+The overlay sits outside the scrollport alongside Cell previews, so a viewport-sized
+decoration cannot preserve a stale scroll extent when a Group shrinks or disappears.
+Each rail reads its Group's Golden custom color or the theme accent, with inherited enabled
+state controlling emphasis. The overlay has no pointer hit targets, layout extent, preview
+lease or authored settings; selection, playback and Group compositing keep their own meaning.
+
 Row and Column header backgrounds select their real document objects, including through
 Enter and Space. Embedded rename, launch and Parameter controls retain their own input
-handling. Layer and Group titles sit at the top left, with hierarchy indentation applied
-to the title rather than reducing the controls' available width.
+handling. Layer and Group titles sit at the top left. A bounded hierarchy gutter insets the
+whole row card, including its selection contour and controls, inside ancestor wraps. A small
+gap under Layer cards exposes the container's lower return without crossing their controls.
 
 Grid selection paint reads Golden's explicit document selection by UUID, independently of
 the retained row/Column edit address. A selected Cell does not select its headers; labels

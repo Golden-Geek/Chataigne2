@@ -1385,10 +1385,10 @@ awarding acceptance or changing retained budgets.
 Source: [Latest Feedback.md](../../Latest%20Feedback.md) in the repository root, plus the user's
 instruction that remaining Video work follows this feedback. Follow the M14 feature-first
 execution revision above: selected M14 features9,10,8,2 are functionally delivered, with their
-remaining qualification Pending in the return queue. M15/1–4,6–8,12–14 are Accepted; M15/5 is functionally
+remaining qualification Pending in the return queue. M15/1–4,6–8,12–15 are Accepted; M15/5 is functionally
 delivered with native presentation qualification Pending. The 2026-11-18 amendment retains
 M15/8 as the current task through completion, then selects 12–15 before 9–11. M15/8 is now
-complete; M15/12 custom colors is also complete; M15/13 Matrix color menus is also complete; M15/14 compact Layer Groups is also complete; M15/15 nesting rails is the next Active gate.
+complete; M15/12 custom colors is also complete; M15/13 Matrix color menus is also complete; M15/14 compact Layer Groups is also complete; M15/15 nesting rails is also complete; M15/9 geometry alignment is the next Active gate.
 Deliver M15 before remaining Video, retaining user-deferred M14/1 and blocked M14/6.
 Retain every unfinished qualification gate and its return trigger before M09.
 
@@ -1601,8 +1601,13 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
     reparent/reorder and viewport clipping/scrolling. Keep rails coherent across virtualized
     rows without rendering all descendants, stealing hit targets or confusing selection/playback
     cues. Coordinate with the compact header in 14; do not remove Group rendering behavior.
+    User visual amendment: follow Inspector container styling with tinted bodies, rounded
+    returns and inset row cards; ancestor wraps must not cross child selection/hover borders.
+    [Accepted Group rails](../progress/evidence/mapgyver-m15-group-rails-2026-11-18.json) verify nested ownership/colors,
+    offscreen/clipped spans, light/dark/selected/disabled/reset states, collapse/reparent/reorder,
+    clear controls and pointer transparency in the app. M15/15 is Accepted; retained qualification is unchanged.
 
-M15/1–4,6–8,12–14 are Accepted with their owning software/native proofs;5,9–11,15 remain open.
+M15/1–4,6–8,12–15 are Accepted with their owning software/native proofs;5,9–11 remain open.
 M15/2 covers explicit/shared/modifier selection, nested/disabled/offscreen objects, Inspector
 colors, history/copy/reload, representative theme contrast and independent panels. Wider app
 stress/interruption and retained GPU/resource qualification return in the deferred pass before M09.
@@ -1631,6 +1636,8 @@ M15/13 Matrix color-menu acceptance raises this to **101/121 (83%)**, M15 **9/15
 The fixed denominator and retained qualification are unchanged by this acceptance.
 M15/14 compact Group acceptance raises this to **102/121 (84%)**, M15 **10/15 (67%)**.
 No phase completes; no retained qualification is waived.
+M15/15 Group-rail acceptance raises this to **103/121 (85%)**, M15 **11/15 (73%)**.
+The fixed denominator, remaining phase gates and all qualification budgets remain unchanged.
 M14/1,6 and all retained correctness, physical, recovery and performance requirements remain
 required before M09. New features follow the user's feature-first cadence; a checkpoint or a
 passing subset of checks never closes a complete gate.

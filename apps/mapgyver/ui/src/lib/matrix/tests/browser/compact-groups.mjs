@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 
-/** Device scale changes must preserve compact CSS geometry and pointer hit targets. */
+/** Device scale changes must preserve compact CSS geometry and pointer hit targets.
+ * @param {import('playwright-core').Browser} browser
+ * @param {string} url
+ */
 export async function compactGroupScaleChecks(browser, url) {
 	const samples = [];
 	for (const scale of [1, 1.25, 1.5]) {

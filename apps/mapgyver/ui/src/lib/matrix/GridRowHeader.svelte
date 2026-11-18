@@ -7,6 +7,8 @@
 	import RowControls from './RowControls.svelte';
 	import ParameterTrigger from './ParameterTrigger.svelte';
 	import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
+	import { gridSize } from './viewport';
+	import { rowInset } from './group-rails';
 	let {
 		row,
 		left,
@@ -56,9 +58,10 @@
 	class:custom-color={color != null}
 	use:selectOnPress={{ disabled, select }}
 	use:viewportContour={{ selected, enabled: row.item.settings.enabled, identity }}
-	style:left={`${left}rem`}
+	style:left={`${left + rowInset(row.depth)}rem`}
+	style:width={`${gridSize.label - rowInset(row.depth)}rem`}
 	title={row.item.label}>
-	<div class="row-title" style:padding-inline-start={`min(${row.depth * 0.8}rem, 40%)`}>
+	<div class="row-title">
 		{#if row.item.id.kind === 'Group'}
 			<button
 				class="group-toggle"
@@ -92,7 +95,7 @@
 		z-index: 2;
 		box-sizing: border-box;
 		width: var(--label);
-		height: var(--row);
+		height: calc(var(--row) - 0.3rem);
 		background: var(--gc-color-header);
 		padding: 0.5rem;
 		overflow: hidden;
@@ -121,9 +124,22 @@
 		background: color-mix(in srgb, var(--matrix-item-color) 18%, var(--gc-color-header));
 	}
 	.row-label.group {
-		border-left: 0.2rem solid var(--gc-color-accent);
+		height: var(--row);
 		padding-block: 0.15rem;
 		justify-content: center;
+		background: color-mix(
+			in srgb,
+			var(--matrix-item-color, var(--gc-color-accent)) 12%,
+			var(--gc-color-header)
+		);
+	}
+	.row-label.group::before {
+		content: '';
+		position: absolute;
+		inset: 0.3rem auto 0.3rem 0.15rem;
+		width: 0.12rem;
+		border-radius: 1rem;
+		background: var(--matrix-item-color, var(--gc-color-accent));
 	}
 	.group .row-title {
 		align-items: center;

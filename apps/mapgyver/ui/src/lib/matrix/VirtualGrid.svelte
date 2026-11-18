@@ -25,6 +25,7 @@
 	import type { ApplicationRuntimeSnapshot } from '../media/generated/ApplicationRuntimeSnapshot';
 	import GridLabel from './GridLabel.svelte';
 	import GridRowHeader from './GridRowHeader.svelte';
+	import GroupRails from './GroupRails.svelte';
 	import ColumnGroupHeaders from './ColumnGroupHeaders.svelte';
 	import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
 	import CellPreviews from './CellPreviews.svelte';
@@ -687,6 +688,7 @@
 			</div>
 		</div>
 		<CellPreviews {snapshot} {metrics} />
+		<GroupRails spans={snapshot.row_groups} {projection} {metrics} />
 	</div>
 </div>
 

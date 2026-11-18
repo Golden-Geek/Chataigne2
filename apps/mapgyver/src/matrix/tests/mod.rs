@@ -32,6 +32,7 @@ mod defaults;
 mod editor;
 mod enabled;
 mod front_order;
+mod group_spans;
 mod layer_geometry;
 mod layer_settings;
 mod owned_media;

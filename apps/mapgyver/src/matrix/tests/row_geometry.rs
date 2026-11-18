@@ -1,7 +1,7 @@
 use super::*;
 use golden_core::node::{Node, NodeMetaPatch};
 
-fn group(engine: &mut AppEngine, media: MediaId, parent: Option<GroupId>) -> GroupId {
+pub(super) fn group(engine: &mut AppEngine, media: MediaId, parent: Option<GroupId>) -> GroupId {
     let MediaEditResult::MatrixCreated { items, .. } =
         edit(engine, media, MatrixEdit::AddGroup { parent, label: None })
     else {

@@ -73,6 +73,9 @@
 	snapshot.rows[2].item.settings.enabled = false;
 	snapshot.row_total = 3;
 	snapshot.group_total = 1;
+	snapshot.row_groups = [
+		{ id: 'layer-group', depth: 0, start: 0, end: 2, start_groups: 0, end_groups: 1 }
+	];
 	snapshot.cells = snapshot.rows
 		.filter((row) => row.item.id.kind === 'Layer')
 		.flatMap((row) =>
@@ -156,6 +159,7 @@
 			id: { kind: row.item.id.kind, id: uuid(row.item.id.id) }
 		}
 	}));
+	snapshot.row_groups = snapshot.row_groups.map((span) => ({ ...span, id: uuid(span.id) }));
 	snapshot.columns = snapshot.columns.map((column) => ({
 		...column,
 		id: uuid(column.id),

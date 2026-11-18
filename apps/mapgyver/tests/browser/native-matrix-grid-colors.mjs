@@ -7,6 +7,7 @@ import { openNativeEditor } from './native-editor.mjs';
 import { verifyMatrixAppearance } from './matrix-appearance.mjs';
 import { verifyMatrixColumnEnabled } from './matrix-column-enabled.mjs';
 import { verifyCompactGroups, verifyExistingCompactGroup } from './matrix-compact-groups.mjs';
+import { verifyGroupRails } from './matrix-group-rails.mjs';
 
 const directory = path.resolve(process.argv[2]);
 const contextMenus = process.argv.includes('--context-menus');
@@ -317,6 +318,10 @@ try {
 	const compact = process.argv.includes('--compact-groups')
 		? await verifyCompactGroups({ page, grid, matrix, group: rowGroup, wait })
 		: null;
+	stage = 'nested Group rails';
+	const groupRails = process.argv.includes('--group-rails')
+		? await verifyGroupRails({ page, grid, matrix, context, wait, compact, directory })
+		: null;
 	stage = 'selected colored Cell remains editable offscreen';
 	await choose(cell, cellId);
 	await matrix({ kind: 'AddLayers', parent: null, count: 30 });
@@ -416,6 +421,7 @@ try {
 		appearance,
 		columnEnabled,
 		compact,
+		groupRails,
 		existing
 	};
 	await writeFile(path.join(directory, 'result.json'), JSON.stringify(result, null, 2));

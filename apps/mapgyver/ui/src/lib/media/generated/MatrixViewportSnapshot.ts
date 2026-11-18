@@ -3,6 +3,7 @@ import type { ChannelSnapshot } from "./ChannelSnapshot";
 import type { ColumnGroupId } from "./ColumnGroupId";
 import type { ColumnGroupSnapshot } from "./ColumnGroupSnapshot";
 import type { ColumnSnapshot } from "./ColumnSnapshot";
+import type { MatrixGroupSpan } from "./MatrixGroupSpan";
 import type { MatrixPlaybackSnapshot } from "./MatrixPlaybackSnapshot";
 import type { MatrixPresetSummary } from "./MatrixPresetSummary";
 import type { MatrixSelectionSnapshot } from "./MatrixSelectionSnapshot";
@@ -15,7 +16,7 @@ export type MatrixViewportSnapshot = { presets: Array<MatrixPresetSummary>, labe
 /**
  * Ephemeral media-manager instance; persisted IDs alone cannot fence project reloads.
  */
-project: string, media: MediaId, final_output: ChannelSnapshot, revision: number, row_total: number, group_total: number, column_total: number, axis_total: number, axis_depth: number, row_start: number, axis_start: number, rows: Array<MatrixViewRow>, columns: Array<ColumnSnapshot>, column_groups: Array<ColumnGroupSnapshot>, cells: Array<MatrixViewCell>, requested_column_groups: Array<ColumnGroupId>,
+project: string, media: MediaId, final_output: ChannelSnapshot, revision: number, row_total: number, group_total: number, column_total: number, axis_total: number, axis_depth: number, row_start: number, axis_start: number, rows: Array<MatrixViewRow>, row_groups: Array<MatrixGroupSpan>, columns: Array<ColumnSnapshot>, column_groups: Array<ColumnGroupSnapshot>, cells: Array<MatrixViewCell>, requested_column_groups: Array<ColumnGroupId>,
 /**
  * Inspector data is bounded independently of the virtualized grid window.
  */

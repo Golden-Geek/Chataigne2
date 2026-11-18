@@ -308,6 +308,16 @@ pub struct MatrixViewRow {
     pub collapsed: bool,
     pub has_children: bool,
 }
+/// Cached visible-row interval; the frontend supplies only viewport dimensions.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub struct MatrixGroupSpan {
+    pub id: GroupId,
+    pub depth: u8,
+    pub start: u32,
+    pub end: u32,
+    pub start_groups: u32,
+    pub end_groups: u32,
+}
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct MatrixViewCell {
     pub cell: CellSnapshot,
@@ -414,6 +424,7 @@ pub struct MatrixViewportSnapshot {
     pub row_start: u32,
     pub axis_start: u32,
     pub rows: Vec<MatrixViewRow>,
+    pub row_groups: Vec<MatrixGroupSpan>,
     pub columns: Vec<ColumnSnapshot>,
     pub column_groups: Vec<ColumnGroupSnapshot>,
     pub cells: Vec<MatrixViewCell>,

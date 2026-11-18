@@ -37,6 +37,7 @@ export function viewportResult(media: string, row = 0): MediaEditResult {
 			row_start: row,
 			axis_start: 0,
 			rows: [],
+			row_groups: [],
 			columns: [],
 			cells: [],
 			selected: null,

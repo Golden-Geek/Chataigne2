@@ -7,12 +7,14 @@ use crate::{
 use golden_core::node::{Node, NodeId};
 use std::{collections::HashMap, sync::Arc};
 mod cell_layout;
+mod group_spans;
 pub(crate) use cell_layout::inspect as inspect_cells;
 
 pub(crate) struct ViewIndex {
     rows: Vec<ViewRow>,
     visible_rows: Vec<usize>,
     visible_groups: Vec<usize>,
+    row_groups: HashMap<GroupId, MatrixGroupSpan>,
     row_positions: HashMap<MatrixItemId, usize>,
     columns: Vec<(ColumnId, NodeId)>,
     axis: Vec<ColumnItemId>,
@@ -104,6 +106,7 @@ impl ViewIndex {
             }
             visible_rows.push(position);
         }
+        let row_groups = group_spans::build(&rows, &visible_rows, visible_groups.len());
         let columns: Vec<_> = document
             .snapshot
             .columns
@@ -151,6 +154,7 @@ impl ViewIndex {
             rows,
             visible_rows,
             visible_groups,
+            row_groups,
             columns,
             column_nodes: document.columns,
             cells: document.cells,
@@ -514,6 +518,7 @@ pub(super) fn inspect(
             cells.push(cell_snapshot(engine, layer, *cell_id)?);
         }
     }
+    let row_groups = group_spans::visible(&index, &rows);
     Ok(MediaEditResult::MatrixViewport {
         snapshot: MatrixViewportSnapshot {
             presets: super::presets::summaries(engine, media)?,
@@ -544,6 +549,7 @@ pub(super) fn inspect(
             row_start: row_start as u32,
             axis_start: axis_start as u32,
             rows,
+            row_groups,
             columns,
             column_groups,
             requested_column_groups,

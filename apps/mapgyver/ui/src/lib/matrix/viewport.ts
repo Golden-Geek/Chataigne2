@@ -64,8 +64,8 @@ export function projectGrid(
 		logicalHeight = header + rowExtent + creation;
 	const canvasWidth = Math.min(maximum, logicalWidth),
 		canvasHeight = Math.min(maximum, logicalHeight);
-	const top = Math.max(0, metrics.top / rem),
-		left = Math.max(0, metrics.left / rem);
+	const top = Math.min(Math.max(0, metrics.top / rem), Math.max(0, canvasHeight - height)),
+		left = Math.min(Math.max(0, metrics.left / rem), Math.max(0, canvasWidth - width));
 	const logicalTop =
 		(top / Math.max(1, canvasHeight - height)) * Math.max(0, logicalHeight - height);
 	const logicalLeft = (left / Math.max(1, canvasWidth - width)) * Math.max(0, logicalWidth - width);

@@ -101,3 +101,13 @@ test('all-Group and million-row grids retain finite extents and bounded physical
 		assert(Number.isFinite(last.rowOrigin));
 	}
 });
+
+test('shrinking a scrolled hierarchy clamps both origins before sticky decorations can retain old overflow', () => {
+	const metrics = { top: 3000, left: 5000, width: 1200, height: 900, rem: 16 };
+	const view = projectGrid(metrics, 4, 2, 0, 1);
+	assert.equal(view.top, 0);
+	assert.equal(view.left, 0);
+	assert.equal(view.rowOrigin, view.header);
+	assert.equal(view.columnOrigin, gridSize.label);
+	assert.equal(view.viewport.row_layout?.offset, 0);
+});
