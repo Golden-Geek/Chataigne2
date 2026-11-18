@@ -1385,10 +1385,10 @@ awarding acceptance or changing retained budgets.
 Source: [Latest Feedback.md](../../Latest%20Feedback.md) in the repository root, plus the user's
 instruction that remaining Video work follows this feedback. Follow the M14 feature-first
 execution revision above: selected M14 features9,10,8,2 are functionally delivered, with their
-remaining qualification Pending in the return queue. M15/1–4,6–8,12–15 are Accepted; M15/5 is functionally
+remaining qualification Pending in the return queue. M15/1–4,6–9,12–15 are Accepted; M15/5 is functionally
 delivered with native presentation qualification Pending. The 2026-11-18 amendment retains
 M15/8 as the current task through completion, then selects 12–15 before 9–11. M15/8 is now
-complete; M15/12 custom colors is also complete; M15/13 Matrix color menus is also complete; M15/14 compact Layer Groups is also complete; M15/15 nesting rails is also complete; M15/9 geometry alignment is the next Active gate.
+complete; M15/12 custom colors is also complete; M15/13 Matrix color menus is also complete; M15/14 compact Layer Groups is also complete; M15/15 nesting rails is also complete; M15/9 geometry alignment is Accepted.
 Deliver M15 before remaining Video, retaining user-deferred M14/1 and blocked M14/6.
 Retain every unfinished qualification gate and its return trigger before M09.
 
@@ -1534,6 +1534,9 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
    avoid self-snapping, jitter and full-document scans on pointer movement. Verify move/scale,
    one/both axes, toggle-off, unavailable sources, zero-scale items, history, native/DOM alignment
    and sparse/large layouts; inspector/headless geometry must remain valid through the same API.
+   Accepted (see [geometry alignment evidence](../progress/evidence/mapgyver-m15-geometry-alignment-2026-11-18.json)). Bundled app
+   move/resize, zoom/pan, exclusion, sparse layout and history checks pass. Held Windows
+   capture places Composition edges within one physical pixel of the guides.
 10. **Gradient belongs in Golden as a reusable node and Color animation control.** Owners:
     Golden typed nodes/Parameters, animation runtime and generic Inspector/editor hooks. Expose
     a standalone Gradient node analogous to Automation and use that same generic gradient
@@ -1607,7 +1610,7 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
     offscreen/clipped spans, light/dark/selected/disabled/reset states, collapse/reparent/reorder,
     clear controls and pointer transparency in the app. M15/15 is Accepted; retained qualification is unchanged.
 
-M15/1–4,6–8,12–15 are Accepted with their owning software/native proofs;5,9–11 remain open.
+M15/1–4,6–9,12–15 are Accepted with their owning software/native proofs;5,10–11 remain open.
 M15/2 covers explicit/shared/modifier selection, nested/disabled/offscreen objects, Inspector
 colors, history/copy/reload, representative theme contrast and independent panels. Wider app
 stress/interruption and retained GPU/resource qualification return in the deferred pass before M09.
@@ -1638,6 +1641,7 @@ M15/14 compact Group acceptance raises this to **102/121 (84%)**, M15 **10/15 (6
 No phase completes; no retained qualification is waived.
 M15/15 Group-rail acceptance raises this to **103/121 (85%)**, M15 **11/15 (73%)**.
 The fixed denominator, remaining phase gates and all qualification budgets remain unchanged.
+M15/9 acceptance raises this to **104/121 (86%)**, M15 **12/15 (80%)**.
 M14/1,6 and all retained correctness, physical, recovery and performance requirements remain
 required before M09. New features follow the user's feature-first cadence; a checkpoint or a
 passing subset of checks never closes a complete gate.

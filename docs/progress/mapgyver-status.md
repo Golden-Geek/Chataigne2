@@ -1,10 +1,10 @@
 # MapGyver — simple status
 
 - **Updated:** 18 November 2026.
-- **Overall plan acceptance:** `████████░░` **85% — 103/121 checks accepted**. Nested Group rails are now accepted. Deferred verification is still counted as unfinished.
-- **Latest delivered:** Geometry snapping works in Surface Source, Composition and Matrix Layer/Cell views. The bundled app passed move, Composition/Layer resize, toggle-off and Undo/Redo checks.
-- **Working on next:** Finish geometry snapping verification, including native image alignment, crop and Cell resize, and zoom/pan.
-- **Manual action needed from you now: none.** Group-rail checks passed and the owned test window has closed.
+- **Overall plan acceptance:** `█████████░` **86% — 104/121 checks accepted**. M15/9 geometry alignment is accepted.
+- **Latest delivered:** Geometry snapping and guides work while moving and resizing in Surface Source, Composition and Matrix Layer/Cell editors. Bundled app and held native Composition pixel checks pass.
+- **Working on next:** Resume the remaining editor and Video features in the implementation plan.
+- **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
 
@@ -26,6 +26,7 @@
 - [x] **Matrix color menus:** right-click Layers, Cells, Columns and both Group kinds to Set Color / Reset Color. Shared picker, grouped Undo/Redo, empty Cells, unchanged multiselection, Inspector synchronization, offscreen access and reload pass.
 - [x] **Compact Layer Groups:** one-line headers; Opacity/Blend Mode in the Inspector. Nested/empty collapse, hidden selection, Undo/Redo, old/new projects, reload and scaled/narrow geometry pass.
 - [x] **Nested Group membership:** Inspector-inspired tinted/rounded wraps, inset child selection contours, separate nesting levels, custom/reset colors, disabled state, collapse/reparent/reorder and offscreen ancestors. Light/dark, narrow/scroll and input checks pass.
+- [x] **Geometry alignment:** edge/center snapping, colored magnet and temporary guides in Surface Source, Composition and Matrix. Move/resize, zoom/pan, toggle, Undo/Redo and held native Composition pixels pass.
 - [x] **Matrix appearance:** quieter borders, small rounded corners and a short active-Cell shadow. Selection/colors remain distinct; reduced motion works; app visual review and focused scaling/narrow-grid checks pass.
 - [x] **Column enable/disable:** Inspector toggles mute current/outgoing content; group inheritance, disabled editing, Undo, copy/reload and resume pass focused checks.
 - [x] **Matrix presets:** capture/update/rename/delete/recall Layer/Column order and enabled states; contextual menus, commands and named scripts. Paged member Inspector editing, offscreen access, Undo/Redo, copies/reload and live/outgoing playback pass. Cells stay intact.
@@ -37,11 +38,10 @@
 
 ## Next features — implementation order
 
-1. **NOW — Geometry alignment:** implemented and usable. Finish native image alignment and the remaining editor checks.
-2. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
-3. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
-4. **Extended Video codecs:** DXV and WebP/animated WebP.
-5. **Subtitles:** optional, disableable subtitle controls and display.
+1. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+2. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
+3. **Extended Video codecs:** DXV and WebP/animated WebP.
+4. **Subtitles:** optional, disableable subtitle controls and display.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 
