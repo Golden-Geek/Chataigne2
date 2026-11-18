@@ -1253,18 +1253,19 @@ Library capability is not acceptance of any codec/profile in MapGyver.
    Verify all enum combinations, zero/nonzero/interrupted transitions, same-video reactivation,
    shared consumers, manual transport interaction, Matrix enabled/Layer Stop contracts, and
    UI/script/headless parity, history/copy/reload with actual native playback observations.
-8. **Low priority — disableable subtitles container.** Deliver after Video time cropping (gate 10).
-   Owners: MapGyver Video's typed subtitle
-   authoring and source-selection policy; reusable parsing/rendering mechanisms belong in Golden.
-   Add a container that can be disabled, an enum listing available subtitles, typed subtitle
-   **Size**, **Font** and **Positioning** settings, and a **File** Parameter for local subtitles.
-   Use generic Inspector controls over those same Parameters. Define supported subtitle formats
+8. **Low priority — subtitles per Video channel.** Deliver after Video time cropping (gate 10).
+   MapGyver owns typed channel settings and source selection. Golden owns text extraction and
+   rasterization. Each Video channel has its own disableable **Subtitles** folder, **Track** enum
+   for that channel's source, and typed **Size**, **Font**, **Positioning** and local **File**
+   settings. Channels share the Video transport and can display different subtitles at the same
+   time. References reuse the selected channel's captions. Use the generic Inspector and the
+   same channel reference for typed edits, commands and scripts. Define supported subtitle formats
    and track/local-file selection semantics before implementation, using a reliable library
    where available. Verify available/absent tracks, local-file selection and missing-file recovery,
-   enable/disable, font/size/position rendering, timing during pause/seek/speed/loop, native output/
-   preview parity, shared consumers and all callers/history/copy/project roundtrip. Low priority
-   changes delivery order only; this gate remains required before M09 unless the user revises it.
-
+   enable/disable, font/size/position rendering, source-time alignment during pause/seek/speed/loop
+   on full and cropped ranges, native output/preview parity, shared consumers and all callers/
+   history/copy/project roundtrip. Low priority changes delivery order only; this gate remains
+   required before M09 unless the user revises it.
 9. **Video auto-smooth looping (fade-loop).** Owners: MapGyver Video's typed transport
    authoring/policy; reusable timestamp sampling, decode preparation and GPU blending belong
    in Golden Video. Add a real typed **Auto-Smooth Loop** time Parameter, default **0** (off),

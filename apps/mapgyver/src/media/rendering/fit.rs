@@ -10,26 +10,36 @@ pub(super) fn operation(
     intrinsic: Extent2D,
     target: Extent2D,
     mode: MediaFitMode,
+    overlay: Option<TextureId>,
 ) -> Result<RenderOperation, String> {
     let source_aspect = intrinsic.width() as f64 / intrinsic.height() as f64;
     let target_aspect = target.width() as f64 / target.height() as f64;
-    if mode == MediaFitMode::Stretch || source_aspect == target_aspect {
+    let direct = mode == MediaFitMode::Stretch || source_aspect == target_aspect;
+    if direct && overlay.is_none() {
         return Ok(RenderOperation::Sample {
             source,
             filter: SampleFilter::Linear,
         });
     }
-    let (crop, quad) = geometry(intrinsic, target, mode);
-    Ok(RenderOperation::Composite {
-        layers: vec![Layer {
-            source: source.into(),
-            opacity: Opacity::new(1.0).map_err(|error| error.to_string())?,
+    let mapping = if direct {
+        None
+    } else {
+        let (crop, quad) = geometry(intrinsic, target, mode);
+        Some(ProjectiveMapping::new(crop, quad).map_err(|error| error.to_string())?)
+    };
+    let opacity = Opacity::new(1.0).map_err(|error| error.to_string())?;
+    let layers = std::iter::once(source)
+        .chain(overlay)
+        .map(|texture| Layer {
+            source: texture.into(),
+            opacity,
             opacity_envelope: None,
             blend: BlendMode::Normal,
             filter: SampleFilter::Linear,
-            mapping: Some(ProjectiveMapping::new(crop, quad).map_err(|error| error.to_string())?),
-        }],
-    })
+            mapping,
+        })
+        .collect();
+    Ok(RenderOperation::Composite { layers })
 }
 
 /// Content geometry inside a normalized placement box; reused without an intermediate render pass.

@@ -32,58 +32,60 @@ pub(crate) fn query_operation(engine: &AppEngine, operation: &str, payload: &Val
         },
         edit => edit,
     };
-    let result =
-        match edit {
-            MediaEdit::Matrix {
-                media,
-                edit:
-                    crate::matrix::protocol::MatrixEdit::Preset {
-                        edit: crate::matrix::protocol::MatrixPresetEdit::InspectMembers { preset, after, count },
-                    },
-            } => crate::matrix::presets::inspect(engine, media, preset, after, count),
-            MediaEdit::InspectVideoSource { reference } => super::video::authoring::inspect_source(engine, reference)
-                .map(|status| MediaEditResult::VideoSource { status }),
-            MediaEdit::InspectVideoFrame { reference } => super::video::authoring::inspect_frame(engine, reference)
-                .map(|frame| MediaEditResult::VideoFrame { frame }),
-            MediaEdit::InspectVideo { media } => {
-                super::video::authoring::inspect(engine, media).map(|snapshot| MediaEditResult::Video { snapshot })
-            }
-            MediaEdit::InspectTargetPicker { query } => {
-                super::target_picker::read(engine, query).map(|page| MediaEditResult::TargetPicker { page })
-            }
-            MediaEdit::InspectPictureFile { reference } => {
-                super::picture_file::inspect(engine, reference).map(|binding| MediaEditResult::PictureFile { binding })
-            }
-            MediaEdit::InspectChannel { reference } => {
-                inspect_channel(engine, reference).map(|snapshot| MediaEditResult::Channel { snapshot })
-            }
-            MediaEdit::InspectManager => {
-                super::catalog::inspect(engine).map(|snapshot| MediaEditResult::Manager { snapshot })
-            }
-            MediaEdit::InspectChoices { query } => {
-                super::catalog::choices(engine, query).map(|page| MediaEditResult::Choices { page })
-            }
-            MediaEdit::InspectCommandCatalog => Ok(MediaEditResult::CommandCatalog {
-                commands: super::commands::catalog(),
-            }),
-            MediaEdit::InspectMediaPreview { query } => {
-                super::preview_selection::inspect(engine, query).map(|page| MediaEditResult::MediaPreview { page })
-            }
-            MediaEdit::InspectCompositionEditor { query } => super::composition::query::inspect(engine, query)
-                .map(|page| MediaEditResult::CompositionEditor { page }),
-            MediaEdit::InspectMatrixEditor { query } => {
-                crate::matrix::inspect_editor(engine, query).map(|page| MediaEditResult::MatrixEditor { page })
-            }
-            MediaEdit::InspectMatrixCells { query } => {
-                crate::matrix::inspect_cells(engine, query).map(|page| MediaEditResult::MatrixCellLayout { page })
-            }
-            MediaEdit::InspectSpatialEditor { query } => {
-                super::spatial::inspect(engine, query).map(|binding| MediaEditResult::SpatialEditor { binding })
-            }
-            MediaEdit::InspectChannels { query } => {
-                super::catalog::channels(engine, query).map(|page| MediaEditResult::Channels { page })
-            }
-            _ => return None,
-        };
+    let result = match edit {
+        MediaEdit::Matrix {
+            media,
+            edit:
+                crate::matrix::protocol::MatrixEdit::Preset {
+                    edit: crate::matrix::protocol::MatrixPresetEdit::InspectMembers { preset, after, count },
+                },
+        } => crate::matrix::presets::inspect(engine, media, preset, after, count),
+        MediaEdit::InspectVideoSource { reference } => super::video::authoring::inspect_source(engine, reference)
+            .map(|status| MediaEditResult::VideoSource { status }),
+        MediaEdit::InspectVideoFrame { reference } => {
+            super::video::authoring::inspect_frame(engine, reference).map(|frame| MediaEditResult::VideoFrame { frame })
+        }
+        MediaEdit::InspectVideo { media } => {
+            super::video::authoring::inspect(engine, media).map(|snapshot| MediaEditResult::Video { snapshot })
+        }
+        MediaEdit::InspectVideoSubtitles { reference } => super::video::authoring::inspect_subtitles(engine, reference),
+        MediaEdit::InspectTargetPicker { query } => {
+            super::target_picker::read(engine, query).map(|page| MediaEditResult::TargetPicker { page })
+        }
+        MediaEdit::InspectPictureFile { reference } => {
+            super::picture_file::inspect(engine, reference).map(|binding| MediaEditResult::PictureFile { binding })
+        }
+        MediaEdit::InspectChannel { reference } => {
+            inspect_channel(engine, reference).map(|snapshot| MediaEditResult::Channel { snapshot })
+        }
+        MediaEdit::InspectManager => {
+            super::catalog::inspect(engine).map(|snapshot| MediaEditResult::Manager { snapshot })
+        }
+        MediaEdit::InspectChoices { query } => {
+            super::catalog::choices(engine, query).map(|page| MediaEditResult::Choices { page })
+        }
+        MediaEdit::InspectCommandCatalog => Ok(MediaEditResult::CommandCatalog {
+            commands: super::commands::catalog(),
+        }),
+        MediaEdit::InspectMediaPreview { query } => {
+            super::preview_selection::inspect(engine, query).map(|page| MediaEditResult::MediaPreview { page })
+        }
+        MediaEdit::InspectCompositionEditor { query } => {
+            super::composition::query::inspect(engine, query).map(|page| MediaEditResult::CompositionEditor { page })
+        }
+        MediaEdit::InspectMatrixEditor { query } => {
+            crate::matrix::inspect_editor(engine, query).map(|page| MediaEditResult::MatrixEditor { page })
+        }
+        MediaEdit::InspectMatrixCells { query } => {
+            crate::matrix::inspect_cells(engine, query).map(|page| MediaEditResult::MatrixCellLayout { page })
+        }
+        MediaEdit::InspectSpatialEditor { query } => {
+            super::spatial::inspect(engine, query).map(|binding| MediaEditResult::SpatialEditor { binding })
+        }
+        MediaEdit::InspectChannels { query } => {
+            super::catalog::channels(engine, query).map(|page| MediaEditResult::Channels { page })
+        }
+        _ => return None,
+    };
     Some(result.and_then(|result| serde_json::to_value(result).map_err(|error| error.to_string())))
 }

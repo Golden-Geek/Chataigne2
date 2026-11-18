@@ -58,6 +58,11 @@ pub(super) fn duration(ticks: i64, base: TimeBase) -> Result<Duration, String> {
     Ok(Duration::from_nanos(nanos))
 }
 impl Reader {
+    #[cfg(all(windows, feature = "native-video"))]
+    pub(super) fn info(&self) -> &golden_video::decode::StreamInfo {
+        self.decoder.info()
+    }
+
     pub(super) fn open_companion(
         &self,
         path: &std::path::Path,

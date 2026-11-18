@@ -294,6 +294,16 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
             set(&mut engine, command, "video_start_ms", ParamValue::Float(125.25));
             set(&mut engine, command, "video_end_ms", ParamValue::Float(875.5));
         }
+        if *kind == MediaCommandKind::VideoSubtitles {
+            set(&mut engine, command, "video_subtitle_enabled", ParamValue::Bool(true));
+            set(
+                &mut engine,
+                command,
+                "video_subtitle_track",
+                ParamValue::Enum("Embedded".into()),
+            );
+            set(&mut engine, command, "video_subtitle_stream", ParamValue::Int(5));
+        }
         if *kind == MediaCommandKind::VideoOnActivate {
             set(
                 &mut engine,
@@ -327,6 +337,23 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
                 .unwrap()
                 .settings;
             assert_eq!((settings.start_ms, settings.end_ms), (125.25, Some(875.5)));
+        }
+        if *kind == MediaCommandKind::VideoSubtitles {
+            let MediaEditResult::VideoSubtitles {
+                reference,
+                settings,
+                tracks,
+            } = crate::media::video::authoring::inspect_subtitles(&engine, target).unwrap()
+            else {
+                panic!("expected Video Subtitles");
+            };
+            assert_eq!(reference, target);
+            assert!(settings.enabled);
+            assert_eq!(
+                settings.track,
+                crate::media::video::protocol::VideoSubtitleTrack::Embedded { index: 5 }
+            );
+            assert!(tracks.is_empty());
         }
         if matches!(
             kind,

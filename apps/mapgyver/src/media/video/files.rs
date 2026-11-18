@@ -37,6 +37,8 @@ mod hardware;
 mod loop_pair;
 mod pacing;
 #[cfg(all(windows, feature = "native-video"))]
+mod subtitles;
+#[cfg(all(windows, feature = "native-video"))]
 #[derive(Clone)]
 pub(crate) struct Hardware {
     pub adapter: golden_video::native::AdapterId,
@@ -175,6 +177,8 @@ impl Budget {
 #[derive(Default)]
 struct Output {
     stream: Option<Stream>,
+    #[cfg(all(windows, feature = "native-video"))]
+    subtitles: Option<ImageStream>,
     error: Option<String>,
 }
 struct Entry {
@@ -346,11 +350,17 @@ impl Files {
                 continue;
             }
             let output = Arc::new(Mutex::new(Output::default()));
+            let owner = uuid::Uuid::new_v4();
+            let _subtitle_channel = control.claim_channel(reference.channel, owner, binding.clone())?;
             let context = Run {
                 #[cfg(all(windows, feature = "native-video"))]
                 hardware: self.hardware.clone(),
-                owner: uuid::Uuid::new_v4(),
+                owner,
                 file: file.clone(),
+                #[cfg(all(windows, feature = "native-video"))]
+                project_root: self.root.clone(),
+                #[cfg(all(windows, feature = "native-video"))]
+                subtitle_channel: _subtitle_channel,
                 reference,
                 control: control.clone(),
                 output: output.clone(),
@@ -358,8 +368,6 @@ impl Files {
                 changes: self.changes.clone(),
                 notifier: self.notifier.clone(),
             };
-            let owner = context.owner;
-            control.claim_channel(reference.channel, owner, binding.clone())?;
             let worker = match BoundedWorker::spawn(
                 "mapgyver-video-file",
                 &self.pool,
@@ -419,6 +427,10 @@ impl Files {
                 .source(),
         )
     }
+    #[cfg(all(windows, feature = "native-video"))]
+    pub fn subtitles(&self, reference: ChannelReference) -> Option<ImageStream> {
+        self.entries.get(&reference)?.output.lock().ok()?.subtitles.clone()
+    }
     #[cfg(test)]
     pub fn stream(&self, reference: ChannelReference) -> Option<ImageStream> {
         match self.entries.get(&reference)?.output.lock().ok()?.stream.as_ref()? {
@@ -443,6 +455,10 @@ struct Run {
     hardware: Option<Hardware>,
     owner: uuid::Uuid,
     file: PathBuf,
+    #[cfg(all(windows, feature = "native-video"))]
+    project_root: PathBuf,
+    #[cfg(all(windows, feature = "native-video"))]
+    subtitle_channel: Arc<super::bindings::ChannelSubtitles>,
     reference: ChannelReference,
     control: Arc<VideoControl>,
     output: Arc<Mutex<Output>>,
@@ -460,11 +476,19 @@ impl Run {
     fn withdraw(&self, error: Option<String>) {
         let mut output = self.output.lock().unwrap();
         let changed = output.error != error || output.stream.is_some();
+        #[cfg(all(windows, feature = "native-video"))]
+        let changed = changed || output.subtitles.is_some();
+        #[cfg(all(windows, feature = "native-video"))]
+        let subtitles = output.subtitles.take();
         let stream = output.stream.take();
         output.error = error;
         drop(output);
         if let Some(stream) = stream {
             stream.withdraw();
+        }
+        #[cfg(all(windows, feature = "native-video"))]
+        if let Some(subtitles) = subtitles {
+            let _ = subtitles.publish(None);
         }
         if changed {
             self.changed();
@@ -546,12 +570,18 @@ impl Run {
         let mut loop_pair: Option<loop_pair::LoopPair> = None;
         let mut loop_cursor: Option<golden_video::scheduling::FrameWindow> = None;
         let mut publication_scope = None;
+        #[cfg(all(windows, feature = "native-video"))]
+        let mut subtitles = subtitles::Overlay::default();
         while !worker.cancellation().is_cancelled() {
             let turn_started = Instant::now();
             let checkpoint = worker.wake_checkpoint();
             let revision = self.control.revisions();
             let _subscription = revision.guard_at(revision.current()).subscribe(worker.wake_notifier());
+            #[cfg(all(windows, feature = "native-video"))]
+            let _subtitles = self.subtitle_channel.subscribe(worker.wake_notifier());
             let sample = self.control.sample()?;
+            #[cfg(all(windows, feature = "native-video"))]
+            subtitles.service(self, worker, &reader, sample);
             let scope = (sample.epoch, sample.cycle, sample.playing);
             if publication_scope != Some(scope) {
                 publication_scope = Some(scope);
@@ -565,7 +595,10 @@ impl Run {
                 }
             }
             if sample.source_range.is_none() {
-                worker.wait_until(checkpoint, pacing::deadline(turn_started, false, false));
+                let deadline = pacing::deadline(turn_started, false, false);
+                #[cfg(all(windows, feature = "native-video"))]
+                let deadline = subtitles.deadline(deadline);
+                worker.wait_until(checkpoint, deadline);
                 continue;
             }
             let image = if sample.needs_loop_companion() {
@@ -637,10 +670,10 @@ impl Run {
             if !sample.playing {
                 reader.prepare_previous()?;
             }
-            worker.wait_until(
-                checkpoint,
-                pacing::deadline(turn_started, sample.playing, reader.catching_up),
-            );
+            let deadline = pacing::deadline(turn_started, sample.playing, reader.catching_up);
+            #[cfg(all(windows, feature = "native-video"))]
+            let deadline = subtitles.deadline(deadline);
+            worker.wait_until(checkpoint, deadline);
         }
         Ok(())
     }

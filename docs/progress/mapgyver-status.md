@@ -2,8 +2,8 @@
 
 - **Updated:** 18 November 2026.
 - **Overall plan acceptance:** `█████████░` **85% — 105/123 checks accepted, 8/16 phases complete**. The time-cropping amendment adds one gate.
-- **Latest delivered:** Set **Start** and **End** in the Video Inspector. Position and Length follow the crop, and a zero End follows the source end.
-- **Working on next:** Video subtitles with disableable Inspector controls.
+- **Latest delivered:** Select a Video channel and open **Subtitles** in the Inspector. Each channel has its own embedded track or local file, size, font and position.
+- **Working on next:** Extended Video codecs.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -34,15 +34,15 @@
 - [x] **Video:** common H.264/HEVC/ProRes profiles and HAP; playback, loop, seek/frame stepping, transport Inspector and Matrix activation/deactivation policies.
 - [x] **Video fade-loop:** enable Loop and set **Auto-Smooth Loop** in the Video Inspector. Zero gives a hard loop. Direct and Reference output show the same held blend, and playback resumes from the part of the beginning already shown.
 - [x] **Video time cropping:** Start and End bound playback, seeking, stepping and loops. Seeking to End holds the last frame in the crop. NVIDIA numbered output, smooth-loop Reference parity and save/reload passed.
+- [x] **Video subtitles:** two channels in one Video display different captions and styles. Channel Inspector toggles, Reference pixels, held seek/crop timing, missing-file recovery and saved settings pass. [Checks](evidence/mapgyver-m10-channel-subtitles-2026-11-18.json)
 - [x] **Editor manipulation:** the smoothness improvements you accepted in Screen Warping, Surface Source and Composition.
 - [x] **Editor feedback — functional:** shared120ms hover/selection paint, softer handles, keyboard cues and reduced motion. Geometry/input stay immediate; browser and native Screen/Source input checks pass.
 - [x] **App presentation:** MapGyver identity/icon, official calibration pattern, font/menu/Inspector improvements and thumbnail Fit behavior.
 
 ## Next features — implementation order
 
-1. **NOW — Subtitles:** optional, disableable subtitle controls and display.
-2. **Extended Video codecs:** DXV and WebP/animated WebP.
-3. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+1. **Extended Video codecs:** DXV and WebP/animated WebP.
+2. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 
@@ -54,11 +54,12 @@
 6. **4× anti-aliasing:** implemented; normal/tiled output checks pass. Finish sustained 1080p/4K cost, memory/overload and recovery checks.
 7. **Video fade-loop:** finish moving-seam pixels in preview and output, reverse and multichannel cases, and file/device recovery during the overlap.
 8. **Video time cropping:** native output and Reference pixel checks passed. Verify moving Media Preview and the native mixed-duration and replacement cases.
-9. **Video performance/stress:** normal playback/seeking is usable. Intel stress efficiency, 4K latency, shared consumers, complete GPU-path and repeated codec/profile runs remain unqualified; some measurements miss their targets.
-10. **Shared Texture format coverage:** ordinary supported formats work. Remaining NVIDIA/D3D9, adapter-loss and allocation cases need matching sender/hardware coverage.
-11. **32-bit App Control retirement:** the 64-bit path works; the WOW64 accounting/retirement case still fails. Requires a correction before release.
-12. **Long-run resources and physical latency:** retained peak-memory growth and GPU/timing limits are not all met. Complete the sustained and mixed-display timing checks; fix remaining failures before release.
-13. **Full regression and Windows qualification:** reconcile/fix the remaining parallel Video and older Matrix/tool-fixture failures, then run the complete app/installer checks.
+9. **Video subtitles:** verify moving Media Preview and output at multiple speeds, including reverse and cropped hard/smooth loops. Cover channel file replacement during playback.
+10. **Video performance/stress:** normal playback/seeking is usable. Intel stress efficiency, 4K latency, shared consumers, complete GPU-path and repeated codec/profile runs remain unqualified; some measurements miss their targets.
+11. **Shared Texture format coverage:** ordinary supported formats work. Remaining NVIDIA/D3D9, adapter-loss and allocation cases need matching sender/hardware coverage.
+12. **32-bit App Control retirement:** the 64-bit path works; the WOW64 accounting/retirement case still fails. Requires a correction before release.
+13. **Long-run resources and physical latency:** retained peak-memory growth and GPU/timing limits are not all met. Complete the sustained and mixed-display timing checks; fix remaining failures before release.
+14. **Full regression and Windows qualification:** reconcile/fix the remaining parallel Video and older Matrix/tool-fixture failures, then run the complete app/installer checks.
 
 ## Checking cadence from now on
 

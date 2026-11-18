@@ -1,7 +1,10 @@
 use super::{MediaTransport, protocol::*};
 use golden_time::{PlaybackRate, SystemClock};
 use golden_video::scheduling::SourceRange;
-use std::{sync::Mutex, time::Duration};
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 mod matrix;
 #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
 pub(super) mod scheduling;
@@ -221,6 +224,19 @@ impl VideoControl {
         })
     }
     #[cfg(feature = "video-files")]
+    pub(super) fn metadata_subtitle_tracks(
+        &self,
+        channel: super::super::protocol::ChannelId,
+        generation: uuid::Uuid,
+        tracks: Vec<VideoSubtitleTrackInfo>,
+    ) -> Result<(), String> {
+        let state = self.0.lock().map_err(|_| "Video control poisoned")?;
+        if let Some(file) = state.files.get(&channel).filter(|file| file.generation == generation) {
+            file.subtitles.set_tracks(tracks)?;
+        }
+        Ok(())
+    }
+    #[cfg(feature = "video-files")]
     pub(super) fn metadata_failure(
         &self,
         channel: super::super::protocol::ChannelId,
@@ -277,11 +293,21 @@ impl VideoControl {
             .lock()
             .is_ok_and(|state| !state.retired || !state.frames.is_empty())
     }
+    #[cfg(test)]
     pub(crate) fn bind_file(
         &self,
         channel: super::super::protocol::ChannelId,
         owner: uuid::Uuid,
         locator: Option<super::super::protocol::AssetLocator>,
+    ) -> Result<(), String> {
+        self.bind_file_with_subtitles(channel, owner, locator, Arc::default())
+    }
+    pub(super) fn bind_file_with_subtitles(
+        &self,
+        channel: super::super::protocol::ChannelId,
+        owner: uuid::Uuid,
+        locator: Option<super::super::protocol::AssetLocator>,
+        subtitles: Arc<super::bindings::ChannelSubtitles>,
     ) -> Result<(), String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
         if state
@@ -294,22 +320,21 @@ impl VideoControl {
         if !state.files.contains_key(&channel) && state.files.len() >= 4096 {
             return Err("Video metadata exceeds 4096 authored channels".into());
         }
+        subtitles.set_tracks(Vec::new())?;
         state.frames.remove(channel);
-        let old = state
-            .files
-            .insert(
-                channel,
-                super::bindings::File {
-                    owner,
-                    #[cfg(any(feature = "video-files", test))]
-                    generation: uuid::Uuid::new_v4(),
-                    locator,
-                    duration: None,
-                    metadata_error: None,
-                },
-            )
-            .and_then(|file| file.duration);
-        state.duration_changed(old, None)?;
+        let old = state.files.insert(
+            channel,
+            super::bindings::File {
+                owner,
+                #[cfg(any(feature = "video-files", test))]
+                generation: uuid::Uuid::new_v4(),
+                locator,
+                duration: None,
+                subtitles,
+                metadata_error: None,
+            },
+        );
+        state.duration_changed(old.and_then(|file| file.duration), None)?;
         self.1.advance();
         drop(state);
         Ok(())
@@ -386,18 +411,22 @@ impl VideoControl {
                 .is_some_and(|file| file.generation == generation)
         })
     }
-    pub fn claim_channel(
+    pub(crate) fn claim_channel(
         &self,
         channel: super::super::protocol::ChannelId,
         owner: uuid::Uuid,
         file: super::super::protocol::AssetLocator,
-    ) -> Result<(), String> {
+    ) -> Result<Arc<super::bindings::ChannelSubtitles>, String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
-        if state.files.get(&channel).and_then(|binding| binding.locator.as_ref()) != Some(&file) {
-            return Err("Video source no longer matches its authored File".into());
-        }
+        let subtitles = state
+            .files
+            .get(&channel)
+            .filter(|binding| binding.locator.as_ref() == Some(&file))
+            .ok_or("Video source no longer matches its authored File")?
+            .subtitles
+            .clone();
         state.frames.claim(channel, owner, file);
-        Ok(())
+        Ok(subtitles)
     }
     pub fn revisions(&self) -> golden_io::RevisionReader {
         self.1.reader()

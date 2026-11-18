@@ -126,6 +126,10 @@ export const COMMAND_PARAMETER_FIELDS = {
     "media",
     "channel"
   ],
+  "InspectVideoSubtitles": [
+    "media",
+    "channel"
+  ],
   "LaunchMatrixCell": [
     "media",
     "matrix_layer",
@@ -286,5 +290,16 @@ export const COMMAND_PARAMETER_FIELDS = {
   ],
   "VideoStop": [
     "media"
+  ],
+  "VideoSubtitles": [
+    "media",
+    "channel",
+    "video_subtitle_enabled",
+    "video_subtitle_track",
+    "video_subtitle_stream",
+    "video_subtitle_file",
+    "video_subtitle_size",
+    "video_subtitle_font",
+    "video_subtitle_position"
   ]
 } as const;

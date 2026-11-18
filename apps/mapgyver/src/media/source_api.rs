@@ -19,9 +19,11 @@ pub(super) const METHODS: &[&str] = &[
     "setVideoOnDeactivate",
     "stepVideo",
     "configureVideoFile",
+    "configureVideoSubtitles",
     "inspectVideo",
     "inspectVideoFrame",
     "inspectVideoSource",
+    "inspectVideoSubtitles",
     "dropMatrixMedia",
     "transferMatrixCell",
     "captureMatrixPreset",
@@ -98,9 +100,11 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         | "setVideoPlayAtLoad"
         | "inspectVideoFrame"
         | "inspectVideoSource"
+        | "inspectVideoSubtitles"
         | "setVideoOnActivate"
         | "setVideoOnDeactivate" => 2,
         "stepVideo" | "configureVideoFile" | "setVideoCrop" => 3,
+        "configureVideoSubtitles" => 8,
         "createMedia"
         | "addChannel"
         | "configureMediaFitMode"
@@ -153,6 +157,9 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
             }
         }
         "inspectVideoSource" => MediaEdit::InspectVideoSource {
+            reference: reference(args)?,
+        },
+        "inspectVideoSubtitles" => MediaEdit::InspectVideoSubtitles {
             reference: reference(args)?,
         },
         "inspectVideoFrame" => MediaEdit::InspectVideoFrame {
@@ -234,6 +241,26 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
             reference: reference(args)?,
             file: text(args, 2)?.into(),
         },
+        "configureVideoSubtitles" => {
+            use super::video::protocol::{VideoSubtitleSettings, VideoSubtitleTrack};
+            let ParamValue::Bool(enabled) = &args[2] else {
+                return Err("Video subtitles Enabled must be boolean".into());
+            };
+            let ParamValue::Vec2(x, y) = &args[7] else {
+                return Err("Video subtitle Positioning must contain two numbers".into());
+            };
+            MediaEdit::ConfigureVideoSubtitles {
+                reference: reference(args)?,
+                settings: VideoSubtitleSettings {
+                    enabled: *enabled,
+                    track: VideoSubtitleTrack::parse(text(args, 3)?)?,
+                    file: text(args, 4)?.into(),
+                    size: number(args, 5)?,
+                    font: text(args, 6)?.into(),
+                    position: [*x, *y],
+                },
+            }
+        }
         "inspectVideo" => MediaEdit::InspectVideo {
             media: MediaId(uuid(args, 0)?),
         },

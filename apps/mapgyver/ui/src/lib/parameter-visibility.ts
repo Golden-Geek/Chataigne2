@@ -60,6 +60,8 @@ function visible(child: UiNodeDto) {
 		if (!fields.includes(field ?? '')) return false;
 		if (field === 'project_path') return choice('locator_kind') === 'ProjectRelative';
 		if (field === 'absolute_path') return choice('locator_kind') === 'Absolute';
+		if (field === 'video_subtitle_stream') return choice('video_subtitle_track') === 'Embedded';
+		if (field === 'video_subtitle_file') return choice('video_subtitle_track') === 'File';
 		return true;
 	}
 	if (owner.node_type === 'mapgyver.screen') {
@@ -84,7 +86,8 @@ function visible(child: UiNodeDto) {
 	if (field === 'source_kind') return false;
 	const source = choice('source_kind');
 	if (source === 'SolidColor') return field === 'rgba';
-	if (source === 'Picture' || source === 'Video') return field === 'file';
+	if (source === 'Picture') return field === 'file';
+	if (source === 'Video') return field === 'file' || field === 'video_subtitles';
 	if (source === 'SharedTexture') {
 		const media = parent(owner);
 		const parameters = media?.children

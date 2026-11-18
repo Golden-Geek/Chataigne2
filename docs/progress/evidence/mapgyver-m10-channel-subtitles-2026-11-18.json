@@ -1,0 +1,47 @@
+{
+  "date": "2026-11-18",
+  "gate": "M10/8",
+  "result": "functional checkpoint; full qualification pending",
+  "scope": "Independent typed subtitle settings, track discovery and rendered pixels for two Video channels with different files and a shared playback clock.",
+  "software": {
+    "subtitleTests": { "mapgyver": 3, "goldenVideo": 10 },
+    "commandAndGeneratedContractTests": 2,
+    "strictClippy": "pass",
+    "svelteCheck": { "errors": 0, "warnings": 0 },
+    "rustFormattingAndPrettier": "pass"
+  },
+  "native": {
+    "fixture": "apps/mapgyver/tests/browser/native-video-subtitles.mjs",
+    "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "build": "Isolated bundled UI build with pinned FFmpeg DLLs on PATH and Tauri resource copying disabled for this build",
+    "localReceipt": "target/m108-per-channel-subtitles/run-RU49Lg/result.json",
+    "priorFailure": "target/m108-per-channel-subtitles/run-EqwDcT/result.json",
+    "fix": "Live-route pruning retains the caption texture referenced by the Video composite.",
+    "passedPixelChecks": 19,
+    "extent": [160, 120],
+    "witnesses": [
+      {
+        "track": "fra · Track 1, then local SRT",
+        "bounds": [16, 51, 85, 61],
+        "directAndReferenceSha256": "c00223f74d11548be8c87d008e8ca5414c4eff9dabe09b89aea954de095ef1ec"
+      },
+      {
+        "track": "eng · Track 1",
+        "bounds": [97, 72, 126, 84],
+        "beforeAndAfterSiblingDisableSha256": "79cb873f65a9c60b633150e92da05691d87dbb7c94c390b941dfb8aaf8c8150f"
+      }
+    ],
+    "alsoVerified": [
+      "Separate embedded track catalogs, even when both FFmpeg stream indexes are 1",
+      "Held cue boundaries before and after seek in a cropped range",
+      "Missing local SRT clears the captions and recovers while paused",
+      "Size, font and position inputs and generic Inspector enable/disable",
+      "Normal app shutdown and independent observer retirement"
+    ]
+  },
+  "pending": [
+    "Moving native Media Preview and output at multiple speeds, including reverse and hard/smooth loop boundaries on full and cropped ranges",
+    "Broader native consumer, mixed-duration and file replacement coverage during playback",
+    "Retained Video integration, recovery, resource and both-GPU qualification"
+  ]
+}

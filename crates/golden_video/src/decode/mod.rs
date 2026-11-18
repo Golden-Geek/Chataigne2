@@ -12,6 +12,7 @@ mod image;
 mod layout;
 mod parallelism;
 mod software_pool;
+pub mod subtitles;
 pub use hap::{HapFormat, HapFrame};
 pub use image::{ConversionError, SoftwareImageConverter};
 pub use layout::{SoftwareFrameLayout, SoftwarePlaneLayout};

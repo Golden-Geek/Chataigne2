@@ -12,6 +12,8 @@ function init() {
 function sourceExamples(mediaId, channelId, assetId) {
 	// local.createMedia("video", "Video", "Clip"); // one transport, one File per channel
 	// local.configureVideoFile("file", mediaId, channelId, "clips/example.mov");
+	// local.configureVideoSubtitles("captions", mediaId, channelId, true, "File", "clips/example.srt", 5, "sans-serif", [0.5, 0.9]);
+	// local.inspectVideoSubtitles("subtitle-tracks", mediaId, channelId); // use "Embedded:<stream index>" for a discovered track
 	// local.setVideoCrop("crop", mediaId, 1000, 5000); // source milliseconds; null End follows source end
 	// local.playVideo("play", mediaId); local.pauseVideo("pause", mediaId); local.stopVideo("stop", mediaId);
 	// local.seekVideo("seek", mediaId, 1250.5); // crop-relative milliseconds; edits the same Parameter as the Inspector

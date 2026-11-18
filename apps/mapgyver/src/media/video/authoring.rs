@@ -24,6 +24,54 @@ pub(crate) fn inspect(engine: &AppEngine, media: MediaId) -> Result<VideoTranspo
     snapshot.settings = node.video_settings()?;
     Ok(snapshot)
 }
+
+fn subtitle_owner(engine: &AppEngine, reference: ChannelReference) -> Result<&crate::media::ChannelNode, String> {
+    let id = super::super::authoring::channel_id(engine, reference)?;
+    let Some(AppNode::MediaChannel(node)) = engine.nodes.get(id) else {
+        return Err("Subtitles belong to an authored Video channel".into());
+    };
+    if node.kind() != MediaKind::Video {
+        return Err("Subtitles belong to an authored Video channel".into());
+    }
+    Ok(node)
+}
+
+pub(crate) fn inspect_subtitles(engine: &AppEngine, reference: ChannelReference) -> Result<MediaEditResult, String> {
+    let node = subtitle_owner(engine, reference)?;
+    Ok(MediaEditResult::VideoSubtitles {
+        reference,
+        settings: node.video_subtitles(engine)?,
+        tracks: node.video_subtitle_tracks().to_vec(),
+    })
+}
+
+pub(crate) fn configure_subtitles(
+    engine: &mut AppEngine,
+    reference: ChannelReference,
+    settings: VideoSubtitleSettings,
+) -> Result<MediaEditResult, String> {
+    settings.validate()?;
+    let node = subtitle_owner(engine, reference)?;
+    let folder = node
+        .subtitle_folder(engine)
+        .ok_or("Video Subtitles folder is not bound")?;
+    let values = node.subtitle_parameter_values(&settings);
+    engine.edits.push(Edit::SetParamsAtomic {
+        values,
+        behaviour: ParameterEventBehaviour::Append,
+    });
+    engine.edits.push(Edit::PatchMeta {
+        node: folder,
+        patch: golden_core::node::NodeMetaPatch {
+            enabled: Some(settings.enabled),
+            ..Default::default()
+        },
+    });
+    engine
+        .settle_edit_notifications(16)
+        .map_err(|error| error.to_string())?;
+    inspect_subtitles(engine, reference)
+}
 fn channel_file(engine: &AppEngine, reference: ChannelReference) -> Result<AssetLocator, String> {
     owner(engine, reference.media)?;
     let channel = super::super::authoring::channel(engine, reference)?;

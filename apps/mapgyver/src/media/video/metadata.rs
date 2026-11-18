@@ -2,7 +2,7 @@
 use super::{VideoControl, registry::Source};
 use super::{
     failure::Failure,
-    protocol::{VideoSourceError, VideoSourceErrorKind},
+    protocol::{VideoSourceError, VideoSourceErrorKind, VideoSubtitleTrackInfo},
 };
 use crate::{
     app::AppNode,
@@ -111,25 +111,28 @@ impl Probe {
             let control = job.control.clone();
             let channel_id = *channel;
             let generation_id = *generation;
-            let timing = golden_video::decode::probe_timing_with_interrupt(&job.path, move || {
+            let timing = golden_video::decode::subtitles::probe_timing_and_tracks(&job.path, move || {
                 cancel()
                     || !guard.is_current()
                     || control
                         .upgrade()
                         .is_none_or(|control| !control.metadata_is_current(channel_id, generation_id))
             });
-            let duration = timing.map_err(|error| Failure::from(error).0).and_then(|timing| {
-                let ticks = timing.duration.filter(|duration| *duration > 0).ok_or_else(|| {
-                    VideoSourceError::new(
-                        VideoSourceErrorKind::Unsupported,
-                        "Video stream duration is unavailable",
-                    )
-                })?;
-                super::reader::duration(ticks, timing.time_base)
-                    .map_err(|error| VideoSourceError::new(VideoSourceErrorKind::Unsupported, error))
-            });
-            let duration = match duration {
-                Ok(duration) => duration,
+            let probed = timing
+                .map_err(|error| Failure::from(error).0)
+                .and_then(|(timing, tracks)| {
+                    let ticks = timing.duration.filter(|duration| *duration > 0).ok_or_else(|| {
+                        VideoSourceError::new(
+                            VideoSourceErrorKind::Unsupported,
+                            "Video stream duration is unavailable",
+                        )
+                    })?;
+                    super::reader::duration(ticks, timing.time_base)
+                        .map(|duration| (duration, tracks))
+                        .map_err(|error| VideoSourceError::new(VideoSourceErrorKind::Unsupported, error))
+                });
+            let (duration, tracks) = match probed {
+                Ok(probed) => probed,
                 Err(error) => {
                     job.fingerprint = None;
                     if !cancelled()
@@ -146,6 +149,21 @@ impl Probe {
                 && let Some(control) = job.control.upgrade()
                 && control.metadata_duration(*channel, *generation, duration)?
             {
+                let tracks = tracks
+                    .into_iter()
+                    .filter_map(|track| {
+                        let index = u32::try_from(track.stream_index).ok()?;
+                        let name = track
+                            .title
+                            .or(track.language)
+                            .unwrap_or_else(|| track.codec.name().to_owned());
+                        Some(VideoSubtitleTrackInfo {
+                            index,
+                            label: format!("{name} · Track {index}"),
+                        })
+                    })
+                    .collect();
+                control.metadata_subtitle_tracks(*channel, *generation, tracks)?;
                 job.fingerprint = Some(fingerprint);
             }
         }

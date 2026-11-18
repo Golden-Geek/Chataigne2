@@ -89,6 +89,17 @@ use std::sync::Arc;
         absolute_path: File = File::default() (label = "Absolute path");
         picture_file: File = File::default() (label = "File");
         video_file: File = File::default() (label = "File");
+        video_subtitle_enabled: bool = false (label = "Enabled");
+        video_subtitle_track: Enum = "None" (
+            label = "Track", enum_options = crate::parameters::enum_options(&["None", "File", "Embedded"]),
+            constraint_policy = "reject");
+        video_subtitle_stream: i32 = 0 [0..2147483647] (label = "Embedded stream", constraint_policy = "reject");
+        video_subtitle_file: File = File::default() (
+            label = "File", file_allowed_extensions = vec!["srt".into(), "vtt".into()]);
+        video_subtitle_size: f64 = 5.0 [1.0..25.0] (label = "Size", unit = "%", constraint_policy = "reject");
+        video_subtitle_font: String = "sans-serif".to_string() (label = "Font");
+        video_subtitle_position: Vec2 = Vec2::new(0.5, 0.9) [(0.0, 0.0)..(1.0, 1.0)] (
+            label = "Positioning", constraint_policy = "reject");
         video_position_ms: f64 = 0.0 [0.0..9000000000000.0] (label = "Position", widget = "time", unit = "ms", constraint_policy = "reject");
         video_start_ms: f64 = 0.0 [0.0..9000000000000.0] (
             label = "Start", widget = "time", unit = "ms", constraint_policy = "reject");
@@ -249,9 +260,31 @@ impl MediaCommandNode {
                 reference,
                 file: self.video_file.get_ref().as_str().into(),
             },
+            MediaCommandKind::VideoSubtitles => {
+                use super::super::video::protocol::{VideoSubtitleSettings, VideoSubtitleTrack};
+                let track = match self.video_subtitle_track.get_ref().as_str() {
+                    "Embedded" => VideoSubtitleTrack::Embedded {
+                        index: self.video_subtitle_stream.get() as u32,
+                    },
+                    value => VideoSubtitleTrack::parse(value)?,
+                };
+                let position = self.video_subtitle_position.get();
+                MediaEdit::ConfigureVideoSubtitles {
+                    reference,
+                    settings: VideoSubtitleSettings {
+                        enabled: self.video_subtitle_enabled.get(),
+                        track,
+                        file: self.video_subtitle_file.get_ref().as_str().into(),
+                        size: self.video_subtitle_size.get(),
+                        font: self.video_subtitle_font.get_ref().clone(),
+                        position: [position.x, position.y],
+                    },
+                }
+            }
             MediaCommandKind::InspectVideo => MediaEdit::InspectVideo { media },
             MediaCommandKind::InspectVideoFrame => MediaEdit::InspectVideoFrame { reference },
             MediaCommandKind::InspectVideoSource => MediaEdit::InspectVideoSource { reference },
+            MediaCommandKind::InspectVideoSubtitles => MediaEdit::InspectVideoSubtitles { reference },
             MediaCommandKind::SetApplicationFile => MediaEdit::Applications {
                 edit: crate::applications::protocol::ApplicationEdit::SetFile {
                     application: crate::applications::protocol::ApplicationId(self.application_owner.get_ref().uuid),

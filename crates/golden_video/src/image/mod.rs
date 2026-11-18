@@ -9,6 +9,8 @@ mod crossfade;
 mod font;
 mod storage;
 mod stream;
+#[cfg(all(windows, feature = "d3d11"))]
+mod subtitle;
 pub use atlas::ImageAtlas;
 #[cfg(feature = "ffmpeg")]
 pub use crossfade::crossfade_srgba8;
@@ -16,6 +18,8 @@ pub use font::FontAtlas;
 pub(crate) use storage::StorageLease;
 pub use storage::{ImageStorageAllocation, ImageStorageBudget};
 pub use stream::{FramePublication, ImageStream, StreamSample};
+#[cfg(all(windows, feature = "d3d11"))]
+pub use subtitle::{SubtitleRasterError, SubtitleRasterizer, SubtitleStyle};
 
 /// A tightly packed, immutable image. Source storage/color/alpha is explicit;
 /// conversion into the renderer's linear premultiplied targets happens while sampling.

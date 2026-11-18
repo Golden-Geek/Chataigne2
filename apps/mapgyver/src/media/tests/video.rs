@@ -12,6 +12,7 @@ mod boundaries;
 mod crop;
 mod fade_loop;
 mod policy;
+mod subtitles;
 
 fn state(engine: &mut AppEngine, media: MediaId) -> VideoTransportSnapshot {
     let MediaEditResult::Video { snapshot } = apply(engine, MediaEdit::InspectVideo { media }) else {

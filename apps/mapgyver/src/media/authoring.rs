@@ -158,6 +158,12 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             super::video::authoring::file(engine, reference, &file)?;
             MediaEditResult::Changed
         }
+        MediaEdit::ConfigureVideoSubtitles { reference, settings } => {
+            super::video::authoring::configure_subtitles(engine, reference, settings)?
+        }
+        MediaEdit::InspectVideoSubtitles { reference } => {
+            super::video::authoring::inspect_subtitles(engine, reference)?
+        }
         MediaEdit::InspectTargetPicker { query } => MediaEditResult::TargetPicker {
             page: super::target_picker::read(engine, query)?,
         },

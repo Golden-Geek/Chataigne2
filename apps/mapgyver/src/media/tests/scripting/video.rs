@@ -1,6 +1,69 @@
 use super::*;
 
 #[test]
+fn hosted_video_subtitles_edit_and_query_return_the_same_typed_settings() {
+    let mut engine = fixture();
+    let reference = create(&mut engine, MediaKind::Video);
+    let MediaEditResult::Created { reference: sibling } = apply(
+        &mut engine,
+        MediaEdit::AddChannel {
+            media: reference.media,
+            label: None,
+        },
+    ) else {
+        panic!("expected a second Video channel");
+    };
+    script(
+        &mut engine,
+        format!(
+            r#"
+            function init() {{
+                local.listen({{level:1}});
+                const media = '{}';
+                const channel = '{}';
+                const sibling = '{}';
+                local.configureVideoSubtitles('captions', media, channel, true, 'File', 'clips/one.srt', 6.5, 'Arial', [0.4, 0.8]);
+                local.inspectVideoSubtitles('inspect', media, channel);
+                local.inspectVideoSubtitles('sibling', media, sibling);
+            }}
+            function onAppOperationResult(reply) {{ gc.emit('media-method-reply', reply); }}
+            "#,
+            reference.media.0.0, reference.channel.0.0, sibling.channel.0.0
+        ),
+    );
+    let history = engine.undo_len();
+    service_script_app_operations(&mut engine).unwrap();
+    let results = replies(&engine);
+    assert_eq!(results.len(), 3);
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(
+        results.iter().all(|result| result["status"] == "applied"),
+        "{results:?}"
+    );
+    assert_eq!(results[0]["value"], results[1]["value"]);
+    let value = &results[0]["value"];
+    assert_eq!(value["kind"], "VideoSubtitles");
+    assert_eq!(
+        serde_json::from_value::<ChannelReference>(value["reference"].clone()).unwrap(),
+        reference
+    );
+    assert_eq!(value["settings"]["enabled"], true);
+    assert_eq!(value["settings"]["track"]["kind"], "File");
+    assert_eq!(value["settings"]["file"], "clips/one.srt");
+    assert_eq!(value["settings"]["size"], 6.5);
+    assert_eq!(value["settings"]["font"], "Arial");
+    assert_eq!(value["settings"]["position"], serde_json::json!([0.4, 0.8]));
+    assert_eq!(value["tracks"], serde_json::json!([]));
+    let sibling_value = &results[2]["value"];
+    assert_eq!(
+        serde_json::from_value::<ChannelReference>(sibling_value["reference"].clone()).unwrap(),
+        sibling
+    );
+    assert_eq!(sibling_value["settings"]["enabled"], false);
+    assert_eq!(sibling_value["settings"]["track"]["kind"], "None");
+}
+
+#[test]
 fn hosted_matrix_cut_activates_video_after_commit_without_render_or_playback_query() {
     use crate::matrix::protocol::*;
     let mut engine = fixture();

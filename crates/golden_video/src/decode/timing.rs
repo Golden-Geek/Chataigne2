@@ -20,6 +20,10 @@ pub fn probe_timing_with_interrupt(
     }
     ffmpeg::init()?;
     let input = ffmpeg::format::input_with_interrupt(&path, interrupt)?;
+    stream_timing(&input)
+}
+
+pub(super) fn stream_timing(input: &ffmpeg::format::context::Input) -> Result<StreamTiming, DecodeError> {
     let stream = input
         .streams()
         .best(ffmpeg::media::Type::Video)

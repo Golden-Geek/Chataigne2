@@ -272,6 +272,13 @@ pub enum MediaEdit {
         reference: ChannelReference,
         file: String,
     },
+    ConfigureVideoSubtitles {
+        reference: ChannelReference,
+        settings: super::video::protocol::VideoSubtitleSettings,
+    },
+    InspectVideoSubtitles {
+        reference: ChannelReference,
+    },
     InspectTargetPicker {
         query: TargetPickerQuery,
     },
@@ -515,6 +522,11 @@ pub enum MediaEditResult {
     VideoSource {
         /// None when the authored media/channel has retired before this bounded read.
         status: Option<super::video::protocol::VideoSourceStatus>,
+    },
+    VideoSubtitles {
+        reference: ChannelReference,
+        settings: super::video::protocol::VideoSubtitleSettings,
+        tracks: Vec<super::video::protocol::VideoSubtitleTrackInfo>,
     },
     TargetPicker {
         page: Option<TargetPickerPage>,

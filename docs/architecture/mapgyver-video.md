@@ -536,6 +536,24 @@ timestamps. Healthy recovery clears the current source error without authored hi
 errors retain known duration during endpoint loss and clear after successful re-probing, including
 when the restored File has the same fingerprint as before its disappearance.
 
+## Subtitles per Video channel
+
+Select a Video channel to edit its **Subtitles** folder in the Inspector. The folder is off by
+default. **Track** offers **None**, **File**, or a supported embedded text stream from that
+channel's own video file. Embedded streams use their FFmpeg stream index. The local option reads
+UTF-8 SubRip (`.srt`) or WebVTT (`.vtt`). Embedded SubRip, WebVTT, ASS/SSA and MP4 timed text
+render as plain text. **Size** is a percentage of source height. **Font** names a system font
+family, and **Positioning** sets the normalized horizontal center and bottom of the text block.
+The typed subtitle edit and query use `ChannelReference`. Script methods
+`configureVideoSubtitles` and `inspectVideoSubtitles` take the media and channel IDs.
+
+The transport stays shared. Each demanded channel finds cues at its own mapped source position,
+including time cropping and seeking. During a smooth-loop overlap, its captions follow the
+outgoing position until the new primary position takes over. The file worker rasterizes on cue or
+style changes. The renderer composites the channel's overlay in source coordinates before
+subsequent mapping. References consume the same selected channel. A missing local subtitle file
+clears that channel's overlay and is retried without interrupting video playback.
+
 MapGyver enables `video-files` by default. Windows builds use the pinned dependency helper:
 
 ```powershell

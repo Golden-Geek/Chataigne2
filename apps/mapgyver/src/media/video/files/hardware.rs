@@ -122,12 +122,15 @@ impl Run {
         let mut epoch = None;
         let mut software_image: Option<(i64, Arc<golden_video::image::ImageData>)> = None;
         let mut installed = false;
+        let mut subtitles = subtitles::Overlay::default();
         while !worker.cancellation().is_cancelled() {
             let turn_started = Instant::now();
             let checkpoint = worker.wake_checkpoint();
             let revision = self.control.revisions();
             let _subscription = revision.guard_at(revision.current()).subscribe(worker.wake_notifier());
+            let _subtitles = self.subtitle_channel.subscribe(worker.wake_notifier());
             let sample = self.control.sample()?;
+            subtitles.service(self, worker, &reader, sample);
             if epoch != Some(sample.epoch) {
                 epoch = Some(sample.epoch);
                 cursor = None;
@@ -212,7 +215,10 @@ impl Run {
             if sample.source_range.is_none() {
                 cached = None;
                 software_image = None;
-                worker.wait_until(checkpoint, pacing::deadline(turn_started, false, waiting));
+                worker.wait_until(
+                    checkpoint,
+                    subtitles.deadline(pacing::deadline(turn_started, false, waiting)),
+                );
                 continue;
             }
             if !waiting {
@@ -411,7 +417,11 @@ impl Run {
             }
             worker.wait_until(
                 checkpoint,
-                pacing::deadline(turn_started, sample.playing, waiting || reader.catching_up),
+                subtitles.deadline(pacing::deadline(
+                    turn_started,
+                    sample.playing,
+                    waiting || reader.catching_up,
+                )),
             );
         }
         Ok(())

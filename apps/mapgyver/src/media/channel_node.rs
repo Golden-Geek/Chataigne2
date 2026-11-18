@@ -1,18 +1,24 @@
 //! Variant settings are real Parameters; media-owned settings join them only in runtime projections.
-use super::protocol::{ChannelDefinition, ChannelSource, SenderSelectionMode, SizePolicy};
+use super::{
+    protocol::{ChannelDefinition, ChannelSource, MediaKind, SenderSelectionMode, SizePolicy},
+    video::protocol::VideoSubtitleTrackInfo,
+};
 use crate::matrix::protocol::{GroupId, LayerId, MatrixDefinition, MatrixOutput};
 use golden_core::{
     edit::Edit,
     node,
     node::{
-        Node, NodeId, NodeReference, ParameterHandle, ParameterValidationContext, UserContainerRules, UserCreatableItem,
+        Node, NodeId, NodeReference, NodeUuid, ParameterHandle, ParameterValidationContext, UserContainerRules,
+        UserCreatableItem,
     },
-    parameter::{Color, Enum, File, ParamValue, ParameterEventBehaviour, ReferenceTargetKind},
+    parameter::{Color, Enum, File, ParamValue, ParameterEventBehaviour, ReferenceTargetKind, Vec2},
     process_ctx::ProcessCtx,
 };
 use golden_io::{RevisionGuard, RevisionSource};
 
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
+
+mod subtitles;
 
 #[node("mapgyver.media.channel.v2", label = "Channel", collapsed = false)]
 #[children(
@@ -30,6 +36,26 @@ use std::sync::OnceLock;
             dependency = |node: &Self| node.kind() == super::protocol::MediaKind::SharedTexture);
         output_kind: Enum = "Final" (label = "Matrix output", read_only = true, persist_read_only_value = true, enum_options = crate::parameters::enum_options(&["Final", "Layer", "Group"]));
         output_item: NodeReference = NodeReference::empty() (label = "Output item", read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v4".into(), "mapgyver.matrix.group.v3".into()]);
+        folder(video_subtitles, label = "Subtitles", enabled = false, can_be_disabled = true) {
+            video_subtitle_track: Enum = "None" (
+                label = "Track", description = "Use no subtitles, a local File, or an exact embedded subtitle stream.",
+                enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
+                enum_options = super::video::protocol::subtitle_track_options(&[]),
+                dependency = |node: &Self| node.kind() == MediaKind::Video);
+            video_subtitle_file: File = File::default() (
+                label = "File", description = "UTF-8 SubRip (.srt) or WebVTT (.vtt), relative to the project or an absolute path.",
+                file_allowed_extensions = vec!["srt".into(), "vtt".into()],
+                dependency = |node: &Self| node.kind() == MediaKind::Video);
+            video_subtitle_size: f64 = 5.0 [1.0..25.0] (
+                label = "Size", description = "Font size as a percentage of source height.", unit = "%",
+                constraint_policy = "reject", dependency = |node: &Self| node.kind() == MediaKind::Video);
+            video_subtitle_font: String = "sans-serif".to_string() (
+                label = "Font", description = "Font family. An available system font is used if this family is missing.",
+                dependency = |node: &Self| node.kind() == MediaKind::Video);
+            video_subtitle_position: Vec2 = Vec2::new(0.5, 0.9) [(0.0, 0.0)..(1.0, 1.0)] (
+                label = "Positioning", description = "Normalized horizontal center and bottom edge, from the top left.",
+                constraint_policy = "reject", dependency = |node: &Self| node.kind() == MediaKind::Video);
+        }
     }
 )]
 pub struct ChannelNode {
@@ -44,7 +70,11 @@ pub struct ChannelNode {
     #[state(default = OnceLock::new())]
     matrix_playback: OnceLock<crate::matrix::playback::PlaybackControl>,
     #[state(default = None)]
-    video_binding: Option<std::sync::Arc<super::video::bindings::Registration>>,
+    video_binding: Option<Arc<super::video::bindings::Registration>>,
+    #[state(default = None)]
+    video_subtitle_binding: Option<(NodeId, NodeUuid)>,
+    #[state(default = Default::default())]
+    video_subtitle_tracks: Arc<[VideoSubtitleTrackInfo]>,
 }
 impl ChannelNode {
     fn register_video(&mut self, ctx: &mut ProcessCtx) {
@@ -56,10 +86,20 @@ impl ChannelNode {
                 super::protocol::ChannelId(self.node_data().meta.uuid),
                 super::assets::parse_file(self.file.get_ref().as_str()).expect("validated Video File"),
             );
+            let watch = ctx
+                .node_waker()
+                .map_err(|error| error.to_string())
+                .and_then(|waker| binding.watch_subtitle_tracks(waker));
+            match watch {
+                Ok(()) => ctx.clear_node_warning(self.id(), Some("video-subtitle-tracks")),
+                Err(error) => ctx.set_node_warning_with(self.id(), Some("video-subtitle-tracks"), error, None),
+            }
             if let Some(parent) = self.node_data().parent {
                 binding.announce(ctx, self.id(), parent);
             }
             self.video_binding = Some(binding);
+            self.publish_video_subtitles(ctx);
+            self.refresh_subtitle_tracks(ctx);
         }
     }
     pub(super) fn initialize_sender_defaults(
@@ -294,7 +334,20 @@ impl ChannelNode {
 }
 #[node("mapgyver.media.channel.v2", from_struct)]
 impl Node for ChannelNode {
+    fn init(&mut self, ctx: &mut ProcessCtx) {
+        if self.kind() == MediaKind::Video {
+            ctx.add_event_listener_subtree(self.id(), self.id(), 3);
+        }
+    }
+
+    fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: golden_core::node::NodeMetaPatch) {
+        if patch.enabled.is_some() && self.video_subtitle_binding.is_some_and(|(folder, _)| node == folder) {
+            self.publish_video_subtitles(ctx);
+        }
+    }
+
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
+        self.bind_subtitles(ctx);
         self.register_video(ctx);
         if let Some(control) = self.matrix_playback() {
             match ctx.node_waker() {
@@ -308,6 +361,7 @@ impl Node for ChannelNode {
         }
     }
     fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        self.refresh_subtitle_tracks(ctx);
         if let Some(control) = self.matrix_playback() {
             if let Some(error) = control.service_videos() {
                 ctx.set_node_warning_with(self.id(), Some("video-policy"), error, None);
@@ -356,12 +410,22 @@ impl Node for ChannelNode {
         }
     }
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
+        if self.is_subtitle_parameter(parameter) {
+            if parameter == self.video_subtitle_track.id() {
+                self.publish_subtitle_options(ctx);
+            }
+            self.publish_video_subtitles(ctx);
+            return;
+        }
         if parameter == self.file.id()
             && let Some(binding) = &self.video_binding
-            && let Err(error) =
-                binding.set_file(super::assets::parse_file(self.file.get_ref().as_str()).expect("validated Video File"))
         {
-            ctx.set_node_warning(self.id(), error);
+            if let Err(error) =
+                binding.set_file(super::assets::parse_file(self.file.get_ref().as_str()).expect("validated Video File"))
+            {
+                ctx.set_node_warning(self.id(), error);
+            }
+            self.refresh_subtitle_tracks(ctx);
         }
         if [
             self.source_kind.id(),
@@ -381,9 +445,12 @@ impl Node for ChannelNode {
             }
         }
     }
-    fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
+    fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
         self.source_lifecycle.advance();
         self.invalidate();
+        if enabled {
+            self.publish_video_subtitles(ctx);
+        }
         if let Some(control) = self.matrix_playback() {
             control.video_enabled(enabled);
         }
@@ -461,6 +528,9 @@ impl Node for ChannelNode {
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
         super::assets::parse_file(self.file.get_ref().as_str())?;
+        if self.kind() == MediaKind::Video {
+            self.subtitle_settings(false)?.validate()?;
+        }
         for (value, allowed) in [
             (
                 self.source_kind.get_ref().as_str(),
@@ -502,6 +572,9 @@ impl Node for ChannelNode {
     }
 
     fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
+        if self.is_subtitle_parameter(change.parameter) {
+            return self.validate_subtitle_parameter(change);
+        }
         if change.parameter == self.file.id()
             && let ParamValue::File(path) = change.value
         {

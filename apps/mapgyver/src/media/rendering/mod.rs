@@ -41,6 +41,8 @@ pub struct PreparedChannel {
 struct Entry {
     target: TextureId,
     source: Option<(TextureId, ChannelSource)>,
+    #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+    subtitles: Option<(TextureId, uuid::Uuid)>,
     sender_external_only: bool,
     scratch: Option<TextureId>,
 }

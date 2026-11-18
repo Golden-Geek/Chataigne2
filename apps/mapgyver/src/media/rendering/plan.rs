@@ -194,6 +194,8 @@ pub(super) fn build(
                 None => Entry {
                     target: allocate(next)?,
                     source: None,
+                    #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+                    subtitles: None,
                     sender_external_only: false,
                     scratch: None,
                 },
@@ -238,12 +240,32 @@ pub(super) fn build(
                             source: Some(source),
                         });
                         entry.source = Some((id, configured.clone()));
+                        #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+                        let overlay = if let Some(stream) = videos.and_then(|videos| videos.subtitles(reference)) {
+                            let texture = match entry.subtitles {
+                                Some((texture, key)) if key == stream.id() => texture,
+                                _ => allocate(next)?,
+                            };
+                            entry.subtitles = Some((texture, stream.id()));
+                            submission.plan.external_textures.push(ExternalTexture {
+                                id: texture,
+                                descriptor: stream.descriptor(),
+                                source: Some(golden_video::plan::ExternalSource::Frames(stream)),
+                            });
+                            Some(texture)
+                        } else {
+                            entry.subtitles = None;
+                            None
+                        };
+                        #[cfg(not(all(windows, feature = "native-video", feature = "video-files")))]
+                        let overlay = None;
                         let definition = channel.definition.as_ref().unwrap();
                         operation = super::fit::operation(
                             id,
                             descriptor.extent,
                             resolution.extent.expect("ready Video extent"),
                             definition.fit_mode,
+                            overlay,
                         )?;
                     }
                 }
@@ -276,6 +298,7 @@ pub(super) fn build(
                                         target.resolution.extent.expect("ready Reference target"),
                                         extent,
                                         definition.fit_mode,
+                                        None,
                                     )?;
                                 }
                             }
@@ -322,6 +345,7 @@ pub(super) fn build(
                             value.value().descriptor().extent,
                             resolution.extent.expect("prepared Picture extent"),
                             definition.fit_mode,
+                            None,
                         )?;
                     } else if asset
                         .and_then(|id| pictures.and_then(|pictures| pictures.failure(id)))
@@ -486,6 +510,7 @@ pub(super) fn build(
                             actual.expect("ready shared texture descriptor").extent,
                             resolution.extent.expect("ready shared texture extent"),
                             definition.fit_mode,
+                            None,
                         )?;
                     }
                 }
@@ -535,7 +560,14 @@ pub(super) fn build(
         .collect::<HashSet<_>>();
     let sources = entries
         .values()
-        .filter_map(|entry| entry.source.as_ref().map(|(source, _)| *source))
+        .flat_map(|entry| {
+            let input = entry.source.as_ref().map(|(source, _)| *source);
+            #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+            let captions = entry.subtitles.map(|(source, _)| source);
+            #[cfg(not(all(windows, feature = "native-video", feature = "video-files")))]
+            let captions = None;
+            input.into_iter().chain(captions)
+        })
         .collect::<HashSet<_>>();
     submission.plan.passes.retain(|pass| targets.contains(&pass.output));
     submission

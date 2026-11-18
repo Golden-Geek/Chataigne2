@@ -185,6 +185,122 @@ pub enum VideoEdit {
     },
 }
 
+/// Exact source choice for one Video channel.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind")]
+pub enum VideoSubtitleTrack {
+    #[default]
+    None,
+    File,
+    Embedded {
+        index: u32,
+    },
+}
+
+impl VideoSubtitleTrack {
+    pub(crate) fn key(self) -> String {
+        match self {
+            Self::None => "None".into(),
+            Self::File => "File".into(),
+            Self::Embedded { index } => format!("Embedded:{index}"),
+        }
+    }
+
+    pub(crate) fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "None" => Ok(Self::None),
+            "File" => Ok(Self::File),
+            value => {
+                let index = value
+                    .strip_prefix("Embedded:")
+                    .and_then(|index| index.parse().ok())
+                    .ok_or("Unknown Video subtitle track")?;
+                let track = Self::Embedded { index };
+                if track.key() != value {
+                    return Err("Invalid Video subtitle stream index".into());
+                }
+                Ok(track)
+            }
+        }
+    }
+}
+
+/// The selected stream number remains exact when discovery changes.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct VideoSubtitleTrackInfo {
+    pub index: u32,
+    pub label: String,
+}
+
+pub(crate) fn subtitle_track_options(
+    tracks: &[VideoSubtitleTrackInfo],
+) -> golden_core::parameter::ParameterEnumOptions {
+    let mut choices = crate::parameters::enum_options(&["None", "File"]);
+    choices[1].label = "Local File".into();
+    choices.extend(tracks.iter().map(|track| {
+        let key = VideoSubtitleTrack::Embedded { index: track.index }.key();
+        golden_core::parameter::ParameterEnumOption {
+            variant_id: key.clone(),
+            value: golden_core::parameter::ParamValue::Enum(key),
+            label: track.label.clone(),
+            tags: vec![],
+            ordering: None,
+        }
+    }));
+    choices.into()
+}
+
+/// Projection of the typed Subtitles folder; not used as a persistence record.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct VideoSubtitleSettings {
+    pub enabled: bool,
+    pub track: VideoSubtitleTrack,
+    /// Empty, project-relative, or native absolute local file path.
+    pub file: String,
+    /// Font size as a percentage of source height.
+    pub size: f64,
+    pub font: String,
+    /// Normalized horizontal center and bottom edge, with the origin at top left.
+    pub position: [f64; 2],
+}
+
+impl Default for VideoSubtitleSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            track: VideoSubtitleTrack::None,
+            file: String::new(),
+            size: 5.0,
+            font: "sans-serif".into(),
+            position: [0.5, 0.9],
+        }
+    }
+}
+
+impl VideoSubtitleSettings {
+    pub(crate) fn validate(&self) -> Result<(), String> {
+        super::super::assets::parse_file(&self.file)?;
+        if !self.file.is_empty()
+            && !std::path::Path::new(&self.file)
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("srt") || extension.eq_ignore_ascii_case("vtt"))
+        {
+            return Err("Video subtitle File must be an .srt or .vtt file".into());
+        }
+        if !(1.0..=25.0).contains(&self.size) {
+            return Err("Video subtitle Size must be 1–25 percent of source height".into());
+        }
+        if self.font.trim().is_empty() || self.font.chars().count() > 128 || self.font.chars().any(char::is_control) {
+            return Err("Video subtitle Font must contain a family name of at most 128 characters".into());
+        }
+        if self.position.iter().any(|value| !(0.0..=1.0).contains(value)) {
+            return Err("Video subtitle Positioning must be normalized in each axis".into());
+        }
+        Ok(())
+    }
+}
+
 /// Runtime readiness is separate from accepted authored playback intent.
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct VideoTransportSnapshot {
