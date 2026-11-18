@@ -1,4 +1,4 @@
-#[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+#[cfg(feature = "video-files")]
 use golden_time::MonotonicTime;
 use golden_time::{Clock, PlaybackRate, ShowPosition, TimeAuthority, TimeEpoch, TimeError, TimeMapping};
 use golden_video::scheduling::{LoopBlend, LoopTimeline, SourceRange};
@@ -187,7 +187,7 @@ impl<C: Clock> MediaTransport<C> {
         self.project(time.show_position().as_nanos(), time.mapping())
     }
 
-    #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+    #[cfg(feature = "video-files")]
     pub(super) fn sample_at(&self, time: MonotonicTime) -> Result<TransportSample, TransportError> {
         let mapping = self.authority.mapping();
         self.project(mapping.show_at(time)?.as_nanos(), mapping)

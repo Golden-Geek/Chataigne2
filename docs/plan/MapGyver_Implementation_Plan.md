@@ -1795,6 +1795,10 @@ Use the public `golden_audio` API for device I/O, routing and audio playback in 
 MapGyver owns authored routes and Video and Matrix transport policy, and maps its typed
 settings into the audio runtime configuration. [Golden Audio crate documentation](../../crates/golden_audio/README.md)
 
+The M16/1 functional checkpoint unlocks implementation of gates 2–3. Keep OS-level signal
+capture and physical endpoint disconnect/reconnect in the qualification return queue. Full
+M16/1 acceptance remains required before M09.
+
 1. **Audio output and routing.** Add audio-device settings in Preferences with virtual
    channels mapped to physical output channels. Video media route audio to virtual channels
    with per-channel volume. Keep virtual channel identities and authored routes stable when a

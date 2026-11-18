@@ -1,7 +1,7 @@
 //! Stereo PCM from an embedded stream, with sample timestamps relative to the Video origin.
 use std::path::Path;
 
-use super::{DecodeError, ffmpeg};
+use super::{DecodeError, ffmpeg, seek_input_before};
 use ffmpeg::{ChannelLayout, Rational, codec, format, frame, software::resampling};
 
 const PACKET_LIMIT: usize = 4096;
@@ -24,7 +24,6 @@ pub struct AudioReader {
     decoder: codec::decoder::Audio,
     index: usize,
     time_base: Rational,
-    origin_micros: i64,
     origin_frames: i64,
     sample_rate: u32,
     converter: Option<resampling::Context>,
@@ -53,6 +52,7 @@ impl AudioReader {
             return Ok(None);
         };
         let (index, time_base) = (stream.index(), stream.time_base());
+        from_ticks(0, time_base, sample_rate)?;
         let video = input.streams().best(ffmpeg::media::Type::Video);
         let reference = video.as_ref().unwrap_or(&stream);
         let (origin, origin_base) = (reference.start_time(), reference.time_base());
@@ -61,7 +61,6 @@ impl AudioReader {
         } else {
             origin
         };
-        let origin_micros = from_ticks(origin, origin_base, 1_000_000)?;
         let origin_frames = from_ticks(origin, origin_base, sample_rate)?;
         let mut context = codec::context::Context::from_parameters(stream.parameters())?;
         context.set_threading(codec::threading::Config::count(1));
@@ -71,7 +70,6 @@ impl AudioReader {
             decoder,
             index,
             time_base,
-            origin_micros,
             origin_frames,
             sample_rate,
             converter: None,
@@ -84,9 +82,11 @@ impl AudioReader {
 
     /// Restart from an earlier demux position. Read timestamps to discard PCM before the target.
     pub fn seek(&mut self, frame: u64) -> Result<(), DecodeError> {
-        let micros = i128::from(frame) * 1_000_000 / i128::from(self.sample_rate) + i128::from(self.origin_micros);
-        let micros = i64::try_from(micros).map_err(|_| DecodeError::OutsideStream)?;
-        self.input.seek(micros, ..micros)?;
+        let frames = i128::from(frame) + i128::from(self.origin_frames);
+        let ticks = (frames * i128::from(self.time_base.denominator()))
+            .div_euclid(i128::from(self.sample_rate) * i128::from(self.time_base.numerator()));
+        let ticks = i64::try_from(ticks).map_err(|_| DecodeError::OutsideStream)?;
+        seek_input_before(&mut self.input, self.index, ticks)?;
         self.decoder.flush();
         self.converter = None;
         self.next_frame = None;

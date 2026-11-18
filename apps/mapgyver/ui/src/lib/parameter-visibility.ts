@@ -91,7 +91,8 @@ function visible(child: UiNodeDto) {
 	const source = choice('source_kind');
 	if (source === 'SolidColor') return field === 'rgba';
 	if (source === 'Picture') return field === 'file';
-	if (source === 'Video') return field === 'file' || field === 'video_subtitles';
+	if (source === 'Video')
+		return field === 'file' || field === 'video_audio' || field === 'video_subtitles';
 	if (source === 'SharedTexture') {
 		const media = parent(owner);
 		const parameters = media?.children

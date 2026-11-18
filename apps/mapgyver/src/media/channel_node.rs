@@ -18,6 +18,7 @@ use golden_io::{RevisionGuard, RevisionSource};
 
 use std::sync::{Arc, OnceLock};
 
+mod audio;
 mod subtitles;
 
 #[node("mapgyver.media.channel.v2", label = "Channel", collapsed = false)]
@@ -36,6 +37,14 @@ mod subtitles;
             dependency = |node: &Self| node.kind() == super::protocol::MediaKind::SharedTexture);
         output_kind: Enum = "Final" (label = "Matrix output", read_only = true, persist_read_only_value = true, enum_options = crate::parameters::enum_options(&["Final", "Layer", "Group"]));
         output_item: NodeReference = NodeReference::empty() (label = "Output item", read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v4".into(), "mapgyver.matrix.group.v3".into()]);
+        folder(video_audio, label = "Audio", enabled = true, can_be_disabled = true) {
+            audio_left: Enum = crate::audio::voice::LEFT (label = "Left output", enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
+                enum_options = crate::audio::voice::default_options(), dependency = |node: &Self| node.kind() == MediaKind::Video);
+            audio_right: Enum = crate::audio::voice::RIGHT (label = "Right output", enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
+                enum_options = crate::audio::voice::default_options(), dependency = |node: &Self| node.kind() == MediaKind::Video);
+            audio_gain: f64 = 0.0 [-120.0..24.0] (label = "Volume", unit = "dB", description = "Audio gain for this Video channel.",
+                dependency = |node: &Self| node.kind() == MediaKind::Video);
+        }
         folder(video_subtitles, label = "Subtitles", enabled = false, can_be_disabled = true) {
             video_subtitle_track: Enum = "None" (
                 label = "Track", description = "Use no subtitles, a local File, or an exact embedded subtitle stream.",
@@ -98,6 +107,7 @@ impl ChannelNode {
                 binding.announce(ctx, self.id(), parent);
             }
             self.video_binding = Some(binding);
+            self.attach_video_audio(ctx);
             self.publish_video_subtitles(ctx);
             self.refresh_subtitle_tracks(ctx);
         }
@@ -344,6 +354,9 @@ impl Node for ChannelNode {
         if patch.enabled.is_some() && self.video_subtitle_binding.is_some_and(|(folder, _)| node == folder) {
             self.publish_video_subtitles(ctx);
         }
+        if patch.enabled.is_some() {
+            self.publish_video_audio(ctx);
+        }
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
@@ -361,6 +374,7 @@ impl Node for ChannelNode {
         }
     }
     fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        self.refresh_audio_options(ctx);
         self.refresh_subtitle_tracks(ctx);
         if let Some(control) = self.matrix_playback() {
             if let Some(error) = control.service_videos() {
@@ -412,6 +426,11 @@ impl Node for ChannelNode {
         }
     }
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
+        if self.is_audio_parameter(parameter) {
+            self.publish_video_audio(ctx);
+            self.refresh_audio_options(ctx);
+            return;
+        }
         if self.is_subtitle_parameter(parameter) {
             if parameter == self.video_subtitle_track.id() {
                 self.publish_subtitle_options(ctx);
@@ -450,6 +469,7 @@ impl Node for ChannelNode {
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
         self.source_lifecycle.advance();
         self.invalidate();
+        self.publish_video_audio(ctx);
         if enabled {
             self.publish_video_subtitles(ctx);
         }
@@ -574,6 +594,9 @@ impl Node for ChannelNode {
     }
 
     fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
+        if self.is_audio_parameter(change.parameter) {
+            return self.validate_audio_parameter(change);
+        }
         if self.is_subtitle_parameter(change.parameter) {
             return self.validate_subtitle_parameter(change);
         }

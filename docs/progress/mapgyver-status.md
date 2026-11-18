@@ -2,8 +2,8 @@
 
 - **Updated:** 18 November 2026.
 - **Overall plan acceptance:** `████████░░` **82% — 113/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** Audio Preferences open a real Windows output and map named virtual outputs to physical channels.
-- **Working on next:** Connect Video playback to the verified PCM decoder and output path, then expose route and volume controls on each Video channel.
+- **Latest delivered:** Video playback has independent audio routing, volume and mute for each channel.
+- **Working on next:** Video intro and loop, including an optional separate loop file and audio.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -47,18 +47,18 @@
 - [x] **Editor feedback — functional:** shared120ms hover/selection paint, softer handles, keyboard cues and reduced motion. Geometry/input stay immediate; browser and native Screen/Source input checks pass.
 - [x] **App presentation:** MapGyver identity/icon, official calibration pattern, font/menu/Inspector improvements and thumbnail Fit behavior.
 - [x] **Audio Preferences:** enable output, choose System Default or a specific device, and add or remap virtual outputs. Native stream, missing-device selection, project replacement and restart passed. [Checks](evidence/mapgyver-m16-audio-output-settings-2026-11-18.json)
+- [x] **Video audio:** open **Inspector → Channels → Audio** to assign the left and right signals to named virtual outputs, set Volume, or mute that channel. Two clips, live remapping, gain, pause/seek/stop, device reopening and project reload passed. [Checks](evidence/mapgyver-m16-video-audio-2026-11-18.json)
 
 ## Next features — implementation order
 
-1. **NOW — Video audio and routing.** Feed Video audio through the new virtual outputs. Add per-channel volume and verify the signal, gain and recovery on a real device.
-2. **Video intro and loop.** Loop the end of one file or play a separate loop file, with optional separate loop audio.
-3. **Matrix Cell audio.** Use the media's audio, give the Cell its own audio, or play audio only.
-4. **OSCQuery for all Golden apps.** Implement discovery, undoable node edits and live feedback in Golden Core, with configurable ports per app.
-5. **Seamless previews.** Remove black flashes in Surface Editor and Media Preview, and reuse the source when two Surfaces share media.
-6. **Linked outlines in Screen Warping.** Fix outline flicker while dragging linked handles.
-7. **Extended Video formats.** Add DXV, WebP (including animated WebP), and MKV playback
+1. **NOW — Video intro and loop.** Loop the end of one file or play a separate loop file, with optional separate loop audio.
+2. **Matrix Cell audio.** Use the media's audio, give the Cell its own audio, or play audio only.
+3. **OSCQuery for all Golden apps.** Implement discovery, undoable node edits and live feedback in Golden Core, with configurable ports per app.
+4. **Seamless previews.** Remove black flashes in Surface Editor and Media Preview, and reuse the source when two Surfaces share media.
+5. **Linked outlines in Screen Warping.** Fix outline flicker while dragging linked handles.
+6. **Extended Video formats.** Add DXV, WebP (including animated WebP), and MKV playback
     with selectable embedded subtitles and audio tracks.
-8. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+7. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 
@@ -75,7 +75,8 @@
 11. **Shared Texture format coverage:** ordinary supported formats work. Remaining NVIDIA/D3D9, adapter-loss and allocation cases need matching sender/hardware coverage.
 12. **32-bit App Control retirement:** the 64-bit path works; the WOW64 accounting/retirement case still fails. Requires a correction before release.
 13. **Long-run resources and physical latency:** retained peak-memory growth and GPU/timing limits are not all met. Complete the sustained and mixed-display timing checks; fix remaining failures before release.
-14. **Full regression and Windows qualification:** reconcile/fix the remaining parallel Video and older Matrix/tool-fixture failures, then run the complete app/installer checks.
+14. **Video audio hardware qualification:** capture the actual routed device signal and verify physical audio endpoint disconnect/reconnect while Video is playing. The native mixer, unavailable-device selection and output reopen checks passed.
+15. **Full regression and Windows qualification:** reconcile/fix the remaining parallel Video and older Matrix/tool-fixture failures, then run the complete app/installer checks.
 
 ## Checking cadence from now on
 

@@ -5,6 +5,8 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
+#[cfg(feature = "video-files")]
+mod audio;
 mod matrix;
 #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
 pub(super) mod scheduling;
@@ -14,7 +16,7 @@ pub use matrix::MatrixVideoUse;
 
 struct State {
     transport: MediaTransport<SystemClock>,
-    #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+    #[cfg(feature = "video-files")]
     clock: SystemClock,
     settings: VideoTransportSettings,
     seek_pending: bool,
@@ -45,7 +47,7 @@ impl Default for VideoControl {
         Self(
             Mutex::new(State {
                 transport: MediaTransport::new(clock.clone()).expect("fresh monotonic clock is representable"),
-                #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
+                #[cfg(feature = "video-files")]
                 clock,
                 settings: Default::default(),
                 seek_pending: true,
@@ -300,14 +302,15 @@ impl VideoControl {
         owner: uuid::Uuid,
         locator: Option<super::super::protocol::AssetLocator>,
     ) -> Result<(), String> {
-        self.bind_file_with_subtitles(channel, owner, locator, Arc::default())
+        self.bind_file_with_settings(channel, owner, locator, Arc::default(), Arc::default())
     }
-    pub(super) fn bind_file_with_subtitles(
+    pub(super) fn bind_file_with_settings(
         &self,
         channel: super::super::protocol::ChannelId,
         owner: uuid::Uuid,
         locator: Option<super::super::protocol::AssetLocator>,
         subtitles: Arc<super::bindings::ChannelSubtitles>,
+        #[allow(unused_variables)] audio: Arc<crate::audio::voice::Binding>,
     ) -> Result<(), String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
         if state
@@ -331,6 +334,8 @@ impl VideoControl {
                 locator,
                 duration: None,
                 subtitles,
+                #[cfg(feature = "video-files")]
+                audio,
                 metadata_error: None,
             },
         );

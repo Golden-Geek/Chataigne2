@@ -14,6 +14,7 @@ pub(crate) struct Registration {
     pub owner: uuid::Uuid,
     state: Mutex<State>,
     subtitles: Arc<ChannelSubtitles>,
+    audio: Arc<crate::audio::voice::Binding>,
 }
 impl Registration {
     pub fn new(channel: ChannelId, file: Option<AssetLocator>) -> Arc<Self> {
@@ -25,6 +26,7 @@ impl Registration {
                 target: Weak::new(),
             }),
             subtitles: Arc::default(),
+            audio: Arc::default(),
         })
     }
     pub fn announce(self: &Arc<Self>, ctx: &mut ProcessCtx, node: NodeId, parent: NodeId) {
@@ -50,15 +52,30 @@ impl Registration {
         let mut state = self.state.lock().map_err(|_| "Video binding poisoned")?;
         state.file = file;
         if let Some(target) = state.target.upgrade() {
-            target.bind_file_with_subtitles(self.channel, self.owner, state.file.clone(), self.subtitles.clone())?;
+            target.bind_file_with_settings(
+                self.channel,
+                self.owner,
+                state.file.clone(),
+                self.subtitles.clone(),
+                self.audio.clone(),
+            )?;
         }
         Ok(())
     }
     pub fn bind(&self, control: &Arc<VideoControl>) -> Result<(), String> {
         let mut state = self.state.lock().map_err(|_| "Video binding poisoned")?;
-        control.bind_file_with_subtitles(self.channel, self.owner, state.file.clone(), self.subtitles.clone())?;
+        control.bind_file_with_settings(
+            self.channel,
+            self.owner,
+            state.file.clone(),
+            self.subtitles.clone(),
+            self.audio.clone(),
+        )?;
         state.target = Arc::downgrade(control);
         Ok(())
+    }
+    pub fn audio(&self) -> &crate::audio::voice::Binding {
+        &self.audio
     }
     pub(crate) fn set_subtitle_settings(&self, settings: VideoSubtitleSettings) -> Result<(), String> {
         settings.validate()?;
@@ -166,5 +183,7 @@ pub(super) struct File {
     pub locator: Option<AssetLocator>,
     pub duration: Option<std::time::Duration>,
     pub subtitles: Arc<ChannelSubtitles>,
+    #[cfg(feature = "video-files")]
+    pub audio: Arc<crate::audio::voice::Binding>,
     pub metadata_error: Option<super::protocol::VideoSourceError>,
 }

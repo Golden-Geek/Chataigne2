@@ -18,12 +18,30 @@ use std::{
 };
 
 pub(crate) struct Service {
+    #[cfg(feature = "video-files")]
+    _playback: BoundedWorker<(), ()>,
     _worker: BoundedWorker<(), ()>,
 }
 
 pub(crate) fn start(runtime: ProductionRuntime<AppNode>) -> io::Result<Service> {
     static POOL: OnceLock<RetirementPool> = OnceLock::new();
-    let pool = POOL.get_or_init(|| RetirementPool::new(NonZeroUsize::new(2).unwrap()));
+    let pool = POOL.get_or_init(|| RetirementPool::new(NonZeroUsize::new(4).unwrap()));
+    #[cfg(feature = "video-files")]
+    let (playback, output, reader) = {
+        use super::playback;
+        let config = golden_audio::AudioEngineConfig::default();
+        let limits = golden_audio::EngineLimits::default();
+        let (writer, reader) = golden_audio::pcm_playback_bus(
+            limits.max_virtual_outputs,
+            config.internal_block_frames,
+            playback::QUEUE_BLOCKS,
+            &limits,
+        )
+        .map_err(io::Error::other)?;
+        let output = playback::Output::default();
+        let worker = playback::start(runtime.clone(), output.clone(), writer, &config, &limits, pool)?;
+        (worker, output, reader)
+    };
     let worker = BoundedWorker::spawn(
         "mapgyver-audio",
         pool,
@@ -34,13 +52,21 @@ pub(crate) fn start(runtime: ProductionRuntime<AppNode>) -> io::Result<Service> 
             event_weight: 1,
         },
         move |context| {
+            #[cfg(feature = "video-files")]
+            let (engine, backend) = native_engine(reader);
+            #[cfg(not(feature = "video-files"))]
             let (engine, backend) = native_engine();
             let mut engine = engine.map(AudioOwner::new);
             while !context.cancellation().is_cancelled() {
                 let checkpoint = context.wake_checkpoint();
                 if let Ok(Ok(settings)) = runtime.capture_app(Settings::capture) {
                     let update = match &mut engine {
-                        Ok(owner) => owner.reconcile(&settings, backend.as_ref()),
+                        Ok(owner) => owner.reconcile(
+                            &settings,
+                            backend.as_ref(),
+                            #[cfg(feature = "video-files")]
+                            &output,
+                        ),
                         Err(error) => settings_failure(&settings, error.clone()),
                     };
                     if update.status != settings.published || !update.choices.is_empty() {
@@ -52,10 +78,16 @@ pub(crate) fn start(runtime: ProductionRuntime<AppNode>) -> io::Result<Service> 
         },
     )
     .map_err(io::Error::other)?;
-    Ok(Service { _worker: worker })
+    Ok(Service {
+        #[cfg(feature = "video-files")]
+        _playback: playback,
+        _worker: worker,
+    })
 }
 
-fn native_engine() -> (Result<AudioEngine, String>, Option<BackendId>) {
+fn native_engine(
+    #[cfg(feature = "video-files")] reader: golden_audio::PcmPlaybackReader,
+) -> (Result<AudioEngine, String>, Option<BackendId>) {
     let backend = compiled_cpal_backend_catalog()
         .into_iter()
         .find(|info| info.is_platform_default && info.supports_system_default)
@@ -63,6 +95,10 @@ fn native_engine() -> (Result<AudioEngine, String>, Option<BackendId>) {
     let mut builder = AudioEngineBuilder::default()
         .without_backends()
         .with_managed_render_runtime();
+    #[cfg(feature = "video-files")]
+    {
+        builder = builder.with_pcm_playback(reader);
+    }
     for device_backend in compiled_cpal_backends() {
         builder = builder.with_boxed_backend(device_backend);
     }
@@ -94,7 +130,12 @@ impl AudioOwner {
         }
     }
 
-    fn reconcile(&mut self, settings: &Settings, backend: Option<&BackendId>) -> Publication {
+    fn reconcile(
+        &mut self,
+        settings: &Settings,
+        backend: Option<&BackendId>,
+        #[cfg(feature = "video-files")] playback: &super::playback::Output,
+    ) -> Publication {
         for event in std::iter::from_fn(|| self.events.try_recv()).take(512) {
             if let AudioEvent::ConfigurationRejected { generation, error } = event
                 && generation == self.generation
@@ -102,20 +143,38 @@ impl AudioOwner {
                 self.error = Some(error.to_string());
             }
         }
-        let (inventory, generation) = self
+        let (inventory, generation, levels) = self
             .engine
             .observations()
-            .inspect(|state| (state.device.clone(), state.generation));
+            .inspect(|state| (state.device.clone(), state.generation, state.outputs.clone()));
         let (config, choices) = match configuration::resolve(settings, backend, &inventory) {
             Ok(config) => config,
             Err(error) => {
                 self.submit(AudioConfiguration::empty());
+                #[cfg(feature = "video-files")]
+                playback.disable();
                 return settings_failure(settings, error);
             }
         };
         let waiting_for_device = settings.enabled && !config.output.enabled;
         self.submit(config);
         let output = &inventory.output;
+        #[cfg(feature = "video-files")]
+        playback.publish(
+            settings,
+            self.submitted.as_deref().and_then(|config| {
+                (generation == self.generation
+                    && config.output.enabled
+                    && output.readiness == AudioDeviceReadiness::Ready)
+                    .then(|| {
+                        (
+                            config,
+                            generation,
+                            output.format.as_ref().map_or(0, |format| format.buffer_frames),
+                        )
+                    })
+            }),
+        );
         let missing =
             waiting_for_device && generation == self.generation && output.readiness == AudioDeviceReadiness::Disabled;
         let mut physical_channels = Vec::new();
@@ -143,6 +202,7 @@ impl AudioOwner {
                 format: output.format.clone(),
                 physical_channels,
                 routes,
+                output_levels: levels,
                 configuration_generation: generation.get(),
                 error: self
                     .error

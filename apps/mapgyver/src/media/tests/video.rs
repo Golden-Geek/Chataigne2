@@ -8,6 +8,8 @@ use golden_core::{
 };
 use std::time::Duration;
 
+#[cfg(feature = "video-files")]
+mod audio;
 mod boundaries;
 mod crop;
 mod fade_loop;

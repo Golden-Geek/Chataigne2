@@ -24,7 +24,7 @@ impl Registry {
         owners.insert(media, control);
         Ok(())
     }
-    pub(super) fn controls(&self) -> Vec<Arc<VideoControl>> {
+    pub(crate) fn controls(&self) -> Vec<Arc<VideoControl>> {
         let mut owners = self.0.lock().unwrap();
         owners.retain(|_, owner| owner.strong_count() != 0);
         owners
@@ -34,7 +34,7 @@ impl Registry {
             .collect()
     }
 }
-pub(super) struct Source {
+pub(crate) struct Source {
     pub registry: Arc<Registry>,
     pub guard: RevisionGuard,
 }

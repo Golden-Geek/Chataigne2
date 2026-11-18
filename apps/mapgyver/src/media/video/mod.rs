@@ -5,6 +5,8 @@
 //! nominal frame rate, counts render callbacks or performs file work. Node/Parameter and worker
 //! integration consume this boundary; this module does not persist authored settings in DTOs.
 
+#[cfg(feature = "video-files")]
+pub(crate) mod audio;
 pub(crate) mod authoring;
 pub(crate) mod bindings;
 mod control;

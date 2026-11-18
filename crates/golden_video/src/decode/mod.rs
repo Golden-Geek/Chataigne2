@@ -489,21 +489,9 @@ impl Decoder {
         } else {
             None
         };
-        // Keep the selected stream's exact time base, rather than converting through the
-        // high-level Input::seek API's global microsecond coordinate.
-        // SAFETY: the uniquely owned live input retains the validated stream index. FFmpeg
-        // performs its own demux-buffer flush; no borrowed packet/frame refers to that input.
-        let result = unsafe {
-            ffmpeg::ffi::av_seek_frame(
-                self.input.as_mut_ptr(),
-                self.stream as i32,
-                timestamp,
-                ffmpeg::ffi::AVSEEK_FLAG_BACKWARD,
-            )
-        };
-        if result < 0 {
+        if let Err(error) = seek_input_before(&mut self.input, self.stream, timestamp) {
             self.state = DecodeState::Failed;
-            return Err(ffmpeg::Error::from(result).into());
+            return Err(error);
         }
         if let Some(decoder) = replacement {
             self.decoder = Some(decoder);
@@ -593,6 +581,22 @@ impl Decoder {
             }
         }
     }
+}
+
+fn seek_input_before(
+    input: &mut ffmpeg::format::context::Input,
+    stream: usize,
+    timestamp: i64,
+) -> Result<(), DecodeError> {
+    let stream = i32::try_from(stream).map_err(|_| DecodeError::OutsideStream)?;
+    // Seek in the selected stream's own time base. The uniquely owned live input has no
+    // borrowed packets during the call, and FFmpeg flushes the demux buffers for this seek.
+    let result =
+        unsafe { ffmpeg::ffi::av_seek_frame(input.as_mut_ptr(), stream, timestamp, ffmpeg::ffi::AVSEEK_FLAG_BACKWARD) };
+    if result < 0 {
+        return Err(ffmpeg::Error::from(result).into());
+    }
+    Ok(())
 }
 
 fn open_decoder(

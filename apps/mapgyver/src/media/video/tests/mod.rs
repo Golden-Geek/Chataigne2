@@ -1,4 +1,6 @@
 use super::*;
+#[cfg(feature = "video-files")]
+mod audio;
 mod fade;
 mod frames;
 mod membership;

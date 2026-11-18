@@ -129,18 +129,8 @@ pub(crate) fn tree() -> NodeTree {
     node.node_data_mut().meta.decl_id = DeclId(DECL_ID.into());
     let mut tree = NodeTree::new(node);
     for (key, label, physical, channel) in [
-        (
-            "main-left",
-            "Left",
-            "output:0",
-            uuid::Uuid::from_u128(0x8fe83692_442b_4bc0_92b8_87256dfe0001),
-        ),
-        (
-            "main-right",
-            "Right",
-            "output:1",
-            uuid::Uuid::from_u128(0x8fe83692_442b_4bc0_92b8_87256dfe0002),
-        ),
+        ("main-left", "Left", "output:0", super::voice::LEFT),
+        ("main-right", "Right", "output:1", super::voice::RIGHT),
     ] {
         let mut output = OutputNode::new();
         let meta = &mut output.node_data_mut().meta;
@@ -163,6 +153,7 @@ pub(super) struct Status {
     pub format: Option<golden_audio::NegotiatedStreamFormat>,
     pub physical_channels: Vec<String>,
     pub routes: Vec<(String, String)>,
+    pub output_levels: Vec<golden_audio::ChannelObservation>,
     pub configuration_generation: u64,
     pub error: Option<String>,
 }
