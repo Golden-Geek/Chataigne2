@@ -1,9 +1,9 @@
 # MapGyver — simple status
 
 - **Updated:** 18 November 2026.
-- **Overall plan acceptance:** `█████████░` **85% — 104/122 checks accepted, 8/16 phases complete**. The Video amendment adds the M10/9 fade-loop gate.
-- **Latest delivered:** Video can blend the end of a clip into its beginning. The Inspector and NVIDIA output checks passed.
-- **Working on next:** Shared Texture should auto-select external senders while keeping explicit manual choices.
+- **Overall plan acceptance:** `█████████░` **86% — 105/122 checks accepted, 8/16 phases complete**. Shared Texture sender defaults passed.
+- **Latest delivered:** New Shared Textures pick an external sender or None. Screen outputs show **(internal)** and remain available to select.
+- **Working on next:** Video subtitles in a disableable Inspector section.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -12,7 +12,7 @@
 - [x] **Projects:** save/load, normal Undo/Redo and copy/duplicate workflows.
 - [x] **Workbench:** media/screen managers, folders, shared selection, generic Inspector, contextual menus and panel targeting/locking.
 - [x] **Pictures and Solid Color:** real channel settings/files, independent copies, file reload and color controls.
-- [x] **Shared Texture:** receiving, previews, manual/automatic sender controls, sender retention when switching modes, ordinary reconnect and the preview-cadence fix.
+- [x] **Shared Texture:** receiving, previews and preview cadence, sender retention across Manual/Auto, and ordinary reconnect. New sources pick the first external sender or None. **(internal)** marks Screen outputs. Native pixel checks passed for deliberate internal selection, same-name takeover and external recovery.
 - [x] **Screens/Surfaces:** creation, warping, crop/source editing, opacity, enable/disable, calibration and native outputs.
 - [x] **Initial document/editors:** startup and New create and immediately show the automatic Screen and Surface. Hidden/reopened panels, saved targets/locks, reload and empty projects pass; no extra Undo steps.
 - [x] **Surface Editor display:** related Surfaces across Screens/References, independent toggles/locks, bounded paging, selection/Inspector and Undo/reload. ColorBars/Grid work without a source and obey its crop in Screen Warping/output mapping. Native patterns/contours, cropped ColorBars/Grid, mixed pattern/channel panels and70-Surface toolbar paging pass.
@@ -39,10 +39,9 @@
 
 ## Next features — implementation order
 
-1. **NOW — Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
-2. **Subtitles:** optional, disableable subtitle controls and display.
-3. **Extended Video codecs:** DXV and WebP/animated WebP.
-4. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+1. **NOW — Subtitles:** optional, disableable subtitle controls and display.
+2. **Extended Video codecs:** DXV and WebP/animated WebP.
+3. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 

@@ -44,10 +44,10 @@ const fromRustSchemaEnumVariants = (
 ): UiSnapshot['schema']['enums'][number]['variants'] => {
 	const parsed: UiSnapshot['schema']['enums'][number]['variants'] = [];
 	for (const variant of variants ?? []) {
-		const variantId = typeof variant.variant_id === 'string' ? variant.variant_id : '';
-		if (variantId.length === 0) {
+		if (typeof variant.variant_id !== 'string') {
 			continue;
 		}
+		const variantId = variant.variant_id;
 		const value =
 			variant.value !== undefined
 				? fromRustParamValue(variant.value)

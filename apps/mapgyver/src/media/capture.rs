@@ -30,6 +30,7 @@ pub(super) struct CapturedAsset {
 pub(super) struct CapturedChannel {
     pub video: Option<Arc<super::video::VideoControl>>,
     pub picture_reload: u64,
+    pub sender_external_only: bool,
     pub public_output: bool,
     pub reference: ChannelReference,
     pub definition: Option<ChannelDefinition>,
@@ -225,6 +226,7 @@ pub(crate) fn capture_channels_with_time(
                 _ => None,
             })
             .unwrap_or_else(|| frozen.map_or(0, |channel| channel.picture_reload));
+        let mut sender_external_only = frozen.is_some_and(|channel| channel.sender_external_only);
         let definition = match media {
             Some(AppNode::ReferenceMedia(node))
                 if super::folders::contains_parent(engine, node.node_data().parent, manager_id)
@@ -258,6 +260,7 @@ pub(crate) fn capture_channels_with_time(
                         if channel.kind() != media.kind() {
                             return Err("channel kind differs from owner".into());
                         }
+                        sender_external_only = channel.sender_external_only();
                         guards.push(channel.guard());
                         Some((
                             super::authoring::effective_definition(engine, channel.as_ref())?,
@@ -483,6 +486,7 @@ pub(crate) fn capture_channels_with_time(
                 _ => frozen.and_then(|channel| channel.video.clone()),
             },
             picture_reload,
+            sender_external_only,
             public_output: publicly_exposed(reference),
             owned,
             reference,
@@ -497,6 +501,7 @@ pub(crate) fn capture_channels_with_time(
         channels.push(CapturedChannel {
             video: None,
             picture_reload: 0,
+            sender_external_only: false,
             reference: *reference,
             public_output: false,
             definition: None,

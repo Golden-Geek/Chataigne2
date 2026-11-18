@@ -256,6 +256,7 @@ impl FixtureConsumer {
                 metadata: crate::plan::SpoutMetadata::Declared,
                 poll_interval: std::time::Duration::from_millis(16),
                 frame_count: config.frame_count,
+                external_only: false,
             },
         )?;
         let records = Vec::with_capacity(config.max_frames as usize);

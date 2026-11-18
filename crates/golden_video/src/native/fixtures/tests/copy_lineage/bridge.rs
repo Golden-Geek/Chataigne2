@@ -65,6 +65,7 @@ impl BridgeCapture {
                         descriptor: descriptor(),
                         poll_interval: Duration::from_millis(1),
                         frame_count: SpoutFrameCount::VersionedV1,
+                        external_only: false,
                     }
                     .into(),
                 ),

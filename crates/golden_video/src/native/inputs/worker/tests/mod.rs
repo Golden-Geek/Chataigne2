@@ -71,6 +71,7 @@ fn hardware_blocked_gpu_completion_retains_source_owners_until_signal() {
                 descriptor,
                 metadata: crate::plan::SpoutMetadata::Declared,
                 frame_count: SpoutFrameCount::Unversioned,
+                external_only: false,
                 poll_interval: Duration::from_millis(5),
             };
             let mut session = Session::new(adapter.id, &binding, shared.clone()).unwrap();

@@ -31,6 +31,7 @@ fn hardware_live_unversioned_source_cadence() {
                     metadata: SpoutMetadata::Discover,
                     poll_interval: Duration::from_millis(16),
                     frame_count: SpoutFrameCount::Unversioned,
+                    external_only: false,
                 }
                 .into(),
             ),

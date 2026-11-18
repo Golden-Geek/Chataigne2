@@ -216,6 +216,7 @@ impl Session {
                 metadata,
                 poll_interval: Duration::from_millis(16),
                 frame_count: SpoutFrameCount::Unversioned,
+                external_only: false,
             },
         )?;
         let native = if known.is_some() {

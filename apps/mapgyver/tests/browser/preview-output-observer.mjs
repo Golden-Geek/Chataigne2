@@ -78,7 +78,7 @@ export async function createPreviewOutputObserver(post, directory, page) {
 		});
 		return { screen, surface };
 	}
-	async function pixels(phase, expected, tolerance = 0) {
+	async function pixels(phase, expected, tolerance = 0, name = sender) {
 		assert(Number.isInteger(tolerance) && tolerance >= 0 && tolerance <= 2);
 		const actual = await observeNativeAdapter(page, hardware);
 		adapter ??= actual;
@@ -91,7 +91,7 @@ export async function createPreviewOutputObserver(post, directory, page) {
 				'--adapter',
 				String(adapter.index),
 				'--name',
-				sender,
+				name,
 				'--directory',
 				target
 			])

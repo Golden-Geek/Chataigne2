@@ -11,10 +11,11 @@ explicitly included in the same proposal. One Undo restores the mode and all
 affected leaves. Configuration intents, command nodes and named script methods
 use these same Parameters.
 
-Fresh Shared Texture media use Auto and select the first available sender from the last
+Fresh Shared Texture media use Auto and select the first external sender from the last
 worker-published bounded catalog. The displayed options and initial exact selection use the
-same snapshot and order; the empty option is labelled None. With an empty catalog, creation
-selects None. Selecting None explicitly never arms a later automatic selection.
+same snapshot and order. An internal-only or empty catalog seeds None. Own Screen outputs
+carry `(internal)` in the label in Auto and Manual Detect. Both controls still write the exact
+sender name. Selecting None explicitly never arms a later automatic selection.
 Manager/folder catalog creation, media intents, commands/scripts, Composition-owned media
 and Matrix Cell creation share the app-owned detached factory through Golden's public live
 creation context. The initial sender and mode are part of the creation/history operation;
@@ -23,8 +24,10 @@ the UI sends no repair edit and creation never calls the SDK.
 Intrinsic factories deliberately retain the Manual sparse-codec baseline. Live creation
 overrides the typed mode only on a fresh detached subtree and seeds both sender leaves.
 Decoding, duplication and redo preserve authored values, including Manual/None choices that
-older sparse projects omitted because they matched their baseline. No schema migration or
-mode reset on load is introduced.
+older sparse projects omitted because they matched their baseline. A catalog-seeded exact
+name carries a typed external-only flag through history, duplication, reload and mode changes.
+An explicit write to the active selector clears the flag in the same undoable edit. Existing
+saved choices keep exact-name behavior.
 
 Golden owns `ParameterEnumDomainPolicy::Open`: options describe availability,
 while exact unlisted Enum selections remain valid authored values. Closed enums
@@ -37,7 +40,12 @@ The media document is now `mapgyver.media.v8`. Earlier media schemas are rejecte
 by project admission; this work does not introduce a persisted-data migration.
 
 The native desktop preparation worker and native headless host worker service a
-coarse SDK catalog every 500 ms. The media manager receives one latest-only,
+coarse SDK catalog every 500 ms. Golden Video identifies same-process Screen outputs by
+matching the registered SDK name and shared handle to a live production sender. It retains
+ownership through fenced retirement and rejects an unresolved registration during publication.
+The same check runs when an external-only receiver would admit a new endpoint, so a same-name
+Screen output does not take over a source while the receiver waits for the external sender.
+The media manager receives one latest-only,
 lifetime-fenced metadata update through Golden's `NodeWaker`. Each update checks
 channel revision, Parameter UUID and expected value. It never writes a selected
 value or adds history. Closed engines cannot accept updates. The manager also retains the

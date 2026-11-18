@@ -1,5 +1,5 @@
 //! Variant settings are real Parameters; media-owned settings join them only in runtime projections.
-use super::protocol::{ChannelDefinition, ChannelSource, SizePolicy};
+use super::protocol::{ChannelDefinition, ChannelSource, SenderSelectionMode, SizePolicy};
 use crate::matrix::protocol::{GroupId, LayerId, MatrixDefinition, MatrixOutput};
 use golden_core::{
     edit::Edit,
@@ -25,12 +25,15 @@ use std::sync::OnceLock;
         sender_choice: Enum = "" (label = "Sender", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::SharedTexture,
             enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
             enum_options = self.sender_options.clone());
+        sender_external_only: bool = false (label = "External sender default", read_only = true,
+            persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false,
+            dependency = |node: &Self| node.kind() == super::protocol::MediaKind::SharedTexture);
         output_kind: Enum = "Final" (label = "Matrix output", read_only = true, persist_read_only_value = true, enum_options = crate::parameters::enum_options(&["Final", "Layer", "Group"]));
         output_item: NodeReference = NodeReference::empty() (label = "Output item", read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v4".into(), "mapgyver.matrix.group.v3".into()]);
     }
 )]
 pub struct ChannelNode {
-    #[state(default = super::sender_catalog::choices(&[]))]
+    #[state(default = super::sender_catalog::Snapshot::default().options)]
     sender_options: golden_core::parameter::ParameterEnumOptions,
     #[state(default = RevisionSource::default())]
     revision: RevisionSource,
@@ -59,12 +62,20 @@ impl ChannelNode {
             self.video_binding = Some(binding);
         }
     }
-    pub(super) fn initialize_sender_options(&mut self, options: golden_core::parameter::ParameterEnumOptions) {
+    pub(super) fn initialize_sender_defaults(
+        &mut self,
+        options: golden_core::parameter::ParameterEnumOptions,
+        external_only: bool,
+    ) {
         assert!(
             !self.sender_choice.is_bound(),
             "sender defaults require a detached channel"
         );
         self.sender_options = options;
+        self.sender_external_only = ParameterHandle::new(external_only);
+    }
+    pub(super) fn sender_external_only(&self) -> bool {
+        self.sender_external_only.get()
     }
     pub(crate) fn sender_parameter(&self, mode: super::protocol::SenderSelectionMode) -> NodeId {
         match mode {
@@ -361,7 +372,8 @@ impl Node for ChannelNode {
             self.output_item.id(),
         ]
         .contains(&parameter)
-            || (self.kind() == super::protocol::MediaKind::SharedTexture && parameter == self.sender_choice.id())
+            || (self.kind() == super::protocol::MediaKind::SharedTexture
+                && [self.sender_choice.id(), self.sender_external_only.id()].contains(&parameter))
         {
             self.revision.advance();
             if let Some(control) = self.matrix_playback.get() {
@@ -417,6 +429,35 @@ impl Node for ChannelNode {
 
     fn project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
         crate::parameters::reject_opaque(data)
+    }
+    fn parameter_companion_changes(
+        &self,
+        change: &ParameterValidationContext<'_>,
+    ) -> Result<Vec<(NodeId, ParamValue)>, String> {
+        if !self.sender_external_only() || ![self.sender.id(), self.sender_choice.id()].contains(&change.parameter) {
+            return Ok(Vec::new());
+        }
+        let Some(media) = self
+            .node_data()
+            .parent
+            .and_then(|id| change.node(id))
+            .and_then(|node| node.as_any().downcast_ref::<super::MediaNode>())
+        else {
+            return Ok(Vec::new());
+        };
+        let mode = match media
+            .sender_selection_parameter()
+            .and_then(|id| change.proposed_value(id))
+        {
+            Some(ParamValue::Enum(value)) => SenderSelectionMode::parse(value)?,
+            _ => media.sender_selection().ok_or("sender mode unavailable")?,
+        };
+        // Mode copies are derived, so only an explicit write to the active selector clears this intent.
+        if change.parameter == self.sender_parameter(mode) {
+            Ok(vec![(self.sender_external_only.id(), ParamValue::Bool(false))])
+        } else {
+            Ok(Vec::new())
+        }
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
         super::assets::parse_file(self.file.get_ref().as_str())?;

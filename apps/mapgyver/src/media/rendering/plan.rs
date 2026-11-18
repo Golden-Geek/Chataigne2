@@ -194,6 +194,7 @@ pub(super) fn build(
                 None => Entry {
                     target: allocate(next)?,
                     source: None,
+                    sender_external_only: false,
                     scratch: None,
                 },
             };
@@ -425,9 +426,14 @@ pub(super) fn build(
                 }
                 Some(source @ ChannelSource::Spout { sender: Some(sender) }) => {
                     let id = match &entry.source {
-                        Some((id, configured)) if configured == source => *id,
+                        Some((id, configured))
+                            if configured == source && entry.sender_external_only == channel.sender_external_only =>
+                        {
+                            *id
+                        }
                         _ => allocate(next)?,
                     };
+                    entry.sender_external_only = channel.sender_external_only;
                     entry.source = Some((id, source.clone()));
                     let observed = observations.sources.iter().find(|source| source.texture == id);
                     if let Some(observed) = observed {
@@ -464,6 +470,7 @@ pub(super) fn build(
                         source: Some(
                             SpoutSource {
                                 sender: sender.clone(),
+                                external_only: channel.sender_external_only,
                                 descriptor: maximum,
                                 metadata: golden_video::plan::SpoutMetadata::Discover,
                                 poll_interval: Duration::from_millis(16),

@@ -8,7 +8,6 @@ use crate::app::AppEngine;
 use golden_core::{
     edit::NodeTree,
     node::{Node, UserCreatableItem, UserItemCreationContext},
-    parameter::ParamValue,
 };
 
 const SOURCES: [(&str, MediaKind); 6] = [
@@ -58,21 +57,20 @@ fn live_media(context: &UserItemCreationContext<'_>, kind: MediaKind, label: Str
     let mut next = context
         .node(context.root())
         .and_then(|node| node.node_data().first_child);
-    let mut options = super::sender_catalog::choices(&[]);
+    let mut catalog = super::sender_catalog::Snapshot::default();
     while let Some(id) = next {
         let Some(node) = context.node(id) else { break };
         if let Some(manager) = node.as_any().downcast_ref::<super::MediaManagerNode>() {
-            options = manager.sender_catalog.options();
+            catalog = manager.sender_catalog.snapshot();
             break;
         }
         next = node.node_data().next_sibling;
     }
-    let sender = options.as_slice().iter().find_map(|option| match &option.value {
-        ParamValue::Enum(name) if !name.is_empty() => Some(name.clone()),
-        _ => None,
-    });
+    let external_only = catalog.default_sender.is_some();
     let definition = ChannelDefinition {
-        source: ChannelSource::Spout { sender },
+        source: ChannelSource::Spout {
+            sender: catalog.default_sender,
+        },
         ..ChannelDefinition::for_media(kind)
     };
     let (mut tree, reference) = media_tree(label, definition);
@@ -83,7 +81,7 @@ fn live_media(context: &UserItemCreationContext<'_>, kind: MediaKind, label: Str
         .initialize_auto_sender_selection();
     for child in &mut tree.children {
         if let Some(channel) = child.node.as_any_mut().downcast_mut::<super::ChannelNode>() {
-            channel.initialize_sender_options(options.clone());
+            channel.initialize_sender_defaults(catalog.options.clone(), external_only);
         }
     }
     (tree, reference)

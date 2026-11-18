@@ -43,6 +43,7 @@ fn hardware_blocked_sdk_access_retires_without_waiting_for_the_peer() {
                                 descriptor: descriptor(8),
                                 poll_interval: Duration::from_millis(5),
                                 frame_count: SpoutFrameCount::Unversioned,
+                                external_only: false,
                             }
                             .into(),
                         ),

@@ -216,6 +216,7 @@ fn verify_formats(cases: &[normalized::Case], replacements: bool) {
                                 },
                                 poll_interval: Duration::from_millis(16),
                                 frame_count: SpoutFrameCount::Unversioned,
+                                external_only: false,
                             }
                             .into(),
                         ),

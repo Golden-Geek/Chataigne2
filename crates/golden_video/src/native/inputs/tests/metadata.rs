@@ -15,6 +15,7 @@ fn exact_native_metadata_admission_discovers_byte_and_float_storage_without_chan
         },
         poll_interval: Duration::from_millis(16),
         frame_count: SpoutFrameCount::Unversioned,
+        external_only: false,
     };
     for (storage, format) in [
         (DXGI_FORMAT_B8G8R8A8_UNORM, PixelFormat::Bgra8Unorm),

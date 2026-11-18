@@ -8,32 +8,23 @@ use golden_core::{
     process_ctx::ProcessCtx,
 };
 use golden_io::RevisionGuard;
-use std::sync::{Arc, Mutex, Weak};
+use std::{
+    collections::HashSet,
+    sync::{Arc, Mutex, Weak},
+};
 
+#[derive(Default)]
 struct State {
     waker: Option<NodeWaker>,
     pending: Option<Vec<SelectionUpdate>>,
     closed: bool,
-    options: ParameterEnumOptions,
-}
-impl Default for State {
-    fn default() -> Self {
-        Self {
-            waker: None,
-            pending: None,
-            closed: false,
-            options: choices(&[]),
-        }
-    }
+    catalog: Snapshot,
 }
 #[derive(Default)]
 pub(crate) struct Inbox(Arc<Mutex<State>>);
 impl Inbox {
-    pub(super) fn options(&self) -> ParameterEnumOptions {
-        self.0
-            .lock()
-            .map(|state| state.options.clone())
-            .unwrap_or_else(|_| choices(&[]))
+    pub(super) fn snapshot(&self) -> Snapshot {
+        self.0.lock().map(|state| state.catalog.clone()).unwrap_or_default()
     }
     pub fn register(&self, ctx: &ProcessCtx) -> Result<(), String> {
         self.0.lock().map_err(|_| "sender catalog inbox poisoned")?.waker =
@@ -75,14 +66,14 @@ struct Publisher {
     waker: NodeWaker,
 }
 impl Publisher {
-    fn publish(&self, updates: Vec<SelectionUpdate>, options: ParameterEnumOptions) -> Result<(), String> {
+    fn publish(&self, updates: Vec<SelectionUpdate>, catalog: Snapshot) -> Result<(), String> {
         let state = self.state.upgrade().ok_or("sender catalog retired")?;
         let mut state = state.lock().map_err(|_| "sender catalog inbox poisoned")?;
         if state.closed || self.waker.is_closed() {
             return Err("sender catalog retired".into());
         }
         // The first creation must see discovery even when no channel exists to receive metadata.
-        state.options = options;
+        state.catalog = catalog;
         if updates.is_empty() {
             return Ok(());
         }
@@ -160,8 +151,9 @@ impl Source {
         }
         Ok(())
     }
-    pub(crate) fn publish(&mut self, names: &[String]) -> Result<(), String> {
-        let options = choices(names);
+    pub(crate) fn publish(&mut self, names: &[String], internal_names: &[String]) -> Result<(), String> {
+        let catalog = Snapshot::new(names, internal_names);
+        let options = catalog.options.clone();
         let mut updates = Vec::new();
         // A replacement inbox batch must include every channel: an earlier batch may still
         // be pending while one changed binding is refreshed against the older installed options.
@@ -176,7 +168,7 @@ impl Source {
                 });
             }
         }
-        self.publisher.publish(updates, options.clone())?;
+        self.publisher.publish(updates, catalog)?;
         for selection in &mut self.selections {
             selection.options = options.clone();
         }
@@ -184,30 +176,53 @@ impl Source {
     }
 }
 
-pub(crate) fn choices(names: &[String]) -> ParameterEnumOptions {
-    let mut entries = vec![option("", "None".into(), true)];
-    let mut seen = std::collections::HashSet::from([String::new()]);
-    for name in names
-        .iter()
-        .take(64)
-        .filter(|name| name.len() <= 255 && !name.contains('\0'))
-    {
-        if seen.insert(name.clone()) {
-            entries.push(option(name, name.clone(), true));
+#[derive(Clone)]
+pub(super) struct Snapshot {
+    pub options: ParameterEnumOptions,
+    pub default_sender: Option<String>,
+}
+
+impl Default for Snapshot {
+    fn default() -> Self {
+        Self::new(&[], &[])
+    }
+}
+
+impl Snapshot {
+    fn new(names: &[String], internal_names: &[String]) -> Self {
+        let mut entries = vec![option("", "None".into())];
+        let mut seen = HashSet::from([""]);
+        let internal = internal_names.iter().map(String::as_str).collect::<HashSet<_>>();
+        let mut default_sender = None;
+        for name in names
+            .iter()
+            .take(64)
+            .filter(|name| name.len() <= 255 && !name.contains('\0'))
+        {
+            if !seen.insert(name.as_str()) {
+                continue;
+            }
+            let label = if internal.contains(name.as_str()) {
+                format!("{name} (internal)")
+            } else {
+                default_sender.get_or_insert_with(|| name.clone());
+                name.clone()
+            };
+            entries.push(option(name, label));
+        }
+        Self {
+            options: entries.into(),
+            default_sender,
         }
     }
-    entries.into()
 }
-fn option(name: &str, label: String, available: bool) -> ParameterEnumOption {
+
+fn option(name: &str, label: String) -> ParameterEnumOption {
     ParameterEnumOption {
         variant_id: name.into(),
         value: ParamValue::Enum(name.into()),
         label,
-        tags: if available {
-            vec!["available".into()]
-        } else {
-            vec!["unavailable".into()]
-        },
+        tags: vec!["available".into()],
         ordering: None,
     }
 }

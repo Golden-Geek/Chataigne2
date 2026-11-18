@@ -65,6 +65,7 @@ fn source_contracts_are_validated_before_pruning_and_charge_retained_selector_ca
         descriptor: descriptor(4, 4),
         poll_interval: Duration::from_millis(16),
         frame_count: SpoutFrameCount::Unversioned,
+        external_only: false,
     };
     let make = |source: SpoutSource| RenderPlan {
         external_textures: vec![ExternalTexture {
@@ -190,6 +191,7 @@ fn observed_legacy_xrgb_can_compile_without_admitting_other_discovered_alpha_ove
                         metadata: crate::plan::SpoutMetadata::Discover,
                         poll_interval: std::time::Duration::from_millis(16),
                         frame_count: SpoutFrameCount::Unversioned,
+                        external_only: false,
                     }
                     .into(),
                 ),
@@ -213,6 +215,7 @@ fn discovered_spout_metadata_accepts_both_byte_layouts_with_runtime_bounds() {
         metadata: SpoutMetadata::Discover,
         poll_interval: std::time::Duration::from_millis(16),
         frame_count: SpoutFrameCount::Unversioned,
+        external_only: false,
     };
     for format in [PixelFormat::Bgra8Unorm, PixelFormat::Rgba8Unorm] {
         let actual = source

@@ -1,4 +1,4 @@
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::marker::PhantomData;
 use std::ptr::NonNull;
 use std::rc::Rc;
@@ -9,6 +9,8 @@ use windows::core::{Error, HRESULT, Interface, Result};
 
 use crate::{PixelFormat, TextureDescriptor};
 
+use super::super::provenance::{Publication, SenderIdentity};
+use super::super::spout_layout::legacy_shared_handle;
 use super::super::texture::{Texture, format};
 use super::super::timing::{CpuInterval, Recorder, SpoutImageVersion};
 use super::Delivery;
@@ -26,12 +28,18 @@ pub(crate) struct SpoutOutput {
     descriptor: TextureDescriptor,
     failure: Option<HRESULT>,
     allocation_handle: Option<u32>,
+    publication: Option<Publication>,
     _local: PhantomData<Rc<()>>,
 }
 
 impl SpoutOutput {
     pub(crate) fn new(device: &ID3D11Device, name: String, descriptor: TextureDescriptor) -> Result<Self> {
         Self::configured(device, name, descriptor, true)
+    }
+
+    pub(super) fn track_publication(mut self) -> Self {
+        self.publication = Some(Publication::default());
+        self
     }
 
     #[cfg(test)]
@@ -70,6 +78,7 @@ impl SpoutOutput {
             descriptor,
             failure: None,
             allocation_handle: None,
+            publication: None,
             _local: PhantomData,
         };
         // SAFETY: output owns the instance and an AddRef of the exact borrowed device.
@@ -179,11 +188,18 @@ impl SpoutOutput {
         }
         // SAFETY: exact device, storage and subresource layout were checked above. The pool
         // reserved this sender's single shared texture before its lazy SDK allocation here.
+        let publication_change = self.publication.as_ref().and_then(Publication::before_first_send);
         let begin = recorder.and_then(Recorder::stamp);
         let status = unsafe {
             sdk::spout_dx_send_texture_status(self.raw.as_ptr(), texture.texture.as_raw(), access_timeout_ms)
         };
         *consumer_api = recorder.and_then(|recorder| recorder.interval(begin));
+        if let Some(change) = publication_change {
+            let identity = self.published_identity();
+            if let Some(publication) = &mut self.publication {
+                publication.complete_first_send(change, identity);
+            }
+        }
         // Registration during SendTexture can rename a sender even after SetSenderName passed.
         if !self.has_exact_name() {
             return self.reject_renamed_sender();
@@ -223,6 +239,31 @@ impl SpoutOutput {
                 .all(|(actual, expected)| *actual as u8 == *expected)
     }
 
+    fn published_identity(&self) -> Option<SenderIdentity> {
+        let raw = self.raw.as_ptr();
+        let mut buffer = [0_i8; 256];
+        // SAFETY: a live worker-owned instance. Fixed extent/format keep this allocation
+        // immutable after first registration. A failed first copy can still leave it live.
+        let (length, shared_handle) = unsafe {
+            if sdk::spout_dx_is_initialized(raw) == 0 {
+                return None;
+            }
+            (
+                sdk::spout_dx_get_name(raw, buffer.as_mut_ptr(), buffer.len() as i32),
+                legacy_shared_handle(sdk::spout_dx_get_sender_handle(raw) as usize)?,
+            )
+        };
+        let bytes = buffer.map(|byte| byte as u8);
+        let length = usize::try_from(length)
+            .ok()
+            .filter(|&length| length > 0 && length < bytes.len())?;
+        let name = CStr::from_bytes_with_nul(&bytes[..=length]).ok()?.to_str().ok()?;
+        Some(SenderIdentity {
+            name: name.to_owned(),
+            shared_handle,
+        })
+    }
+
     fn reject_renamed_sender(&mut self) -> Result<Delivery> {
         // Do not release SDK storage here: SendTexture may already have queued a copy. The
         // pool latches this failure and destroys the instance only after its last-use fence.
@@ -236,6 +277,12 @@ impl Drop for SpoutOutput {
         // SAFETY: the uniquely owned SDK instance is destroyed once, on its owning worker,
         // while device still retains the borrowed COM pointer. The SDK releases its sender
         // texture and immediate context before Rust drops our device AddRef.
-        unsafe { sdk::spout_dx_destroy(self.raw.as_ptr()) };
+        let raw = self.raw;
+        let destroy = || unsafe { sdk::spout_dx_destroy(raw.as_ptr()) };
+        if let Some(publication) = &mut self.publication {
+            publication.retire(destroy);
+        } else {
+            destroy();
+        }
     }
 }

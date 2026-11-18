@@ -18,6 +18,7 @@ pub(super) fn verify_replacements(adapter: AdapterId) {
             metadata: SpoutMetadata::Discover,
             poll_interval: Duration::from_millis(16),
             frame_count: SpoutFrameCount::Unversioned,
+            external_only: false,
         },
     )
     .unwrap();

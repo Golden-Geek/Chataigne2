@@ -248,6 +248,8 @@ impl SpoutFrameCount {
 pub struct SpoutSource {
     /// Exact sender selector; never the SDK's active-sender fallback.
     pub sender: String,
+    /// Reject same-process renderer outputs, including a takeover of the exact selector.
+    pub external_only: bool,
     /// Maximum extent. Storage/transfer/alpha are fixed only in declared metadata mode;
     /// discovery replaces them with admitted native metadata.
     pub descriptor: TextureDescriptor,

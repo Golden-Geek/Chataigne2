@@ -8,8 +8,8 @@ use windows::Win32::Graphics::Direct3D11::{
 };
 use windows::core::{Error, HRESULT, Interface, Result};
 
-use super::super::spout_layout;
 use super::super::texture::Texture;
+use super::super::{provenance, spout_layout};
 use crate::plan::{SpoutFrameCount, SpoutSource};
 use crate::{Extent2D, TextureDescriptor};
 
@@ -85,6 +85,7 @@ impl Receiver {
     /// The caller fences previous source commands before invoking this method again or
     /// disconnecting, so SDK replacement cannot abandon an in-flight copy's source alias.
     pub fn preflight(&mut self) -> Result<Option<Received>> {
+        let publication_revision = self.binding.external_only.then(provenance::revision);
         let (mut width, mut height, mut storage) = (0, 0, 0);
         let mut handle = std::ptr::null_mut();
         // SAFETY: fixed selector and initialized metadata outputs; no image is allocated/copied.
@@ -102,6 +103,22 @@ impl Receiver {
             self.disconnect();
             return Ok(Some(Received::Absent));
         }
+        let endpoint_changed = self.endpoint.as_ref().is_none_or(|endpoint| {
+            endpoint.handle != handle as usize
+                || endpoint.registered_storage != storage
+                || endpoint.descriptor.extent.width() != width
+                || endpoint.descriptor.extent.height() != height
+        });
+        // Retained aliases pin a previously admitted external registration. Check provenance
+        // again only for a new endpoint, before opening its D3D texture on the source device.
+        if endpoint_changed
+            && let Some(revision) = publication_revision
+            && !spout_layout::legacy_shared_handle(handle as usize)
+                .is_some_and(|handle| provenance::is_external(revision, &self.binding.sender, handle))
+        {
+            self.disconnect();
+            return Ok(Some(Received::Absent));
+        }
         let Some(extent) = Extent2D::new(width, height).ok().filter(|extent| {
             extent.width() <= self.binding.descriptor.extent.width()
                 && extent.height() <= self.binding.descriptor.extent.height()
@@ -113,11 +130,7 @@ impl Receiver {
             self.disconnect();
             return Ok(Some(Received::Mismatch));
         }
-        if self.endpoint.as_ref().is_none_or(|endpoint| {
-            endpoint.handle != handle as usize
-                || endpoint.registered_storage != storage
-                || endpoint.descriptor.extent != extent
-        }) {
+        if endpoint_changed {
             self.disconnect();
             if !self.validate_alias(handle, storage, extent)? {
                 return Ok(Some(Received::Mismatch));

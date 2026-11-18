@@ -109,6 +109,7 @@ fn hardware_packed_video_decodes_444_precision_and_retires_storage() {
                                     },
                                     poll_interval: Duration::from_millis(16),
                                     frame_count: SpoutFrameCount::Unversioned,
+                                    external_only: false,
                                 }
                                 .into(),
                             ),

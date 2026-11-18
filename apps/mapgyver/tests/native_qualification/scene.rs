@@ -96,6 +96,7 @@ pub fn plan(
                 source: Some(ExternalSource::Spout(SpoutSource {
                     metadata: golden_video::plan::SpoutMetadata::Declared,
                     sender: sources[index].clone(),
+                    external_only: false,
                     descriptor,
                     poll_interval: Duration::from_millis(1),
                     frame_count: golden_video::plan::SpoutFrameCount::VersionedV1,

@@ -11,7 +11,6 @@ pub(crate) struct Catalog {
     due: Instant,
     discovery: Option<golden_video::native::SpoutDiscovery>,
     source: Option<Source>,
-    names: Vec<String>,
     error: Option<String>,
 }
 impl Default for Catalog {
@@ -20,7 +19,6 @@ impl Default for Catalog {
             due: Instant::now(),
             discovery: None,
             source: None,
-            names: Vec::new(),
             error: None,
         }
     }
@@ -44,20 +42,16 @@ impl Catalog {
         if self.discovery.is_none() {
             self.discovery = Some(golden_video::native::SpoutDiscovery::new().map_err(|e| e.to_string())?);
         }
-        let discovery_error = match self
+        let (names, internal_names, discovery_error) = match self
             .discovery
             .as_mut()
             .unwrap()
             .snapshot(NonZeroUsize::new(64).unwrap())
         {
-            Ok(catalog) => {
-                self.names = catalog.names;
-                None
-            }
+            Ok(catalog) => (catalog.names, catalog.internal_names, None),
             Err(error) => {
                 self.discovery = None;
-                self.names.clear();
-                Some(error.to_string())
+                (Vec::new(), Vec::new(), Some(error.to_string()))
             }
         };
         let dirty = self.source.as_ref().is_none_or(Source::dirty);
@@ -82,7 +76,7 @@ impl Catalog {
         self.source
             .as_mut()
             .ok_or("sender catalog source missing")?
-            .publish(&self.names)?;
+            .publish(&names, &internal_names)?;
         discovery_error.map_or(Ok(()), Err)
     }
 }

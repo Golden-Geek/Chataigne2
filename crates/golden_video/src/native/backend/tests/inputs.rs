@@ -44,6 +44,7 @@ fn discovered_metadata_preflight_does_not_reserve_a_maximum_pool_before_native_l
                         descriptor: straight(16, 16),
                         poll_interval: Duration::from_millis(16),
                         frame_count: crate::plan::SpoutFrameCount::Unversioned,
+                        external_only: false,
                     }
                     .into(),
                 ),
@@ -211,6 +212,7 @@ pub(super) fn scene(names: &[String; 2], width: u32, height: u32) -> RenderPlan 
                         descriptor: external(4, 4),
                         poll_interval: Duration::from_millis(5),
                         frame_count: crate::plan::SpoutFrameCount::VersionedV1,
+                        external_only: false,
                     }
                     .into(),
                 ),
@@ -225,6 +227,7 @@ pub(super) fn scene(names: &[String; 2], width: u32, height: u32) -> RenderPlan 
                         descriptor: external(4, 4),
                         poll_interval: Duration::from_millis(5),
                         frame_count: crate::plan::SpoutFrameCount::VersionedV1,
+                        external_only: false,
                     }
                     .into(),
                 ),

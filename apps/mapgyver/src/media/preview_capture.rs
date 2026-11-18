@@ -38,6 +38,7 @@ pub(crate) fn capture_editor_channels(
         let mut captured = CapturedChannel {
             video: None,
             picture_reload: 0,
+            sender_external_only: false,
             public_output: true,
             reference,
             definition: None,

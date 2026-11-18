@@ -158,13 +158,8 @@ pub struct SpoutImageVersion {
 
 impl SpoutImageVersion {
     pub(crate) fn copied_legacy(handle: usize, frame: i32) -> Option<Self> {
-        // SpoutSenderNames stores uint32_t shareHandle via HandleToLong and retrieves it via
-        // LongToHandle on x64. Normalize only those zero/sign-extended legacy representations;
-        // this is not a conversion for arbitrary NT handles or a handle used for native access.
-        let legacy = handle as u32;
-        let canonical = handle == legacy as usize || handle == legacy as i32 as isize as usize;
-        (canonical && legacy != 0 && frame > 0).then_some(Self {
-            shared_handle: legacy,
+        (frame > 0).then_some(Self {
+            shared_handle: super::super::spout_layout::legacy_shared_handle(handle)?,
             frame,
         })
     }

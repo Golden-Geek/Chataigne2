@@ -251,7 +251,11 @@ export async function verifySenderDefaultsUi({ base, edit, post, directory, host
 			'Reload must retain the exact sender'
 		);
 		assert.equal(await mode.inputValue(), 'Auto');
-		assert.equal((await options()).find((item) => item.value === '').label, 'None');
+		await wait(
+			options,
+			(items) => items.some(({ value, label }) => value === '' && label === 'None'),
+			'Reload installs the live sender options alongside the exact saved value'
+		);
 		checks.push(
 			'Save/New/Load restores authored mode/sender without applying creation policy again'
 		);

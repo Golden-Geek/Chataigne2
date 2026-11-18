@@ -41,6 +41,7 @@ pub struct PreparedChannel {
 struct Entry {
     target: TextureId,
     source: Option<(TextureId, ChannelSource)>,
+    sender_external_only: bool,
     scratch: Option<TextureId>,
 }
 

@@ -154,7 +154,7 @@ Video fade-loop (M10/9) → Shared Texture defaults (M15/11) → subtitles (M10/
 extended Video codecs (M10/3) → Golden Gradient (M15/10)**, then retained qualification
 and M09. This supersedes conflicting all-M15-before-Video and codec-before-subtitles ordering
 above and below. M15/9 is Accepted. M10/9 is functionally verified, with full qualification
-retained, and M15/11 is next. The amendment adds one gate (**121 → 122**). The 104 accepted
+retained, and M15/11 is Accepted. The amendment adds one gate (**121 → 122**). The 104 accepted
 gates at the geometry checkpoint count as **85%** across this scope. M10 is **5/9 (56%)** and
 phase completion is **8/16 (50%)**.
 
@@ -1594,6 +1594,7 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
     internal-only, mixed and changing catalogs, multiple own outputs, rename/loss/recovery,
     creation/history/copy/reload and actual SDK discovery with correct pixels; labels alone are
     not proof of sender provenance.
+    [M15/11 acceptance](../progress/evidence/mapgyver-m15-external-sender-defaults-2026-11-18.json) records caller parity, headless reload and native pixels for competing registrations, exact-name takeover, rename and recovery.
 
 12. **Screens, Surfaces, Medias and Folders support custom color.** Owners: Golden public
     typed custom-color metadata/Inspector mechanisms and MapGyver node declarations and

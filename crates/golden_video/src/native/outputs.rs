@@ -66,9 +66,8 @@ impl Output {
             OutputBinding::Window { window, .. } => {
                 window::WindowOutput::new(device, *window, binding.descriptor(), diagnostics).map(Self::Window)
             }
-            OutputBinding::Spout { name, .. } => {
-                spout::SpoutOutput::new(device, name.clone(), binding.descriptor()).map(Self::Spout)
-            }
+            OutputBinding::Spout { name, .. } => spout::SpoutOutput::new(device, name.clone(), binding.descriptor())
+                .map(|output| Self::Spout(output.track_publication())),
         }
     }
     fn admit(&mut self, timeout_ms: u32) -> std::result::Result<(), Delivery> {

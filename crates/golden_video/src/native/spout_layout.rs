@@ -7,6 +7,13 @@ use crate::{AlphaMode, Extent2D, TextureDescriptor};
 #[cfg(test)]
 mod tests;
 
+pub(super) fn legacy_shared_handle(handle: usize) -> Option<u32> {
+    // SpoutSenderNames stores a uint32_t via HandleToLong and retrieves it via LongToHandle.
+    let legacy = handle as u32;
+    let canonical = handle == legacy as usize || handle == legacy as i32 as isize as usize;
+    (canonical && legacy != 0).then_some(legacy)
+}
+
 pub(super) fn native_format(registered: u32) -> DXGI_FORMAT {
     match registered {
         // D3DFMT_A8R8G8B8 and D3DFMT_X8R8G8B8, as mapped by the pinned SDK.

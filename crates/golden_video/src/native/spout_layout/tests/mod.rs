@@ -21,6 +21,7 @@ fn legacy_xrgb_authenticates_both_sdk_bgra_and_actual_d3d9_bgrx_storage() {
             metadata: SpoutMetadata::Discover,
             poll_interval: Duration::from_millis(16),
             frame_count: SpoutFrameCount::Unversioned,
+            external_only: false,
         };
         assert_eq!(observed_alias(&binding, extent, 22, native), Some(actual));
     }
@@ -68,6 +69,7 @@ fn paired_video_admission_requires_even_width_and_defaults_to_opaque_float() {
                 metadata: SpoutMetadata::Discover,
                 poll_interval: Duration::from_millis(16),
                 frame_count: SpoutFrameCount::Unversioned,
+                external_only: false,
             };
             assert_eq!(
                 observed_alias(&binding, actual.extent, registered, format),
@@ -154,6 +156,7 @@ fn typeless_defaults_keep_exact_native_registration_and_allow_declared_family_me
             metadata: SpoutMetadata::Declared,
             poll_interval: Duration::from_millis(16),
             frame_count: SpoutFrameCount::Unversioned,
+            external_only: false,
         };
         for registration in [0, native.0 as u32] {
             assert_eq!(
@@ -188,6 +191,7 @@ fn xr_registration_remains_exact_despite_copy_compatible_unorm_storage() {
         metadata: SpoutMetadata::Declared,
         poll_interval: Duration::from_millis(16),
         frame_count: SpoutFrameCount::Unversioned,
+        external_only: false,
     };
     assert_eq!(observed_alias(&binding, extent, 89, xr), Some(declared));
 }
@@ -243,6 +247,7 @@ fn resolved_unspecified_layout_keeps_declared_interpretation_and_rejects_bounds_
         metadata: SpoutMetadata::Declared,
         poll_interval: Duration::from_millis(16),
         frame_count: SpoutFrameCount::Unversioned,
+        external_only: false,
     };
     assert_eq!(
         observed_alias(&binding, extent, 0, DXGI_FORMAT_R32G32B32A32_FLOAT),

@@ -65,8 +65,9 @@ fn available(engine: &AppEngine, reference: ChannelReference) -> Vec<String> {
 #[test]
 fn live_catalog_is_shared_bounded_and_deduplicated_without_retaining_historical_names() {
     let names = (0..80).map(|i| format!("Sender {i}")).collect::<Vec<_>>();
-    assert_eq!(choices(&names).len(), 65);
-    assert_eq!(choices(&["A".into(), "A".into(), "".into(), "bad\0".into()]).len(), 2);
+    assert_eq!(Snapshot::new(&names, &[]).options.len(), 65);
+    let catalog = Snapshot::new(&["A".into(), "A".into(), "".into(), "bad\0".into()], &[]);
+    assert_eq!(catalog.options.len(), 2);
 }
 
 #[test]
@@ -80,7 +81,7 @@ fn metadata_disappearance_rename_and_return_preserve_exact_choice_history_and_ch
         vec!["Renamed".into()],
         vec!["Exact missing α".into()],
     ] {
-        source.publish(&names).unwrap();
+        source.publish(&names, &["Other".into()]).unwrap();
         drain(&mut engine);
         assert_eq!((engine.undo_len(), engine.redo_len()), history);
         assert_eq!(
@@ -114,7 +115,7 @@ fn metadata_disappearance_rename_and_return_preserve_exact_choice_history_and_ch
 fn pending_metadata_is_latest_only_and_cannot_overwrite_new_values_or_retired_projects() {
     let (mut engine, first, second) = engine();
     let mut source = Source::capture(&engine).unwrap();
-    source.publish(&["Older".into()]).unwrap();
+    source.publish(&["Older".into()], &[]).unwrap();
     let node = parameter(&engine, first);
     engine.edits.push(Edit::SetParam {
         node,
@@ -123,14 +124,14 @@ fn pending_metadata_is_latest_only_and_cannot_overwrite_new_values_or_retired_pr
     });
     engine.apply_edits().unwrap();
     source.refresh(&engine).unwrap();
-    source.publish(&["Latest".into()]).unwrap();
+    source.publish(&["Latest".into()], &[]).unwrap();
     drain(&mut engine);
     assert_eq!(
         engine.nodes.get(node).unwrap().engine_param_snapshot().unwrap().value,
         ParamValue::Enum("New exact".into())
     );
     source.refresh(&engine).unwrap();
-    source.publish(&["Latest".into()]).unwrap();
+    source.publish(&["Latest".into()], &[]).unwrap();
     drain(&mut engine);
     assert_eq!(available(&engine, first), vec!["", "Latest"]);
     assert_eq!(available(&engine, second), vec!["", "Latest"]);
@@ -139,18 +140,18 @@ fn pending_metadata_is_latest_only_and_cannot_overwrite_new_values_or_retired_pr
         ParamValue::Enum("New exact".into())
     );
     drop(engine);
-    assert!(source.publish(&["Retired".into()]).is_err());
+    assert!(source.publish(&["Retired".into()], &[]).is_err());
 }
 
 #[test]
 fn refreshing_one_binding_before_delivery_keeps_the_whole_pending_catalog_batch() {
     let (mut engine, first, second) = engine();
     let mut source = Source::capture(&engine).unwrap();
-    source.publish(&["Same catalog".into()]).unwrap();
+    source.publish(&["Same catalog".into()], &[]).unwrap();
     // Refresh one captured binding from the still-older installed metadata, before delivery.
     let channel = source.selections[0].channel;
     source.selections[0] = Source::selection(&engine, channel).unwrap();
-    source.publish(&["Same catalog".into()]).unwrap();
+    source.publish(&["Same catalog".into()], &[]).unwrap();
     drain(&mut engine);
     assert_eq!(available(&engine, first), vec!["", "Same catalog"]);
     assert_eq!(available(&engine, second), vec!["", "Same catalog"]);
@@ -161,7 +162,7 @@ fn conditional_enum_domain_is_restored_before_post_load_sender_disappearance() {
     let (mut engine, first, _) = engine();
     Source::capture(&engine)
         .unwrap()
-        .publish(&["Exact missing α".into()])
+        .publish(&["Exact missing α".into()], &[])
         .unwrap();
     drain(&mut engine);
     let saved = golden_core::app::to_sparse_project_json_pretty(&engine).unwrap();
@@ -189,7 +190,7 @@ fn conditional_enum_domain_is_restored_before_post_load_sender_disappearance() {
         Some(golden_core::parameter::ParameterEnumDomainPolicy::Open)
     );
     let mut source = Source::capture(&loaded).unwrap();
-    source.publish(&[]).unwrap();
+    source.publish(&[], &[]).unwrap();
     drain(&mut loaded);
     assert_eq!(
         loaded

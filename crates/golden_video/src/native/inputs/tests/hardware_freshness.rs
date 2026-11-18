@@ -180,6 +180,7 @@ fn hardware_versioned_preflight_and_busy_preserve_source_publications() {
                     descriptor: descriptor(8),
                     poll_interval: Duration::from_millis(5),
                     frame_count,
+                    external_only: false,
                 }
                 .into(),
             ),

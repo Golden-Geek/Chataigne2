@@ -207,6 +207,7 @@ fn input_reservations_cover_maximum_pools_while_plans_charge_actual_extents() {
                         },
                         poll_interval: std::time::Duration::from_millis(16),
                         frame_count: crate::plan::SpoutFrameCount::Unversioned,
+                        external_only: false,
                     }
                     .into(),
                 ),

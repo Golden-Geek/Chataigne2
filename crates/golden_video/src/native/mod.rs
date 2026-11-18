@@ -23,6 +23,7 @@ mod outputs;
 mod pipeline;
 mod probe;
 mod process;
+mod provenance;
 mod selection;
 mod spout_layout;
 mod texture;

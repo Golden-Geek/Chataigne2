@@ -12,18 +12,19 @@ use golden_core::{
     script::ScriptMethodCall,
 };
 
-fn publish(engine: &mut AppEngine, names: &[&str]) {
-    Source::capture(engine)
-        .unwrap()
-        .publish(&names.iter().map(|s| (*s).into()).collect::<Vec<_>>())
-        .unwrap();
+fn publish(engine: &mut AppEngine, names: &[&str], internal: &[&str]) {
+    let names: Vec<_> = names.iter().map(|name| (*name).to_owned()).collect();
+    let internal: Vec<_> = internal.iter().map(|name| (*name).to_owned()).collect();
+    Source::capture(engine).unwrap().publish(&names, &internal).unwrap();
     engine.run_tick(std::time::Duration::from_millis(1)).unwrap();
 }
 
 fn with_catalog(names: &[&str]) -> AppEngine {
     let mut engine = fixture();
     prepare_engine_for_runtime(&mut engine).unwrap();
-    publish(&mut engine, names);
+    let internal = ["Output first", "Output second"];
+    let discovered: Vec<_> = internal.iter().chain(names).copied().collect();
+    publish(&mut engine, &discovered, &internal);
     engine
 }
 
@@ -43,6 +44,11 @@ fn reference(engine: &AppEngine, media: MediaId) -> ChannelReference {
         media,
         channel: ChannelId(channel),
     }
+}
+
+fn external_only(engine: &AppEngine, reference: ChannelReference) -> bool {
+    let capture = crate::media::capture_channels(engine, &[reference], 1).unwrap();
+    capture.channels[0].sender_external_only
 }
 
 fn check(engine: &AppEngine, reference: ChannelReference, expected: Option<&str>) {
@@ -72,8 +78,13 @@ fn check(engine: &AppEngine, reference: ChannelReference, expected: Option<&str>
     let options = state.constraints.enum_options.as_slice();
     assert_eq!(options[0].label, "None");
     assert_eq!(options[0].value, ParamValue::Enum(String::new()));
-    assert_eq!(options.get(1).map(|entry| entry.variant_id.as_str()), expected);
+    assert_eq!(options[1].variant_id, "Output first");
+    assert_eq!(options[1].label, "Output first (internal)");
+    assert_eq!(options[2].variant_id, "Output second");
+    assert_eq!(options[2].label, "Output second (internal)");
+    assert_eq!(options.get(3).map(|entry| entry.variant_id.as_str()), expected);
     assert_eq!(state.value, ParamValue::Enum(expected.unwrap_or_default().into()));
+    assert_eq!(external_only(engine, reference), expected.is_some());
 }
 
 fn generic(engine: &mut AppEngine, parent: NodeId) -> ChannelReference {
@@ -101,14 +112,18 @@ fn generic(engine: &mut AppEngine, parent: NodeId) -> ChannelReference {
 }
 
 #[test]
-fn first_media_uses_one_snapshot_and_one_history_entry_for_zero_one_or_many_senders() {
-    for names in [vec![], vec!["Only sender"], vec!["Zulu first", "Alpha second"]] {
+fn first_media_uses_one_snapshot_and_one_history_entry_for_zero_one_or_many_external_senders() {
+    for names in [
+        vec![],
+        vec!["Only sender (internal)"],
+        vec!["Zulu first", "Alpha second"],
+    ] {
         let mut engine = with_catalog(&names);
         let history = engine.undo_len();
         let reference = create(&mut engine, MediaKind::SharedTexture);
         check(&engine, reference, names.first().copied());
         assert_eq!(engine.undo_len(), history + 1);
-        publish(&mut engine, &["Replacement"]);
+        publish(&mut engine, &["Replacement"], &["Replacement"]);
         assert!(engine.undo().unwrap());
         assert!(channel(&engine, reference).is_err());
         assert!(engine.redo().unwrap());
@@ -118,11 +133,12 @@ fn first_media_uses_one_snapshot_and_one_history_entry_for_zero_one_or_many_send
                 sender: names.first().map(|s| (*s).into())
             }
         );
+        assert_eq!(external_only(&engine, reference), !names.is_empty());
     }
 }
 
 #[test]
-fn manager_folder_and_owned_creation_paths_share_first_sender_and_immediate_enum_metadata() {
+fn manager_folder_and_owned_creation_paths_share_first_external_sender_and_immediate_enum_metadata() {
     use crate::matrix::protocol::{MatrixEdit, MatrixItemId};
     use crate::media::composition::protocol::{CompositionEdit, Point};
     for names in [vec![], vec!["Only"], vec!["Second alphabetically", "A later entry"]] {
@@ -274,6 +290,7 @@ fn explicit_none_exact_choices_and_manual_sparse_projects_are_never_reseeded() {
     let mut engine = with_catalog(&["First", "Second"]);
     let first = create(&mut engine, MediaKind::SharedTexture);
     let second = create(&mut engine, MediaKind::SharedTexture);
+    let seeded = create(&mut engine, MediaKind::SharedTexture);
     apply(
         &mut engine,
         MediaEdit::ConfigureChannel {
@@ -293,13 +310,17 @@ fn explicit_none_exact_choices_and_manual_sparse_projects_are_never_reseeded() {
         MediaEdit::ConfigureChannel {
             reference: second,
             source: ChannelSource::Spout {
-                sender: Some("Exact absent".into()),
+                sender: Some("Output second".into()),
             },
         },
     );
     let history = engine.undo_len();
-    for names in [vec![], vec!["Different"], vec!["Exact absent", "First"]] {
-        publish(&mut engine, &names);
+    for (names, internal) in [
+        (&[][..], &[][..]),
+        (&["Different"][..], &["Different"][..]),
+        (&["First", "Output second"][..], &["Output second"][..]),
+    ] {
+        publish(&mut engine, names, internal);
         assert_eq!(
             channel(&engine, first).unwrap().definition.source,
             ChannelSource::Spout { sender: None }
@@ -307,15 +328,18 @@ fn explicit_none_exact_choices_and_manual_sparse_projects_are_never_reseeded() {
         assert_eq!(
             channel(&engine, second).unwrap().definition.source,
             ChannelSource::Spout {
-                sender: Some("Exact absent".into())
+                sender: Some("Output second".into())
             }
         );
         assert_eq!(engine.undo_len(), history);
+        assert!(!external_only(&engine, first));
+        assert!(!external_only(&engine, second));
+        assert!(external_only(&engine, seeded));
     }
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
     let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
     prepare_engine_for_runtime(&mut loaded).unwrap();
-    publish(&mut loaded, &["Other after reload"]);
+    publish(&mut loaded, &["Other after reload"], &[]);
     assert_eq!(
         channel(&loaded, first).unwrap().definition.source,
         ChannelSource::Spout { sender: None }
@@ -331,10 +355,11 @@ fn explicit_none_exact_choices_and_manual_sparse_projects_are_never_reseeded() {
     assert_eq!(
         channel(&loaded, second).unwrap().definition.source,
         ChannelSource::Spout {
-            sender: Some("Exact absent".into())
+            sender: Some("Output second".into())
         }
     );
-    for original in [first, second] {
+    assert!(external_only(&loaded, seeded));
+    for original in [first, second, seeded] {
         let before = crate::media::catalog::inspect(&loaded).unwrap();
         let source = loaded.node_id_by_uuid(original.media.0).unwrap();
         let parent = loaded.nodes.get(source).unwrap().node_data().parent.unwrap();
@@ -357,6 +382,10 @@ fn explicit_none_exact_choices_and_manual_sparse_projects_are_never_reseeded() {
         let old = before.media.iter().find(|media| media.id == original.media).unwrap();
         assert_eq!(copy.sender_selection, old.sender_selection);
         assert_eq!(copy.channels[0].definition.source, old.channels[0].definition.source);
+        assert_eq!(
+            external_only(&loaded, reference(&loaded, copy.id)),
+            external_only(&loaded, original)
+        );
     }
     apply(
         &mut loaded,
@@ -368,7 +397,47 @@ fn explicit_none_exact_choices_and_manual_sparse_projects_are_never_reseeded() {
     assert_eq!(
         channel(&loaded, second).unwrap().definition.source,
         ChannelSource::Spout {
-            sender: Some("Exact absent".into())
+            sender: Some("Output second".into())
         }
     );
+}
+
+#[test]
+fn mode_switch_preserves_seeded_origin_but_explicit_same_name_admits_internal_sender() {
+    let mut engine = with_catalog(&["First"]);
+    let reference = create(&mut engine, MediaKind::SharedTexture);
+    let configured = ChannelSource::Spout {
+        sender: Some("First".into()),
+    };
+    publish(&mut engine, &["First"], &["First"]);
+    for mode in [
+        SenderSelectionMode::Manual,
+        SenderSelectionMode::Auto,
+        SenderSelectionMode::Manual,
+    ] {
+        apply(
+            &mut engine,
+            MediaEdit::ConfigureMediaSenderSelection {
+                media: reference.media,
+                mode,
+            },
+        );
+        assert_eq!(channel(&engine, reference).unwrap().definition.source, configured);
+        assert!(external_only(&engine, reference));
+    }
+    let history = engine.undo_len();
+    apply(
+        &mut engine,
+        MediaEdit::ConfigureChannel {
+            reference,
+            source: configured.clone(),
+        },
+    );
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(!external_only(&engine, reference));
+    assert_eq!(channel(&engine, reference).unwrap().definition.source, configured);
+    assert!(engine.undo().unwrap());
+    assert!(external_only(&engine, reference));
+    assert!(engine.redo().unwrap());
+    assert!(!external_only(&engine, reference));
 }
