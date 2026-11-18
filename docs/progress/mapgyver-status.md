@@ -1,9 +1,9 @@
 # MapGyver — simple status
 
 - **Updated:** 18 November 2026.
-- **Overall plan acceptance:** `████████░░` **79% — 108/137 checks accepted, 8/17 phases complete**. Column Group transport passed.
-- **Latest delivered:** Use **Play**, **Previous Child**, and **Next Child** in a Column Group’s header or Inspector.
-- **Working on next:** Cell Auto Next by media end or elapsed time.
+- **Overall plan acceptance:** `████████░░` **80% — 109/137 checks accepted, 8/17 phases complete**. Cell Auto Next passed.
+- **Latest delivered:** Set **Auto Next** in a Cell’s Inspector to **Specific Time** or **End of Media**. **Include Transition Time** starts the next Cell while the outgoing Video is still playing.
+- **Working on next:** Previous/Next wait modes.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -25,6 +25,7 @@
 - [x] **Matrix transport:** top-left Previous/Next Column, Previous/Next top-level Column Group and Stop All. The same triggers are in the Inspector. Keyboard, script and transport checks passed. [Checks](evidence/mapgyver-m16-matrix-transport-2026-11-18.json)
 - [x] **Layer transport:** Previous/Next skips empty and disabled Cells and keeps the Matrix Column and other Layers playing. Row header, Inspector, script and transport checks passed. [Checks](evidence/mapgyver-m16-layer-transport-2026-11-18.json)
 - [x] **Column Group transport:** Play starts the first enabled Column. Previous/Next steps through direct children, counting each nested Group as one step. Reorder, keyboard, Inspector, script and transport checks passed. [Checks](evidence/mapgyver-m16-column-group-transport-2026-11-18.json)
+- [x] **Cell Auto Next:** advances one Layer after a timer or at the cropped Video’s end. Transition lead, Stop cancellation and unchanged Undo history passed. [Checks](evidence/mapgyver-m16-cell-auto-next-2026-11-18.json)
 - [x] **Matrix selection/colors:** only explicitly selected objects highlight; modifier multiselection works; Layers/Columns/Cells/Groups show Golden custom colors. Inspector color edits, Undo, copies and reload pass focused checks.
 - [x] **Matrix color menus:** right-click Layers, Cells, Columns and both Group kinds to Set Color / Reset Color. Shared picker, grouped Undo/Redo, empty Cells, unchanged multiselection, Inspector synchronization, offscreen access and reload pass.
 - [x] **Compact Layer Groups:** one-line headers; Opacity/Blend Mode in the Inspector. Nested/empty collapse, hidden selection, Undo/Redo, old/new projects, reload and scaled/narrow geometry pass.
@@ -44,20 +45,19 @@
 
 ## Next features — implementation order
 
-1. **NOW — Cell Auto Next.** Choose None, End of Media or Specific Time. Video can advance early by the transition duration.
-2. **Previous/Next wait modes.** Launch directly, after the first active finite medium ends, or after all active finite media end.
-3. **Matrix transition indicators.** Animate the green bottom lines on Cells and Columns to show incoming and outgoing weight.
-4. **Empty Cell hover.** Keep the outline visible over the `+` button.
-5. **Compact Matrix controls.** Place a vertical Opacity slider on the right and use a smaller Blend Mode control without a visible label.
-6. **Audio output and routing.** Use Golden Audio for device output and playback across Video and Matrix. Map virtual channels to physical outputs in Preferences and set per-channel volume on Video media.
-7. **Video intro and loop.** Loop the end of one file or play a separate loop file, with optional separate loop audio.
-8. **Matrix Cell audio.** Use the media's audio, give the Cell its own audio, or play audio only.
-9. **OSCQuery for all Golden apps.** Implement discovery, undoable node edits and live feedback in Golden Core, with configurable ports per app.
-10. **Seamless previews.** Remove black flashes in Surface Editor and Media Preview, and reuse the source when two Surfaces share media.
-11. **Linked outlines in Screen Warping.** Fix outline flicker while dragging linked handles.
-12. **Extended Video formats.** Add DXV, WebP (including animated WebP), and MKV playback
+1. **NOW — Previous/Next wait modes.** Launch directly, after the first active finite medium ends, or after all active finite media end.
+2. **Matrix transition indicators.** Animate the green bottom lines on Cells and Columns to show incoming and outgoing weight.
+3. **Empty Cell hover.** Keep the outline visible over the `+` button.
+4. **Compact Matrix controls.** Place a vertical Opacity slider on the right and use a smaller Blend Mode control without a visible label.
+5. **Audio output and routing.** Use Golden Audio for device output and playback across Video and Matrix. Map virtual channels to physical outputs in Preferences and set per-channel volume on Video media.
+6. **Video intro and loop.** Loop the end of one file or play a separate loop file, with optional separate loop audio.
+7. **Matrix Cell audio.** Use the media's audio, give the Cell its own audio, or play audio only.
+8. **OSCQuery for all Golden apps.** Implement discovery, undoable node edits and live feedback in Golden Core, with configurable ports per app.
+9. **Seamless previews.** Remove black flashes in Surface Editor and Media Preview, and reuse the source when two Surfaces share media.
+10. **Linked outlines in Screen Warping.** Fix outline flicker while dragging linked handles.
+11. **Extended Video formats.** Add DXV, WebP (including animated WebP), and MKV playback
     with selectable embedded subtitles and audio tracks.
-13. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+12. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 

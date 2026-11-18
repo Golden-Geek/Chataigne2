@@ -67,6 +67,19 @@ child and Previous starts at the last. At either boundary the current launch con
 edits `PlayColumnGroup` and `NavigateGroupChild` and named scripts `playMatrixColumnGroup` and
 `navigateMatrixGroupChild` fire the same Parameters.
 
+Cells expose Auto Next in the Inspector. **Specific Time** counts wall time from the committed
+Cell launch, including when the Matrix launches a whole Column. **End of Media** follows the
+active Video's crop-relative transport and speed. Paused, zero-speed and looping transport
+does not supply a finite deadline. **Include Transition Time** subtracts the next Cell's
+effective transition from the remaining time, with a floor of zero. The outgoing Video keeps
+its ordinary transition lease and transport policy until the fade finishes.
+
+Auto Next uses the same eligible successor and per-Layer launch as manual Next Cell. Runtime
+requests carry committed launch identities and use Matrix's shared deadline and actor service.
+Authoring changes, Video clock revisions and committed replacements cause reevaluation. Stop
+or removal cancels the former launch, and an advance leaves the Column anchor, peer Layer
+requests and project history in place.
+
 `controls::Pulses` captures an owner UUID and action into Golden's existing bounded operation
 service. The service resolves current ownership and rejects missing, disabled or mismatched
 owners. Each callback mints a one-use token held by its owner; the internal delivery operation

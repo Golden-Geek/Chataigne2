@@ -15,6 +15,7 @@ pub(crate) struct Configuration {
     pub layer_base: TransitionDefinition,
     pub layer_overrides: HashMap<LayerId, TransitionDefinition>,
     pub playable: HashSet<(LayerId, ColumnId)>,
+    pub(super) auto_next: HashMap<(LayerId, ColumnId), super::playback::AutoNext>,
 }
 impl Configuration {
     pub(super) fn transition_for(&self, layer: LayerId, column: Option<ColumnId>) -> TransitionDefinition {
@@ -36,6 +37,7 @@ pub(crate) fn index(
     let mut disabled = HashMap::<_, Vec<_>>::new();
     let mut overrides = HashMap::<_, HashMap<_, _>>::new();
     let mut cell_apps = HashMap::new();
+    let mut auto_next = HashMap::new();
     for id in &document.elements {
         match engine.nodes.get(*id) {
             Some(AppNode::MatrixElement(node)) => node.bind_runtime(control.binding()),
@@ -52,6 +54,9 @@ pub(crate) fn index(
         };
         if !node.node_data().meta.enabled {
             disabled.entry(cell.definition.column).or_default().push(cell.layer);
+        }
+        if let Some(settings) = node.auto_next() {
+            auto_next.insert((cell.layer, cell.definition.column), settings);
         }
         if let Some(transition) = cell.definition.transition {
             overrides
@@ -96,6 +101,7 @@ pub(crate) fn index(
         .collect();
     let index = Arc::new(Configuration {
         playable,
+        auto_next,
         layer_base,
         layer_overrides,
         layers: document

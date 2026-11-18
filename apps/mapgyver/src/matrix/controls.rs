@@ -252,6 +252,9 @@ pub(crate) fn apply(
     if operation == "refresh-video" {
         return super::video_refresh::apply(engine, payload);
     }
+    if operation == "auto-next" {
+        return super::playback::apply_auto_next(engine, payload);
+    }
     if operation != "invoke" {
         return Err("unknown Matrix control operation".into());
     }

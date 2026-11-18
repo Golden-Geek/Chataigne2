@@ -24,16 +24,19 @@ impl State {
         });
     }
     pub(super) fn cancel_video_deadline(&mut self) {
-        if self.video_deadline_armed
+        if self.video_deadline_at.take().is_some()
             && let Some(deadline) = &self.video_deadline
         {
             deadline.cancel_deadline();
         }
-        self.video_deadline_armed = false;
     }
     pub(super) fn advance_videos(&mut self) {
-        if !self.video_enabled || (self.videos.next_deadline().is_none() && self.layer_stop_deadline().is_none()) {
+        if !self.video_enabled {
             self.cancel_video_deadline();
+            return;
+        }
+        if self.videos.next_deadline().is_none() && self.layer_stop_deadline().is_none() {
+            self.schedule_video_deadline();
             return;
         }
         let now = Instant::now();
@@ -64,13 +67,14 @@ impl State {
         self.schedule_video_deadline();
     }
     pub(super) fn schedule_video_deadline(&mut self) {
-        self.cancel_video_deadline();
-        let Some(deadline) = &self.video_deadline else { return };
-        if !self.video_enabled || (self.videos.next_deadline().is_none() && self.layer_stop_deadline().is_none()) {
+        if !self.video_enabled {
+            self.cancel_video_deadline();
             return;
         }
         let now = Instant::now();
-        let delay = if let Some(observation) = &self.video_time {
+        let video_delay = if self.videos.next_deadline().is_none() && self.layer_stop_deadline().is_none() {
+            None
+        } else if let Some(observation) = &self.video_time {
             let Ok(time) = observation.project(now) else { return };
             self.timeline
                 .next_video_interval()
@@ -87,9 +91,17 @@ impl State {
                 .min()
                 .map(|at| at.saturating_duration_since(now))
         };
-        if let Some(delay) = delay {
-            deadline.wake_after(delay);
-            self.video_deadline_armed = true;
+        let at = video_delay
+            .and_then(|delay| now.checked_add(delay))
+            .into_iter()
+            .chain(self.auto_next.deadline)
+            .min();
+        if self.video_deadline_at != at {
+            self.cancel_video_deadline();
+            if let (Some(deadline), Some(at)) = (&self.video_deadline, at) {
+                deadline.wake_after(at.saturating_duration_since(Instant::now()));
+                self.video_deadline_at = Some(at);
+            }
         }
     }
 }

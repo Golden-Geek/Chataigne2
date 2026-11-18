@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-18",
+  "gate": "M16/10",
+  "result": "accepted",
+  "software": {
+    "rustTests": 14,
+    "coverage": "Timed advance, None, Stop cancellation, crop endpoint, zero-speed wait and restart, transition longer than remaining playback, unchanged history and Video lifecycle regressions",
+    "strictClippy": "pass",
+    "svelteCheck": { "errors": 0, "warnings": 0 },
+    "rustFormattingAndPrettier": "pass"
+  },
+  "bundledApp": {
+    "fixture": "apps/mapgyver/tests/browser/matrix-auto-next.mjs",
+    "processId": 29748,
+    "exitCode": 0,
+    "passedCheckGroups": 3,
+    "localReceipt": "target/m1610-auto-next-4982f88e/result.json",
+    "coverage": "Generic Inspector default and conditional fields, Specific Time and undo history, End of Media at the 1300 ms crop endpoint, 1800 ms transition started while outgoing H.264 was decoded on an active Spout output. Video position continued moving before the endpoint and the outgoing clock stopped on retirement.",
+    "build": "Isolated bundled UI with pinned FFmpeg on PATH and Tauri resource copying disabled for the test build"
+  }
+}

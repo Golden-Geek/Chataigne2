@@ -21,6 +21,9 @@ pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v5";
     play: ParamValue = ParamValue::Trigger() (label = "Play");
     cut: ParamValue = ParamValue::Trigger() (label = "Cut");
     stop: ParamValue = ParamValue::Trigger() (label = "Stop");
+    auto_next: Enum = "None" (label = "Auto Next", enum_options = crate::parameters::enum_options(&["None", "End of Media", "Specific Time"]), constraint_policy = "reject");
+    auto_next_time_ms: f64 = 1000.0 [1.0..4294967295.0] (label = "Advance After", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject");
+    auto_next_lead: bool = false (label = "Include Transition Time", description = "Start the next Cell early so this media keeps playing during the transition.");
     column: NodeReference = NodeReference::empty() (label = "Column", read_only = true, persist_read_only_value = true,
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v3".into()]);
     shared_app_control: NodeReference = NodeReference::empty() (label = "Shared app control",
@@ -54,6 +57,18 @@ pub struct CellNode {
     source_version: AtomicU64,
 }
 impl CellNode {
+    pub(super) fn auto_next(&self) -> Option<super::playback::AutoNext> {
+        match self.auto_next.get_ref().as_str() {
+            "Specific Time" => std::time::Duration::try_from_secs_f64(self.auto_next_time_ms.get() / 1000.0)
+                .ok()
+                .map(super::playback::AutoNext::Time),
+            "End of Media" => Some(super::playback::AutoNext::MediaEnd {
+                include_transition: self.auto_next_lead.get(),
+            }),
+            _ => None,
+        }
+    }
+
     pub(super) fn geometry_bindings(
         &self,
         engine: &AppEngine,
@@ -180,6 +195,13 @@ impl CellNode {
         ]
     }
     fn validate_settings(&self, change: Option<&ParameterValidationContext<'_>>) -> Result<(), String> {
+        let auto_next_time = match change.and_then(|change| change.parameter_value(self.auto_next_time_ms.id())) {
+            Some(ParamValue::Float(value)) => value,
+            _ => self.auto_next_time_ms.get(),
+        };
+        if !(1.0..=4294967295.0).contains(&auto_next_time) {
+            return Err("Cell Auto Next time must be in 1..4294967295 ms".into());
+        }
         let position = match change.and_then(|change| change.parameter_value(self.position.id())) {
             Some(ParamValue::Vec2(x, y)) => [x as f32, y as f32],
             _ => {
@@ -404,6 +426,18 @@ impl Node for CellNode {
         };
         if let Some(action) = action {
             self.pulses.invoke(ctx, &self.node_data, action);
+            return;
+        }
+        if [
+            self.auto_next.id(),
+            self.auto_next_time_ms.id(),
+            self.auto_next_lead.id(),
+        ]
+        .contains(&parameter)
+        {
+            if let Some(binding) = self.runtime.get() {
+                binding.invalidate_auto_next();
+            }
             return;
         }
         if [

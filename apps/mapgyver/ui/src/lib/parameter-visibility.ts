@@ -53,6 +53,10 @@ function visible(child: UiNodeDto) {
 		return true;
 	}
 	if (owner.node_type === ASSET_NODE_TYPE) return field === 'file';
+	if (owner.node_type === 'mapgyver.matrix.cell.v5') {
+		if (field === 'auto_next_time_ms') return choice('auto_next') === 'Specific Time';
+		if (field === 'auto_next_lead') return choice('auto_next') === 'End of Media';
+	}
 	if (owner.node_type === 'mapgyver.media.command.v8') {
 		if (field === 'command_kind' || field === 'trigger') return true;
 		const key = choice('command_kind') as keyof typeof COMMAND_PARAMETER_FIELDS;

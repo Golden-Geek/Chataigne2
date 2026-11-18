@@ -50,17 +50,29 @@ pub(in crate::matrix) fn launch_layer_cell(
     let control = channel.matrix_playback().ok_or("Matrix playback is missing")?;
     let snapshot = control.snapshot();
     let index = super::index(engine, media)?;
-    let Some(cells) = index.layer_cells.get(&layer) else {
-        return Ok(MediaEditResult::MatrixPlayback { snapshot });
-    };
     let configuration = crate::matrix::configuration::index(engine, media, control)?;
     // An explicit stopped Layer has no anchor even if the rest of the Matrix is playing.
     let anchor = snapshot
         .layers
         .iter()
         .find(|request| request.layer == layer)
-        .map_or(snapshot.desired_column, |request| request.column)
-        .and_then(|column| index.column_positions.get(&column).copied());
+        .map_or(snapshot.desired_column, |request| request.column);
+    match layer_cell_target(engine, &index, &configuration, layer, anchor, direction) {
+        Some(column) => crate::matrix::playback::launch_cell(engine, media, layer, column, LaunchMode::Configured),
+        None => Ok(MediaEditResult::MatrixPlayback { snapshot }),
+    }
+}
+
+pub(in crate::matrix) fn layer_cell_target(
+    engine: &AppEngine,
+    index: &ViewIndex,
+    configuration: &crate::matrix::configuration::Configuration,
+    layer: LayerId,
+    anchor: Option<ColumnId>,
+    direction: MatrixNavigationDirection,
+) -> Option<ColumnId> {
+    let cells = index.layer_cells.get(&layer)?;
+    let anchor = anchor.and_then(|column| index.column_positions.get(&column).copied());
     let column_of = |id: NodeId| match engine.nodes.get(id) {
         Some(AppNode::MatrixCell(cell)) => cell.column(),
         _ => unreachable!("The Matrix view index contains current Cell nodes"),
@@ -72,20 +84,16 @@ pub(in crate::matrix) fn launch_layer_cell(
         (Next, Some(anchor)) => &cells[cells.partition_point(|&id| index.column_positions[&column_of(id)] <= anchor)..],
         (_, None) => cells,
     };
-    let target = find_in_direction(candidates, direction, |&id| {
+    find_in_direction(candidates, direction, |&id| {
         let column = column_of(id);
         (configuration.playable.contains(&(layer, column))
-            && column_enabled(engine, &index, column)
+            && column_enabled(engine, index, column)
             && engine
                 .nodes
                 .get(id)
                 .is_some_and(|cell| crate::media::routing_enabled(engine, cell)))
         .then_some(column)
-    });
-    match target {
-        Some(column) => crate::matrix::playback::launch_cell(engine, media, layer, column, LaunchMode::Configured),
-        None => Ok(MediaEditResult::MatrixPlayback { snapshot }),
-    }
+    })
 }
 
 pub(in crate::matrix) fn launch_group_child(
@@ -191,7 +199,7 @@ fn first_enabled_column(engine: &AppEngine, index: &ViewIndex, group: ColumnGrou
         .find_map(|&(column, _)| column_enabled(engine, index, column).then_some(column))
 }
 
-fn column_enabled(engine: &AppEngine, index: &ViewIndex, column: ColumnId) -> bool {
+pub(in crate::matrix) fn column_enabled(engine: &AppEngine, index: &ViewIndex, column: ColumnId) -> bool {
     engine
         .nodes
         .get(index.column_nodes[&column])

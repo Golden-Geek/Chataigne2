@@ -10,6 +10,7 @@ use golden_core::{
 };
 
 mod applications;
+mod auto_next;
 mod bindings;
 mod bulk_authoring;
 mod cell_colors;

@@ -18,6 +18,7 @@ use std::{
 pub(super) struct Prepared {
     rows: HashMap<LayerId, Row>,
     routes: HashMap<MediaSource, Route>,
+    pub has_auto_next: bool,
 }
 struct Route {
     owner: Option<(MediaId, Weak<VideoControl>)>,
@@ -88,6 +89,7 @@ impl Prepared {
         Arc::new(Self {
             rows: HashMap::new(),
             routes: HashMap::new(),
+            has_auto_next: false,
         })
     }
     pub fn capture(
@@ -153,7 +155,11 @@ impl Prepared {
         for selection in retained {
             resolve(engine, &mut routes, selection)?;
         }
-        Ok(Arc::new(Self { rows, routes }))
+        Ok(Arc::new(Self {
+            rows,
+            routes,
+            has_auto_next: !index.auto_next.is_empty(),
+        }))
     }
     pub fn refresh(
         &self,
@@ -177,7 +183,11 @@ impl Prepared {
         for selection in retained {
             resolve(engine, &mut routes, selection)?;
         }
-        Ok(Arc::new(Self { rows, routes }))
+        Ok(Arc::new(Self {
+            rows,
+            routes,
+            has_auto_next: self.has_auto_next,
+        }))
     }
     pub fn subscribe(&self, notifier: golden_io::WorkerNotifier) -> Vec<golden_io::RevisionSubscription> {
         self.routes
@@ -206,6 +216,17 @@ fn resolve(
     Ok(routes[&selection].owner())
 }
 impl Playback {
+    pub(super) fn active_source(
+        &self,
+        layer: LayerId,
+        launch: uuid::Uuid,
+        column: ColumnId,
+    ) -> Option<&Arc<VideoControl>> {
+        let active = self.active.get(&layer)?;
+        (active.identity == launch && active.key.column == column && active.lease.is_current())
+            .then_some(&active.source.1)
+    }
+
     pub(super) fn latest_clip(&self, layer: LayerId) -> Option<(ColumnId, bool)> {
         self.active
             .get(&layer)

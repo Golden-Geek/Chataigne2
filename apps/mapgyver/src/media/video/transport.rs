@@ -24,6 +24,23 @@ pub struct TransportSample {
 }
 
 impl TransportSample {
+    /// Wall time until the directional endpoint of a finite moving transport. A completed
+    /// clock still reports zero, while pause and looping provide no finite end signal.
+    pub(crate) fn finite_end_delay(self) -> Option<Duration> {
+        let rate = self.mapping.rate();
+        if self.looping || self.duration.is_zero() || rate.numerator() == 0 {
+            return None;
+        }
+        let distance = if rate.numerator() < 0 {
+            self.position
+        } else {
+            self.duration.saturating_sub(self.position)
+        };
+        let delay = (distance.as_nanos() * u128::from(rate.denominator()))
+            .div_ceil(u128::from(rate.numerator().unsigned_abs()));
+        u64::try_from(delay).ok().map(Duration::from_nanos)
+    }
+
     pub(crate) fn frame_position(self) -> Result<golden_video::scheduling::FramePosition, String> {
         let raw = self.cycle_origin() + self.position.as_nanos() as i128;
         // Reverse looping maps the exact seam to the previous cycle's final image.

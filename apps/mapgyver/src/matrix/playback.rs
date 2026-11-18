@@ -15,9 +15,12 @@ use std::sync::{
     Arc, Mutex, OnceLock, Weak,
     atomic::{AtomicBool, Ordering},
 };
+mod auto_next;
 mod layer_stop;
 mod reconcile;
 mod timing;
+pub(super) use auto_next::AutoNext;
+pub(super) use auto_next::apply as apply_auto_next;
 
 #[derive(Clone, Default)]
 pub(crate) struct PlaybackControl(Arc<Control>);
@@ -35,9 +38,13 @@ struct Control {
     dirty: AtomicBool,
     video_dirty: AtomicBool,
     video_sources: RevisionSource,
+    auto_next_dirty: AtomicBool,
+    auto_next_interested: AtomicBool,
+    auto_next_waker: OnceLock<golden_core::engine::NodeWaker>,
 }
 #[derive(Default)]
 struct State {
+    auto_next: auto_next::Runtime,
     layer_stops: std::collections::HashMap<LayerId, layer_stop::LayerStop>,
     active_layer_stops: std::collections::HashSet<LayerId>,
     videos: super::video::Playback,
@@ -47,7 +54,7 @@ struct State {
     video_error: Option<String>,
     waker: Option<golden_core::engine::NodeWaker>,
     video_deadline: Option<golden_io::DelayedNotifier>,
-    video_deadline_armed: bool,
+    video_deadline_at: Option<std::time::Instant>,
     video_time: Option<timing::Observation>,
     video_subscriptions: Vec<golden_io::RevisionSubscription>,
     video_request: Option<uuid::Uuid>,
@@ -78,6 +85,13 @@ struct Pending {
 #[derive(Clone)]
 pub(crate) struct RuntimeBinding(Weak<Control>);
 impl RuntimeBinding {
+    pub(super) fn invalidate_auto_next(&self) {
+        self.invalidate();
+        if let Some(control) = self.0.upgrade() {
+            control.wake_auto_next();
+        }
+    }
+
     pub(crate) fn invalidate_videos(&self) {
         if let Some(control) = self.0.upgrade() {
             control.video_sources.advance();
@@ -111,6 +125,9 @@ impl RuntimeBinding {
             control.authored.advance();
             control.dirty.store(true, Ordering::Release);
             control.revision.advance();
+            if control.auto_next_interested.load(Ordering::Acquire) {
+                control.wake_auto_next();
+            }
         }
     }
     pub(super) fn invalidate_view(&self) {
@@ -163,12 +180,14 @@ impl PlaybackControl {
     }
     pub(crate) fn bind_video_waker(&self, waker: golden_core::engine::NodeWaker, enabled: bool) -> Result<(), String> {
         let timer_waker = waker.clone();
+        let _ = self.0.auto_next_waker.set(waker.clone());
         let deadline = golden_io::DelayedNotifier::new(golden_io::WorkerNotifier::new(move || {
             let _ = timer_waker.wake();
         }))?;
         let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
         state.waker = Some(waker);
         state.video_deadline = Some(deadline);
+        state.video_deadline_at = None;
         state.video_enabled = enabled;
         Ok(())
     }
@@ -181,6 +200,9 @@ impl PlaybackControl {
         if let Some(waker) = waker {
             let _ = waker.wake();
         }
+        if enabled && self.0.auto_next_interested.load(Ordering::Acquire) {
+            self.0.wake_auto_next();
+        }
     }
     pub(crate) fn service_videos(&self) -> Option<String> {
         self.snapshot();
@@ -188,6 +210,7 @@ impl PlaybackControl {
         if !state.video_enabled {
             state.videos.clear();
             state.video_running = false;
+            state.auto_next.disarm();
             state.cancel_video_deadline();
         } else if !state.video_running
             && let Some(plan) = state.video_plan.clone()
@@ -389,6 +412,9 @@ impl PlaybackControl {
                             }
                             state.video_plan = Some(plan);
                             self.watch_videos(&mut state);
+                            if self.0.auto_next_interested.load(Ordering::Acquire) {
+                                self.0.wake_auto_next();
+                            }
                             state.advance_videos();
                         }
                         return state.current.clone();
@@ -410,6 +436,7 @@ impl PlaybackControl {
                         .into_iter()
                         .chain(desired.layers.iter().filter_map(|request| request.launch_id))
                         .collect::<std::collections::HashSet<_>>();
+                    state.auto_next.track_launches(&ids, std::time::Instant::now());
                     state.epochs.retain(|id, _| ids.contains(id));
                     state.launch_orders.retain(|id, _| ids.contains(id));
                     for id in ids {
@@ -418,6 +445,9 @@ impl PlaybackControl {
                     }
                     state.current = desired;
                     if let Some(plan) = videos {
+                        if plan.has_auto_next {
+                            self.0.auto_next_interested.store(true, Ordering::Release);
+                        }
                         if state.video_enabled && plan.is_current() {
                             state.video_error = state.videos.commit(&plan, order, std::time::Instant::now()).err();
                             state.video_running = true;
@@ -427,6 +457,9 @@ impl PlaybackControl {
                     }
                     let State { videos, cuts, .. } = &mut *state;
                     videos.cut(cuts);
+                    if self.0.auto_next_interested.load(Ordering::Acquire) {
+                        self.0.wake_auto_next();
+                    }
                     state.advance_videos();
                     self.0.revision.advance();
                 }

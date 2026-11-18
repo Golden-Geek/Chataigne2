@@ -171,7 +171,7 @@ impl ViewIndex {
         }
     }
 }
-fn index(engine: &AppEngine, media: MediaId) -> Result<Arc<ViewIndex>, String> {
+pub(super) fn index(engine: &AppEngine, media: MediaId) -> Result<Arc<ViewIndex>, String> {
     let root = super::playback::root(engine, media)?;
     let Some(AppNode::MediaChannel(node)) = engine.nodes.get(root) else {
         unreachable!()
