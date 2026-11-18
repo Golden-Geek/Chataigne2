@@ -13,7 +13,14 @@
 	import { createSurfaceKeyboard, type KeyboardTarget } from './surface-keyboard';
 	import type { SurfaceHandle, SurfacePresentation } from './surface-gesture';
 	import { surfaceQuad } from './gesture-presentation';
+	import type { ScreenHandleCandidate } from './generated/ScreenHandleCandidate';
+	import type { ScreenHandleGroup } from './generated/ScreenHandleGroup';
+	import type { CornerLinkEdit } from './warp-edit-group';
 	let {
+		snapping = false,
+		candidates = [],
+		groups = [],
+		unlink = () => {},
 		screen,
 		inputAvailable,
 		presentation = null,
@@ -28,6 +35,10 @@
 		stop,
 		actions
 	}: {
+		snapping?: boolean;
+		candidates?: ScreenHandleCandidate[];
+		groups?: ScreenHandleGroup[];
+		unlink?(corner: number): void;
 		screen: ScreenSnapshot;
 		inputAvailable: boolean;
 		presentation?: SurfacePresentation | null;
@@ -38,7 +49,7 @@
 		pixelsActive(): boolean;
 		gestureActive: boolean;
 		move(point: Point): void;
-		finish(): void;
+		finish(link?: CornerLinkEdit | null): void;
 		stop(): void;
 		actions?: Snippet;
 	} = $props();
@@ -149,6 +160,11 @@
 			{#if status?.error}<div class="error" role="alert">{status.error}</div>{/if}
 			{#key documentIdentity}
 				<SurfaceHandles
+					{snapping}
+					{candidates}
+					{groups}
+					{unlink}
+					unlinkDisabled={gestureActive}
 					{presentation}
 					{extent}
 					onoverlays={setOverlays}

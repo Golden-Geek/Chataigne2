@@ -1496,11 +1496,11 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
    independent pattern/channel panes and related contours. Toolbar paging covers all70 peers;
    source/crop preservation, on/off/Undo/reload and source recovery pass. M15/7 is Accepted;
    retained Intel/GPU/resource/performance and M15/5 presentation qualification remain open.
-8. **Screen-handle snapping creates persistent shared links.** Owners: Golden public parameter
+8. **Surface-handle snapping within one Screen creates persistent shared links.** Owners: Golden public parameter
    binding/group contracts and MapGyver Screen geometry intents. Add a magnet-icon snap toggle
-   to Screen Warping's toolbar. Dragging a handle near another Screen's handle snaps them
-   together and creates a link, with a small link icon beside the group. Exclude same-Screen
-   handles; support groups larger than two. Moving any member moves the linked members, including
+   to Screen Warping's toolbar. Dragging a handle near another Surface's handle in the same Screen snaps them
+   together and creates a link, with a small link icon beside the group. Exclude same-Surface and other-Screen
+   handles; support groups larger than two. Moving any member updates every linked Surface live, before release, including
    edits through Inspector/script/transport. Clicking the group's link icon removes all its
    links. Use the generic binding system without cycles, UI-maintained parallel links or
    nonterminating update propagation. Define common coordinate conversion, conflicting existing
@@ -1512,6 +1512,15 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
    control-conflict, copy and missing-target policies live in
    [Screen-handle links](../architecture/mapgyver-screen-handle-links.md). Toolbar/proximity
    behavior and native verification remain required; this partial delivery awards no gate.
+   **2026-11-18 user correction:** linking is only between different Surfaces inside the selected
+   Screen; the earlier cross-Screen interpretation was incorrect and is superseded. Use the
+   user's `magnet-svgrepo-com.svg`, colored when active and grey when off, with no snap paging
+   arrows. Candidate pages may load automatically within the editor's existing bounded scope.
+   Verify held-pointer peer contours and actual output pixels, not only the released state.
+   [Functional delivery](../progress/evidence/mapgyver-m15-surface-links-2026-11-18.json)
+   passes focused software checks and held-pointer peer/output proof. A repeated native run
+   restored an intermediate point after Undo; repeatable native history and native window
+   visual confirmation remain required. M15/8 stays Active with no acceptance credit.
 9. **Surface, Composition and Matrix geometry align while moving/scaling.** Owners: Golden
    reusable viewport snapping hints and MapGyver authoritative geometry intents. Add a magnet
    toggle to the applicable editor toolbars. While moving or scaling an element, snap close X/Y

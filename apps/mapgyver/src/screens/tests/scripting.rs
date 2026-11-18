@@ -37,7 +37,7 @@ fn script(engine: &mut AppEngine, text: String) {
 fn hosted_corner_link_uses_the_same_binding_group_and_single_history_step() {
     let mut engine = fixture();
     let (_, a) = create(&mut engine);
-    let (_, b) = create(&mut engine);
+    let b = super::handle_links::peer(&mut engine, a.screen);
     let source = ScreenCorner {
         reference: a,
         corner: 0,

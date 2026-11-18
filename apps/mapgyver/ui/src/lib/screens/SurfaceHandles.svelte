@@ -9,8 +9,18 @@
 	import type { Point } from './generated/Point';
 	import type { SurfaceHandle, SurfacePresentation } from './surface-gesture';
 	import { surfaceQuad } from './gesture-presentation';
+	import { nearestHandle } from './handle-snap';
+	import { linkOverlays } from './link-overlays';
+	import type { ScreenHandleCandidate } from './generated/ScreenHandleCandidate';
+	import type { ScreenHandleGroup } from './generated/ScreenHandleGroup';
+	import type { CornerLinkEdit } from './warp-edit-group';
 	type WarpHandle = Extract<SurfaceHandle, { kind: 'QuadCorner' | 'QuadTranslation' }>;
 	let {
+		snapping = false,
+		candidates = [],
+		groups = [],
+		unlink = () => {},
+		unlinkDisabled = false,
 		screen,
 		presentation = null,
 		extent = null,
@@ -26,6 +36,11 @@
 		stop,
 		onoverlays = () => {}
 	}: {
+		snapping?: boolean;
+		candidates?: ScreenHandleCandidate[];
+		groups?: ScreenHandleGroup[];
+		unlink?(corner: number): void;
+		unlinkDisabled?: boolean;
 		screen: ScreenSnapshot;
 		presentation?: SurfacePresentation | null;
 		extent?: { width: number; height: number } | null;
@@ -37,7 +52,7 @@
 		select(id: SurfaceId | null): void;
 		start(reference: SurfaceReference, handle: WarpHandle): boolean;
 		move(point: Point): void;
-		finish(): void;
+		finish(link?: CornerLinkEdit | null): void;
 		stop(): void;
 		onoverlays?(overlays: OverlayPrimitive[]): void;
 	} = $props();
@@ -52,6 +67,20 @@
 		editing: boolean;
 	} | null>(null);
 	let ghost = $state<Point | null>(null);
+	let snapped = $state.raw<ScreenHandleCandidate | null>(null);
+	let frame = $state({ width: 1, height: 1 });
+	$effect(() => {
+		if (!canvas) return;
+		const element = canvas;
+		const update = () => {
+			const rect = element.getBoundingClientRect();
+			frame = { width: rect.width, height: rect.height };
+		};
+		update();
+		const observer = new ResizeObserver(update);
+		observer.observe(element);
+		return () => observer.disconnect();
+	});
 	let hovered = $state<SurfaceId | null>(null);
 	let focusedSurface = $state<SurfaceId | null>(null);
 	let focusedHandle = $state<string | null>(null);
@@ -88,7 +117,21 @@
 					)
 				)
 			),
-			...(ghost ? handleOverlays(ghost, rem, false, true) : [])
+			...(ghost ? handleOverlays(ghost, rem, false, true) : []),
+			...handles.flatMap((item) =>
+				groups.flatMap((group) => {
+					const point = surfaceQuad(item, presentation, extent)[group.corner];
+					return point
+						? linkOverlays(
+								point,
+								frame,
+								rem,
+								`link:${item.reference.surface}:${group.corner}`,
+								group.missing
+							)
+						: [];
+				})
+			)
 		]);
 	});
 	function point(event: PointerEvent): Point | null {
@@ -147,7 +190,13 @@
 			}
 			active.editing = true;
 		}
-		ghost = point(event);
+		const position = point(event);
+		const rect = canvas.getBoundingClientRect();
+		snapped =
+			position && snapping && active.handle.kind === 'QuadCorner'
+				? nearestHandle(position, active.handle.corner, candidates, rect, overlayRem() * 0.65)
+				: null;
+		ghost = snapped?.point ?? position;
 		if (ghost) move(ghost);
 		else cancel();
 	}
@@ -157,11 +206,21 @@
 		if (active.editing) {
 			if (!cancelled) {
 				update(event);
-				if (pointer) finish();
+				if (pointer)
+					finish(
+						snapped && active.handle.kind === 'QuadCorner'
+							? {
+									kind: 'LinkScreenCorners',
+									source: { reference: active.reference, corner: active.handle.corner },
+									target: snapped.member
+								}
+							: null
+					);
 			} else stop();
 		}
 		pointer = null;
 		ghost = null;
+		snapped = null;
 		if (canvas.hasPointerCapture(active.id)) canvas.releasePointerCapture(active.id);
 	}
 	function cancel() {
@@ -169,6 +228,7 @@
 		if (!active) return;
 		pointer = null;
 		ghost = null;
+		snapped = null;
 		if (canvas.hasPointerCapture(active.id)) canvas.releasePointerCapture(active.id);
 		if (active.editing) stop();
 	}
@@ -288,6 +348,34 @@
 					}
 				}} />
 		{/each}
+		{#each groups as group (group.corner)}
+			{@const point = surfaceQuad(item, presentation, extent)[group.corner]}
+			{#if point}
+				<button
+					type="button"
+					class="corner-link"
+					data-native-overlay-control
+					data-native-hit-id={`link:${item.reference.surface}:${group.corner}`}
+					style:left={`calc(${point.x * 100}% + 1.2rem)`}
+					style:top={`${point.y * 100}%`}
+					aria-label={`Unlink corner group ${group.corner + 1}`}
+					title={group.missing
+						? 'Unlink missing corner target'
+						: `Unlink all ${group.members.length} corners`}
+					disabled={!selectionAvailable || disabled || unlinkDisabled}
+					onpointerdown={(event) => {
+						event.preventDefault();
+						event.stopPropagation();
+					}}
+					onclick={(event) => {
+						event.stopPropagation();
+						unlink(group.corner);
+					}}>
+					<svg viewBox="0 0 24 24" aria-hidden="true"
+						><circle cx="9" cy="9" r="5" /><circle cx="15" cy="15" r="5" /></svg>
+				</button>
+			{/if}
+		{/each}
 	</div>
 {/each}
 {#if ghost}<ViewportHandle
@@ -298,6 +386,30 @@
 		ghost />{/if}
 
 <style>
+	.corner-link {
+		position: absolute;
+		width: 1.2rem;
+		height: 1.2rem;
+		transform: translate(-50%, -50%);
+		padding: 0.1rem;
+		border: 0;
+		border-radius: 50%;
+		background: var(--gc-background-color, #202734);
+		color: var(--gc-focus-color, #a3bfff);
+		pointer-events: auto;
+		cursor: pointer;
+	}
+	.corner-link:disabled {
+		cursor: default;
+	}
+	.corner-link svg {
+		position: static;
+		width: 100%;
+		height: 100%;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.5;
+	}
 	.corners {
 		position: absolute;
 		inset: 0;

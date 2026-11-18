@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-18",
+  "gate": "M15/8",
+  "state": "Active: functional delivery; native history and visual acceptance unfinished",
+  "delivered": [
+    "Backend permits different Surfaces within one Screen; rejects same-Surface and other-Screen links for every caller",
+    "Supplied magnet SVG, colored on and grey off; no snap paging arrows",
+    "Automatic bounded candidate pages within the existing 128-Surface editor scope",
+    "Displayed-distance snapping, group link icons and unlink",
+    "Parameter projection continues during manipulation so every linked Surface updates live"
+  ],
+  "software": {
+    "rust": { "passed": 25, "log": "target/m15-same-screen-tests-final.log" },
+    "node": { "passed": 31, "log": "target/m15-same-screen-node.log" },
+    "ui": { "errors": 0, "warnings": 0, "log": "target/m15-same-screen-ui.log" },
+    "browser": { "exit": 0, "scope": "snapping thresholds, font scale, zoom, off/unlink and existing editor inputs", "log": "target/m15-same-screen-browser-final.log" },
+    "clippy": { "exit": 0, "log": "target/m15-same-screen-clippy.log" },
+    "build": { "exit": 0, "log": "target/m15-same-screen-build-final.log", "app_sha256": "DFE3FB86EB5A81BB54AF7D0A42387CD6BD3B39A9A918AE2B4D1A83C16BD456F8" }
+  },
+  "native_functional": {
+    "result": "target/m15-surface-links-held-20261118/result.json",
+    "pid": 29208,
+    "exit": 0,
+    "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU; dxgi:00000000:00015b86",
+    "held_before_release": { "peer_dom_contour": "matched", "output": "256x160 independent SDK receiver", "red_pixels": 7004, "blue_pixels": 7004, "background_pixels": 21484, "edge_pixels_excluded": 5468, "oracle": "pass" },
+    "three_member_merge": { "red_pixels": 6631, "blue_pixels": 6631, "background_pixels": 22104, "edge_pixels_excluded": 5594, "oracle": "pass", "icon_unlink": "pass" },
+    "history": "One cohort passed drag/link single-step Undo/Redo; repeatability is NOT established"
+  },
+  "unfinished": [
+    { "requirement": "Repeatable native single-step drag/link Undo", "failed_result": "target/m15-surface-links-visual-20261118", "original_corner_x": 0.44999998807907104, "after_one_undo_x": 0.47612106800079346, "cause": "unproven", "next": "Inspect existing failed trace and edit-group completion boundary; distinguish fixture readiness from product history defect" },
+    { "requirement": "Native window visual confirmation", "missing": "Computer Use native pipe unavailable after reset/retry; owned PrintWindow capture returned black", "return": "Observe owned window once supported desktop capture reconnects or user is available; SDK output pixels do not substitute for window presentation" }
+  ],
+  "acceptance": "No gate closed. Counts remain 98/121 overall and 6/15 M15. No Intel, sustained timing or full-regression claim. Earlier failed/preliminary cohorts remain unaccepted."
+}

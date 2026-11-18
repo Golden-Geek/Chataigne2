@@ -22,7 +22,7 @@ pub(super) fn parameter(engine: &AppEngine, corner: ScreenCorner) -> Result<Node
     node.corner_parameter(corner.corner)
 }
 
-fn corner(engine: &AppEngine, param: NodeId) -> Result<ScreenCorner, String> {
+pub(super) fn corner(engine: &AppEngine, param: NodeId) -> Result<ScreenCorner, String> {
     let parent = engine
         .nodes
         .get(param)
@@ -48,18 +48,41 @@ fn corner(engine: &AppEngine, param: NodeId) -> Result<ScreenCorner, String> {
     Ok(ScreenCorner { reference, corner })
 }
 
-fn validate_members(engine: &AppEngine, members: &[NodeId], linking: bool) -> Result<(), String> {
+pub(super) fn validate_members(engine: &AppEngine, members: &[NodeId], linking: bool) -> Result<(), String> {
     if members.len() > MAX_LINKED_CORNERS {
         return Err("a Screen-handle group supports at most 256 corners".into());
     }
-    let mut screens = HashSet::new();
+    let mut surfaces = HashSet::new();
+    let mut screen = None;
     for &member in members {
         let member = corner(engine, member)?;
-        if !screens.insert(member.reference.screen) && linking {
-            return Err("linked corners must belong to different Screens".into());
+        if linking {
+            if screen.is_some_and(|screen| screen != member.reference.screen) {
+                return Err("linked corners must belong to the same Screen".into());
+            }
+            screen = Some(member.reference.screen);
+            if !surfaces.insert(member.reference.surface) {
+                return Err("linked corners must belong to different Surfaces".into());
+            }
         }
     }
     Ok(())
+}
+
+pub(super) fn directly_linkable(engine: &AppEngine, members: &[NodeId]) -> bool {
+    members.len() <= MAX_LINKED_CORNERS
+        && members.iter().all(|&id| {
+            let Some(state) = engine.nodes.get(id).and_then(|node| node.engine_param_control_state()) else {
+                return false;
+            };
+            match state.mode {
+                ParameterControlMode::Manual => true,
+                ParameterControlMode::Binding => engine
+                    .parameter_binding_target(id)
+                    .is_some_and(|(_, projection)| projection.is_none()),
+                _ => false,
+            }
+        })
 }
 
 pub(super) fn link(engine: &mut AppEngine, source: ScreenCorner, target: ScreenCorner) -> Result<(), String> {
@@ -82,8 +105,7 @@ pub(super) fn link(engine: &mut AppEngine, source: ScreenCorner, target: ScreenC
 pub(super) fn unlink(engine: &mut AppEngine, member: ScreenCorner) -> Result<(), String> {
     let param = parameter(engine, member)?;
     let members = engine.parameter_binding_group(param);
-    // Copies retain Golden's ordinary authored references. Even if a copy places
-    // two inherited members on one Screen, the user can always remove the group.
+    // Unlink also permits cleanup of existing generic or formerly authored groups.
     validate_members(engine, &members, false)?;
     for param in members {
         engine.edits.push(Edit::SetParamControlState {

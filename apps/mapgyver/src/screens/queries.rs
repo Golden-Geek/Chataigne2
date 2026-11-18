@@ -22,6 +22,9 @@ pub(crate) fn query_operation(engine: &AppEngine, operation: &str, payload: &Val
 
 pub(super) fn read(engine: &AppEngine, edit: &ScreenEdit) -> Result<Option<ScreenEditResult>, String> {
     Ok(Some(match edit {
+        ScreenEdit::InspectScreenHandles { query } => ScreenEditResult::ScreenHandles {
+            page: super::handle_candidates::inspect(engine, *query)?,
+        },
         ScreenEdit::InspectRelatedSurfaces { query } => ScreenEditResult::RelatedSurfaces {
             page: super::related::inspect(engine, *query)?,
         },

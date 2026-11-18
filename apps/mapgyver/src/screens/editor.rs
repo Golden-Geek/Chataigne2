@@ -6,6 +6,8 @@ use super::{authoring, protocol::*};
 use crate::app::{AppEngine, AppNode};
 use golden_core::node::{Node, NodeUuid};
 
+pub(super) const MAX_EDITOR_SURFACES: usize = 128;
+
 fn owner(engine: &AppEngine, selected: Option<NodeUuid>) -> Option<(ScreenId, Option<SurfaceReference>)> {
     let mut next = selected.and_then(|uuid| engine.node_id_by_uuid(uuid));
     for _ in 0..64 {
@@ -153,7 +155,7 @@ pub(super) fn inspect(engine: &AppEngine, query: ScreenEditorQuery) -> Result<Sc
         let child = engine.nodes.get(id).ok_or("Screen child is missing")?;
         next = child.node_data().next_sibling;
         if let AppNode::Surface(node) = child {
-            if snapshot.surfaces.len() == 128 {
+            if snapshot.surfaces.len() == MAX_EDITOR_SURFACES {
                 page.has_more_surfaces = true;
                 break;
             }

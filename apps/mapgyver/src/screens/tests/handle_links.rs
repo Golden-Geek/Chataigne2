@@ -10,6 +10,14 @@ fn member(reference: SurfaceReference, corner: u8) -> ScreenCorner {
     ScreenCorner { reference, corner }
 }
 
+pub(super) fn peer(engine: &mut AppEngine, screen: ScreenId) -> SurfaceReference {
+    let ScreenEditResult::SurfaceCreated { reference } = apply(engine, ScreenEdit::AddSurface { screen, label: None })
+    else {
+        panic!()
+    };
+    reference
+}
+
 fn param(engine: &AppEngine, corner: ScreenCorner) -> golden_core::node::NodeId {
     super::super::handle_links::parameter(engine, corner).unwrap()
 }
@@ -25,9 +33,10 @@ fn position(engine: &AppEngine, corner: ScreenCorner) -> Point {
 #[test]
 fn groups_propagate_geometry_and_generic_parameter_edits_from_every_member_in_one_transaction() {
     let mut engine = fixture();
+    let (screen, _) = create(&mut engine);
     let corners: Vec<_> = (0..4)
         .map(|index| {
-            let (_, surface) = create(&mut engine);
+            let surface = peer(&mut engine, screen);
             member(surface, index)
         })
         .collect();
@@ -79,7 +88,8 @@ fn groups_propagate_geometry_and_generic_parameter_edits_from_every_member_in_on
 #[test]
 fn merge_unlink_and_reload_keep_one_history_step_and_real_binding_controls() {
     let mut engine = fixture();
-    let corners: Vec<_> = (0..4).map(|_| member(create(&mut engine).1, 0)).collect();
+    let (screen, _) = create(&mut engine);
+    let corners: Vec<_> = (0..4).map(|_| member(peer(&mut engine, screen), 0)).collect();
     link(&mut engine, corners[0], corners[1]);
     link(&mut engine, corners[2], corners[3]);
     let before = to_sparse_project_json_pretty(&engine).unwrap();
@@ -116,17 +126,18 @@ fn merge_unlink_and_reload_keep_one_history_step_and_real_binding_controls() {
 }
 
 #[test]
-fn same_screen_invalid_corner_and_conflicting_controls_reject_without_authored_changes() {
+fn same_surface_cross_screen_invalid_corner_and_conflicting_controls_reject_without_authored_changes() {
     let mut engine = fixture();
     let (_, a) = create(&mut engine);
-    let (_, b) = create(&mut engine);
+    let b = peer(&mut engine, a.screen);
+    let (_, foreign) = create(&mut engine);
     let controlled = param(&engine, member(b, 0));
     engine.edits.push(golden_core::edit::Edit::SetParamControlState {
         node: controlled,
         state: ParameterControlState::new(ParameterControlMode::Expression, ParameterControlSpec::Expression),
     });
     engine.apply_edits().unwrap();
-    for target in [member(a, 1), member(b, 4), member(b, 0)] {
+    for target in [member(a, 1), member(b, 4), member(b, 0), member(foreign, 0)] {
         let before = to_sparse_project_json_pretty(&engine).unwrap();
         let history = engine.undo_len();
         assert!(
@@ -148,10 +159,10 @@ fn same_screen_invalid_corner_and_conflicting_controls_reject_without_authored_c
 fn deleted_target_retains_uuid_binding_and_undo_restores_group_without_relinking_by_label() {
     let mut engine = fixture();
     let (_, a) = create(&mut engine);
-    let (_, b) = create(&mut engine);
+    let b = peer(&mut engine, a.screen);
     link(&mut engine, member(a, 0), member(b, 0));
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
-    apply(&mut engine, ScreenEdit::RemoveScreen { screen: b.screen });
+    apply(&mut engine, ScreenEdit::RemoveSurface { reference: b });
     let source = param(&engine, member(a, 0));
     assert_eq!(engine.parameter_binding_group(source), vec![source]);
     assert_eq!(
@@ -173,7 +184,7 @@ fn deleted_target_retains_uuid_binding_and_undo_restores_group_without_relinking
 fn copied_surface_retains_external_binding_and_group_can_still_be_unlinked() {
     let mut engine = fixture();
     let (_, a) = create(&mut engine);
-    let (_, b) = create(&mut engine);
+    let b = peer(&mut engine, a.screen);
     link(&mut engine, member(a, 0), member(b, 0));
     let root = engine.node_id_by_uuid(a.surface.0).unwrap();
     let parent = engine.node_id_by_uuid(a.screen.0).unwrap();
@@ -206,26 +217,26 @@ fn copied_surface_retains_external_binding_and_group_can_still_be_unlinked() {
 }
 
 #[test]
-fn recreating_a_screen_with_the_same_label_does_not_retarget_a_missing_binding() {
+fn recreating_a_surface_with_the_same_label_does_not_retarget_a_missing_binding() {
     let mut engine = fixture();
     let (_, a) = create(&mut engine);
-    let (_, b) = create(&mut engine);
+    let b = peer(&mut engine, a.screen);
     let original_label = engine
         .nodes
-        .get(engine.node_id_by_uuid(b.screen.0).unwrap())
+        .get(engine.node_id_by_uuid(b.surface.0).unwrap())
         .unwrap()
         .node_data()
         .meta
         .label
         .clone();
     link(&mut engine, member(a, 0), member(b, 0));
-    apply(&mut engine, ScreenEdit::RemoveScreen { screen: b.screen });
-    let (_, replacement) = create(&mut engine);
-    assert_ne!(replacement.screen, b.screen);
+    apply(&mut engine, ScreenEdit::RemoveSurface { reference: b });
+    let replacement = peer(&mut engine, a.screen);
+    assert_ne!(replacement.surface, b.surface);
     assert_eq!(
         engine
             .nodes
-            .get(engine.node_id_by_uuid(replacement.screen.0).unwrap())
+            .get(engine.node_id_by_uuid(replacement.surface.0).unwrap())
             .unwrap()
             .node_data()
             .meta

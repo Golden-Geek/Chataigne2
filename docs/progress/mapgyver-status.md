@@ -2,8 +2,8 @@
 
 - **Updated:** 18 November 2026.
 - **Overall plan acceptance:** `████████░░` **81% — 98/121 checks accepted**. Four new feedback checks were added; accepted work is unchanged. Deferred verification is still counted as unfinished.
-- **Latest delivered:** Screen-handle binding backend: link/merge/unlink, multi-member moves and history/reload pass focused checks. Magnet/link controls are next.
-- **Working on now:** Screen-handle magnet snapping and unlink icons; keep this current task through completion. Custom colors and Matrix Group presentation follow immediately afterward.
+- **Latest delivered:** Same-Screen Surface snapping and link/unlink controls; all linked Surfaces update during dragging. Your magnet SVG is colored when on, grey when off; no paging arrows.
+- **Working on now:** Finish Screen-link acceptance: a repeated native run exposed an intermittent Undo issue; native window visual confirmation is also pending. Custom colors and Matrix Group presentation follow.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -16,7 +16,7 @@
 - [x] **Screens/Surfaces:** creation, warping, crop/source editing, opacity, enable/disable, calibration and native outputs.
 - [x] **Initial document/editors:** startup and New create and immediately show the automatic Screen and Surface. Hidden/reopened panels, saved targets/locks, reload and empty projects pass; no extra Undo steps.
 - [x] **Surface Editor display:** related Surfaces across Screens/References, independent toggles/locks, bounded paging, selection/Inspector and Undo/reload. ColorBars/Grid work without a source and obey its crop in Screen Warping/output mapping. Native patterns/contours, cropped ColorBars/Grid, mixed pattern/channel panels and70-Surface toolbar paging pass.
-- [x] **Screen-handle link backend:** link/merge/unlink groups through real Parameter bindings and script/API operations. Multi-member moves, ordinary parameter edits, Undo/Redo, copies, save/load and missing/recreated targets pass focused checks. Editor controls are next.
+- [x] **Surface-handle links:** snapping/link/unlink between different Surfaces in the same Screen. Focused backend/UI/browser checks pass; an actual held-pointer run verifies peer contours and both GPU images before release. Native repeatable Undo/visual acceptance remains below.
 - [x] **Output settings:** GPU preferences, per-Screen frame-rate settings and optional/custom sender names.
 - [x] **Display recovery:** the previously tested unplug/replug and monitor-rearrangement cases.
 - [x] **Composition:** owned media, transforms, front/back ordering, contextual actions, enable state and zero-scale handling.
@@ -33,7 +33,7 @@
 
 ## Next features — implementation order
 
-1. **NOW — Screen-handle links:** finish magnet snapping and link/unlink controls using the completed backend, then verify viewport thresholds/zoom and native geometry. Keep this task current through completion.
+1. **NOW — Screen-handle links:** fix/verify intermittent native drag Undo (one repeat restored an intermediate point), then finish native window visual confirmation. Live peer updates, snap thresholds/zoom and output pixels are checked. Keep this task current through completion.
 2. **NEXT — Custom colors:** Screens, Surfaces, Medias and Folders can have custom colors, with reset to the normal default.
 3. **Matrix color menus:** Set Color / Reset Color on Layer, Cell and Column context menus, including corresponding Groups.
 4. **Compact Layer Groups:** one-line default headers, with Opacity and Blend Mode in the Inspector.

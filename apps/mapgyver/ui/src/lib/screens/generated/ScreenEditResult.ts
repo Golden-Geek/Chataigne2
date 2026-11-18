@@ -2,13 +2,14 @@
 import type { RelatedSurfacePage } from "./RelatedSurfacePage";
 import type { ScreenDefinition } from "./ScreenDefinition";
 import type { ScreenEditorPage } from "./ScreenEditorPage";
+import type { ScreenHandlePage } from "./ScreenHandlePage";
 import type { ScreenId } from "./ScreenId";
 import type { ScreenManagerSnapshot } from "./ScreenManagerSnapshot";
 import type { ScreenRowSnapshot } from "./ScreenRowSnapshot";
 import type { SurfaceReference } from "./SurfaceReference";
 import type { SurfaceSnapshot } from "./SurfaceSnapshot";
 
-export type ScreenEditResult = { "kind": "RelatedSurfaces", page: RelatedSurfacePage, } | { "kind": "Editor", page: ScreenEditorPage, } | { "kind": "Row",
+export type ScreenEditResult = { "kind": "ScreenHandles", page: ScreenHandlePage, } | { "kind": "RelatedSurfaces", page: RelatedSurfacePage, } | { "kind": "Editor", page: ScreenEditorPage, } | { "kind": "Row",
 /**
  * None when deletion/project replacement overtook a mounted row's read.
  */

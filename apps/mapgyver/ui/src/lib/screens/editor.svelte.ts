@@ -11,6 +11,7 @@ import { invokeScreenEdit } from './operations';
 import { SCREEN_NAMESPACE } from './generated/constants';
 import type { ScreenEditorQuery } from './generated/ScreenEditorQuery';
 import type { SurfacePresentation } from './surface-gesture';
+import { warpEditGroup, type CornerLinkEdit } from './warp-edit-group';
 
 export function createScreenEditor(query: () => ScreenEditorQuery) {
 	const panel = usePanelVisibility();
@@ -30,7 +31,7 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 		new Map(view.page?.parameters.map((binding) => [binding.surface, binding]) ?? [])
 	);
 	const surface = $derived(
-		controller.surface && parameters && !view.interacting
+		controller.surface && parameters
 			? projectSurface(
 					controller.surface,
 					bindings.get(controller.surface.reference.surface),
@@ -39,7 +40,7 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 			: controller.surface
 	);
 	const screen = $derived(
-		controller.screen && parameters && !view.interacting
+		controller.screen && parameters
 			? {
 					...controller.screen,
 					surfaces: controller.screen.surfaces.map((value) =>
@@ -49,9 +50,13 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 			: controller.screen
 	);
 	let presentation = $state.raw<SurfacePresentation | null>(null);
+	let finalLink: CornerLinkEdit | null = null;
 	const gesture = new SurfaceGesture<WorkbenchSession>(() => session, gestureState, {
-		group: (current, handle) =>
-			createUiEditSession(
+		group: (current, handle) => {
+			finalLink = null;
+			const generation = current.snapshotGeneration,
+				project = current.projectGeneration;
+			const group = createUiEditSession(
 				handle.kind === 'QuadCorner' ||
 					handle.kind === 'QuadCornerPixels' ||
 					handle.kind === 'QuadTranslation'
@@ -59,7 +64,24 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 					: 'Crop Surface',
 				'surface-geometry',
 				current
-			),
+			);
+			return warpEditGroup(
+				group,
+				() =>
+					current === session &&
+					current.snapshotGeneration === generation &&
+					current.projectGeneration === project &&
+					current.status === 'connected' &&
+					!current.loading.visible &&
+					!gestureState.error,
+				() => {
+					const link = finalLink;
+					finalLink = null;
+					return link;
+				},
+				(edit) => invokeScreenEdit(current, edit, projection.applied())
+			);
+		},
 		move: async (current, reference, edit) => {
 			const result = await invokeScreenEdit(
 				current,
@@ -104,6 +126,10 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 		controller,
 		gestureState,
 		gesture,
+		finishWarp(link: CornerLinkEdit | null) {
+			finalLink = link;
+			gesture.finish();
+		},
 		get screen() {
 			return screen;
 		},

@@ -11,7 +11,8 @@ candidates; it must not maintain document links or write control-reference child
   Parameter is the only authored position. Links use normalized Screen coordinates:
   `(0.5, 0.5)` means the center of each output, regardless of resolution, display
   arrangement or DPI. There is no physical-desktop-coordinate conversion.
-- New links/merges require distinct Screens and at most 256 corners. Conflicting
+- New links/merges require different Surfaces in the same Screen and at most 256 corners.
+  Same-Surface and other-Screen corners are rejected by the backend for every caller. Conflicting
   Expression/Animation/Proxy controls, projected or missing bindings, non-corner
   members and incompatible constraints reject before edits are queued. Existing
   authored controls are never silently replaced to create a Screen link.
@@ -28,13 +29,21 @@ candidates; it must not maintain document links or write control-reference child
   singleton. No polling or synthetic missing node is added.
 - Copies retain Golden's normal reference-remapping behavior: external bindings stay
   external; references inside a copied subtree remap to copied identities. A copied
-  Surface can therefore inherit a link already present on that Screen. New merges
-  still reject repeated Screens, and unlink remains available for inherited groups.
+  Surface can inherit its existing same-Screen link; new merges reject repeated Surfaces.
 - Link/merge/unlink participate in the caller's existing app-operation transaction.
   Geometry propagation, control children, Undo/Redo and project reload use ordinary
   Golden history and persistence.
 
-The backend commands and focused tests are the first delivery slice. Magnet snapping,
-the link icon, viewport thresholds and native editor/output geometry verification
-remain M15/8 work; this backend slice does not accept the full gate. Turning snapping
-off will suppress new links while existing authored bindings continue to operate.
+The Screen editor fetches 64-corner pages automatically across its existing128-Surface
+geometry scope. No paging arrows, peer previews, source leases or full-document pointer
+scans are introduced. Proximity uses a0.65rem displayed radius and the current zoomed
+canvas bounds. The supplied magnet SVG is colored when active and grey when off.
+Turning snapping off suppresses new links; authored links continue operating.
+
+The final drag/link request is flushed before the existing Golden edit group closes.
+Focused tests and one native cohort reverse both in one Undo, but a repeated native run
+restored an intermediate drag point; repeatable native history remains unaccepted.
+Typed Parameter projection stays live during manipulation
+for every linked Surface, while the active handle retains its immediate presentation.
+Held-pointer peer contours and independent red/blue output pixels pass. M15/8 remains
+open for the intermittent native Undo issue and native window visual confirmation.

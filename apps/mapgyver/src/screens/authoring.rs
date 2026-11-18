@@ -101,7 +101,8 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
     // A catalog-wide invalidation here makes every row/editor query compete with each sample.
     let geometry_sample = matches!(&edit, ScreenEdit::EditSurfaceGeometry { .. });
     let result = match edit {
-        ScreenEdit::InspectRow { .. }
+        ScreenEdit::InspectScreenHandles { .. }
+        | ScreenEdit::InspectRow { .. }
         | ScreenEdit::InspectRelatedSurfaces { .. }
         | ScreenEdit::InspectEditor { .. }
         | ScreenEdit::DropSourceAt { .. }

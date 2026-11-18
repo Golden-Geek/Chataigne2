@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { build, preview } from 'vite';
 import { chromium } from 'playwright-core';
 import { gridSelectionChecks } from '../../../matrix/tests/browser/selection.mjs';
+import { handleLinkChecks } from './handle-links.mjs';
 
 const configFile = fileURLToPath(new URL('./vite.config.ts', import.meta.url));
 await build({ configFile, logLevel: 'warn' });
@@ -422,12 +423,13 @@ try {
 	);
 	assert.equal(await page.getByLabel('Crop finishes').textContent(), '1');
 	await gridSelectionChecks(page);
+	await handleLinkChecks(page);
 	assert.deepEqual(errors, []);
 	console.log(
 		JSON.stringify({
 			result: 'pass',
 			scope:
-				'DOM Screen/Source/Composition/Matrix spatial hover/selected controls and Matrix grid primary-down/owner clearing, rename/launch/control/drag isolation, independent grids and action disposal; native overlay declarations; no native pixel or full M14 acceptance'
+				'DOM Surface snapping/link/unlink with font-scale, viewport zoom, threshold and toggle-off checks; existing Screen/Source/Composition/Matrix selection/input; native overlay declarations, no native pixel or full M14 acceptance'
 		})
 	);
 } finally {

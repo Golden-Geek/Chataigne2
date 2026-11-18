@@ -15,6 +15,8 @@
 	import SurfaceSourcePreview from '../../SurfaceSourcePreview.svelte';
 	import type { ScreenSnapshot } from '../../generated/ScreenSnapshot';
 	import type { SurfaceSnapshot } from '../../generated/SurfaceSnapshot';
+	import type { ScreenHandleCandidate } from '../../generated/ScreenHandleCandidate';
+	import type { ScreenHandleGroup } from '../../generated/ScreenHandleGroup';
 	const screen: ScreenSnapshot = {
 		id: 'screen',
 		label: 'Screen',
@@ -58,6 +60,19 @@
 	let warpBusy = $state(false);
 	let warpSelectionAvailable = $state(true);
 	let warpCorner = $state<number | null>(null);
+	let warpSnap = $state(false),
+		warpLink = $state('null'),
+		warpPoint = $state('null');
+	let warpGroups = $state<ScreenHandleGroup[]>([]);
+	const warpCandidates: ScreenHandleCandidate[] = [
+		{
+			member: { reference: screen.surfaces[1].reference, corner: 0 },
+			parameter: 'B-0',
+			point: screen.surfaces[1].definition.quad.corners[0],
+			label: 'B',
+			linkable: [true, false, false, false]
+		}
+	];
 	let spatialBusy = $state(false);
 	let cropFinishes = $state(0),
 		cropStops = $state(0),
@@ -156,6 +171,27 @@
 </script>
 
 <div class="fixture-toolbar">
+	<button
+		onclick={() => {
+			gridMode = false;
+			sourceMode = false;
+			compositionMode = false;
+			matrixKind = null;
+			selected = 'A';
+			inspected = 'A';
+			warpCorner = 0;
+			warpBusy = false;
+			warpSelectionAvailable = true;
+			warpSnap = true;
+			warpGroups = [];
+			warpLink = 'null';
+		}}>Show Screen linking</button>
+	<button
+		onclick={() => {
+			warpSnap = !warpSnap;
+		}}>Toggle Screen snap</button>
+	<output aria-label="Warp link">{warpLink}</output>
+	<output aria-label="Warp sample">{warpPoint}</output>
 	<output aria-label="Inspected owner">{inspected}</output>
 	<button
 		onclick={() => {
@@ -305,6 +341,12 @@
 			label="Warp fixture"
 			onselectionclear={() => select(null)}>
 			<SurfaceHandles
+				snapping={warpSnap}
+				candidates={warpCandidates}
+				groups={warpGroups}
+				unlink={() => {
+					warpGroups = [];
+				}}
 				onoverlays={(value) => {
 					nativeOverlays = JSON.stringify(value);
 				}}
@@ -322,8 +364,16 @@
 					edits++;
 					return true;
 				}}
-				move={() => {}}
-				finish={() => {}}
+				move={(point) => {
+					warpPoint = JSON.stringify(point);
+				}}
+				finish={(link) => {
+					warpLink = JSON.stringify(link ?? null);
+					if (link)
+						warpGroups = [
+							{ corner: link.source.corner, members: [link.source, link.target], missing: false }
+						];
+				}}
 				stop={() => {}} />
 		</Viewport2D>
 	{/if}

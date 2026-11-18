@@ -255,6 +255,9 @@ impl Default for SurfaceDefinition {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ScreenEdit {
+    InspectScreenHandles {
+        query: ScreenHandleQuery,
+    },
     InspectEditor {
         query: ScreenEditorQuery,
     },
@@ -386,6 +389,41 @@ pub enum SurfaceGeometryEdit {
 pub struct ScreenCorner {
     pub reference: SurfaceReference,
     pub corner: u8,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub struct ScreenHandleQuery {
+    pub document: NodeUuid,
+    pub reference: SurfaceReference,
+    pub include_candidates: bool,
+    pub cursor: Option<NodeUuid>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ScreenHandleGroup {
+    pub corner: u8,
+    pub members: Vec<ScreenCorner>,
+    pub missing: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ScreenHandleCandidate {
+    pub member: ScreenCorner,
+    pub parameter: NodeUuid,
+    pub point: Point,
+    pub label: String,
+    /// Eligibility for each selected Surface corner; ownership/control policy is backend-owned.
+    pub linkable: [bool; 4],
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+pub struct ScreenHandlePage {
+    pub at: golden_core::engine::EngineTime,
+    pub document_matches: bool,
+    pub groups: Vec<ScreenHandleGroup>,
+    /// At most64 corners and512 visited hierarchy nodes per query, independent of document size.
+    pub candidates: Vec<ScreenHandleCandidate>,
+    pub next: Option<NodeUuid>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -521,6 +559,9 @@ pub struct ScreenRowSnapshot {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum ScreenEditResult {
+    ScreenHandles {
+        page: ScreenHandlePage,
+    },
     RelatedSurfaces {
         page: RelatedSurfacePage,
     },

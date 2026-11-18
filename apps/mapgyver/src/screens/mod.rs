@@ -8,6 +8,7 @@ pub mod display_matching;
 mod editor;
 mod frame_rate;
 mod geometry;
+mod handle_candidates;
 mod handle_links;
 pub(crate) mod host_inventory;
 mod nodes;
@@ -20,6 +21,7 @@ mod screen_node;
 mod scripting;
 mod source_preview;
 mod surface_node;
+mod surface_pages;
 mod target;
 
 #[cfg(test)]

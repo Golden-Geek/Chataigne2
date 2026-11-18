@@ -13,6 +13,8 @@
 	import relatedIcon from './icons/related.svg';
 	import previousIcon from './icons/previous.svg';
 	import nextIcon from './icons/next.svg';
+	import magnetIcon from './icons/magnet.svg';
+	import { createScreenHandles } from './handle-reader.svelte';
 	import { createRelatedSurfaces } from './related.svelte';
 	import type { SurfaceFitMode } from './generated/SurfaceFitMode';
 	import { createScreenEditor } from './editor.svelte';
@@ -79,6 +81,18 @@
 			[cropParameters.crop_origin, cropParameters.crop_size].includes(
 				appState.session?.selectedNodeUuid ?? ''
 			)
+	);
+	const screenHandles = createScreenHandles(
+		() =>
+			editor === 'screen' && surface && controller.page
+				? {
+						document: controller.page.document,
+						reference: surface.reference,
+						include_candidates: choice.snap,
+						cursor: null
+					}
+				: null,
+		() => gestureState.active
 	);
 	let cursors = $state<(string | null)[]>([null]);
 	const relatedKey = $derived(
@@ -188,9 +202,23 @@
 	data-screen-target={screen?.id ?? ''}
 	data-surface-target={surface?.reference.surface ?? ''}
 	data-content-locked={choice.locked}
-	aria-busy={controller.busy || gestureState.active}>
+	aria-busy={controller.busy ||
+		gestureState.active ||
+		(editor === 'screen' && choice.snap && screenHandles.loading)}>
 	{#snippet actions()}
 		{#if editor === 'screen'}
+			<IconButton
+				class="screen-snap-toggle"
+				icon={magnetIcon}
+				label="Snap Surface handles"
+				aria-pressed={choice.snap}
+				title={screenHandles.error ||
+					'Snap to other Surfaces in this Screen and link corners; existing links stay active when off'}
+				disabled={!surface || gestureState.active}
+				onclick={() => {
+					choice.snap = !choice.snap;
+					persist();
+				}} />
 			<IconButton
 				icon={fillIcon}
 				label="Fill Screen"
@@ -273,18 +301,28 @@
 			</p>{/if}
 		{#if editor === 'screen' && screen}
 			<ScreenPreview
+				snapping={choice.snap}
+				candidates={screenHandles.candidates}
+				groups={screenHandles.page?.groups ?? []}
+				unlink={(corner) => {
+					if (surface)
+						void controller.edit({
+							kind: 'UnlinkScreenCorners',
+							member: { reference: surface.reference, corner }
+						});
+				}}
 				{inputAvailable}
 				presentation={owner.presentation}
 				{actions}
 				{screen}
 				selected={surface?.reference.surface ?? null}
-				disabled={controller.busy}
+				disabled={controller.busy || (choice.snap && screenHandles.loading)}
 				select={selectSurface}
 				start={(reference, handle) => gesture.start(reference, handle)}
 				pixelsActive={() => gesture.pixelsActive}
 				gestureActive={gestureState.active}
 				move={(point) => gesture.move(point)}
-				finish={() => gesture.finish()}
+				finish={(link) => owner.finishWarp(link ?? null)}
 				stop={() => gesture.stop()} />
 		{:else if editor === 'source' && surface}
 			<SurfaceSourcePreview
@@ -312,3 +350,14 @@
 			</p>{/if}
 	</SourceDropZone>
 </section>
+
+<style>
+	:global(.screen-snap-toggle[aria-pressed='false'] img) {
+		filter: grayscale(1);
+		opacity: 0.45;
+	}
+	:global(.screen-snap-toggle[aria-pressed='true'] img) {
+		filter: none;
+		opacity: 1;
+	}
+</style>

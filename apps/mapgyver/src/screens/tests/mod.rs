@@ -12,6 +12,7 @@ mod free_warp;
 mod geometry;
 mod geometry_parameters;
 mod gestures;
+mod handle_candidates;
 mod handle_links;
 mod output_input;
 mod parameters;
