@@ -1,4 +1,5 @@
 use super::*;
+use golden_protocol::UiNodeMetaDto;
 use golden_runtime::PendingControl;
 
 type ActorTransaction = (
@@ -8,6 +9,11 @@ type ActorTransaction = (
     bool,
     ApplicationTransactionTiming,
 );
+
+struct ProjectIntentTarget {
+    generation: ProjectGeneration,
+    node_meta: Option<(NodeId, Box<UiNodeMetaDto>)>,
+}
 
 /// An actor-admitted batch. No engine acknowledgement exists until completion.
 pub struct PendingUiTransactionBatch {
@@ -92,13 +98,19 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
     }
 
     /// Applies intents whose node IDs were resolved from a specific project generation.
-    /// Rejects the batch at the control actor if the project has since been replaced.
+    /// Rejects the batch at the control actor if the project was replaced or the optional
+    /// target metadata changed after the caller checked its permissions and authored values.
     pub fn apply_ui_transaction_batch_for_project(
         &self,
         project_generation: ProjectGeneration,
         intents: Vec<UiEditIntent>,
+        expected_meta: Option<(NodeId, UiNodeMetaDto)>,
     ) -> Result<AppliedUiTransactionBatch, ApplicationError> {
-        self.submit_ui_transactions(intents, None, None, Some(project_generation), false)?
+        let target = ProjectIntentTarget {
+            generation: project_generation,
+            node_meta: expected_meta.map(|(id, meta)| (id, Box::new(meta))),
+        };
+        self.submit_ui_transactions(intents, None, None, Some(target), false)?
             .wait()
     }
 
@@ -123,7 +135,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         intents: Vec<UiEditIntent>,
         ui_client_instance_id: Option<&str>,
         client: Option<UiClientLease>,
-        expected_project: Option<ProjectGeneration>,
+        expected_project: Option<ProjectIntentTarget>,
         stop_after_failure: bool,
     ) -> Result<PendingUiTransactionBatch, ApplicationError> {
         let ui_client_instance_id = ui_client_instance_id.map(str::to_owned);
@@ -137,8 +149,16 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             .control.handle()
             .submit(move |state| {
                 let project_generation = read_model.current_project_generation();
-                if expected_project.is_some_and(|expected| expected != project_generation) {
-                    return Err(ApplicationError::Control(ControlError::cancelled()));
+                if let Some(expected) = &expected_project {
+                    if expected.generation != project_generation {
+                        return Err(ApplicationError::Control(ControlError::cancelled()));
+                    }
+                    if let Some((id, meta)) = &expected.node_meta {
+                        let snapshot = read_model.capture_snapshot(UiSubscriptionScope::WholeGraph);
+                        if snapshot.node(*id).map(|node| &node.meta) != Some(meta.as_ref()) {
+                            return Err(ApplicationError::Control(ControlError::cancelled()));
+                        }
+                    }
                 }
                 if state.release_closed_ui_session() || state.release_rebound_ui_session(client.as_ref()) {
                     let before = state.engine.ui_event_log().last().map(|event| event.time);

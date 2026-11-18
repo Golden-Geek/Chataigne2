@@ -49,7 +49,7 @@ pub(super) fn spawn<T: golden_engine::app::ProjectLifecycle + 'static>(
             let mut intents = Vec::new();
             if collect_intents(&snapshot, &packet, &mut intents)
                 && !intents.is_empty()
-                && let Ok(result) = runtime.apply_ui_transaction_batch_for_project(datagram.project, intents)
+                && let Ok(result) = runtime.apply_ui_transaction_batch_for_project(datagram.project, intents, None)
             {
                 save_preferences_after_change(&runtime, settings.as_ref(), result.preferences_changed);
             }

@@ -1,11 +1,12 @@
 //! Serialize only the requested subtree from a coherent, borrowed Golden projection.
 use super::values;
 use golden_engine::ui_read_model::UiSnapshotCapture;
-use golden_protocol::{UiNodeDataDto, UiNodeDto, UiParamDto};
+use golden_protocol::{UiCreatedNode, UiNodeDataDto, UiNodeDto, UiParamDto};
 use serde::{
     Serialize, Serializer,
     ser::{Error as _, SerializeMap},
 };
+use serde_json::{Value, json};
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -51,7 +52,15 @@ pub(super) fn describe(
         attributes.iter().any(|name| {
             !matches!(
                 *name,
-                "FULL_PATH" | "DESCRIPTION" | "CONTENTS" | "ACCESS" | "TYPE" | "VALUE" | "RANGE"
+                "FULL_PATH"
+                    | "DESCRIPTION"
+                    | "CONTENTS"
+                    | "ACCESS"
+                    | "TYPE"
+                    | "VALUE"
+                    | "RANGE"
+                    | "GOLDEN_META"
+                    | "GOLDEN_ADD_TYPES"
             )
         })
     }) {
@@ -110,6 +119,17 @@ pub(super) fn parameter(node: &UiNodeDto) -> Option<&UiParamDto> {
         UiNodeDataDto::Parameter { param } => Some(param),
         _ => None,
     }
+}
+
+pub(super) fn child_path(
+    snapshot: &UiSnapshotCapture,
+    parent: &UiNodeDto,
+    path: &str,
+    created: &UiCreatedNode,
+) -> Option<String> {
+    let (name, _) = named_children(snapshot, parent)
+        .find(|(_, child)| child.node_id == created.node_id && child.uuid == created.uuid)?;
+    Some(format!("{}/{name}", path.trim_end_matches('/')))
 }
 
 fn short_name(node: &UiNodeDto) -> Option<&str> {
@@ -180,6 +200,31 @@ impl Serialize for Document<'_> {
         }
         if self.wants("DESCRIPTION") {
             map.serialize_entry("DESCRIPTION", self.description())?;
+        }
+        if self.selected.is_some() && self.wants("GOLDEN_META") {
+            let meta = &self.node.meta;
+            map.serialize_entry(
+                "GOLDEN_META",
+                &json!({
+                    "label": meta.label,
+                    "enabled": meta.enabled,
+                    "canBeDisabled": meta.can_be_disabled,
+                    "description": meta.description,
+                    "tags": meta.tags,
+                    "color": meta.presentation.color,
+                    "collapsed": meta.presentation.collapsed,
+                    "permissions": meta.user_permissions,
+                }),
+            )?;
+        }
+        if self.wants("GOLDEN_ADD_TYPES") && !self.node.creatable_user_items.is_empty() {
+            let items = self
+                .node
+                .creatable_user_items
+                .iter()
+                .map(|item| json!({"type": item.node_type, "label": item.label}))
+                .collect::<Vec<Value>>();
+            map.serialize_entry("GOLDEN_ADD_TYPES", &items)?;
         }
         if self.wants("ACCESS") {
             let access = param.map_or(0, |param| {

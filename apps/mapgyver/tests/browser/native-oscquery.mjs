@@ -19,7 +19,7 @@ await once(reservation, 'listening');
 const selectedPort = reservation.address().port;
 await new Promise((resolve) => reservation.close(resolve));
 const native = await openNativeEditor();
-let token, failure, defaultPort, info, rootContents, oscEdit;
+let token, failure, defaultPort, info, rootContents, oscEdit, managerCommands;
 
 async function post(route, body) {
 	const response = await fetch(native.base + route, {
@@ -88,6 +88,58 @@ async function sendFloat(address, value) {
 	}
 }
 
+async function checkScreenCommands() {
+	const catalog = await (await query('/screens?GOLDEN_ADD_TYPES')).json();
+	const screenType = catalog.GOLDEN_ADD_TYPES.find((item) => item.label === 'Screen').type;
+	const socket = new WebSocket(`ws://127.0.0.1:${selectedPort}/`);
+	const next = (type) => once(socket, type, { signal: AbortSignal.timeout(5000) });
+	const command = async (name, data) => {
+		const received = next('message');
+		socket.send(JSON.stringify({ COMMAND: name, DATA: data, ID: name }));
+		const [event] = await received;
+		const reply = JSON.parse(event.data);
+		assert.equal(reply.COMMAND, 'RESULT');
+		assert.equal(reply.ID, name);
+		assert(reply.DATA.ok, JSON.stringify(reply));
+		return reply.DATA;
+	};
+	try {
+		await next('open');
+		const { address } = await command('ADD', {
+			address: '/screens',
+			type: screenType,
+			name: 'OSCQuery Screen'
+		});
+		assert(address);
+		const metadata = async () => (await (await query(`${address}?GOLDEN_META`)).json()).GOLDEN_META;
+		assert.equal((await metadata()).label, 'OSCQuery Screen');
+		await command('RENAME', { address, name: 'Live OSCQuery Screen' });
+		assert.equal((await metadata()).label, 'Live OSCQuery Screen');
+		const color = { r: 0.5, g: 0.25, b: 0.75, a: 1 };
+		await command('PATCH_META', { address, meta: { color } });
+		assert.deepEqual((await metadata()).color, color);
+		await edit({ kind: 'undo' });
+		assert.equal((await metadata()).color, null);
+		await command('REDO');
+		assert.deepEqual((await metadata()).color, color);
+		await command('REMOVE', { address });
+		assert.equal((await query(address)).status, 404);
+		await command('UNDO');
+		assert.equal((await metadata()).label, 'Live OSCQuery Screen');
+		const video = await command('ADD', { address: '/medias', type: 'Video' });
+		const videoMeta = await (await query(`${video.address}?GOLDEN_META`)).json();
+		assert.match(videoMeta.GOLDEN_META.label, /^Video(?: \d+)?$/);
+		await command('REMOVE', { address: video.address });
+		return {
+			address,
+			addRenameColorRemoveUndoRedo: 'pass',
+			videoCatalogLabel: videoMeta.GOLDEN_META.label
+		};
+	} finally {
+		socket.close();
+	}
+}
+
 try {
 	token = (await post('/api/ui/session', {})).token;
 	const { nodes } = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
@@ -119,6 +171,7 @@ try {
 	assert.equal(info.OSC_IP, '127.0.0.1');
 	assert.equal(info.OSC_PORT, selectedPort);
 	assert.equal(info.OSC_TRANSPORT, 'UDP');
+	assert.equal(info.WS_PORT, selectedPort);
 	const project = await query('/');
 	assert.equal(project.status, 200);
 	const tree = await project.json();
@@ -146,6 +199,7 @@ try {
 		await edit({ kind: 'redo' });
 		assert.equal(await current(), changed);
 		oscEdit = { address: opacity.FULL_PATH, original, changed, undoAndRedo: 'pass' };
+		managerCommands = await checkScreenCommands();
 	}
 	assert((await post('/api/ui/project-new', {})).ok);
 	const replaced = (await post('/api/ui/snapshot', { scope: 'wholeGraph' })).nodes;
@@ -174,7 +228,8 @@ try {
 				selectedPort,
 				info,
 				rootContents,
-				oscEdit
+				oscEdit,
+				managerCommands
 			},
 			null,
 			2

@@ -627,7 +627,7 @@ fn run_ui_server_with_ready<T: ProjectLifecycle + 'static, S>(
                     if let Some(stream) = stream
                         && !shutdown.is_requested()
                     {
-                        oscquery.accept::<T>(stream, state.read_model.clone(), &mut workers)?;
+                        oscquery.accept::<T>(stream, &state, &mut workers)?;
                     }
                     continue;
                 }

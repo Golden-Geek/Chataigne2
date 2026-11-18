@@ -4,7 +4,7 @@ use golden_engine::{
     app::create_new_project_engine,
     application::ProductionRuntime,
     edit::{Edit, NodeTree},
-    node::{Folder, NodeId, NodeMetaPatch},
+    node::{Folder, NodeId, NodeMetaPatch, UserContextNode},
     parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour, RangeConstraint},
     ui_read_model::UiSnapshotCapture,
 };
@@ -57,6 +57,7 @@ impl Host {
         let tree = NodeTree::new(Folder::new("Mixer"))
             .with_child(NodeTree::new(gain))
             .with_child(NodeTree::new(meter))
+            .with_child(NodeTree::new(UserContextNode::new("Controls")))
             .with_child(NodeTree::new(Parameter::new(
                 "Muted",
                 ParamValue::Bool(false),
@@ -130,6 +131,153 @@ impl Host {
             .into(),
         });
     }
+}
+
+#[test]
+fn websocket_commands_share_manager_catalog_metadata_permissions_and_history() {
+    use tokio_tungstenite::tungstenite::{self, Message};
+
+    let host = Host::start();
+    let initial = host.snapshot();
+    let prefs = chosen(&initial, initial.root(), "preferences");
+    let category = chosen(&initial, prefs.node_id, "oscquery");
+    let port = chosen(&initial, category.node_id, "port");
+    let reserved = TcpListener::bind("127.0.0.1:0").unwrap();
+    let endpoint = reserved.local_addr().unwrap();
+    drop(reserved);
+    host.set(port.node_id, ParamValue::Int(endpoint.port().into()));
+    host.enable(category.node_id, true);
+    wait(|| http(endpoint, "/?HOST_INFO").is_ok());
+    let info = http(endpoint, "/?HOST_INFO").unwrap().1;
+    assert_eq!(info["WS_PORT"], endpoint.port());
+    assert_eq!(info["EXTENSIONS"]["GOLDEN_COMMANDS"], true);
+    let manager = "/mixer/controls";
+    let catalog = http(endpoint, &format!("{manager}?GOLDEN_ADD_TYPES")).unwrap().1;
+    let folder = catalog["GOLDEN_ADD_TYPES"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["label"] == "Folder")
+        .unwrap()["type"]
+        .clone();
+    let stream = TcpStream::connect(endpoint).unwrap();
+    stream.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+    let (mut client, _) = tungstenite::client(format!("ws://{endpoint}/"), stream).unwrap();
+    let mut request = |command, data, success| {
+        client
+            .send(Message::text(
+                json!({"COMMAND": command, "DATA": data, "ID": "fixture"}).to_string(),
+            ))
+            .unwrap();
+        let reply: Value = serde_json::from_str(client.read().unwrap().to_text().unwrap()).unwrap();
+        assert_eq!(reply["COMMAND"], "RESULT");
+        assert_eq!(reply["ID"], "fixture");
+        assert_eq!(reply["DATA"]["command"], command);
+        assert_eq!(reply["DATA"]["ok"], success, "{reply}");
+        reply["DATA"].clone()
+    };
+    request("ADD", json!({"address": manager, "type": "unknown"}), false);
+    request("REMOVE", json!({"address": "/mixer/meter"}), false);
+    request("RENAME", json!({"address": "/mixer/meter", "name": "bad"}), false);
+    request(
+        "PATCH_META",
+        json!({"address": "/mixer/meter", "meta": {"canBeDisabled": true}}),
+        false,
+    );
+    let add_data = |name| json!({"address": manager, "type": folder, "name": name});
+    let original = request("ADD", add_data("Alpha"), true);
+    assert_eq!(http(endpoint, original["address"].as_str().unwrap()).unwrap().0, 200);
+    request("ADD", add_data("Beta"), true);
+    request("ADD", add_data("Gamma"), true);
+    let read_meta = |address: &str| http(endpoint, &format!("{address}?GOLDEN_META")).unwrap().1["GOLDEN_META"].clone();
+    let contents = http(endpoint, manager).unwrap().1;
+    let address_of = |label| {
+        contents["CONTENTS"]
+            .as_object()
+            .unwrap()
+            .values()
+            .filter_map(|node| node["FULL_PATH"].as_str())
+            .find(|address| read_meta(address)["label"] == label)
+            .unwrap()
+    };
+    let (first, second, third) = (address_of("Alpha"), address_of("Beta"), address_of("Gamma"));
+    let prior = host.snapshot();
+    let beta = graph::resolve(&prior, second).unwrap();
+    request("RENAME", json!({"address": second, "name": "Live Beta"}), true);
+    // A request resolved before a competing change must not overwrite that change.
+    let stale = host.runtime.apply_ui_transaction_batch_for_project(
+        prior.project_generation(),
+        vec![UiEditIntent::PatchMeta {
+            node: beta.node_id,
+            patch: NodeMetaPatch {
+                label: Some("Stale Beta".into()),
+                ..Default::default()
+            }
+            .into(),
+        }],
+        Some((beta.node_id, beta.meta.clone())),
+    );
+    assert!(stale.is_err());
+    assert_eq!(read_meta(second)["label"], "Live Beta");
+    let color = json!({"r": 0.25, "g": 0.5, "b": 0.75, "a": 1.0});
+    request(
+        "PATCH_META",
+        json!({"address": second, "meta": {
+            "color": color, "tags": ["Live"], "description": "Test cue", "collapsed": true
+        }}),
+        true,
+    );
+    let meta = read_meta(second);
+    assert_eq!(meta["color"], color);
+    assert_eq!(meta["tags"], json!(["Live"]));
+    assert_eq!(meta["description"], "Test cue");
+    assert_eq!(meta["collapsed"], true);
+    request(
+        "PATCH_META",
+        json!({"address": second, "meta": { "color": null, "description": null }}),
+        true,
+    );
+    assert_eq!(read_meta(second)["color"], Value::Null);
+    assert_eq!(read_meta(second)["description"], Value::Null);
+    request("UNDO", Value::Null, true);
+    assert_eq!(read_meta(second)["color"], color);
+
+    let child_order = || {
+        let snapshot = host.snapshot();
+        let manager = graph::resolve(&snapshot, manager).unwrap();
+        manager
+            .children
+            .iter()
+            .filter_map(|id| snapshot.node(*id))
+            .filter(|node| ["Alpha", "Live Beta", "Gamma"].contains(&node.meta.label.as_str()))
+            .map(|node| node.meta.label.clone())
+            .collect::<Vec<_>>()
+    };
+    request(
+        "MOVE",
+        json!({"address": third, "parent": manager, "before": "/mixer/gain"}),
+        false,
+    );
+    request(
+        "MOVE",
+        json!({"address": third, "parent": manager, "before": first}),
+        true,
+    );
+    assert_eq!(child_order(), ["Gamma", "Alpha", "Live Beta"]);
+    host.apply(UiEditIntent::Undo);
+    assert_eq!(child_order(), ["Alpha", "Live Beta", "Gamma"]);
+    request("REDO", Value::Null, true);
+    assert_eq!(child_order(), ["Gamma", "Alpha", "Live Beta"]);
+    request("REMOVE", json!({"address": second}), true);
+    assert_eq!(http(endpoint, second).unwrap().0, 404);
+    request("UNDO", Value::Null, true);
+    assert_eq!(read_meta(second)["label"], "Live Beta");
+    request(
+        "PATCH_META",
+        json!({"address": "/preferences/oscquery", "meta": {"enabled": false}}),
+        true,
+    );
+    assert!(matches!(client.read().unwrap(), Message::Close(_)));
 }
 
 impl Drop for Host {
