@@ -104,6 +104,17 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
     if let MatrixEdit::NavigateCell { layer, direction } = edit {
         return super::controls::navigate_cell(engine, media, layer, direction);
     }
+    if let MatrixEdit::PlayColumnGroup { group } = edit {
+        return super::controls::column_group_pulse(engine, media, group, super::controls::Action::Play);
+    }
+    if let MatrixEdit::NavigateGroupChild { group, direction } = edit {
+        return super::controls::column_group_pulse(
+            engine,
+            media,
+            group,
+            super::controls::Action::NavigateGroupChild(direction),
+        );
+    }
     if matches!(edit, MatrixEdit::InspectPlayback) {
         return super::playback::inspect(engine, media);
     }
@@ -163,7 +174,9 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         MatrixEdit::LaunchColumn { .. }
         | MatrixEdit::NavigateColumn { .. }
         | MatrixEdit::NavigateColumnGroup { .. }
-        | MatrixEdit::NavigateCell { .. } => unreachable!(),
+        | MatrixEdit::NavigateCell { .. }
+        | MatrixEdit::PlayColumnGroup { .. }
+        | MatrixEdit::NavigateGroupChild { .. } => unreachable!(),
         MatrixEdit::InspectPlayback => unreachable!(),
         MatrixEdit::ClearPlayback => unreachable!(),
         MatrixEdit::Inspect => {

@@ -2,6 +2,9 @@
 	import { selectOnPress, viewportContour } from 'golden_ui';
 	import GridLabel from './GridLabel.svelte';
 	import ParameterTrigger from './ParameterTrigger.svelte';
+	import playIcon from 'golden_ui/style/icons/play.svg';
+	import previousIcon from '../icons/step-previous.svg';
+	import nextIcon from '../icons/step-next.svg';
 	import { gridSize, groupHeaderRow } from './viewport';
 	import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
 	import type { MatrixEdit } from '../media/generated/MatrixEdit';
@@ -106,6 +109,27 @@
 							Boolean(await edit({ kind: 'RenameColumnGroup', group: group.id, label }))} />
 					<ParameterTrigger
 						owner={group.id}
+						field="previous_child"
+						label={`Previous Child of ${group.label}`}
+						icon={previousIcon}
+						{disabled}
+						tinted />
+					<ParameterTrigger
+						owner={group.id}
+						field="play"
+						label={`Play ${group.label}`}
+						icon={playIcon}
+						{disabled}
+						tinted />
+					<ParameterTrigger
+						owner={group.id}
+						field="next_child"
+						label={`Next Child of ${group.label}`}
+						icon={nextIcon}
+						{disabled}
+						tinted />
+					<ParameterTrigger
+						owner={group.id}
 						field="stop"
 						label={`Stop ${group.label}`}
 						{disabled} />
@@ -177,5 +201,12 @@
 	}
 	.band :global(button) {
 		max-width: 100%;
+	}
+	.band :global(.gc-icon-button) {
+		inline-size: 1.25rem;
+	}
+	.band :global(.matrix-tinted-trigger::before) {
+		inline-size: 1rem;
+		block-size: 1rem;
 	}
 </style>

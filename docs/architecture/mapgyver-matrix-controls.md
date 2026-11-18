@@ -35,6 +35,7 @@ Matrix provides these intrinsic Trigger Parameters:
 | Layer                 | `parameters/previous_cell`, `parameters/next_cell` | Step between playable Cells on that Layer with the configured transition. |
 | Layer Group           | `parameters/stop`                   | Cut every playing clip on its current descendant Layers.                                         |
 | Column / Column Group | `parameters/stop`                   | Cut matching Column clips across every Layer, including independent launches and outgoing clips. |
+| Column Group          | `parameters/play`, `parameters/previous_child`, `parameters/next_child` | Play its first enabled Column or step among its direct Columns and nested Groups. |
 | Cell                  | `parameters/stop`                   | Cut only that Layer/Column address, preserving other outgoing contributions on the Layer.        |
 
 The Matrix grid's top-left toolbar exposes Previous/Next Column, Previous/Next Column Group
@@ -56,6 +57,15 @@ order. It skips unconfigured and disabled Cells and disabled Columns. A Cell wit
 configured App Control can play without media. Stepping uses the normal Cell transition and
 preserves the Matrix Column anchor and the other Layers. Named scripts use
 `navigateMatrixCell(requestId, matrixId, layerId, direction)` with `"Previous"` or `"Next"`.
+
+Column Group headers and the Inspector expose Play and Previous/Next Child. Play launches the
+first enabled Column in the Group, recursing through nested Groups in document order. Previous
+and Next step through direct children. When the current Column belongs to a nested direct child,
+the entire child acts as the anchor. Landing on a nested Group launches its first enabled Column.
+Empty or disabled children are skipped. From outside the Group, Next starts at its first eligible
+child and Previous starts at the last. At either boundary the current launch continues. The typed
+edits `PlayColumnGroup` and `NavigateGroupChild` and named scripts `playMatrixColumnGroup` and
+`navigateMatrixGroupChild` fire the same Parameters.
 
 `controls::Pulses` captures an owner UUID and action into Golden's existing bounded operation
 service. The service resolves current ownership and rejects missing, disabled or mismatched

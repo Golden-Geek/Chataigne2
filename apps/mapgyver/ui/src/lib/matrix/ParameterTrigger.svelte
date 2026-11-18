@@ -21,7 +21,9 @@
 			| 'previous_column_group'
 			| 'next_column_group'
 			| 'previous_cell'
-			| 'next_cell';
+			| 'next_cell'
+			| 'previous_child'
+			| 'next_child';
 		label: string;
 		title?: string;
 		icon?: string;

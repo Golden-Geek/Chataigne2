@@ -23,6 +23,7 @@ mod cell_playback;
 mod cell_settings;
 mod column_enabled;
 mod column_group_demand;
+mod column_group_transport;
 mod column_group_view;
 mod column_groups;
 mod controls;

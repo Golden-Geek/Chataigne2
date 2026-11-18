@@ -1,4 +1,5 @@
 //! Column hierarchy and intrinsic app-control ownership, separate from compositing Layer Groups.
+use super::{controls::Action, protocol::MatrixNavigationDirection};
 use golden_core::{
     node,
     node::{Node, NodeId},
@@ -15,6 +16,9 @@ pub const COLUMN_GROUP_TYPE: &str = "mapgyver.matrix.column_group.v1";
 #[children(
     folder(parameters, label = "Parameters", can_be_disabled = false) {
         stop: ParamValue = ParamValue::Trigger() (label = "Stop");
+        play: ParamValue = ParamValue::Trigger() (label = "Play");
+        previous_child: ParamValue = ParamValue::Trigger() (label = "Previous Child");
+        next_child: ParamValue = ParamValue::Trigger() (label = "Next Child");
     }
     node app_control: crate::applications::AppControlNode = (self.create_app_control()) (label = "App control");
 )]
@@ -26,6 +30,27 @@ pub struct ColumnGroupNode {
 }
 
 impl ColumnGroupNode {
+    fn controls(&self) -> [(Action, NodeId); 4] {
+        [
+            (Action::Stop, self.stop.id()),
+            (Action::Play, self.play.id()),
+            (
+                Action::NavigateGroupChild(MatrixNavigationDirection::Previous),
+                self.previous_child.id(),
+            ),
+            (
+                Action::NavigateGroupChild(MatrixNavigationDirection::Next),
+                self.next_child.id(),
+            ),
+        ]
+    }
+
+    pub(super) fn control_parameter(&self, action: Action) -> Option<NodeId> {
+        self.controls()
+            .into_iter()
+            .find_map(|(kind, id)| (kind == action).then_some(id))
+    }
+
     pub(crate) fn claim_control(&mut self, action: super::controls::Action, token: uuid::Uuid) -> bool {
         self.pulses.claim(action, token)
     }
@@ -67,8 +92,8 @@ impl Node for ColumnGroupNode {
         self.pulses.ready();
     }
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
-        if parameter == self.stop.id() {
-            self.pulses.invoke(ctx, &self.node_data, super::controls::Action::Stop);
+        if let Some((action, _)) = self.controls().into_iter().find(|(_, id)| *id == parameter) {
+            self.pulses.invoke(ctx, &self.node_data, action);
         }
     }
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {

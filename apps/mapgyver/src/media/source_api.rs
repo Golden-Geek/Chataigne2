@@ -27,6 +27,8 @@ pub(super) const METHODS: &[&str] = &[
     "navigateMatrixColumn",
     "navigateMatrixColumnGroup",
     "navigateMatrixCell",
+    "playMatrixColumnGroup",
+    "navigateMatrixGroupChild",
     "dropMatrixMedia",
     "transferMatrixCell",
     "captureMatrixPreset",
@@ -124,8 +126,8 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "dropCompositionMedia" => 7,
         "createCompositionMedia" => 6,
         "transformCompositionMedia" | "arrangeCompositionMedia" => 4,
-        "navigateMatrixColumn" | "navigateMatrixColumnGroup" => 2,
-        "navigateMatrixCell" => 3,
+        "navigateMatrixColumn" | "navigateMatrixColumnGroup" | "playMatrixColumnGroup" => 2,
+        "navigateMatrixCell" | "navigateMatrixGroupChild" => 3,
         "dropMatrixMedia" => 5,
         "transferMatrixCell" => 5,
         "captureMatrixPreset" | "updateMatrixPreset" | "recallMatrixPreset" | "deleteMatrixPreset" => 2,
@@ -153,6 +155,19 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
             media: MediaId(uuid(args, 0)?),
             edit: crate::matrix::protocol::MatrixEdit::NavigateCell {
                 layer: crate::matrix::protocol::LayerId(uuid(args, 1)?),
+                direction: choice(args, 2)?,
+            },
+        },
+        "playMatrixColumnGroup" => MediaEdit::Matrix {
+            media: MediaId(uuid(args, 0)?),
+            edit: crate::matrix::protocol::MatrixEdit::PlayColumnGroup {
+                group: crate::matrix::protocol::ColumnGroupId(uuid(args, 1)?),
+            },
+        },
+        "navigateMatrixGroupChild" => MediaEdit::Matrix {
+            media: MediaId(uuid(args, 0)?),
+            edit: crate::matrix::protocol::MatrixEdit::NavigateGroupChild {
+                group: crate::matrix::protocol::ColumnGroupId(uuid(args, 1)?),
                 direction: choice(args, 2)?,
             },
         },

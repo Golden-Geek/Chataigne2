@@ -2,11 +2,11 @@
 use super::ViewIndex;
 use crate::{
     app::{AppEngine, AppNode},
-    matrix::protocol::{ColumnId, ColumnItemId, LaunchMode, LayerId, MatrixNavigationDirection},
+    matrix::protocol::{ColumnGroupId, ColumnId, ColumnItemId, LaunchMode, LayerId, MatrixNavigationDirection},
     media::protocol::{MediaEditResult, MediaId},
 };
 use MatrixNavigationDirection::{Next, Previous};
-use golden_core::node::NodeId;
+use golden_core::node::{Node, NodeId};
 
 pub(in crate::matrix) enum AxisTarget {
     Column,
@@ -88,6 +88,61 @@ pub(in crate::matrix) fn launch_layer_cell(
     }
 }
 
+pub(in crate::matrix) fn launch_group_child(
+    engine: &mut AppEngine,
+    media: MediaId,
+    group: ColumnGroupId,
+    direction: Option<MatrixNavigationDirection>,
+) -> Result<MediaEditResult, String> {
+    let current = crate::matrix::playback::inspect(engine, media)?;
+    let MediaEditResult::MatrixPlayback { snapshot } = &current else {
+        unreachable!("Matrix playback inspection always returns its snapshot")
+    };
+    let index = super::index(engine, media)?;
+    let (_, group_node) = index.groups.get(&group).ok_or("Column Group is missing")?;
+    let target = match direction {
+        None => first_enabled_column(engine, &index, group),
+        Some(direction) => {
+            let children = crate::matrix::document::children(engine, *group_node)?
+                .into_iter()
+                .filter_map(|node| match engine.nodes.get(node)? {
+                    AppNode::MatrixColumn(column) => Some(ColumnItemId::Column {
+                        id: ColumnId(column.node_data().meta.uuid),
+                    }),
+                    AppNode::MatrixColumnGroup(group) => Some(ColumnItemId::Group {
+                        id: ColumnGroupId(group.node_data().meta.uuid),
+                    }),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            // A Column anywhere under a nested Group anchors to that one direct child.
+            let anchor = snapshot.desired_column.and_then(|column| {
+                let &position = index.column_positions.get(&column)?;
+                children.iter().position(|item| match *item {
+                    ColumnItemId::Column { id } => id == column,
+                    ColumnItemId::Group { id } => {
+                        let span = &index.groups[&id].0;
+                        (span.axis_start as usize..(span.axis_start + span.axis_count) as usize).contains(&position)
+                    }
+                })
+            });
+            let candidates = match (direction, anchor) {
+                (Previous, Some(position)) => &children[..position],
+                (Next, Some(position)) => &children[position + 1..],
+                (_, None) => &children,
+            };
+            find_in_direction(candidates, direction, |item| match *item {
+                ColumnItemId::Column { id } => column_enabled(engine, &index, id).then_some(id),
+                ColumnItemId::Group { id } => first_enabled_column(engine, &index, id),
+            })
+        }
+    };
+    match target {
+        Some(column) => crate::matrix::playback::launch(engine, media, column, LaunchMode::Configured),
+        None => Ok(current),
+    }
+}
+
 fn adjacent_column(
     engine: &AppEngine,
     index: &ViewIndex,
@@ -124,14 +179,16 @@ fn adjacent_group(
         }
         (_, None) => roots,
     };
-    find_in_direction(groups, direction, |id| {
-        let group = &index.groups[id].0;
-        let start = group.column_start as usize;
-        let end = start + group.column_count as usize;
-        index.columns[start..end]
-            .iter()
-            .find_map(|&(column, _)| column_enabled(engine, index, column).then_some(column))
-    })
+    find_in_direction(groups, direction, |&id| first_enabled_column(engine, index, id))
+}
+
+fn first_enabled_column(engine: &AppEngine, index: &ViewIndex, group: ColumnGroupId) -> Option<ColumnId> {
+    let group = &index.groups[&group].0;
+    let start = group.column_start as usize;
+    let end = start + group.column_count as usize;
+    index.columns[start..end]
+        .iter()
+        .find_map(|&(column, _)| column_enabled(engine, index, column).then_some(column))
 }
 
 fn column_enabled(engine: &AppEngine, index: &ViewIndex, column: ColumnId) -> bool {

@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-18",
+  "gate": "M16/9",
+  "result": "accepted",
+  "software": {
+    "rustTests": 7,
+    "coverage": "First enabled Column, direct-child order across nested Groups, empty and disabled entries, boundaries, reorder, configured transitions, history, foreign Group rejection, named and generic script and transport parity, and generated TypeScript",
+    "strictClippy": "pass",
+    "svelteCheck": { "errors": 0, "warnings": 0 },
+    "rustFormattingAndPrettier": "pass"
+  },
+  "bundledApp": {
+    "fixture": "apps/mapgyver/tests/browser/matrix-triggers.mjs",
+    "processId": 33640,
+    "exitCode": 0,
+    "passedCheckGroups": 8,
+    "localReceipt": "target/m169-group-transport-7f98b49f/result.json",
+    "coverage": "Group header Play, Previous and Next by mouse and keyboard, the Inspector using the exact same Parameters, direct nested navigation, unchanged Undo history and existing Matrix and Layer transport",
+    "build": "Isolated bundled UI with pinned FFmpeg on PATH and Tauri resource copying disabled for the test build"
+  }
+}

@@ -41,6 +41,14 @@ fn named_invocation(operation: &MediaEdit) -> String {
         } => ("navigateMatrixCell", serde_json::json!([media, layer, direction])),
         MediaEdit::Matrix {
             media,
+            edit: crate::matrix::protocol::MatrixEdit::PlayColumnGroup { group },
+        } => ("playMatrixColumnGroup", serde_json::json!([media, group])),
+        MediaEdit::Matrix {
+            media,
+            edit: crate::matrix::protocol::MatrixEdit::NavigateGroupChild { group, direction },
+        } => ("navigateMatrixGroupChild", serde_json::json!([media, group, direction])),
+        MediaEdit::Matrix {
+            media,
             edit: crate::matrix::protocol::MatrixEdit::Preset { edit },
         } => {
             use crate::matrix::protocol::MatrixPresetEdit;

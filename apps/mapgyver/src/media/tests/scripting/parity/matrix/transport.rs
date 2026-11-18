@@ -1,6 +1,78 @@
 use super::*;
 
 #[test]
+fn column_group_transport_matches_named_and_generic_script_and_transport_callers() {
+    let scene = scene();
+    let mut engine = loaded(&scene.document);
+    let MediaEditResult::MatrixColumnGroupCreated { group } = matrix_edit(
+        &mut engine,
+        scene.root,
+        MatrixEdit::AddColumnGroup {
+            parent: None,
+            label: None,
+        },
+    ) else {
+        panic!("Group")
+    };
+    let MediaEditResult::MatrixCreated { columns, .. } = matrix_edit(
+        &mut engine,
+        scene.root,
+        MatrixEdit::AddColumns {
+            parent: Some(group),
+            count: 2,
+        },
+    ) else {
+        panic!("Columns")
+    };
+    let document = to_sparse_project_json_pretty(&engine).unwrap();
+    for caller in CALLERS {
+        for (edit, expected) in [
+            (MatrixEdit::PlayColumnGroup { group }, columns[0]),
+            (
+                MatrixEdit::NavigateGroupChild {
+                    group,
+                    direction: MatrixNavigationDirection::Next,
+                },
+                columns[1],
+            ),
+        ] {
+            let mut engine = loaded(&document);
+            matrix_edit(
+                &mut engine,
+                scene.root,
+                MatrixEdit::LaunchColumn {
+                    column: columns[0],
+                    mode: LaunchMode::Cut,
+                },
+            );
+            service_script_app_operations(&mut engine).unwrap();
+            let value = run(
+                &mut engine,
+                caller,
+                MediaEdit::Matrix {
+                    media: scene.root.media,
+                    edit,
+                },
+            )
+            .unwrap();
+            let MediaEditResult::MatrixControlInvoked { owner, parameter } = serde_json::from_value(value).unwrap()
+            else {
+                panic!("{caller:?} did not invoke a Group trigger")
+            };
+            assert_eq!(owner, group.0);
+            assert!(engine.node_id_by_uuid(parameter).is_some());
+            let MediaEditResult::MatrixPlayback { snapshot } =
+                crate::matrix::apply(&mut engine, scene.root.media, MatrixEdit::InspectPlayback).unwrap()
+            else {
+                panic!("playback snapshot")
+            };
+            assert_eq!(snapshot.desired_column, Some(expected));
+            assert_eq!(snapshot.transition.duration_ms, 250);
+        }
+    }
+}
+
+#[test]
 fn layer_navigation_matches_named_and_generic_script_and_transport_callers() {
     let scene = scene();
     let layer = scene.snapshot.cells[0].layer;

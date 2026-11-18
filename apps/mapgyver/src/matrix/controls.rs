@@ -1,6 +1,6 @@
 //! Real Parameter pulses enter the same bounded app-operation service as script commands.
 use super::{
-    protocol::{LaunchMode, LayerId, MatrixNavigationDirection},
+    protocol::{ColumnGroupId, LaunchMode, LayerId, MatrixNavigationDirection},
     view::navigation::{self, AxisTarget},
 };
 use crate::{
@@ -30,6 +30,7 @@ pub(crate) enum Action {
     NavigateColumn(MatrixNavigationDirection),
     NavigateColumnGroup(MatrixNavigationDirection),
     NavigateCell(MatrixNavigationDirection),
+    NavigateGroupChild(MatrixNavigationDirection),
 }
 
 #[derive(Deserialize, Serialize)]
@@ -118,6 +119,7 @@ fn pulse(engine: &mut AppEngine, owner: NodeId, action: Action) -> Result<MediaE
     let parameter = match (node, action) {
         (AppNode::Media(node), action) => node.matrix_control_parameter(action),
         (AppNode::MatrixColumn(node), action) => node.control_parameter(action),
+        (AppNode::MatrixColumnGroup(node), action) => node.control_parameter(action),
         (AppNode::MatrixCell(node), action) => node.control_parameter(action),
         (AppNode::MatrixElement(node), action) if node.is_layer() => node
             .cell_navigation_parameters()
@@ -208,6 +210,22 @@ pub(super) fn navigate_cell(
     pulse(engine, id, Action::NavigateCell(direction))
 }
 
+pub(super) fn column_group_pulse(
+    engine: &mut AppEngine,
+    media: MediaId,
+    group: ColumnGroupId,
+    action: Action,
+) -> Result<MediaEditResult, String> {
+    let id = engine.node_id_by_uuid(group.0).ok_or("Column Group is missing")?;
+    let root = super::playback::root(engine, media)?;
+    if !matches!(engine.nodes.get(id), Some(AppNode::MatrixColumnGroup(_)))
+        || super::column_axis::owner(id, |id| engine.nodes.get(id).map(|node| node as &dyn Node)) != Some(root)
+    {
+        return Err("Column Group belongs to another Matrix or is missing".into());
+    }
+    pulse(engine, id, action)
+}
+
 fn matrix_owner(engine: &AppEngine, mut id: NodeId) -> Option<MediaId> {
     loop {
         let node = engine.nodes.get(id)?;
@@ -275,6 +293,12 @@ pub(crate) fn apply(
         }
         (AppNode::MatrixElement(owner), Action::NavigateCell(direction)) if owner.is_layer() => {
             navigation::launch_layer_cell(engine, media, LayerId(invocation.owner), direction)?
+        }
+        (AppNode::MatrixColumnGroup(_), Action::Play) => {
+            navigation::launch_group_child(engine, media, ColumnGroupId(invocation.owner), None)?
+        }
+        (AppNode::MatrixColumnGroup(_), Action::NavigateGroupChild(direction)) => {
+            navigation::launch_group_child(engine, media, ColumnGroupId(invocation.owner), Some(direction))?
         }
         (AppNode::MatrixColumn(_), Action::Play | Action::Cut) => {
             super::playback::launch(engine, media, super::protocol::ColumnId(invocation.owner), mode)?

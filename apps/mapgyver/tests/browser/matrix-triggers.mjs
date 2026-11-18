@@ -232,6 +232,41 @@ async function verifyMatrixNavigation() {
 	checks.push(
 		'Layer row-header and Inspector stepping fire the same Parameters and preserve the Column anchor, other Layer and Undo history'
 	);
+
+	const {
+		columns: [lastChild]
+	} = await matrix({ kind: 'AddColumns', parent: firstGroup, count: 1 });
+	const groupHeader = grid.locator(`[data-column-group-id="${firstGroup}"]`);
+	const groupParameters = parametersFor(firstGroup);
+	for (const [field, name, key, column, inspector] of [
+		['play', 'Play Transport Group A', undefined, first, false],
+		['next_child', 'Next Child of Transport Group A', 'Enter', lastChild, false],
+		['previous_child', 'Previous Child of Transport Group A', 'Space', first, false],
+		['next_child', 'Next Child of Transport Group A', undefined, lastChild, true]
+	]) {
+		const trigger = groupParameters.children
+			.map((id) => byId.get(id))
+			.find((node) => node?.decl_id === `parameters/${field}`);
+		assert(trigger);
+		let button;
+		if (inspector) {
+			await groupHeader.getByRole('button', { name: 'Transport Group A', exact: true }).click();
+			button = page
+				.locator(`.parameter-inspector[data-node-id="${trigger.node_id}"]`)
+				.getByRole('button', { name: 'Trigger', exact: true });
+		} else {
+			button = groupHeader.getByRole('button', { name, exact: true });
+			assert.equal(Number(await button.getAttribute('data-parameter-id')), trigger.node_id);
+			assert.equal(await button.getAttribute('data-parameter-uuid'), trigger.uuid);
+		}
+		const history = (await post('/api/ui/snapshot', { scope: 'wholeGraph' })).history;
+		await pulseButton(button, trigger.node_id, key);
+		await wait(playback, (state) => state.desired_column === column);
+		assert.deepEqual((await post('/api/ui/snapshot', { scope: 'wholeGraph' })).history, history);
+	}
+	checks.push(
+		'Group Play and Previous/Next header and Inspector pulses step direct children, including a nested Group as one step'
+	);
 }
 
 let failure;

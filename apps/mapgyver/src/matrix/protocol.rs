@@ -574,6 +574,13 @@ pub enum MatrixEdit {
         layer: LayerId,
         direction: MatrixNavigationDirection,
     },
+    PlayColumnGroup {
+        group: ColumnGroupId,
+    },
+    NavigateGroupChild {
+        group: ColumnGroupId,
+        direction: MatrixNavigationDirection,
+    },
     InspectPlayback,
     ClearPlayback,
     Inspect,
