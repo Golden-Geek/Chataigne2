@@ -75,6 +75,9 @@
 		if (cancel) publish(initialValue);
 		onEndEdit?.();
 	}
+	function dragPosition(event: PointerEvent) {
+		return isHorizontal ? event.clientX : -event.clientY;
+	}
 	function startDrag(event: PointerEvent) {
 		if (disabled || readOnly || event.button !== 0 || isDragging) return;
 		event.preventDefault();
@@ -82,19 +85,20 @@
 		owner = event.currentTarget as HTMLElement;
 		owner.focus();
 		pointer = event.pointerId;
-		lastPosition = isHorizontal ? event.clientX : event.clientY;
+		lastPosition = dragPosition(event);
 		begin();
 		owner.setPointerCapture(pointer);
 	}
 	function dragUpdate(event: PointerEvent) {
 		if (!isDragging || event.pointerId !== pointer) return;
-		const position = isHorizontal ? event.clientX : event.clientY;
+		const position = dragPosition(event);
+		const bounds = sliderDiv?.getBoundingClientRect();
 		rawValue += sliderDragDelta(position - lastPosition, {
 			min,
 			max,
 			step,
 			dragStep,
-			width: sliderDiv?.getBoundingClientRect().width ?? 1,
+			span: (isHorizontal ? bounds?.width : bounds?.height) ?? 1,
 			relative: infiniteMode,
 			sensitivity: sensitivity * (event.altKey ? 0.1 : event.shiftKey ? 10 : 1)
 		});
@@ -167,6 +171,7 @@
 	<div
 		class="slider"
 		class:disabled
+		class:vertical={!isHorizontal}
 		class:readonly={readOnly}
 		bind:this={sliderDiv}
 		onpointerdown={startDrag}
@@ -227,6 +232,9 @@
 	.slider:hover {
 		filter: brightness(120%);
 	}
+	.slider.vertical {
+		cursor: ns-resize;
+	}
 
 	.slider.disabled,
 	.slider.readonly {
@@ -270,6 +278,16 @@
 
 	.slider-foreground.mid-zero {
 		min-width: 1px;
+	}
+
+	.slider.vertical .slider-foreground {
+		inset: var(--right) 0 var(--left);
+		height: auto;
+	}
+
+	.slider.vertical .slider-foreground.mid-zero {
+		min-height: 1px;
+		min-width: 0;
 	}
 
 	.infinite-slider {

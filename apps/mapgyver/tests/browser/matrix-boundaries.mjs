@@ -31,7 +31,9 @@ export async function verifyMatrixBoundaries({ page, grid, lease, snapshot }) {
 								for (let frame = 0; frame < 40; frame++) {
 									await new Promise(requestAnimationFrame);
 									if (frame < 15) continue;
-									const header = element.querySelector('.row-label');
+									const header = element.querySelector(
+										'.row-label:has([data-matrix-parameter="blend"])'
+									);
 									const bounds = header.getBoundingClientRect();
 									const editors = [
 										...header.querySelectorAll('[data-matrix-parameter] .editor')
@@ -55,7 +57,7 @@ export async function verifyMatrixBoundaries({ page, grid, lease, snapshot }) {
 												.closest('.viewport-container')
 												.querySelector('.native-preview')
 												?.getAttribute('data-preview-view') ?? null,
-										editorsFit: editors.length === 2 && editors.every(Boolean)
+										editorsFit: editors.length === 1 && editors.every(Boolean)
 									});
 								}
 							} finally {
@@ -76,7 +78,7 @@ export async function verifyMatrixBoundaries({ page, grid, lease, snapshot }) {
 						lease,
 						'font/threshold changes keep the populated preview lease'
 					);
-					assert(sample.editorsFit, 'inline editors stay inside the minimum-size row header');
+					assert(sample.editorsFit, 'Blend Mode stays inside the minimum-size row header');
 					assert(
 						Math.abs(sample.client[0] - (result.minimumWidth + dx)) <= 2,
 						'width straddles the independent minimum'
@@ -103,7 +105,7 @@ export async function verifyMatrixBoundaries({ page, grid, lease, snapshot }) {
 	await grid.evaluate(async () => {
 		for (let frame = 0; frame < 10; frame++) await new Promise(requestAnimationFrame);
 	});
-	const original = await grid.boundingBox();
+	const original = await grid.locator('xpath=..').boundingBox();
 	const originalClient = await grid.evaluate((element) => element.clientWidth);
 	const candidates = page.locator(
 		'.dv-horizontal > .dv-sash-container > .dv-sash:not(.dv-disabled)'
@@ -153,7 +155,7 @@ export async function verifyMatrixBoundaries({ page, grid, lease, snapshot }) {
 	const minimum = await settledDock();
 	assert.equal(new Set(minimum.map(JSON.stringify)).size, 1, 'dock minimum does not oscillate');
 	assert(
-		minimum.at(-1)[0] < original.width - 20,
+		minimum.at(-1)[0] < originalClient - 20,
 		'trusted divider drag reaches a smaller real dock layout'
 	);
 	const moved = await divider.boundingBox();

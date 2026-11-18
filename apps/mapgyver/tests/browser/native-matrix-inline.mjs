@@ -81,43 +81,55 @@ try {
 		.click();
 	await tab('Matrix').click();
 	const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
+	const panel = grid.locator('xpath=ancestor::section[@data-panel-id]');
+	const rail = panel.getByRole('group', { name: 'Layer opacity', exact: true });
 	const ready = () =>
 		wait(
-			() => grid.locator('xpath=ancestor::section[@data-panel-id]').getAttribute('aria-busy'),
+			() => panel.getAttribute('aria-busy'),
 			(value) => value === 'false'
 		);
 	const row = (id) => grid.locator(`.row-label[data-row-id="${id}"]`);
-	const input = (id) => row(id).locator('[data-matrix-parameter="opacity"] input.number-field');
+	const opacity = (id) =>
+		rail.locator(`[data-opacity-layer="${id}"] [data-matrix-parameter="opacity"]`);
+	const input = (id) => opacity(id).getByRole('slider');
+	const opacityValue = async (id) => Number(await input(id).getAttribute('aria-valuenow'));
 	const blend = (id) => row(id).locator('[data-matrix-parameter="blend"] select');
 	const settings = async (id) => (await inspect()).items.find((item) => item.id.id === id).settings;
 	const original = await inspect();
+	assert.equal(await opacity(groups[0].id).count(), 0);
+	assert.equal(await blend(groups[0].id).count(), 0);
 	for (const target of [
 		original.items[0],
-		original.items.find((item) => item.id.id === groups[0].id),
 		original.items.find((item) => item.id.id === layers[0].id)
 	]) {
-		stage = `inline editing ${target.label}`;
-		await input(target.id.id).waitFor();
+		const id = target.id.id;
+		stage = `Matrix controls for ${target.label}`;
+		await input(id).waitFor();
 		await ready();
-		await row(target.id.id).click({ position: { x: 6, y: 6 } });
+		await row(id).getByTitle(`Select ${target.label}`, { exact: true }).click();
 		await wait(
-			() => row(target.id.id).getAttribute('aria-selected'),
-			(v) => v === 'true'
+			() => page.locator('.inspector').getAttribute('data-inspected-uuid'),
+			(v) => v === id
 		);
 		await inspector('Opacity').locator('input.number-field').waitFor();
 		assert.equal(
-			await row(target.id.id)
-				.locator('[data-matrix-parameter="opacity"]')
-				.getAttribute('data-parameter-id'),
+			await opacity(id).getAttribute('data-parameter-id'),
 			await inspector('Opacity').getAttribute('data-node-id')
 		);
 		assert.equal(
-			await row(target.id.id)
-				.locator('[data-matrix-parameter="blend"]')
-				.getAttribute('data-parameter-id'),
+			await row(id).locator('[data-matrix-parameter="blend"]').getAttribute('data-parameter-id'),
 			await inspector('Blend Mode').getAttribute('data-node-id')
 		);
-		const geometry = await row(target.id.id).evaluate((element) => {
+		assert.equal(await input(id).getAttribute('aria-orientation'), 'vertical');
+		assert.equal(await input(id).getAttribute('aria-label'), `Opacity for ${target.label}`);
+		assert.equal(await blend(id).getAttribute('aria-label'), `Blend Mode for ${target.label}`);
+		assert.equal(
+			await row(id)
+				.locator('[data-matrix-parameter="blend"] label, [data-matrix-parameter="blend"] span')
+				.count(),
+			0
+		);
+		const geometry = await row(id).evaluate((element) => {
 			const header = element.getBoundingClientRect(),
 				title = element.querySelector('.row-title').getBoundingClientRect();
 			return {
@@ -127,37 +139,66 @@ try {
 		});
 		assert(geometry.offset < geometry.rem, 'Label is at the top of its header');
 		const before = await inspect();
-		await input(target.id.id).fill('0.375');
-		await input(target.id.id).press('Enter');
+		await input(id).press('Home');
 		await wait(
-			() => settings(target.id.id),
-			(v) => v.opacity === 0.375
+			() => settings(id),
+			(v) => v.opacity === 0
 		);
 		await wait(
 			() => inspector('Opacity').locator('input.number-field').inputValue(),
-			(v) => Number(v) === 0.375
+			(v) => Number(v) === 0
 		);
 		const after = await inspect();
 		await undo();
 		await wait(inspect, (v) => isDeepStrictEqual(v, before));
 		await redo();
 		await wait(inspect, (v) => isDeepStrictEqual(v, after));
-		for (const mode of ['Add', 'Multiply', 'Screen', 'Normal']) {
-			await blend(target.id.id).selectOption(mode);
-			await wait(
-				() => settings(target.id.id),
-				(v) => v.blend === mode
-			);
-			await wait(
-				() => inspector('Blend Mode').locator('select').inputValue(),
-				(v) => v === mode
-			);
-		}
+		await input(id).press('ArrowUp');
+		await wait(
+			() => settings(id),
+			(v) => v.opacity > 0 && v.opacity < 1
+		);
+		await wait(
+			() => page.locator('.inspector').getAttribute('data-inspected-uuid'),
+			(v) => v === id
+		);
+		const beforeBlend = await inspect();
+		const originalMode = await blend(id).inputValue();
+		const nextMode = await blend(id).evaluate(
+			(element) => element.options[element.selectedIndex + 1].value
+		);
+		await blend(id).press('ArrowDown');
+		await wait(
+			() => settings(id),
+			(v) => v.blend === nextMode
+		);
+		await wait(
+			() => inspector('Blend Mode').locator('select').inputValue(),
+			(v) => v === nextMode
+		);
+		const afterBlend = await inspect();
+		await undo();
+		await wait(inspect, (v) => isDeepStrictEqual(v, beforeBlend));
+		await wait(
+			() => blend(id).inputValue(),
+			(v) => v === originalMode
+		);
+		await redo();
+		await wait(inspect, (v) => isDeepStrictEqual(v, afterBlend));
+		await wait(
+			() => blend(id).inputValue(),
+			(v) => v === nextMode
+		);
 		await inspector('Opacity').locator('input.number-field').fill('0.625');
 		await inspector('Opacity').locator('input.number-field').press('Enter');
 		await wait(
-			() => input(target.id.id).inputValue(),
-			(v) => Number(v) === 0.625
+			() => opacityValue(id),
+			(v) => v === 0.625
+		);
+		await inspector('Blend Mode').locator('select').selectOption('Screen');
+		await wait(
+			() => blend(id).inputValue(),
+			(v) => v === 'Screen'
 		);
 		checks.push({
 			kind: target.id.kind,
@@ -165,10 +206,97 @@ try {
 			canonical_parameters: true,
 			history: true,
 			inspector_sync: true,
+			keyboard: true,
 			label_top: true
 		});
 	}
 	const target = original.items[0];
+	stage = 'compact controls remain accessible in a narrow dock';
+	const dock = grid.locator('xpath=..');
+	const wide = await dock.boundingBox();
+	assert(wide);
+	const dividers = page.locator('.dv-horizontal > .dv-sash-container > .dv-sash:not(.dv-disabled)');
+	let divider;
+	for (const candidate of await dividers.all()) {
+		const rect = await candidate.boundingBox();
+		if (
+			rect &&
+			rect.height > 100 &&
+			rect.width <= 20 &&
+			Math.abs(rect.x - wide.x - wide.width) < 24
+		) {
+			divider = candidate;
+			break;
+		}
+	}
+	assert(divider, 'Matrix dock divider');
+	const dragDivider = async (to) => {
+		const rect = await divider.boundingBox();
+		assert(rect);
+		const y = rect.y + rect.height / 2;
+		await page.mouse.move(rect.x + rect.width / 2, y);
+		await page.mouse.down();
+		try {
+			await page.mouse.move(to, y, { steps: 8 });
+		} finally {
+			await page.mouse.up();
+		}
+	};
+	const initialDivider = await divider.boundingBox();
+	await dragDivider(wide.x + Math.max(100, wide.width * 0.42));
+	await wait(
+		() => dock.boundingBox(),
+		(value) => value.width < wide.width - 40
+	);
+	const readBounds = () =>
+		input(target.id.id).evaluate((element, id) => {
+			const parent = element.closest('.viewport-container');
+			const viewport = parent.querySelector('[role="grid"]');
+			const layer = viewport.querySelector(`.row[data-row-id="${id}"]`);
+			const mode = layer.querySelector('[data-matrix-parameter="blend"] select');
+			const bounds = element.getBoundingClientRect();
+			const layerBounds = layer.getBoundingClientRect();
+			const modeBounds = mode.getBoundingClientRect();
+			const gridBounds = viewport.getBoundingClientRect();
+			const dockBounds = parent.getBoundingClientRect();
+			const rail = element.closest('.opacity-rail').getBoundingClientRect();
+			const hit = document.elementFromPoint(
+				bounds.x + bounds.width / 2,
+				bounds.y + bounds.height / 2
+			);
+			const modeHit = document.elementFromPoint(
+				modeBounds.x + modeBounds.width / 2,
+				modeBounds.y + modeBounds.height / 2
+			);
+			return {
+				width: dockBounds.width,
+				left: bounds.left,
+				scroll: viewport.scrollLeft,
+				onRight: Math.abs(rail.right - dockBounds.right) <= 1 && bounds.left >= gridBounds.right,
+				aligned: bounds.top >= layerBounds.top && bounds.bottom <= layerBounds.bottom,
+				fits: bounds.height > bounds.width * 2 && modeBounds.right < bounds.left,
+				hit: element.contains(hit) && mode.contains(modeHit)
+			};
+		}, target.id.id);
+	const narrowStart = await wait(
+		readBounds,
+		(value) => value.onRight && value.aligned && value.fits && value.hit
+	);
+	await grid.evaluate((element) => (element.scrollLeft = element.scrollWidth));
+	const narrowEnd = await wait(
+		readBounds,
+		(value) => value.scroll > 0 && value.aligned && value.hit
+	);
+	assert(
+		Math.abs(narrowStart.left - narrowEnd.left) < 1,
+		'opacity stays pinned while Columns scroll'
+	);
+	await dragDivider(initialDivider.x + initialDivider.width / 2);
+	await wait(
+		() => dock.boundingBox(),
+		(value) => value.width > narrowStart.width + 40
+	);
+	await grid.evaluate((element) => (element.scrollLeft = 0));
 	stage = 'slider gesture is one edit and never a row drag';
 	await ready();
 	await row(target.id.id).focus();
@@ -178,19 +306,22 @@ try {
 		(v) => v === 'true'
 	);
 	const before = await inspect();
-	const slider = row(target.id.id).getByRole('slider');
+	const slider = input(target.id.id);
 	const bounds = await slider.boundingBox();
 	assert(bounds);
 	await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
 	await page.mouse.down();
-	await page.mouse.move(bounds.x + bounds.width / 2 + 20, bounds.y + bounds.height / 2, {
+	await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height * 0.28, {
 		steps: 8
 	});
-	await page.mouse.up();
-	await wait(
-		() => settings(target.id.id),
-		(v) => v.opacity !== before.items[0].settings.opacity
-	);
+	try {
+		await wait(
+			() => settings(target.id.id),
+			(v) => Math.abs(v.opacity - 0.845) < 0.025
+		);
+	} finally {
+		await page.mouse.up();
+	}
 	await ready();
 	assert.deepEqual(
 		(await inspect()).items.map((v) => v.id),
@@ -265,7 +396,7 @@ try {
 		(v) => v === 0,
 		30000
 	);
-	const mounted = await grid.locator('[data-matrix-row-controls]').count();
+	const mounted = await rail.getByRole('slider').count();
 	assert(mounted <= 64);
 	await inspector('Opacity').locator('input.number-field').fill('0.25');
 	await inspector('Opacity').locator('input.number-field').press('Enter');
@@ -276,8 +407,8 @@ try {
 	await grid.hover();
 	await page.mouse.wheel(0, -1000000);
 	await wait(
-		() => input(target.id.id).inputValue(),
-		(v) => Number(v) === 0.25,
+		() => opacityValue(target.id.id),
+		(v) => v === 0.25,
 		30000
 	);
 	const sparse = await inspect();
@@ -292,8 +423,8 @@ try {
 	assert.equal(loaded.recovery ?? null, null);
 	await wait(inspect, (v) => isDeepStrictEqual(v.items, sparse.items), 30000);
 	await wait(
-		() => input(target.id.id).inputValue(),
-		(v) => Number(v) === 0.25,
+		() => opacityValue(target.id.id),
+		(v) => v === 0.25,
 		30000
 	);
 	assert.deepEqual(errors, []);
@@ -305,6 +436,7 @@ try {
 			{
 				pid: native.app.pid,
 				checks,
+				narrow_dock: { wide: wide.width, narrow: narrowStart.width, pinnedAfterScroll: true },
 				sparse: { rows: 1000, columns: 1000, cells: 0, mounted_controls: mounted },
 				slider_grouped_history: true,
 				header_keyboard: true,

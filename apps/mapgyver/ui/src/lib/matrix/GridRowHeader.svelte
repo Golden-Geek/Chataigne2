@@ -4,7 +4,7 @@
 	import Arrow from 'golden_ui/components/common/Arrow.svelte';
 	import groupIcon from 'golden_ui/style/icons/node/folder.svg';
 	import GridLabel from './GridLabel.svelte';
-	import RowControls from './RowControls.svelte';
+	import RowParameter from './RowParameter.svelte';
 	import ParameterTrigger from './ParameterTrigger.svelte';
 	import previousIcon from '../icons/step-previous.svg';
 	import nextIcon from '../icons/step-next.svg';
@@ -102,9 +102,10 @@
 			label={`Stop ${row.item.label}`}
 			{disabled} />
 	</div>
-	{#if row.item.id.kind === 'Layer'}<RowControls
+	{#if row.item.id.kind === 'Layer'}<RowParameter
 			uuid={row.item.id.id}
-			label={row.item.label} />{/if}
+			label={row.item.label}
+			field="blend" />{/if}
 </div>
 
 <style>

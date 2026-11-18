@@ -23,7 +23,7 @@ export function constrainSliderValue(value: number, range: SliderRange): number 
 export function sliderDragDelta(
 	delta: number,
 	options: SliderRange & {
-		width: number;
+		span: number;
 		relative: boolean;
 		dragStep?: number;
 		sensitivity: number;
@@ -31,6 +31,6 @@ export function sliderDragDelta(
 ): number {
 	const units = options.relative
 		? options.step || options.dragStep || 0.1
-		: ((options.max ?? 0) - (options.min ?? 0)) / Math.max(1, options.width);
+		: ((options.max ?? 0) - (options.min ?? 0)) / Math.max(1, options.span);
 	return delta * units * options.sensitivity;
 }

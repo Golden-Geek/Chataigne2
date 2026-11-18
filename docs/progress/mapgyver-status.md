@@ -1,9 +1,9 @@
 # MapGyver — simple status
 
 - **Updated:** 18 November 2026.
-- **Overall plan acceptance:** `████████░░` **82% — 112/137 checks accepted, 8/17 phases complete**. Empty Cell hover passed.
-- **Latest delivered:** The Matrix Cell outline stays visible when you move onto its `+` button. Add Media opens by mouse or keyboard.
-- **Working on next:** Compact Matrix Opacity and Blend Mode controls.
+- **Overall plan acceptance:** `████████░░` **82% — 113/137 checks accepted, 8/17 phases complete**. Compact Matrix controls passed.
+- **Latest delivered:** Each Matrix Layer has a vertical Opacity slider on the right and a compact Blend Mode selector in its header.
+- **Working on next:** Audio output and routing.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -29,6 +29,7 @@
 - [x] **Previous/Next wait modes:** launch immediately or wait for the first or last active finite Video in scope. Loops are skipped. Repeated commands replace the wait, and Stop cancels it. Inspector, toolbar and playback checks passed. [Checks](evidence/mapgyver-m16-navigation-waits-2026-11-18.json)
 - [x] **Matrix transition indicators:** green Cell and Column lines show the current mix through crossfades, interruptions, Cuts and scrolling. Verified in the Matrix editor and with a live Spout output. [Checks](evidence/mapgyver-m16-transition-lines-2026-11-18.json)
 - [x] **Empty Cell hover:** the outline stays visible over the `+` button and clears when the pointer leaves. Mouse and keyboard Add Media access both passed. [Checks](evidence/mapgyver-m16-empty-cell-hover-2026-11-18.json)
+- [x] **Compact Matrix controls:** right-edge Layer Opacity sliders and compact Blend Mode selectors use the same Parameters as the Inspector. Keyboard access, Undo/Redo, a narrow dock and scrolling passed. [Checks](evidence/mapgyver-m16-compact-controls-2026-11-18.json)
 - [x] **Matrix selection/colors:** only explicitly selected objects highlight; modifier multiselection works; Layers/Columns/Cells/Groups show Golden custom colors. Inspector color edits, Undo, copies and reload pass focused checks.
 - [x] **Matrix color menus:** right-click Layers, Cells, Columns and both Group kinds to Set Color / Reset Color. Shared picker, grouped Undo/Redo, empty Cells, unchanged multiselection, Inspector synchronization, offscreen access and reload pass.
 - [x] **Compact Layer Groups:** one-line headers; Opacity/Blend Mode in the Inspector. Nested/empty collapse, hidden selection, Undo/Redo, old/new projects, reload and scaled/narrow geometry pass.
@@ -48,16 +49,15 @@
 
 ## Next features — implementation order
 
-1. **NOW — Compact Matrix controls.** Place a vertical Opacity slider on the right and use a smaller Blend Mode control without a visible label.
-2. **Audio output and routing.** Use Golden Audio for device output and playback across Video and Matrix. Map virtual channels to physical outputs in Preferences and set per-channel volume on Video media.
-3. **Video intro and loop.** Loop the end of one file or play a separate loop file, with optional separate loop audio.
-4. **Matrix Cell audio.** Use the media's audio, give the Cell its own audio, or play audio only.
-5. **OSCQuery for all Golden apps.** Implement discovery, undoable node edits and live feedback in Golden Core, with configurable ports per app.
-6. **Seamless previews.** Remove black flashes in Surface Editor and Media Preview, and reuse the source when two Surfaces share media.
-7. **Linked outlines in Screen Warping.** Fix outline flicker while dragging linked handles.
-8. **Extended Video formats.** Add DXV, WebP (including animated WebP), and MKV playback
+1. **NOW — Audio output and routing.** Use Golden Audio for device output and playback across Video and Matrix. Map virtual channels to physical outputs in Preferences and set per-channel volume on Video media.
+2. **Video intro and loop.** Loop the end of one file or play a separate loop file, with optional separate loop audio.
+3. **Matrix Cell audio.** Use the media's audio, give the Cell its own audio, or play audio only.
+4. **OSCQuery for all Golden apps.** Implement discovery, undoable node edits and live feedback in Golden Core, with configurable ports per app.
+5. **Seamless previews.** Remove black flashes in Surface Editor and Media Preview, and reuse the source when two Surfaces share media.
+6. **Linked outlines in Screen Warping.** Fix outline flicker while dragging linked handles.
+7. **Extended Video formats.** Add DXV, WebP (including animated WebP), and MKV playback
     with selectable embedded subtitles and audio tracks.
-9. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+8. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 

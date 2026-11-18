@@ -7,11 +7,13 @@
 		node,
 		layoutMode = 'default',
 		insideLabel = null,
+		accessibleLabel,
 		readOnly: externalReadOnly = false
 	} = $props<{
 		node: UiNodeDto;
 		layoutMode?: 'default' | 'widget';
 		insideLabel?: string | null;
+		accessibleLabel?: string;
 		readOnly?: boolean;
 	}>();
 
@@ -58,8 +60,9 @@
 		<span class="dropdown-editor-prefix">{inlineLabel} :</span>
 		<select
 			class="dropdown-editor inline-labeled"
+			aria-label={accessibleLabel ?? liveNode.meta.label}
 			value={draftValue}
-			disabled={!enabled}
+			disabled={!enabled || readOnly}
 			class:readonly={readOnly}
 			onchange={(event) => {
 				void updateValue((event.target as HTMLSelectElement).value);
@@ -74,8 +77,9 @@
 	<select
 		class="dropdown-editor"
 		class:widget-layout={layoutMode === 'widget'}
+		aria-label={accessibleLabel ?? liveNode.meta.label}
 		value={draftValue}
-		disabled={!enabled}
+		disabled={!enabled || readOnly}
 		class:readonly={readOnly}
 		onchange={(event) => {
 			void updateValue((event.target as HTMLSelectElement).value);

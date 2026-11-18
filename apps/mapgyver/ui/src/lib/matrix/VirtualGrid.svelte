@@ -25,6 +25,7 @@
 	import type { ApplicationRuntimeSnapshot } from '../media/generated/ApplicationRuntimeSnapshot';
 	import GridLabel from './GridLabel.svelte';
 	import GridRowHeader from './GridRowHeader.svelte';
+	import OpacityRail from './OpacityRail.svelte';
 	import GroupRails from './GroupRails.svelte';
 	import ColumnGroupHeaders from './ColumnGroupHeaders.svelte';
 	import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
@@ -718,6 +719,7 @@
 		</div>
 		<CellPreviews {snapshot} {metrics} />
 		<GroupRails spans={snapshot.row_groups} {projection} {metrics} />
+		<OpacityRail rows={snapshot.rows} {projection} height={metrics.height / metrics.rem} />
 	</div>
 </div>
 
@@ -735,6 +737,9 @@
 		min-width: 0;
 		position: relative;
 		overflow: hidden;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 2.15rem;
+		grid-template-rows: minmax(0, 1fr);
 	}
 	.viewport {
 		height: 100%;

@@ -9,6 +9,7 @@
 	interface NumberEditorPresentation {
 		show_value_field?: boolean;
 		show_slider?: boolean;
+		slider_orientation?: 'horizontal' | 'vertical';
 		compact?: boolean;
 		max_decimals?: number;
 		inside_label?: string;
@@ -18,12 +19,14 @@
 		node,
 		layoutMode = 'default',
 		presentation = {},
+		accessibleLabel,
 		rangeOverride = null,
 		readOnly: externalReadOnly = false
 	} = $props<{
 		node: UiNodeDto;
 		layoutMode?: 'default' | 'widget';
 		presentation?: NumberEditorPresentation;
+		accessibleLabel?: string;
 		rangeOverride?: UiRangeConstraint | null;
 		readOnly?: boolean;
 	}>();
@@ -240,12 +243,13 @@
 				{max}
 				{step}
 				{stepBase}
+				orientation={presentation.slider_orientation ?? 'horizontal'}
 				{readOnly}
 				disabled={!enabled}
 				label={hasRange ? sliderLabel : ''}
 				forceInfinite={isInteger || (timeWidget && !timeSliderWidget)}
 				dragStep={timeWidget ? (timeUnit === 'ms' ? 1 : 0.001) : undefined}
-				accessibleLabel={`Adjust ${liveNode.meta.label}`}
+				accessibleLabel={accessibleLabel ?? `Adjust ${liveNode.meta.label}`}
 				onValueChange={(nextValue: number) => {
 					commitValue(nextValue);
 				}}

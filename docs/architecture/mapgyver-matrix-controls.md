@@ -55,6 +55,12 @@ virtualized Cell mounts. The tiled editor has a metadata-only playback observer 
 work when it displays Cell thumbnails without a Final output. A submitted Final plan supplies
 its own mix when available, independently of the editor's transport observation.
 
+Each visible Layer has a compact Blend Mode selector in its header and a vertical Opacity
+slider at the right edge of the editor. The opacity rail follows the same virtualized row
+positions as the grid and stays in place during horizontal scrolling. Both controls use the
+Layer's typed Parameters and Golden's ordinary edit sessions. Groups expose those Parameters
+in the Inspector.
+
 Column navigation follows the document order through nested Column Groups. Group navigation
 steps among top-level Column Groups, skipping Groups without an enabled Column. A Group
 launches its first enabled descendant Column with the configured transition. The Matrix's

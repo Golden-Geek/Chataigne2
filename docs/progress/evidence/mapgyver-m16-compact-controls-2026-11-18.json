@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-18",
+  "gate": "M16/14",
+  "result": "accepted",
+  "software": {
+    "sliderTests": 2,
+    "viewportAndCellPreviewTests": 14,
+    "svelteCheck": { "errors": 0, "warnings": 0 },
+    "formattingAndNodeSyntax": "pass"
+  },
+  "bundledApp": {
+    "fixture": "apps/mapgyver/tests/browser/native-matrix-inline.mjs",
+    "processId": 8256,
+    "exitCode": 0,
+    "localReceipt": "target/m1614-controls-3a7072cc/result.json",
+    "coverage": "Root and nested Layer controls use the same Parameter IDs as the Inspector, with two-way value synchronization, keyboard access, Undo/Redo, and one history entry for a held vertical drag. The accessible Blend Mode selector has no visible label. Both controls remain hittable in a 286.8 CSS px dock, and the Opacity rail stays pinned during horizontal scrolling. Same-ID reload and offscreen Inspector edits pass on the 1000×1000 sparse Matrix with five Opacity sliders mounted at the observed position."
+  },
+  "resizeRegression": {
+    "fixture": "apps/mapgyver/tests/browser/matrix-adaptive-grid.mjs",
+    "processId": 23728,
+    "exitCode": 0,
+    "localEvidenceDirectory": "target/m1614-adaptive-2d378cea",
+    "exactFitCases": 36,
+    "previewResizeFrames": 135,
+    "stableFramesAtMinimumAndRestoredWidth": 30,
+    "rejectedIntents": 0
+  }
+}
