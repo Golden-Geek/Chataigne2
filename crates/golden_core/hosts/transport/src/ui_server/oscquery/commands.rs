@@ -1,4 +1,4 @@
-use super::{graph, preferences};
+use super::{Settings, graph, preferences};
 use crate::ui_server::{ServerState, save_preferences_after_change};
 use golden_engine::{app::ProjectLifecycle, parameter::Color, ui_read_model::UiSnapshotCapture};
 use golden_protocol::{NodeMetaPatch, UiEditIntent, UiNodeDto, UiSubscriptionScope};
@@ -70,12 +70,12 @@ struct Prepared<'a> {
     add_address: Option<String>,
 }
 
-pub(super) fn handle<T: ProjectLifecycle>(state: &ServerState<T>, port: u16, text: &str) -> Value {
+pub(super) fn handle<T: ProjectLifecycle>(state: &ServerState<T>, settings: Settings, text: &str) -> Value {
     let request = match serde_json::from_str::<Request>(text) {
         Ok(request) => request,
         Err(_) => return json!({ "COMMAND": "RESULT", "DATA": { "ok": false, "error": "Invalid OSCQuery command" } }),
     };
-    let result = apply(state, port, &request);
+    let result = apply(state, settings, &request);
     let mut response = json!({ "COMMAND": "RESULT", "DATA": { "command": request.command, "ok": result.is_ok() } });
     if let Some(id) = request.id {
         response["ID"] = json!(id);
@@ -88,10 +88,14 @@ pub(super) fn handle<T: ProjectLifecycle>(state: &ServerState<T>, port: u16, tex
     response
 }
 
-fn apply<T: ProjectLifecycle>(state: &ServerState<T>, port: u16, request: &Request) -> Result<Option<String>, String> {
+fn apply<T: ProjectLifecycle>(
+    state: &ServerState<T>,
+    settings: Settings,
+    request: &Request,
+) -> Result<Option<String>, String> {
     let snapshot = state.read_model.capture_snapshot(UiSubscriptionScope::WholeGraph);
-    if preferences::enabled_port(&snapshot) != Some(port) {
-        return Err("OSCQuery is no longer listening on this port".into());
+    if preferences::enabled_settings(&snapshot) != Some(settings) {
+        return Err("OSCQuery listener changed".into());
     }
     let project = snapshot.project_generation();
     let prepared = prepare(&snapshot, request)?;

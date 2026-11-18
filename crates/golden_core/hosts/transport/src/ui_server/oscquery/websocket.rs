@@ -1,4 +1,4 @@
-use super::{commands, preferences};
+use super::{Settings, commands, preferences};
 use crate::ui_server::{
     HttpRequest, ServerState, build_websocket_request, create_response, write_ws_handshake_response,
 };
@@ -22,7 +22,7 @@ pub(super) fn serve<T: ProjectLifecycle>(
     stream: &mut TcpStream,
     request: &HttpRequest,
     state: &ServerState<T>,
-    port: u16,
+    settings: Settings,
 ) -> io::Result<()> {
     let request = build_websocket_request(request)?;
     match create_response(&request) {
@@ -44,14 +44,14 @@ pub(super) fn serve<T: ProjectLifecycle>(
     let mut socket = WebSocket::from_raw_socket(stream, Role::Server, Some(config));
     loop {
         let snapshot = state.read_model.capture_snapshot(UiSubscriptionScope::WholeGraph);
-        if preferences::enabled_port(&snapshot) != Some(port) {
+        if preferences::enabled_settings(&snapshot) != Some(settings) {
             let _ = socket.close(None);
             return Ok(());
         }
         drop(snapshot);
         match socket.read() {
             Ok(Message::Text(text)) => {
-                let reply = commands::handle(state, port, text.as_str());
+                let reply = commands::handle(state, settings, text.as_str());
                 socket
                     .send(Message::text(reply.to_string()))
                     .map_err(io::Error::other)?;

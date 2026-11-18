@@ -2,8 +2,8 @@
 
 - **Updated:** 18 November 2026.
 - **Overall plan acceptance:** `████████░░` **84% — 115/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** Local OSCQuery clients can add, reorder, rename, recolor and remove nodes with Undo and Redo.
-- **Working on next:** OSCQuery discovery across the local network.
+- **Latest delivered:** OSCQuery can advertise and accept control on the local network.
+- **Working on next:** Live value feedback for OSCQuery clients.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -54,10 +54,11 @@
 - [x] **Local OSCQuery browsing** is under **Preferences → OSCQuery**. Enable the folder to browse the live hierarchy and parameter values on the same machine. MapGyver defaults to 43000 and Chataigne to 42000. Both apps passed activation, saved port and project replacement checks. [Checks](evidence/mapgyver-m16-oscquery-hierarchy-2026-11-18.json)
 - [x] **Local OSC edits:** send OSC to a parameter's published address on the same port. Values and triggers use Golden validation and history. Changing Surface Opacity from an OSC client, then using Undo and Redo, passed in MapGyver. [Checks](evidence/mapgyver-m16-oscquery-input-2026-11-18.json)
 - [x] **Local OSCQuery commands:** add, move, remove and edit nodes over WebSocket with the workbench's permissions and history. MapGyver passed Screen naming, color, removal and Undo/Redo, plus Video creation from the Media catalog. [Checks](evidence/mapgyver-m16-oscquery-commands-2026-11-18.json)
+- [x] **OSCQuery on the LAN:** enable **Allow LAN Control** under **Preferences → OSCQuery** for Zeroconf discovery and control from the active IPv4 subnet. Discovery, port changes, Surface Opacity over UDP, saved settings across project replacement, and return to local-only access passed. [Checks](evidence/mapgyver-m16-oscquery-lan-2026-11-18.json)
 
 ## Next features — implementation order
 
-1. **NOW — OSCQuery discovery and feedback.** Add LAN discovery, per-client live feedback, Copy OSC Address, and the address display in Help.
+1. **NOW — OSCQuery feedback.** Add per-client live feedback, Copy OSC Address, and the address display in Help.
 2. **Seamless previews.** Remove black flashes in Surface Editor and Media Preview, and reuse the source when two Surfaces share media.
 3. **Linked outlines in Screen Warping.** Fix outline flicker while dragging linked handles.
 4. **Extended Video formats.** Add DXV, WebP (including animated WebP), and MKV playback

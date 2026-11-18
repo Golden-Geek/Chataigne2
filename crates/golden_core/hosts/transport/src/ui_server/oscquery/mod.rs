@@ -2,6 +2,7 @@
 mod commands;
 mod graph;
 mod input;
+mod lan;
 mod preferences;
 mod values;
 mod websocket;
@@ -12,6 +13,7 @@ use super::{
 };
 use golden_engine::{app::ProjectLifecycle, ui_read_model::UiReadModel};
 use golden_protocol::UiSubscriptionScope;
+use preferences::Settings;
 use std::{
     io,
     net::{Ipv4Addr, SocketAddrV4, TcpStream},
@@ -29,7 +31,7 @@ const MAX_CONNECTIONS: usize = 4 + websocket::MAX_CLIENTS;
 
 pub(super) struct Listener {
     sockets: Option<(TcpListener, UdpSocket)>,
-    port: Option<u16>,
+    settings: Option<Settings>,
     refresh_at: Instant,
     retry_at: Instant,
     bind_failed: bool,
@@ -38,6 +40,7 @@ pub(super) struct Listener {
     access: Arc<RequestAccessPolicy>,
     input: SyncSender<input::Datagram>,
     datagram: Vec<u8>,
+    lan: lan::Lan,
 }
 
 impl Listener {
@@ -48,7 +51,7 @@ impl Listener {
         let now = Instant::now();
         Ok(Self {
             sockets: None,
-            port: None,
+            settings: None,
             refresh_at: now,
             retry_at: now,
             bind_failed: false,
@@ -58,6 +61,7 @@ impl Listener {
             input: input::spawn(state, workers)?,
             // Read the entire datagram so oversized UDP packets are discarded consistently across platforms.
             datagram: vec![0; usize::from(u16::MAX)],
+            lan: lan::Lan::new(T::application_display_name())?,
         })
     }
 
@@ -66,45 +70,48 @@ impl Listener {
         if now >= self.refresh_at {
             self.refresh_at = now + SETTINGS_INTERVAL;
             let snapshot = model.capture_snapshot(UiSubscriptionScope::WholeGraph);
-            let port = preferences::enabled_port(&snapshot);
-            if port != self.port {
-                self.port = port;
+            let settings = preferences::enabled_settings(&snapshot);
+            if settings != self.settings {
+                self.settings = settings;
                 self.sockets = None;
+                self.lan.stop(now);
                 self.retry_at = now;
                 self.bind_failed = false;
             }
-            if let Some(port) = self.port
-                && self.sockets.is_none()
-                && now >= self.retry_at
-            {
-                match bind(port).await {
-                    Ok(sockets) => {
-                        self.sockets = Some(sockets);
-                        self.bind_failed = false;
-                    }
-                    Err(error) => {
-                        if !self.bind_failed {
-                            eprintln!("[oscquery] could not listen on port {port}: {error}; retrying");
+            if let Some(settings) = self.settings {
+                if self.sockets.is_none() && now >= self.retry_at {
+                    match self.bind(settings).await {
+                        Ok(()) => self.bind_failed = false,
+                        Err(error) => {
+                            if !self.bind_failed {
+                                eprintln!(
+                                    "[oscquery] could not listen on port {}: {error}; retrying",
+                                    settings.port
+                                );
+                            }
+                            self.bind_failed = true;
+                            self.retry_at = now + RETRY_INTERVAL;
                         }
-                        self.bind_failed = true;
-                        self.retry_at = now + RETRY_INTERVAL;
                     }
+                }
+                if settings.allow_lan && self.sockets.is_some() {
+                    self.lan.refresh(settings.port, now);
                 }
             }
         }
         let delay = tokio::time::sleep_until(self.refresh_at.into());
-        let Some((tcp, udp)) = &self.sockets else {
+        let (Some((tcp, udp)), Some(settings)) = (&self.sockets, self.settings) else {
             delay.await;
             return None;
         };
         let accepted = tokio::select! {
-            accepted = tcp.accept() => accepted.map(|(stream, _)| stream),
-            received = udp.recv(&mut self.datagram) => {
+            accepted = tcp.accept() => accepted.map(|(stream, peer)| self.lan.permits(peer.ip()).then_some(stream)),
+            received = udp.recv_from(&mut self.datagram) => {
                 match received {
-                    Ok(size) => {
-                        if let Some(port) = self.port.filter(|_| size <= input::MAX_DATAGRAM) {
+                    Ok((size, peer)) => {
+                        if size <= input::MAX_DATAGRAM && self.lan.permits(peer.ip()) {
                             let _ = self.input.try_send(input::Datagram {
-                                port,
+                                settings,
                                 project: model.current_project_generation(),
                                 bytes: self.datagram[..size].to_vec(),
                             });
@@ -117,14 +124,35 @@ impl Listener {
             () = delay => return None,
         };
         match accepted {
-            Ok(stream) => Some(stream),
+            Ok(stream) => stream,
             Err(error) => {
                 eprintln!("[oscquery] listener failed: {error}; retrying");
                 self.sockets = None;
-                self.retry_at = Instant::now() + RETRY_INTERVAL;
+                let now = Instant::now();
+                self.lan.stop(now);
+                self.retry_at = now + RETRY_INTERVAL;
                 None
             }
         }
+    }
+
+    async fn bind(&mut self, settings: Settings) -> io::Result<()> {
+        let mut allowed_hosts = Vec::new();
+        let ip = if settings.allow_lan {
+            let hostname = self.lan.hostname();
+            allowed_hosts.push(format!("{hostname}:{}", settings.port));
+            allowed_hosts.push(format!("{}:{}", hostname.trim_end_matches('.'), settings.port));
+            Ipv4Addr::UNSPECIFIED
+        } else {
+            Ipv4Addr::LOCALHOST
+        };
+        let access = RequestAccessPolicy::new(&[], &allowed_hosts)?;
+        let address = SocketAddrV4::new(ip, settings.port);
+        let udp = UdpSocket::bind(address).await?;
+        let tcp = TcpListener::bind(address).await?;
+        self.access = Arc::new(access);
+        self.sockets = Some((tcp, udp));
+        Ok(())
     }
 
     pub(super) fn accept<T: ProjectLifecycle>(
@@ -133,6 +161,9 @@ impl Listener {
         state: &ServerState<T>,
         workers: &mut ServerWorkers,
     ) -> io::Result<()> {
+        let Some(settings) = self.settings else {
+            return Ok(());
+        };
         let Some(permit) = self.limiter.try_acquire() else {
             return Ok(());
         };
@@ -147,16 +178,9 @@ impl Listener {
             let Ok(_connection) = connections.track(&stream) else {
                 return;
             };
-            let _ = respond(&mut stream, &state, &access, &websocket_limiter);
+            let _ = respond(&mut stream, &state, &access, &websocket_limiter, settings);
         })
     }
-}
-
-async fn bind(port: u16) -> io::Result<(TcpListener, UdpSocket)> {
-    let address = SocketAddrV4::new(Ipv4Addr::LOCALHOST, port);
-    let udp = UdpSocket::bind(address).await?;
-    let tcp = TcpListener::bind(address).await?;
-    Ok((tcp, udp))
 }
 
 fn respond<T: ProjectLifecycle>(
@@ -164,6 +188,7 @@ fn respond<T: ProjectLifecycle>(
     state: &ServerState<T>,
     access: &RequestAccessPolicy,
     websocket_limiter: &Arc<ConnectionLimiter>,
+    settings: Settings,
 ) -> io::Result<()> {
     stream.set_read_timeout(Some(IO_TIMEOUT))?;
     stream.set_write_timeout(Some(IO_TIMEOUT))?;
@@ -188,6 +213,10 @@ fn respond<T: ProjectLifecycle>(
     if !request.body.is_empty() {
         return write_json_error(&mut response, "400 Bad Request", "Unexpected OSCQuery request body");
     }
+    let snapshot = state.read_model.capture_snapshot(UiSubscriptionScope::WholeGraph);
+    if preferences::enabled_settings(&snapshot) != Some(settings) {
+        return write_json_error(&mut response, "503 Service Unavailable", "OSCQuery listener changed");
+    }
     if request.path == "/" && is_websocket_upgrade_request(&request) {
         let Some(_permit) = websocket_limiter.try_acquire() else {
             return write_json_error(
@@ -196,7 +225,8 @@ fn respond<T: ProjectLifecycle>(
                 "OSCQuery WebSocket limit reached",
             );
         };
-        return websocket::serve(stream, &request, state, address.port());
+        drop(snapshot);
+        return websocket::serve(stream, &request, state, settings);
     }
     if request.query.as_deref() == Some("HOST_INFO") {
         return write_json(
@@ -215,7 +245,6 @@ fn respond<T: ProjectLifecycle>(
             }),
         );
     }
-    let snapshot = state.read_model.capture_snapshot(UiSubscriptionScope::WholeGraph);
     match graph::describe(&snapshot, &request.path, request.query.as_deref()) {
         Ok(Some(bytes)) => write_response(&mut response, "200 OK", "application/json", &bytes),
         Ok(None) => write_response(&mut response, "204 No Content", "application/json", &[]),

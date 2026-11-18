@@ -287,11 +287,15 @@ impl Drop for Host {
 }
 
 fn http(address: SocketAddr, target: &str) -> io::Result<(u16, Value)> {
+    http_with_host(address, target, &address.to_string())
+}
+
+fn http_with_host(address: SocketAddr, target: &str, authority: &str) -> io::Result<(u16, Value)> {
     let mut stream = TcpStream::connect_timeout(&address, Duration::from_millis(150))?;
     stream.set_read_timeout(Some(Duration::from_millis(400)))?;
     write!(
         stream,
-        "GET {target} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n"
+        "GET {target} HTTP/1.1\r\nHost: {authority}\r\nConnection: close\r\n\r\n"
     )?;
     let mut wire = String::new();
     stream.read_to_string(&mut wire)?;
@@ -327,7 +331,9 @@ fn shared_host_rebinds_and_serves_live_oscquery_from_the_golden_projection() {
     let prefs = chosen(&initial, initial.root(), "preferences");
     let category = chosen(&initial, prefs.node_id, "oscquery");
     let port = chosen(&initial, category.node_id, "port");
+    let allow_lan = chosen(&initial, category.node_id, "allow_lan");
     assert!(!category.meta.enabled);
+    assert_eq!(graph::parameter(allow_lan).unwrap().value, ParamValue::Bool(false));
     let UiNodeDataDto::Parameter { param } = &port.data else {
         panic!("expected typed OSCQuery Port")
     };
@@ -468,4 +474,108 @@ fn osc_datagrams_use_golden_validation_events_and_undo() {
     host.enable(category.node_id, false);
     wait(|| TcpStream::connect(address).is_err());
     let _released = UdpSocket::bind(address).unwrap();
+}
+
+#[test]
+#[ignore = "requires an active multicast-capable LAN adapter"]
+fn lan_browser_discovers_controls_and_retires_the_advertised_endpoint() {
+    use mdns_sd::{ServiceDaemon, ServiceEvent};
+    use tokio_tungstenite::tungstenite::{self, Message};
+
+    let host = Host::start();
+    let initial = host.snapshot();
+    let prefs = chosen(&initial, initial.root(), "preferences");
+    let category = chosen(&initial, prefs.node_id, "oscquery");
+    let port = chosen(&initial, category.node_id, "port");
+    let allow_lan = chosen(&initial, category.node_id, "allow_lan");
+    let reserve = || TcpListener::bind("0.0.0.0:0").unwrap();
+    let first = reserve();
+    let second = reserve();
+    let ports = [first.local_addr().unwrap().port(), second.local_addr().unwrap().port()];
+    drop((first, second));
+    let local = |port| SocketAddr::from((Ipv4Addr::LOCALHOST, port));
+    let browser = ServiceDaemon::new().unwrap();
+    let events = browser.browse(lan::SERVICE_TYPE).unwrap();
+    let resolve = |port| {
+        let deadline = Instant::now() + Duration::from_secs(12);
+        loop {
+            let event = events
+                .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+                .expect("OSCQuery discovery timed out");
+            if let ServiceEvent::ServiceResolved(service) = event
+                && service.get_port() == port
+                && service.get_fullname().starts_with("OSC fixture (")
+            {
+                return service;
+            }
+        }
+    };
+    host.set(port.node_id, ParamValue::Int(ports[0].into()));
+    host.enable(category.node_id, true);
+    wait(|| http(local(ports[0]), "/?HOST_INFO").is_ok_and(|(code, _)| code == 200));
+    host.set(allow_lan.node_id, ParamValue::Bool(true));
+    let first = resolve(ports[0]);
+    let address = first
+        .get_addresses_v4()
+        .into_iter()
+        .find(|ip| !ip.is_loopback())
+        .unwrap();
+    let endpoint = SocketAddr::from((address, ports[0]));
+    let authority = format!("{}:{}", first.get_hostname().trim_end_matches('.'), ports[0]);
+    let info = http_with_host(endpoint, "/?HOST_INFO", &authority).unwrap().1;
+    assert_eq!(info["NAME"], "OSC fixture");
+    assert_eq!(info["OSC_IP"], address.to_string());
+    assert_eq!(
+        http_with_host(endpoint, "/", &format!("unrelated.local:{}", ports[0]))
+            .unwrap()
+            .0,
+        403
+    );
+    let sender = UdpSocket::bind((address, 0)).unwrap();
+    send(&sender, endpoint, message("/mixer/gain", vec![OscType::Float(0.625)]));
+    wait(|| http(endpoint, "/mixer/gain?VALUE").is_ok_and(|(_, body)| body["VALUE"][0] == 0.625));
+
+    host.set(port.node_id, ParamValue::Int(ports[1].into()));
+    let rebound = resolve(ports[1]);
+    assert_eq!(rebound.get_fullname(), first.get_fullname());
+    assert!(TcpStream::connect_timeout(&endpoint, Duration::from_millis(150)).is_err());
+    let endpoint = SocketAddr::from((address, ports[1]));
+    let conn = TcpStream::connect_timeout(&endpoint, Duration::from_millis(150)).unwrap();
+    conn.set_read_timeout(Some(Duration::from_secs(3))).unwrap();
+    let (mut client, _) = tungstenite::client(
+        format!("ws://{}:{}/", rebound.get_hostname().trim_end_matches('.'), ports[1]),
+        conn,
+    )
+    .unwrap();
+    client
+        .send(Message::text(
+            r#"{"COMMAND":"PATCH_META","DATA":{"address":"/mixer","meta":{"collapsed":true}}}"#,
+        ))
+        .unwrap();
+    let reply: Value = serde_json::from_str(client.read().unwrap().to_text().unwrap()).unwrap();
+    assert_eq!(reply["DATA"]["ok"], true);
+    assert_eq!(
+        http(endpoint, "/mixer?GOLDEN_META").unwrap().1["GOLDEN_META"]["collapsed"],
+        true
+    );
+
+    while events.try_recv().is_ok() {}
+    host.set(allow_lan.node_id, ParamValue::Bool(false));
+    assert!(matches!(client.read().unwrap(), Message::Close(_)));
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let event = events
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+            .expect("OSCQuery DNS-SD withdrawal timed out");
+        if matches!(event, ServiceEvent::ServiceRemoved(_, name) if name == rebound.get_fullname()) {
+            break;
+        }
+    }
+    wait(|| http(local(ports[1]), "/?HOST_INFO").is_ok_and(|(code, _)| code == 200));
+    assert!(TcpStream::connect_timeout(&endpoint, Duration::from_millis(150)).is_err());
+    browser
+        .shutdown()
+        .unwrap()
+        .recv_timeout(Duration::from_secs(2))
+        .unwrap();
 }

@@ -4,6 +4,7 @@ import { createSocket } from 'node:dgram';
 import { once } from 'node:events';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
+import { networkInterfaces } from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
@@ -19,7 +20,7 @@ await once(reservation, 'listening');
 const selectedPort = reservation.address().port;
 await new Promise((resolve) => reservation.close(resolve));
 const native = await openNativeEditor();
-let token, failure, defaultPort, info, rootContents, oscEdit, managerCommands;
+let token, failure, defaultPort, info, rootContents, oscEdit, managerCommands, lanControl;
 
 async function post(route, body) {
 	const response = await fetch(native.base + route, {
@@ -41,9 +42,9 @@ async function edit(payload) {
 	assert(result.success, JSON.stringify(result));
 }
 
-async function query(suffix) {
+async function query(suffix, host = '127.0.0.1') {
 	try {
-		return await fetch(`http://127.0.0.1:${selectedPort}${suffix}`, {
+		return await fetch(`http://${host}:${selectedPort}${suffix}`, {
 			signal: AbortSignal.timeout(250)
 		});
 	} catch {
@@ -69,7 +70,7 @@ function findOpacity(node) {
 	}
 }
 
-async function sendFloat(address, value) {
+async function sendFloat(address, value, host = '127.0.0.1') {
 	const paddedAddress = Buffer.alloc(Math.ceil((Buffer.byteLength(address) + 1) / 4) * 4);
 	paddedAddress.write(address);
 	const args = Buffer.alloc(8);
@@ -78,7 +79,7 @@ async function sendFloat(address, value) {
 	const client = createSocket('udp4');
 	try {
 		await new Promise((resolve, reject) => {
-			client.send(Buffer.concat([paddedAddress, args]), selectedPort, '127.0.0.1', (error) => {
+			client.send(Buffer.concat([paddedAddress, args]), selectedPort, host, (error) => {
 				if (error) reject(error);
 				else resolve();
 			});
@@ -86,6 +87,57 @@ async function sendFloat(address, value) {
 	} finally {
 		client.close();
 	}
+}
+
+async function checkLanControl(allowLan) {
+	const hosts = [
+		...new Set(
+			Object.values(networkInterfaces())
+				.flat()
+				.filter((entry) => entry.family === 'IPv4' && !entry.internal)
+				.map((entry) => entry.address)
+		)
+	];
+	assert(hosts.length, 'The LAN check requires a network adapter with an IPv4 address');
+	const prior = new Map(
+		await Promise.all(hosts.map(async (host) => [host, await query('/?HOST_INFO', host)]))
+	);
+	const set = (node, value) =>
+		edit({ kind: 'setParam', node: node.node_id, value: { Bool: value }, behaviour: 'Append' });
+	await set(allowLan, true);
+	const host = await wait(async () => {
+		for (const candidate of hosts) {
+			const response = await query('/?HOST_INFO', candidate);
+			if (response?.ok && (await response.json()).OSC_IP === candidate) return candidate;
+		}
+	});
+	assert.equal(prior.get(host), null, 'MapGyver starts in local-only mode');
+	const screens = await (await query('/screens', host)).json();
+	const opacity = findOpacity(screens);
+	const [original] = opacity.VALUE;
+	const changed = original === 0.5 ? 0.25 : 0.5;
+	await sendFloat(opacity.FULL_PATH, changed, host);
+	await wait(async () => {
+		const result = await query(`${opacity.FULL_PATH}?VALUE`, host);
+		return result?.ok && (await result.json()).VALUE[0] === changed;
+	});
+	assert((await post('/api/ui/project-new', {})).ok);
+	const { nodes } = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
+	const category = nodes.find((node) => node.decl_id === 'oscquery');
+	const saved = nodes.find(
+		(node) => category.children.includes(node.node_id) && node.decl_id === 'allow_lan'
+	);
+	assert.equal(saved.data.param.value.Bool, true);
+	assert((await query('/?HOST_INFO', host))?.ok);
+	await set(saved, false);
+	await wait(async () => !(await query('/?HOST_INFO', host)) && (await query('/?HOST_INFO'))?.ok);
+	return {
+		defaultLocalOnly: true,
+		configuredPort: selectedPort,
+		udpOpacity: changed,
+		projectReplacement: 'pass',
+		restoredLocalOnly: true
+	};
 }
 
 async function checkScreenCommands() {
@@ -149,6 +201,10 @@ try {
 	const port = nodes.find(
 		(node) => category.children.includes(node.node_id) && node.decl_id === 'port'
 	);
+	const allowLan = nodes.find(
+		(node) => category.children.includes(node.node_id) && node.decl_id === 'allow_lan'
+	);
+	assert.equal(allowLan.data.param.value.Bool, false);
 	defaultPort = port.data.param.value.Int;
 	assert.equal(defaultPort, expected.port);
 	await edit({
@@ -200,6 +256,7 @@ try {
 		assert.equal(await current(), changed);
 		oscEdit = { address: opacity.FULL_PATH, original, changed, undoAndRedo: 'pass' };
 		managerCommands = await checkScreenCommands();
+		if (process.argv.includes('--lan')) lanControl = await checkLanControl(allowLan);
 	}
 	assert((await post('/api/ui/project-new', {})).ok);
 	const replaced = (await post('/api/ui/snapshot', { scope: 'wholeGraph' })).nodes;
@@ -229,7 +286,8 @@ try {
 				info,
 				rootContents,
 				oscEdit,
-				managerCommands
+				managerCommands,
+				lanControl
 			},
 			null,
 			2

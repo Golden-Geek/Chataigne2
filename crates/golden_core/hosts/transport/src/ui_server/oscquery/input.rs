@@ -1,4 +1,4 @@
-use super::{graph, preferences, values};
+use super::{Settings, graph, preferences, values};
 use crate::ui_server::{ServerState, ServerWorkers, save_preferences_after_change};
 use golden_engine::{app::ProjectGeneration, parameter::ParamValue, ui_read_model::UiSnapshotCapture};
 use golden_protocol::{UiEditIntent, UiSubscriptionScope};
@@ -17,7 +17,7 @@ pub(super) const IMMEDIATE: OscTime = OscTime {
 };
 
 pub(super) struct Datagram {
-    pub(super) port: u16,
+    pub(super) settings: Settings,
     pub(super) project: ProjectGeneration,
     pub(super) bytes: Vec<u8>,
 }
@@ -42,7 +42,7 @@ pub(super) fn spawn<T: golden_engine::app::ProjectLifecycle + 'static>(
             };
             let snapshot = model.capture_snapshot(UiSubscriptionScope::WholeGraph);
             if snapshot.project_generation() != datagram.project
-                || preferences::enabled_port(&snapshot) != Some(datagram.port)
+                || preferences::enabled_settings(&snapshot) != Some(datagram.settings)
             {
                 continue;
             }

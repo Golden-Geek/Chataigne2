@@ -1,0 +1,34 @@
+{
+	"date": "2026-11-18",
+	"gate": "M16/4",
+	"scope": "Opt-in IPv4 LAN access and Zeroconf advertisement in the shared Golden host",
+	"transport": {
+		"ordinaryTestsPassed": 99,
+		"strictClippyAllTargets": "pass",
+		"liveLanFixture": "lan_browser_discovers_controls_and_retires_the_advertised_endpoint",
+		"liveLanResult": "pass",
+		"fixturePath": "crates/golden_core/hosts/transport/src/ui_server/oscquery/tests/mod.rs",
+		"verified": [
+			"A separate DNS-SD browser resolved the _oscjson._tcp.local. advertisement on the active IPv4 network interface",
+			"The advertised address accepted HTTP and WebSocket with the advertised hostname and UDP changed a real Golden parameter",
+			"Port changes published the same service on the replacement port and the previous endpoint closed",
+			"Disabling LAN control closed the existing WebSocket, withdrew the DNS-SD name, closed the LAN endpoint and kept loopback available"
+		]
+	},
+	"bundledMapGyver": {
+		"fixture": "apps/mapgyver/tests/browser/native-oscquery.mjs --lan",
+		"receipt": "target/m164-mapgyver-osc-lan-24f46c76/result.json",
+		"result": "pass",
+		"adapter": "Active Windows Wi-Fi IPv4 interface, same-machine client",
+		"defaultPort": 43000,
+		"observedPort": 53241,
+		"defaultLocalOnly": true,
+		"udpOpacity": 0.5,
+		"projectReplacement": "pass",
+		"restoredLocalOnly": true
+	},
+	"remaining": [
+		"Client-specific LISTEN and rate-limited feedback bundles, including isolation and burst verification",
+		"Copy OSC Address in node menus and the Interface preference for OSC addresses in Help"
+	]
+}
