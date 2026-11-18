@@ -21,6 +21,7 @@ function fixture() {
 			[2, { value: { kind: 'vec2', value: [10, 20] } } as UiParamDto]
 		]),
 		lastEventTime: { tick: 4, micro: 0, seq: 1 },
+		addressRevision: 0,
 		requiresResync: false
 	};
 	const host = {

@@ -1,9 +1,9 @@
 # MapGyver — simple status
 
 - **Updated:** 19 November 2026.
-- **Overall plan acceptance:** `████████░░` **84% — 115/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** OSCQuery clients can subscribe to live values and triggers.
-- **Working on next:** Copy OSC Address and show it in the bottom-bar Help.
+- **Overall plan acceptance:** `████████░░` **85% — 116/137 checks accepted, 8/17 phases complete**.
+- **Latest delivered:** OSCQuery is accepted, including Copy OSC Address and address display in Help.
+- **Working on next:** Seamless switching in Surface Editor and Media Preview.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -56,15 +56,15 @@
 - [x] **Local OSCQuery commands:** add, move, remove and edit nodes over WebSocket with the workbench's permissions and history. MapGyver passed Screen naming, color, removal and Undo/Redo, plus Video creation from the Media catalog. [Checks](evidence/mapgyver-m16-oscquery-commands-2026-11-18.json)
 - [x] **OSCQuery on the LAN:** enable **Allow LAN Control** under **Preferences → OSCQuery** for Zeroconf discovery and control from the active IPv4 subnet. Discovery, port changes, Surface Opacity over UDP, saved settings across project replacement, and return to local-only access passed. [Checks](evidence/mapgyver-m16-oscquery-lan-2026-11-18.json)
 - [x] **Live OSCQuery feedback:** each client receives the values and triggers it subscribes to. Individual updates arrive immediately and bursts are bundled. Two-client isolation, trigger delivery and project replacement passed. [Checks](evidence/mapgyver-m16-oscquery-feedback-2026-11-19.json)
+- [x] **OSC addresses:** right-click a node to copy its address. Enable **Preferences → Interface → Show OSC Address in Help** to see the hovered node's address in the bottom bar. Copy, duplicate names, move/Undo and project replacement passed. [Checks](evidence/mapgyver-m16-oscquery-addresses-2026-11-19.json)
 
 ## Next features — implementation order
 
-1. **NOW — OSC addresses.** Add Copy OSC Address to node menus and the address display in Help.
-2. **Seamless previews.** Remove black flashes in Surface Editor and Media Preview, and reuse the source when two Surfaces share media.
-3. **Linked outlines in Screen Warping.** Fix outline flicker while dragging linked handles.
-4. **Extended Video formats.** Add DXV, WebP (including animated WebP), and MKV playback
+1. **NOW — Seamless previews.** Remove black flashes in Surface Editor and Media Preview, and reuse the source when two Surfaces share media.
+2. **Linked outlines in Screen Warping.** Fix outline flicker while dragging linked handles.
+3. **Extended Video formats.** Add DXV, WebP (including animated WebP), and MKV playback
     with selectable embedded subtitles and audio tracks.
-5. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+4. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 

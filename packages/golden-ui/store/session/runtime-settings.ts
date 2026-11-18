@@ -2,6 +2,8 @@ import type { ParamValue, UiNodeDto, UiParameterControlState } from '../../types
 import type { GraphStore } from '../graph.svelte';
 
 const PREFERENCES_DECL_ID = 'preferences';
+const INTERFACE_DECL_ID = 'interface';
+const SHOW_OSC_ADDRESS_IN_HELP_DECL_ID = 'show_osc_address_in_help';
 const ENGINE_DECL_ID = 'engine';
 const ENGINE_LOW_FREQUENCY_DECL_ID = 'engine_low_frequency';
 const DEFAULT_ENGINE_LOW_FREQUENCY_HZ = 60;
@@ -46,6 +48,19 @@ export const engineLowFrequencyFromGraph = (graph: GraphStore): number => {
 		return DEFAULT_ENGINE_LOW_FREQUENCY_HZ;
 	}
 	return frequencyValue(lowFrequency.data.param.value, DEFAULT_ENGINE_LOW_FREQUENCY_HZ);
+};
+
+export const showOscAddressInHelp = (graph: GraphStore): boolean => {
+	const rootId = graph.state.rootId;
+	const root = rootId === null ? null : graph.state.nodesById.get(rootId);
+	const preferences = childByDeclId(graph, root, PREFERENCES_DECL_ID);
+	const ui = childByDeclId(graph, preferences, INTERFACE_DECL_ID);
+	const field = childByDeclId(graph, ui, SHOW_OSC_ADDRESS_IN_HELP_DECL_ID);
+	return (
+		field?.data.kind === 'parameter' &&
+		field.data.param.value.kind === 'bool' &&
+		field.data.param.value.value
+	);
 };
 
 export const parameterControlStateEquals = (

@@ -28,7 +28,8 @@ let token,
 	oscEdit,
 	managerCommands,
 	lanControl,
-	liveFeedback;
+	liveFeedback,
+	addressTools;
 
 async function post(route, body) {
 	const response = await fetch(native.base + route, {
@@ -48,6 +49,7 @@ async function post(route, body) {
 async function edit(payload) {
 	const result = await post('/api/ui/intent', payload);
 	assert(result.success, JSON.stringify(result));
+	return result;
 }
 
 async function query(suffix, host = '127.0.0.1') {
@@ -226,14 +228,120 @@ async function checkLiveFeedback() {
 		assert.equal(packet.subarray(tag, tag + 2).toString(), ',f');
 		assert.equal(packet.readFloatBE(tag + 4), changed);
 		assert(elapsedMs < 140, `OSCQuery feedback was delayed by ${elapsedMs}ms`);
+		const snapshot = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
+		const screen = snapshot.nodes.find((node) => node.meta.label === 'Screen');
+		const oldIdentity = { node: screen.node_id, project_generation: snapshot.project_generation };
+		await edit({
+			kind: 'patchMeta',
+			node: screen.node_id,
+			patch: { short_name: 'oscBeforeReplacement' }
+		});
+		const oldHelp = '/screens/oscBeforeReplacement';
+		await native.page
+			.locator(`.outliner-item-content[data-node-id="${screen.node_id}"]:visible`)
+			.first()
+			.hover();
+		await native.page.waitForFunction(
+			(expected) => document.querySelector('.gc-footer .osc-address')?.textContent === expected,
+			oldHelp,
+			{ timeout: 5000 }
+		);
 		const closed = next('close');
 		assert((await post('/api/ui/project-new', {})).ok);
 		await closed;
 		assert((await query('/?HOST_INFO'))?.ok);
+		assert.equal((await post('/api/ui/osc-address', oldIdentity)).address, null);
+		await native.page.waitForFunction(
+			(retired) => document.querySelector('.gc-footer .osc-address')?.textContent !== retired,
+			oldHelp,
+			{ timeout: 5000 }
+		);
 		return { address, sent: changed, received: changed, elapsedMs, projectRetirement: 'pass' };
 	} finally {
 		socket.close();
 	}
+}
+
+async function checkAddressTools() {
+	const { page } = native;
+	const snapshot = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
+	const screens = snapshot.nodes.find((node) => node.decl_id === 'mapgyver_screen_manager');
+	assert(screens, 'The Screen manager must be present in the workbench snapshot');
+	const screen = snapshot.nodes.find(
+		(node) => screens.children.includes(node.node_id) && node.meta.label === 'Screen'
+	);
+	const interfaceNode = snapshot.nodes.find((node) => node.decl_id === 'interface');
+	const preference = snapshot.nodes.find(
+		(node) =>
+			interfaceNode.children.includes(node.node_id) && node.decl_id === 'show_osc_address_in_help'
+	);
+	assert(preference, 'The typed Interface preference must be installed');
+	assert.equal(preference.data.param.value.Bool, false);
+	const identity = { node: screen.node_id, project_generation: snapshot.project_generation };
+	const lookup = async () => (await post('/api/ui/osc-address', identity)).address;
+	const initial = await lookup();
+	assert.equal(initial, '/screens/screen');
+	assert.equal((await (await query(`${initial}?FULL_PATH`)).json()).FULL_PATH, initial);
+	const row = page
+		.locator(`.outliner-item-content[data-node-id="${screen.node_id}"]:visible`)
+		.first();
+	await row.hover({ timeout: 5000 });
+	const help = page.locator('.gc-footer .osc-address');
+	assert.equal(await help.count(), 0);
+	await page.getByRole('button', { name: 'Open File menu' }).click();
+	await page.getByRole('menuitem', { name: /^Preferences/ }).click();
+	const section = page.locator(`.node-inspector[data-node-id="${interfaceNode.node_id}"]`).first();
+	await section.waitFor({ timeout: 5000 });
+	const field = page
+		.locator(`.parameter-inspector[data-node-id="${preference.node_id}"] input[type="checkbox"]`)
+		.first();
+	if (!(await field.isVisible())) await section.locator('.node-title').first().click();
+	await field.check({ timeout: 5000 });
+	await row.hover();
+	const shows = (value) =>
+		page.waitForFunction(
+			(expected) => document.querySelector('.gc-footer .osc-address')?.textContent === expected,
+			value,
+			{ timeout: 5000 }
+		);
+	await shows(initial);
+	const created = await edit({
+		kind: 'createUserItem',
+		parent: screens.node_id,
+		node_type: screen.node_type,
+		label: 'OSC address test peer',
+		initial_params: []
+	});
+	const duplicate = await lookup();
+	assert.match(duplicate, /^\/screens\/~[0-9a-f]{32}$/);
+	assert.equal((await (await query(`${duplicate}?FULL_PATH`)).json()).FULL_PATH, duplicate);
+	await shows(duplicate);
+	await page.evaluate(() => {
+		Object.defineProperty(navigator, 'clipboard', {
+			configurable: true,
+			value: {
+				writeText: async (value) => {
+					window.oscAddressCopy = value;
+				}
+			}
+		});
+	});
+	try {
+		await row.click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Copy OSC Address', exact: true }).click();
+		await page.waitForFunction((expected) => window.oscAddressCopy === expected, duplicate, {
+			timeout: 5000
+		});
+	} finally {
+		await page.evaluate(() => {
+			delete navigator.clipboard;
+			delete window.oscAddressCopy;
+		});
+	}
+	await edit({ kind: 'removeNode', node: created.created_node.node_id });
+	await row.hover();
+	await shows(initial);
+	return { identity, initial, copied: duplicate, liveCollisionAndRestore: 'pass' };
 }
 
 try {
@@ -299,6 +407,7 @@ try {
 		await edit({ kind: 'redo' });
 		assert.equal(await current(), changed);
 		oscEdit = { address: opacity.FULL_PATH, original, changed, undoAndRedo: 'pass' };
+		addressTools = await checkAddressTools();
 		managerCommands = await checkScreenCommands();
 		if (process.argv.includes('--lan')) lanControl = await checkLanControl(allowLan);
 		liveFeedback = await checkLiveFeedback();
@@ -312,6 +421,12 @@ try {
 		(node) => savedCategory.children.includes(node.node_id) && node.decl_id === 'port'
 	);
 	assert.equal(savedPort.data.param.value.Int, selectedPort);
+	if (addressTools) {
+		const show = replaced.find((node) => node.decl_id === 'show_osc_address_in_help');
+		assert.equal(show.data.param.value.Bool, true);
+		assert.equal((await post('/api/ui/osc-address', addressTools.identity)).address, null);
+		addressTools.projectReplacement = 'pass';
+	}
 	assert((await query('/?HOST_INFO'))?.ok);
 	await enable(savedCategory, false);
 	await wait(async () => !(await query('/?HOST_INFO')));
@@ -334,7 +449,8 @@ try {
 				oscEdit,
 				managerCommands,
 				lanControl,
-				liveFeedback
+				liveFeedback,
+				addressTools
 			},
 			null,
 			2

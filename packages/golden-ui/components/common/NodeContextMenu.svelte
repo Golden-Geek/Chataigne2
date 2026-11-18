@@ -21,6 +21,7 @@
 	import { getPanelByType, showPanel } from '../../store/ui-panels';
 	import { PERSISTED_PANEL_STATE_KEY } from '../../dockview/panel-persistence';
 	import { copyTextToClipboard } from '../../utils/clipboard';
+	import { requestOscAddress } from '../../store/session/osc-address';
 	import {
 		buildNodeTreeClipboardPayload,
 		nodeTreeClipboardJson
@@ -389,6 +390,18 @@
 		closeMenu();
 	};
 
+	const selectCopyOscAddress = (): void => {
+		const current = session;
+		const node = activeNode;
+		closeMenu();
+		if (!current || !node) return;
+		void requestOscAddress(current, node.node_id)
+			.then((address) => {
+				if (address && appState.session === current) return copyTextToClipboard(address);
+			})
+			.catch((error) => console.warn('[ui] OSC address copy failed', error));
+	};
+
 	const selectCopyNode = (_event: MouseEvent): void => {
 		if (!activeNode) {
 			return;
@@ -489,6 +502,14 @@
 				action: selectCopyScriptControlPath
 			}
 		];
+		if (session?.client.oscAddress) {
+			items.push({
+				id: 'copy-osc-address',
+				label: 'Copy OSC Address',
+				icon: copyPathIcon,
+				action: selectCopyOscAddress
+			});
+		}
 
 		if (canSetColor || canSetConstraints) {
 			items.push({ separator: true });

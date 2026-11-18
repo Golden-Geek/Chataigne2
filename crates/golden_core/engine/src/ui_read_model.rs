@@ -240,6 +240,30 @@ impl UiReadModel {
         UiSnapshotCapture { projection, scope }
     }
 
+    /// Captures the projection and one root-first ancestry in the same read-lock window.
+    /// The lookup walks only the parent index and is limited by `max_depth` edges.
+    pub fn capture_node_ancestry(&self, node: NodeId, max_depth: usize) -> Option<(UiSnapshotCapture, Vec<NodeId>)> {
+        let projection = self.projection.read().expect("ui read model poisoned");
+        projection.nodes.get(&node)?;
+        let mut path = vec![node];
+        let mut current = node;
+        while current != projection.header.root {
+            if path.len() > max_depth {
+                return None;
+            }
+            current = *projection.parents.get(&current)?;
+            path.push(current);
+        }
+        path.reverse();
+        Some((
+            UiSnapshotCapture {
+                projection: projection.capture(),
+                scope: UiSubscriptionScope::WholeGraph,
+            },
+            path,
+        ))
+    }
+
     /// Returns the current immutable whole-graph snapshot, materializing it outside projection locks.
     pub fn current_snapshot(&self) -> Arc<UiSnapshot> {
         {

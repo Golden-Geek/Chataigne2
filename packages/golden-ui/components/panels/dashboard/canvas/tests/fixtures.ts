@@ -73,6 +73,7 @@ export function graphFixture(count: number): GraphState {
 		structuralChildrenById: new VersionedNodeMap<number[]>(),
 		parentById: new VersionedNodeMap<number>(),
 		paramsById: new VersionedNodeMap<UiParamDto>(),
+		addressRevision: 0,
 		requiresResync: false
 	};
 	for (const item of nodes) {

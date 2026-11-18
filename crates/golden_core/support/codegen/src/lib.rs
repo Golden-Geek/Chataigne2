@@ -11,11 +11,11 @@ use std::path::{Path, PathBuf};
 use golden_graph::{GraphChangeSet, GraphDelta, GraphRevision};
 use golden_protocol::{
     UI_PROTOCOL_VERSION, UiAck, UiApplicationInfoDto, UiClientMessage, UiContextCandidatesRequest, UiDiscoveryDto,
-    UiEditIntent, UiErrorResponse, UiEventBatch, UiParamControlInfoDto, UiParamControlInfoRequest,
-    UiProjectLoadProblemDto, UiProjectLoadRecoveryDto, UiProjectPathDto, UiProjectPathRequest, UiProjectUploadRequest,
-    UiReferenceTargetsDto, UiReferenceTargetsRequest, UiReplayRequest, UiReplayResponse, UiScriptConfigRequest,
-    UiScriptReloadRequest, UiScriptStateRequest, UiServerMessage, UiSessionCapabilities, UiSessionRequest,
-    UiSessionResponse, UiSnapshot, UiSnapshotRequest,
+    UiEditIntent, UiErrorResponse, UiEventBatch, UiOscAddressDto, UiOscAddressRequest, UiParamControlInfoDto,
+    UiParamControlInfoRequest, UiProjectLoadProblemDto, UiProjectLoadRecoveryDto, UiProjectPathDto,
+    UiProjectPathRequest, UiProjectUploadRequest, UiReferenceTargetsDto, UiReferenceTargetsRequest, UiReplayRequest,
+    UiReplayResponse, UiScriptConfigRequest, UiScriptReloadRequest, UiScriptStateRequest, UiServerMessage,
+    UiSessionCapabilities, UiSessionRequest, UiSessionResponse, UiSnapshot, UiSnapshotRequest,
 };
 use golden_script_contract::{ScriptAppOperationReply, ScriptUiState};
 use ts_rs::{Config, TS};
@@ -185,6 +185,8 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     export_binding::<UiSessionCapabilities>(&config, "UiSessionCapabilities");
     export_binding::<UiReplayRequest>(&config, "UiReplayRequest");
     export_binding::<UiReferenceTargetsRequest>(&config, "UiReferenceTargetsRequest");
+    export_binding::<UiOscAddressRequest>(&config, "UiOscAddressRequest");
+    export_binding::<UiOscAddressDto>(&config, "UiOscAddressDto");
     export_binding::<UiContextCandidatesRequest>(&config, "UiContextCandidatesRequest");
     export_binding::<UiParamControlInfoRequest>(&config, "UiParamControlInfoRequest");
     export_binding::<UiScriptStateRequest>(&config, "UiScriptStateRequest");

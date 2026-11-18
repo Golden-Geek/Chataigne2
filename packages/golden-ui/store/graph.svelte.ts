@@ -28,6 +28,8 @@ export interface GraphState {
 	structuralChildrenById: VersionedNodeMap<NodeId[]>;
 	parentById: VersionedNodeMap<NodeId>;
 	paramsById: VersionedNodeMap<UiParamDto>;
+	/** Changes with membership, parent or short names, independent of parameter values. */
+	addressRevision: number;
 	lastEventTime?: EventTime;
 	requiresResync: boolean;
 }
@@ -48,6 +50,7 @@ const createEmptyState = (): GraphState => ({
 	structuralChildrenById: new VersionedNodeMap(),
 	parentById: new VersionedNodeMap(),
 	paramsById: new VersionedNodeMap(),
+	addressRevision: 0,
 	lastEventTime: undefined,
 	requiresResync: false
 });
@@ -96,6 +99,7 @@ const stateFromSnapshot = (snapshot: UiSnapshot): GraphState => {
 		structuralChildrenById: new VersionedNodeMap(),
 		parentById,
 		paramsById,
+		addressRevision: 0,
 		lastEventTime: snapshot.at,
 		requiresResync: false
 	};
@@ -451,6 +455,7 @@ const reduceEventInPlace = (
 				break;
 			}
 			state.nodesById.set(event.kind.node, applyMetaPatch(node, event.kind.patch));
+			if (event.kind.patch.short_name !== undefined) state.addressRevision += 1;
 			stateChanged = true;
 			break;
 		}
@@ -526,6 +531,7 @@ const reduceEventInPlace = (
 					const node = state.nodesById.get(op.node);
 					if (node) {
 						state.nodesById.set(op.node, applyMetaPatch(node, op.patch));
+						if (op.patch.short_name !== undefined) state.addressRevision += 1;
 						stateChanged = true;
 					}
 				} else if (op.kind === 'paramPatched') {
@@ -573,6 +579,7 @@ const reduceEventInPlace = (
 		}
 	}
 	if (stateChanged) {
+		if (requiresRootRecompute) state.addressRevision += 1;
 		state.lastEventTime = event.time;
 	}
 	return { stateChanged, requiresRootRecompute };

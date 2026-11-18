@@ -1,7 +1,7 @@
 //! Serialize only the requested subtree from a coherent, borrowed Golden projection.
 use super::values;
-use golden_engine::ui_read_model::UiSnapshotCapture;
-use golden_protocol::{UiCreatedNode, UiNodeDataDto, UiNodeDto, UiParamDto};
+use golden_engine::ui_read_model::{UiReadModel, UiSnapshotCapture};
+use golden_protocol::{UiCreatedNode, UiNodeDataDto, UiNodeDto, UiOscAddressRequest, UiParamDto};
 use serde::{
     Serialize, Serializer,
     ser::{Error as _, SerializeMap},
@@ -10,11 +10,30 @@ use serde_json::{Value, json};
 use std::{
     borrow::Cow,
     collections::HashMap,
+    fmt::Write as _,
     io::{self, Write},
 };
 
 const MAX_DEPTH: usize = 256;
 const MAX_RESPONSE_BYTES: usize = 32 * 1024 * 1024;
+
+pub(in crate::ui_server) fn osc_address(model: &UiReadModel, request: UiOscAddressRequest) -> Option<String> {
+    let (snapshot, ancestry) = model.capture_node_ancestry(request.node, MAX_DEPTH)?;
+    if snapshot.project_generation().get() != request.project_generation {
+        return None;
+    }
+    let mut address = String::new();
+    for edge in ancestry.windows(2) {
+        let parent = snapshot.node(edge[0])?;
+        let child = snapshot.node(edge[1])?;
+        let name = segment(child, |name| unique_sibling_name(&snapshot, parent, name));
+        write!(address, "/{name}").ok()?;
+    }
+    if address.is_empty() {
+        address.push('/');
+    }
+    Some(address)
+}
 
 #[derive(Debug)]
 pub(super) enum QueryError {
@@ -99,9 +118,7 @@ fn resolve_child<'a>(snapshot: &'a UiSnapshotCapture, parent: &UiNodeDto, segmen
     if let Some(uuid) = segment.strip_prefix('~') {
         let child = children().find(|child| child.uuid.0.as_simple().encode_lower(&mut [0; 32]) == uuid)?;
         // Accept the address returned by the hierarchy, including its fallback rule.
-        if short_name(child)
-            .is_none_or(|name| children().filter(|sibling| short_name(sibling) == Some(name)).count() > 1)
-        {
+        if short_name(child).is_none_or(|name| !unique_sibling_name(snapshot, parent, name)) {
             return Some(child);
         }
     } else {
@@ -112,6 +129,17 @@ fn resolve_child<'a>(snapshot: &'a UiSnapshotCapture, parent: &UiNodeDto, segmen
         }
     }
     None
+}
+
+fn unique_sibling_name(snapshot: &UiSnapshotCapture, parent: &UiNodeDto, name: &str) -> bool {
+    parent
+        .children
+        .iter()
+        .filter_map(|id| snapshot.node(*id))
+        .filter(|child| short_name(child) == Some(name))
+        .take(2)
+        .count()
+        == 1
 }
 
 pub(super) fn parameter(node: &UiNodeDto) -> Option<&UiParamDto> {
@@ -142,6 +170,16 @@ fn short_name(node: &UiNodeDto) -> Option<&str> {
     .then_some(name)
 }
 
+fn segment(node: &UiNodeDto, is_unique: impl FnOnce(&str) -> bool) -> Cow<'_, str> {
+    if let Some(name) = short_name(node)
+        && is_unique(name)
+    {
+        Cow::Borrowed(name)
+    } else {
+        Cow::Owned(format!("~{}", node.uuid.0.as_simple()))
+    }
+}
+
 fn named_children<'a>(
     snapshot: &'a UiSnapshotCapture,
     node: &'a UiNodeDto,
@@ -151,12 +189,7 @@ fn named_children<'a>(
     for name in children().filter_map(short_name) {
         *counts.entry(name).or_insert(0usize) += 1;
     }
-    children().map(move |child| {
-        let segment = short_name(child)
-            .filter(|name| counts.get(name) == Some(&1))
-            .map_or_else(|| Cow::Owned(format!("~{}", child.uuid.0.as_simple())), Cow::Borrowed);
-        (segment, child)
-    })
+    children().map(move |child| (segment(child, |name| counts.get(name) == Some(&1)), child))
 }
 
 struct Document<'a> {

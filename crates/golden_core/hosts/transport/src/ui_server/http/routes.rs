@@ -12,6 +12,7 @@ pub(super) enum HttpRoute {
     Snapshot,
     Replay,
     ReferenceTargets,
+    OscAddress,
     ContextCandidates,
     ParamControlInfo,
     ScriptState,
@@ -38,6 +39,7 @@ impl HttpRoute {
             ("POST", "/api/ui/snapshot") => Self::Snapshot,
             ("POST", "/api/ui/replay") => Self::Replay,
             ("POST", "/api/ui/reference-targets") => Self::ReferenceTargets,
+            ("POST", "/api/ui/osc-address") => Self::OscAddress,
             ("POST", "/api/ui/context-candidates") => Self::ContextCandidates,
             ("POST", "/api/ui/param-control-info") => Self::ParamControlInfo,
             ("POST", "/api/ui/script-state") => Self::ScriptState,
@@ -62,6 +64,7 @@ impl HttpRoute {
             | Self::Snapshot
             | Self::Replay
             | Self::ReferenceTargets
+            | Self::OscAddress
             | Self::ContextCandidates
             | Self::ParamControlInfo => Some(Capability::Observe),
             Self::Intent | Self::IntentBatch => Some(Capability::Author),

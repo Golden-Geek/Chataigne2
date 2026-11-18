@@ -1,6 +1,8 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 	import type { WorkbenchSession } from '../../store/workbench.svelte';
+	import { requestOscAddress } from '../../store/session/osc-address';
+	import { showOscAddressInHelp } from '../../store/session/runtime-settings';
 	import EngineStatus from './EngineStatus.svelte';
 
 	const { session, contribution } = $props<{
@@ -9,15 +11,59 @@
 	}>();
 
 	let hoverInfo = $derived(session?.getFooterHoverInfo() ?? null);
+	let hoveredNode = $derived(hoverInfo?.node_id);
+	let addressKey = $derived(
+		session?.status === 'connected' &&
+			session.client.oscAddress &&
+			hoveredNode !== undefined &&
+			showOscAddressInHelp(session.graph) &&
+			!session.loading.visible
+			? `${session.snapshotGeneration}:${session.graph.state.addressRevision}:${hoveredNode}`
+			: null
+	);
+	let resolvedAddress = $state<{ session: WorkbenchSession; key: string; address: string } | null>(
+		null
+	);
+	let address = $derived(
+		resolvedAddress?.session === session && resolvedAddress?.key === addressKey
+			? resolvedAddress?.address
+			: null
+	);
+	let hasHelp = $derived(Boolean(hoverInfo?.description || address));
+
+	$effect(() => {
+		const current = session;
+		const key = addressKey;
+		const node = hoveredNode;
+		if (!current || !key || node === undefined) {
+			resolvedAddress = null;
+			return;
+		}
+		const cancellation = new AbortController();
+		void untrack(() => requestOscAddress(current, node, cancellation.signal))
+			.then((address) => {
+				if (!cancellation.signal.aborted)
+					resolvedAddress = address ? { session: current, key, address } : null;
+			})
+			.catch(() => {
+				if (!cancellation.signal.aborted) resolvedAddress = null;
+			});
+		return () => cancellation.abort();
+	});
 </script>
 
 <footer class="gc-footer">
 	{#if session}
-		<div class="footer-description" aria-hidden={hoverInfo === null}>
-			{#if hoverInfo}
+		<div class="footer-description" aria-hidden={!hasHelp}>
+			{#if hoverInfo && hasHelp}
 				<span class="description-label">{hoverInfo.label}</span>
-				<span class="description-separator">:</span>
-				<span class="description-copy">{hoverInfo.description}</span>
+				{#if address}
+					<code class="osc-address" title={address}>{address}</code>
+				{/if}
+				{#if hoverInfo.description}
+					{#if !address}<span class="description-separator">:</span>{/if}
+					<span class="description-copy">{hoverInfo.description}</span>
+				{/if}
 			{/if}
 		</div>
 		<div class="footer-toaster" aria-live="polite">
@@ -74,6 +120,14 @@
 	.description-label,
 	.description-copy {
 		min-width: 0;
+	}
+
+	.osc-address {
+		flex: 0 0 auto;
+		max-width: 70%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.description-label {

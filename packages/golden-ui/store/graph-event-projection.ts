@@ -172,6 +172,7 @@ export const createIncrementalGraphEventProjection = (
 		structuralChildrenById: baseState.structuralChildrenById.fork(),
 		parentById: baseState.parentById.fork(),
 		paramsById: baseState.paramsById.fork(),
+		addressRevision: baseState.addressRevision,
 		lastEventTime: options.event.time,
 		requiresResync: baseState.requiresResync
 	};
@@ -192,6 +193,17 @@ export const createIncrementalGraphEventProjection = (
 		if (!op) {
 			done = structural.advance();
 			return !done;
+		}
+		if (
+			nextState.addressRevision === baseState.addressRevision &&
+			(op.kind === 'nodeCreated' ||
+				op.kind === 'subtreeInserted' ||
+				op.kind === 'subtreeRemoved' ||
+				op.kind === 'nodeMoved' ||
+				op.kind === 'childrenInserted' ||
+				(op.kind === 'nodeMetaPatched' && op.patch.short_name !== undefined))
+		) {
+			nextState.addressRevision += 1;
 		}
 		if (op.kind === 'subtreeRemoved') {
 			const removedId = op.removed_ids[removedIdIndex];

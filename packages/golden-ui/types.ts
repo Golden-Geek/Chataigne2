@@ -807,6 +807,10 @@ export interface UiClient {
 	): Promise<UiAck[]>;
 	replay(scope: UiSubscriptionScope, from?: UiReplayCursor): Promise<UiTransportBatch>;
 	referenceTargets(paramNodeId: NodeId): Promise<UiReferenceTargets>;
+	oscAddress?(
+		request: import('./generated/rust_protocol/UiOscAddressRequest').UiOscAddressRequest,
+		signal?: AbortSignal
+	): Promise<import('./generated/rust_protocol/UiOscAddressDto').UiOscAddressDto>;
 	paramControlInfo(paramNodeId: NodeId): Promise<UiParamControlInfo>;
 	scriptState(nodeId: NodeId): Promise<UiScriptState>;
 	setScriptConfig(nodeId: NodeId, config: UiScriptConfig, forceReload?: boolean): Promise<void>;

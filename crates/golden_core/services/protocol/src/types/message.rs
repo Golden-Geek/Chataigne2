@@ -345,6 +345,22 @@ pub struct UiReferenceTargetsRequest {
     pub param: NodeId,
 }
 
+/// Lookup for the current OSC address of a node in a specific project.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiOscAddressRequest {
+    /// Target node id from a workbench snapshot.
+    pub node: NodeId,
+    /// Generation of the originating snapshot.
+    pub project_generation: u64,
+}
+
+/// Canonical OSC address, if the node still belongs to the requested project.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiOscAddressDto {
+    /// The same address published as `FULL_PATH` by OSCQuery.
+    pub address: Option<String>,
+}
+
 /// HTTP request payload for user-context candidate queries.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct UiContextCandidatesRequest {

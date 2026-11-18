@@ -25,5 +25,5 @@ export interface FooterHoverInfo {
 	node_id: NodeId;
 	label: string;
 	node_type: string;
-	description: string;
+	description: string | null;
 }

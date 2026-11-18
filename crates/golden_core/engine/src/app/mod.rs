@@ -143,10 +143,19 @@ pub fn default_preferences_tree(default_data_folder: impl Into<String>) -> NodeT
 
     preferences.push_child(preferences_engine_folder_tree());
 
-    preferences.push_child(NodeTree::new(app_data_folder(
-        "Interface",
-        PREFERENCES_INTERFACE_DECL_ID,
-    )));
+    let mut interface = NodeTree::new(app_data_folder("Interface", PREFERENCES_INTERFACE_DECL_ID));
+    let mut osc_address_help = Parameter::new(
+        "Show OSC Address in Help",
+        ParamValue::Bool(false),
+        ParameterChangeCheck::ValueChange,
+    );
+    let metadata = &mut osc_address_help.node_data_mut().meta;
+    metadata.decl_id = DeclId("show_osc_address_in_help".into());
+    metadata.description = Some("Show the hovered node's OSC address in the bottom-bar Help.".into());
+    metadata.tags.push(PREFERENCES_APP_DATA_TAG.into());
+    osc_address_help.control_modes_enabled = false;
+    interface.push_child(NodeTree::new(osc_address_help));
+    preferences.push_child(interface);
     preferences
 }
 

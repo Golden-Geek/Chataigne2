@@ -59,15 +59,11 @@ export const createWorkbenchFooterHoverStore = (
 			if (!node) {
 				continue;
 			}
-			const description = options.getNodeDescription(node);
-			if (description === null) {
-				return null;
-			}
 			return {
 				node_id: node.node_id,
 				label: node.meta.label,
 				node_type: node.node_type,
-				description
+				description: options.getNodeDescription(node)
 			};
 		}
 		return null;

@@ -278,6 +278,13 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
 
             write_json(stream, "200 OK", &targets)?;
         }
+        HttpRoute::OscAddress => {
+            let Ok(payload) = serde_json::from_slice::<golden_protocol::UiOscAddressRequest>(&request.body) else {
+                return write_json_error(stream, "400 Bad Request", "Invalid OSC address request");
+            };
+            let address = super::oscquery::osc_address(&state.read_model, payload);
+            write_json(stream, "200 OK", &golden_protocol::UiOscAddressDto { address })?;
+        }
         HttpRoute::ContextCandidates => {
             let payload: ContextCandidatesRequest = serde_json::from_slice(&request.body).map_err(|err| {
                 Error::new(

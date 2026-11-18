@@ -370,6 +370,29 @@ fn shared_host_rebinds_and_serves_live_oscquery_from_the_golden_projection() {
     assert_eq!(children["fire"]["ACCESS"], 2);
     assert_eq!(children["gain"]["VALUE"], json!([0.25]));
     assert_eq!(children["empty"]["CONTENTS"], json!({}));
+    let model = host.runtime.read_model();
+    let generation = initial.project_generation().get();
+    let address = |node| {
+        osc_address(
+            &model,
+            golden_protocol::UiOscAddressRequest {
+                node,
+                project_generation: generation,
+            },
+        )
+    };
+    assert_eq!(address(initial.root()).as_deref(), Some("/"));
+    assert_eq!(address(gain.node_id).as_deref(), Some("/mixer/gain"));
+    assert!(
+        osc_address(
+            &model,
+            golden_protocol::UiOscAddressRequest {
+                node: gain.node_id,
+                project_generation: generation + 1,
+            }
+        )
+        .is_none()
+    );
     let fallbacks = children
         .as_object()
         .unwrap()
@@ -378,8 +401,10 @@ fn shared_host_rebinds_and_serves_live_oscquery_from_the_golden_projection() {
         .collect::<Vec<_>>();
     assert_eq!(fallbacks.len(), 2, "duplicate short names get unique addresses");
     for key in fallbacks {
-        let address = format!("/mixer/{key}");
-        assert_eq!(http(first, &address).unwrap().1["FULL_PATH"], address);
+        let path = format!("/mixer/{key}");
+        assert_eq!(http(first, &path).unwrap().1["FULL_PATH"], path);
+        let node = graph::resolve(&initial, &path).unwrap();
+        assert_eq!(address(node.node_id), Some(path));
     }
     assert_eq!(
         http(first, "/mixer/gain?RANGE&TYPE").unwrap(),
@@ -390,6 +415,18 @@ fn shared_host_rebinds_and_serves_live_oscquery_from_the_golden_projection() {
     assert_eq!(http(first, "/mixer/gain?BOGUS").unwrap().0, 400);
     host.set(gain.node_id, ParamValue::Float(0.75));
     assert_eq!(http(first, "/mixer/gain?VALUE").unwrap().1, json!({"VALUE": [0.75]}));
+    let empty = chosen(&initial, mixer.node_id, "empty");
+    host.apply(UiEditIntent::MoveNode {
+        node: gain.node_id,
+        new_parent: empty.node_id,
+        new_prev_sibling: None,
+    });
+    let moved = address(gain.node_id).unwrap();
+    assert_eq!(moved, "/mixer/empty/gain");
+    assert_eq!(http(first, &moved).unwrap().1["FULL_PATH"], moved);
+    assert_eq!(http(first, "/mixer/gain").unwrap().0, 404);
+    host.apply(UiEditIntent::Undo);
+    assert_eq!(address(gain.node_id).as_deref(), Some("/mixer/gain"));
 
     let reservation = TcpListener::bind("127.0.0.1:0").unwrap();
     let second = reservation.local_addr().unwrap();

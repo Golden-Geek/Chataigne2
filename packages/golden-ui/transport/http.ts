@@ -9,6 +9,8 @@ import type {
 import type { ScriptUiState as RustScriptState } from '../generated/rust_protocol/ScriptUiState';
 import type { UiParamControlInfoDto as RustUiParamControlInfoResponse } from '../generated/rust_protocol/UiParamControlInfoDto';
 import type { UiParamControlInfoRequest as RustParamControlInfoRequest } from '../generated/rust_protocol/UiParamControlInfoRequest';
+import type { UiOscAddressDto } from '../generated/rust_protocol/UiOscAddressDto';
+import type { UiOscAddressRequest } from '../generated/rust_protocol/UiOscAddressRequest';
 import type { UiProjectPathDto as RustProjectPathResponse } from '../generated/rust_protocol/UiProjectPathDto';
 import type { UiProjectPathRequest as RustProjectPathRequest } from '../generated/rust_protocol/UiProjectPathRequest';
 import type { UiProjectUploadRequest as RustProjectUploadRequest } from '../generated/rust_protocol/UiProjectUploadRequest';
@@ -41,10 +43,12 @@ interface HttpClientOptions {
 
 interface PostJsonOptions {
 	timeoutMs?: number;
+	signal?: AbortSignal;
 }
 
 export interface UiHttpAuxiliaryClient {
 	referenceTargets(paramNodeId: number): Promise<UiReferenceTargets>;
+	oscAddress(request: UiOscAddressRequest, signal?: AbortSignal): Promise<UiOscAddressDto>;
 	paramControlInfo(paramNodeId: number): Promise<UiParamControlInfo>;
 	scriptState(nodeId: number): Promise<UiScriptState>;
 	setScriptConfig(nodeId: number, config: UiScriptConfig, forceReload?: boolean): Promise<void>;
@@ -80,6 +84,10 @@ export const createHttpAuxiliaryClient = (
 	): Promise<TResponse> => {
 		const timeoutMs = Math.max(1000, options.timeoutMs ?? DEFAULT_POST_TIMEOUT_MS);
 		const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+		const signal =
+			controller && options.signal
+				? AbortSignal.any([controller.signal, options.signal])
+				: (controller?.signal ?? options.signal);
 		const timeoutId =
 			controller !== null
 				? setTimeout(() => {
@@ -98,7 +106,7 @@ export const createHttpAuxiliaryClient = (
 						authorization: `Bearer ${credential.token}`
 					},
 					body: JSON.stringify(payload),
-					signal: controller?.signal
+					signal
 				});
 				if (response.status === 401 && !renew) {
 					session.invalidate(credential.token);
@@ -136,6 +144,10 @@ export const createHttpAuxiliaryClient = (
 	};
 
 	const client: UiHttpAuxiliaryClient = {
+		oscAddress(request, signal) {
+			return postJson<UiOscAddressDto>('/osc-address', request, { signal });
+		},
+
 		async referenceTargets(paramNodeId: number): Promise<UiReferenceTargets> {
 			const request: RustReferenceTargetsRequest = { param: paramNodeId };
 			const response = await postJson<RustReferenceTargetsResponse>('/reference-targets', request);

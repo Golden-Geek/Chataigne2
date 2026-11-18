@@ -33,4 +33,8 @@ Isolated committed updates are sent as soon as the read model publishes them. Du
 
 Each connection supports up to 128 subscriptions. Feedback frames are limited to 64 KiB and 512 messages. A client whose backlog exceeds the event window or bundle limit must reconnect and subscribe again.
 
-The remaining gate covers copying or showing the current address in the UI. The `ADD`, `REMOVE`, `RENAME` and `MOVE` envelopes follow the legacy command layout. Golden catalog types and metadata fields are available through the corresponding query attributes. [Legacy OSC remote control](https://github.com/benkuper/juce_organicui/blob/master/remotecontrol/OSCRemoteControl.cpp)
+## Workbench addresses
+
+Right-click a node and choose **Copy OSC Address** to copy its current `FULL_PATH`. Enable **Preferences → Interface → Show OSC Address in Help** to see the path beside the hovered node's name. This preference starts off. Both actions ask the Golden host for the canonical path, including after a move or a duplicate short name. The path is available before enabling the OSCQuery listener.
+
+The workbench lookup uses an authenticated observation request scoped to the originating project generation. The host walks the requested node's ancestor chain against a coherent projection and uses the same short-name and UUID rules as OSCQuery. The footer refreshes on hover, node path changes and project reload, without requesting addresses during ordinary value updates.

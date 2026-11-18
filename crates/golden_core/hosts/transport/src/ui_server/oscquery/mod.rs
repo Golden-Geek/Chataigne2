@@ -23,6 +23,7 @@ use std::{
 };
 use tokio::net::{TcpListener, UdpSocket};
 
+pub(super) use graph::osc_address;
 pub(crate) use preferences::preferences;
 
 const SETTINGS_INTERVAL: Duration = Duration::from_millis(200);
