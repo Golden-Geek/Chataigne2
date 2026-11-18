@@ -99,7 +99,7 @@ impl Node for AssetNode {
     }
 }
 
-pub(super) fn locator_path(locator: &AssetLocator) -> &str {
+pub(crate) fn locator_path(locator: &AssetLocator) -> &str {
     match locator {
         AssetLocator::ProjectRelative { path } => path.as_str(),
         AssetLocator::Absolute { path } => path.as_str(),
@@ -107,7 +107,7 @@ pub(super) fn locator_path(locator: &AssetLocator) -> &str {
 }
 
 /// Location policy belongs to asset authoring, shared by generic edits and app intents.
-pub(super) fn parse_file(path: &str) -> Result<Option<AssetLocator>, String> {
+pub(crate) fn parse_file(path: &str) -> Result<Option<AssetLocator>, String> {
     if path.is_empty() {
         return Ok(None);
     }

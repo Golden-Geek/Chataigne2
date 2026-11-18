@@ -15,6 +15,8 @@ pub(crate) struct Configuration {
     pub layer_base: TransitionDefinition,
     pub layer_overrides: HashMap<LayerId, TransitionDefinition>,
     pub playable: HashSet<(LayerId, ColumnId)>,
+    #[cfg(feature = "video-files")]
+    pub audio_columns: HashMap<ColumnId, Arc<std::sync::atomic::AtomicBool>>,
     pub(super) auto_next: HashMap<(LayerId, ColumnId), super::playback::AutoNext>,
 }
 impl Configuration {
@@ -96,11 +98,24 @@ pub(crate) fn index(
         .snapshot
         .cells
         .iter()
-        .filter(|cell| cell.media.is_some() || cell_apps.contains_key(&(cell.layer, cell.definition.column)))
+        .filter(|cell| {
+            let address = (cell.layer, cell.definition.column);
+            cell.media.is_some() || cell_apps.contains_key(&address)
+                || matches!(engine.nodes.get(document.cells[&address]), Some(AppNode::MatrixCell(node)) if node.audio_label().is_some())
+        })
         .map(|cell| (cell.layer, cell.definition.column))
         .collect();
     let index = Arc::new(Configuration {
         playable,
+        #[cfg(feature = "video-files")]
+        audio_columns: document
+            .columns
+            .iter()
+            .filter_map(|(&id, node)| match engine.nodes.get(*node) {
+                Some(AppNode::MatrixColumn(column)) => Some((id, column.audio_enabled())),
+                _ => None,
+            })
+            .collect(),
         auto_next,
         layer_base,
         layer_overrides,

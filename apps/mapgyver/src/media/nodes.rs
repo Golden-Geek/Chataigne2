@@ -21,6 +21,8 @@ pub struct MediaManagerNode {
     pub(crate) sender_catalog: super::sender_catalog::Inbox,
     #[cfg(feature = "video-files")]
     pub(crate) videos: Arc<super::video::registry::Registry>,
+    #[cfg(feature = "video-files")]
+    pub(crate) matrix_audio: Arc<crate::matrix::audio::Registry>,
 }
 
 impl MediaManagerNode {
@@ -41,6 +43,8 @@ impl MediaManagerNode {
             sender_catalog: Default::default(),
             #[cfg(feature = "video-files")]
             videos: Default::default(),
+            #[cfg(feature = "video-files")]
+            matrix_audio: Default::default(),
         }
     }
     pub(crate) fn project_guard(&self) -> RevisionGuard {
@@ -70,6 +74,7 @@ impl Node for MediaManagerNode {
         #[cfg(feature = "video-files")]
         {
             self.videos = Default::default();
+            self.matrix_audio = Default::default();
         }
         self.sender_catalog = Default::default();
         self.project.advance();

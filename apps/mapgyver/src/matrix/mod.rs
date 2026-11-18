@@ -2,6 +2,7 @@
 mod admission;
 pub(crate) mod application_axis;
 mod applications;
+pub(crate) mod audio;
 mod authoring;
 mod bindings;
 pub(crate) mod capture;

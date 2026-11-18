@@ -1,6 +1,7 @@
 //! One cancellable PCM producer per host. Video clock reads, file decode and mixing stay off
 //! Golden's audio render worker and off the project actor.
 mod decoder;
+mod matrix;
 mod source;
 
 use super::{preferences, voice};
@@ -125,6 +126,7 @@ pub(super) fn start(
             let mut next_frame = None;
             let mut current_layout: Option<Arc<Layout>> = None;
             let mut samples = vec![0.0; frames as usize * channels];
+            let mut root = PathBuf::new();
             while !context.cancellation().is_cancelled() {
                 let checkpoint = context.wake_checkpoint();
                 let now = Instant::now();
@@ -143,7 +145,9 @@ pub(super) fn start(
                     }
                     if let Some(project) = &project {
                         let options = output.0.lock().unwrap().options.clone();
-                        sources.reconcile(project, &project_root(&runtime), &options, now);
+                        root = project_root(&runtime);
+                        sources.reconcile(project, &root, &options, now);
+                        project.matrix_audio.options(&options, now);
                     }
                 }
                 let layout = output.0.lock().unwrap().layout.clone();
@@ -158,7 +162,8 @@ pub(super) fn start(
                     next_frame = None;
                 }
                 if let (Some(layout), Some(project)) = (layout.as_deref(), &project) {
-                    let (active, changed) = sources.observe(layout, now, refresh_sources || layout_changed);
+                    let mix = project.matrix_audio.collect(now);
+                    let (active, changed) = sources.observe(layout, now, refresh_sources || layout_changed, mix, &root);
                     if changed {
                         writer.invalidate();
                         next_frame = None;

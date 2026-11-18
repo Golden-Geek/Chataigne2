@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-18",
+  "gate": "M16/3",
+  "result": "accepted Matrix Cell audio inheritance, overrides and audio-only playback",
+  "software": {
+    "focusedRust": { "passed": 44, "retainedFailures": 1 },
+    "strictClippy": "pass",
+    "svelteCheck": { "errors": 0, "warnings": 0 },
+    "verified": "Committed Matrix launches, shared and overridden routes, crossfade weights, Stop, audio-only navigation admission, and typed settings after reload. Existing Matrix Video lifecycle and scope-specific Stop tests pass.",
+    "retainedFailure": "matrix::tests::cell_drops::relocation_and_swaps_preserve_actual_subtrees_with_exact_single_step_history_and_reload fails the exact project-record comparison at cell_drops.rs:120 on both the current build and the pre-feature test executable target/debug/deps/mapgyver-ba784ba9156ae975.exe. Retain with M09 regression work."
+  },
+  "native": {
+    "fixture": "apps/mapgyver/tests/browser/native-matrix-cell-audio.mjs",
+    "receipt": "target/m163-matrix-cell-audio-ceac8fab/result.json",
+    "source": "live WASAPI virtual-output RMS in the bundled app",
+    "leftRightRms": {
+      "beforeLaunch": [0, 0],
+      "inheritedVideo": [0.008439605, 0],
+      "duringConfiguredTransition": [0.005578198, 0.002875611],
+      "overrideRoutedRight": [0, 0.008493198],
+      "audioOnlyRoutedLeft": [0.005653921, 0],
+      "matrixStopped": [0, 0],
+      "reloadedAudioOnly": [0.005645777, 0],
+      "reloadedMatrixStopped": [0, 0]
+    },
+    "checks": "The override Cell retains its selected visual source. The audio-only Cell has no visual source and displays its filename in the Matrix grid. Reload preserved the file and authored route. The app exited normally.",
+    "standaloneVideoAudioRegression": "target/m163-video-audio-regression-17344862/result.json",
+    "standaloneCasesPassed": 13
+  },
+  "retainedQualification": "Physical device signal and disconnect/reconnect qualification remain in M16/1. The exact-record relocation fixture remains listed in M09."
+}

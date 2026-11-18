@@ -13,6 +13,8 @@ mod applications;
 mod auto_next;
 mod bindings;
 mod bulk_authoring;
+#[cfg(feature = "video-files")]
+mod cell_audio;
 mod cell_colors;
 mod cell_creation;
 mod cell_drops;

@@ -1,4 +1,4 @@
-use super::{Layout, decoder::Decoder, frame_nanos};
+use super::{Layout, decoder::Decoder, frame_nanos, matrix::Files};
 use crate::media::{
     protocol::ChannelId,
     video::{VideoControl, audio::Source, registry},
@@ -21,6 +21,8 @@ pub(super) struct Sources {
     membership_changed: bool,
     capacity: usize,
     at_capacity: bool,
+    files: Files,
+    matrix_media: std::collections::HashMap<ChannelId, Vec<crate::matrix::audio::Weight>>,
 }
 
 impl Sources {
@@ -30,6 +32,8 @@ impl Sources {
             membership_changed: false,
             capacity,
             at_capacity: false,
+            files: Default::default(),
+            matrix_media: Default::default(),
         }
     }
 
@@ -65,16 +69,29 @@ impl Sources {
         self.membership_changed |= old.values().any(|voice| voice.active.is_some());
     }
 
-    pub fn observe(&mut self, layout: &Layout, now: Instant, scan_inactive: bool) -> (bool, bool) {
+    pub fn observe(
+        &mut self,
+        layout: &Layout,
+        now: Instant,
+        scan_inactive: bool,
+        mix: crate::matrix::audio::Mix,
+        root: &Path,
+    ) -> (bool, bool) {
         let mut admitted = 0;
         let mut at_capacity = false;
         let mut changed = std::mem::take(&mut self.membership_changed);
         for voice in self
             .voices
             .values_mut()
-            .filter(|voice| scan_inactive || voice.active.is_some())
+            .filter(|voice| scan_inactive || voice.active.is_some() || mix.media.contains_key(&voice.channel))
         {
-            let active = voice.next_voice(layout, now);
+            let weights = mix.media.get(&voice.channel);
+            let active =
+                if weights.is_some_and(Vec::is_empty) || (weights.is_none() && !voice.control.standalone_audio()) {
+                    None
+                } else {
+                    voice.next_voice(layout, now)
+                };
             let active = active.filter(|_| {
                 if admitted == self.capacity {
                     at_capacity = true;
@@ -100,7 +117,9 @@ impl Sources {
             }
             self.at_capacity = at_capacity;
         }
-        (admitted != 0, changed)
+        self.matrix_media = mix.media;
+        let (file_active, file_changed) = self.files.reconcile(mix.files, root, layout, self.capacity - admitted);
+        (admitted != 0 || file_active, changed || file_changed)
     }
 
     pub fn mix(
@@ -116,11 +135,14 @@ impl Sources {
             if !guard.is_current() || cancel.is_cancelled() {
                 break;
             }
-            voice.mix(output, present, frames, rate, guard, cancel);
+            let weights = self.matrix_media.get(&voice.channel).map(Vec::as_slice);
+            voice.mix(output, present, frames, rate, guard, cancel, weights);
         }
+        self.files.mix(output, present, frames, rate, guard, cancel);
     }
 
     pub fn release_inactive(&mut self) {
+        self.files = Files::default();
         for voice in self.voices.values_mut().filter(|voice| voice.active.is_some()) {
             voice.active = None;
             voice.release();
@@ -135,7 +157,7 @@ struct Active {
 }
 
 #[derive(Default)]
-struct Head {
+pub(super) struct Head {
     decoder: Option<Decoder>,
     no_audio: bool,
     retry_at: Option<Instant>,
@@ -225,6 +247,7 @@ impl Voice {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn mix(
         &mut self,
         output: &mut [f32],
@@ -233,6 +256,7 @@ impl Voice {
         rate: u32,
         guard: &RevisionGuard,
         cancel: &WorkerCancellation,
+        weights: Option<&[crate::matrix::audio::Weight]>,
     ) {
         let Some(active) = self.active else {
             return;
@@ -254,25 +278,25 @@ impl Voice {
         let repeat_duration = self.repeat.as_ref().map(|(_, duration)| *duration);
         for frame in 0..frames {
             let mut stereo = (0.0, 0.0);
-            let positions = timeline.samples(frame_nanos(frame as u64, rate), self.duration, repeat_duration);
+            let offset = frame_nanos(frame as u64, rate);
+            let positions = timeline.samples(offset, self.duration, repeat_duration);
             for (head, sample) in positions.into_iter().enumerate() {
                 let Some(sample) = sample else {
                     continue;
                 };
                 let head = head + usize::from(sample.repeat) * 2;
-                match self.read_sample(head, sample.position, rate, guard, cancel) {
-                    Ok(Some((left, right))) => {
-                        stereo.0 += left * sample.weight;
-                        stereo.1 += right * sample.weight;
-                    }
-                    Ok(None) => {}
-                    Err(_) => {
-                        self.heads[head].decoder = None;
-                        self.heads[head].retry_at = Some(Instant::now() + Duration::from_millis(500));
-                    }
+                if let Ok(Some((left, right))) = self.read_sample(head, sample.position, rate, guard, cancel) {
+                    stereo.0 += left * sample.weight;
+                    stereo.1 += right * sample.weight;
                 }
             }
-            let gain = self.gain.next_gain();
+            // Shared Video tracks can be present in more than one Cell. Combine their
+            // weights without emitting extra copies of the one transport's audio.
+            let matrix = weights.map_or(1.0, |weights| {
+                let time = present + Duration::from_nanos(offset);
+                weights.iter().map(|weight| weight.at(time)).sum::<f32>().min(1.0)
+            });
+            let gain = self.gain.next_gain() * matrix;
             for (lane, sample) in active.lanes.into_iter().zip([stereo.0, stereo.1]) {
                 if let Some(lane) = lane {
                     output[lane * frames + frame] += sample * gain;
@@ -298,23 +322,51 @@ impl Voice {
         } else {
             &self.path
         };
-        let head = &mut self.heads[head];
-        if head.no_audio || head.retry_at.is_some_and(|due| Instant::now() < due) {
-            return Ok(None);
-        }
-        if head.decoder.is_none() {
+        self.heads[head].sample(path, position, rate, || {
             let (channel, generation) = (self.channel, self.generation);
             let control = Arc::downgrade(&self.control);
             let guard = guard.clone();
             let cancel = cancel.clone();
-            head.decoder = AudioReader::open(path, rate, move || {
+            move || {
                 cancel.is_cancelled()
                     || !guard.is_current()
                     || control
                         .upgrade()
                         .is_none_or(|control| !control.owns_audio(channel, generation))
-            })?
-            .map(Decoder::new);
+            }
+        })
+    }
+}
+
+impl Head {
+    pub(super) fn sample<C: FnMut() -> bool + Send + 'static>(
+        &mut self,
+        path: &Path,
+        position: Duration,
+        rate: u32,
+        interrupt: impl FnOnce() -> C,
+    ) -> Result<Option<(f32, f32)>, DecodeError> {
+        let result = self.read(path, position, rate, interrupt);
+        if result.is_err() {
+            self.decoder = None;
+            self.retry_at = Some(Instant::now() + Duration::from_millis(500));
+        }
+        result
+    }
+
+    fn read<C: FnMut() -> bool + Send + 'static>(
+        &mut self,
+        path: &Path,
+        position: Duration,
+        rate: u32,
+        interrupt: impl FnOnce() -> C,
+    ) -> Result<Option<(f32, f32)>, DecodeError> {
+        let head = self;
+        if head.no_audio || head.retry_at.is_some_and(|due| Instant::now() < due) {
+            return Ok(None);
+        }
+        if head.decoder.is_none() {
+            head.decoder = AudioReader::open(path, rate, interrupt())?.map(Decoder::new);
             head.no_audio = head.decoder.is_none();
             head.retry_at = None;
         }

@@ -8,7 +8,7 @@ pub(super) struct Observation {
     observed: Instant,
 }
 impl Observation {
-    fn project(&self, now: Instant) -> Result<TimeSnapshot, String> {
+    pub(super) fn project(&self, now: Instant) -> Result<TimeSnapshot, String> {
         self.snapshot
             .monotonic()
             .checked_add(now.saturating_duration_since(self.observed))

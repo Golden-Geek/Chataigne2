@@ -35,8 +35,14 @@ pub struct ColumnNode {
     pulses: super::controls::Pulses,
     #[state(default = OnceLock::new())]
     runtime: OnceLock<super::playback::RuntimeBinding>,
+    #[state(default = std::sync::Arc::default())]
+    audio_enabled: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 impl ColumnNode {
+    #[cfg(feature = "video-files")]
+    pub(super) fn audio_enabled(&self) -> std::sync::Arc<std::sync::atomic::AtomicBool> {
+        self.audio_enabled.clone()
+    }
     pub(crate) fn control_parameter(&self, action: super::controls::Action) -> Option<NodeId> {
         match action {
             super::controls::Action::Play => Some(self.play.id()),
@@ -135,6 +141,8 @@ impl Node for ColumnNode {
     }
     fn on_node_ready(&mut self, _: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
         self.pulses.ready();
+        self.audio_enabled
+            .store(self.node_data().effective_enabled, std::sync::atomic::Ordering::Release);
     }
     fn needs_update(&self) -> bool {
         false
@@ -162,12 +170,14 @@ impl Node for ColumnNode {
         self.invalidate();
     }
     fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
+        self.audio_enabled.store(enabled, std::sync::atomic::Ordering::Release);
         if !enabled {
             self.pulses.revoke();
         }
         self.invalidate();
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
+        self.audio_enabled.store(false, std::sync::atomic::Ordering::Release);
         self.pulses.destroy();
         self.invalidate();
     }

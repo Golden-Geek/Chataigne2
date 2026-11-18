@@ -6,6 +6,18 @@ use crate::media::{
 use std::time::Instant;
 
 impl VideoControl {
+    pub(crate) fn matrix_owned_audio(&self, owned: bool) {
+        if let Ok(mut state) = self.0.lock() {
+            state.matrix_owned_audio = owned;
+        }
+    }
+
+    pub(crate) fn standalone_audio(&self) -> bool {
+        self.0
+            .lock()
+            .is_ok_and(|state| !state.matrix_audio_transport && !state.matrix_owned_audio)
+    }
+
     pub(crate) fn audio_sources(&self) -> Vec<Source> {
         let Ok(state) = self.0.lock() else {
             return Vec::new();

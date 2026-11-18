@@ -473,6 +473,11 @@ impl Node for MediaNode {
             let control = std::sync::Arc::downgrade(&control);
             let media = super::protocol::MediaId(self.node_data().meta.uuid);
             ctx.register_ancestor_runtime(self.id(), move |owner| {
+                if owner.as_any().is::<crate::matrix::CellNode>()
+                    && let Some(control) = control.upgrade()
+                {
+                    control.matrix_owned_audio(true);
+                }
                 let Some(manager) = owner.as_any().downcast_ref::<crate::media::MediaManagerNode>() else {
                     return Ok(false);
                 };

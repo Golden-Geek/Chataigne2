@@ -4,7 +4,7 @@ use crate::{
     app::{AppEngine, AppNode},
     media::{
         MediaSource,
-        protocol::MediaId,
+        protocol::ChannelReference,
         video::{MatrixVideoUse, VideoControl},
     },
 };
@@ -16,12 +16,12 @@ use std::{
 };
 
 pub(super) struct Prepared {
-    rows: HashMap<LayerId, Row>,
+    pub(super) rows: HashMap<LayerId, Row>,
     routes: HashMap<MediaSource, Route>,
     pub has_auto_next: bool,
 }
 struct Route {
-    owner: Option<(MediaId, Weak<VideoControl>)>,
+    owner: Option<(ChannelReference, Weak<VideoControl>)>,
     missing: bool,
     guards: Vec<golden_io::RevisionGuard>,
 }
@@ -31,21 +31,25 @@ impl Route {
         Some((*media, control.upgrade()?))
     }
 }
-type VideoOwner = (MediaId, Arc<VideoControl>);
+type VideoOwner = (ChannelReference, Arc<VideoControl>);
 #[derive(Clone)]
-struct Row {
-    identity: Option<uuid::Uuid>,
-    key: Option<Key>,
+pub(super) struct Row {
+    pub(super) identity: Option<uuid::Uuid>,
+    pub(super) key: Option<Key>,
     duration: Duration,
-    source: Option<VideoOwner>,
-    selection: Option<MediaSource>,
+    pub(super) source: Option<VideoOwner>,
+    pub(super) selection: Option<MediaSource>,
     available: bool,
+    #[cfg(feature = "video-files")]
+    pub(super) audio: Option<Arc<super::audio::CellBinding>>,
+    #[cfg(feature = "video-files")]
+    pub(super) audio_column: Option<Arc<std::sync::atomic::AtomicBool>>,
 }
-#[derive(Clone, Copy, PartialEq, Eq)]
-struct Key {
-    column: ColumnId,
-    version: u64,
-    individual: bool,
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub(super) struct Key {
+    pub(super) column: ColumnId,
+    pub(super) version: u64,
+    pub(super) individual: bool,
 }
 struct Active {
     identity: uuid::Uuid,
@@ -67,6 +71,13 @@ pub(super) struct Playback {
     targets: HashMap<LayerId, Option<uuid::Uuid>>,
 }
 impl Prepared {
+    #[cfg(feature = "video-files")]
+    pub(super) fn audio_route(&self, selection: MediaSource) -> Option<Option<ChannelReference>> {
+        self.routes
+            .get(&selection)
+            .map(|route| route.owner().map(|(reference, _)| reference))
+    }
+
     fn retains(&self, row: &Row, active: &Active) -> bool {
         if !row.available || row.identity != Some(active.identity) || row.key != Some(active.key) {
             return false;
@@ -120,14 +131,17 @@ impl Prepared {
                         .key
                         .is_some_and(|key| Some(key.column) == column && key.individual == individual)
             });
+            let cell = column
+                .and_then(|column| index.cell_nodes.get(&(layer, column)))
+                .and_then(|id| match engine.nodes.get(*id) {
+                    Some(AppNode::MatrixCell(cell)) => Some(cell),
+                    _ => None,
+                });
             let source = if let Some(frozen) = frozen {
                 frozen.selection
             } else {
-                match column
-                    .and_then(|column| index.cell_nodes.get(&(layer, column)))
-                    .and_then(|id| engine.nodes.get(*id))
-                {
-                    Some(AppNode::MatrixCell(cell)) if cell.node_data().meta.enabled => cell.selection(engine)?,
+                match cell {
+                    Some(cell) if cell.node_data().meta.enabled => cell.selection(engine)?,
                     _ => None,
                 }
             };
@@ -149,6 +163,10 @@ impl Prepared {
                     source,
                     selection,
                     available: true,
+                    #[cfg(feature = "video-files")]
+                    audio: frozen.map_or_else(|| cell.map(|cell| cell.audio_binding()), |row| row.audio.clone()),
+                    #[cfg(feature = "video-files")]
+                    audio_column: column.and_then(|column| index.audio_columns.get(&column).cloned()),
                 },
             );
         }

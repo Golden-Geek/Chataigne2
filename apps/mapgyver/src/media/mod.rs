@@ -39,6 +39,7 @@ pub mod video;
 mod visibility;
 
 pub use assets::{AssetNode, asset};
+pub(crate) use assets::{locator_path, parse_file};
 pub use authoring::{apply_operation, channel, initialize, validate_project};
 pub use capture::{CapturedChannels, capture_channels, capture_channels_at};
 pub use channel_node::ChannelNode;

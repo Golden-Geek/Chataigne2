@@ -11,3 +11,11 @@ The shared Golden desktop host starts the audio service once in desktop and head
 Golden Video decodes and seeks embedded audio as timestamped stereo PCM at the engine rate. A MapGyver audio worker projects the shared Video transport onto Golden Audio's output clock and applies per-channel gain and routing. Golden Audio accepts fixed-size blocks tagged with the render frame and routing generation. Its render cursor supplies the monotonic clock anchor and queued device-bridge frames. Pause, seek and project replacement invalidate pending blocks. MapGyver projects each bus lane onto a virtual output before the physical patch.
 
 The [M16/1 gate](../plan/MapGyver_Implementation_Plan.md#earlier-sgf-feedback-m1616) tracks the remaining signal and device-recovery qualification.
+
+## Matrix Cells
+
+Right-click a Cell and choose **Inspect Cell settings**, then open **Audio**. **Source → Media** uses the selected Video channel's audio and its routing. **Source → File** uses the Cell's own file, virtual outputs and dB volume. Use this mode on an empty Cell for audio-only playback. An unavailable file stays assigned, and the worker retries it at the Cell's current time.
+
+Each file starts with the Cell launch and plays once. The source follows the same per-Layer Matrix transition envelope as its picture. Multiple Cells that inherit the same Video channel share the source and combine their weights up to unity. Muting a Cell, Layer or Column removes its contribution. Stopping retires its audio, and a catalog Video started separately still follows its own transport.
+
+Matrix projects committed Cell choices and transition envelopes into the existing MapGyver PCM worker. Local files reuse the Video audio reader and share the mixer's voice ceiling. Video and the audio device retain their existing clock and ownership boundaries. Projects store the typed Cell settings. Launches and active mixes are transient.

@@ -1,9 +1,9 @@
 # MapGyver — simple status
 
 - **Updated:** 18 November 2026.
-- **Overall plan acceptance:** `████████░░` **83% — 114/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** Video channels can play an intro, then repeat a separate video with optional independent loop audio.
-- **Working on next:** Matrix Cell audio inheritance, overrides and audio-only playback.
+- **Overall plan acceptance:** `████████░░` **84% — 115/137 checks accepted, 8/17 phases complete**.
+- **Latest delivered:** Matrix Cells can use their media’s audio, use their own file, or play audio with no visual media.
+- **Working on next:** OSCQuery discovery and control for Golden apps.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -50,16 +50,16 @@
 - [x] **Video audio:** open **Inspector → Channels → Audio** to assign the left and right signals to named virtual outputs, set Volume, or mute that channel. Two clips, live remapping, gain, pause/seek/stop, device reopening and project reload passed. [Checks](evidence/mapgyver-m16-video-audio-2026-11-18.json)
 - [x] **Single-file Video intro and loop:** enable Loop and set **Loop Start** to a source time. The intro plays once and the picture and audio repeat the tail. Natural wraps, held smooth blend, seek, Stop, and saved settings passed. [Checks](evidence/mapgyver-m16-video-intro-loop-2026-11-18.json)
 - [x] **Separate Video loop files:** enable **Loop** on the Media, then set **Loop File** on each Video channel. Set **Audio → Loop Audio File** to override the embedded audio during the repeat. Native handoff, two wraps, held smooth blend, seek, Stop and missing-file recovery passed. Undo, copy and reload passed. [Checks](evidence/mapgyver-m16-separate-loop-2026-11-18.json)
+- [x] **Matrix Cell audio** is under **Inspect Cell settings → Audio**. Choose **Media** to inherit the selected Video channel’s audio, or **File** to use its own routed audio. Use **File** on an empty Cell for audio-only playback. All modes, crossfade, Stop and reload passed on live WASAPI output. [Checks](evidence/mapgyver-m16-matrix-cell-audio-2026-11-18.json)
 
 ## Next features — implementation order
 
-1. **NOW — Matrix Cell audio.** Use the media's audio, give the Cell its own audio, or play audio only.
-2. **OSCQuery for all Golden apps.** Implement discovery, undoable node edits and live feedback in Golden Core, with configurable ports per app.
-3. **Seamless previews.** Remove black flashes in Surface Editor and Media Preview, and reuse the source when two Surfaces share media.
-4. **Linked outlines in Screen Warping.** Fix outline flicker while dragging linked handles.
-5. **Extended Video formats.** Add DXV, WebP (including animated WebP), and MKV playback
+1. **NOW — OSCQuery for all Golden apps.** Implement discovery, undoable node edits and live feedback in Golden Core, with configurable ports per app.
+2. **Seamless previews.** Remove black flashes in Surface Editor and Media Preview, and reuse the source when two Surfaces share media.
+3. **Linked outlines in Screen Warping.** Fix outline flicker while dragging linked handles.
+4. **Extended Video formats.** Add DXV, WebP (including animated WebP), and MKV playback
     with selectable embedded subtitles and audio tracks.
-6. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+5. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 
@@ -77,7 +77,7 @@
 12. **32-bit App Control retirement:** the 64-bit path works; the WOW64 accounting/retirement case still fails. Requires a correction before release.
 13. **Long-run resources and physical latency:** retained peak-memory growth and GPU/timing limits are not all met. Complete the sustained and mixed-display timing checks; fix remaining failures before release.
 14. **Video audio hardware qualification:** capture the actual routed device signal and verify physical audio endpoint disconnect/reconnect while Video is playing. The native mixer, unavailable-device selection and output reopen checks passed.
-15. **Full regression and Windows qualification:** reconcile/fix the remaining parallel Video and older Matrix/tool-fixture failures, then run the complete app/installer checks.
+15. **Full regression and Windows qualification:** reconcile the remaining parallel Video and older Matrix/tool-fixture failures, including the exact-record reload comparison after Cell relocation. Then run the complete app/installer checks.
 
 ## Checking cadence from now on
 

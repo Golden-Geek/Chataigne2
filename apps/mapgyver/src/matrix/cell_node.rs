@@ -7,7 +7,7 @@ use crate::{
 use golden_core::{
     node,
     node::{Node, NodeId, NodeReference, ParameterHandle, ParameterValidationContext, UserContainerRules},
-    parameter::{Enum, ParamValue, ParameterEventBehaviour, ReferenceTargetKind, Vec2},
+    parameter::{Enum, File, ParamValue, ParameterEventBehaviour, ReferenceTargetKind, Vec2},
     process_ctx::ProcessCtx,
 };
 use std::sync::{
@@ -24,6 +24,16 @@ pub const CELL_TYPE: &str = "mapgyver.matrix.cell.v5";
     auto_next: Enum = "None" (label = "Auto Next", enum_options = crate::parameters::enum_options(&["None", "End of Media", "Specific Time"]), constraint_policy = "reject");
     auto_next_time_ms: f64 = 1000.0 [1.0..4294967295.0] (label = "Advance After", widget = "time", unit = "ms", step = 1.0, constraint_policy = "reject");
     auto_next_lead: bool = false (label = "Include Transition Time", description = "Start the next Cell early so this media keeps playing during the transition.");
+    folder(audio, label = "Audio") {
+        audio_mode: Enum = "Media" (label = "Source", enum_options = crate::parameters::enum_options(&["Media", "File"]),
+            description = "Use the selected media's audio or an independent file. A Cell with a file can play without visual media.");
+        audio_file: File = File::default() (label = "File", dependency = |node: &Self| node.audio_mode.get_ref().as_str() == "File");
+        audio_left: Enum = crate::audio::voice::LEFT (label = "Left output", enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
+            enum_options = crate::audio::voice::default_options(), dependency = |node: &Self| node.audio_mode.get_ref().as_str() == "File");
+        audio_right: Enum = crate::audio::voice::RIGHT (label = "Right output", enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
+            enum_options = crate::audio::voice::default_options(), dependency = |node: &Self| node.audio_mode.get_ref().as_str() == "File");
+        audio_gain: f64 = 0.0 [-120.0..24.0] (label = "Volume", unit = "dB", dependency = |node: &Self| node.audio_mode.get_ref().as_str() == "File");
+    }
     column: NodeReference = NodeReference::empty() (label = "Column", read_only = true, persist_read_only_value = true,
         reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.column.v3".into()]);
     shared_app_control: NodeReference = NodeReference::empty() (label = "Shared app control",
@@ -55,7 +65,11 @@ pub struct CellNode {
     runtime: OnceLock<super::playback::RuntimeBinding>,
     #[state(default = AtomicU64::new(0))]
     source_version: AtomicU64,
+    #[state(default = std::sync::Arc::default())]
+    audio_binding: std::sync::Arc<super::audio::CellBinding>,
 }
+
+mod audio;
 impl CellNode {
     pub(super) fn auto_next(&self) -> Option<super::playback::AutoNext> {
         match self.auto_next.get_ref().as_str() {
@@ -395,6 +409,7 @@ impl Node for CellNode {
         }
     }
     fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
+        self.publish_audio();
         if !enabled {
             self.pulses.revoke();
         }
@@ -407,14 +422,30 @@ impl Node for CellNode {
             binding.invalidate_applications();
         }
     }
-    fn on_node_ready(&mut self, _: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
         self.pulses.ready();
+        self.register_audio(ctx);
+        self.publish_audio();
+    }
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        self.refresh_audio_options(ctx);
+    }
+    fn worker_wake_when_disabled(&self) -> bool {
+        true
     }
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
         let id = self.id();
         self.pulses.result(ctx, id, &event);
     }
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
+        if self.is_audio_parameter(parameter) {
+            self.publish_audio();
+            self.refresh_audio_options(ctx);
+            if let Some(binding) = self.runtime.get() {
+                binding.invalidate();
+            }
+            return;
+        }
         let action = if parameter == self.play.id() {
             Some(super::controls::Action::Play)
         } else if parameter == self.cut.id() {
@@ -463,6 +494,7 @@ impl Node for CellNode {
         }
     }
     fn destroy(&mut self, _: &mut ProcessCtx) {
+        self.audio_binding.disable();
         self.pulses.destroy();
         if let Some(binding) = self.runtime.get() {
             binding.invalidate_applications();
@@ -473,10 +505,12 @@ impl Node for CellNode {
         crate::parameters::reject_opaque(data)
     }
     fn engine_validate_project_candidate(&self) -> Result<(), String> {
+        self.audio_settings()?;
         self.validate_settings(None)?;
         super::column_node::validate(self.duration_ms.get(), self.curve.get_ref().as_str())
     }
     fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
+        self.validate_audio_change(change)?;
         self.validate_settings(Some(change))?;
         let duration = match change.parameter_value(self.duration_ms.id()) {
             Some(ParamValue::Float(value)) => value,

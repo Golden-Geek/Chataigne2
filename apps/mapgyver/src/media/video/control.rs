@@ -41,6 +41,10 @@ struct State {
     matrix_uses: matrix::Uses,
     matrix_generation: uuid::Uuid,
     retain_play_position: bool,
+    #[cfg(feature = "video-files")]
+    matrix_audio_transport: bool,
+    #[cfg(feature = "video-files")]
+    matrix_owned_audio: bool,
 }
 
 /// Shared per-media runtime control, retained by demanded sources rather than per Reference.
@@ -75,6 +79,10 @@ impl Default for VideoControl {
                 matrix_uses: Default::default(),
                 matrix_generation: uuid::Uuid::new_v4(),
                 retain_play_position: false,
+                #[cfg(feature = "video-files")]
+                matrix_audio_transport: false,
+                #[cfg(feature = "video-files")]
+                matrix_owned_audio: false,
             }),
             Default::default(),
         )
@@ -136,6 +144,10 @@ impl VideoControl {
         state.retain_play_position = false;
         state.load_pending = false;
         state.settings.mode = mode;
+        #[cfg(feature = "video-files")]
+        {
+            state.matrix_audio_transport = false;
+        }
         if mode == VideoPlaybackMode::Stopped {
             state.settings.position_ms = 0.0;
         }
@@ -563,6 +575,10 @@ impl VideoControl {
             return Ok(());
         }
         let explicit = state.settings.mode != settings.mode;
+        #[cfg(feature = "video-files")]
+        if explicit {
+            state.matrix_audio_transport = false;
+        }
         if seek
             || explicit
             || state.settings.position_ms != settings.position_ms

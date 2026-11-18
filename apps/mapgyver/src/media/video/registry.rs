@@ -36,6 +36,7 @@ impl Registry {
 }
 pub(crate) struct Source {
     pub registry: Arc<Registry>,
+    pub matrix_audio: Arc<crate::matrix::audio::Registry>,
     pub guard: RevisionGuard,
 }
 impl Source {
@@ -46,6 +47,7 @@ impl Source {
         };
         Ok(Self {
             registry: manager.videos.clone(),
+            matrix_audio: manager.matrix_audio.clone(),
             guard: manager.project_guard(),
         })
     }

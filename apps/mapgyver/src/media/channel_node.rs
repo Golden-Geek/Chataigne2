@@ -373,6 +373,18 @@ impl Node for ChannelNode {
         self.bind_subtitles(ctx);
         self.register_video(ctx);
         if let Some(control) = self.matrix_playback() {
+            #[cfg(feature = "video-files")]
+            {
+                let id = self.node_data().meta.uuid.0;
+                let audio = control.audio_reader();
+                ctx.register_ancestor_runtime(self.id(), move |owner| {
+                    let Some(manager) = owner.as_any().downcast_ref::<crate::media::MediaManagerNode>() else {
+                        return Ok(false);
+                    };
+                    manager.matrix_audio.register_matrix(id, audio.clone());
+                    Ok(true)
+                });
+            }
             match ctx.node_waker() {
                 Ok(waker) => {
                     if let Err(error) = control.bind_video_waker(waker, self.node_data().effective_enabled) {

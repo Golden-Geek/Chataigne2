@@ -12,7 +12,7 @@ pub(crate) struct MediaSource {
 pub(crate) enum VideoRoute {
     Missing,
     Unavailable,
-    Video(MediaId, std::sync::Arc<super::video::VideoControl>),
+    Video(ChannelReference, std::sync::Arc<super::video::VideoControl>),
 }
 impl MediaSource {
     /// Resolve only selected Video media (including Reference chains), never independent
@@ -77,9 +77,9 @@ impl MediaSource {
                     };
                 }
                 Some(AppNode::Media(node)) => {
-                    return Ok(node.video_control().map_or(VideoRoute::Unavailable, |control| {
-                        VideoRoute::Video(selection.media, control)
-                    }));
+                    return Ok(node
+                        .video_control()
+                        .map_or(VideoRoute::Unavailable, |control| VideoRoute::Video(output, control)));
                 }
                 _ => return Ok(VideoRoute::Unavailable),
             }

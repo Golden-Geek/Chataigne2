@@ -156,6 +156,10 @@ impl VideoControl {
             match state.settings.on_activate {
                 VideoOnActivate::Nothing => false,
                 policy => {
+                    #[cfg(feature = "video-files")]
+                    {
+                        state.matrix_audio_transport = true;
+                    }
                     if policy == VideoOnActivate::PlayFromStart {
                         state.settings.position_ms = 0.0;
                         state.seek_pending = true;

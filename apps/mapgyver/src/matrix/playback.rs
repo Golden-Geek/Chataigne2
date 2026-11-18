@@ -15,11 +15,15 @@ use std::sync::{
     Arc, Mutex, OnceLock, Weak,
     atomic::{AtomicBool, Ordering},
 };
+#[cfg(feature = "video-files")]
+mod audio;
 mod auto_next;
 mod layer_stop;
 mod reconcile;
 mod timing;
 mod waiting;
+#[cfg(feature = "video-files")]
+pub(crate) use audio::AudioReader;
 pub(super) use auto_next::AutoNext;
 pub(super) use auto_next::apply as apply_scheduled_navigation;
 
@@ -42,6 +46,8 @@ struct Control {
     auto_next_dirty: AtomicBool,
     auto_next_interested: AtomicBool,
     auto_next_waker: OnceLock<golden_core::engine::NodeWaker>,
+    #[cfg(feature = "video-files")]
+    audio_active: AtomicBool,
 }
 #[derive(Default)]
 struct State {
@@ -50,6 +56,10 @@ struct State {
     layer_stops: std::collections::HashMap<LayerId, layer_stop::LayerStop>,
     active_layer_stops: std::collections::HashSet<LayerId>,
     videos: super::video::Playback,
+    #[cfg(feature = "video-files")]
+    audio: super::audio::Takes,
+    #[cfg(feature = "video-files")]
+    audio_clock: Option<golden_time::TimeAuthority<golden_time::SystemClock>>,
     video_plan: Option<Arc<super::video::Prepared>>,
     video_enabled: bool,
     video_running: bool,
@@ -413,6 +423,11 @@ impl PlaybackControl {
                                 state.video_error = error;
                                 state.video_running = true;
                             }
+                            #[cfg(feature = "video-files")]
+                            {
+                                state.track_audio(&plan, std::time::Instant::now());
+                                self.0.audio_active.store(!state.audio.is_empty(), Ordering::Release);
+                            }
                             state.video_plan = Some(plan);
                             self.watch_videos(&mut state);
                             if self.0.auto_next_interested.load(Ordering::Acquire) {
@@ -449,11 +464,17 @@ impl PlaybackControl {
                     }
                     state.current = desired;
                     if let Some(plan) = videos {
+                        let committed_at = std::time::Instant::now();
+                        #[cfg(feature = "video-files")]
+                        {
+                            state.track_audio(&plan, committed_at);
+                            self.0.audio_active.store(!state.audio.is_empty(), Ordering::Release);
+                        }
                         if plan.has_auto_next {
                             self.0.auto_next_interested.store(true, Ordering::Release);
                         }
                         if state.video_enabled && plan.is_current() {
-                            state.video_error = state.videos.commit(&plan, order, std::time::Instant::now()).err();
+                            state.video_error = state.videos.commit(&plan, order, committed_at).err();
                             state.video_running = true;
                         }
                         state.video_plan = Some(plan);
@@ -511,6 +532,8 @@ impl PlaybackControl {
             refresh: false,
             layer_stop,
         });
+        #[cfg(feature = "video-files")]
+        self.0.audio_active.store(true, Ordering::Release);
         // Conservative invalidation may also trigger recapture after an aborted request.
         self.0.revision.advance();
         self.notify_applications();
@@ -572,6 +595,8 @@ impl PlaybackControl {
     }
     pub fn clear(&self) {
         *self.0.state.lock().expect("Matrix playback lock poisoned") = State::default();
+        #[cfg(feature = "video-files")]
+        self.0.audio_active.store(false, Ordering::Release);
         if let Some(sources) = self.0.sources.get() {
             sources.prune();
         }
