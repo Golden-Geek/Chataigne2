@@ -244,6 +244,52 @@ try {
 	checks.push(
 		'Transition longer than the crop advances immediately and retains the moving outgoing Video'
 	);
+	await matrix({ kind: 'ClearPlayback' });
+	await set('auto_next', { Enum: 'None' });
+	await tab(/^Medias$/).click();
+	await page
+		.locator('[data-panel-id="media-manager"]')
+		.getByRole('button', { name: 'Auto Next Matrix', exact: true })
+		.click();
+	const { nodes: matrixNodes } = await graph();
+	const matrixNode = matrixNodes.find((node) => node.uuid === owner.media);
+	const matrixParameters = matrixNodes.find(
+		(node) => matrixNode.children.includes(node.node_id) && node.decl_id === 'parameters'
+	);
+	const waitParameter = matrixNodes.find(
+		(node) =>
+			matrixParameters.children.includes(node.node_id) &&
+			node.decl_id === 'parameters/navigation_wait'
+	);
+	const waitMode = page
+		.locator(`.parameter-inspector[data-node-id="${waitParameter.node_id}"]`)
+		.locator('select');
+	assert.equal(await waitMode.inputValue(), 'Direct');
+	await waitMode.selectOption('All Media End');
+	await wait(
+		graph,
+		({ nodes }) =>
+			nodes.find((node) => node.node_id === waitParameter.node_id).data.param.value.Enum ===
+			'All Media End',
+		'authored Previous/Next Wait mode'
+	);
+	const history = await settledHistory();
+	await tab(/^Matrix(?::|$)/).click();
+	await launch();
+	await wait(video, (state) => state.playing && state.position_ms >= 100, 'finite Video starts');
+	await page
+		.getByRole('toolbar', { name: 'Matrix actions', exact: true })
+		.getByRole('button', { name: 'Next Column', exact: true })
+		.click();
+	assert.equal((await playback()).desired_column, first);
+	await wait(playback, (state) => state.desired_column === next, 'Next Column waits for Video');
+	const atWaitEnd = await video();
+	assert.equal(atWaitEnd.position_ms, 1300);
+	assert.equal(atWaitEnd.playing, false);
+	assert.deepEqual(await settledHistory(), history);
+	checks.push(
+		'Matrix Inspector All Media End applies to toolbar navigation and holds until the crop ends'
+	);
 	assert.deepEqual(errors, []);
 } catch (error) {
 	failure = String(error.stack ?? error);

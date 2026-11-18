@@ -45,6 +45,9 @@ use std::sync::OnceLock;
             label = "Previous Column Group", dependency = |node: &Self| node.kind() == MediaKind::Matrix);
         next_column_group: ParamValue = ParamValue::Trigger() (
             label = "Next Column Group", dependency = |node: &Self| node.kind() == MediaKind::Matrix);
+        navigation_wait: Enum = "Direct" (label = "Previous/Next Wait",
+            enum_options = crate::parameters::enum_options(crate::matrix::controls::WAIT_MODES), constraint_policy = "reject",
+            dependency = |node: &Self| node.kind() == MediaKind::Matrix);
         video_play: ParamValue = ParamValue::Trigger() (label = "Play", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
         video_pause: ParamValue = ParamValue::Trigger() (label = "Pause", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
         video_stop: ParamValue = ParamValue::Trigger() (label = "Stop", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Video);
@@ -212,6 +215,10 @@ impl MediaNode {
             }
         }
     }
+    pub(crate) fn navigation_wait(&self) -> crate::matrix::controls::WaitMode {
+        crate::matrix::controls::WaitMode::from_parameter(self.navigation_wait.get_ref().as_str())
+    }
+
     fn matrix_control_parameters(&self) -> [(MatrixControl, golden_core::node::NodeId); 5] {
         [
             (MatrixControl::StopAll, self.stop_all.id()),

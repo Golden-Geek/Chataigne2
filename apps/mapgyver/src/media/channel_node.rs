@@ -369,7 +369,7 @@ impl Node for ChannelNode {
                 ctx.clear_node_warning(self.id(), Some("video-policy"));
             }
             control.request_video_refresh(ctx, self.id(), self.node_data().meta.uuid);
-            control.request_auto_next(ctx, self.id(), self.node_data().meta.uuid);
+            control.request_scheduled_navigation(ctx, self.id(), self.node_data().meta.uuid);
         }
     }
     fn worker_wake_when_disabled(&self) -> bool {
@@ -378,7 +378,7 @@ impl Node for ChannelNode {
     fn on_custom_event(&mut self, ctx: &mut ProcessCtx, event: golden_core::events::CustomEvent) {
         if let Some(control) = self.matrix_playback() {
             control.video_refresh_result(ctx, self.id(), &event);
-            control.auto_next_result(ctx, self.id(), &event);
+            control.scheduled_navigation_result(ctx, self.id(), &event);
         }
     }
     fn on_child_moved(&mut self, ctx: &mut ProcessCtx, child: NodeId, old_parent: NodeId, new_parent: NodeId) {

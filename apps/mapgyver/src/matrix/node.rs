@@ -28,6 +28,7 @@ enum Kind {
     stop: ParamValue = ParamValue::Trigger() (label = "Stop");
     previous_cell: ParamValue = ParamValue::Trigger() (label = "Previous Cell", dependency = |node: &Self| node.is_layer());
     next_cell: ParamValue = ParamValue::Trigger() (label = "Next Cell", dependency = |node: &Self| node.is_layer());
+    navigation_wait: Enum = "Direct" (label = "Previous/Next Wait", enum_options = crate::parameters::enum_options(super::controls::WAIT_MODES), constraint_policy = "reject", dependency = |node: &Self| node.is_layer());
     opacity: f64 = 1.0 [0.0..1.0] (label = "Opacity", constraint_policy = "reject");
     blend: Enum = "Normal" (label = "Blend Mode", enum_options = crate::parameters::enum_options(&["Normal", "Add", "Multiply", "Screen"]));
     expose_channel: bool = false (label = "Expose Channel");
@@ -48,6 +49,10 @@ pub struct ElementNode {
     view_collapsed: bool,
 }
 impl ElementNode {
+    pub(super) fn navigation_wait(&self) -> super::controls::WaitMode {
+        super::controls::WaitMode::from_parameter(self.navigation_wait.get_ref().as_str())
+    }
+
     pub(super) fn cell_navigation_parameters(&self) -> [(Action, NodeId); 2] {
         [
             (

@@ -19,8 +19,9 @@ mod auto_next;
 mod layer_stop;
 mod reconcile;
 mod timing;
+mod waiting;
 pub(super) use auto_next::AutoNext;
-pub(super) use auto_next::apply as apply_auto_next;
+pub(super) use auto_next::apply as apply_scheduled_navigation;
 
 #[derive(Clone, Default)]
 pub(crate) struct PlaybackControl(Arc<Control>);
@@ -45,6 +46,7 @@ struct Control {
 #[derive(Default)]
 struct State {
     auto_next: auto_next::Runtime,
+    navigation_waits: waiting::Waiting,
     layer_stops: std::collections::HashMap<LayerId, layer_stop::LayerStop>,
     active_layer_stops: std::collections::HashSet<LayerId>,
     videos: super::video::Playback,
@@ -211,6 +213,7 @@ impl PlaybackControl {
             state.videos.clear();
             state.video_running = false;
             state.auto_next.disarm();
+            state.navigation_waits.clear();
             state.cancel_video_deadline();
         } else if !state.video_running
             && let Some(plan) = state.video_plan.clone()
@@ -437,6 +440,7 @@ impl PlaybackControl {
                         .chain(desired.layers.iter().filter_map(|request| request.launch_id))
                         .collect::<std::collections::HashSet<_>>();
                     state.auto_next.track_launches(&ids, std::time::Instant::now());
+                    state.navigation_waits.retain_current(&desired);
                     state.epochs.retain(|id, _| ids.contains(id));
                     state.launch_orders.retain(|id, _| ids.contains(id));
                     for id in ids {

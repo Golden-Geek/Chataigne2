@@ -3,7 +3,7 @@ use super::{controls::Action, protocol::MatrixNavigationDirection};
 use golden_core::{
     node,
     node::{Node, NodeId},
-    parameter::ParamValue,
+    parameter::{Enum, ParamValue},
     process_ctx::ProcessCtx,
 };
 use std::sync::OnceLock;
@@ -19,6 +19,7 @@ pub const COLUMN_GROUP_TYPE: &str = "mapgyver.matrix.column_group.v1";
         play: ParamValue = ParamValue::Trigger() (label = "Play");
         previous_child: ParamValue = ParamValue::Trigger() (label = "Previous Child");
         next_child: ParamValue = ParamValue::Trigger() (label = "Next Child");
+        navigation_wait: Enum = "Direct" (label = "Previous/Next Wait", enum_options = crate::parameters::enum_options(super::controls::WAIT_MODES), constraint_policy = "reject");
     }
     node app_control: crate::applications::AppControlNode = (self.create_app_control()) (label = "App control");
 )]
@@ -30,6 +31,10 @@ pub struct ColumnGroupNode {
 }
 
 impl ColumnGroupNode {
+    pub(super) fn navigation_wait(&self) -> super::controls::WaitMode {
+        super::controls::WaitMode::from_parameter(self.navigation_wait.get_ref().as_str())
+    }
+
     fn controls(&self) -> [(Action, NodeId); 4] {
         [
             (Action::Stop, self.stop.id()),

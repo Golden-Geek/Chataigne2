@@ -39,6 +39,7 @@ mod layer_geometry;
 mod layer_navigation;
 mod layer_settings;
 mod navigation;
+mod navigation_waits;
 mod owned_media;
 mod parameter_controls;
 mod parameters;

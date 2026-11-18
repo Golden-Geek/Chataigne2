@@ -24,11 +24,15 @@ pub struct TransportSample {
 }
 
 impl TransportSample {
+    pub(crate) fn has_finite_end(self) -> bool {
+        !self.looping && !self.duration.is_zero()
+    }
+
     /// Wall time until the directional endpoint of a finite moving transport. A completed
     /// clock still reports zero, while pause and looping provide no finite end signal.
     pub(crate) fn finite_end_delay(self) -> Option<Duration> {
         let rate = self.mapping.rate();
-        if self.looping || self.duration.is_zero() || rate.numerator() == 0 {
+        if !self.has_finite_end() || rate.numerator() == 0 {
             return None;
         }
         let distance = if rate.numerator() < 0 {

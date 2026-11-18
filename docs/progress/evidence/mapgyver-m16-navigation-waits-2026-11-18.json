@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-18",
+  "gate": "M16/11",
+  "result": "accepted",
+  "software": {
+    "rustTests": 11,
+    "coverage": "First and All with mixed finite durations, Group scope and looping fallback, repeated Layer requests, Stop and interrupted playback, existing Direct controls and generated contracts",
+    "strictClippy": "pass",
+    "svelteCheck": { "errors": 0, "warnings": 0 },
+    "rustFormattingAndPrettier": "pass"
+  },
+  "bundledApp": {
+    "fixture": "apps/mapgyver/tests/browser/matrix-auto-next.mjs",
+    "processId": 41208,
+    "exitCode": 0,
+    "passedCheckGroups": 4,
+    "localReceipt": "target/m1611-nav-3b5f332e/result.json",
+    "coverage": "The Matrix Inspector defaults to Direct. Changing it to All Media End makes the toolbar wait until the 1300 ms crop ends on an active Spout output. Playback leaves authoring history unchanged. The three existing Auto Next cases also pass.",
+    "build": "Isolated bundled UI with pinned FFmpeg on PATH and Tauri resource copying disabled for the test build"
+  }
+}

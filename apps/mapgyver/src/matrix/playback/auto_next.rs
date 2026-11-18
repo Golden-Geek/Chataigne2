@@ -1,5 +1,9 @@
-//! Cell advances share the Matrix wake deadline and run through its actor transaction.
+//! Deferred navigation and Cell advances share the Matrix deadline and actor transaction.
 use super::*;
+use crate::{
+    matrix::view::navigation::{self, Step},
+    media::video::VideoControl,
+};
 use golden_core::{
     node::{NodeId, NodeUuid},
     process_ctx::ProcessCtx,
@@ -24,6 +28,11 @@ pub(super) struct Runtime {
     subscriptions: Vec<RevisionSubscription>,
     request: Option<uuid::Uuid>,
     pub(super) deadline: Option<Instant>,
+}
+
+enum Scheduled {
+    Step(Step),
+    Cell(LayerId, ColumnId),
 }
 
 impl Runtime {
@@ -54,7 +63,7 @@ impl Control {
 }
 
 impl PlaybackControl {
-    pub(crate) fn request_auto_next(&self, ctx: &mut ProcessCtx, source: NodeId, root: NodeUuid) {
+    pub(crate) fn request_scheduled_navigation(&self, ctx: &mut ProcessCtx, source: NodeId, root: NodeUuid) {
         let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
         if !state.video_enabled || state.auto_next.launched.is_empty() || state.auto_next.request.is_some() {
             return;
@@ -72,9 +81,9 @@ impl PlaybackControl {
         }
         let token = uuid::Uuid::new_v4();
         let request = ScriptAppOperationRequest::reserve(
-            &format!("matrix-auto-next:{token}"),
+            &format!("matrix-navigation:{token}"),
             super::super::controls::NAMESPACE,
-            "auto-next",
+            "scheduled-navigation",
         )
         .and_then(|reservation| {
             reservation
@@ -88,19 +97,19 @@ impl PlaybackControl {
             }
             Err(error) => {
                 self.0.auto_next_dirty.store(false, Ordering::Release);
-                ctx.set_node_warning_with(source, Some("auto-next"), error, None);
+                ctx.set_node_warning_with(source, Some("scheduled-navigation"), error, None);
             }
         }
     }
 
-    pub(crate) fn auto_next_result(&self, ctx: &mut ProcessCtx, source: NodeId, event: &CustomEvent) {
+    pub(crate) fn scheduled_navigation_result(&self, ctx: &mut ProcessCtx, source: NodeId, event: &CustomEvent) {
         if event.topic != golden_core::script::APP_OPERATION_RESULT_TOPIC || event.origin != Some(source) {
             return;
         }
         let reply = &event.payload["args"][0];
         let Some(token) = reply["request_id"]
             .as_str()
-            .and_then(|id| id.strip_prefix("matrix-auto-next:"))
+            .and_then(|id| id.strip_prefix("matrix-navigation:"))
             .and_then(|id| id.parse().ok())
         else {
             return;
@@ -112,30 +121,31 @@ impl PlaybackControl {
         if reply["status"] == "rejected" {
             ctx.set_node_warning_with(
                 source,
-                Some("auto-next"),
-                reply["message"].as_str().unwrap_or("Cell Auto Next failed"),
+                Some("scheduled-navigation"),
+                reply["message"]
+                    .as_str()
+                    .unwrap_or("Scheduled Matrix navigation failed"),
                 None,
             );
         } else {
-            ctx.clear_node_warning(source, Some("auto-next"));
+            ctx.clear_node_warning(source, Some("scheduled-navigation"));
         }
     }
 
-    fn select_advance(&self, engine: &AppEngine, media: MediaId) -> Result<Option<(LayerId, ColumnId)>, String> {
+    fn select_advance(&self, engine: &AppEngine, media: MediaId) -> Result<Option<Scheduled>, String> {
         let snapshot = self.snapshot();
         let config = super::super::configuration::index(engine, media, self)?;
         let view = (!config.auto_next.is_empty())
             .then(|| super::super::view::index(engine, media))
             .transpose()?;
         let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
-        self.0.auto_next_interested.store(view.is_some(), Ordering::Release);
         state.auto_next.disarm();
         if state.video_request.is_some() || self.0.video_dirty.load(Ordering::Acquire) {
             return Ok(None);
         }
-        let Some(view) = view.filter(|_| state.video_enabled && !state.auto_next.launched.is_empty()) else {
+        if !state.video_enabled || state.auto_next.launched.is_empty() {
             return Ok(None);
-        };
+        }
         let notifier = {
             let weak = Arc::downgrade(&self.0);
             WorkerNotifier::new(move || {
@@ -144,10 +154,43 @@ impl PlaybackControl {
                 }
             })
         };
-        let overrides: HashMap<_, _> = snapshot.layers.iter().map(|request| (request.layer, request)).collect();
         let now = Instant::now();
+        let mut subscriptions = Vec::new();
+        let mut samples = HashMap::new();
+        let mut observe = |video: &Arc<VideoControl>| {
+            let sample = match samples.entry(Arc::as_ptr(video)) {
+                std::collections::hash_map::Entry::Occupied(entry) => *entry.get(),
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                    let revisions = video.revisions();
+                    subscriptions.push(revisions.guard_at(revisions.current()).subscribe(notifier.clone()));
+                    *entry.insert(video.sample()?)
+                }
+            };
+            Ok(sample)
+        };
+        let (step, waiting_deadline) = {
+            let State {
+                videos,
+                navigation_waits,
+                ..
+            } = &mut *state;
+            navigation_waits.poll(videos, now, &mut observe)?
+        };
+        self.0
+            .auto_next_interested
+            .store(view.is_some() || !state.navigation_waits.is_empty(), Ordering::Release);
+        if let Some(step) = step {
+            state.auto_next.subscriptions = subscriptions;
+            return Ok(Some(Scheduled::Step(step)));
+        }
+        let Some(view) = view else {
+            state.auto_next.subscriptions = subscriptions;
+            state.auto_next.deadline = waiting_deadline;
+            state.schedule_video_deadline();
+            return Ok(None);
+        };
+        let overrides: HashMap<_, _> = snapshot.layers.iter().map(|request| (request.layer, request)).collect();
         let mut live = HashSet::new();
-        let mut watched = HashSet::new();
         let mut next = None;
         for (&(layer, column), &settings) in &config.auto_next {
             let (active, launch) = overrides
@@ -190,20 +233,12 @@ impl PlaybackControl {
                     let Some(video) = state.videos.active_source(layer, launch, column).cloned() else {
                         continue;
                     };
-                    if watched.insert(Arc::as_ptr(&video)) {
-                        let revisions = video.revisions();
-                        state
-                            .auto_next
-                            .subscriptions
-                            .push(revisions.guard_at(revisions.current()).subscribe(notifier.clone()));
-                    }
                     let lead = if include_transition {
                         Duration::from_millis(config.transition_for(layer, Some(target)).duration_ms.into())
                     } else {
                         Duration::ZERO
                     };
-                    video
-                        .sample()?
+                    observe(&video)?
                         .finite_end_delay()
                         .and_then(|remaining| now.checked_add(remaining.saturating_sub(lead)))
                 }
@@ -214,18 +249,21 @@ impl PlaybackControl {
                 next = Some(next.map_or(candidate, |previous| candidate.min(previous)));
             }
         }
+        state.auto_next.subscriptions = subscriptions;
         state.auto_next.fired.retain(|identity| live.contains(identity));
         let Some((at, layer, column, launch)) = next else {
+            state.auto_next.deadline = waiting_deadline;
+            state.schedule_video_deadline();
             return Ok(None);
         };
         if at > now {
-            state.auto_next.deadline = Some(at);
+            state.auto_next.deadline = Some(waiting_deadline.map_or(at, |wait| wait.min(at)));
             state.schedule_video_deadline();
             return Ok(None);
         }
         let layer = LayerId(NodeUuid(layer));
         state.auto_next.fired.insert((layer, launch));
-        Ok(Some((layer, ColumnId(NodeUuid(column)))))
+        Ok(Some(Scheduled::Cell(layer, ColumnId(NodeUuid(column)))))
     }
 }
 
@@ -248,16 +286,27 @@ pub(in crate::matrix) fn apply(
     {
         let mut state = control.0.state.lock().expect("Matrix playback lock poisoned");
         if state.auto_next.request != Some(token) {
-            return Err("Cell Auto Next requires an unconsumed live request".into());
+            return Err("Scheduled Matrix navigation requires an unconsumed live request".into());
         }
         state.auto_next.request = None;
         control.0.auto_next_dirty.store(false, Ordering::Release);
     }
-    if let Some((layer, column)) = control.select_advance(engine, media)? {
-        let result = super::launch_cell(engine, media, layer, column, LaunchMode::Configured);
+    if let Some(scheduled) = control.select_advance(engine, media)? {
         // Reconsider other Layers after this transaction commits or rejects.
         control.0.wake_auto_next();
-        result?;
+        match scheduled {
+            Scheduled::Cell(layer, column) => {
+                super::launch_cell(engine, media, layer, column, LaunchMode::Configured)?;
+            }
+            Scheduled::Step(step) => {
+                let snapshot = control.snapshot();
+                if navigation::target(engine, media, &control, &snapshot, step.scope, step.direction)?
+                    == Some(step.target)
+                {
+                    navigation::launch_step(engine, media, step)?;
+                }
+            }
+        }
     }
     Ok(serde_json::Value::Null)
 }

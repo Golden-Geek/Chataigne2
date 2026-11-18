@@ -1,65 +1,97 @@
 //! Step from committed playback through the cached document order.
+use super::super::controls::WaitMode;
 use super::ViewIndex;
 use crate::{
     app::{AppEngine, AppNode},
-    matrix::protocol::{ColumnGroupId, ColumnId, ColumnItemId, LaunchMode, LayerId, MatrixNavigationDirection},
+    matrix::protocol::{
+        ColumnGroupId, ColumnId, ColumnItemId, LaunchMode, LayerId, MatrixNavigationDirection, MatrixPlaybackSnapshot,
+    },
     media::protocol::{MediaEditResult, MediaId},
 };
 use MatrixNavigationDirection::{Next, Previous};
 use golden_core::node::{Node, NodeId};
 
-pub(in crate::matrix) enum AxisTarget {
+#[derive(Clone, Copy)]
+pub(in crate::matrix) enum StepScope {
     Column,
     TopLevelGroup,
+    Layer(LayerId),
+    Children(ColumnGroupId),
 }
 
-pub(in crate::matrix) fn launch(
-    engine: &mut AppEngine,
-    media: MediaId,
-    direction: MatrixNavigationDirection,
-    scope: AxisTarget,
-) -> Result<MediaEditResult, String> {
-    let current = crate::matrix::playback::inspect(engine, media)?;
-    let MediaEditResult::MatrixPlayback { snapshot } = &current else {
-        unreachable!("Matrix playback inspection always returns its snapshot")
-    };
-    let index = super::index(engine, media)?;
-    let anchor = snapshot
-        .desired_column
-        .and_then(|column| index.column_positions.get(&column).copied());
-    let target = match scope {
-        AxisTarget::Column => adjacent_column(engine, &index, anchor, direction),
-        AxisTarget::TopLevelGroup => adjacent_group(engine, &index, anchor, direction),
-    };
-    match target {
-        Some(column) => crate::matrix::playback::launch(engine, media, column, LaunchMode::Configured),
-        None => Ok(current),
-    }
+#[derive(Clone, Copy)]
+pub(in crate::matrix) struct Step {
+    pub scope: StepScope,
+    pub direction: MatrixNavigationDirection,
+    pub target: ColumnId,
 }
 
-pub(in crate::matrix) fn launch_layer_cell(
+pub(in crate::matrix) fn step(
     engine: &mut AppEngine,
     media: MediaId,
-    layer: LayerId,
+    scope: StepScope,
     direction: MatrixNavigationDirection,
+    wait: WaitMode,
 ) -> Result<MediaEditResult, String> {
     let root = crate::matrix::playback::root(engine, media)?;
     let Some(AppNode::MediaChannel(channel)) = engine.nodes.get(root) else {
         unreachable!()
     };
-    let control = channel.matrix_playback().ok_or("Matrix playback is missing")?;
+    let control = channel.matrix_playback().ok_or("Matrix playback is missing")?.clone();
     let snapshot = control.snapshot();
+    control.cancel_navigation(scope);
+    let Some(target) = target(engine, media, &control, &snapshot, scope, direction)? else {
+        return Ok(MediaEditResult::MatrixPlayback { snapshot });
+    };
+    let step = Step {
+        scope,
+        direction,
+        target,
+    };
+    if wait != WaitMode::Direct && control.wait_for_navigation(engine, media, &snapshot, step, wait)? {
+        return Ok(MediaEditResult::MatrixPlayback { snapshot });
+    }
+    launch_step(engine, media, step)
+}
+
+pub(in crate::matrix) fn target(
+    engine: &AppEngine,
+    media: MediaId,
+    control: &crate::matrix::playback::PlaybackControl,
+    snapshot: &MatrixPlaybackSnapshot,
+    scope: StepScope,
+    direction: MatrixNavigationDirection,
+) -> Result<Option<ColumnId>, String> {
     let index = super::index(engine, media)?;
-    let configuration = crate::matrix::configuration::index(engine, media, control)?;
-    // An explicit stopped Layer has no anchor even if the rest of the Matrix is playing.
     let anchor = snapshot
-        .layers
-        .iter()
-        .find(|request| request.layer == layer)
-        .map_or(snapshot.desired_column, |request| request.column);
-    match layer_cell_target(engine, &index, &configuration, layer, anchor, direction) {
-        Some(column) => crate::matrix::playback::launch_cell(engine, media, layer, column, LaunchMode::Configured),
-        None => Ok(MediaEditResult::MatrixPlayback { snapshot }),
+        .desired_column
+        .and_then(|column| index.column_positions.get(&column).copied());
+    Ok(match scope {
+        StepScope::Column => adjacent_column(engine, &index, anchor, direction),
+        StepScope::TopLevelGroup => adjacent_group(engine, &index, anchor, direction),
+        StepScope::Layer(layer) => {
+            let configuration = crate::matrix::configuration::index(engine, media, control)?;
+            let anchor = snapshot
+                .layers
+                .iter()
+                .find(|request| request.layer == layer)
+                .map_or(snapshot.desired_column, |request| request.column);
+            layer_cell_target(engine, &index, &configuration, layer, anchor, direction)
+        }
+        StepScope::Children(group) => group_child(engine, &index, group, snapshot.desired_column, direction)?,
+    })
+}
+
+pub(in crate::matrix) fn launch_step(
+    engine: &mut AppEngine,
+    media: MediaId,
+    step: Step,
+) -> Result<MediaEditResult, String> {
+    match step.scope {
+        StepScope::Layer(layer) => {
+            crate::matrix::playback::launch_cell(engine, media, layer, step.target, LaunchMode::Configured)
+        }
+        _ => crate::matrix::playback::launch(engine, media, step.target, LaunchMode::Configured),
     }
 }
 
@@ -96,59 +128,65 @@ pub(in crate::matrix) fn layer_cell_target(
     })
 }
 
-pub(in crate::matrix) fn launch_group_child(
+pub(in crate::matrix) fn play_group(
     engine: &mut AppEngine,
     media: MediaId,
     group: ColumnGroupId,
-    direction: Option<MatrixNavigationDirection>,
 ) -> Result<MediaEditResult, String> {
-    let current = crate::matrix::playback::inspect(engine, media)?;
-    let MediaEditResult::MatrixPlayback { snapshot } = &current else {
-        unreachable!("Matrix playback inspection always returns its snapshot")
-    };
     let index = super::index(engine, media)?;
-    let (_, group_node) = index.groups.get(&group).ok_or("Column Group is missing")?;
-    let target = match direction {
-        None => first_enabled_column(engine, &index, group),
-        Some(direction) => {
-            let children = crate::matrix::document::children(engine, *group_node)?
-                .into_iter()
-                .filter_map(|node| match engine.nodes.get(node)? {
-                    AppNode::MatrixColumn(column) => Some(ColumnItemId::Column {
-                        id: ColumnId(column.node_data().meta.uuid),
-                    }),
-                    AppNode::MatrixColumnGroup(group) => Some(ColumnItemId::Group {
-                        id: ColumnGroupId(group.node_data().meta.uuid),
-                    }),
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
-            // A Column anywhere under a nested Group anchors to that one direct child.
-            let anchor = snapshot.desired_column.and_then(|column| {
-                let &position = index.column_positions.get(&column)?;
-                children.iter().position(|item| match *item {
-                    ColumnItemId::Column { id } => id == column,
-                    ColumnItemId::Group { id } => {
-                        let span = &index.groups[&id].0;
-                        (span.axis_start as usize..(span.axis_start + span.axis_count) as usize).contains(&position)
-                    }
-                })
-            });
-            let candidates = match (direction, anchor) {
-                (Previous, Some(position)) => &children[..position],
-                (Next, Some(position)) => &children[position + 1..],
-                (_, None) => &children,
-            };
-            find_in_direction(candidates, direction, |item| match *item {
-                ColumnItemId::Column { id } => column_enabled(engine, &index, id).then_some(id),
-                ColumnItemId::Group { id } => first_enabled_column(engine, &index, id),
-            })
-        }
-    };
-    match target {
+    match first_enabled_column(engine, &index, group) {
         Some(column) => crate::matrix::playback::launch(engine, media, column, LaunchMode::Configured),
-        None => Ok(current),
+        None => crate::matrix::playback::inspect(engine, media),
     }
+}
+
+fn group_child(
+    engine: &AppEngine,
+    index: &ViewIndex,
+    group: ColumnGroupId,
+    current: Option<ColumnId>,
+    direction: MatrixNavigationDirection,
+) -> Result<Option<ColumnId>, String> {
+    let Some((_, group_node)) = index.groups.get(&group) else {
+        return Ok(None);
+    };
+    let children = crate::matrix::document::children(engine, *group_node)?
+        .into_iter()
+        .filter_map(|node| match engine.nodes.get(node)? {
+            AppNode::MatrixColumn(column) => Some(ColumnItemId::Column {
+                id: ColumnId(column.node_data().meta.uuid),
+            }),
+            AppNode::MatrixColumnGroup(group) => Some(ColumnItemId::Group {
+                id: ColumnGroupId(group.node_data().meta.uuid),
+            }),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    // A Column anywhere under a nested Group anchors to that one direct child.
+    let anchor = current.and_then(|column| {
+        children.iter().position(|item| match *item {
+            ColumnItemId::Column { id } => id == column,
+            ColumnItemId::Group { id } => column_in_group(index, column, id),
+        })
+    });
+    let candidates = match (direction, anchor) {
+        (Previous, Some(position)) => &children[..position],
+        (Next, Some(position)) => &children[position + 1..],
+        (_, None) => &children,
+    };
+    Ok(find_in_direction(candidates, direction, |item| match *item {
+        ColumnItemId::Column { id } => column_enabled(engine, index, id).then_some(id),
+        ColumnItemId::Group { id } => first_enabled_column(engine, index, id),
+    }))
+}
+
+pub(in crate::matrix) fn column_in_group(index: &ViewIndex, column: ColumnId, group: ColumnGroupId) -> bool {
+    let Some((span, _)) = index.groups.get(&group) else {
+        return false;
+    };
+    index.column_positions.get(&column).is_some_and(|position| {
+        (span.axis_start as usize..(span.axis_start + span.axis_count) as usize).contains(position)
+    })
 }
 
 fn adjacent_column(
@@ -191,7 +229,7 @@ fn adjacent_group(
 }
 
 fn first_enabled_column(engine: &AppEngine, index: &ViewIndex, group: ColumnGroupId) -> Option<ColumnId> {
-    let group = &index.groups[&group].0;
+    let (group, _) = index.groups.get(&group)?;
     let start = group.column_start as usize;
     let end = start + group.column_count as usize;
     index.columns[start..end]

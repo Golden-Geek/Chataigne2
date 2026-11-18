@@ -1,7 +1,7 @@
 //! Real Parameter pulses enter the same bounded app-operation service as script commands.
 use super::{
     protocol::{ColumnGroupId, LaunchMode, LayerId, MatrixNavigationDirection},
-    view::navigation::{self, AxisTarget},
+    view::navigation::{self, StepScope},
 };
 use crate::{
     app::{AppEngine, AppNode},
@@ -20,6 +20,24 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 pub(crate) const NAMESPACE: &str = "mapgyver.matrix.control";
+pub(crate) const WAIT_MODES: &[&str] = &["Direct", "First Media End", "All Media End"];
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum WaitMode {
+    Direct,
+    First,
+    All,
+}
+
+impl WaitMode {
+    pub(crate) fn from_parameter(value: &str) -> Self {
+        match value {
+            "First Media End" => Self::First,
+            "All Media End" => Self::All,
+            _ => Self::Direct,
+        }
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 pub(crate) enum Action {
@@ -252,8 +270,8 @@ pub(crate) fn apply(
     if operation == "refresh-video" {
         return super::video_refresh::apply(engine, payload);
     }
-    if operation == "auto-next" {
-        return super::playback::apply_auto_next(engine, payload);
+    if operation == "scheduled-navigation" {
+        return super::playback::apply_scheduled_navigation(engine, payload);
     }
     if operation != "invoke" {
         return Err("unknown Matrix control operation".into());
@@ -289,20 +307,34 @@ pub(crate) fn apply(
             super::playback::unload(engine, media)?
         }
         (AppNode::Media(owner), Action::NavigateColumn(direction)) if owner.kind() == MediaKind::Matrix => {
-            navigation::launch(engine, media, direction, AxisTarget::Column)?
+            navigation::step(engine, media, StepScope::Column, direction, owner.navigation_wait())?
         }
         (AppNode::Media(owner), Action::NavigateColumnGroup(direction)) if owner.kind() == MediaKind::Matrix => {
-            navigation::launch(engine, media, direction, AxisTarget::TopLevelGroup)?
+            navigation::step(
+                engine,
+                media,
+                StepScope::TopLevelGroup,
+                direction,
+                owner.navigation_wait(),
+            )?
         }
-        (AppNode::MatrixElement(owner), Action::NavigateCell(direction)) if owner.is_layer() => {
-            navigation::launch_layer_cell(engine, media, LayerId(invocation.owner), direction)?
-        }
+        (AppNode::MatrixElement(owner), Action::NavigateCell(direction)) if owner.is_layer() => navigation::step(
+            engine,
+            media,
+            StepScope::Layer(LayerId(invocation.owner)),
+            direction,
+            owner.navigation_wait(),
+        )?,
         (AppNode::MatrixColumnGroup(_), Action::Play) => {
-            navigation::launch_group_child(engine, media, ColumnGroupId(invocation.owner), None)?
+            navigation::play_group(engine, media, ColumnGroupId(invocation.owner))?
         }
-        (AppNode::MatrixColumnGroup(_), Action::NavigateGroupChild(direction)) => {
-            navigation::launch_group_child(engine, media, ColumnGroupId(invocation.owner), Some(direction))?
-        }
+        (AppNode::MatrixColumnGroup(owner), Action::NavigateGroupChild(direction)) => navigation::step(
+            engine,
+            media,
+            StepScope::Children(ColumnGroupId(invocation.owner)),
+            direction,
+            owner.navigation_wait(),
+        )?,
         (AppNode::MatrixColumn(_), Action::Play | Action::Cut) => {
             super::playback::launch(engine, media, super::protocol::ColumnId(invocation.owner), mode)?
         }

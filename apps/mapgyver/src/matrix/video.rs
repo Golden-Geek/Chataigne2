@@ -216,6 +216,13 @@ fn resolve(
     Ok(routes[&selection].owner())
 }
 impl Playback {
+    pub(super) fn active_clocks(&self) -> impl Iterator<Item = (LayerId, ColumnId, uuid::Uuid, &Arc<VideoControl>)> {
+        self.active
+            .iter()
+            .filter(|(_, active)| active.lease.is_current())
+            .map(|(&layer, active)| (layer, active.key.column, active.identity, &active.source.1))
+    }
+
     pub(super) fn active_source(
         &self,
         layer: LayerId,

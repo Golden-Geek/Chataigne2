@@ -67,6 +67,19 @@ child and Previous starts at the last. At either boundary the current launch con
 edits `PlayColumnGroup` and `NavigateGroupChild` and named scripts `playMatrixColumnGroup` and
 `navigateMatrixGroupChild` fire the same Parameters.
 
+The Matrix, each Layer and each Column Group expose a **Previous/Next Wait** setting. **Direct**
+launches immediately. **First Media End** waits for the earliest active finite Video to finish,
+and **All Media End** waits for every active finite Video in scope. The Matrix watches all active
+Layers, a Layer watches its own Cell, and a Column Group watches active Cells in its subtree.
+Outgoing clips, loops and media without a known finite duration do not enter the wait. A paused
+finite Video remains eligible and can finish after it resumes. With no eligible Video, the
+requested launch happens immediately. Group Play always launches immediately.
+
+A new Previous/Next request replaces the pending request for that Layer or for the shared
+Column navigation scope. Stops and playback replacements cancel waits whose original clips
+are no longer active. The deadline service checks the original destination again before launch,
+so a reorder cannot send a pending request to a different Cell or Column.
+
 Cells expose Auto Next in the Inspector. **Specific Time** counts wall time from the committed
 Cell launch, including when the Matrix launches a whole Column. **End of Media** follows the
 active Video's crop-relative transport and speed. Paused, zero-speed and looping transport
