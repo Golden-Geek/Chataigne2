@@ -1,19 +1,22 @@
-//! The shared host publishes a coherent, read-only OSCQuery hierarchy on an opt-in port.
+//! The shared host publishes a coherent OSCQuery hierarchy and accepts OSC on an opt-in port.
 mod graph;
+mod input;
 mod preferences;
 mod values;
 
 use super::{
-    ConnectionLimiter, HttpResponse, RequestAccessPolicy, ServerWorkers, write_json, write_json_error, write_response,
+    ConnectionLimiter, HttpResponse, RequestAccessPolicy, ServerState, ServerWorkers, write_json, write_json_error,
+    write_response,
 };
 use golden_engine::{app::ProjectLifecycle, ui_read_model::UiReadModel};
+use golden_protocol::UiSubscriptionScope;
 use std::{
     io,
     net::{Ipv4Addr, SocketAddrV4, TcpStream},
-    sync::Arc,
+    sync::{Arc, mpsc::SyncSender},
     time::{Duration, Instant},
 };
-use tokio::net::TcpListener;
+use tokio::net::{TcpListener, UdpSocket};
 
 pub(crate) use preferences::preferences;
 
@@ -23,26 +26,34 @@ const IO_TIMEOUT: Duration = Duration::from_secs(1);
 const MAX_CONNECTIONS: usize = 4;
 
 pub(super) struct Listener {
-    listener: Option<TcpListener>,
+    sockets: Option<(TcpListener, UdpSocket)>,
     port: Option<u16>,
     refresh_at: Instant,
     retry_at: Instant,
     bind_failed: bool,
     limiter: Arc<ConnectionLimiter>,
     access: Arc<RequestAccessPolicy>,
+    input: SyncSender<input::Datagram>,
+    datagram: Vec<u8>,
 }
 
 impl Listener {
-    pub(super) fn new() -> io::Result<Self> {
+    pub(super) fn new<T: ProjectLifecycle + 'static>(
+        state: &ServerState<T>,
+        workers: &mut ServerWorkers,
+    ) -> io::Result<Self> {
         let now = Instant::now();
         Ok(Self {
-            listener: None,
+            sockets: None,
             port: None,
             refresh_at: now,
             retry_at: now,
             bind_failed: false,
             limiter: Arc::new(ConnectionLimiter::new(MAX_CONNECTIONS)),
             access: Arc::new(RequestAccessPolicy::new(&[], &[])?),
+            input: input::spawn(state, workers)?,
+            // Read the entire datagram so oversized UDP packets are discarded consistently across platforms.
+            datagram: vec![0; usize::from(u16::MAX)],
         })
     }
 
@@ -50,20 +61,21 @@ impl Listener {
         let now = Instant::now();
         if now >= self.refresh_at {
             self.refresh_at = now + SETTINGS_INTERVAL;
-            let port = preferences::enabled_port(model);
+            let snapshot = model.capture_snapshot(UiSubscriptionScope::WholeGraph);
+            let port = preferences::enabled_port(&snapshot);
             if port != self.port {
                 self.port = port;
-                self.listener = None;
+                self.sockets = None;
                 self.retry_at = now;
                 self.bind_failed = false;
             }
             if let Some(port) = self.port
-                && self.listener.is_none()
+                && self.sockets.is_none()
                 && now >= self.retry_at
             {
-                match TcpListener::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, port)).await {
-                    Ok(listener) => {
-                        self.listener = Some(listener);
+                match bind(port).await {
+                    Ok(sockets) => {
+                        self.sockets = Some(sockets);
                         self.bind_failed = false;
                     }
                     Err(error) => {
@@ -77,19 +89,34 @@ impl Listener {
             }
         }
         let delay = tokio::time::sleep_until(self.refresh_at.into());
-        let Some(listener) = &self.listener else {
+        let Some((tcp, udp)) = &self.sockets else {
             delay.await;
             return None;
         };
-        let accepted = match futures_util::future::select(Box::pin(listener.accept()), Box::pin(delay)).await {
-            futures_util::future::Either::Left((result, _)) => result,
-            futures_util::future::Either::Right(_) => return None,
+        let accepted = tokio::select! {
+            accepted = tcp.accept() => accepted.map(|(stream, _)| stream),
+            received = udp.recv(&mut self.datagram) => {
+                match received {
+                    Ok(size) => {
+                        if let Some(port) = self.port.filter(|_| size <= input::MAX_DATAGRAM) {
+                            let _ = self.input.try_send(input::Datagram {
+                                port,
+                                project: model.current_project_generation(),
+                                bytes: self.datagram[..size].to_vec(),
+                            });
+                        }
+                        return None;
+                    }
+                    Err(error) => Err(error),
+                }
+            }
+            () = delay => return None,
         };
         match accepted {
-            Ok((stream, _)) => Some(stream),
+            Ok(stream) => Some(stream),
             Err(error) => {
                 eprintln!("[oscquery] listener failed: {error}; retrying");
-                self.listener = None;
+                self.sockets = None;
                 self.retry_at = Instant::now() + RETRY_INTERVAL;
                 None
             }
@@ -117,6 +144,13 @@ impl Listener {
             let _ = respond(&mut stream, &model, &access, T::application_display_name());
         })
     }
+}
+
+async fn bind(port: u16) -> io::Result<(TcpListener, UdpSocket)> {
+    let address = SocketAddrV4::new(Ipv4Addr::LOCALHOST, port);
+    let udp = UdpSocket::bind(address).await?;
+    let tcp = TcpListener::bind(address).await?;
+    Ok((tcp, udp))
 }
 
 fn respond(stream: &mut TcpStream, model: &UiReadModel, access: &RequestAccessPolicy, name: &str) -> io::Result<()> {
@@ -149,11 +183,14 @@ fn respond(stream: &mut TcpStream, model: &UiReadModel, access: &RequestAccessPo
             "200 OK",
             &serde_json::json!({
                 "NAME": name,
+                "OSC_IP": address.ip().to_string(),
+                "OSC_PORT": address.port(),
+                "OSC_TRANSPORT": "UDP",
                 "EXTENSIONS": { "ACCESS": true, "TYPE": true, "VALUE": true, "RANGE": true }
             }),
         );
     }
-    let snapshot = model.capture_snapshot(golden_protocol::UiSubscriptionScope::WholeGraph);
+    let snapshot = model.capture_snapshot(UiSubscriptionScope::WholeGraph);
     match graph::describe(&snapshot, &request.path, request.query.as_deref()) {
         Ok(Some(bytes)) => write_response(&mut response, "200 OK", "application/json", &bytes),
         Ok(None) => write_response(&mut response, "204 No Content", "application/json", &[]),

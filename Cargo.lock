@@ -3155,6 +3155,7 @@ dependencies = [
  "golden_persistence",
  "golden_protocol",
  "httparse",
+ "rosc",
  "serde",
  "serde_json",
  "sha2",

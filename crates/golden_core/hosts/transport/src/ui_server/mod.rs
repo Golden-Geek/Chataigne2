@@ -593,7 +593,7 @@ fn run_ui_server_with_ready<T: ProjectLifecycle + 'static, S>(
     };
 
     let connection_limiter = Arc::new(ConnectionLimiter::new(MAX_CONNECTIONS));
-    let mut oscquery = oscquery::Listener::new()?;
+    let mut oscquery = oscquery::Listener::new(&state, &mut workers)?;
     enum Incoming {
         Ui(std::io::Result<(tokio::net::TcpStream, std::net::SocketAddr)>),
         OscQuery(Option<tokio::net::TcpStream>),
@@ -667,8 +667,8 @@ fn run_ui_server_with_ready<T: ProjectLifecycle + 'static, S>(
         }
         Ok(())
     })();
-    drop(oscquery);
     workers.shutdown.request();
+    drop(oscquery);
     drop(services);
     let drained = workers.finish(config.shutdown_timeout);
     result.and(drained)

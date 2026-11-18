@@ -8,11 +8,12 @@ use golden_engine::{
     parameter::{ParamValue, Parameter, ParameterChangeCheck, ParameterEventBehaviour, RangeConstraint},
     ui_read_model::UiSnapshotCapture,
 };
-use golden_protocol::{UiEditIntent, UiNodeDataDto, UiNodeDto, UiSubscriptionScope};
+use golden_protocol::{UiEditIntent, UiEventKind, UiNodeDataDto, UiNodeDto, UiSubscriptionScope};
+use rosc::{OscBundle, OscMessage, OscPacket, OscType};
 use serde_json::{Value, json};
 use std::{
     io::{Read, Write},
-    net::{SocketAddr, TcpListener},
+    net::{SocketAddr, TcpListener, UdpSocket},
     sync::mpsc,
     thread,
 };
@@ -51,8 +52,16 @@ impl Host {
             min: Some(0.0),
             max: Some(1.0),
         });
+        let mut meter = Parameter::new("Meter", ParamValue::Float(0.5), ParameterChangeCheck::ValueChange);
+        meter.read_only = true;
         let tree = NodeTree::new(Folder::new("Mixer"))
             .with_child(NodeTree::new(gain))
+            .with_child(NodeTree::new(meter))
+            .with_child(NodeTree::new(Parameter::new(
+                "Muted",
+                ParamValue::Bool(false),
+                ParameterChangeCheck::ValueChange,
+            )))
             .with_child(NodeTree::new(Folder::new("Empty")))
             .with_child(NodeTree::new(Folder::new("Same Name")))
             .with_child(NodeTree::new(Folder::new("Same Name")))
@@ -188,6 +197,9 @@ fn shared_host_rebinds_and_serves_live_oscquery_from_the_golden_projection() {
     let (code, info) = http(first, "/?HOST_INFO").unwrap();
     assert_eq!(code, 200);
     assert_eq!(info["NAME"], "OSC fixture");
+    assert_eq!(info["OSC_IP"], "127.0.0.1");
+    assert_eq!(info["OSC_PORT"], first.port());
+    assert_eq!(info["OSC_TRANSPORT"], "UDP");
     assert_eq!(info["EXTENSIONS"]["VALUE"], true);
     assert!(info["EXTENSIONS"].get("LISTEN").is_none());
 
@@ -198,7 +210,9 @@ fn shared_host_rebinds_and_serves_live_oscquery_from_the_golden_projection() {
     let children = &graph["CONTENTS"]["mixer"]["CONTENTS"];
     assert_eq!(children["gain"]["FULL_PATH"], "/mixer/gain");
     assert_eq!(children["gain"]["TYPE"], "f");
-    assert_eq!(children["gain"]["ACCESS"], 1);
+    assert_eq!(children["gain"]["ACCESS"], 3);
+    assert_eq!(children["meter"]["ACCESS"], 1);
+    assert_eq!(children["fire"]["ACCESS"], 2);
     assert_eq!(children["gain"]["VALUE"], json!([0.25]));
     assert_eq!(children["empty"]["CONTENTS"], json!({}));
     let fallbacks = children
@@ -224,8 +238,12 @@ fn shared_host_rebinds_and_serves_live_oscquery_from_the_golden_projection() {
 
     let reservation = TcpListener::bind("127.0.0.1:0").unwrap();
     let second = reservation.local_addr().unwrap();
+    let udp_collision = UdpSocket::bind(second).unwrap();
     drop(reservation);
     host.set(port.node_id, ParamValue::Int(second.port().into()));
+    wait(|| TcpStream::connect(first).is_err());
+    assert!(TcpStream::connect(second).is_err());
+    drop(udp_collision);
     wait(|| http(second, "/mixer/gain?VALUE").is_ok());
     assert!(TcpStream::connect(first).is_err());
     host.enable(category.node_id, false);
@@ -235,4 +253,71 @@ fn shared_host_rebinds_and_serves_live_oscquery_from_the_golden_projection() {
     host.shutdown.request();
     host.done.recv_timeout(Duration::from_secs(3)).unwrap().unwrap();
     assert!(TcpStream::connect(second).is_err());
+}
+
+fn message(address: &str, args: Vec<OscType>) -> OscPacket {
+    OscPacket::Message(OscMessage {
+        addr: address.into(),
+        args,
+    })
+}
+
+fn send(sender: &UdpSocket, address: SocketAddr, packet: OscPacket) {
+    let bytes = rosc::encoder::encode(&packet).unwrap();
+    assert_eq!(sender.send_to(&bytes, address).unwrap(), bytes.len());
+}
+
+#[test]
+fn osc_datagrams_use_golden_validation_events_and_undo() {
+    let host = Host::start();
+    let snapshot = host.snapshot();
+    let prefs = chosen(&snapshot, snapshot.root(), "preferences");
+    let category = chosen(&snapshot, prefs.node_id, "oscquery");
+    let port = chosen(&snapshot, category.node_id, "port");
+    let mixer = chosen(&snapshot, snapshot.root(), "mixer");
+    let fire = chosen(&snapshot, mixer.node_id, "fire");
+    let reservation = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = reservation.local_addr().unwrap();
+    drop(reservation);
+    let sender = UdpSocket::bind("127.0.0.1:0").unwrap();
+    host.set(port.node_id, ParamValue::Int(address.port().into()));
+    host.enable(category.node_id, true);
+    wait(|| http(address, "/?HOST_INFO").is_ok());
+
+    let value = |path| http(address, path).unwrap().1["VALUE"][0].clone();
+    send(&sender, address, message("/mixer/gain", vec![OscType::Float(2.0)]));
+    wait(|| value("/mixer/gain?VALUE") == 1.0);
+    host.apply(UiEditIntent::Undo);
+    assert_eq!(value("/mixer/gain?VALUE"), 0.25);
+    host.apply(UiEditIntent::Redo);
+    assert_eq!(value("/mixer/gain?VALUE"), 1.0);
+
+    let before = host.snapshot().revision();
+    send(
+        &sender,
+        address,
+        OscPacket::Bundle(OscBundle {
+            timetag: input::IMMEDIATE,
+            content: vec![
+                message("/mixer/gain", vec![OscType::Float(f32::NAN)]),
+                message("/mixer/meter", vec![OscType::Float(0.75)]),
+                message("/mixer/gain", vec![OscType::String("wrong type".into())]),
+                message("/mixer/fire", vec![]),
+                message("/mixer/muted", vec![OscType::Bool(true)]),
+            ],
+        }),
+    );
+    wait(|| value("/mixer/muted?VALUE") == 1);
+    assert_eq!(value("/mixer/gain?VALUE"), 1.0);
+    assert_eq!(value("/mixer/meter?VALUE"), 0.5);
+    let replay = host
+        .runtime
+        .read_model()
+        .replay(Some(before), UiSubscriptionScope::WholeGraph);
+    assert!(replay.events.iter().any(|event| matches!(event.kind,
+        UiEventKind::ParamChanged { param, new_value: ParamValue::Trigger(), .. } if param == fire.node_id
+    )));
+    host.enable(category.node_id, false);
+    wait(|| TcpStream::connect(address).is_err());
+    let _released = UdpSocket::bind(address).unwrap();
 }

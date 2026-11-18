@@ -88,7 +88,18 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         ui_client_instance_id: Option<&str>,
         stop_after_failure: bool,
     ) -> Result<PendingUiTransactionBatch, ApplicationError> {
-        self.submit_ui_transactions(intents, ui_client_instance_id, None, stop_after_failure)
+        self.submit_ui_transactions(intents, ui_client_instance_id, None, None, stop_after_failure)
+    }
+
+    /// Applies intents whose node IDs were resolved from a specific project generation.
+    /// Rejects the batch at the control actor if the project has since been replaced.
+    pub fn apply_ui_transaction_batch_for_project(
+        &self,
+        project_generation: ProjectGeneration,
+        intents: Vec<UiEditIntent>,
+    ) -> Result<AppliedUiTransactionBatch, ApplicationError> {
+        self.submit_ui_transactions(intents, None, None, Some(project_generation), false)?
+            .wait()
     }
 
     /// Admits requests scoped to a live connection. Closed queued requests never execute.
@@ -102,6 +113,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             intents,
             client.client_instance_id(),
             Some(client.clone()),
+            None,
             stop_after_failure,
         )
     }
@@ -111,6 +123,7 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
         intents: Vec<UiEditIntent>,
         ui_client_instance_id: Option<&str>,
         client: Option<UiClientLease>,
+        expected_project: Option<ProjectGeneration>,
         stop_after_failure: bool,
     ) -> Result<PendingUiTransactionBatch, ApplicationError> {
         let ui_client_instance_id = ui_client_instance_id.map(str::to_owned);
@@ -124,6 +137,9 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             .control.handle()
             .submit(move |state| {
                 let project_generation = read_model.current_project_generation();
+                if expected_project.is_some_and(|expected| expected != project_generation) {
+                    return Err(ApplicationError::Control(ControlError::cancelled()));
+                }
                 if state.release_closed_ui_session() || state.release_rebound_ui_session(client.as_ref()) {
                     let before = state.engine.ui_event_log().last().map(|event| event.time);
                     let capture = read_model.collect_event_batch(&mut state.engine, before);

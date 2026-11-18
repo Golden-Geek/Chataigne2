@@ -1,5 +1,6 @@
-// Verify either bundled Golden app installs and applies shared OSCQuery Preferences.
+// Verify bundled Golden OSCQuery Preferences and MapGyver's native OSC edit route.
 import assert from 'node:assert/strict';
+import { createSocket } from 'node:dgram';
 import { once } from 'node:events';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
@@ -18,7 +19,7 @@ await once(reservation, 'listening');
 const selectedPort = reservation.address().port;
 await new Promise((resolve) => reservation.close(resolve));
 const native = await openNativeEditor();
-let token, failure, defaultPort, info, rootContents;
+let token, failure, defaultPort, info, rootContents, oscEdit;
 
 async function post(route, body) {
 	const response = await fetch(native.base + route, {
@@ -60,6 +61,33 @@ async function wait(predicate) {
 	}
 }
 
+function findOpacity(node) {
+	if (node.FULL_PATH.endsWith('/opacity') && node.TYPE === 'f' && node.ACCESS === 3) return node;
+	for (const child of Object.values(node.CONTENTS ?? {})) {
+		const match = findOpacity(child);
+		if (match) return match;
+	}
+}
+
+async function sendFloat(address, value) {
+	const paddedAddress = Buffer.alloc(Math.ceil((Buffer.byteLength(address) + 1) / 4) * 4);
+	paddedAddress.write(address);
+	const args = Buffer.alloc(8);
+	args.write(',f');
+	args.writeFloatBE(value, 4);
+	const client = createSocket('udp4');
+	try {
+		await new Promise((resolve, reject) => {
+			client.send(Buffer.concat([paddedAddress, args]), selectedPort, '127.0.0.1', (error) => {
+				if (error) reject(error);
+				else resolve();
+			});
+		});
+	} finally {
+		client.close();
+	}
+}
+
 try {
 	token = (await post('/api/ui/session', {})).token;
 	const { nodes } = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
@@ -88,6 +116,9 @@ try {
 		})
 	).json();
 	assert.equal(info.NAME, expected.title);
+	assert.equal(info.OSC_IP, '127.0.0.1');
+	assert.equal(info.OSC_PORT, selectedPort);
+	assert.equal(info.OSC_TRANSPORT, 'UDP');
 	const project = await query('/');
 	assert.equal(project.status, 200);
 	const tree = await project.json();
@@ -102,6 +133,20 @@ try {
 	const portPath = await query('/preferences/oscquery/port?VALUE');
 	assert.equal(portPath.status, 200);
 	assert.deepEqual(await portPath.json(), { VALUE: [selectedPort] });
+	if (expected.title === 'MapGyver') {
+		const opacity = findOpacity(tree.CONTENTS.screens);
+		assert(opacity, 'The default Surface publishes its writable Opacity address');
+		const [original] = opacity.VALUE;
+		const changed = original === 0.375 ? 0.625 : 0.375;
+		const current = async () => (await (await query(`${opacity.FULL_PATH}?VALUE`)).json()).VALUE[0];
+		await sendFloat(opacity.FULL_PATH, changed);
+		await wait(async () => (await current()) === changed);
+		await edit({ kind: 'undo' });
+		assert.equal(await current(), original);
+		await edit({ kind: 'redo' });
+		assert.equal(await current(), changed);
+		oscEdit = { address: opacity.FULL_PATH, original, changed, undoAndRedo: 'pass' };
+	}
 	assert((await post('/api/ui/project-new', {})).ok);
 	const replaced = (await post('/api/ui/snapshot', { scope: 'wholeGraph' })).nodes;
 	const savedCategory = replaced.find((node) => node.decl_id === 'oscquery');
@@ -128,7 +173,8 @@ try {
 				defaultPort,
 				selectedPort,
 				info,
-				rootContents
+				rootContents,
+				oscEdit
 			},
 			null,
 			2

@@ -1,0 +1,36 @@
+{
+	"date": "2026-11-18",
+	"gate": "M16/4",
+	"scope": "Local OSC parameter edits and triggers through Golden's existing history and validation path",
+	"transport": {
+		"testsPassed": 98,
+		"testsIgnored": 1,
+		"strictClippyAllTargets": "pass",
+		"fixture": "crates/golden_core/hosts/transport/src/ui_server/oscquery/tests/mod.rs",
+		"verified": [
+			"HOST_INFO reports the local UDP endpoint and ACCESS reflects writable, read-only and trigger nodes",
+			"Direct UDP values use Golden range validation and appear in the read model immediately after commit",
+			"Local Undo and Redo use the same history entries as Inspector edits",
+			"Immediate bundles accept typed booleans and emit trigger events while ignoring wrong types, nonfinite numbers and read-only targets",
+			"TCP and UDP port conflicts recover automatically, rebind retires the old listener, and disable releases both sockets"
+		]
+	},
+	"bundledMapGyver": {
+		"fixture": "apps/mapgyver/tests/browser/native-oscquery.mjs",
+		"receipt": "target/m164-mapgyver-osc-input-c2ccb5b8/result.json",
+		"result": "pass",
+		"defaultPort": 43000,
+		"observedPort": 60186,
+		"address": "/screens/screen/surface1/parameters/opacity",
+		"original": 1,
+		"changedByUdp": 0.375,
+		"undoAndRedo": "pass",
+		"alsoVerified": "The configured port and enabled state survive project replacement, and disabling the preference closes the listener."
+	},
+	"remaining": [
+		"Undoable node metadata and manager operations",
+		"LAN discovery and Zeroconf advertisement",
+		"Client-specific LISTEN and rate-limited feedback bundles, with isolation and burst verification",
+		"Copy OSC Address in node menus and the Interface preference for OSC addresses in Help"
+	]
+}

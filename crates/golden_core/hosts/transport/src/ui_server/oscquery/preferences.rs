@@ -3,9 +3,9 @@ use golden_engine::{
     edit::NodeTree,
     node::{DeclId, Folder, Node},
     parameter::{ParamValue, Parameter, ParameterChangeCheck, RangeConstraint},
-    ui_read_model::UiReadModel,
+    ui_read_model::UiSnapshotCapture,
 };
-use golden_protocol::{UiNodeDataDto, UiSubscriptionScope};
+use golden_protocol::UiNodeDataDto;
 
 const CATEGORY: &str = "oscquery";
 const PORT: &str = "port";
@@ -17,7 +17,7 @@ pub(crate) fn preferences(port: u16) -> NodeTree {
     metadata.can_be_disabled = true;
     metadata.enabled = false;
     metadata.tags.push(PREFERENCES_APP_DATA_TAG.into());
-    metadata.description = Some("Publish this app's OSCQuery hierarchy on the local machine.".into());
+    metadata.description = Some("Browse and control this app with OSC on the local machine.".into());
     let mut port = Parameter::new(
         "Port",
         ParamValue::Int(i32::from(port.max(1))),
@@ -33,8 +33,7 @@ pub(crate) fn preferences(port: u16) -> NodeTree {
     NodeTree::new(folder).with_child(NodeTree::new(port))
 }
 
-pub(super) fn enabled_port(model: &UiReadModel) -> Option<u16> {
-    let snapshot = model.capture_snapshot(UiSubscriptionScope::WholeGraph);
+pub(super) fn enabled_port(snapshot: &UiSnapshotCapture) -> Option<u16> {
     let mut node = snapshot.node(snapshot.root())?;
     for declaration in [PREFERENCES_DECL_ID, CATEGORY, PORT] {
         if !node.meta.enabled {

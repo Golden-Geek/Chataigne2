@@ -1,7 +1,7 @@
 //! Serialize only the requested subtree from a coherent, borrowed Golden projection.
 use super::values;
 use golden_engine::ui_read_model::UiSnapshotCapture;
-use golden_protocol::{UiNodeDataDto, UiNodeDto};
+use golden_protocol::{UiNodeDataDto, UiNodeDto, UiParamDto};
 use serde::{
     Serialize, Serializer,
     ser::{Error as _, SerializeMap},
@@ -57,15 +57,7 @@ pub(super) fn describe(
     }) {
         return Err(QueryError::InvalidAttribute);
     }
-    let mut node = snapshot.node(snapshot.root()).ok_or(QueryError::MissingPath)?;
-    if path != "/" {
-        let path = path.strip_prefix('/').ok_or(QueryError::MissingPath)?;
-        for segment in path.split('/') {
-            node = named_children(snapshot, node)
-                .find_map(|(name, child)| (name == segment).then_some(child))
-                .ok_or(QueryError::MissingPath)?;
-        }
-    }
+    let node = resolve(snapshot, path).ok_or(QueryError::MissingPath)?;
     let document = Document {
         snapshot,
         node,
@@ -74,13 +66,50 @@ pub(super) fn describe(
         depth: 0,
     };
     if selected.as_ref().is_some_and(|attrs| attrs.as_slice() == ["VALUE"])
-        && !document.parameter().is_some_and(|param| values::readable(&param.value))
+        && !parameter(node).is_some_and(|param| values::readable(&param.value))
     {
         return Ok(None);
     }
     let mut bytes = Limit(Vec::new());
     serde_json::to_writer(&mut bytes, &document).map_err(|_| QueryError::TooLarge)?;
     Ok(Some(bytes.0))
+}
+
+pub(super) fn resolve<'a>(snapshot: &'a UiSnapshotCapture, path: &str) -> Option<&'a UiNodeDto> {
+    let mut node = snapshot.node(snapshot.root())?;
+    if path != "/" {
+        for segment in path.strip_prefix('/')?.split('/') {
+            node = resolve_child(snapshot, node, segment)?;
+        }
+    }
+    Some(node)
+}
+
+fn resolve_child<'a>(snapshot: &'a UiSnapshotCapture, parent: &UiNodeDto, segment: &str) -> Option<&'a UiNodeDto> {
+    let children = || parent.children.iter().filter_map(|id| snapshot.node(*id));
+    if let Some(uuid) = segment.strip_prefix('~') {
+        let child = children().find(|child| child.uuid.0.as_simple().encode_lower(&mut [0; 32]) == uuid)?;
+        // Accept the address returned by the hierarchy, including its fallback rule.
+        if short_name(child)
+            .is_none_or(|name| children().filter(|sibling| short_name(sibling) == Some(name)).count() > 1)
+        {
+            return Some(child);
+        }
+    } else {
+        let mut matches = children().filter(|child| short_name(child) == Some(segment));
+        let child = matches.next()?;
+        if matches.next().is_none() {
+            return Some(child);
+        }
+    }
+    None
+}
+
+pub(super) fn parameter(node: &UiNodeDto) -> Option<&UiParamDto> {
+    match &node.data {
+        UiNodeDataDto::Parameter { param } => Some(param),
+        _ => None,
+    }
 }
 
 fn short_name(node: &UiNodeDto) -> Option<&str> {
@@ -122,12 +151,6 @@ impl Document<'_> {
     fn wants(&self, attribute: &str) -> bool {
         self.selected.is_none_or(|attributes| attributes.contains(&attribute))
     }
-    fn parameter(&self) -> Option<&golden_protocol::UiParamDto> {
-        match &self.node.data {
-            UiNodeDataDto::Parameter { param } => Some(param),
-            _ => None,
-        }
-    }
     fn description(&self) -> &str {
         let meta = &self.node.meta;
         meta.description
@@ -151,7 +174,7 @@ impl Serialize for Document<'_> {
             return Err(S::Error::custom("OSCQuery subtree is too deep"));
         }
         let mut map = serializer.serialize_map(None)?;
-        let param = self.parameter();
+        let param = parameter(self.node);
         if self.wants("FULL_PATH") {
             map.serialize_entry("FULL_PATH", self.path)?;
         }
@@ -159,8 +182,10 @@ impl Serialize for Document<'_> {
             map.serialize_entry("DESCRIPTION", self.description())?;
         }
         if self.wants("ACCESS") {
-            let readable = param.is_some_and(|param| values::readable(&param.value));
-            map.serialize_entry("ACCESS", &u8::from(readable))?;
+            let access = param.map_or(0, |param| {
+                u8::from(values::readable(&param.value)) | (u8::from(!param.read_only) << 1)
+            });
+            map.serialize_entry("ACCESS", &access)?;
         }
         if let Some(param) = param {
             if self.wants("TYPE") {

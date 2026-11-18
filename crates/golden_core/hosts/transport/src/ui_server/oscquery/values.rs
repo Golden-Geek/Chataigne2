@@ -1,6 +1,10 @@
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use golden_engine::parameter::{ParamValue, RangeConstraint};
+use golden_engine::{
+    node::NodeUuid,
+    parameter::{CssValue, NodeReference, ParamValue, RangeConstraint},
+};
 use golden_protocol::{UiParamDto, UiSchemaView};
+use rosc::OscType;
 use serde_json::{Map, Value, json};
 
 pub(super) fn readable(value: &ParamValue) -> bool {
@@ -42,6 +46,49 @@ pub(super) fn value(param: &UiParamDto) -> Option<Value> {
             value.uuid.0.to_string()
         }]),
     })
+}
+
+pub(super) fn incoming(target: &ParamValue, args: &[OscType]) -> Option<ParamValue> {
+    use OscType as Osc;
+    use ParamValue as Param;
+    Some(match (target, args) {
+        (Param::Trigger(), [] | [Osc::Inf]) => Param::Trigger(),
+        (Param::Int(_), [Osc::Int(value)]) => Param::Int(*value),
+        (Param::Int(_), [Osc::Long(value)]) => Param::Int((*value).try_into().ok()?),
+        (Param::Float(_), [value]) => Param::Float(number(value)?),
+        (Param::Bool(_), [Osc::Bool(value)]) => Param::Bool(*value),
+        (Param::Bool(_), [Osc::Int(value @ (0 | 1))]) => Param::Bool(*value == 1),
+        (Param::Str(_), [Osc::String(value)]) => Param::Str(value.clone()),
+        (Param::File(_), [Osc::String(value)]) => Param::File(value.clone()),
+        (Param::Enum(_), [Osc::String(value)]) => Param::Enum(value.clone()),
+        (Param::Bytes(_), [Osc::Blob(value)]) => Param::Bytes(value.clone()),
+        (Param::CssValue(_), [Osc::String(value)]) => {
+            let value = CssValue::parse(value)?;
+            value.value.is_finite().then_some(Param::CssValue(value))?
+        }
+        (Param::Reference(_), [Osc::String(value)]) if value.is_empty() => Param::Reference(NodeReference::empty()),
+        (Param::Reference(_), [Osc::String(value)]) => {
+            Param::Reference(NodeReference::new(NodeUuid(value.parse().ok()?)))
+        }
+        (Param::Vec2(..), [x, y]) => Param::Vec2(number(x)?, number(y)?),
+        (Param::Vec3(..), [x, y, z]) => Param::Vec3(number(x)?, number(y)?, number(z)?),
+        (Param::Color(..), [r, g, b, a]) => Param::Color(number(r)?, number(g)?, number(b)?, number(a)?),
+        (Param::Color(..), [Osc::Color(color)]) => {
+            let unit = |value| f64::from(value) / 255.0;
+            Param::Color(unit(color.red), unit(color.green), unit(color.blue), unit(color.alpha))
+        }
+        _ => return None,
+    })
+}
+
+fn number(value: &OscType) -> Option<f64> {
+    let value = match value {
+        OscType::Float(value) => f64::from(*value),
+        OscType::Double(value) => *value,
+        OscType::Int(value) => f64::from(*value),
+        _ => return None,
+    };
+    value.is_finite().then_some(value)
 }
 
 pub(super) fn range(schema: &UiSchemaView, param: &UiParamDto) -> Option<Vec<Value>> {
