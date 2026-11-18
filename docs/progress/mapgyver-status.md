@@ -1,10 +1,10 @@
 # MapGyver — simple status
 
 - **Updated:** 18 November 2026.
-- **Overall plan acceptance:** `████████░░` **83% — 101/121 checks accepted**. Matrix color menus are now accepted. Deferred verification is still counted as unfinished.
-- **Latest delivered:** Matrix Set Color / Reset Color menus for Layers, Cells, Columns and both Group kinds; shared Golden picker, one palette Undo step, sparse Cell creation, preserved multiselection and offscreen Inspector/reload.
-- **Working on next:** Compact Layer Groups are implemented; app layout, Inspector and interaction checks are next. Opacity and Blend Mode remain in the Inspector.
-- **Manual action needed from you now: none.** Linked-Surface and color checks passed; their owned test windows have closed.
+- **Overall plan acceptance:** `████████░░` **84% — 102/121 checks accepted**. Compact Layer Groups are now accepted. Deferred verification is still counted as unfinished.
+- **Latest delivered:** Compact single-line Layer Groups with Inspector Opacity/Blend Mode, nested/empty collapse, preserved hidden selection and shared mixed-height preview/scroll geometry; history, existing projects and reload pass.
+- **Working on next:** Colored left-side wrapping rails to make nested Group membership clear.
+- **Manual action needed from you now: none.** Compact Group and existing-project checks passed; owned test windows have closed.
 
 ## Done — code and normal-use checks passed
 
@@ -24,6 +24,7 @@
 - [x] **Matrix:** Layers, Columns, Cells, Groups, sparse scrolling, media drops/copies/references and normal playback/crossfades.
 - [x] **Matrix selection/colors:** only explicitly selected objects highlight; modifier multiselection works; Layers/Columns/Cells/Groups show Golden custom colors. Inspector color edits, Undo, copies and reload pass focused checks.
 - [x] **Matrix color menus:** right-click Layers, Cells, Columns and both Group kinds to Set Color / Reset Color. Shared picker, grouped Undo/Redo, empty Cells, unchanged multiselection, Inspector synchronization, offscreen access and reload pass.
+- [x] **Compact Layer Groups:** one-line headers; Opacity/Blend Mode in the Inspector. Nested/empty collapse, hidden selection, Undo/Redo, old/new projects, reload and scaled/narrow geometry pass.
 - [x] **Matrix appearance:** quieter borders, small rounded corners and a short active-Cell shadow. Selection/colors remain distinct; reduced motion works; app visual review and focused scaling/narrow-grid checks pass.
 - [x] **Column enable/disable:** Inspector toggles mute current/outgoing content; group inheritance, disabled editing, Undo, copy/reload and resume pass focused checks.
 - [x] **Matrix presets:** capture/update/rename/delete/recall Layer/Column order and enabled states; contextual menus, commands and named scripts. Paged member Inspector editing, offscreen access, Undo/Redo, copies/reload and live/outgoing playback pass. Cells stay intact.
@@ -35,13 +36,12 @@
 
 ## Next features — implementation order
 
-1. **NOW — Compact Layer Groups:** code is built for single-line headers, collapse and matching preview/scroll positions. Software checks pass; app layout/Inspector/interaction verification remains.
-2. **Readable nested Groups:** visible left-side wrapping rails in each Group's color, with clear membership at multiple nesting levels.
-3. **Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
-4. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
-5. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
-6. **Extended Video codecs:** DXV and WebP/animated WebP.
-7. **Subtitles:** optional, disableable subtitle controls and display.
+1. **NOW — Readable nested Groups:** visible left-side wrapping rails in each Group's color, with clear membership at multiple nesting levels.
+2. **Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
+3. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+4. **Shared Texture defaults:** auto-select external senders only; mark internal outputs and keep deliberate manual choices.
+5. **Extended Video codecs:** DXV and WebP/animated WebP.
+6. **Subtitles:** optional, disableable subtitle controls and display.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 

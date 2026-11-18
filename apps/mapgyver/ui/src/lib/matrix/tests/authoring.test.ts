@@ -499,3 +499,24 @@ test('persisted bindings copy typed identities, clamp view bounds and reject mal
 		}).viewport.row_count <= 64
 	);
 });
+
+test('persisted mixed-height viewports retain their physical query after the panel reapplies its own state', () => {
+	const viewport = {
+		row_start: 4,
+		row_count: 24,
+		axis_start: 0,
+		axis_count: 10,
+		row_layout: { offset: 135.75, layer_height: 7.5, group_height: 2.1 }
+	};
+	const restored = matrixPanelState({ viewport }).viewport;
+	assert.deepEqual(restored, viewport);
+	assert.notEqual(restored.row_layout, viewport.row_layout);
+	for (const bad of [NaN, Infinity, -1]) {
+		assert.equal(
+			matrixPanelState({
+				viewport: { ...viewport, row_layout: { ...viewport.row_layout, offset: bad } }
+			}).viewport.row_layout,
+			undefined
+		);
+	}
+});

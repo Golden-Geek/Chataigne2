@@ -6,6 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
 import { verifyMatrixAppearance } from './matrix-appearance.mjs';
 import { verifyMatrixColumnEnabled } from './matrix-column-enabled.mjs';
+import { verifyCompactGroups, verifyExistingCompactGroup } from './matrix-compact-groups.mjs';
 
 const directory = path.resolve(process.argv[2]);
 const contextMenus = process.argv.includes('--context-menus');
@@ -16,6 +17,47 @@ const errors = [];
 page.on('pageerror', (error) => errors.push(String(error)));
 let token;
 let stage = 'setup';
+const historyTrace = [];
+if (process.argv.includes('--trace-history')) {
+	const client = await page.context().newCDPSession(page);
+	client.on('Network.webSocketFrameSent', ({ response }) => {
+		try {
+			const frame = JSON.parse(response.payloadData);
+			if (frame.kind !== 'intent' && frame.kind !== 'intentBatch') return;
+			historyTrace.push({
+				stage,
+				request: frame.request_id,
+				intent: frame.intent ?? frame.intents
+			});
+			if (historyTrace.length > 100) historyTrace.shift();
+		} catch {}
+	});
+	client.on('Network.webSocketFrameReceived', ({ response }) => {
+		try {
+			const frame = JSON.parse(response.payloadData);
+			if (frame.kind !== 'control' || !['applied', 'rejected'].includes(frame.update.phase)) return;
+			const update = frame.update;
+			historyTrace.push({
+				stage,
+				request: update.request_id,
+				phase: update.phase,
+				ack: (update.acknowledgements ?? [update.acknowledgement]).filter(Boolean).map((ack) => ({
+					success: ack.success,
+					error: ack.error_message,
+					history: ack.history,
+					projection: ack.result?.value?.page?.snapshot
+						? {
+								groups: ack.result.value.page.snapshot.group_total,
+								cells: ack.result.value.page.snapshot.cells.map((entry) => entry.cell.id)
+							}
+						: undefined
+				}))
+			});
+			if (historyTrace.length > 100) historyTrace.shift();
+		} catch {}
+	});
+	await client.send('Network.enable');
+}
 async function post(route, body) {
 	const response = await fetch(native.base + route, {
 		method: 'POST',
@@ -271,6 +313,10 @@ try {
 		);
 		assert.deepEqual(await selected(), before);
 	}
+	stage = 'compact Group headers and Inspector';
+	const compact = process.argv.includes('--compact-groups')
+		? await verifyCompactGroups({ page, grid, matrix, group: rowGroup, wait })
+		: null;
 	stage = 'selected colored Cell remains editable offscreen';
 	await choose(cell, cellId);
 	await matrix({ kind: 'AddLayers', parent: null, count: 30 });
@@ -340,8 +386,25 @@ try {
 	const columnEnabled = process.argv.includes('--column-enabled')
 		? await verifyMatrixColumnEnabled({ page, grid, column, matrix, post, directory, wait })
 		: null;
+	if (compact) {
+		const restored = (await matrix({ kind: 'Inspect' })).snapshot;
+		const group = restored.items.find((item) => item.id.id === compact.group);
+		assert.equal(group.settings.opacity, compact.expected.opacity);
+		assert.equal(group.settings.blend, compact.expected.blend);
+		compact.reload = true;
+	}
 	assert.deepEqual(errors, []);
 	await page.screenshot({ path: path.join(directory, 'matrix-selection-color.png') });
+	const existingArgument = process.argv.indexOf('--existing-project');
+	const existing =
+		existingArgument >= 0
+			? await verifyExistingCompactGroup({
+					page,
+					post,
+					wait,
+					project: path.resolve(process.argv[existingArgument + 1])
+				})
+			: null;
 	const result = {
 		result: 'pass',
 		pid: native.app.pid,
@@ -351,11 +414,18 @@ try {
 		contextMenus,
 		colors,
 		appearance,
-		columnEnabled
+		columnEnabled,
+		compact,
+		existing
 	};
 	await writeFile(path.join(directory, 'result.json'), JSON.stringify(result, null, 2));
 	console.log(JSON.stringify(result));
 } catch (error) {
+	if (historyTrace.length)
+		await writeFile(
+			path.join(directory, 'history-trace.json'),
+			JSON.stringify(historyTrace, null, 2)
+		);
 	await page.screenshot({ path: path.join(directory, 'failed-native-check.png') }).catch(() => {});
 	throw error;
 } finally {

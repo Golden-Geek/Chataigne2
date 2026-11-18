@@ -20,6 +20,18 @@ const offset = (value: unknown) =>
 export function matrixPanelState(value: Partial<MatrixPanelState> = {}): MatrixPanelState {
 	const valid = uuid(value.document) && uuid(value.media),
 		item = value.selection?.item;
+	const layout = value.viewport?.row_layout;
+	const validLayout =
+		layout &&
+		[layout.offset, layout.layer_height, layout.group_height].every(
+			(value) => typeof value === 'number' && Number.isFinite(value)
+		) &&
+		layout.offset >= 0 &&
+		layout.offset <= 1e12 &&
+		layout.layer_height > 0 &&
+		layout.layer_height <= 50000 &&
+		layout.group_height > 0 &&
+		layout.group_height <= 50000;
 	return {
 		document: valid ? value.document! : null,
 		media: valid ? value.media! : null,
@@ -35,6 +47,7 @@ export function matrixPanelState(value: Partial<MatrixPanelState> = {}): MatrixP
 			: null,
 		node: valid && uuid(value.node) ? value.node : null,
 		viewport: {
+			...(validLayout ? { row_layout: { ...layout } } : {}),
 			row_start: integer(value.viewport?.row_start, 0xffffffff),
 			axis_start: integer(value.viewport?.axis_start, 0xffffffff),
 			row_count: Math.max(1, integer(value.viewport?.row_count, 64, 32)),

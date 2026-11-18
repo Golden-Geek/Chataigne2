@@ -5,6 +5,7 @@ import { chromium } from 'playwright-core';
 import { gridSelectionChecks } from './selection.mjs';
 import { gridAppearanceChecks } from './appearance.mjs';
 import { gridColumnEnabledChecks } from './column-enabled.mjs';
+import { compactGroupScaleChecks } from './compact-groups.mjs';
 
 const configFile = fileURLToPath(
 	new URL('../../../screens/tests/browser/vite.config.ts', import.meta.url)
@@ -29,10 +30,12 @@ try {
 	await gridSelectionChecks(page);
 	await gridAppearanceChecks(page);
 	await gridColumnEnabledChecks(page);
+	const compact = await compactGroupScaleChecks(browser, `http://127.0.0.1:${address.port}`);
 	assert.deepEqual(errors, []);
 	console.log(
 		JSON.stringify({
 			result: 'pass',
+			compact,
 			scope:
 				'Production Matrix grid: selection/colors, rounded quiet cards, active-state isolation, stable geometry, interrupted transitions, reduced motion, narrow/scaled themes and independent panels; no GPU timing qualification'
 		})

@@ -36,6 +36,8 @@ Optional `MatrixViewport.row_layout` carries viewport-dependent row heights and 
 the backend finds the bounded window by binary search. `rowOffset` uses the same prefix counts
 for DOM hit targets, native preview tiles and trailing creation headers. No complete row list
 is transferred to determine mixed-height scrolling.
+Panel-state normalization preserves and validates that physical query when Dockview reapplies
+the panel's saved state; dropping it would replace the current mixed-height projection.
 
 Group expansion edits Golden's existing `presentation.collapsed` metadata. A Group listens
 only to its own metadata and invalidates the cached view when that flag changes; color edits

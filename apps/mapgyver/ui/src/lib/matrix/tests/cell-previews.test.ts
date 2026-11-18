@@ -102,3 +102,18 @@ test('adaptive DOM and native tiles share expanded cell spans after resize at di
 		}
 	}
 });
+
+test('compact Group prefixes shift native Cell tiles by header height rather than Layer height', () => {
+	const { snapshot, metrics } = scene();
+	snapshot.row_total += 2;
+	snapshot.group_total = 2;
+	snapshot.rows[0].visible_index = 2;
+	snapshot.rows[0].groups_before = 2;
+	for (const rem of [12, 16, 24]) {
+		const shared = cellPreviewGroups(snapshot, { ...metrics, rem }).find(
+			(group) => JSON.parse(group.source).reference.media === 'shared-media'
+		)!;
+		assert(Math.abs(shared.tiles[0].y - (2 * gridSize.group + 0.2) * rem) < 1e-8);
+		assert.equal(shared.tiles.length, 2);
+	}
+});
