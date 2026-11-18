@@ -101,6 +101,21 @@ async function subtitles(settings, reference = video) {
 	assert.equal(authored.kind, 'VideoSubtitles');
 	assert.deepEqual(authored.settings, settings);
 }
+async function subtitleInspector(reference) {
+	const { snapshot } = await edit({ kind: 'InspectChannel', reference });
+	const row = page
+		.locator(
+			'.channels-section > .node-inspector-children > .node-inspector-children-wrapper > .node-inspector'
+		)
+		.filter({ has: page.getByText(snapshot.label, { exact: true }) });
+	const channelHeader = row.locator(':scope > .node-header > .node-title');
+	if ((await channelHeader.getAttribute('aria-checked')) === 'false') {
+		await channelHeader.press('Enter');
+	}
+	return row.locator('.node-inspector.container').filter({
+		has: page.getByText('Subtitles', { exact: true })
+	});
+}
 async function wait(read, accept, label) {
 	const deadline = performance.now() + 10000;
 	for (;;) {
@@ -301,7 +316,33 @@ try {
 		size: 16,
 		position: [0.7, 0.75]
 	};
-	await subtitles(peerSettings, peer);
+	await subtitles({ ...peerSettings, track: { kind: 'None' } }, peer);
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Medias$/ })
+		.click();
+	await page
+		.getByRole('region', { name: 'Medias', exact: true })
+		.getByRole('button', { name: videoLabel, exact: true })
+		.click();
+	const peerInspector = await subtitleInspector(peer);
+	const peerHeader = peerInspector.locator(':scope > .node-header > .node-title');
+	if ((await peerHeader.getAttribute('aria-checked')) === 'false') {
+		await peerHeader.press('Enter');
+	}
+	const peerTrackChoice = peerInspector
+		.locator('.parameter-inspector')
+		.filter({ has: page.getByText('Track', { exact: true }) })
+		.getByRole('combobox');
+	assert.equal(await peerTrackChoice.inputValue(), 'None');
+	assert.equal(await peerTrackChoice.getByRole('option', { name: embeddedTrack.label }).count(), 0);
+	await peerTrackChoice.selectOption({ label: peerTrack.label });
+	await wait(
+		() => inspect(peer),
+		(value) => value.settings.track.kind === 'Embedded',
+		'Inspector selects the second channel embedded track'
+	);
+	assert.deepEqual((await inspect(peer)).settings, peerSettings);
 	const peerPixels = await image(
 		peerOutput,
 		'second channel uses the caption and placement of its own embedded file',
@@ -333,27 +374,9 @@ try {
 		(value) => value.sha256 === changed.sha256
 	);
 
-	await page
-		.getByRole('tab')
-		.filter({ hasText: /^Medias$/ })
-		.click();
-	await page
-		.getByRole('region', { name: 'Medias', exact: true })
-		.getByRole('button', { name: videoLabel, exact: true })
-		.click();
-	const { snapshot: firstChannel } = await edit({ kind: 'InspectChannel', reference: video });
-	const row = page
-		.locator(
-			'.channels-section > .node-inspector-children > .node-inspector-children-wrapper > .node-inspector'
-		)
-		.filter({ has: page.getByText(firstChannel.label, { exact: true }) });
-	const channelHeader = row.locator(':scope > .node-header > .node-title');
-	if ((await channelHeader.getAttribute('aria-checked')) === 'false') {
-		await channelHeader.press('Enter');
-	}
-	const switchControl = row
-		.locator('.node-inspector.container > .node-header')
-		.filter({ has: page.getByText('Subtitles', { exact: true }) })
+	const firstInspector = await subtitleInspector(video);
+	const switchControl = firstInspector
+		.locator(':scope > .node-header')
 		.getByRole('switch', { name: 'Toggle node enabled', exact: true });
 	await wait(
 		() => switchControl.getAttribute('aria-checked'),

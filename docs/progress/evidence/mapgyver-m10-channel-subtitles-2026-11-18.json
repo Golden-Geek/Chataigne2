@@ -46,6 +46,13 @@
     "distinctPixelChecks": 19,
     "verified": "In the same Media, the second channel used its own embedded track while the first used a local SRT. Editing the second kept the first channel's output identical. Using the Inspector to disable the first kept the second channel's output identical."
   },
+  "inspectorRecheck": {
+    "date": "2026-11-19",
+    "localReceipt": "target/mapgyver-subtitle-inspector-feedback/run-T3i65H/result.json",
+    "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "result": "pass",
+    "verified": "The second Video channel's Inspector Track menu offered its own embedded stream and excluded the first channel's stream. Choosing the track rendered the second caption and preserved the first channel's local SRT output pixel for pixel. Disabling the first channel in the Inspector preserved the second channel's caption pixel for pixel."
+  },
   "pending": [
     "Moving native Media Preview and output at multiple speeds, including reverse and hard/smooth loop boundaries on full and cropped ranges",
     "Broader native consumer, mixed-duration and file replacement coverage during playback",
