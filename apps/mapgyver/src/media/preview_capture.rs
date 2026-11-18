@@ -104,6 +104,7 @@ pub(crate) fn capture_editor_channels(
                             transitioning: false,
                             layers: Default::default(),
                         },
+                        mix: None,
                         canvas: settings.size,
                         opacity: 1.0,
                         inputs: source

@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-18",
+  "gate": "M16/12",
+  "result": "accepted",
+  "software": {
+    "rustTests": 18,
+    "uiTests": 3,
+    "coverage": "Shared-clock interruption and Cut, maximum Column weight across different Layer envelopes, independent launches, submitted-plan correlation, coalescing and both generated contracts",
+    "strictClippy": "pass",
+    "svelteCheck": { "errors": 0, "warnings": 0 },
+    "rustFormattingAndPrettier": "pass"
+  },
+  "bundledApp": {
+    "fixture": "apps/mapgyver/tests/browser/matrix-transition-lines.mjs",
+    "processId": 31384,
+    "exitCode": 0,
+    "passedCheckGroups": 6,
+    "localReceipt": "target/m1612-lines-3a8b15c8/result.json",
+    "coverage": "Actual WebView2 line geometry for Cell and Column anchors, editor-only playback without a Final submission, interrupted fade, virtualized row mounting, immediate Cut and natural completion with an active Spout output",
+    "widthFractions": {
+      "linearIncomingOutgoing": [0.215, 0.786],
+      "interruptedOutgoingPair": [0.782, 0.218],
+      "newlyMountedCellAndColumn": [0.021, 0.021]
+    },
+    "build": "Isolated bundled UI with pinned FFmpeg on PATH and Tauri resource copying disabled for the test build"
+  }
+}

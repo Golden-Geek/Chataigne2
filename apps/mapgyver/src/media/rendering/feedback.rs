@@ -11,6 +11,7 @@ use std::collections::HashMap;
 struct Binding {
     reference: ChannelReference,
     stamp: MatrixPlanStamp,
+    mix: Option<std::sync::Arc<MatrixPlaybackMix>>,
     availability: crate::media::resolution::ChannelAvailability,
 }
 struct Publication {
@@ -40,6 +41,7 @@ impl Feedback {
                 Some(Binding {
                     reference: channel.reference,
                     stamp: matrix.observation.clone(),
+                    mix: matrix.mix.clone(),
                     availability: prepared.resolution.availability,
                 })
             })
@@ -157,6 +159,8 @@ impl ChannelRenderer {
                         availability: channel.resolution.availability,
                         installed: installed_stamp.map(|binding| binding.stamp.clone()),
                         submitted: submitted.map(|binding| binding.stamp.clone()),
+                        mix: submitted.and_then(|binding| binding.mix.clone()),
+                        observed_at_ms: None,
                         error: error.clone(),
                     },
                 ))

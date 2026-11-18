@@ -45,6 +45,7 @@ pub(crate) struct MatrixPlacement {
 pub(crate) struct CapturedMatrix {
     pub applications: super::applications::CapturedApplications,
     pub observation: MatrixPlanStamp,
+    pub mix: Option<std::sync::Arc<MatrixPlaybackMix>>,
     pub canvas: golden_video::Extent2D,
     pub opacity: f32,
     pub inputs: Vec<MatrixInput>,
@@ -98,6 +99,9 @@ impl CapturedMatrix {
                 self.observation.column_groups = group_stamp(&index, frame, self.layer);
                 self.observation.layers = frame.stamps.clone();
                 self.observation.transitioning = self.until.is_some();
+                if self.mix.is_some() {
+                    self.mix = Some(frame.playback_mix(&index));
+                }
                 Ok(())
             })?;
         }
@@ -106,6 +110,48 @@ impl CapturedMatrix {
     pub fn needs_scratch(&self) -> bool {
         self.opacity < 1.0 && self.inputs.len() > 1
     }
+}
+
+pub(crate) fn playback_observation(
+    engine: &AppEngine,
+    reference: ChannelReference,
+    project: uuid::Uuid,
+    time: Option<golden_time::TimeSnapshot>,
+    guards: &mut Vec<RevisionGuard>,
+) -> Result<Option<MatrixRenderStatus>, String> {
+    let Ok(root) = super::playback::root(engine, reference.media) else {
+        return Ok(None);
+    };
+    let Some(AppNode::MediaChannel(root)) = engine.nodes.get(root) else {
+        return Ok(None);
+    };
+    if root.node_data().meta.uuid != reference.channel.0 {
+        return Ok(None);
+    }
+    let control = root.matrix_playback().ok_or("Matrix runtime owner is missing")?;
+    let index = super::projection::index(engine, reference.media, control)?;
+    let observation = control.with_frame(time, |_, frame, playback| {
+        Ok(MatrixRenderStatus {
+            project,
+            desired: MatrixPlanStamp {
+                playback: playback.clone(),
+                revision: control.authoring_revision(),
+                columns: frame.columns(),
+                column_groups: group_stamp(&index, frame, None),
+                transitioning: frame.next.is_some(),
+                layers: frame.stamps.clone(),
+            },
+            stage: MatrixPreparationStage::Published,
+            availability: crate::media::resolution::ChannelAvailability::Ready,
+            installed: None,
+            submitted: None,
+            mix: Some(frame.playback_mix(&index)),
+            observed_at_ms: None,
+            error: None,
+        })
+    })?;
+    guards.extend([root.guard(), control.guard()]);
+    Ok(observation)
 }
 
 pub(crate) fn capture(
@@ -159,6 +205,7 @@ pub(crate) fn capture(
                     transitioning: until.is_some(),
                     layers: frame.stamps.clone(),
                 },
+                mix: matches!(output, MatrixOutput::Final { .. }).then(|| frame.playback_mix(&index)),
                 canvas: match media.size_policy(engine) {
                     crate::media::protocol::SizePolicy::Fixed { extent } => extent,
                     crate::media::protocol::SizePolicy::Automatic => crate::media::resolution::default_canvas(),

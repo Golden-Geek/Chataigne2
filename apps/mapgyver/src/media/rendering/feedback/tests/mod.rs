@@ -195,10 +195,15 @@ fn requests_installation_and_submission_are_distinct_and_pending_launch_preserve
         rendered.submitted.as_ref().unwrap().playback.launch_id,
         rendered.desired.playback.launch_id
     );
+    let mix = rendered.mix.as_ref().unwrap();
+    assert_eq!(mix.base.weights.len(), 1);
+    assert_eq!(mix.base.weights[0].column, columns[0]);
+    assert_eq!(mix.base.weights[0].to, 1.0);
     let mut no_frame = owner.snapshot();
     no_frame.last_frame = None;
     let only_installed = owner.matrix_statuses_from(no_frame).remove(0).1;
     assert!(only_installed.installed.is_some() && only_installed.submitted.is_none());
+    assert!(only_installed.mix.is_none());
     launch(&mut engine, matrix, columns[1]);
     assert_eq!(status(&owner).stage, MatrixPreparationStage::Changed);
     let request = publish(&mut owner, &engine, matrix);

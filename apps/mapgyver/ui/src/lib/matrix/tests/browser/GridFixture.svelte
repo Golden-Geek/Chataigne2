@@ -208,6 +208,8 @@
 					desired: plan,
 					installed: plan,
 					submitted: plan,
+					mix: null,
+					observed_at_ms: null,
 					stage: 'Published',
 					availability: 'Ready',
 					error: null

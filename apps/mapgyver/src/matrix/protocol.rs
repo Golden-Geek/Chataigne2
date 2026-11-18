@@ -742,6 +742,40 @@ pub struct MatrixLayerPlanStamp {
     pub transitioning: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct MatrixPlaybackMix {
+    pub base: MatrixMix,
+    pub base_in_use: bool,
+    pub layers: Vec<MatrixLayerMix>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct MatrixLayerMix {
+    pub layer: LayerId,
+    pub mix: MatrixMix,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct MatrixMix {
+    pub interval: Option<MatrixMixInterval>,
+    pub weights: Vec<MatrixMixWeight>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct MatrixMixInterval {
+    pub start_ms: u64,
+    pub duration_ms: u32,
+    pub curve: TransitionCurve,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize, TS)]
+pub struct MatrixMixWeight {
+    pub column: ColumnId,
+    pub from: f32,
+    pub to: f32,
+    pub individual: bool,
+}
+
 /// Metadata of the Matrix content carried by one renderer plan, never UI selection.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub struct MatrixPlanStamp {
@@ -768,7 +802,7 @@ pub enum MatrixPreparationStage {
     Stopped,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 pub struct MatrixRenderStatus {
     pub project: uuid::Uuid,
     pub desired: MatrixPlanStamp,
@@ -777,6 +811,10 @@ pub struct MatrixRenderStatus {
     pub installed: Option<MatrixPlanStamp>,
     /// Actual shared-plan frame submission, distinct from native output acceptance/presentation.
     pub submitted: Option<MatrixPlanStamp>,
+    /// Mix from that same submitted Final plan, shared by all virtualized views of this Matrix.
+    pub mix: Option<std::sync::Arc<MatrixPlaybackMix>>,
+    /// Render-clock coordinate sampled when emitting this observation.
+    pub observed_at_ms: Option<u64>,
     pub error: Option<String>,
 }
 pub use super::presets::protocol::{MatrixPresetEdit, MatrixPresetMembers, MatrixPresetSummary};

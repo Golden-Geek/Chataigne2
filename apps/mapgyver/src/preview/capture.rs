@@ -129,6 +129,7 @@ fn capture_preview_with_time(
     let mut channels = Vec::new();
     let mut screens = Vec::new();
     let mut statuses = Vec::new();
+    let mut playback_observers = Vec::new();
     let mut guards = vec![membership_guard(engine)?];
     let mut editors = Vec::new();
     for &source in sources {
@@ -150,6 +151,7 @@ fn capture_preview_with_time(
                 });
             }
             PreviewSource::Channel { reference } => channels.push(reference),
+            source @ PreviewSource::MatrixPlayback { reference } => playback_observers.push((source, reference)),
             source @ PreviewSource::MatrixCell { .. } => editors.push(source),
             PreviewSource::Screen { screen } => {
                 if let Some(guard) = crate::screens::rendering::screen_guard(engine, screen) {
@@ -184,8 +186,22 @@ fn capture_preview_with_time(
     }
     let mut unique = HashSet::new();
     channels.retain(|source| unique.insert(*source));
+    let channels = crate::media::capture_editor_channels(engine, &channels, &editors, maximum_sources, time)?;
+    for (source, reference) in playback_observers {
+        if let Some(matrix) =
+            crate::matrix::capture::playback_observation(engine, reference, channels.project, time, &mut guards)?
+        {
+            statuses.push(PreviewStatus {
+                source,
+                extent: None,
+                error: None,
+                message: None,
+                matrix: Some(matrix),
+            });
+        }
+    }
     Ok(CapturedPreview {
-        channels: crate::media::capture_editor_channels(engine, &channels, &editors, maximum_sources, time)?,
+        channels,
         screens,
         catalog: Vec::new(),
         outputs: Vec::new(),
@@ -248,7 +264,7 @@ pub(crate) fn capture_presentation_with_time(
         .iter()
         .filter_map(|source| match source {
             PreviewSource::Channel { reference } => Some(*reference),
-            PreviewSource::MatrixCell { .. } => None,
+            PreviewSource::MatrixCell { .. } | PreviewSource::MatrixPlayback { .. } => None,
             PreviewSource::Screen { .. } => None,
             PreviewSource::Calibration { .. } => None,
         })

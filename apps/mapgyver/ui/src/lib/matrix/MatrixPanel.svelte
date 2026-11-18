@@ -249,6 +249,7 @@
 					snapshot={matrixWindow}
 					selected={view.selected}
 					{observation}
+					observationReceivedAt={owner.observationReceivedAt}
 					applicationRuntime={owner.applicationRuntime}
 					disabled={busy}
 					viewport={(value) => controller.setViewport(value)}

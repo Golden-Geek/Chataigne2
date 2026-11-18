@@ -9,7 +9,7 @@
 	const groups = $derived(cellPreviewGroups(snapshot, metrics));
 	const visible = $derived(groups.length > 0);
 	const source = $derived(
-		JSON.stringify({ kind: 'Channel', reference: snapshot.final_output.reference })
+		JSON.stringify({ kind: 'MatrixPlayback', reference: snapshot.final_output.reference })
 	);
 </script>
 

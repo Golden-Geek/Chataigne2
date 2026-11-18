@@ -76,6 +76,10 @@ pub enum PreviewSource {
         media: crate::media::protocol::MediaId,
         cell: crate::matrix::protocol::CellId,
     },
+    /// Metadata-only parent of the tiled Matrix editor. Never admits a render target.
+    MatrixPlayback {
+        reference: ChannelReference,
+    },
     Screen {
         screen: ScreenId,
     },
@@ -90,7 +94,7 @@ impl PreviewSource {
                 media,
                 channel: crate::media::protocol::ChannelId(cell.0),
             }),
-            Self::Screen { .. } | Self::Calibration { .. } => None,
+            Self::Screen { .. } | Self::Calibration { .. } | Self::MatrixPlayback { .. } => None,
         }
     }
 }

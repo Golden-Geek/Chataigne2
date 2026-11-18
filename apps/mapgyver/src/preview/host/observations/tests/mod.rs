@@ -35,6 +35,8 @@ fn submitted() -> PreviewStatus {
             availability: ChannelAvailability::Ready,
             installed: Some(stamp.clone()),
             submitted: Some(stamp),
+            mix: None,
+            observed_at_ms: None,
             error: None,
         }),
     }

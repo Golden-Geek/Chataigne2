@@ -30,6 +30,8 @@
 	import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
 	import CellPreviews from './CellPreviews.svelte';
 	import MatrixTransport from './MatrixTransport.svelte';
+	import PlaybackLine from './PlaybackLine.svelte';
+	import { playbackLines } from './playback-mix';
 	import ParameterTrigger from './ParameterTrigger.svelte';
 	import { rowDropTarget, type GridDrag } from './grid-drag';
 	import { CELL_DRAG_TYPE, readCellDrag, type CellDrag } from './cell-transfer';
@@ -41,6 +43,7 @@
 		snapshot,
 		selected,
 		observation,
+		observationReceivedAt = 0,
 		applicationRuntime,
 		disabled,
 		viewport,
@@ -64,6 +67,7 @@
 		snapshot: MatrixViewportSnapshot;
 		selected: MatrixState['selected'];
 		observation: MatrixRenderStatus | null;
+		observationReceivedAt?: number;
 		applicationRuntime: ApplicationRuntimeSnapshot | null;
 		disabled: boolean;
 		viewport(value: MatrixViewport): void;
@@ -111,6 +115,23 @@
 	const submittedLayers = $derived(
 		new Map((observation?.submitted?.layers ?? []).map((entry) => [entry.layer, entry] as const))
 	);
+	const weights = $derived(playbackLines(observation?.mix));
+	let playbackTime = $state(0);
+	$effect(() => {
+		const origin = observation?.observed_at_ms;
+		const received = observationReceivedAt;
+		const until = weights.until;
+		if (origin == null) return;
+		let animation = 0;
+		const tick = (now: number) => {
+			const time = origin + Math.max(0, now - received);
+			playbackTime = time;
+			if (time < until) animation = requestAnimationFrame(tick);
+		};
+		tick(performance.now());
+		return () => cancelAnimationFrame(animation);
+	});
+	const time = () => playbackTime;
 	const cells = $derived(
 		new Map(
 			snapshot.cells.map((value) => [`${value.cell.layer}:${value.cell.definition.column}`, value])
@@ -506,6 +527,7 @@
 					drag={(event, group) => startDrag(event, { kind: 'ColumnGroup', group })} />
 				<div role="row" aria-rowindex="1">
 					{#each snapshot.columns as column, index (column.id)}
+						{@const lines = weights.columns.get(column.id)}
 						<div
 							class="heading"
 							data-matrix-drop="Column"
@@ -563,6 +585,7 @@
 										title="Renderer submitted this mix"></span>
 								{/if}
 							</div>
+							{#if lines}<PlaybackLine {lines} {time} />{/if}
 						</div>
 					{/each}
 				</div>
@@ -588,6 +611,10 @@
 							startDrag={(event) => startDrag(event, { kind: 'Item', item: row.item.id })} />
 						{#each snapshot.columns as column, columnIndex (column.id)}
 							{@const cell = cells.get(`${row.item.id.id}:${column.id}`)}
+							{@const lines =
+								cell && isEnabled(row.item.id.id)
+									? weights.cell(row.item.id.id, column.id)
+									: undefined}
 							<SourceDropZone
 								disabled={disabled || row.item.id.kind !== 'Layer'}
 								addLabel="Set media"
@@ -639,6 +666,7 @@
 											: cell?.source_missing
 												? 'Missing source'
 												: (cell?.source_label ?? '')}</span>
+									{#if lines}<PlaybackLine {lines} {time} />{/if}
 								</button>
 								{#if cell}
 									<span class="cell-controls">
@@ -769,9 +797,6 @@
 	}
 	.installed {
 		box-shadow: inset 0 -0.15rem var(--gc-color-node-inactive);
-	}
-	.submitted {
-		box-shadow: inset 0 -0.2rem var(--gc-color-node-enabled);
 	}
 	.row {
 		position: absolute;

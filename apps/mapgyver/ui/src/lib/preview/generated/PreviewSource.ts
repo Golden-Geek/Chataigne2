@@ -6,4 +6,4 @@ import type { Extent2D } from "./Extent2D";
 import type { MediaId } from "./MediaId";
 import type { ScreenId } from "./ScreenId";
 
-export type PreviewSource = { "kind": "Calibration", mode: Calibration, extent: Extent2D, } | { "kind": "Channel", reference: ChannelReference, } | { "kind": "MatrixCell", media: MediaId, cell: CellId, } | { "kind": "Screen", screen: ScreenId, };
+export type PreviewSource = { "kind": "Calibration", mode: Calibration, extent: Extent2D, } | { "kind": "Channel", reference: ChannelReference, } | { "kind": "MatrixCell", media: MediaId, cell: CellId, } | { "kind": "MatrixPlayback", reference: ChannelReference, } | { "kind": "Screen", screen: ScreenId, };

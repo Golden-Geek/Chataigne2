@@ -43,6 +43,18 @@ and Stop All. The generic Inspector exposes the same Triggers. Compact grid Play
 buttons send Parameter intents to their exact nodes using Golden's declaration-only child
 index. Runtime submission markers report frames independently of these triggers.
 
+The green bottom lines use the Matrix timeline's transport weights. Incoming lines grow from
+the left edge, and outgoing lines shrink toward the right edge. A Cell follows its Layer's
+effective mix. A Column displays the highest incoming or outgoing weight among the Layers
+carrying its Column launch. Independent Cell launches affect their Cell lines. On an
+interruption, the next envelopes start from the weights sampled by the runtime.
+
+The preview worker publishes immutable envelopes alongside coalesced status changes. The grid
+evaluates the envelopes against one local animation clock and uses the current time when a
+virtualized Cell mounts. The tiled editor has a metadata-only playback observer so its lines
+work when it displays Cell thumbnails without a Final output. A submitted Final plan supplies
+its own mix when available, independently of the editor's transport observation.
+
 Column navigation follows the document order through nested Column Groups. Group navigation
 steps among top-level Column Groups, skipping Groups without an enabled Column. A Group
 launches its first enabled descendant Column with the configured transition. The Matrix's

@@ -758,6 +758,19 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                 // A newly registered/reconnected preview needs the current snapshot even when
                 // output metadata is unchanged; frame progression alone still emits nothing.
                 observation_events.publish(layout.generation, statuses, |statuses| {
+                    let mut statuses = statuses.to_vec();
+                    if statuses
+                        .iter()
+                        .any(|status| status.matrix.as_ref().is_some_and(|matrix| matrix.mix.is_some()))
+                    {
+                        let observed_at_ms =
+                            renderer.read_time().map_err(|e| e.to_string())?.monotonic().as_nanos() / 1_000_000;
+                        for matrix in statuses.iter_mut().filter_map(|status| status.matrix.as_mut()) {
+                            if matrix.mix.is_some() {
+                                matrix.observed_at_ms = Some(observed_at_ms);
+                            }
+                        }
+                    }
                     input
                         .window
                         .emit(PREVIEW_STATUS_EVENT, statuses)

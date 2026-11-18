@@ -60,10 +60,19 @@ impl PreviewLayout {
     }
 
     pub fn sources(&self) -> Result<Vec<PreviewSource>, String> {
-        self.layout
+        let mut sources = self
+            .layout
             .source_keys()
             .map(|source| serde_json::from_str(source).map_err(|error| format!("invalid app preview source: {error}")))
-            .collect()
+            .collect::<Result<Vec<_>, _>>()?;
+        for view in &self.layout.views {
+            if view.tile_groups.is_some()
+                && let Ok(source @ PreviewSource::MatrixPlayback { .. }) = serde_json::from_str(&view.source)
+            {
+                sources.push(source);
+            }
+        }
+        Ok(sources)
     }
     pub fn references(&self) -> Result<Vec<ChannelReference>, String> {
         Ok(self
@@ -116,6 +125,7 @@ impl PreviewLayout {
                 regions: self.layout.regions(self.output, |source| {
                     match serde_json::from_str::<PreviewSource>(source).ok()? {
                         PreviewSource::Channel { reference } => channels.get(&reference).copied(),
+                        PreviewSource::MatrixPlayback { .. } => None,
                         source @ PreviewSource::MatrixCell { .. } => channels.get(&source.reference()?).copied(),
                         PreviewSource::Screen { screen } => screens.get(&screen).copied(),
                         source @ PreviewSource::Calibration { .. } => patterns.get(&source).copied(),

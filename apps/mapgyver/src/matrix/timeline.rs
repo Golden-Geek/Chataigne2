@@ -71,6 +71,56 @@ pub(crate) struct Frame {
     target: Option<uuid::Uuid>,
 }
 impl Frame {
+    fn mix(&self) -> MatrixMix {
+        MatrixMix {
+            interval: self.interval.map(|interval| MatrixMixInterval {
+                start_ms: interval.anchor.monotonic().as_nanos() / 1_000_000,
+                duration_ms: interval.duration.as_millis() as u32,
+                curve: match interval.curve {
+                    InterpolationCurve::Linear => TransitionCurve::Linear,
+                    InterpolationCurve::SmoothStep => TransitionCurve::Smooth,
+                },
+            }),
+            weights: self
+                .clips
+                .iter()
+                .map(|entry| MatrixMixWeight {
+                    column: entry.clip.column,
+                    from: entry.from,
+                    to: entry.to,
+                    individual: entry.clip.individual,
+                })
+                .collect(),
+        }
+    }
+
+    pub fn playback_mix(&self, index: &super::projection::RenderIndex) -> Arc<MatrixPlaybackMix> {
+        let mut base_in_use = false;
+        let mut layers = Vec::new();
+        for (&item, entry) in &index.items {
+            let MatrixItemId::Layer { id: layer } = item else {
+                continue;
+            };
+            if !entry.enabled {
+                continue;
+            }
+            if let Some(frame) = self.layers.get(&layer) {
+                layers.push(MatrixLayerMix {
+                    layer,
+                    mix: frame.mix(),
+                });
+            } else {
+                base_in_use = true;
+            }
+        }
+        layers.sort_by_key(|entry| entry.layer.0.0);
+        Arc::new(MatrixPlaybackMix {
+            base: self.mix(),
+            base_in_use,
+            layers,
+        })
+    }
+
     pub fn layer(&self, layer: LayerId) -> &Frame {
         self.layers.get(&layer).map_or(self, Arc::as_ref)
     }

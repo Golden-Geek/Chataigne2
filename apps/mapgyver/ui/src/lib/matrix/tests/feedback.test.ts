@@ -38,6 +38,8 @@ const status = (): PreviewStatus => ({
 		desired: stamp('new', 'new-launch'),
 		installed: null,
 		submitted: null,
+		mix: null,
+		observed_at_ms: null,
 		error: null
 	}
 });

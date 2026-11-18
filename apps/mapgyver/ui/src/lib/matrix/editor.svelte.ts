@@ -34,17 +34,23 @@ export function createMatrixEditor(query: () => MatrixEditorQuery) {
 			? projectMatrixWindow(controller.window, bindings, parameters)
 			: controller.window
 	);
-	const observation = $derived(
-		matrixFeedback(
+	const observation = $derived.by(() => {
+		if (!panel.visible || !window || session?.status !== 'connected' || session.loading.visible)
+			return null;
+		const reference = window.final_output.reference;
+		const rendered = matrixFeedback(
 			window,
-			window
-				? preview.statuses.get(
-						previewKey({ kind: 'Channel', reference: window.final_output.reference })
-					)
-				: undefined,
-			session?.status === 'connected' && !session.loading.visible
-		)
-	);
+			preview.statuses.get(previewKey({ kind: 'Channel', reference })),
+			true
+		);
+		if (rendered?.mix) return rendered;
+		const transport = matrixFeedback(
+			window,
+			preview.statuses.get(previewKey({ kind: 'MatrixPlayback', reference })),
+			true
+		);
+		return transport ?? rendered;
+	});
 	observeEditor({
 		query,
 		topics: [MEDIA_NAMESPACE, MATRIX_PLAYBACK_EVENT],
@@ -82,6 +88,9 @@ export function createMatrixEditor(query: () => MatrixEditorQuery) {
 		},
 		get observation() {
 			return observation;
+		},
+		get observationReceivedAt() {
+			return preview.state.statusReceivedAt;
 		},
 		get applicationRuntime() {
 			return runtime.live && runtime.snapshot?.project === window?.project

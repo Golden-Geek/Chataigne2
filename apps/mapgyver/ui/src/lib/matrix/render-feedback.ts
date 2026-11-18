@@ -10,7 +10,7 @@ export function matrixFeedback(
 	if (
 		!connected ||
 		!snapshot ||
-		status?.source.kind !== 'Channel' ||
+		(status?.source.kind !== 'Channel' && status?.source.kind !== 'MatrixPlayback') ||
 		status.source.reference.media !== snapshot.media ||
 		status.source.reference.channel !== snapshot.final_output.reference.channel ||
 		status.matrix?.project !== snapshot.project

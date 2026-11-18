@@ -12,7 +12,7 @@ const key = Symbol('mapgyver-preview');
 export function providePreview() {
 	const session = createPreviewSession(createDesktopPreviewTransport());
 	const statuses = new SvelteMap<string, PreviewStatus>();
-	const state = $state({ transparent: false });
+	const state = $state({ transparent: false, statusReceivedAt: 0 });
 	const owner = {
 		session,
 		statuses,
@@ -25,6 +25,7 @@ export function providePreview() {
 			});
 			if (hasDesktopHost()) {
 				void listen<PreviewStatus[]>(PREVIEW_STATUS_EVENT, (event) => {
+					state.statusReceivedAt = performance.now();
 					statuses.clear();
 					for (const status of event.payload) statuses.set(previewKey(status.source), status);
 				})
