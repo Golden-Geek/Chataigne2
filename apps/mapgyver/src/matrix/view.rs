@@ -11,6 +11,8 @@ pub(crate) use cell_layout::inspect as inspect_cells;
 
 pub(crate) struct ViewIndex {
     rows: Vec<ViewRow>,
+    visible_rows: Vec<usize>,
+    visible_groups: Vec<usize>,
     row_positions: HashMap<MatrixItemId, usize>,
     columns: Vec<(ColumnId, NodeId)>,
     axis: Vec<ColumnItemId>,
@@ -27,9 +29,13 @@ struct ViewRow {
     node: NodeId,
     depth: u8,
     channel: crate::media::protocol::ChannelReference,
+    visible_index: Option<u32>,
+    groups_before: u32,
+    collapsed: bool,
+    has_children: bool,
 }
 impl ViewIndex {
-    fn build(document: Document) -> Self {
+    fn build(engine: &AppEngine, document: Document) -> Self {
         let positions = document
             .snapshot
             .columns
@@ -48,7 +54,7 @@ impl ViewIndex {
             })
             .collect();
         let mut depths = HashMap::new();
-        let rows: Vec<_> = document
+        let mut rows: Vec<_> = document
             .snapshot
             .items
             .iter()
@@ -63,9 +69,41 @@ impl ViewIndex {
                     node: document.items[&item.id],
                     depth,
                     channel: item.channel,
+                    visible_index: None,
+                    groups_before: 0,
+                    collapsed: false,
+                    has_children: false,
                 }
             })
             .collect();
+        let mut visible_rows = Vec::new();
+        let mut visible_groups = Vec::new();
+        let mut hidden_depth = None;
+        for position in 0..rows.len() {
+            let has_children = rows
+                .get(position + 1)
+                .is_some_and(|next| next.depth > rows[position].depth);
+            let row = &mut rows[position];
+            row.has_children = has_children;
+            row.collapsed = matches!(row.id, MatrixItemId::Group { .. })
+                && engine
+                    .nodes
+                    .get(row.node)
+                    .is_some_and(|node| node.node_data().meta.presentation.collapsed);
+            if hidden_depth.is_some_and(|depth| row.depth > depth) {
+                continue;
+            }
+            hidden_depth = None;
+            row.visible_index = Some(visible_rows.len() as u32);
+            row.groups_before = visible_groups.len() as u32;
+            if matches!(row.id, MatrixItemId::Group { .. }) {
+                visible_groups.push(visible_rows.len());
+                if row.collapsed {
+                    hidden_depth = Some(row.depth);
+                }
+            }
+            visible_rows.push(position);
+        }
         let columns: Vec<_> = document
             .snapshot
             .columns
@@ -111,6 +149,8 @@ impl ViewIndex {
                 .map(|(position, row)| (row.id, position))
                 .collect(),
             rows,
+            visible_rows,
+            visible_groups,
             columns,
             column_nodes: document.columns,
             cells: document.cells,
@@ -137,7 +177,7 @@ fn index(engine: &AppEngine, media: MediaId) -> Result<Arc<ViewIndex>, String> {
                 _ => unreachable!(),
             }
         }
-        let index = Arc::new(ViewIndex::build(document));
+        let index = Arc::new(ViewIndex::build(engine, document));
         control.cache_view(index.clone());
         index
     })
@@ -222,6 +262,10 @@ fn row_snapshot(engine: &AppEngine, row: &ViewRow) -> Result<MatrixViewRow, Stri
             channel: row.channel,
         },
         depth: row.depth,
+        visible_index: row.visible_index,
+        groups_before: row.groups_before,
+        collapsed: row.collapsed,
+        has_children: row.has_children,
     })
 }
 
@@ -356,7 +400,31 @@ pub(super) fn inspect(
         unreachable!()
     };
     let control = node.matrix_playback().ok_or("Matrix playback owner is missing")?;
-    let row_start = (viewport.row_start as usize).min(index.rows.len());
+    let row_start = if let Some(layout) = viewport.row_layout {
+        if [layout.offset, layout.layer_height, layout.group_height]
+            .iter()
+            .any(|v| !v.is_finite())
+            || layout.offset < 0.0
+            || layout.offset > 1e12
+            || layout.layer_height <= 0.0
+            || layout.layer_height > 50000.0
+            || layout.group_height <= 0.0
+            || layout.group_height > 50000.0
+        {
+            return Err("Matrix row layout requires bounded finite positive dimensions".into());
+        }
+        index
+            .visible_rows
+            .partition_point(|full| {
+                let row = &index.rows[*full];
+                let position = f64::from(row.visible_index.unwrap() - row.groups_before) * layout.layer_height
+                    + f64::from(row.groups_before) * layout.group_height;
+                position <= layout.offset
+            })
+            .saturating_sub(3)
+    } else {
+        (viewport.row_start as usize).min(index.visible_rows.len())
+    };
     let axis_start = (viewport.axis_start as usize).min(index.axis.len());
     let mut rows = Vec::new();
     let mut columns = Vec::new();
@@ -428,7 +496,13 @@ pub(super) fn inspect(
     }
     let mut requested_column_groups = requested.into_iter().collect::<Vec<_>>();
     requested_column_groups.sort_by_key(|group| group.0.0);
-    for row in index.rows.iter().skip(row_start).take(usize::from(viewport.row_count)) {
+    for full in index
+        .visible_rows
+        .iter()
+        .skip(row_start)
+        .take(usize::from(viewport.row_count))
+    {
+        let row = &index.rows[*full];
         rows.push(row_snapshot(engine, row)?);
         let MatrixItemId::Layer { id: layer } = row.id else {
             continue;
@@ -462,7 +536,8 @@ pub(super) fn inspect(
                 },
             )?,
             revision: control.authoring_revision(),
-            row_total: index.rows.len() as u32,
+            row_total: index.visible_rows.len() as u32,
+            group_total: index.visible_groups.len() as u32,
             column_total: index.columns.len() as u32,
             axis_total: index.axis.len() as u32,
             axis_depth: index.axis_depth,

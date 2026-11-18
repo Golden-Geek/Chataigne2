@@ -109,6 +109,7 @@ fn group_request_and_submitted_plan_ancestry_remain_distinct_through_handoff_and
             media: matrix.media,
             edit: crate::matrix::protocol::MatrixEdit::InspectViewport {
                 viewport: crate::matrix::protocol::MatrixViewport {
+                    row_layout: None,
                     row_start: 0,
                     row_count: 8,
                     axis_start: 0,

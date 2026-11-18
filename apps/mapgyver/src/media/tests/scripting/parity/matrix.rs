@@ -166,6 +166,7 @@ fn retained_matrix_editor_query_is_identical_and_read_only_for_every_public_call
             retained: None,
             locked: None,
             viewport: MatrixViewport {
+                row_layout: None,
                 row_start: 0,
                 row_count: 8,
                 axis_start: 0,

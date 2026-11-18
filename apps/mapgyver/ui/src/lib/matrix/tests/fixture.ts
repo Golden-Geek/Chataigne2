@@ -28,6 +28,7 @@ export function viewportResult(media: string, row = 0): MediaEditResult {
 			},
 			revision: 1,
 			row_total: 100000,
+			group_total: 0,
 			column_total: 100000,
 			axis_total: 100000,
 			axis_depth: 0,

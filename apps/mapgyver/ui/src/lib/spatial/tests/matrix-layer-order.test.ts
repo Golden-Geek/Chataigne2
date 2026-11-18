@@ -5,6 +5,10 @@ import { viewportResult } from '../../matrix/tests/fixture.ts';
 import type { MatrixViewRow } from '../../media/generated/MatrixViewRow';
 
 const row = (id: string): MatrixViewRow => ({
+	visible_index: 0,
+	groups_before: 0,
+	collapsed: false,
+	has_children: false,
 	depth: 0,
 	item: {
 		id: { kind: 'Layer', id },

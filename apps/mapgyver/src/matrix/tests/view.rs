@@ -91,6 +91,7 @@ fn deleted_viewport_reports_typed_absence_without_history_and_recovers_on_undo()
         matrix.media,
         MatrixEdit::InspectViewport {
             viewport: MatrixViewport {
+                row_layout: None,
                 row_start: 0,
                 row_count: 16,
                 axis_start: 0,
@@ -114,6 +115,7 @@ fn viewport(engine: &mut AppEngine, media: MediaId, row: u32, column: u32) -> Ma
         MatrixEdit::InspectViewport {
             selection: None,
             viewport: MatrixViewport {
+                row_layout: None,
                 row_start: row,
                 row_count: 16,
                 axis_start: column,
@@ -369,6 +371,7 @@ fn selected_inspector_is_bounded_outside_the_viewport_and_tracks_history_and_sou
             matrix.media,
             MatrixEdit::InspectViewport {
                 viewport: MatrixViewport {
+                    row_layout: None,
                     row_start: 0,
                     row_count: 1,
                     axis_start: 0,
@@ -463,6 +466,7 @@ fn oversized_viewports_and_choice_queries_reject_without_changes() {
                     edit: MatrixEdit::InspectViewport {
                         selection: None,
                         viewport: MatrixViewport {
+                            row_layout: None,
                             row_start: 0,
                             row_count: rows,
                             axis_start: 0,

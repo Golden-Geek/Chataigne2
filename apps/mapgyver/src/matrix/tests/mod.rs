@@ -44,6 +44,7 @@ mod presentation;
 mod presets;
 mod reference_assignment;
 mod retained_demand;
+mod row_geometry;
 mod stops;
 mod timeline;
 mod transition_metadata;

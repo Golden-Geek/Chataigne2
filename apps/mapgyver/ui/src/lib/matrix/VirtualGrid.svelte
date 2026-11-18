@@ -10,7 +10,6 @@
 	import SourceDropZone from '../media/SourceDropZone.svelte';
 	import playIcon from 'golden_ui/style/icons/play.svg';
 	import addIcon from 'golden_ui/style/icons/node/add.svg';
-	import groupIcon from 'golden_ui/style/icons/node/folder.svg';
 	import deleteIcon from 'golden_ui/style/icons/panels/close.svg';
 	import emptyIcon from '../icons/empty-cell.svg';
 	import { onMount, untrack } from 'svelte';
@@ -20,12 +19,12 @@
 	import type { ColumnSnapshot } from '../media/generated/ColumnSnapshot';
 	import type { MatrixEdit } from '../media/generated/MatrixEdit';
 	import type { MatrixState } from './authoring';
-	import { gridSize, projectGrid } from './viewport';
+	import { gridSize, projectGrid, rowOffset } from './viewport';
 	import GridCreationHeaders from './GridCreationHeaders.svelte';
 	import type { MatrixRenderStatus } from '../preview/generated/MatrixRenderStatus';
 	import type { ApplicationRuntimeSnapshot } from '../media/generated/ApplicationRuntimeSnapshot';
 	import GridLabel from './GridLabel.svelte';
-	import RowControls from './RowControls.svelte';
+	import GridRowHeader from './GridRowHeader.svelte';
 	import ColumnGroupHeaders from './ColumnGroupHeaders.svelte';
 	import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
 	import CellPreviews from './CellPreviews.svelte';
@@ -255,7 +254,13 @@
 	}
 	let metrics = $state({ top: 0, left: 0, width: 0, height: 0, rem: 1 });
 	const projection = $derived(
-		projectGrid(metrics, snapshot.row_total, snapshot.axis_total, snapshot.axis_depth)
+		projectGrid(
+			metrics,
+			snapshot.row_total,
+			snapshot.axis_total,
+			snapshot.axis_depth,
+			snapshot.group_total
+		)
 	);
 	function measure() {
 		if (!element) return;
@@ -567,45 +572,19 @@
 						role="row"
 						data-row-id={row.item.id.id}
 						aria-rowindex={snapshot.row_start + index + 2}
-						style:top={`${projection.rowOrigin + (snapshot.row_start + index) * projection.row}rem`}>
-						<div
-							class="row-label"
-							data-matrix-drop="Item"
-							data-row-id={row.item.id.id}
-							draggable={!disabled}
-							ondragstart={(event) => startDrag(event, { kind: 'Item', item: row.item.id })}
-							role="rowheader"
-							tabindex="0"
-							aria-label={row.item.label}
-							aria-selected={isSelected(row.item.id.id)}
-							style:--matrix-item-color={itemColor(row.item.id.id)}
-							class:custom-color={itemColor(row.item.id.id) != null}
-							use:selectOnPress={{ disabled, select: (event) => selectRow(row, event) }}
-							use:viewportContour={{
-								selected: isSelected(row.item.id.id),
-								enabled: row.item.settings.enabled,
-								identity: documentIdentity
-							}}
-							style:left={`${projection.left}rem`}
-							title={row.item.label}>
-							<div class="row-title" style:padding-inline-start={`${row.depth * 0.8}rem`}>
-								{#if row.item.id.kind === 'Group'}<img src={groupIcon} alt="" />{/if}
-								<div class="row-title-label">
-									<GridLabel
-										label={row.item.label}
-										{disabled}
-										select={(event) => selectRow(row, event)}
-										rename={async (label) =>
-											Boolean(await edit({ kind: 'RenameItem', item: row.item.id, label }))} />
-								</div>
-								<ParameterTrigger
-									owner={row.item.id.id}
-									field="stop"
-									label={`Stop ${row.item.label}`}
-									{disabled} />
-							</div>
-							<RowControls uuid={row.item.id.id} label={row.item.label} />
-						</div>
+						style:--row={`${row.item.id.kind === 'Group' ? projection.groupRow : projection.row}rem`}
+						style:top={`${projection.rowOrigin + rowOffset(row, projection)}rem`}>
+						<GridRowHeader
+							{row}
+							left={projection.left}
+							{disabled}
+							selected={isSelected(row.item.id.id)}
+							color={itemColor(row.item.id.id)}
+							identity={documentIdentity}
+							select={(event) => selectRow(row, event)}
+							rename={async (label) =>
+								Boolean(await edit({ kind: 'RenameItem', item: row.item.id, label }))}
+							startDrag={(event) => startDrag(event, { kind: 'Item', item: row.item.id })} />
 						{#each snapshot.columns as column, columnIndex (column.id)}
 							{@const cell = cells.get(`${row.item.id.id}:${column.id}`)}
 							<SourceDropZone
@@ -797,42 +776,11 @@
 		height: var(--row);
 		width: 100%;
 	}
-	.row-label {
-		position: absolute;
-		z-index: 2;
-		box-sizing: border-box;
-		width: var(--label);
-		height: var(--row);
-		background: var(--gc-color-header);
-		padding: 0.5rem;
-		overflow: hidden;
-		display: flex;
-		flex-direction: column;
-		justify-content: flex-start;
-		gap: 0.3rem;
-		border: 0.05rem solid var(--gc-color-border);
-	}
-	.row-label img {
-		width: 1.2em;
-		height: 1.2em;
-	}
-	.row-title {
-		display: flex;
-		align-items: flex-start;
-		gap: 0.25rem;
-		min-inline-size: 0;
-		box-sizing: border-box;
-	}
-	.row-title-label {
-		flex: 1;
-		min-inline-size: 0;
-	}
-	.row-label.custom-color,
 	.heading.custom-color {
 		background: color-mix(in srgb, var(--matrix-item-color) 18%, var(--gc-color-header));
 	}
-	.group .row-label {
-		border-left: 0.2rem solid var(--gc-color-accent);
+	.group .cell {
+		padding-block: 0;
 	}
 	.cell {
 		position: absolute;

@@ -160,6 +160,7 @@ pub(crate) fn inspect(engine: &AppEngine, query: MatrixEditorQuery) -> Result<Ma
     if !same {
         viewport.row_start = 0;
         viewport.axis_start = 0;
+        viewport.row_layout = None;
     }
     let MediaEditResult::MatrixViewport { snapshot } = super::view::inspect(engine, media, viewport, selection)? else {
         return Err("unexpected Matrix editor projection".into());

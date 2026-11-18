@@ -3,7 +3,7 @@
 - **Updated:** 18 November 2026.
 - **Overall plan acceptance:** `████████░░` **83% — 101/121 checks accepted**. Matrix color menus are now accepted. Deferred verification is still counted as unfinished.
 - **Latest delivered:** Matrix Set Color / Reset Color menus for Layers, Cells, Columns and both Group kinds; shared Golden picker, one palette Undo step, sparse Cell creation, preserved multiselection and offscreen Inspector/reload.
-- **Working on next:** Compact single-line Layer Group headers; Opacity and Blend Mode remain in the Inspector.
+- **Working on next:** Compact Layer Groups are implemented; app layout, Inspector and interaction checks are next. Opacity and Blend Mode remain in the Inspector.
 - **Manual action needed from you now: none.** Linked-Surface and color checks passed; their owned test windows have closed.
 
 ## Done — code and normal-use checks passed
@@ -35,7 +35,7 @@
 
 ## Next features — implementation order
 
-1. **NOW — Compact Layer Groups:** one-line default headers, with Opacity and Blend Mode in the Inspector.
+1. **NOW — Compact Layer Groups:** code is built for single-line headers, collapse and matching preview/scroll positions. Software checks pass; app layout/Inspector/interaction verification remains.
 2. **Readable nested Groups:** visible left-side wrapping rails in each Group's color, with clear membership at multiple nesting levels.
 3. **Geometry alignment:** temporary snapping/guides while moving or resizing in Surface/Composition/Matrix editors.
 4. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.

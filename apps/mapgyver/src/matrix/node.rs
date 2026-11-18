@@ -41,6 +41,8 @@ pub struct ElementNode {
     kind: Kind,
     #[state(default = OnceLock::new())]
     runtime: OnceLock<super::playback::RuntimeBinding>,
+    #[state(default = false)]
+    view_collapsed: bool,
 }
 impl ElementNode {
     pub(super) fn geometry_bindings(
@@ -257,6 +259,11 @@ pub(crate) fn create(node_type: &str) -> Option<ElementNode> {
 }
 #[node("mapgyver.matrix.element.v2", from_struct)]
 impl Node for ElementNode {
+    fn init(&mut self, ctx: &mut ProcessCtx) {
+        if !self.is_layer() {
+            ctx.add_event_listener(self.id(), self.id());
+        }
+    }
     fn needs_update(&self) -> bool {
         false
     }
@@ -295,6 +302,17 @@ impl Node for ElementNode {
     fn on_structure_changed(&mut self, _: &mut ProcessCtx) {
         self.invalidate();
     }
+    fn on_meta_changed(&mut self, _: &mut ProcessCtx, node: NodeId, _: golden_core::node::NodeMetaPatch) {
+        if node == self.id() && !self.is_layer() {
+            let collapsed = self.node_data().meta.presentation.collapsed;
+            if self.view_collapsed != collapsed {
+                self.view_collapsed = collapsed;
+                if let Some(binding) = self.runtime.get() {
+                    binding.invalidate_view();
+                }
+            }
+        }
+    }
     fn on_effective_enabled_changed(&mut self, _: &mut ProcessCtx, enabled: bool) {
         if !enabled {
             self.pulses.revoke();
@@ -302,6 +320,7 @@ impl Node for ElementNode {
         self.invalidate();
     }
     fn on_node_ready(&mut self, _: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
+        self.view_collapsed = self.node_data().meta.presentation.collapsed;
         self.pulses.ready();
         if let Some(binding) = self.runtime.get() {
             binding.invalidate_videos();

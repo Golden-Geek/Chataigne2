@@ -63,6 +63,7 @@ fn nested_axis_has_one_authored_order_and_survives_ungroup_history_and_reload() 
         media,
         MatrixEdit::InspectViewport {
             viewport: MatrixViewport {
+                row_layout: None,
                 row_start: 0,
                 row_count: 1,
                 axis_start: 0,

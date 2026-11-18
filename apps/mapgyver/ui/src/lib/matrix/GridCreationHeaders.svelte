@@ -33,7 +33,7 @@
 <div
 	role="row"
 	class="creation-row"
-	style:top={`${projection.rowOrigin + rows * projection.row}rem`}>
+	style:top={`${projection.rowOrigin + projection.rowExtent}rem`}>
 	<div
 		class="creation layer"
 		role="rowheader"

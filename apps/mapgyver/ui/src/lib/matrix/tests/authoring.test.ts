@@ -84,6 +84,10 @@ test('spatial Layer receipts update only matching bounded and independent select
 	const reply = snapshot();
 	if (reply.kind !== 'MatrixEditor' || !reply.page.snapshot) throw Error();
 	const row: MatrixViewRow = {
+		visible_index: 0,
+		groups_before: 0,
+		collapsed: false,
+		has_children: false,
 		depth: 0,
 		item: {
 			id: { kind: 'Layer', id: 'layer' },

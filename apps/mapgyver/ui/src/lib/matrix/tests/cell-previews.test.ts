@@ -8,12 +8,13 @@ function scene() {
 	const reference = { media: 'shared-media', channel: 'shared-channel' };
 	const snapshot = {
 		row_total: 1000,
+		group_total: 0,
 		column_total: 100,
 		axis_total: 100,
 		axis_depth: 0,
 		row_start: 0,
 		axis_start: 0,
-		rows: [{ item: { id: { kind: 'Layer', id: 'row' } } }],
+		rows: [{ visible_index: 0, groups_before: 0, item: { id: { kind: 'Layer', id: 'row' } } }],
 		columns: [
 			{ id: 'one', axis_index: 0 },
 			{ id: 'two', axis_index: 1 },

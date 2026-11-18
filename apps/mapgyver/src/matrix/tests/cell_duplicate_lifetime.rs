@@ -10,6 +10,7 @@ fn view(engine: &mut AppEngine, media: MediaId, cell: CellId) -> MatrixViewCell 
         MatrixEdit::InspectViewport {
             selection: None,
             viewport: MatrixViewport {
+                row_layout: None,
                 row_start: 0,
                 row_count: 16,
                 axis_start: 0,

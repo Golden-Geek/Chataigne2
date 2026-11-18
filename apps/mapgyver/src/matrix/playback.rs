@@ -113,6 +113,11 @@ impl RuntimeBinding {
             control.revision.advance();
         }
     }
+    pub(super) fn invalidate_view(&self) {
+        if let Some(control) = self.0.upgrade() {
+            control.state.lock().expect("Matrix playback lock poisoned").view = None;
+        }
+    }
 }
 
 impl PlaybackControl {

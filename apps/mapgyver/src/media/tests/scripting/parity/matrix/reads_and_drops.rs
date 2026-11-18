@@ -15,6 +15,7 @@ fn matrix_bounded_reads_never_launch_or_author_through_any_caller() {
                     column: Some(scene.snapshot.columns[0].id),
                 }),
                 viewport: MatrixViewport {
+                    row_layout: None,
                     row_start: 0,
                     row_count: 32,
                     axis_start: 0,
@@ -48,6 +49,7 @@ fn matrix_bounded_reads_never_launch_or_author_through_any_caller() {
             MatrixEdit::InspectViewport {
                 selection: None,
                 viewport: MatrixViewport {
+                    row_layout: None,
                     row_start: 0,
                     row_count: 0,
                     axis_start: 0,

@@ -12,21 +12,36 @@ Frame/Home/Zoom toolbar. `GridCreationHeaders` supplies trailing Column/Column G
 Layer/Layer Group menus, including when either axis is empty. The UI sends selected node
 identity to the backend and selects the returned committed object.
 
-`viewport.ts` owns viewport-dependent presentation geometry. Small tables expand rows and
-Columns into the available area; large tables retain minimum 7.5 rem spans and compress
+`viewport.ts` owns viewport-dependent presentation geometry. Small tables expand Layers and
+Columns into the available area; Groups retain single-line 2.1 rem headers. Large tables
+retain minimum 7.5 rem Layer/Column spans and compress
 scroll ranges below browser layout limits. Trailing creation headers occupy explicit space.
 The same projection drives mounted cells, Column Group bands and native preview tiles.
 Measured overlays do not contribute to the extent they measure. Stable scrollbar gutters
 avoid a scrollbar/resize feedback loop. Read windows stay bounded to 64 rows and 32 slots;
 empty addresses remain unauthored and selected Inspector data remains independently queried.
 
-`RowControls` projects each mounted Layer or Group's existing `parameters/opacity` and
+`GridRowHeader` owns row labels, selection, rename, Stop and Group expansion. Groups hide
+inline Opacity/Blend Mode; those same typed Parameters remain in the generic Inspector.
+`RowControls` projects each mounted Layer's existing `parameters/opacity` and
 `parameters/blend` nodes through Golden's public Parameter editor registry. It resolves
 UUIDs through the graph index and traverses only declaration children, never the Layer's
 Cell collection. The Inspector and inline widgets therefore share identity, constraints,
 control mode, edit sessions and history. A labelled group contains each widget; an HTML
 label around the slider would activate its numeric input after dragging and could create
 an extra rounded-value edit on blur. Inline gestures cannot initiate a row drag.
+
+The cached backend view index supplies visible row ordinals and preceding Group counts.
+Optional `MatrixViewport.row_layout` carries viewport-dependent row heights and scroll offset;
+the backend finds the bounded window by binary search. `rowOffset` uses the same prefix counts
+for DOM hit targets, native preview tiles and trailing creation headers. No complete row list
+is transferred to determine mixed-height scrolling.
+
+Group expansion edits Golden's existing `presentation.collapsed` metadata. A Group listens
+only to its own metadata and invalidates the cached view when that flag changes; color edits
+do not rebuild the index. Collapse removes descendant grid rows and preview demand while
+independently selected objects remain inspectable. Authored Group settings, playback/render
+configuration and source ownership remain independent of expansion.
 
 Row and Column header backgrounds select their real document objects, including through
 Enter and Space. Embedded rename, launch and Parameter controls retain their own input

@@ -1,7 +1,7 @@
 import { MAX_REGION_TILES } from 'golden_video_ui/constants';
 import type { PreviewTileGroup } from 'golden_video_ui';
 import type { MatrixViewportSnapshot } from '../media/generated/MatrixViewportSnapshot';
-import { gridSize, projectGrid, type Metrics } from './viewport.ts';
+import { gridSize, projectGrid, rowOffset, type Metrics } from './viewport.ts';
 
 export type CellPreviewGroup = PreviewTileGroup;
 
@@ -14,11 +14,10 @@ export function cellPreviewGroups(
 		metrics,
 		snapshot.row_total,
 		snapshot.axis_total,
-		snapshot.axis_depth
+		snapshot.axis_depth,
+		snapshot.group_total
 	);
-	const rows = new Map(
-		snapshot.rows.map((row, index) => [row.item.id.id, snapshot.row_start + index])
-	);
+	const rows = new Map(snapshot.rows.map((row) => [row.item.id.id, rowOffset(row, projection)]));
 	const columns = new Map(snapshot.columns.map((column) => [column.id, column.axis_index]));
 	const groups = new Map<string, CellPreviewGroup>();
 	const rem = metrics.rem > 0 ? metrics.rem : 1;
@@ -39,9 +38,7 @@ export function cellPreviewGroups(
 					gridSize.label +
 					0.2) *
 				rem,
-			y:
-				(projection.rowOrigin + row * projection.row - projection.top - projection.header + 0.2) *
-				rem,
+			y: (projection.rowOrigin + row - projection.top - projection.header + 0.2) * rem,
 			width: (projection.column - 0.4) * rem,
 			height: (projection.row - (gridSize.previewLabel + 0.4)) * rem
 		};

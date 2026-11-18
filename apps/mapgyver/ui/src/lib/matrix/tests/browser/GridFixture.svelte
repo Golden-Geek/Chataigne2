@@ -39,6 +39,10 @@
 		}
 	];
 	snapshot.rows = ['Layer A', 'Layer B'].map((label, index) => ({
+		visible_index: index + 1,
+		groups_before: 1,
+		collapsed: false,
+		has_children: false,
 		depth: 0,
 		item: {
 			id: { kind: 'Layer', id: `layer-${index}` },
@@ -50,6 +54,10 @@
 		}
 	}));
 	snapshot.rows.unshift({
+		visible_index: 0,
+		groups_before: 0,
+		collapsed: false,
+		has_children: true,
 		depth: 0,
 		item: {
 			id: { kind: 'Group', id: 'layer-group' },
@@ -64,6 +72,7 @@
 	snapshot.rows[1].item.parent = 'layer-group';
 	snapshot.rows[2].item.settings.enabled = false;
 	snapshot.row_total = 3;
+	snapshot.group_total = 1;
 	snapshot.cells = snapshot.rows
 		.filter((row) => row.item.id.kind === 'Layer')
 		.flatMap((row) =>

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { gridSize, projectGrid } from '../viewport.ts';
+import { gridSize, projectGrid, rowOffset } from '../viewport.ts';
 
 test('large grids retain readable minimum spans and bounded windows at every viewport scale', () => {
 	for (const rem of [12, 16, 24, 32]) {
@@ -65,5 +65,39 @@ test('deep group headers keep a bounded scroll area and matching row geometry at
 		assert(view.groupHeight <= 8);
 		assert.equal(view.rowOrigin, gridSize.header + view.groupHeight);
 		assert(view.viewport.row_count * view.viewport.axis_count <= 2048);
+	}
+});
+
+test('compact Groups occupy one line while Layer, native tile and creation positions share the same row extent', () => {
+	for (const rem of [12, 16, 24, 32]) {
+		const view = projectGrid({ top: 0, left: 0, width: 900, height: 700, rem }, 5, 4, 0, 3);
+		const offset = (index: number, groups: number) =>
+			rowOffset({ visible_index: index, groups_before: groups }, view);
+		assert.equal(offset(1, 1), gridSize.group);
+		assert.equal(offset(2, 2), 2 * gridSize.group);
+		assert.equal(offset(3, 2), 2 * gridSize.group + view.row);
+		assert.equal(view.rowExtent, 3 * gridSize.group + 2 * view.row);
+		assert.equal(view.viewport.row_layout?.group_height, gridSize.group);
+		assert(view.viewport.row_count <= 64);
+	}
+});
+
+test('all-Group and million-row grids retain finite extents and bounded physical-offset queries', () => {
+	for (const groups of [1000000, 500000]) {
+		const metrics = { top: 0, left: 0, width: 600, height: 900, rem: 24 };
+		const first = projectGrid(metrics, 1000000, 100, 0, groups);
+		const last = projectGrid(
+			{ ...metrics, top: first.canvasHeight * metrics.rem - metrics.height },
+			1000000,
+			100,
+			0,
+			groups
+		);
+		assert.equal(
+			last.viewport.row_layout?.offset,
+			last.rowExtent + gridSize.creation - metrics.height / metrics.rem
+		);
+		assert(last.viewport.row_count * last.viewport.axis_count <= 2048);
+		assert(Number.isFinite(last.rowOrigin));
 	}
 });

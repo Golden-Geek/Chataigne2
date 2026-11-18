@@ -1,15 +1,20 @@
 import type { MatrixViewport } from '../media/generated/MatrixViewport';
+import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
 /** Persisted state and generated replies may enumerate these fields in different orders. */
 export function sameViewport(left: MatrixViewport, right: MatrixViewport): boolean {
 	return (
 		left.row_start === right.row_start &&
 		left.axis_start === right.axis_start &&
 		left.row_count === right.row_count &&
-		left.axis_count === right.axis_count
+		left.axis_count === right.axis_count &&
+		left.row_layout?.offset === right.row_layout?.offset &&
+		left.row_layout?.layer_height === right.row_layout?.layer_height &&
+		left.row_layout?.group_height === right.row_layout?.group_height
 	);
 }
 export const gridSize = {
 	row: 7.5,
+	group: 2.1,
 	column: 7.5,
 	label: 14,
 	header: 3.5,
@@ -34,7 +39,13 @@ export interface Metrics {
 }
 
 /** Small tables fill the viewport; larger tables keep readable minimum spans and bounded windows. */
-export function projectGrid(metrics: Metrics, rows: number, columns: number, groupDepth = 0) {
+export function projectGrid(
+	metrics: Metrics,
+	rows: number,
+	columns: number,
+	groupDepth = 0,
+	groups = 0
+) {
 	const { label, maximum, creation } = gridSize;
 	const groupHeight = groupHeaderHeight(metrics, groupDepth);
 	const header = gridSize.header + groupHeight;
@@ -42,9 +53,15 @@ export function projectGrid(metrics: Metrics, rows: number, columns: number, gro
 	const width = metrics.width / rem,
 		height = metrics.height / rem;
 	const column = Math.max(gridSize.column, (width - label - creation) / Math.max(1, columns));
-	const row = Math.max(gridSize.row, (height - header - creation) / Math.max(1, rows));
+	const groupRow = gridSize.group;
+	const layers = Math.max(0, rows - groups);
+	const row = Math.max(
+		gridSize.row,
+		(height - header - creation - groups * groupRow) / Math.max(1, layers)
+	);
+	const rowExtent = layers * row + groups * groupRow;
 	const logicalWidth = label + columns * column + creation,
-		logicalHeight = header + rows * row + creation;
+		logicalHeight = header + rowExtent + creation;
 	const canvasWidth = Math.min(maximum, logicalWidth),
 		canvasHeight = Math.min(maximum, logicalHeight);
 	const top = Math.max(0, metrics.top / rem),
@@ -53,11 +70,20 @@ export function projectGrid(metrics: Metrics, rows: number, columns: number, gro
 		(top / Math.max(1, canvasHeight - height)) * Math.max(0, logicalHeight - height);
 	const logicalLeft = (left / Math.max(1, canvasWidth - width)) * Math.max(0, logicalWidth - width);
 	const viewport: MatrixViewport = {
+		...(groups > 0
+			? {
+					row_layout: {
+						offset: Math.max(0, logicalTop - header),
+						layer_height: row,
+						group_height: groupRow
+					}
+				}
+			: {}),
 		row_start: Math.min(
 			Math.max(0, rows - 1),
 			Math.max(0, Math.floor((logicalTop - header) / row) - 2)
 		),
-		row_count: Math.min(64, Math.max(1, Math.ceil(height / row) + 4)),
+		row_count: Math.min(64, Math.max(1, Math.ceil(height / (groups > 0 ? groupRow : row)) + 4)),
 		axis_start: Math.min(
 			Math.max(0, columns - 1),
 			Math.max(0, Math.floor((logicalLeft - label) / column) - 2)
@@ -67,6 +93,8 @@ export function projectGrid(metrics: Metrics, rows: number, columns: number, gro
 	return {
 		viewport,
 		row,
+		groupRow,
+		rowExtent,
 		column,
 		header,
 		groupHeight,
@@ -77,4 +105,15 @@ export function projectGrid(metrics: Metrics, rows: number, columns: number, gro
 		rowOrigin: header + top - logicalTop,
 		columnOrigin: label + left - logicalLeft
 	};
+}
+
+/** Shared by DOM hit targets, creation headers and native preview tiles. */
+export function rowOffset(
+	row: Pick<MatrixViewRow, 'visible_index' | 'groups_before'>,
+	projection: Pick<ReturnType<typeof projectGrid>, 'row' | 'groupRow'>
+): number {
+	return (
+		((row.visible_index ?? 0) - row.groups_before) * projection.row +
+		row.groups_before * projection.groupRow
+	);
 }

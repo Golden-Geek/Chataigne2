@@ -284,15 +284,29 @@ pub struct CellAssignment {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
 pub struct MatrixViewport {
+    /// Optional viewport-dependent row dimensions; absent callers address rows by index.
+    #[serde(default)]
+    #[ts(optional)]
+    pub row_layout: Option<MatrixRowLayout>,
     pub row_start: u32,
     pub row_count: u16,
     pub axis_start: u32,
     pub axis_count: u16,
 }
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS)]
+pub struct MatrixRowLayout {
+    pub offset: f64,
+    pub layer_height: f64,
+    pub group_height: f64,
+}
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct MatrixViewRow {
     pub item: MatrixItemSnapshot,
     pub depth: u8,
+    pub visible_index: Option<u32>,
+    pub groups_before: u32,
+    pub collapsed: bool,
+    pub has_children: bool,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 pub struct MatrixViewCell {
@@ -393,6 +407,7 @@ pub struct MatrixViewportSnapshot {
     pub final_output: crate::media::protocol::ChannelSnapshot,
     pub revision: u64,
     pub row_total: u32,
+    pub group_total: u32,
     pub column_total: u32,
     pub axis_total: u32,
     pub axis_depth: u8,

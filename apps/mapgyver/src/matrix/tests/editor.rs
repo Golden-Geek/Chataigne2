@@ -9,6 +9,7 @@ fn query(selected: NodeUuid) -> MatrixEditorQuery {
         locked: None,
         retained: None,
         viewport: MatrixViewport {
+            row_layout: None,
             row_start: 0,
             row_count: 8,
             axis_start: 0,
