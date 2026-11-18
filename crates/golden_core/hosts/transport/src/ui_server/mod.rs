@@ -48,6 +48,7 @@ mod content_security;
 mod delivery;
 mod http;
 mod hub;
+pub(crate) mod oscquery;
 mod session;
 mod shutdown;
 mod startup;
@@ -382,6 +383,7 @@ impl UiSessionReadiness {
 struct HttpRequest {
     method: String,
     path: String,
+    query: Option<String>,
     headers: HashMap<String, String>,
     body: Vec<u8>,
 }
@@ -591,15 +593,44 @@ fn run_ui_server_with_ready<T: ProjectLifecycle + 'static, S>(
     };
 
     let connection_limiter = Arc::new(ConnectionLimiter::new(MAX_CONNECTIONS));
+    let mut oscquery = oscquery::Listener::new()?;
+    enum Incoming {
+        Ui(std::io::Result<(tokio::net::TcpStream, std::net::SocketAddr)>),
+        OscQuery(Option<tokio::net::TcpStream>),
+    }
+    let mut prefer_oscquery = true;
     let result = (|| {
         while !shutdown.is_requested() {
-            let event = listener_runtime.block_on(futures_util::future::select(
-                Box::pin(listener.accept()),
-                Box::pin(shutdown.cancelled()),
-            ));
+            let accept = async {
+                let osc = Box::pin(async { Incoming::OscQuery(oscquery.next(&state.read_model).await) });
+                let ui = Box::pin(async { Incoming::Ui(listener.accept().await) });
+                if prefer_oscquery {
+                    futures_util::future::select(osc, ui).await.factor_first().0
+                } else {
+                    futures_util::future::select(ui, osc).await.factor_first().0
+                }
+            };
+            let event = listener_runtime.block_on(async {
+                match futures_util::future::select(Box::pin(shutdown.cancelled()), Box::pin(accept)).await {
+                    futures_util::future::Either::Left(_) => None,
+                    futures_util::future::Either::Right((incoming, _)) => Some(incoming),
+                }
+            });
             let accepted = match event {
-                futures_util::future::Either::Left((accepted, _)) => accepted,
-                futures_util::future::Either::Right(_) => break,
+                None => break,
+                Some(Incoming::Ui(accepted)) => {
+                    prefer_oscquery = true;
+                    accepted
+                }
+                Some(Incoming::OscQuery(stream)) => {
+                    prefer_oscquery = false;
+                    if let Some(stream) = stream
+                        && !shutdown.is_requested()
+                    {
+                        oscquery.accept::<T>(stream, state.read_model.clone(), &mut workers)?;
+                    }
+                    continue;
+                }
             };
             match accepted {
                 Ok((stream, _)) => {
@@ -636,6 +667,7 @@ fn run_ui_server_with_ready<T: ProjectLifecycle + 'static, S>(
         }
         Ok(())
     })();
+    drop(oscquery);
     workers.shutdown.request();
     drop(services);
     let drained = workers.finish(config.shutdown_timeout);

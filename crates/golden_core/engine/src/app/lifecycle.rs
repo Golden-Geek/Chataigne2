@@ -67,6 +67,11 @@ pub trait ProjectLifecycle: ProjectNode + From<Folder> + From<DashboardNode> {
         "preferences.json"
     }
 
+    /// Default port offered by the shared host's opt-in OSCQuery service.
+    fn oscquery_default_port() -> u16 {
+        42000
+    }
+
     /// Declares app-wide typed Preferences, before the host starts the live engine.
     /// Extend the default tree with real app-owned nodes; keep external IO out of this hook.
     /// Missing declarations are merged without resetting saved values or identities.

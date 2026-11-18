@@ -24,7 +24,8 @@ use crate::engine::{Engine, EngineTime};
 use crate::node::{Node, NodeId};
 use crate::ui_sync::{
     UI_PROTOCOL_VERSION, UI_USER_CONTEXT_ENTRY_TOPIC, UI_USER_CONTEXT_SCOPE_TOPIC, UiEventBatch, UiEventDto,
-    UiEventKind, UiGraphOp, UiHistoryState, UiProjectFileSpec, UiRuntimeStatsDto, UiSnapshot, UiSubscriptionScope,
+    UiEventKind, UiGraphOp, UiHistoryState, UiNodeDto, UiProjectFileSpec, UiRuntimeStatsDto, UiSchemaView, UiSnapshot,
+    UiSubscriptionScope,
 };
 use projection::{
     ProjectionCapture, ProjectionState, SnapshotHeader, apply_events, nodes_to_store, parents_from_nodes,
@@ -99,6 +100,22 @@ pub struct UiSnapshotCapture {
 }
 
 impl UiSnapshotCapture {
+    /// The engine root at this coherent capture boundary.
+    pub fn root(&self) -> NodeId {
+        self.projection.header.root
+    }
+
+    /// Reads one projected node by id without materializing the graph. Snapshot scope only
+    /// applies to materialization.
+    pub fn node(&self, id: NodeId) -> Option<&UiNodeDto> {
+        self.projection.nodes.get(&id)
+    }
+
+    /// Reads the shared descriptions and parameter enum definitions for this capture.
+    pub fn schema(&self) -> &UiSchemaView {
+        &self.projection.schema
+    }
+
     /// Internal projection version represented by this immutable capture.
     ///
     /// Consumers may use this value as a bounded cache key. It is meaningful only for captures
@@ -185,6 +202,7 @@ impl UiReadModel {
         let parents = parents_from_nodes(nodes.values());
         let schema = snapshot.schema.clone();
         let header = Arc::new(SnapshotHeader {
+            root: engine.root,
             at,
             project_generation: ProjectGeneration::INITIAL,
             history: snapshot.history.clone(),
@@ -357,6 +375,7 @@ impl UiReadModel {
                 nodes,
                 parents,
                 header: Arc::new(SnapshotHeader {
+                    root: engine.root,
                     at,
                     project_generation,
                     history: snapshot.history.clone(),

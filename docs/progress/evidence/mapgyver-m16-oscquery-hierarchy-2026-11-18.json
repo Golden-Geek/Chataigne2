@@ -1,0 +1,33 @@
+{
+  "date": "2026-11-18",
+  "gate": "M16/4",
+  "result": "local read-only hierarchy and shared host activation verified; full OSCQuery remains active",
+  "transport": {
+    "testsPassed": 97,
+    "testsIgnored": 1,
+    "strictClippyAllTargets": "pass",
+    "fixture": "crates/golden_core/hosts/transport/src/ui_server/oscquery/tests/mod.rs",
+    "verified": "Real HTTP connections in an app-neutral Golden host serve HOST_INFO, the full hierarchy, duplicate-name paths, typed values, ranges and live edits to the underlying Golden document. Verified unknown paths and attributes, unavailable values, retry after a port conflict, live port change, disable/re-enable and shutdown."
+  },
+  "bundled": {
+    "fixture": "apps/mapgyver/tests/browser/native-oscquery.mjs",
+    "mapgyver": {
+      "defaultPort": 43000,
+      "receipt": "target/m164-mapgyver-oscquery-cbcb0384/result.json",
+      "roots": ["dashboard", "medias", "screens", "preferences"]
+    },
+    "chataigne": {
+      "defaultPort": 42000,
+      "receipt": "target/m164-chataigne-oscquery-ef961fe6/result.json",
+      "roots": ["dashboard", "formulas", "moduleManager", "stateMachine", "preferences"],
+      "build": "Bundled development binary built with --no-default-features to exercise the shared host without optional audio backends."
+    },
+    "verified": "Both apps start disabled, publish their own name and authored hierarchy on the chosen port after enabling, preserve enablement and port across project replacement, then close the listener when disabled. Both owned windows exited normally."
+  },
+  "remaining": [
+    "LAN discovery and Zeroconf advertisement",
+    "OSC parameter control and undoable manager and metadata operations through Golden intents",
+    "Client-specific LISTEN and rate-limited feedback bundles, with isolation and burst verification",
+    "Copy OSC Address in node menus and the Interface preference for OSC addresses in Help"
+  ]
+}

@@ -102,10 +102,14 @@ pub(super) fn parse_head(bytes: &[u8]) -> std::io::Result<(HttpRequest, usize, u
             Some(_) => return Err(Error::new(ErrorKind::InvalidData, "invalid Content-Length")),
         };
     validate_http_request_size(offset, length)?;
+    let (path, query) = target
+        .split_once('?')
+        .map_or((target, None), |(path, query)| (path, Some(query)));
     Ok((
         HttpRequest {
             method: method.to_owned(),
-            path: target.split('?').next().unwrap_or(target).to_owned(),
+            path: path.to_owned(),
+            query: query.map(str::to_owned),
             headers,
             body: Vec::new(),
         },

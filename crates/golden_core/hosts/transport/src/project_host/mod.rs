@@ -183,7 +183,9 @@ pub(crate) fn load_preferences_into_engine<T: ProjectLifecycle>(
         }
     }
 
-    ensure_preferences_defaults(engine, T::preferences_tree(default_data_folder));
+    let mut defaults = T::preferences_tree(default_data_folder);
+    defaults.push_child(crate::ui_server::oscquery::preferences(T::oscquery_default_port()));
+    ensure_preferences_defaults(engine, defaults);
     Ok(())
 }
 

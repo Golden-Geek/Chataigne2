@@ -13,6 +13,7 @@ fn request(host: &str, origin: Option<&str>) -> HttpRequest {
     HttpRequest {
         method: "POST".into(),
         path: "/api/ui/intent".into(),
+        query: None,
         headers,
         body: Vec::new(),
     }

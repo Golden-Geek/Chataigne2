@@ -19,6 +19,7 @@ fn request(token: &str) -> HttpRequest {
     HttpRequest {
         method: "GET".into(),
         path: "/api/ui/ws".into(),
+        query: None,
         headers: HashMap::from([("authorization".into(), format!("Bearer {token}"))]),
         body: Vec::new(),
     }

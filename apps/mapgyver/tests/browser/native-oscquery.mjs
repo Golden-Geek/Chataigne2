@@ -1,0 +1,138 @@
+// Verify either bundled Golden app installs and applies shared OSCQuery Preferences.
+import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { createServer } from 'node:net';
+import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
+import { openNativeEditor } from './native-editor.mjs';
+
+const directory = path.resolve(process.argv[2]);
+const expected = process.argv.includes('--chataigne')
+	? { title: 'Chataigne 2', port: 42000, roots: ['modulemanager', 'preferences'] }
+	: { title: 'MapGyver', port: 43000, roots: ['medias', 'screens'] };
+await mkdir(directory);
+const reservation = createServer();
+reservation.listen(0, '127.0.0.1');
+await once(reservation, 'listening');
+const selectedPort = reservation.address().port;
+await new Promise((resolve) => reservation.close(resolve));
+const native = await openNativeEditor();
+let token, failure, defaultPort, info, rootContents;
+
+async function post(route, body) {
+	const response = await fetch(native.base + route, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			...(token ? { Authorization: `Bearer ${token}` } : {})
+		},
+		body: JSON.stringify(body),
+		signal: AbortSignal.timeout(5000)
+	});
+	const result = await response.json();
+	assert(response.ok, JSON.stringify(result));
+	return result;
+}
+
+async function edit(payload) {
+	const result = await post('/api/ui/intent', payload);
+	assert(result.success, JSON.stringify(result));
+}
+
+async function query(suffix) {
+	try {
+		return await fetch(`http://127.0.0.1:${selectedPort}${suffix}`, {
+			signal: AbortSignal.timeout(250)
+		});
+	} catch {
+		return null;
+	}
+}
+
+async function wait(predicate) {
+	const deadline = performance.now() + 6000;
+	for (;;) {
+		const result = await predicate();
+		if (result) return result;
+		assert(performance.now() < deadline, 'OSCQuery listener did not reach the requested state');
+		await delay(35);
+	}
+}
+
+try {
+	token = (await post('/api/ui/session', {})).token;
+	const { nodes } = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
+	const category = nodes.find((node) => node.decl_id === 'oscquery');
+	assert(category?.meta.can_be_disabled);
+	assert.equal(category.meta.enabled, false);
+	const port = nodes.find(
+		(node) => category.children.includes(node.node_id) && node.decl_id === 'port'
+	);
+	defaultPort = port.data.param.value.Int;
+	assert.equal(defaultPort, expected.port);
+	await edit({
+		kind: 'setParam',
+		node: port.node_id,
+		value: { Int: selectedPort },
+		behaviour: 'Append'
+	});
+	assert.equal(await query('/?HOST_INFO'), null);
+	const enable = (node, enabled) =>
+		edit({ kind: 'patchMeta', node: node.node_id, patch: { enabled } });
+	await enable(category, true);
+	info = await (
+		await wait(async () => {
+			const response = await query('/?HOST_INFO');
+			return response?.ok && response;
+		})
+	).json();
+	assert.equal(info.NAME, expected.title);
+	const project = await query('/');
+	assert.equal(project.status, 200);
+	const tree = await project.json();
+	assert.equal(tree.FULL_PATH, '/');
+	rootContents = Object.keys(tree.CONTENTS);
+	for (const key of expected.roots) {
+		assert(
+			rootContents.some((actual) => actual.toLowerCase() === key),
+			`Missing root ${key}`
+		);
+	}
+	const portPath = await query('/preferences/oscquery/port?VALUE');
+	assert.equal(portPath.status, 200);
+	assert.deepEqual(await portPath.json(), { VALUE: [selectedPort] });
+	assert((await post('/api/ui/project-new', {})).ok);
+	const replaced = (await post('/api/ui/snapshot', { scope: 'wholeGraph' })).nodes;
+	const savedCategory = replaced.find((node) => node.decl_id === 'oscquery');
+	assert(savedCategory.meta.enabled, 'OSCQuery enablement survives project replacement');
+	const savedPort = replaced.find(
+		(node) => savedCategory.children.includes(node.node_id) && node.decl_id === 'port'
+	);
+	assert.equal(savedPort.data.param.value.Int, selectedPort);
+	assert((await query('/?HOST_INFO'))?.ok);
+	await enable(savedCategory, false);
+	await wait(async () => !(await query('/?HOST_INFO')));
+} catch (error) {
+	failure = String(error.stack ?? error);
+	await writeFile(path.join(directory, 'app.log'), native.log());
+	throw error;
+} finally {
+	await native.close();
+	await writeFile(
+		path.join(directory, 'result.json'),
+		JSON.stringify(
+			{
+				result: failure ? 'fail' : 'pass',
+				failure,
+				defaultPort,
+				selectedPort,
+				info,
+				rootContents
+			},
+			null,
+			2
+		)
+	);
+}
+console.log(JSON.stringify({ result: 'pass', defaultPort, selectedPort, rootContents }));

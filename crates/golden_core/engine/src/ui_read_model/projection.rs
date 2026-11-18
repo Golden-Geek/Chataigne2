@@ -13,6 +13,7 @@ use super::projection_store::{NodeStore, ParentStore};
 
 #[derive(Clone)]
 pub(super) struct SnapshotHeader {
+    pub(super) root: crate::node::NodeId,
     pub(super) at: EngineTime,
     pub(super) project_generation: ProjectGeneration,
     pub(super) history: UiHistoryState,

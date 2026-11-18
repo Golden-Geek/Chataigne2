@@ -39,6 +39,10 @@ impl golden_core::app::ProjectLifecycle for AppNode {
         "Chataigne"
     }
 
+    fn oscquery_default_port() -> u16 {
+        42000
+    }
+
     fn configure_engine(engine: &mut AppEngine) -> Result<(), String> {
         super::module::register_module_reference_filters(engine);
         Ok(())

@@ -25,6 +25,13 @@ impl<'a> HttpResponse<'a> {
             content_security_policy: None,
         }
     }
+
+    pub(super) fn private(stream: &'a mut TcpStream) -> Self {
+        Self {
+            sensitive: true,
+            ..Self::new(stream)
+        }
+    }
 }
 
 pub(super) fn handle_connection<T: ProjectLifecycle>(

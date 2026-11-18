@@ -70,6 +70,10 @@ impl ProjectLifecycle for AppNode {
         "MapGyver"
     }
 
+    fn oscquery_default_port() -> u16 {
+        43000
+    }
+
     fn preferences_tree(default_data_folder: String) -> golden_core::edit::NodeTree {
         crate::preferences::tree(default_data_folder)
     }
