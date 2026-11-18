@@ -101,6 +101,9 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
     if let MatrixEdit::NavigateColumnGroup { direction } = edit {
         return super::controls::matrix_pulse(engine, media, super::controls::Action::NavigateColumnGroup(direction));
     }
+    if let MatrixEdit::NavigateCell { layer, direction } = edit {
+        return super::controls::navigate_cell(engine, media, layer, direction);
+    }
     if matches!(edit, MatrixEdit::InspectPlayback) {
         return super::playback::inspect(engine, media);
     }
@@ -159,7 +162,8 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         MatrixEdit::InspectViewport { .. } => unreachable!(),
         MatrixEdit::LaunchColumn { .. }
         | MatrixEdit::NavigateColumn { .. }
-        | MatrixEdit::NavigateColumnGroup { .. } => unreachable!(),
+        | MatrixEdit::NavigateColumnGroup { .. }
+        | MatrixEdit::NavigateCell { .. } => unreachable!(),
         MatrixEdit::InspectPlayback => unreachable!(),
         MatrixEdit::ClearPlayback => unreachable!(),
         MatrixEdit::Inspect => {

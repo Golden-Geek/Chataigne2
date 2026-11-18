@@ -1,4 +1,5 @@
 //! Layer/Group settings are authored Parameters; definitions are read projections only.
+use super::controls::Action;
 use super::protocol::*;
 use golden_core::{
     edit::Edit,
@@ -25,6 +26,8 @@ enum Kind {
 })]
 #[children(folder(parameters, label = "Parameters", can_be_disabled = false) {
     stop: ParamValue = ParamValue::Trigger() (label = "Stop");
+    previous_cell: ParamValue = ParamValue::Trigger() (label = "Previous Cell", dependency = |node: &Self| node.is_layer());
+    next_cell: ParamValue = ParamValue::Trigger() (label = "Next Cell", dependency = |node: &Self| node.is_layer());
     opacity: f64 = 1.0 [0.0..1.0] (label = "Opacity", constraint_policy = "reject");
     blend: Enum = "Normal" (label = "Blend Mode", enum_options = crate::parameters::enum_options(&["Normal", "Add", "Multiply", "Screen"]));
     expose_channel: bool = false (label = "Expose Channel");
@@ -45,6 +48,19 @@ pub struct ElementNode {
     view_collapsed: bool,
 }
 impl ElementNode {
+    pub(super) fn cell_navigation_parameters(&self) -> [(Action, NodeId); 2] {
+        [
+            (
+                Action::NavigateCell(MatrixNavigationDirection::Previous),
+                self.previous_cell.id(),
+            ),
+            (
+                Action::NavigateCell(MatrixNavigationDirection::Next),
+                self.next_cell.id(),
+            ),
+        ]
+    }
+
     pub(super) fn geometry_bindings(
         &self,
         engine: &crate::app::AppEngine,
@@ -333,6 +349,15 @@ impl Node for ElementNode {
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
         if parameter == self.stop.id() {
             self.pulses.invoke(ctx, &self.node_data, super::controls::Action::Stop);
+            return;
+        }
+        if self.is_layer()
+            && let Some((action, _)) = self
+                .cell_navigation_parameters()
+                .into_iter()
+                .find(|(_, id)| *id == parameter)
+        {
+            self.pulses.invoke(ctx, &self.node_data, action);
             return;
         }
         self.invalidate();

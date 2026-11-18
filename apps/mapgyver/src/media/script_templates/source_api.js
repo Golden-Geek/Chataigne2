@@ -32,6 +32,7 @@ function sourceExamples(mediaId, channelId, assetId) {
 	// Uncomment the operations you need. Each call is its own atomic history step.
 	// local.navigateMatrixColumn("next-column", matrixId, "Next"); // or "Previous"
 	// local.navigateMatrixColumnGroup("next-group", matrixId, "Next"); // top-level Column Groups
+	// local.navigateMatrixCell("next-cell", matrixId, layerId, "Next"); // step within the Layer
 	// local.dropMatrixMedia("cell", matrixId, layerId, columnId, mediaId, false); // true copies the full media
 	// local.transferMatrixCell("transfer", matrixId, cellId, layerId, columnId, "Drop"); // Drop swaps/moves; Move/Copy/Reference require empty destination
 	// local.captureMatrixPreset("capture", matrixId, "Show"); // MatrixPresetCreated returns preset UUID

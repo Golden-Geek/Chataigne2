@@ -62,7 +62,9 @@ async function verifyMatrixNavigation() {
 	const label = 'Matrix navigation controls';
 	const { reference } = await edit({ kind: 'CreateMedia', media_kind: 'Matrix', label });
 	const matrix = (operation) => edit({ kind: 'Matrix', media: reference.media, edit: operation });
-	const original = (await matrix({ kind: 'Inspect' })).snapshot.columns.at(-1).id;
+	const initial = (await matrix({ kind: 'Inspect' })).snapshot;
+	const original = initial.columns.at(-1).id;
+	const [row, other] = initial.items.slice(0, 2);
 	const { group: firstGroup } = await matrix({
 		kind: 'AddColumnGroup',
 		parent: null,
@@ -118,10 +120,12 @@ async function verifyMatrixNavigation() {
 	]);
 	const graph = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
 	const byId = new Map(graph.nodes.map((node) => [node.node_id, node]));
-	const owner = graph.nodes.find((node) => node.uuid === reference.media);
-	const parameters = owner.children
-		.map((id) => byId.get(id))
-		.find((node) => node?.decl_id === 'parameters');
+	const parametersFor = (uuid) =>
+		graph.nodes
+			.find((node) => node.uuid === uuid)
+			.children.map((id) => byId.get(id))
+			.find((node) => node?.decl_id === 'parameters');
+	const parameters = parametersFor(reference.media);
 	assert.equal(await toolbar.getByRole('button').count(), controls.size);
 	const triggerIds = new Map();
 	for (const [name, field] of controls) {
@@ -138,8 +142,7 @@ async function verifyMatrixNavigation() {
 		assert.equal(await button.getAttribute('data-parameter-uuid'), trigger.uuid);
 		triggerIds.set(name, trigger.node_id);
 	}
-	const pulse = async (name, key) => {
-		const button = toolbar.getByRole('button', { name, exact: true });
+	const pulseButton = async (button, parameter, key) => {
 		await wait(() => button.isEnabled(), Boolean);
 		const before = sent.length;
 		if (key) await button.press(key);
@@ -150,11 +153,13 @@ async function verifyMatrixNavigation() {
 				intents.some(
 					(intent) =>
 						intent.kind === 'setParam' &&
-						intent.node === triggerIds.get(name) &&
+						intent.node === parameter &&
 						Array.isArray(intent.value?.Trigger)
 				)
 		);
 	};
+	const pulse = (name, key) =>
+		pulseButton(toolbar.getByRole('button', { name, exact: true }), triggerIds.get(name), key);
 	const step = async (name, column, key) => {
 		await pulse(name, key);
 		await wait(playback, (state) => state.desired_column === column);
@@ -167,7 +172,66 @@ async function verifyMatrixNavigation() {
 	await step('Previous Column Group', first, 'Enter');
 	await pulse('Trigger Stop All', 'Space');
 	await wait(playback, (state) => state.desired_column === null && state.layers.length === 0);
-	return 'top-left Matrix icon toolbar click/keyboard navigation crosses ordinary and nested columns, steps only top-level groups, and stops through its real Parameter';
+	checks.push(
+		'top-left Matrix icon toolbar steps Column and Group order and stops through real Parameters'
+	);
+
+	const { reference: source } = await edit({
+		kind: 'CreateMedia',
+		media_kind: 'SolidColor',
+		label: 'Layer transport source'
+	});
+	await matrix({
+		kind: 'SetCells',
+		assignments: [
+			{ layer: row.id.id, column: original, source },
+			{ layer: row.id.id, column: third, source },
+			{ layer: other.id.id, column: second, source }
+		]
+	});
+	await matrix({ kind: 'LaunchColumn', column: original, mode: 'Cut' });
+	await matrix({ kind: 'LaunchCell', layer: other.id.id, column: second, mode: 'Cut' });
+	const initialPlayback = await playback();
+	const otherPlayback = initialPlayback.layers.find((request) => request.layer === other.id.id);
+	assert(otherPlayback);
+	const layerHeader = grid.getByRole('rowheader', { name: row.label, exact: true });
+	const layerParameters = parametersFor(row.id.id);
+	for (const [field, name, key, column, inspector] of [
+		['next_cell', 'Next Cell', 'Enter', third, false],
+		['previous_cell', 'Previous Cell', undefined, original, false],
+		['next_cell', 'Next Cell', undefined, third, true]
+	]) {
+		const trigger = layerParameters.children
+			.map((id) => byId.get(id))
+			.find((node) => node?.decl_id === `parameters/${field}`);
+		assert(trigger);
+		let button;
+		if (inspector) {
+			await layerHeader.locator('.row-title-label').click();
+			button = page
+				.locator(`.parameter-inspector[data-node-id="${trigger.node_id}"]`)
+				.getByRole('button', { name: 'Trigger', exact: true });
+		} else {
+			button = layerHeader.getByRole('button', { name: `${name} on ${row.label}`, exact: true });
+			assert.equal(Number(await button.getAttribute('data-parameter-id')), trigger.node_id);
+			assert.equal(await button.getAttribute('data-parameter-uuid'), trigger.uuid);
+		}
+		const history = (await post('/api/ui/snapshot', { scope: 'wholeGraph' })).history;
+		await pulseButton(button, trigger.node_id, key);
+		const state = await wait(playback, (state) =>
+			state.layers.some((request) => request.layer === row.id.id && request.column === column)
+		);
+		assert.equal(state.desired_column, original);
+		assert.equal(state.launch_id, initialPlayback.launch_id);
+		assert.deepEqual(
+			state.layers.find((request) => request.layer === other.id.id),
+			otherPlayback
+		);
+		assert.deepEqual((await post('/api/ui/snapshot', { scope: 'wholeGraph' })).history, history);
+	}
+	checks.push(
+		'Layer row-header and Inspector stepping fire the same Parameters and preserve the Column anchor, other Layer and Undo history'
+	);
 }
 
 let failure;
@@ -295,7 +359,7 @@ try {
 	await wait(playback, (value) => value.layers.length === 0);
 	checks.push('project reload neither replays controls nor loses the real Stop All widget');
 	checks.push(await verifyMatrixScopeControls({ page, matrix, wait, sent }));
-	checks.push(await verifyMatrixNavigation());
+	await verifyMatrixNavigation();
 	assert.deepEqual(errors, []);
 	await page.screenshot({ path: path.join(directory, 'stop-all.png') });
 } catch (error) {

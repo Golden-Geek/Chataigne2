@@ -1,6 +1,6 @@
 //! Real Parameter pulses enter the same bounded app-operation service as script commands.
 use super::{
-    protocol::{LaunchMode, MatrixNavigationDirection},
+    protocol::{LaunchMode, LayerId, MatrixNavigationDirection},
     view::navigation::{self, AxisTarget},
 };
 use crate::{
@@ -29,6 +29,7 @@ pub(crate) enum Action {
     Stop,
     NavigateColumn(MatrixNavigationDirection),
     NavigateColumnGroup(MatrixNavigationDirection),
+    NavigateCell(MatrixNavigationDirection),
 }
 
 #[derive(Deserialize, Serialize)]
@@ -118,6 +119,10 @@ fn pulse(engine: &mut AppEngine, owner: NodeId, action: Action) -> Result<MediaE
         (AppNode::Media(node), action) => node.matrix_control_parameter(action),
         (AppNode::MatrixColumn(node), action) => node.control_parameter(action),
         (AppNode::MatrixCell(node), action) => node.control_parameter(action),
+        (AppNode::MatrixElement(node), action) if node.is_layer() => node
+            .cell_navigation_parameters()
+            .into_iter()
+            .find_map(|(control, parameter)| (control == action).then_some(parameter)),
         _ => None,
     }
     .ok_or("Matrix control does not belong to this owner")?;
@@ -190,6 +195,30 @@ pub(super) fn matrix_pulse(engine: &mut AppEngine, media: MediaId, action: Actio
     pulse(engine, id, action)
 }
 
+pub(super) fn navigate_cell(
+    engine: &mut AppEngine,
+    media: MediaId,
+    layer: LayerId,
+    direction: MatrixNavigationDirection,
+) -> Result<MediaEditResult, String> {
+    let id = engine.node_id_by_uuid(layer.0).ok_or("Matrix Layer is missing")?;
+    if matrix_owner(engine, id) != Some(media) {
+        return Err("Layer belongs to another Matrix or is missing".into());
+    }
+    pulse(engine, id, Action::NavigateCell(direction))
+}
+
+fn matrix_owner(engine: &AppEngine, mut id: NodeId) -> Option<MediaId> {
+    loop {
+        let node = engine.nodes.get(id)?;
+        if let AppNode::Media(media) = node {
+            // A Cell's nested media is a separate playback domain.
+            return (media.kind() == MediaKind::Matrix).then(|| MediaId(node.node_data().meta.uuid));
+        }
+        id = node.node_data().parent?;
+    }
+}
+
 fn launch_action(mode: super::protocol::LaunchMode) -> Action {
     match mode {
         super::protocol::LaunchMode::Configured => Action::Play,
@@ -227,20 +256,7 @@ pub(crate) fn apply(
     if !crate::media::routing_enabled(engine, node) {
         return Err("Matrix control owner is disabled".into());
     }
-    let mut ancestor = Some(id);
-    let mut media = None;
-    while let Some(parent) = ancestor {
-        let node = engine.nodes.get(parent).ok_or("Matrix control ancestry changed")?;
-        if let AppNode::Media(owner) = node {
-            if owner.kind() == MediaKind::Matrix {
-                media = Some(MediaId(node.node_data().meta.uuid));
-            }
-            // A Cell's nested media is a separate playback domain.
-            break;
-        }
-        ancestor = node.node_data().parent;
-    }
-    let media = media.ok_or("control is outside a Matrix")?;
+    let media = matrix_owner(engine, id).ok_or("control is outside a Matrix")?;
     let mode = if invocation.action == Action::Cut {
         LaunchMode::Cut
     } else {
@@ -256,6 +272,9 @@ pub(crate) fn apply(
         }
         (AppNode::Media(owner), Action::NavigateColumnGroup(direction)) if owner.kind() == MediaKind::Matrix => {
             navigation::launch(engine, media, direction, AxisTarget::TopLevelGroup)?
+        }
+        (AppNode::MatrixElement(owner), Action::NavigateCell(direction)) if owner.is_layer() => {
+            navigation::launch_layer_cell(engine, media, LayerId(invocation.owner), direction)?
         }
         (AppNode::MatrixColumn(_), Action::Play | Action::Cut) => {
             super::playback::launch(engine, media, super::protocol::ColumnId(invocation.owner), mode)?

@@ -32,6 +32,7 @@ Matrix provides these intrinsic Trigger Parameters:
 | Matrix media          | `parameters/stop_all`               | Immediate Cut to empty across the base Column and every independent Layer request.               |
 | Matrix media          | Previous/Next Column and Previous/Next Column Group | Configured launch in document order, scoped to Columns or top-level Column Groups. |
 | Layer                 | `parameters/stop`                   | Fade the complete current mix using resolved Cell → Column → Layer duration/curve; zero cuts.     |
+| Layer                 | `parameters/previous_cell`, `parameters/next_cell` | Step between playable Cells on that Layer with the configured transition. |
 | Layer Group           | `parameters/stop`                   | Cut every playing clip on its current descendant Layers.                                         |
 | Column / Column Group | `parameters/stop`                   | Cut matching Column clips across every Layer, including independent launches and outgoing clips. |
 | Cell                  | `parameters/stop`                   | Cut only that Layer/Column address, preserving other outgoing contributions on the Layer.        |
@@ -47,6 +48,14 @@ launches its first enabled descendant Column with the configured transition. The
 last requested Column anchors both controls. An ungrouped Column anchors Group navigation at
 its own position in the axis. After Stop All, Next starts from the beginning and Previous
 starts from the end. Navigation at a boundary holds the current playback.
+
+Each Layer row header also exposes Previous/Next Cell. These controls start from the Layer’s
+requested Cell, or the Matrix Column if the Layer inherits playback. An explicitly stopped Layer
+starts at its first or last playable Cell. Navigation walks the existing sparse Cells in Column
+order. It skips unconfigured and disabled Cells and disabled Columns. A Cell with an enabled,
+configured App Control can play without media. Stepping uses the normal Cell transition and
+preserves the Matrix Column anchor and the other Layers. Named scripts use
+`navigateMatrixCell(requestId, matrixId, layerId, direction)` with `"Previous"` or `"Next"`.
 
 `controls::Pulses` captures an owner UUID and action into Golden's existing bounded operation
 service. The service resolves current ownership and rejects missing, disabled or mismatched
@@ -94,7 +103,7 @@ clears those inputs as well as independent playback. Previously captured render/
 plans remain owned until their consumers release them; these controls do not bypass GPU
 completion or process retirement barriers.
 
-High-level `LaunchColumn`, `LaunchCell`, `NavigateColumn`, `NavigateColumnGroup` and
+High-level `LaunchColumn`, `LaunchCell`, `NavigateColumn`, `NavigateColumnGroup`, `NavigateCell` and
 `ClearPlayback` resolve and fire those same real Parameters. This also covers grid double-click,
 context actions, script and command callers. Named script methods `navigateMatrixColumn` and
 `navigateMatrixColumnGroup` take a Matrix ID and `"Previous"` or `"Next"`. `unloadMatrix` fires

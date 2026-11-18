@@ -1,6 +1,55 @@
 use super::*;
 
 #[test]
+fn layer_navigation_matches_named_and_generic_script_and_transport_callers() {
+    let scene = scene();
+    let layer = scene.snapshot.cells[0].layer;
+    let anchor = scene.snapshot.columns[0].id;
+    let target = scene.snapshot.columns[1].id;
+    for caller in CALLERS {
+        let mut engine = loaded(&scene.document);
+        matrix_edit(
+            &mut engine,
+            scene.root,
+            MatrixEdit::LaunchColumn {
+                column: anchor,
+                mode: LaunchMode::Cut,
+            },
+        );
+        service_script_app_operations(&mut engine).unwrap();
+        let value = run(
+            &mut engine,
+            caller,
+            MediaEdit::Matrix {
+                media: scene.root.media,
+                edit: MatrixEdit::NavigateCell {
+                    layer,
+                    direction: MatrixNavigationDirection::Next,
+                },
+            },
+        )
+        .unwrap();
+        let MediaEditResult::MatrixControlInvoked { owner, parameter } = serde_json::from_value(value).unwrap() else {
+            panic!("{caller:?} did not invoke the Layer trigger")
+        };
+        assert_eq!(owner, layer.0);
+        assert!(engine.node_id_by_uuid(parameter).is_some());
+        let MediaEditResult::MatrixPlayback { snapshot } =
+            crate::matrix::apply(&mut engine, scene.root.media, MatrixEdit::InspectPlayback).unwrap()
+        else {
+            panic!("playback snapshot")
+        };
+        assert_eq!(snapshot.desired_column, Some(anchor));
+        assert!(
+            snapshot
+                .layers
+                .iter()
+                .any(|request| request.layer == layer && request.column == Some(target))
+        );
+    }
+}
+
+#[test]
 fn matrix_navigation_has_the_same_playback_and_callback_for_every_caller() {
     use MatrixNavigationDirection::{Next, Previous};
 

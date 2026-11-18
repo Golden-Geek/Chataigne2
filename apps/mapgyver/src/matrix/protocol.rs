@@ -570,6 +570,10 @@ pub enum MatrixEdit {
     NavigateColumnGroup {
         direction: MatrixNavigationDirection,
     },
+    NavigateCell {
+        layer: LayerId,
+        direction: MatrixNavigationDirection,
+    },
     InspectPlayback,
     ClearPlayback,
     Inspect,

@@ -1,0 +1,23 @@
+{
+  "date": "2026-11-18",
+  "gate": "M16/8",
+  "result": "accepted",
+  "scope": "Layer-owned Previous/Next Cell triggers preserve the Matrix-wide Column request and every other Layer request.",
+  "software": {
+    "rustTests": 5,
+    "coverage": "Sparse and empty Cells, disabled Cells and Columns, nested Column order, configured transitions, Layer Stop and restart, no-op boundaries, foreign Layer rejection, history, named and generic scripts, transport and generated contracts",
+    "strictClippy": "pass",
+    "svelteCheck": { "errors": 0, "warnings": 0 },
+    "rustFormattingAndPrettier": "pass"
+  },
+  "bundledApp": {
+    "fixture": "apps/mapgyver/tests/browser/matrix-triggers.mjs",
+    "processId": 13408,
+    "exitCode": 0,
+    "passedCheckGroups": 7,
+    "localReceipt": "target/m168-layer-transport-0f9dba74/result.json",
+    "localScreenshot": "target/m168-layer-transport-0f9dba74/stop-all.png",
+    "coverage": "Keyboard and mouse Layer controls, generic Inspector and exact Parameter identity, untouched Column anchor and peer Layer, unchanged Undo history, and regression coverage of Matrix-wide navigation and scoped Stops",
+    "build": "Isolated bundled UI with pinned FFmpeg on PATH, with Tauri resource copying disabled for the test build"
+  }
+}

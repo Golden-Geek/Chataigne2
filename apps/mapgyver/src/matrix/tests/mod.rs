@@ -34,6 +34,7 @@ mod enabled;
 mod front_order;
 mod group_spans;
 mod layer_geometry;
+mod layer_navigation;
 mod layer_settings;
 mod navigation;
 mod owned_media;

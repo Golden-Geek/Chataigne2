@@ -6,6 +6,8 @@
 	import GridLabel from './GridLabel.svelte';
 	import RowControls from './RowControls.svelte';
 	import ParameterTrigger from './ParameterTrigger.svelte';
+	import previousIcon from '../icons/step-previous.svg';
+	import nextIcon from '../icons/step-next.svg';
 	import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
 	import { gridSize } from './viewport';
 	import { rowInset } from './group-rails';
@@ -78,6 +80,22 @@
 		<div class="row-title-label">
 			<GridLabel label={row.item.label} {disabled} {select} {rename} />
 		</div>
+		{#if row.item.id.kind === 'Layer'}
+			<ParameterTrigger
+				owner={row.item.id.id}
+				field="previous_cell"
+				label={`Previous Cell on ${row.item.label}`}
+				icon={previousIcon}
+				{disabled}
+				tinted />
+			<ParameterTrigger
+				owner={row.item.id.id}
+				field="next_cell"
+				label={`Next Cell on ${row.item.label}`}
+				icon={nextIcon}
+				{disabled}
+				tinted />
+		{/if}
 		<ParameterTrigger
 			owner={row.item.id.id}
 			field="stop"

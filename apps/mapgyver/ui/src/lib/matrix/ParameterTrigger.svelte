@@ -19,7 +19,9 @@
 			| 'previous_column'
 			| 'next_column'
 			| 'previous_column_group'
-			| 'next_column_group';
+			| 'next_column_group'
+			| 'previous_cell'
+			| 'next_cell';
 		label: string;
 		title?: string;
 		icon?: string;

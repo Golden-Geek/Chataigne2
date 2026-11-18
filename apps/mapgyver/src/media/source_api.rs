@@ -26,6 +26,7 @@ pub(super) const METHODS: &[&str] = &[
     "inspectVideoSubtitles",
     "navigateMatrixColumn",
     "navigateMatrixColumnGroup",
+    "navigateMatrixCell",
     "dropMatrixMedia",
     "transferMatrixCell",
     "captureMatrixPreset",
@@ -124,6 +125,7 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "createCompositionMedia" => 6,
         "transformCompositionMedia" | "arrangeCompositionMedia" => 4,
         "navigateMatrixColumn" | "navigateMatrixColumnGroup" => 2,
+        "navigateMatrixCell" => 3,
         "dropMatrixMedia" => 5,
         "transferMatrixCell" => 5,
         "captureMatrixPreset" | "updateMatrixPreset" | "recallMatrixPreset" | "deleteMatrixPreset" => 2,
@@ -145,6 +147,13 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
             media: MediaId(uuid(args, 0)?),
             edit: crate::matrix::protocol::MatrixEdit::NavigateColumnGroup {
                 direction: choice(args, 1)?,
+            },
+        },
+        "navigateMatrixCell" => MediaEdit::Matrix {
+            media: MediaId(uuid(args, 0)?),
+            edit: crate::matrix::protocol::MatrixEdit::NavigateCell {
+                layer: crate::matrix::protocol::LayerId(uuid(args, 1)?),
+                direction: choice(args, 2)?,
             },
         },
         "captureMatrixPreset"

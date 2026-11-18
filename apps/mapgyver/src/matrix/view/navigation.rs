@@ -1,11 +1,12 @@
-//! Step within the cached authoring order using the committed Matrix-wide launch as the anchor.
+//! Step from committed playback through the cached document order.
 use super::ViewIndex;
 use crate::{
-    app::AppEngine,
-    matrix::protocol::{ColumnId, ColumnItemId, LaunchMode, MatrixNavigationDirection},
+    app::{AppEngine, AppNode},
+    matrix::protocol::{ColumnId, ColumnItemId, LaunchMode, LayerId, MatrixNavigationDirection},
     media::protocol::{MediaEditResult, MediaId},
 };
 use MatrixNavigationDirection::{Next, Previous};
+use golden_core::node::NodeId;
 
 pub(in crate::matrix) enum AxisTarget {
     Column,
@@ -33,6 +34,57 @@ pub(in crate::matrix) fn launch(
     match target {
         Some(column) => crate::matrix::playback::launch(engine, media, column, LaunchMode::Configured),
         None => Ok(current),
+    }
+}
+
+pub(in crate::matrix) fn launch_layer_cell(
+    engine: &mut AppEngine,
+    media: MediaId,
+    layer: LayerId,
+    direction: MatrixNavigationDirection,
+) -> Result<MediaEditResult, String> {
+    let root = crate::matrix::playback::root(engine, media)?;
+    let Some(AppNode::MediaChannel(channel)) = engine.nodes.get(root) else {
+        unreachable!()
+    };
+    let control = channel.matrix_playback().ok_or("Matrix playback is missing")?;
+    let snapshot = control.snapshot();
+    let index = super::index(engine, media)?;
+    let Some(cells) = index.layer_cells.get(&layer) else {
+        return Ok(MediaEditResult::MatrixPlayback { snapshot });
+    };
+    let configuration = crate::matrix::configuration::index(engine, media, control)?;
+    // An explicit stopped Layer has no anchor even if the rest of the Matrix is playing.
+    let anchor = snapshot
+        .layers
+        .iter()
+        .find(|request| request.layer == layer)
+        .map_or(snapshot.desired_column, |request| request.column)
+        .and_then(|column| index.column_positions.get(&column).copied());
+    let column_of = |id: NodeId| match engine.nodes.get(id) {
+        Some(AppNode::MatrixCell(cell)) => cell.column(),
+        _ => unreachable!("The Matrix view index contains current Cell nodes"),
+    };
+    let candidates = match (direction, anchor) {
+        (Previous, Some(anchor)) => {
+            &cells[..cells.partition_point(|&id| index.column_positions[&column_of(id)] < anchor)]
+        }
+        (Next, Some(anchor)) => &cells[cells.partition_point(|&id| index.column_positions[&column_of(id)] <= anchor)..],
+        (_, None) => cells,
+    };
+    let target = find_in_direction(candidates, direction, |&id| {
+        let column = column_of(id);
+        (configuration.playable.contains(&(layer, column))
+            && column_enabled(engine, &index, column)
+            && engine
+                .nodes
+                .get(id)
+                .is_some_and(|cell| crate::media::routing_enabled(engine, cell)))
+        .then_some(column)
+    });
+    match target {
+        Some(column) => crate::matrix::playback::launch_cell(engine, media, layer, column, LaunchMode::Configured),
+        None => Ok(MediaEditResult::MatrixPlayback { snapshot }),
     }
 }
 
