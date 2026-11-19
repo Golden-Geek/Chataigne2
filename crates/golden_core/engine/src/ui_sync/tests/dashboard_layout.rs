@@ -4,10 +4,10 @@ use crate::parameter::{CssUnit, CssValue, ParamValue, ParameterEventBehaviour};
 use crate::ui_sync::{UiDashboardWidgetPlacement, UiDashboardWidgetSizeEnabled, UiEditIntent};
 
 crate::define_node_enum!(
-    enum TestNode {}
+    pub(super) enum TestNode {}
 );
 
-fn fixture() -> (Engine<TestNode>, NodeId) {
+pub(super) fn fixture() -> (Engine<TestNode>, NodeId) {
     let mut engine: Engine<TestNode> = Engine::new(DashboardNode::new().into());
     let root = engine.root;
     engine
@@ -35,7 +35,7 @@ fn container(engine: &mut Engine<TestNode>, parent: NodeId, name: &str, layout: 
         .0
 }
 
-fn set_layout(engine: &mut Engine<TestNode>, owner: NodeId, layout: &str) {
+pub(super) fn set_layout(engine: &mut Engine<TestNode>, owner: NodeId, layout: &str) {
     let node = engine.ui_dashboard_layout_field(owner, "layout_kind").unwrap();
     assert!(
         engine
@@ -48,7 +48,7 @@ fn set_layout(engine: &mut Engine<TestNode>, owner: NodeId, layout: &str) {
     );
 }
 
-fn placement() -> UiDashboardWidgetPlacement {
+pub(super) fn placement() -> UiDashboardWidgetPlacement {
     UiDashboardWidgetPlacement {
         anchor: "center".into(),
         position: (135.0, -22.0),

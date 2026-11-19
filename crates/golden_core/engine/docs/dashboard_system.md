@@ -2,6 +2,12 @@
 
 The dashboard system is modeled entirely as engine nodes so project state, persistence, scripting, undo history, and UI synchronization all flow through the existing Golden node runtime.
 
+Prepared widget creation resolves conditional layout parameters against the live parent before
+applying placement and publishing the widget. Generated nested/conditional declarations request
+a tree snapshot through `Node::engine_preprocess_requires_tree_snapshot`, independently of
+application inbox callbacks. Node enums and `via` composition forward that requirement;
+preprocessing without tree-dependent declarations remains snapshot-free.
+
 ## Implementation Layout
 
 - `src/node/dashboard/mod.rs`

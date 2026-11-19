@@ -1028,6 +1028,11 @@ macro_rules! define_node_enum {
             }
 
             #[inline(always)]
+            fn engine_preprocess_requires_tree_snapshot(&self) -> bool {
+                $crate::__dispatch_node_enum!(self, engine_preprocess_requires_tree_snapshot; $($variant),*)
+            }
+
+            #[inline(always)]
             fn init(&mut self, ctx: &mut $crate::process_ctx::ProcessCtx) {
                 $crate::__dispatch_node_enum!(self, init, ctx; $($variant),*)
             }

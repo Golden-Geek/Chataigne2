@@ -734,6 +734,12 @@ pub trait Node: Send + Any {
     #[doc(hidden)]
     fn engine_materialize_declared_inbox(&mut self, _ctx: &mut ProcessCtx) {}
 
+    /// Whether internal inbox preprocessing reads the tree, independently of app callbacks.
+    /// Generated declarations request this for nested or conditional parameters.
+    fn engine_preprocess_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
     #[doc(hidden)]
     fn engine_preprocess_inbox(&mut self, ctx: &mut ProcessCtx) {
         for event in &ctx.events {

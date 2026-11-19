@@ -125,35 +125,15 @@ impl<T: Node> Engine<T> {
         Ok(reference)
     }
 
-    fn ui_dashboard_parent_layout_kind(&self, parent: NodeId) -> String {
-        let snapshot = self.build_process_tree_snapshot();
-        let Some(parent_node) = snapshot.node(parent) else {
-            return "free".to_string();
-        };
-        if !matches!(
-            parent_node.node_type.as_str(),
-            DASHBOARD_PAGE_NODE_TYPE | DASHBOARD_WIDGET_CONTAINER_NODE_TYPE
-        ) {
-            return "free".to_string();
-        }
-        snapshot
-            .resolve_path_from(parent, "layout/layout_kind")
-            .or_else(|| snapshot.resolve_path_from(parent, "layout_kind"))
-            .and_then(|layout_kind| snapshot.node(layout_kind))
-            .and_then(|layout_kind| layout_kind.param_value.as_ref())
-            .and_then(|value| value.as_enum().or_else(|| value.as_str()))
-            .unwrap_or_else(|| "free".to_string())
-    }
-
     fn ui_dashboard_placement_initial_params(
         &self,
         parent: NodeId,
         placement: Option<&UiDashboardWidgetPlacement>,
-    ) -> Vec<UiCreateUserItemInitialParam> {
+    ) -> Result<Vec<UiCreateUserItemInitialParam>, crate::engine::EngineEditError> {
         let Some(placement) = placement else {
-            return Vec::new();
+            return Ok(Vec::new());
         };
-        let parent_layout_kind = self.ui_dashboard_parent_layout_kind(parent);
+        let parent_layout_kind = self.ui_dashboard_layout_kind(parent)?;
         let mut params = Vec::new();
 
         if parent_layout_kind == "free" || parent_layout_kind == "horizontal" {
@@ -181,7 +161,7 @@ impl<T: Node> Engine<T> {
             ));
         }
 
-        params
+        Ok(params)
     }
 
     fn ui_dashboard_apply_widget_sizing_mode(
@@ -190,7 +170,7 @@ impl<T: Node> Engine<T> {
         parent: NodeId,
         placement: Option<&UiDashboardWidgetPlacement>,
     ) -> Result<(), crate::engine::EngineEditError> {
-        let parent_layout_kind = self.ui_dashboard_parent_layout_kind(parent);
+        let parent_layout_kind = self.ui_dashboard_layout_kind(parent)?;
         let size_enabled = placement.and_then(|placement| placement.size_enabled);
         let patch_enabled =
             |engine: &mut Self, decl_id: &str, enabled: bool| -> Result<(), crate::engine::EngineEditError> {
@@ -340,7 +320,7 @@ impl<T: Node> Engine<T> {
             }
         }
 
-        params.extend(self.ui_dashboard_placement_initial_params(placement_parent, placement));
+        params.extend(self.ui_dashboard_placement_initial_params(placement_parent, placement)?);
         Ok(params)
     }
 
@@ -352,7 +332,7 @@ impl<T: Node> Engine<T> {
         layout_kind: Option<String>,
         prev_sibling: Option<NodeId>,
     ) -> Result<NodeId, crate::engine::EngineEditError> {
-        let mut initial_params = self.ui_dashboard_placement_initial_params(parent, placement.as_ref());
+        let mut initial_params = self.ui_dashboard_placement_initial_params(parent, placement.as_ref())?;
         if let Some(layout_kind) = layout_kind {
             initial_params.push(Self::ui_dashboard_initial_param(
                 "layout/layout_kind",
@@ -395,7 +375,7 @@ impl<T: Node> Engine<T> {
             "widget/target_node",
             ParamValue::Reference(self.ui_node_reference_for(target)?),
         )];
-        initial_params.extend(self.ui_dashboard_placement_initial_params(parent, placement.as_ref()));
+        initial_params.extend(self.ui_dashboard_placement_initial_params(parent, placement.as_ref())?);
         let created = self.ui_apply_create_user_item_returning_node(
             parent,
             DASHBOARD_NODE_WIDGET_NODE_TYPE.to_string(),

@@ -23,6 +23,10 @@ pub trait ViaTarget {
 
     fn via_engine_preprocess_inbox(&mut self, _ctx: &mut ProcessCtx) {}
 
+    fn via_engine_preprocess_requires_tree_snapshot(&self) -> bool {
+        false
+    }
+
     fn via_script_host_policy(&self) -> Option<ScriptHostPolicy> {
         None
     }
@@ -114,6 +118,10 @@ impl<T: Node + ?Sized> ViaTarget for T {
 
     fn via_engine_preprocess_inbox(&mut self, ctx: &mut ProcessCtx) {
         self.engine_preprocess_inbox(ctx);
+    }
+
+    fn via_engine_preprocess_requires_tree_snapshot(&self) -> bool {
+        self.engine_preprocess_requires_tree_snapshot()
     }
 
     fn via_script_host_policy(&self) -> Option<ScriptHostPolicy> {

@@ -250,49 +250,48 @@ impl<T: Node> Engine<T> {
 
         let mut snapshot_requesters: Option<HashMap<String, usize>> = trace.then(HashMap::new);
         let requirements_start = trace.then(Instant::now);
-        let needs_tree_snapshot = run_app_callbacks
-            && per_node_events.iter().any(|(node_id, events)| {
-                let requires = self
+        let needs_tree_snapshot = per_node_events.iter().any(|(node_id, events)| {
+            let requires = self.nodes.get(*node_id).is_some_and(|node| {
+                node.engine_preprocess_requires_tree_snapshot()
+                    || (run_app_callbacks && node.inbox_requires_tree_snapshot(events))
+            });
+            if requires && let Some(snapshot_requesters) = snapshot_requesters.as_mut() {
+                let node_type = self
                     .nodes
                     .get(*node_id)
-                    .is_some_and(|node| node.inbox_requires_tree_snapshot(events));
-                if requires && let Some(snapshot_requesters) = snapshot_requesters.as_mut() {
-                    let node_type = self
-                        .nodes
-                        .get(*node_id)
-                        .map(|node| node.get_type().to_owned())
-                        .unwrap_or_else(|| "<missing>".to_owned());
-                    let event_kinds = events
-                        .iter()
-                        .take(4)
-                        .map(|event| match &event.kind {
-                            EventKind::ParamChanged { param, .. } => {
-                                let node = self.nodes.get(*param);
-                                let node_type = node.map(Node::get_type).unwrap_or("<missing>");
-                                let decl_id = node.map(|node| node.node_data().meta.decl_id.0.as_str()).unwrap_or("");
-                                format!("ParamChanged({node_type}:{decl_id})")
-                            }
-                            EventKind::ParamControlChanged { .. } => "ParamControlChanged".to_owned(),
-                            EventKind::ParamConstraintsChanged { .. } => "ParamConstraintsChanged".to_owned(),
-                            EventKind::ChildAdded { .. } => "ChildAdded".to_owned(),
-                            EventKind::ChildRemoved { .. } => "ChildRemoved".to_owned(),
-                            EventKind::ChildReplaced { .. } => "ChildReplaced".to_owned(),
-                            EventKind::ChildMoved { .. } => "ChildMoved".to_owned(),
-                            EventKind::ChildReordered { .. } => "ChildReordered".to_owned(),
-                            EventKind::NodeCreated { .. } => "NodeCreated".to_owned(),
-                            EventKind::NodeDeleted { .. } => "NodeDeleted".to_owned(),
-                            EventKind::MetaChanged { .. } => "MetaChanged".to_owned(),
-                            EventKind::GraphTransaction { .. } => "GraphTransaction".to_owned(),
-                            EventKind::Custom(_) => "Custom".to_owned(),
-                        })
-                        .collect::<Vec<_>>()
-                        .join("+");
-                    *snapshot_requesters
-                        .entry(format!("{node_type}[{event_kinds}]"))
-                        .or_default() += 1;
-                }
-                requires
-            });
+                    .map(|node| node.get_type().to_owned())
+                    .unwrap_or_else(|| "<missing>".to_owned());
+                let event_kinds = events
+                    .iter()
+                    .take(4)
+                    .map(|event| match &event.kind {
+                        EventKind::ParamChanged { param, .. } => {
+                            let node = self.nodes.get(*param);
+                            let node_type = node.map(Node::get_type).unwrap_or("<missing>");
+                            let decl_id = node.map(|node| node.node_data().meta.decl_id.0.as_str()).unwrap_or("");
+                            format!("ParamChanged({node_type}:{decl_id})")
+                        }
+                        EventKind::ParamControlChanged { .. } => "ParamControlChanged".to_owned(),
+                        EventKind::ParamConstraintsChanged { .. } => "ParamConstraintsChanged".to_owned(),
+                        EventKind::ChildAdded { .. } => "ChildAdded".to_owned(),
+                        EventKind::ChildRemoved { .. } => "ChildRemoved".to_owned(),
+                        EventKind::ChildReplaced { .. } => "ChildReplaced".to_owned(),
+                        EventKind::ChildMoved { .. } => "ChildMoved".to_owned(),
+                        EventKind::ChildReordered { .. } => "ChildReordered".to_owned(),
+                        EventKind::NodeCreated { .. } => "NodeCreated".to_owned(),
+                        EventKind::NodeDeleted { .. } => "NodeDeleted".to_owned(),
+                        EventKind::MetaChanged { .. } => "MetaChanged".to_owned(),
+                        EventKind::GraphTransaction { .. } => "GraphTransaction".to_owned(),
+                        EventKind::Custom(_) => "Custom".to_owned(),
+                    })
+                    .collect::<Vec<_>>()
+                    .join("+");
+                *snapshot_requesters
+                    .entry(format!("{node_type}[{event_kinds}]"))
+                    .or_default() += 1;
+            }
+            requires
+        });
         let requirements_us = requirements_start.map(|start| start.elapsed().as_micros());
         let snapshot_start = trace.then(Instant::now);
         let tree_snapshot = needs_tree_snapshot.then(|| self.canonical_process_snapshot());

@@ -3092,6 +3092,9 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
         generated_child_interest_depth = generated_child_interest_depth.max(plan.max_depth.max(1));
     }
 
+    let generated_preprocess_requires_tree_snapshot = !param_dependency_reconcile_statements.is_empty()
+        || params_plan.as_ref().is_some_and(|plan| !plan.folders.is_empty());
+
     let generated_has_root_base_children_placeholder = params_plan
         .as_ref()
         .is_some_and(|plan| plan.has_root_base_children_placeholder);
@@ -3287,6 +3290,10 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
                 fn engine_preprocess_inbox(&mut self, ctx: &mut golden_core::process_ctx::ProcessCtx) {
                     self.__golden_node_engine_preprocess_inbox(ctx, self.node_data.id);
                 }
+
+                fn engine_preprocess_requires_tree_snapshot(&self) -> bool {
+                    self.__golden_node_engine_preprocess_requires_tree_snapshot()
+                }
             }
         }
     } else {
@@ -3353,6 +3360,11 @@ fn expand_struct(expansion: NodeExpansion, mut input: ItemStruct) -> proc_macro2
             #[doc(hidden)]
             pub fn __golden_node_project_decode_data(&mut self, data: &serde_json::Value) -> Result<(), String> {
                 #generated_project_decode_data
+            }
+
+            #[doc(hidden)]
+            pub fn __golden_node_engine_preprocess_requires_tree_snapshot(&self) -> bool {
+                #generated_preprocess_requires_tree_snapshot
             }
 
             #[doc(hidden)]
@@ -3850,6 +3862,7 @@ fn append_struct_methods_from_helpers(input: &mut ItemImpl, via: Option<&Delegat
         "engine_sync_bound_param_handles",
         "engine_materialize_declared_inbox",
         "engine_preprocess_inbox",
+        "engine_preprocess_requires_tree_snapshot",
     ] {
         if has_method(input, method_name) {
             return Err(Error::new_spanned(
@@ -4010,6 +4023,17 @@ fn append_struct_methods_from_helpers(input: &mut ItemImpl, via: Option<&Delegat
         ) {
             let owner_id = golden_core::node::Node::id(self);
             #engine_materialize_declared_inbox_body
+        }
+    });
+
+    let via_preprocess_requires_tree_snapshot = via.map(|path| {
+        let segments = &path.segments;
+        quote!(|| golden_core::node::ViaTarget::via_engine_preprocess_requires_tree_snapshot(&self.#(#segments).*))
+    });
+    input.items.push(parse_quote! {
+        fn engine_preprocess_requires_tree_snapshot(&self) -> bool {
+            self.__golden_node_engine_preprocess_requires_tree_snapshot()
+                #via_preprocess_requires_tree_snapshot
         }
     });
 

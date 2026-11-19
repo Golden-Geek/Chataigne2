@@ -25,7 +25,7 @@ impl<T: Node> Engine<T> {
         None
     }
 
-    fn ui_dashboard_layout_kind(&self, parent: NodeId) -> Result<String, EngineEditError> {
+    pub(super) fn ui_dashboard_layout_kind(&self, parent: NodeId) -> Result<String, EngineEditError> {
         let target = self.nodes.get(parent);
         if !target.is_some_and(|node| {
             matches!(
