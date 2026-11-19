@@ -65,6 +65,13 @@ impl TransportSample {
         };
         self.source_position(position, channel_duration)
     }
+    #[cfg(feature = "video-files")]
+    pub(super) fn forward_catch_up_start(self) -> Option<Duration> {
+        if !self.playing || self.mapping.rate().numerator() <= 0 || self.has_loop_overlap() {
+            return None;
+        }
+        Some(self.source_range?.source_position(self.cycle_start()))
+    }
     pub(super) fn source_position(self, position: Duration, channel_duration: Duration) -> Duration {
         self.source_range.map_or(Duration::ZERO, |range| {
             range.decode_position(position).min(channel_duration)

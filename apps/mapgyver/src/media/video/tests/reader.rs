@@ -41,7 +41,7 @@ fn real_common_codecs_sample_exact_timestamps_rewind_after_eof_and_hold_shorter_
         for index in [0, 5, 0, 4, 2, 1] {
             let mut pixels = None;
             for _ in 0..16 {
-                if let Some(image) = reader.poll(reference[index].0).unwrap() {
+                if let Some(image) = reader.poll(reference[index].0, None).unwrap() {
                     pixels = Some(image);
                     break;
                 }
@@ -52,8 +52,8 @@ fn real_common_codecs_sample_exact_timestamps_rewind_after_eof_and_hold_shorter_
                 "{name}: frame{index}"
             );
         }
-        let last = reader.poll(Duration::from_secs(3600)).unwrap().unwrap();
+        let last = reader.poll(Duration::from_secs(3600), None).unwrap().unwrap();
         assert_eq!(&last.pixels()[..4], reference[5].1);
-        assert!(reader.poll(Duration::from_secs(3600)).unwrap().is_none());
+        assert!(reader.poll(Duration::from_secs(3600), None).unwrap().is_none());
     }
 }

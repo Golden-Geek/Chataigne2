@@ -47,6 +47,10 @@ PROFILES = {
     "hap_q": ("HAP Q", "hap-q", ["-c:v", "hap", "-format", "hap_q", "-chunks", "4",
               "-compressor", "snappy", "-pix_fmt", "rgba"], {"codec_name": "hap",
               "codec_tag_string": "HapY", "pix_fmt": "rgb0"}),
+    "webp_alpha": ("WebP VP8 Alpha", "webp-vp8-alpha",
+                   ["-c:v", "libwebp_anim", "-lossless", "0", "-quality", "85",
+                    "-compression_level", "2", "-pix_fmt", "yuva420p", "-loop", "0"],
+                   {"codec_name": "webp_anim", "pix_fmt": "argb"}),
 }
 
 
@@ -64,13 +68,54 @@ def matroska_timestamps(decoded, rate, frames):
             or Fraction(decoded["format"]["duration"]) != 4
             or Fraction(info["time_base"]) != Fraction(1, 1000)):
         raise ValueError("expected the four-second Matroska fixture with millisecond timestamps")
-    points = [int(row["best_effort_timestamp"]) * 1_000_000 for row in decoded["frames"]]
+    return validate_numbered_timestamps(
+        [int(row["best_effort_timestamp"]) * 1_000_000 for row in decoded["frames"]], rate, frames)
+
+
+def validate_numbered_timestamps(points, rate, frames):
     if (len(points) != frames or points[0] != 0
             or any(previous >= current for previous, current in zip(points, points[1:]))
             or any(abs(pts * rate - index * 1_000_000_000) > rate * 1_000_000
                    for index, pts in enumerate(points))):
         raise ValueError("timestamps do not represent the expected numbered frame sequence")
     return points
+
+
+def webp_oracle(file, width, height, rate, frames, indexes, offset):
+    # libwebp reads the encoded animation independently of the app's FFmpeg path.
+    from PIL import Image
+
+    timestamps, codes, alpha = [], [], []
+    end_ms = 0
+    with Image.open(file) as image:
+        if (image.format, image.size, image.n_frames, image.mode) != ("WEBP", (width, height), frames, "RGBA"):
+            raise ValueError("wrong encoded WebP canvas, frame count or alpha format")
+        for index in range(frames):
+            image.seek(index)
+            image.load()
+            timestamp_ms = image.info["timestamp"]
+            duration_ms = image.info["duration"]
+            if timestamp_ms != end_ms or duration_ms <= 10:
+                raise ValueError("noncontiguous WebP timestamps or a normalized short delay")
+            timestamps.append(timestamp_ms * 1_000_000)
+            end_ms += duration_ms
+            if index in indexes:
+                code = frame_code(image.crop((0, 0, 320, 32)).convert("RGB").tobytes())
+                if code != index + offset:
+                    raise ValueError(f"unexpected WebP frame code {code} at frame {index}")
+                codes.append(code)
+            if index == 0:
+                for x, y, expected in ((4, 24, 255), (8, 56, 0), (width - 8, 56, 128)):
+                    actual = image.getpixel((x, y))[3]
+                    if abs(actual - expected) > 1:
+                        raise ValueError(f"WebP alpha at {(x, y)} is {actual}, expected {expected}")
+                    alpha.append({"x": x, "y": y, "expected": expected, "actual": actual})
+    if end_ms not in {3999, 4000}:
+        raise ValueError(f"unexpected encoded WebP duration {end_ms} ms")
+    return codes, alpha, {
+        "frame_pts_nanos": validate_numbered_timestamps(timestamps, rate, frames),
+        "duration_ms": end_ms,
+    }
 
 
 def matroska_marker_oracle(encoder, file, indexes, offset):
@@ -116,7 +161,12 @@ def marker_filters(offset):
 
 def generate(encoder, directory, codec="prores", workload="standard", container="mov"):
     label, prefix, encoding, expected = PROFILES[codec]
+    if container not in {"mov", "matroska", "webp"}:
+        raise ValueError(f"unsupported fixture container {container}")
     matroska = container == "matroska"
+    webp = container == "webp"
+    if webp != (codec == "webp_alpha"):
+        raise ValueError("numbered WebP fixtures require the WebP alpha profile and container")
     if matroska:
         if codec not in {"h264", "hevc"}:
             raise ValueError("numbered Matroska fixtures require H.264 or HEVC")
@@ -131,15 +181,20 @@ def generate(encoder, directory, codec="prores", workload="standard", container=
     for index, (case_id, width, height, rate) in enumerate(WORKLOADS[workload]):
         frames = rate * 4
         offset = index * 2048
-        suffix = "mkv" if matroska else "mov"
+        suffix = "mkv" if matroska else container
         output = directory / f"{prefix}-{case_id}-{width}x{height}-{rate}.{suffix}"
         filters = marker_filters(offset)
+        source = f"testsrc2=size={width}x{height}:rate={rate}"
+        if webp:
+            source += ":alpha=128,format=yuva420p"
+            filters = [name.replace(":t=fill", ":t=fill:replace=1") for name in filters]
+            filters.append("drawbox=x=0:y=48:w=96:h=16:color=red@0.0:t=fill:replace=1")
         if has_alpha:
             # Keep numbered witnesses opaque; the moving picture below has two alpha levels.
             filters += ["format=rgba", "geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':"
                         "a='if(lt(Y,48),255,if(lt(X,W/2),64,192))'"]
         command = [str(encoder), "-hide_banner", "-loglevel", "error", "-n", "-f", "lavfi", "-i",
-                   f"testsrc2=size={width}x{height}:rate={rate}", "-vf", ",".join(filters),
+                   source, "-vf", ",".join(filters),
                    "-frames:v", str(frames), "-an", *encoding,
                    "-threads", "4", "-color_range", "tv",
                    "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", str(output)]
@@ -151,13 +206,19 @@ def generate(encoder, directory, codec="prores", workload="standard", container=
                       "-show_entries", "stream:format=format_name,duration:frame=best_effort_timestamp"]
         decoded = json.loads(subprocess.check_output([*probe, str(output)], timeout=120))
         info = decoded["streams"][0]
-        validate_stream(info, expected, width, height, frames, "nb_read_frames" if matroska else "nb_frames")
         indexes = [0, 1, 31, frames - 1]
         timestamps = {}
-        if matroska:
+        alpha = []
+        if webp:
+            oracle, alpha, timestamps = webp_oracle(output, width, height, rate, frames, indexes, offset)
+            # WebP reports no stream frame count; the independent animation reader proved it.
+            validate_stream({**info, "nb_frames": frames}, expected, width, height, frames)
+        elif matroska:
+            validate_stream(info, expected, width, height, frames, "nb_read_frames")
             timestamps["frame_pts_nanos"] = matroska_timestamps(decoded, rate, frames)
             oracle = matroska_marker_oracle(encoder, output, indexes, offset)
         else:
+            validate_stream(info, expected, width, height, frames)
             oracle = []
             for index in indexes:
                 pixels = subprocess.check_output([
@@ -168,7 +229,6 @@ def generate(encoder, directory, codec="prores", workload="standard", container=
                 actual = frame_code(pixels)
                 assert actual == index + offset, (output.name, index + offset, actual)
                 oracle.append(actual)
-        alpha = []
         if has_alpha:
             pixels = subprocess.check_output([
                 str(encoder), "-hide_banner", "-loglevel", "error", "-threads", "2", "-i", str(output),
@@ -195,7 +255,7 @@ def main():
     parser.add_argument("--directory", type=Path, required=True)
     parser.add_argument("--codec", choices=PROFILES, default="prores")
     parser.add_argument("--workload", choices=WORKLOADS, default="standard")
-    parser.add_argument("--container", choices=("mov", "matroska"), default="mov")
+    parser.add_argument("--container", choices=("mov", "matroska", "webp"), default="mov")
     args = parser.parse_args()
     manifest = generate(args.encoder.resolve(strict=True), args.directory.resolve(),
                         args.codec, args.workload, args.container)

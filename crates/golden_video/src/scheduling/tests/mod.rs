@@ -2,6 +2,51 @@ use super::*;
 use golden_time::{PlaybackRate, SystemClock, TimeAuthority};
 
 #[test]
+fn forward_hold_uses_the_latest_past_pts_without_crossing_epoch_or_direction() {
+    let mut clock = TimeAuthority::new(SystemClock::new(), ShowPosition::from_nanos(0), PlaybackRate::NORMAL).unwrap();
+    let epoch = clock.sample().unwrap().epoch();
+    let at = |position| FramePosition {
+        epoch,
+        position: ShowPosition::from_nanos(position),
+        reverse: false,
+    };
+    let window = |start| {
+        FrameWindow::new(
+            epoch,
+            at(start).position,
+            Some(at(start + 10).position),
+            at(start).position,
+        )
+        .unwrap()
+    };
+    let mut frames = FrameBuffer::default();
+    frames.publish(window(10), 10, at(0)).unwrap();
+    frames.publish(window(30), 30, at(0)).unwrap();
+    assert!(frames.sample_or_forward_hold(at(9)).is_none());
+    assert!(frames.sample(at(25)).is_none());
+    assert_eq!(frames.sample_or_forward_hold(at(25)).unwrap().0, window(10));
+    assert_eq!(frames.sample_or_forward_hold(at(31)).unwrap().0, window(30));
+    assert_eq!(frames.sample_or_forward_hold(at(45)).unwrap().0, window(30));
+    assert!(
+        frames
+            .sample_or_forward_hold(FramePosition {
+                reverse: true,
+                ..at(45)
+            })
+            .is_none()
+    );
+    let epoch = clock
+        .discontinuity(at(0).position, PlaybackRate::PAUSED)
+        .unwrap()
+        .epoch();
+    assert!(
+        frames
+            .sample_or_forward_hold(FramePosition { epoch, ..at(45) })
+            .is_none()
+    );
+}
+
+#[test]
 fn prepared_frames_preserve_every_phase_without_early_selection_and_remain_bounded() {
     let mut authority =
         TimeAuthority::new(SystemClock::new(), ShowPosition::from_nanos(0), PlaybackRate::NORMAL).unwrap();

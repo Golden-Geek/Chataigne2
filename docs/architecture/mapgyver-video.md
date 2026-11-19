@@ -434,6 +434,11 @@ its source's original clock mapping using a nonblocking public `GpuFrameClock` h
 only the current epoch's due window. Seek/rate changes cannot expose an old future image;
 queue pressure retains the completed image for retry, and imports retain their zero-timeout,
 actual-completion ownership. Immediate GPU streams keep their existing latest-image semantics.
+Animated WebP reconstructs a compositing canvas in frame order. Forward playback keeps decoding
+from that canvas and may publish an earlier completed image during catch-up. Its scheduled GPU
+source can sample the latest completed past image within the current epoch during a forward gap,
+preserving the actual PTS and presentation window for diagnostics. Held seeks and reverse
+playback still resolve exact timestamp choices.
 Advancing playback's frame-neighbour inspection samples the same two presentation windows, so
 preparing a future image does not advance Inspector frame-step state. A stationary clock
 (pause, zero rate or final hold) instead publishes immediate epoch-fenced pixels and ordinary

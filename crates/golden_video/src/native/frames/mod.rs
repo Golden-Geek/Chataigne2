@@ -91,6 +91,16 @@ pub enum GpuFramePublication {
     Busy(GpuImage),
 }
 
+/// How a scheduled source handles gaps between completed presentation windows.
+#[derive(Clone, Copy, Debug, Default)]
+pub enum GpuFrameSampling {
+    /// Expose only the current clock window.
+    #[default]
+    Due,
+    /// During forward playback, expose the latest past image when no current image is ready.
+    ForwardHold,
+}
+
 /// Fixed-descriptor GPU source with immediate or bounded timestamp-based publication.
 #[derive(Clone)]
 pub struct GpuFrameStream {
@@ -99,6 +109,7 @@ pub struct GpuFrameStream {
     adapter: AdapterId,
     state: Arc<Mutex<State>>,
     clock: Option<Arc<dyn GpuFrameClock>>,
+    sampling: GpuFrameSampling,
     timing: Option<super::timing::Clock>,
 }
 impl std::fmt::Debug for GpuFrameStream {
@@ -118,6 +129,7 @@ impl GpuFrameStream {
             adapter,
             state: Default::default(),
             clock: None,
+            sampling: GpuFrameSampling::default(),
             timing: None,
         }
     }
@@ -226,7 +238,11 @@ impl GpuFrameStream {
             return None;
         }
         if !state.scheduled.is_empty() {
-            let (window, (sequence, image, published)) = state.scheduled.sample(position?)?;
+            let now = position?;
+            let (window, (sequence, image, published)) = match self.sampling {
+                GpuFrameSampling::Due => state.scheduled.sample(now),
+                GpuFrameSampling::ForwardHold => state.scheduled.sample_or_forward_hold(now),
+            }?;
             return Some(Sample {
                 sequence: *sequence,
                 image: Some(image.clone()),

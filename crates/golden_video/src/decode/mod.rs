@@ -468,6 +468,11 @@ impl Decoder {
             .map(|decoder| decoder.threading().count)
     }
 
+    /// Whether positioning requires reconstructing the animation from the first canvas.
+    pub fn seek_rewinds_to_start(&self) -> bool {
+        self.animation.is_some()
+    }
+
     /// Seek to a keyframe at/before an original stream timestamp.
     /// The worker then decodes forward to its exact timestamp. This never estimates a frame
     /// index from FPS. A failed demux seek poisons the owner; an out-of-range timestamp does

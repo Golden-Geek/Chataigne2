@@ -2,8 +2,8 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `█████████░` **87% — 119/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** Golden Gradient and Color animation.
-- **Working on next:** Sustained playback and resource checks for animated WebP.
+- **Latest delivered:** Animated WebP advances during sustained playback. [NVIDIA comparison](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)
+- **Working on next:** Improve 4K animated WebP frame delivery.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -68,7 +68,9 @@
 
 ## Pending qualification — in order
 
-1. **NOW — Extended Video formats:** one H.264 MKV run passed frame identity, output cadence and CPU checks at 1080p60 and 4K30. The 4K30 latency upper bound is above 50 ms. Animated WebP and DXV still need sustained checks, and repeat runs, device recovery and additional profiles remain open. [MKV run](evidence/mapgyver-m10-mkv-sustained-2026-11-19.json)
+1. **NOW — Extended Video formats:** animated WebP advanced at about 29 updates/s at 1080p and 7 at 4K on NVIDIA. All connected frame markers matched. The 4K cadence and latency targets remain open. [WebP comparison](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)
+   - H.264 MKV passed frame identity, output cadence and CPU checks. The 4K latency upper bound exceeds 50 ms. [MKV run](evidence/mapgyver-m10-mkv-sustained-2026-11-19.json)
+   - Sustained DXV, additional profiles, repeat runs, complete GPU timing and device recovery remain open.
 2. **Shared editor feedback presentation:** built and functionally checked. Native paint packets are accepted, but matching installation/presented-frame proof is missing. Finish native paint/alignment and actual Composition/Matrix presentation checks.
 3. **Shared editor selection/hover:** ordinary behavior exists. Reconnect can split a Source drag into multiple Undo steps; an old Screen request after New can be rejected. Fix and finish interruption checks. Wider Matrix stress/interruption coverage is part of the final regression batch.
 4. **External-display defaults:** allocation code and no-external checks pass. **Manual later:** one/two external monitors, occupied destinations and native New shortcut; the two-external case may need another monitor.

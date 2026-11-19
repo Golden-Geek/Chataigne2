@@ -50,7 +50,9 @@ fn hardware_epoch_change_releases_stale_windows_before_replacement_allocation() 
         let desc = descriptor(2, ColorEncoding::Srgb, AlphaMode::Straight);
         let budget = GpuFrameBudget::new(24);
         let mut owner = GpuFramePublisher::new_software(desc, adapter.id, &budget, None).unwrap();
-        owner.set_presentation_clock(Arc::new(Clock(now))).unwrap();
+        owner
+            .set_presentation_clock(Arc::new(Clock(now)), crate::native::GpuFrameSampling::Due)
+            .unwrap();
         let stream = owner.stream();
         drop(stream.begin_epoch(epoch).unwrap());
         let input = Arc::new(ImageData::new(desc, vec![127; 8]).unwrap());

@@ -105,6 +105,21 @@ impl<T> FrameBuffer<T> {
             .find(|(window, _)| window.contains(now))
             .map(|(window, value)| (*window, value))
     }
+    /// Hold the latest completed past frame across a forward playback gap.
+    /// The original window and PTS are returned, even when that frame arrived late.
+    pub fn sample_or_forward_hold(&self, now: FramePosition) -> Option<(FrameWindow, &T)> {
+        self.sample(now).or_else(|| {
+            if now.reverse {
+                return None;
+            }
+            self.entries
+                .iter()
+                .flatten()
+                .filter(|(window, _)| window.epoch == now.epoch && window.start <= now.position)
+                .max_by_key(|(window, _)| window.start)
+                .map(|(window, value)| (*window, value))
+        })
+    }
     /// Whether no image has been scheduled.
     pub fn is_empty(&self) -> bool {
         self.entries.iter().all(Option::is_none)

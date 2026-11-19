@@ -41,7 +41,9 @@ fn hardware_intel_input_observation_survives_window_eviction_before_upload() {
         TimeAuthority::new(SystemClock::new(), ShowPosition::from_nanos(0), PlaybackRate::NORMAL).unwrap();
     let epoch = authority.sample().unwrap().epoch();
     let origin = Instant::now();
-    owner.set_presentation_clock(Arc::new(Clock { origin, epoch })).unwrap();
+    owner
+        .set_presentation_clock(Arc::new(Clock { origin, epoch }), crate::native::GpuFrameSampling::Due)
+        .unwrap();
     let stream = owner.stream();
     drop(stream.begin_epoch(epoch).unwrap());
     let at = |nanos| FramePosition {

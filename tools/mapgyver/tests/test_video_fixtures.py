@@ -74,6 +74,15 @@ class VideoFixtureTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "sequence"):
             timestamps(report, 60, 240)
 
+    def test_webp_timestamps_are_kept_at_encoded_millisecond_values(self):
+        validate = MODULE["validate_numbered_timestamps"]
+        points = [index * 1000 // 60 * 1_000_000 for index in range(240)]
+        self.assertEqual(validate(points, 60, 240), points)
+        self.assertEqual(points[1], 16_000_000)
+        points[-1] += 20_000_000
+        with self.assertRaisesRegex(ValueError, "sequence"):
+            validate(points, 60, 240)
+
 
 if __name__ == "__main__":
     unittest.main()

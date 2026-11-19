@@ -2,7 +2,7 @@
 use super::super::control::scheduling;
 use super::*;
 use golden_video::decode::{DecodeStorage, HapFormat};
-use golden_video::native::{GpuFrameError, GpuFrameInput, GpuFramePublisher};
+use golden_video::native::{GpuFrameError, GpuFrameInput, GpuFramePublisher, GpuFrameSampling};
 use loop_pair::LoopPair;
 
 #[derive(Clone, Copy)]
@@ -251,7 +251,8 @@ impl Run {
                     } else {
                         None
                     };
-                    let changed = reader.advance(target.channel_position(reader.duration))?;
+                    let position = target.channel_position(reader.duration);
+                    let changed = reader.advance_for_playback(position, target.forward_catch_up_start())?;
                     let fade_changed = target.has_loop_overlap()
                         && !reader.catching_up
                         && (scheduling::timed(target) || cursor != Some(target));
@@ -290,10 +291,15 @@ impl Run {
                                     Some(worker.wake_notifier()),
                                 )?
                             });
+                            let sampling = if reader.seeks_from_start() {
+                                GpuFrameSampling::ForwardHold
+                            } else {
+                                GpuFrameSampling::Due
+                            };
                             publisher
                                 .as_mut()
                                 .unwrap()
-                                .set_presentation_clock(self.control.clone())?;
+                                .set_presentation_clock(self.control.clone(), sampling)?;
                             drop(publisher.as_ref().unwrap().stream().begin_epoch(target.epoch)?);
                             if hardware.submission_sink.is_some() {
                                 self.report_source(publisher.as_ref().unwrap().stream().id());
@@ -353,7 +359,9 @@ impl Run {
                             if !target.has_loop_overlap() {
                                 software_image = None;
                             }
-                            let frame = reader.neighbours()?.ok_or("Selected Video timestamps unavailable")?;
+                            let frame = reader
+                                .selected_neighbours()?
+                                .ok_or("Selected Video timestamps unavailable")?;
                             let window = super::super::frames::loop_window(target, frame).ok();
                             if let Some(sink) = &hardware.submission_sink {
                                 // Submission is recorded before completion/publication, including

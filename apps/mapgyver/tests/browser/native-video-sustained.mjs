@@ -13,6 +13,7 @@ import { inspectLocalVideoLibraries } from './video-runtime-libraries.mjs';
 import {
 	assertQ06SourceUploads,
 	assertQ06Workload,
+	q06UsesSoftwareDecode,
 	SourceStartupCollector
 } from './source-upload-accounting.mjs';
 
@@ -33,8 +34,11 @@ for (const fixture of fixtures.cases) {
 	const offset = fixture.frame_code_offset ?? 0;
 	assert(Number.isSafeInteger(offset) && offset >= 0 && offset + fixture.frames <= 4096);
 	assert.equal(fixture.frames, fixture.rate * 4);
-	if (fixtures.container === 'matroska') {
-		assert.equal(path.extname(fixture.file).toLowerCase(), '.mkv');
+	if (fixtures.container === 'matroska' || fixtures.container === 'webp') {
+		assert.equal(
+			path.extname(fixture.file).toLowerCase(),
+			fixtures.container === 'matroska' ? '.mkv' : '.webp'
+		);
 		assert.equal(fixture.frame_pts_nanos?.length, fixture.frames);
 		assert.equal(fixture.frame_pts_nanos[0], 0);
 		assert(
@@ -42,7 +46,7 @@ for (const fixture of fixtures.cases) {
 				(pts, index, points) =>
 					Number.isSafeInteger(pts) && (index === 0 || pts > points[index - 1])
 			),
-			'Matroska frame timestamps must be exact and strictly increasing'
+			'Encoded frame timestamps must be exact and strictly increasing'
 		);
 	}
 }
@@ -359,7 +363,8 @@ try {
 			(value) =>
 				value.state === 'Ready' &&
 				!value.error &&
-				value.duration_ms === output.fixture.duration_seconds * 1000,
+				value.duration_ms ===
+					(output.fixture.duration_ms ?? output.fixture.duration_seconds * 1000),
 			'full-size File decoded with declared duration'
 		);
 	// Unknown duration deliberately bounds authored Current Position to zero.
@@ -444,7 +449,7 @@ try {
 	report.videoSourceBindings = startup.bindings;
 	report.videoCpuLayouts = startup.cpuLayouts;
 	report.nativeDiagnostics = await inspectNativeDiagnostics(native.app.pid, native.log(), {
-		requireSoftwareUpload: fixtures.codec.startsWith('ProRes '),
+		requireSoftwareUpload: q06UsesSoftwareDecode(fixtures.codec),
 		requireVideoFrames: true,
 		requireSourceBudget: true,
 		requireSourceUploads: true

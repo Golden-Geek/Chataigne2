@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 
 const kinds = ['software', 'hap'];
+const softwareCodecs = ['ProRes HQ', 'ProRes 4444', 'WebP VP8 Alpha'];
+
+export function q06UsesSoftwareDecode(codec) {
+	return softwareCodecs.includes(codec);
+}
 
 export function assertQ06Workload(cases) {
 	const geometry = cases.map(({ width, height, rate }) => [width, height, rate]);
@@ -19,14 +24,13 @@ export function assertQ06Workload(cases) {
 	);
 }
 
-// Q06 shares the first file; the second ProRes file uploads in the renderer.
+// Q06 shares the first software file; the second file uploads in the renderer.
 // HAP has one GPU publisher per file, independent of the number of consumers.
 export function assertQ06SourceUploads(codec, budget, cases) {
 	assertQ06Workload(cases);
 	assert(
-		['H.264 High', 'HEVC Main', 'ProRes HQ', 'ProRes 4444', 'HAP', 'HAP Alpha', 'HAP Q'].includes(
-			codec
-		),
+		q06UsesSoftwareDecode(codec) ||
+			['H.264 High', 'HEVC Main', 'HAP', 'HAP Alpha', 'HAP Q'].includes(codec),
 		'supported numbered Q06 codec required'
 	);
 	if (codec === 'H.264 High' || codec === 'HEVC Main') {

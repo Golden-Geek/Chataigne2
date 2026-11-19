@@ -660,9 +660,9 @@ impl Run {
                     loop_cursor = None;
                     reader.invalidate_publication();
                 }
-                reader
-                    .poll(sample.channel_position(reader.duration))?
-                    .map(|image| image.retain(lease.clone()))
+                let position = sample.channel_position(reader.duration);
+                let image = reader.poll(position, sample.forward_catch_up_start())?;
+                image.map(|image| image.retain(lease.clone()))
             };
             if let Some(image) = image {
                 let next = stream.get_or_insert_with(|| {
@@ -672,11 +672,17 @@ impl Run {
                     }
                     stream
                 });
-                let neighbours = reader.neighbours()?.ok_or("Selected Video timestamps unavailable")?;
+                let neighbours = reader
+                    .selected_neighbours()?
+                    .ok_or("Selected Video timestamps unavailable")?;
                 if self
                     .control
                     .publish_frame(self.reference.channel, owner, sample, next, image, neighbours)?
                 {
+                    if reader.catching_up {
+                        self.control
+                            .observe_neighbours(self.reference.channel, owner, sample, neighbours)?;
+                    }
                     if sample.timeline.is_some() {
                         loop_cursor = Some(super::frames::loop_window(sample, neighbours)?);
                     }

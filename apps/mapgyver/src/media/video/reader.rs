@@ -149,8 +149,8 @@ impl Reader {
     }
     /// At most eight frames per turn, then return to cancellation/control inspection.
     /// Samples the last presentation timestamp at/before the shared position; EOF holds it.
-    pub fn poll(&mut self, position: Duration) -> Result<Option<ImageData>, Failure> {
-        if !self.advance(position)? {
+    pub fn poll(&mut self, position: Duration, forward_start: Option<Duration>) -> Result<Option<ImageData>, Failure> {
+        if !self.advance_for_playback(position, forward_start)? {
             return Ok(None);
         }
         let image = self.software_image()?;
@@ -193,6 +193,21 @@ impl Reader {
         self.published = self.current.as_ref().map(DecodedFrame::timestamp);
     }
     pub fn advance(&mut self, position: Duration) -> Result<bool, Failure> {
+        self.advance_for_playback(position, None)
+    }
+
+    pub fn seeks_from_start(&self) -> bool {
+        self.decoder.seek_rewinds_to_start()
+    }
+
+    /// A sequential decoder can progressively refresh forward playback while it is catching up.
+    pub(super) fn advance_for_playback(
+        &mut self,
+        position: Duration,
+        forward_start: Option<Duration>,
+    ) -> Result<bool, Failure> {
+        let forward_start = forward_start.filter(|_| self.seeks_from_start());
+        let progressive = forward_start.is_some();
         self.catching_up = true;
         let base = self.decoder.info().time_base;
         let last = self.duration.saturating_sub(Duration::from_nanos(1));
@@ -200,9 +215,11 @@ impl Reader {
             position.min(last).as_nanos() * u128::from(base.denominator) / (u128::from(base.numerator) * 1_000_000_000);
         let target = i64::try_from(i128::from(self.origin) + i128::try_from(ticks).map_err(|_| "Video seek overflow")?)
             .map_err(|_| "Video seek overflow")?;
-        let jump = self.requested.is_none_or(|old| {
-            i128::from(target) - i128::from(old) > i128::from(base.denominator) / i128::from(base.numerator) / 2
-        });
+        // A forward seek on an animated WebP would replay frames that are already decoded.
+        let jump = !self.seeks_from_start()
+            && self.requested.is_none_or(|old| {
+                i128::from(target) - i128::from(old) > i128::from(base.denominator) / i128::from(base.numerator) / 2
+            });
         if self.current.as_ref().is_some_and(|frame| frame.timestamp() > target) || (jump && target > self.origin) {
             self.decoder.seek_before(target)?;
             self.current = None;
@@ -214,8 +231,9 @@ impl Reader {
             self.published = None;
         }
         self.requested = Some(target);
+        let budget = if progressive { 2 } else { 8 };
         let mut decoded = 0;
-        while decoded < 8 {
+        while decoded < budget {
             if self.current.is_none() {
                 self.current = self.decoder.next_frame()?;
                 decoded += 1;
@@ -224,7 +242,7 @@ impl Reader {
                 }
             }
             if self.next.is_none() && !self.eof {
-                if decoded == 8 {
+                if decoded == budget {
                     return Ok(false);
                 }
                 self.next = self.decoder.next_frame()?;
@@ -232,6 +250,10 @@ impl Reader {
                 self.eof = self.next.is_none();
             }
             if self.next.as_ref().is_some_and(|frame| frame.timestamp() <= target) {
+                if progressive && decoded == budget {
+                    // Keep an actual following PTS to describe this image's original window.
+                    break;
+                }
                 self.previous = self.current.as_ref().map(DecodedFrame::timestamp);
                 self.current = self.next.take();
                 continue;
@@ -243,7 +265,13 @@ impl Reader {
             }
             return Ok(true);
         }
-        Ok(false)
+        let (Some(start), Some(next), Some(current)) = (forward_start, &self.next, &self.current) else {
+            return Ok(false);
+        };
+        // Frames wholly before the active crop/loop start are decoder work only.
+        Ok(current.timestamp() <= target
+            && self.published != Some(current.timestamp())
+            && self.position(next.timestamp())? > start)
     }
     fn position(&self, timestamp: i64) -> Result<Duration, String> {
         let ticks = u128::try_from(i128::from(timestamp) - i128::from(self.origin))
@@ -258,6 +286,10 @@ impl Reader {
         if self.catching_up {
             return Ok(None);
         }
+        self.selected_neighbours()
+    }
+
+    pub(super) fn selected_neighbours(&self) -> Result<Option<super::frames::Neighbours>, String> {
         let Some(frame) = &self.current else {
             return Ok(None);
         };

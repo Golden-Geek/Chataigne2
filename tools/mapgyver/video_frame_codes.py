@@ -43,7 +43,7 @@ def decoded_pixels(row, marker):
 
 def frame_ordinals(fixture, count):
     points = fixture.get('frame_pts_nanos')
-    if points is None and fixture.get('container') != 'matroska':
+    if points is None and fixture.get('container') not in {'matroska', 'webp'}:
         return None
     if not isinstance(points, list) or len(points) != count:
         raise ValueError('exact fixture timestamp table has the wrong number of frames')

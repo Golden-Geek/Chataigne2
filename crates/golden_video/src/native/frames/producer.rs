@@ -107,13 +107,18 @@ pub struct GpuFramePublisher {
 }
 impl GpuFramePublisher {
     /// Select timestamp-based presentation before sharing or publishing the source stream.
-    pub fn set_presentation_clock(&mut self, clock: Arc<dyn super::GpuFrameClock>) -> Result<(), GpuFrameError> {
+    pub fn set_presentation_clock(
+        &mut self,
+        clock: Arc<dyn super::GpuFrameClock>,
+        sampling: super::GpuFrameSampling,
+    ) -> Result<(), GpuFrameError> {
         if Arc::strong_count(&self.stream.state) != 1
             || self.stream.state.lock().map_err(|_| GpuFrameError::Layout)?.sequence != 0
         {
             return Err(GpuFrameError::Layout);
         }
         self.stream.clock = Some(clock);
+        self.stream.sampling = sampling;
         Ok(())
     }
 

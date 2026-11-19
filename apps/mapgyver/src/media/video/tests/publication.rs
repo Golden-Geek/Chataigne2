@@ -26,7 +26,7 @@ fn open(name: &str) -> Decoder {
 
 fn decoded_at(reader: &mut super::super::reader::Reader, position: Duration) -> ImageData {
     for _ in 0..64 {
-        if let Some(image) = reader.poll(position).unwrap() {
+        if let Some(image) = reader.poll(position, None).unwrap() {
             return image;
         }
     }
