@@ -8,12 +8,50 @@ use ndi_sdk::sys;
 use crate::image::ImageData;
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor};
 
+use super::NdiAudioFrame;
+use super::audio::CapturedAudio;
 use super::{NdiError, NdiSource, Runtime};
+
+/// Original sender timing. Timecodes and SDK timestamps share 100 ns units.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NdiTiming {
+    /// Sender-provided timecode, which can be relative to a sender-defined origin.
+    pub timecode_100ns: Option<i64>,
+    /// SDK-generated UTC submission timestamp when available.
+    pub timestamp_100ns: Option<i64>,
+}
+
+impl NdiTiming {
+    pub(super) fn new(timecode: i64, timestamp: i64) -> Self {
+        Self {
+            timecode_100ns: (timecode != i64::MAX).then_some(timecode),
+            timestamp_100ns: (timestamp != i64::MAX).then_some(timestamp),
+        }
+    }
+}
+
+/// Copied video pixels with their original sender timing.
+#[derive(Debug)]
+pub struct NdiVideoFrame {
+    /// Progressive BGRA or BGRX pixels.
+    pub image: ImageData,
+    /// Timing supplied by the NDI SDK.
+    pub timing: NdiTiming,
+}
+
+/// One owned frame from the same NDI audio/video receive connection.
+#[derive(Debug)]
+pub enum NdiFrame {
+    /// A progressive video frame.
+    Video(NdiVideoFrame),
+    /// A planar floating-point audio frame.
+    Audio(NdiAudioFrame),
+}
 
 /// A connection owned and used by one capture worker.
 pub struct NdiReceiver {
     runtime: &'static Runtime,
-    instance: NonNull<sys::NDIlib_recv_instance_type>,
+    pub(super) instance: NonNull<sys::NDIlib_recv_instance_type>,
 }
 
 impl NdiReceiver {
@@ -47,14 +85,28 @@ impl NdiReceiver {
 
     /// Capture one progressive frame with a bounded wait. No SDK buffer crosses the worker boundary.
     pub fn capture_video(&mut self, timeout: Duration) -> Result<Option<ImageData>, NdiError> {
-        let mut frame = MaybeUninit::<sys::NDIlib_video_frame_v2_t>::zeroed();
+        match self.capture(timeout, false)? {
+            Some(NdiFrame::Video(video)) => Ok(Some(video.image)),
+            _ => Ok(None),
+        }
+    }
+
+    /// Capture the next available audio or video frame, retaining the SDK's original timing.
+    /// The caller owns any buffering beyond this single capture.
+    pub fn capture_av(&mut self, timeout: Duration) -> Result<Option<NdiFrame>, NdiError> {
+        self.capture(timeout, true)
+    }
+
+    fn capture(&mut self, timeout: Duration, receive_audio: bool) -> Result<Option<NdiFrame>, NdiError> {
+        let mut video = MaybeUninit::<sys::NDIlib_video_frame_v2_t>::zeroed();
+        let mut audio = MaybeUninit::<sys::NDIlib_audio_frame_v3_t>::zeroed();
         let timeout = timeout.as_millis().min(u128::from(u32::MAX)) as u32;
-        // Only video is requested here. The SDK initializes the frame only for a video result.
+        // Only the returned kind has an initialized SDK buffer. A null pointer declines audio.
         let kind = unsafe {
             self.runtime.api.recv_capture_v3.unwrap()(
                 self.instance.as_ptr(),
-                frame.as_mut_ptr(),
-                null_mut(),
+                video.as_mut_ptr(),
+                if receive_audio { audio.as_mut_ptr() } else { null_mut() },
                 null_mut(),
                 timeout,
             )
@@ -63,9 +115,20 @@ impl NdiReceiver {
             sys::NDIlib_frame_type_e::NDIlib_frame_type_video => {
                 let frame = CapturedVideo {
                     receiver: self,
-                    frame: unsafe { frame.assume_init() },
+                    frame: unsafe { video.assume_init() },
                 };
-                frame.copy_image()
+                let timing = NdiTiming::new(frame.frame.timecode, frame.frame.timestamp);
+                Ok(frame
+                    .copy_image()?
+                    .map(|image| NdiFrame::Video(NdiVideoFrame { image, timing })))
+            }
+            sys::NDIlib_frame_type_e::NDIlib_frame_type_audio if receive_audio => {
+                let audio = CapturedAudio {
+                    instance: self.instance,
+                    runtime: self.runtime,
+                    frame: unsafe { audio.assume_init() },
+                };
+                audio.copy_frame().map(|frame| Some(NdiFrame::Audio(frame)))
             }
             sys::NDIlib_frame_type_e::NDIlib_frame_type_error => Err(NdiError::Disconnected),
             _ => Ok(None),

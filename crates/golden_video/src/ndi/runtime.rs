@@ -64,6 +64,7 @@ impl Runtime {
             || api.recv_destroy.is_none()
             || api.recv_capture_v3.is_none()
             || api.recv_free_video_v2.is_none()
+            || api.recv_free_audio_v3.is_none()
             || api.recv_get_no_connections.is_none()
         {
             return Err(NdiError::Runtime(

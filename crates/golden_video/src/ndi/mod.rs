@@ -8,12 +8,14 @@ use thiserror::Error;
 
 use crate::image::ImageError;
 
+mod audio;
 mod receiver;
 mod runtime;
 #[cfg(test)]
 mod tests;
 
-pub use receiver::NdiReceiver;
+pub use audio::NdiAudioFrame;
+pub use receiver::{NdiFrame, NdiReceiver, NdiTiming, NdiVideoFrame};
 use runtime::Runtime;
 
 /// A missing SDK or a failed NDI operation. Ordinary rendering does not depend on this runtime.
@@ -31,6 +33,9 @@ pub enum NdiError {
     /// The SDK returned a frame that cannot be admitted to CPU image storage.
     #[error("Invalid NDI video frame: {0}")]
     Frame(&'static str),
+    /// Audio layout is incompatible with bounded planar capture.
+    #[error("Invalid NDI audio frame: {0}")]
+    AudioFrame(&'static str),
     /// The copied frame failed validation as a Golden Video image.
     #[error(transparent)]
     Image(#[from] ImageError),

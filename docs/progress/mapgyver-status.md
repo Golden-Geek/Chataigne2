@@ -5,7 +5,7 @@
 - **Latest delivered:** NDI Media opens directly from **Medias → + → NDI** on Windows. Sender discovery and native Media Preview passed. [Checks](evidence/mapgyver-m17-ndi-picture-2026-11-19.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Route received NDI audio to named virtual outputs.
+- **Next:** Connect verified NDI audio receive to named virtual outputs. [Audio receive checks](evidence/mapgyver-m17-ndi-receive-av-2026-11-19.json)
 
 ## Done — code and normal-use checks passed
 
@@ -71,7 +71,7 @@
 
 [NDI with audio](../plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output) is the next feature while extended Video qualification is deferred.
 
-- **NDI Media.** Discovery, sender selection and native picture are verified with an independent local sender. Audio routing, cross-machine LAN checks and clean Windows setup are pending.
+- **NDI Media.** Discovery, sender selection and native picture are verified with an independent local sender. Golden Video receives both audio channels and matches their pulses to the picture. MapGyver audio routing, cross-machine LAN checks and clean Windows setup are pending.
 - **NDI Screen Output.** Publish a Screen as a named NDI stream with audio from selected virtual outputs.
 
 ## Pending qualification — in order
