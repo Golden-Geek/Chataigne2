@@ -163,7 +163,52 @@
     },
     "assessment": "NVIDIA passed connected marker coverage, visible output deadlines, CPU and the connected 50 ms File-publication-to-copy bound for this pair. Intel sustained source publication and met CPU limits. Its renderer's local GPU span alone exceeded 12/16.667 ms p95/p99, minimized output deadlines exceeded 0.1%, and visible age exceeded 50 ms on HD and its Reference. The visible 4K receiver lacked enough exact witnesses to bound p95. Both samples retired all tracked resources. The GPU audit still lacks an exact dependency for the 4K direct software upload."
   },
+  "sharedOutputFollowUp": {
+    "baseRevision": "be4eed07",
+    "baseline": "target/m103-q06-dxv3-dxt1/sample-intel-01",
+    "localRun": "target/m103-q06-dxv3-dxt1/sample-intel-02",
+    "binarySha256": "8274efb49b5a74691753bb34f28cf032e4a59efe779096f19b14409cafb247d7",
+    "sampleSha256": "2ce48fdcc376f2f01b3f328e435e859b8b7205b8ca1b7511359d13ecdef3810b",
+    "auditSha256": "b9c0bfebce0b1b12005bc17625a9468a3b3d64a6844b7f17e5ca54911a8a54b8",
+    "inputsSha256": "61f59dfe8e1bbff8ce90e6192d4f5ee0ff35f45d21330063ec1f82f304e54d30",
+    "unchangedInputHashesAfterRun": 74,
+    "nativeControllerAndStrictAttributionAuditExits": [0, 0],
+    "change": "Share exact texture-only raw Screen rasters and identical Spout conversion pixels. Preserve Screen identities for subsequent edits, and keep independent sender allocations, cadence and delivery.",
+    "software": {
+      "goldenVideo": { "passed": 363, "ignored": 71 },
+      "mapGyverRendering": { "passed": 95, "ignored": 6 },
+      "formattingStrictClippyBundledBuild": "pass"
+    },
+    "visibleRendererBatchesBeforeAfter": [7204, 7203],
+    "visibleExecutedPassesBeforeAfter": [50353, 43179],
+    "visibleHdPairConversionsBeforeAfter": [14358, 7184],
+    "heldPixelIdenticalToIntelBaselineHD_UHD_Reference": [true, true, true],
+    "visibleAcceptedMarkersHD_UHD_Reference": [7199, 7203, 7203],
+    "visibleMatchedMarkersHD_UHD_Reference": [7195, 7168, 7193],
+    "minimizedMatchedMarkersHD_UHD_Reference": [3595, 3593, 3597],
+    "connectedMissingWitnessesBeforeAfter": [1347, 49],
+    "connectedMismatchedMarkers": 0,
+    "publicationRateHD_UHDVisibleMinimizedDisconnected": [[59.8382, 30.0024], [59.6922, 29.9710], [59.7916, 30.0040]],
+    "visibleUhdLoopsWithFinalFrameOf29": 29,
+    "visibleDeadlineBudgetPassed": true,
+    "minimizedDeadlineMissesOf3604HD_UHD_Reference": [10, 12, 8],
+    "cpuSubmissionP95P99MsVisibleMinimizedDisconnected": [[3.0774, 3.4178], [3.5229, 3.8324], [3.4886, 3.9217]],
+    "rendererGpuObservedP95P99MsVisibleMinimizedDisconnected": [[17.350938, 18.749792], [17.930417, 18.601823], [20.050625, 21.102344]],
+    "visibleRendererQueriesValidAndDisjoint": [7202, 1],
+    "visibleRendererGpuStageP95MsInputsRenderOutputs": [1.769219, 8.273958, 8.975469],
+    "filePublicationToCopyP95UpperMsVisibleHD_UHD_Reference": [45.7109, 43.1560, 47.6039],
+    "filePublicationToCopyP95UpperMsMinimizedHD_UHD_Reference": [34.0354, 42.2921, 39.0228],
+    "resources": {
+      "knownNativeTexturePeakBytesBeforeAfter": [370400008, 353811208],
+      "processPrivatePeakBytesBeforeAfter": [875253760, 891822080],
+      "sourceGpuPeakBytes": 24883200,
+      "sourceCpuAdmissionPeakAndLimitBytes": [448274432, 805306368],
+      "finalTrackedSourceGpuAndNativeTextureBytes": [0, 0],
+      "finalPlanTextureAllocationsCreatedReleased": [27, 27]
+    },
+    "assessment": "Ship exact sharing. Visible Intel deadlines and connected age bounds now pass in the fixed sample. Minimized deadline misses and measured renderer GPU work still exceed their budgets. Visible GPU coverage contains one disjoint query. Whole-path attribution and complete visible pixel witnesses remain open."
+  },
   "remaining": [
-    "Qualify the Intel standard workload after reducing local render/output GPU work. Complete GPU-path attribution, sustained alpha/High Quality DXV and additional MKV profiles, independent repeats, and extended-format recovery."
+    "Reduce Intel render and output GPU work further and close minimized deadline misses. Complete GPU-path attribution, sustained alpha/High Quality DXV and additional MKV profiles, independent repeats, and extended-format recovery."
   ]
 }

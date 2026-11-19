@@ -1,5 +1,5 @@
 use std::cell::{Cell, RefCell};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -85,6 +85,7 @@ pub(crate) struct D3d11Resources {
     textures: BTreeMap<TextureId, Rc<Texture>>,
     scratch: BTreeMap<PassId, Rc<Texture>>,
     outputs: BTreeMap<OutputId, Rc<Texture>>,
+    conversion_slots: Vec<usize>,
     presented_regions: BTreeMap<OutputId, Vec<crate::plan::RegionPlacement>>,
     input_sequences: BTreeMap<TextureId, Cell<Option<CopyFrame>>>,
     gpu_imports: RefCell<super::frames::Imports>,
@@ -404,6 +405,7 @@ impl Backend for D3d11Backend {
                     .ok_or(BackendError::ResourceSizeOverflow)?;
             }
         }
+        let mut conversions = HashSet::new();
         for output in plan.outputs() {
             let binding = self
                 .config
@@ -411,7 +413,9 @@ impl Backend for D3d11Backend {
                 .iter()
                 .find(|binding| binding.id() == output.id)
                 .unwrap();
-            if matches!(binding, OutputBinding::Spout { .. }) {
+            if matches!(binding, OutputBinding::Spout { .. })
+                && conversions.insert((output.source, binding.descriptor()))
+            {
                 total = total
                     .checked_add(bytes(binding.descriptor())?)
                     .ok_or(BackendError::ResourceSizeOverflow)?;
@@ -758,6 +762,7 @@ impl D3d11Backend {
                 return Attempt::Complete;
             }
             let converted = resources.outputs.get(&output.id).map(Rc::as_ref);
+            let conversion_slot = resources.conversion_slots[index];
             let descriptor = native.outputs.descriptor(output.id).expect("validated native output");
             let admission_begin = recorder.and_then(Recorder::stamp);
             let admission = native.outputs.admit(output.id, context, descriptor, token, attempt);
@@ -779,8 +784,9 @@ impl D3d11Backend {
                     let source = &resources.textures[&output.source];
                     let written = |id| resources.textures[&id].last_write.get();
                     let mut cache = resources.render_cache.borrow_mut();
-                    conversion_reused = converted
-                        .is_some_and(|target| !cache.needs_conversion(index, target.last_write.get(), written));
+                    conversion_reused = converted.is_some_and(|target| {
+                        !cache.needs_conversion(conversion_slot, target.last_write.get(), written)
+                    });
                     let conversion = if conversion_reused {
                         None
                     } else {
@@ -796,7 +802,7 @@ impl D3d11Backend {
                         pipeline.draw(context, source, None, target, 1.0, BlendMode::Normal, filter);
                         if let Some(target) = converted {
                             target.last_write.set(Some(token));
-                            cache.converted(index, token, written);
+                            cache.converted(conversion_slot, token, written);
                         }
                         recorder.and_then(|recorder| recorder.interval(conversion_begin))
                     };

@@ -205,6 +205,92 @@ fn composed_screen_consumers_share_one_channel_and_one_mapped_pass() {
 }
 
 #[test]
+fn equivalent_raw_screens_share_pixels_until_one_screen_changes() {
+    let mut engine = engine();
+    let source = create(&mut engine, MediaKind::SolidColor);
+    let MediaEditResult::ReferenceCreated { media } = edit(
+        &mut engine,
+        MediaEdit::CreateReference {
+            target: Some(source.media),
+            label: None,
+        },
+    ) else {
+        panic!()
+    };
+    let alias = crate::media::resolve_source_node(&engine, media.0).unwrap();
+    let (first, _) = screen(&mut engine, source);
+    let (second, surface) = screen(&mut engine, alias);
+    let probe = renderer();
+    let observations = probe.source_observations();
+    let prepare = |engine: &AppEngine, prior: &HashMap<ScreenId, ScreenEntry>, next: &mut u64| {
+        let routes = [first, second].map(|id| {
+            let mut route = screen_routes(engine, id).remove(0);
+            route.output = OutputId::new(if id == first { 1 } else { 2 });
+            route
+        });
+        super::super::plan::build(
+            &capture_channels(engine, &[source, alias], 16).unwrap(),
+            super::super::plan::Targets {
+                routes: &[],
+                preview: None,
+                screens: &routes,
+            },
+            super::super::plan::Previous {
+                channels: &HashMap::new(),
+                screens: prior,
+                preview_images: &Default::default(),
+            },
+            next,
+            config().plan_limits,
+            super::super::plan::Sources {
+                observations: &observations,
+                pictures: None,
+                #[cfg(feature = "video-files")]
+                videos: None,
+                calibration: &mut Default::default(),
+            },
+        )
+        .unwrap()
+    };
+    let mut next = 0;
+    let shared = prepare(&engine, &HashMap::new(), &mut next);
+    let plan = &shared.submission.plan;
+    assert_eq!(plan.passes.len(), 2);
+    assert_ne!(plan.outputs[0].id, plan.outputs[1].id);
+    assert_eq!(plan.outputs[0].source, plan.outputs[1].source);
+    assert_ne!(shared.screens[&first].target, shared.screens[&second].target);
+
+    let ScreenEditResult::Surface { snapshot } =
+        screen_edit(&mut engine, ScreenEdit::InspectSurface { reference: surface })
+    else {
+        panic!()
+    };
+    screen_edit(
+        &mut engine,
+        ScreenEdit::ConfigureSurface {
+            reference: surface,
+            definition: SurfaceDefinition {
+                opacity: 0.25,
+                ..snapshot.definition
+            },
+        },
+    );
+    let separate = prepare(&engine, &shared.screens, &mut next);
+    let plan = &separate.submission.plan;
+    assert_eq!(plan.passes.len(), 3);
+    assert_eq!(plan.outputs[0].source, shared.screens[&first].target);
+    assert_eq!(plan.outputs[1].source, shared.screens[&second].target);
+    assert!(engine.undo().unwrap());
+    let restored = prepare(&engine, &separate.screens, &mut next);
+    assert_eq!(restored.submission.plan.passes.len(), 2);
+    assert_eq!(
+        restored.submission.plan.outputs[0].source,
+        restored.submission.plan.outputs[1].source
+    );
+    close(probe);
+}
+
+#[test]
 fn mapping_edits_invalidate_capture_without_reallocating_screen_identity_and_delete_undo_preserves_routes() {
     let mut engine = engine();
     let source = create(&mut engine, MediaKind::SolidColor);

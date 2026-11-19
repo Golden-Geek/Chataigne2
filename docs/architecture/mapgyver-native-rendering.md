@@ -76,6 +76,13 @@ catalog retains the previous window until current metadata commits. A revision w
 even when the resulting allocation is identical. A committed missing target still withdraws the
 output and releases its window after retirement; pending metadata is never mistaken for removal.
 
+Within a render plan, MapGyver can share a raw Screen raster when extent and every resolved
+texture layer match in order, including crop, warp and opacity. Each Screen keeps its own
+target identity for later edits that split the shared route. Golden Video also shares a
+persistent Spout conversion when outputs use the same source texture and exact destination
+descriptor. Each sender retains independent pacing, admission, SDK storage and recovery.
+Window back buffers and live editor placements follow their own presentation paths.
+
 Editor decorations belong to the same native presentation as the image. Golden Video owns
 bounded Quad/Circle metadata, host-authenticated physical scale and aperture clipping, checked
 live placement and premultiplied linear drawing. Placement and decorations are sampled once

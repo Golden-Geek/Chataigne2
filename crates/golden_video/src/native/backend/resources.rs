@@ -117,6 +117,7 @@ pub(super) fn prepare(
         textures: Default::default(),
         scratch: Default::default(),
         outputs: Default::default(),
+        conversion_slots: (0..plan.outputs().len()).collect(),
         presented_regions: Default::default(),
         input_sequences: Default::default(),
         gpu_imports: Default::default(),
@@ -212,7 +213,8 @@ pub(super) fn prepare(
             );
         }
     }
-    for output in plan.outputs() {
+    let mut conversions = HashMap::new();
+    for (index, output) in plan.outputs().iter().enumerate() {
         // Resolve output-specific placements during preparation, never per-frame traversal.
         let mut needed = std::collections::HashSet::from([output.source]);
         let mut placements = Vec::new();
@@ -248,9 +250,15 @@ pub(super) fn prepare(
             continue;
         }
         let descriptor = native.outputs.descriptor(output.id).expect("validated output binding");
+        // Exact source and format share conversion pixels. Each SDK sender still owns
+        // its own admitted endpoint and shared texture.
+        let (slot, owner) = *conversions
+            .entry((output.source, descriptor))
+            .or_insert((index, output.id));
+        resources.conversion_slots[index] = slot;
         resources.outputs.insert(
             output.id,
-            cache.mutable(Role::Output(output.id), descriptor, device, counts)?,
+            cache.mutable(Role::Output(owner), descriptor, device, counts)?,
         );
     }
     resources._demands = Some(native.inputs.demands(plan));

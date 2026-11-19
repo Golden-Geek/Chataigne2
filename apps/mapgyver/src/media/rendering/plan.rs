@@ -609,7 +609,8 @@ pub(super) fn build(
         });
     }
     let mut screen_entries = HashMap::new();
-    let mut screen_extents = HashMap::new();
+    let mut screen_targets = HashMap::new();
+    let mut raw_targets = super::screen_raster::RawTargets::default();
     let source_targets = channels
         .iter()
         .filter(|channel| captured[&channel.reference].public_output)
@@ -630,7 +631,7 @@ pub(super) fn build(
                 supersample: prior.and_then(|entry| entry.supersample),
                 smooth4: prior.map_or_else(Vec::new, |entry| entry.smooth4.clone()),
             };
-            if route.screen.anti_aliasing == crate::screens::protocol::ScreenAntiAliasing::Smooth4x {
+            let resolved = if route.screen.anti_aliasing == crate::screens::protocol::ScreenAntiAliasing::Smooth4x {
                 super::screen_raster::append(
                     &mut submission.plan,
                     &mut entry,
@@ -643,8 +644,7 @@ pub(super) fn build(
                         assets: calibration,
                     },
                 )?;
-                slot.insert(entry);
-                screen_extents.insert(route.screen.id, route.extent);
+                target
             } else {
                 let render_extent = route.screen.render_extent(route.extent)?;
                 let smooth = render_extent != route.extent;
@@ -655,22 +655,26 @@ pub(super) fn build(
                 };
                 let composite = if smooth { supersample.unwrap() } else { target };
                 entry.supersample = supersample;
-                slot.insert(entry);
-                screen_extents.insert(route.screen.id, route.extent);
-                submission.plan.passes.push(RenderPass {
-                    id: PassId::new(composite.get()).unwrap(),
-                    output: composite,
-                    descriptor: TextureDescriptor {
-                        extent: render_extent,
-                        format: PixelFormat::Rgba8Unorm,
-                        color_encoding: ColorEncoding::Linear,
-                        alpha_mode: AlphaMode::Premultiplied,
-                    },
-                    operation: RenderOperation::Composite {
-                        // Logical layout/readouts stay at final resolution; only raster density changes.
-                        layers: route.screen.layers(&source_targets, route.extent, calibration)?,
-                    },
-                });
+                // Logical layout/readouts stay at final resolution; only raster density changes.
+                let layers = route.screen.layers(&source_targets, route.extent, calibration)?;
+                let resolved = if smooth {
+                    target
+                } else {
+                    raw_targets.resolve(route.extent, &layers, target)
+                };
+                if resolved == target {
+                    submission.plan.passes.push(RenderPass {
+                        id: PassId::new(composite.get()).unwrap(),
+                        output: composite,
+                        descriptor: TextureDescriptor {
+                            extent: render_extent,
+                            format: PixelFormat::Rgba8Unorm,
+                            color_encoding: ColorEncoding::Linear,
+                            alpha_mode: AlphaMode::Premultiplied,
+                        },
+                        operation: RenderOperation::Composite { layers },
+                    });
+                }
                 if smooth {
                     submission.plan.passes.push(RenderPass {
                         id: PassId::new(target.get()).unwrap(),
@@ -687,14 +691,17 @@ pub(super) fn build(
                         },
                     });
                 }
-            }
-        } else if screen_extents.get(&route.screen.id) != Some(&route.extent) {
+                resolved
+            };
+            slot.insert(entry);
+            screen_targets.insert(route.screen.id, (route.extent, resolved));
+        } else if screen_targets[&route.screen.id].0 != route.extent {
             return Err("a Screen may have only one authored output extent per generation".into());
         }
         if let Some(output) = route.output {
             submission.plan.outputs.push(PlanOutput {
                 id: output,
-                source: screen_entries[&route.screen.id].target,
+                source: screen_targets[&route.screen.id].1,
             });
         }
     }
@@ -702,7 +709,7 @@ pub(super) fn build(
         if !seen_outputs.insert(preview.output) {
             return Err("preview output duplicates an output route".into());
         }
-        let screen_targets = screen_entries.iter().map(|(id, entry)| (*id, entry.target)).collect();
+        let screen_targets = screen_targets.iter().map(|(id, (_, target))| (*id, *target)).collect();
         let availability = channels
             .iter()
             .filter(|channel| captured[&channel.reference].public_output)

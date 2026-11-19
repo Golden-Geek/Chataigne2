@@ -4,9 +4,48 @@ use crate::{
     media::protocol::ChannelReference,
     screens::{CalibrationAssets, rendering::CapturedScreen},
 };
-use golden_video::plan::{BlitRegion, RasterTile, RenderOperation, RenderPass, RenderPlan, SampleFilter, UnitRect};
+use golden_video::plan::{
+    BlendMode, BlitRegion, Layer, RasterTile, RenderOperation, RenderPass, RenderPlan, SampleFilter, UnitRect,
+};
 use golden_video::{AlphaMode, ColorEncoding, Extent2D, PassId, PixelFormat, TextureDescriptor, TextureId};
 use std::collections::HashMap;
+
+/// A raw Screen may reuse a rendered target only for exactly the same resolved texture layers.
+#[derive(Default)]
+pub(super) struct RawTargets(HashMap<(Extent2D, Vec<TextureLayer>), TextureId>);
+
+#[derive(PartialEq, Eq, Hash)]
+struct TextureLayer {
+    source: TextureId,
+    opacity: u32,
+    crop: [u32; 4],
+    mapping: [[u32; 4]; 3],
+}
+
+impl RawTargets {
+    pub(super) fn resolve(&mut self, extent: Extent2D, layers: &[Layer], target: TextureId) -> TextureId {
+        let key = layers
+            .iter()
+            .map(|layer| {
+                if layer.opacity_envelope.is_some()
+                    || layer.blend != BlendMode::Normal
+                    || layer.filter != SampleFilter::Linear
+                {
+                    return None;
+                }
+                let mapping = layer.mapping?;
+                let crop = mapping.crop();
+                Some(TextureLayer {
+                    source: layer.source.texture()?,
+                    opacity: layer.opacity.get().to_bits(),
+                    crop: [crop.x, crop.y, crop.width, crop.height].map(f32::to_bits),
+                    mapping: mapping.inverse_rows().map(|row| row.map(f32::to_bits)),
+                })
+            })
+            .collect::<Option<Vec<_>>>();
+        key.map_or(target, |key| *self.0.entry((extent, key)).or_insert(target))
+    }
+}
 
 pub(super) struct Inputs<'a> {
     pub screen: &'a CapturedScreen,

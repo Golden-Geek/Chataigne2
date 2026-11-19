@@ -154,6 +154,48 @@ fn native_resource_charges_include_persistent_sdk_storage_and_generation_convers
 }
 
 #[test]
+fn equivalent_spout_outputs_charge_one_conversion_and_independent_senders() {
+    let mut plan = clear_plan(1);
+    let source = plan.outputs[0].source;
+    let other = TextureId::new(2).unwrap();
+    plan.passes.push(RenderPass {
+        output: other,
+        id: PassId::new(2).unwrap(),
+        ..plan.passes[0].clone()
+    });
+    for (id, source) in [(2, source), (3, source), (4, other)] {
+        plan.outputs.push(PlanOutput {
+            id: OutputId::new(id).unwrap(),
+            source,
+        });
+    }
+    let outputs = (1..=4)
+        .map(|id| OutputBinding::Spout {
+            id: OutputId::new(id).unwrap(),
+            name: format!("uninitialized-test-{id}"),
+            descriptor: TextureDescriptor {
+                extent: Extent2D::new(if id == 3 { 2 } else { 1 }, 1).unwrap(),
+                ..descriptor()
+            },
+        })
+        .collect();
+    let backend = D3d11Backend::new(
+        D3d11Config {
+            output_rates: Vec::new(),
+            diagnostics: None,
+            adapter: AdapterId { low: 0, high: 0 },
+            inputs: InputLimits::default(),
+            outputs,
+        },
+        D3d11Control::default(),
+        DeviceGeneration::new(Uuid::new_v4(), 1),
+    );
+    let plan = plan.compile(&limits()).unwrap();
+    assert_eq!(backend.base_resource_bytes().unwrap(), FIXED_BUFFER_BYTES + 20);
+    assert_eq!(backend.resource_bytes(&plan).unwrap(), 8 + 4 + 8 + 4);
+}
+
+#[test]
 fn unsupported_inputs_and_unbound_outputs_are_rejected_without_silent_fallback() {
     let (backend, control) = backend();
     assert_eq!(
