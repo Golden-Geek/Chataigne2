@@ -190,7 +190,7 @@ fn create(
     owner.renderer.enable_ndi(Some(notifier.clone()));
     owner
         .renderer
-        .enable_shaders(notifier.clone())
+        .enable_shaders(&std::env::current_dir()?, notifier.clone())
         .map_err(io::Error::other)?;
     owner
         .renderer

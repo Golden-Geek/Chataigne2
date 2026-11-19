@@ -427,18 +427,18 @@ pub(super) fn build(
                             .map_err(|error| error.to_string())?,
                     );
                 }
-                Some(ChannelSource::Shader { code: _code }) => {
+                Some(ChannelSource::Shader { input: _input }) => {
                     entry.source = None;
                     resolution =
                         resolution::resolve(channel.definition.as_ref().unwrap(), SourceObservation::Unavailable)?;
                     #[cfg(all(windows, feature = "native-video"))]
-                    match shaders.and_then(|shaders| shaders.get(_code)) {
-                        Some(Ok(program)) => {
+                    match shaders.map_or(Ok(None), |shaders| shaders.program(_input)) {
+                        Ok(Some(program)) => {
                             resolution.availability = ChannelAvailability::Ready;
                             operation = RenderOperation::Shader(program.clone());
                         }
-                        Some(Err(_)) => resolution.availability = ChannelAvailability::Incompatible,
-                        None => {}
+                        Err(availability) => resolution.availability = availability,
+                        Ok(_) => {}
                     }
                 }
                 Some(ChannelSource::Matrix { .. }) => {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
@@ -58,9 +58,15 @@ const blue = `void main() {
 const green = 'void main() { fragColor = vec4(0.0, 1.0, 0.0, 1.0); }';
 const red = 'void main() { fragColor = vec4(1.0, 0.0, 0.0, 1.0); }';
 const invalid = 'void main() { fragColor = unknownColor; }';
+const magenta = 'void main() { fragColor = vec4(1.0, 0.0, 1.0, 1.0); }';
+const yellow = 'void main() { fragColor = vec4(1.0, 1.0, 0.0, 1.0); }';
 
 try {
 	token = (await post('/api/ui/session', {})).token;
+	const shaderTab = page.getByRole('tab').filter({ hasText: /^Shader Editor$/ });
+	const panel = page.locator('[data-panel-id="shader-editor"]');
+	await shaderTab.waitFor();
+	assert.equal(await panel.isVisible(), false, 'Shader Editor opens as an inactive dock tab');
 	await page
 		.getByRole('tab')
 		.filter({ hasText: /^Medias$/ })
@@ -165,6 +171,57 @@ try {
 	});
 	await delay(500);
 	await observer.observePixels('reloaded-green', [0, 255, 0, 255]);
+
+	stage = 'apply code from the docked Shader Editor';
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Medias$/ })
+		.click();
+	await manager.getByRole('button', { name: 'Shader', exact: true }).click();
+	await shaderTab.click();
+	const codeEditor = panel.locator('.cm-content');
+	await codeEditor.fill(magenta);
+	await codeEditor.press('Control+s');
+	await waitFor(async () => {
+		const parameter = (await graph()).find((node) => node.uuid === code.uuid);
+		return parameter?.data.param.value.Str === magenta;
+	});
+	await delay(500);
+	await observer.observePixels('editor-magenta', [255, 0, 255, 255]);
+
+	stage = 'select and automatically reload an external shader';
+	const source = panel.locator('select.dropdown-editor');
+	const name = 'Live.glsl';
+	const filename = path.join(directory, name);
+	await writeFile(filename, green);
+	await source.selectOption('File');
+	const file = panel.getByRole('textbox', { name: 'Shader File', exact: true });
+	await file.fill(name);
+	await file.press('Enter');
+	await delay(750);
+	await observer.observePixels('external-green', [0, 255, 0, 255]);
+
+	await writeFile(`${filename}.new`, yellow);
+	await rename(`${filename}.new`, filename);
+	await delay(750);
+	await observer.observePixels('external-atomic-replace-yellow', [255, 255, 0, 255]);
+
+	stage = 'clear a missing external source and recover when it returns';
+	await rm(filename);
+	await delay(750);
+	await observer.observePixels('external-missing', [0, 0, 0, 0]);
+	await writeFile(filename, red);
+	await delay(750);
+	await observer.observePixels('external-recreated-red', [255, 0, 0, 255]);
+
+	stage = 'reload external source settings and preserve dormant embedded code';
+	assert((await post('/api/ui/project-save', { path: project })).ok);
+	await source.selectOption('Embedded');
+	await delay(500);
+	await observer.observePixels('retained-embedded-magenta', [255, 0, 255, 255]);
+	assert.equal(path.resolve((await post('/api/ui/project-load', { path: project })).path), project);
+	await delay(750);
+	await observer.observePixels('saved-external-red', [255, 0, 0, 255]);
 	assert.deepEqual(errors, []);
 	assert(!appLog.includes('[mapgyver-output] window id='));
 	await writeFile(

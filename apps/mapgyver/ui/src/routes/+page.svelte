@@ -15,6 +15,8 @@
 	import { provideApplicationRuntime } from '../lib/applications/runtime-context.svelte';
 	import MediaManagerPanel from '../lib/media/MediaManagerPanel.svelte';
 	import MediaPreviewPanel from '../lib/media/MediaPreviewPanel.svelte';
+	import ShaderEditorPanel from '../lib/shader/ShaderEditorPanel.svelte';
+	import shaderIcon from 'golden_ui/style/icons/node/script.svg';
 	import ScreenManagerPanel from '../lib/screens/ScreenManagerPanel.svelte';
 	import ScreenWarpPanel from '../lib/screens/ScreenWarpPanel.svelte';
 	import SurfaceSourcePanel from '../lib/screens/SurfaceSourcePanel.svelte';
@@ -67,6 +69,7 @@
 	const userPanels: UserPanelDefinitionMap = {
 		mediaManager: { title: 'Medias', icon: panelIcons.media, component: MediaManagerPanel },
 		mediaPreview: { title: 'Media Preview', icon: panelIcons.media, component: MediaPreviewPanel },
+		shaderEditor: { title: 'Shader Editor', icon: shaderIcon, component: ShaderEditorPanel },
 		screenManager: { title: 'Screens', icon: panelIcons.screen, component: ScreenManagerPanel },
 		screenWarp: { title: 'Screen Warping', icon: panelIcons.screen, component: ScreenWarpPanel },
 		surfaceSource: {
@@ -133,6 +136,12 @@
 		{
 			panelId: 'media-preview',
 			panelType: 'mediaPreview',
+			position: { referencePanelId: 'screen-warp', direction: 'within' }
+		},
+		{
+			panelId: 'shader-editor',
+			panelType: 'shaderEditor',
+			inactive: true,
 			position: { referencePanelId: 'screen-warp', direction: 'within' }
 		},
 		...(hasDesktopHost()

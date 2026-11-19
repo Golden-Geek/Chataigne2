@@ -195,6 +195,18 @@ pub enum SizePolicy {
     Fixed { extent: Extent2D },
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(tag = "kind", deny_unknown_fields)]
+pub enum ShaderInput {
+    Embedded {
+        #[ts(type = "string")]
+        code: std::sync::Arc<str>,
+    },
+    File {
+        file: Option<AssetLocator>,
+    },
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 #[serde(deny_unknown_fields)]
@@ -215,8 +227,7 @@ pub enum ChannelSource {
         file: Option<AssetLocator>,
     },
     Shader {
-        #[ts(type = "string")]
-        code: std::sync::Arc<str>,
+        input: ShaderInput,
     },
     /// Straight linear-light RGBA. Conversion/premultiplication happens in the backend.
     SolidColor {

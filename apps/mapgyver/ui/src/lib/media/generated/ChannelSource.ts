@@ -3,5 +3,6 @@ import type { AssetLocator } from "./AssetLocator";
 import type { ChannelReference } from "./ChannelReference";
 import type { Extent2D } from "./Extent2D";
 import type { MatrixOutput } from "./MatrixOutput";
+import type { ShaderInput } from "./ShaderInput";
 
-export type ChannelSource = { "kind": "Reference", target: ChannelReference | null, } | { "kind": "Matrix", output: MatrixOutput, } | { "kind": "Composition", canvas: Extent2D, } | { "kind": "Picture", file: AssetLocator | null, } | { "kind": "Video", file: AssetLocator | null, } | { "kind": "Shader", code: string, } | { "kind": "SolidColor", rgba: [number, number, number, number], } | { "kind": "Spout", sender: string | null, } | { "kind": "Ndi", sender: string | null, };
+export type ChannelSource = { "kind": "Reference", target: ChannelReference | null, } | { "kind": "Matrix", output: MatrixOutput, } | { "kind": "Composition", canvas: Extent2D, } | { "kind": "Picture", file: AssetLocator | null, } | { "kind": "Video", file: AssetLocator | null, } | { "kind": "Shader", input: ShaderInput, } | { "kind": "SolidColor", rgba: [number, number, number, number], } | { "kind": "Spout", sender: string | null, } | { "kind": "Ndi", sender: string | null, };

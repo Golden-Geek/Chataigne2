@@ -1,6 +1,6 @@
 //! Variant settings are real Parameters; media-owned settings join them only in runtime projections.
 use super::{
-    protocol::{ChannelDefinition, ChannelSource, MediaKind, SenderSelectionMode, SizePolicy},
+    protocol::{ChannelDefinition, ChannelSource, MediaKind, SenderSelectionMode, ShaderInput, SizePolicy},
     video::protocol::VideoSubtitleTrackInfo,
 };
 use crate::matrix::protocol::{GroupId, LayerId, MatrixDefinition, MatrixOutput};
@@ -27,9 +27,14 @@ mod subtitles;
         source_kind: Enum = "SolidColor" (label = "Source kind", read_only = true, persist_read_only_value = true,
             enum_options = crate::parameters::enum_options(&["Picture", "Video", "Shader", "SolidColor", "SharedTexture", "Ndi", "Composition", "Matrix"]));
         rgba: Color = Color::new(1.0, 1.0, 1.0, 1.0) [0.0..1.0] (label = "Color", description = "Straight linear-light RGBA.", constraint_policy = "reject");
+        shader_input: Enum = "Embedded" (label = "Source", enum_options = crate::parameters::enum_options(&["Embedded", "File"]),
+            dependency = |node: &Self| node.kind() == MediaKind::Shader);
         shader_code: String = String::new() (label = "GLSL", widget = "code",
             description = "Define void main() and write linear RGBA to fragColor. Use iResolution, iTime and gl_FragCoord for frame inputs.",
-            dependency = |node: &Self| node.kind() == MediaKind::Shader);
+            dependency = |node: &Self| node.kind() == MediaKind::Shader && node.shader_input.get_ref().as_str() == "Embedded");
+        shader_file: File = File::default() (label = "Shader File", file_allowed_extensions = vec!["glsl".into(), "frag".into(), "fs".into()],
+            description = "Project-relative or absolute GLSL file. Changes reload automatically.",
+            dependency = |node: &Self| node.kind() == MediaKind::Shader && node.shader_input.get_ref().as_str() == "File");
         file: File = File::default() (label = "File", description = "This channel's project-relative or native absolute source path.", dependency = |node: &Self| matches!(node.kind(), super::protocol::MediaKind::Picture | super::protocol::MediaKind::Video));
         video_loop_file: File = File::default() (label = "Loop File", description = "Optional video played after this channel's intro when Loop is enabled.", dependency = |node: &Self| node.kind() == MediaKind::Video);
         sender: String = String::new() (label = "Spout sender");
@@ -195,9 +200,18 @@ impl ChannelNode {
                     Color::new(rgba[0].into(), rgba[1].into(), rgba[2].into(), rgba[3].into())
                 );
             }
-            ChannelSource::Shader { code } => {
-                seed!(shader_code, code.to_string());
-            }
+            ChannelSource::Shader { input } => match input {
+                ShaderInput::Embedded { code } => {
+                    seed!(shader_code, code.to_string());
+                }
+                ShaderInput::File { file } => {
+                    seed!(shader_input, Enum::new("File"));
+                    seed!(
+                        shader_file,
+                        File::new(file.as_ref().map(super::assets::locator_path).unwrap_or_default())
+                    );
+                }
+            },
             ChannelSource::Picture { file } | ChannelSource::Video { file } => {
                 seed!(
                     file,
@@ -260,7 +274,16 @@ impl ChannelNode {
         let settings = media.matrix_settings();
         let source = match self.source_kind.get_ref().as_str() {
             "Shader" => ChannelSource::Shader {
-                code: Arc::from(self.shader_code.get_ref().as_str()),
+                input: if self.shader_input.get_ref().as_str() == "File" {
+                    ShaderInput::File {
+                        file: super::assets::parse_file(self.shader_file.get_ref().as_str())
+                            .expect("validated Shader File"),
+                    }
+                } else {
+                    ShaderInput::Embedded {
+                        code: Arc::from(self.shader_code.get_ref().as_str()),
+                    }
+                },
             },
             "Video" => ChannelSource::Video {
                 file: super::assets::parse_file(self.file.get_ref().as_str()).expect("validated Video File"),
@@ -314,7 +337,24 @@ impl ChannelNode {
     ) -> Result<Vec<Edit>, String> {
         let mut values = Vec::new();
         match source {
-            ChannelSource::Shader { code } => values.push((self.shader_code.id(), ParamValue::Str(code.to_string()))),
+            ChannelSource::Shader { input } => match input {
+                ShaderInput::Embedded { code } => values.extend([
+                    (self.shader_input.id(), ParamValue::Enum("Embedded".into())),
+                    (self.shader_code.id(), ParamValue::Str(code.to_string())),
+                ]),
+                ShaderInput::File { file } => values.extend([
+                    (self.shader_input.id(), ParamValue::Enum("File".into())),
+                    (
+                        self.shader_file.id(),
+                        ParamValue::File(
+                            file.as_ref()
+                                .map(super::assets::locator_path)
+                                .unwrap_or_default()
+                                .to_owned(),
+                        ),
+                    ),
+                ]),
+            },
             ChannelSource::SolidColor { rgba } => values.push((
                 self.rgba.id(),
                 ParamValue::Color(rgba[0].into(), rgba[1].into(), rgba[2].into(), rgba[3].into()),
@@ -527,7 +567,9 @@ impl Node for ChannelNode {
         if [
             self.source_kind.id(),
             self.rgba.id(),
+            self.shader_input.id(),
             self.shader_code.id(),
+            self.shader_file.id(),
             self.file.id(),
             self.video_loop_file.id(),
             self.video_loop_audio.id(),
@@ -683,6 +725,10 @@ impl Node for ChannelNode {
             .map_err(|error| error.to_string())?;
         }
         super::shader::validate_code(self.shader_code.get_ref())?;
+        super::assets::parse_file(self.shader_file.get_ref().as_str())?;
+        if !matches!(self.shader_input.get_ref().as_str(), "Embedded" | "File") {
+            return Err("Unknown Shader source".into());
+        }
         if self.sender.get_ref().len() > 255 || self.sender.get_ref().contains('\0') {
             return Err("Spout selector must contain at most 255 UTF-8 bytes without NUL".into());
         }
@@ -712,7 +758,13 @@ impl Node for ChannelNode {
         if self.is_subtitle_parameter(change.parameter) {
             return self.validate_subtitle_parameter(change);
         }
-        if [self.file.id(), self.video_loop_file.id(), self.video_loop_audio.id()].contains(&change.parameter)
+        if [
+            self.file.id(),
+            self.shader_file.id(),
+            self.video_loop_file.id(),
+            self.video_loop_audio.id(),
+        ]
+        .contains(&change.parameter)
             && let ParamValue::File(path) = change.value
         {
             super::assets::parse_file(path)?;

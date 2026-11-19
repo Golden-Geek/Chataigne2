@@ -67,6 +67,7 @@ dependencies = [
  "golden_video",
  "image",
  "image-webp",
+ "notify",
  "png 0.18.1",
  "serde",
  "serde_json",

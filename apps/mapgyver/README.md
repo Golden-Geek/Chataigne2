@@ -202,11 +202,18 @@ Discovery currently uses the desktop-native metadata capability. Browser/headles
 exact-name authoring. Interactive selection, cross-host/source parity and full independent-source
 rendering/recovery acceptance remain open in M04.
 
-Use **Medias → + → Shader** to create an animated GLSL source on the Windows desktop. Edit
-**GLSL** in the channel Inspector. Define `void main()` and write straight linear RGBA to
-`fragColor`. The shader can read `iResolution`, `iTime` in seconds, and `gl_FragCoord` in pixels
-from the top left. MapGyver saves the code in the project and compiles it on demand. Shader Media
-can feed the same Screens, Compositions, Matrix Cells and previews as other Media.
+Use **Medias → + → Shader** to create an animated GLSL source on the Windows desktop. Select the
+Shader or its Channel and open **Shader Editor**. Use **Apply shader** or Ctrl+S to apply embedded
+code and see the result in the adjacent preview. Embedded code is saved with the project and is
+also editable in the channel Inspector.
+
+Set **Source** to **File** and choose a `.glsl`, `.frag` or `.fs` file to edit externally. Relative
+paths resolve from the saved project's directory. MapGyver reloads changed files while a preview
+or output uses the channel. Switching the source back to Embedded restores its saved code.
+
+Define `void main()` and write straight linear RGBA to `fragColor`. The shader can read
+`iResolution`, `iTime` in seconds and `gl_FragCoord` in pixels from the top left. Shader Media can
+feed the same Screens, Compositions, Matrix Cells and previews as other Media.
 
 The Windows x64 package includes the NDI 6 runtime and enables NDI from the first launch.
 Use **Medias → + → NDI** to receive, or choose **Target → NDI** on an enabled Screen to publish.

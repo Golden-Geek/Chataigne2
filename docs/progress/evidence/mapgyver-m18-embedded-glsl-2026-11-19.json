@@ -17,5 +17,15 @@
 		"pixels": "A separate Spout receiver verified five complete 96x64 frames. The first was blue with alpha 127 for nominal half alpha. Invalid code cleared the output, valid code restored green, an unsaved edit produced red, and loading the saved project restored green.",
 		"receipt": "target/m14-display-isolated/run-lJ13WV/result.json"
 	},
-	"remaining": "Deliver the Shader Editor, external reload, additional formats, multipass, typed uniforms, texture inputs and library imports."
+	"editorAndFiles": {
+		"result": "pass",
+		"scope": "Windows WebView2 Shader Editor, project-relative external GLSL, and independent NVIDIA Spout output with physical windows suppressed.",
+		"software": "Rust formatting, strict MapGyver library Clippy, focused creation and generated TypeScript contract tests, Svelte checks, Prettier, and the default app build passed.",
+		"editor": "The dock starts inactive. Applying code with Ctrl+S changed output to magenta. The channel preserved its embedded code after using an external file.",
+		"files": "File mode rendered green. Atomic replacement of the same path rendered yellow. Removing the file cleared the output, recreating it rendered red, and reopening the saved project restored File mode and red pixels.",
+		"samples": 12,
+		"physicalWindowsOpened": 0,
+		"receipt": "target/m18-shader-editor-final/run-WXaQsg/result.json"
+	},
+	"remaining": "Deliver ShaderToy and ISF, multipass, typed uniforms, Media texture inputs and Shader Library imports."
 }

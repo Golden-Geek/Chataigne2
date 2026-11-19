@@ -62,7 +62,9 @@ impl ChannelDefinition {
             MediaKind::Picture => ChannelSource::Picture { file: None },
             MediaKind::Video => ChannelSource::Video { file: None },
             MediaKind::Shader => ChannelSource::Shader {
-                code: super::shader::DEFAULT_CODE.into(),
+                input: super::protocol::ShaderInput::Embedded {
+                    code: super::shader::DEFAULT_CODE.into(),
+                },
             },
             MediaKind::Composition => ChannelSource::Composition {
                 canvas: default_canvas(),
@@ -109,7 +111,12 @@ impl ChannelDefinition {
                 }
             }
             ChannelSource::Picture { .. } | ChannelSource::Video { .. } => {}
-            ChannelSource::Shader { code } => super::shader::validate_code(code)?,
+            ChannelSource::Shader {
+                input: super::protocol::ShaderInput::Embedded { code },
+            } => super::shader::validate_code(code)?,
+            ChannelSource::Shader {
+                input: super::protocol::ShaderInput::File { .. },
+            } => {}
             ChannelSource::Composition { canvas } => validate_extent(*canvas)?,
             ChannelSource::SolidColor { rgba } => {
                 LinearColor::from_straight(rgba[0], rgba[1], rgba[2], rgba[3]).map_err(|e| e.to_string())?;
@@ -206,12 +213,14 @@ pub fn resolve(definition: &ChannelDefinition, observed: SourceObservation) -> R
             },
         ),
         ChannelSource::SolidColor { .. } => (Some(default_canvas()), ChannelAvailability::Ready),
-        ChannelSource::Shader { code } => (
+        ChannelSource::Shader { input } => (
             Some(default_canvas()),
-            if code.trim().is_empty() {
-                ChannelAvailability::Unconfigured
-            } else {
-                ChannelAvailability::Unavailable
+            match input {
+                super::protocol::ShaderInput::Embedded { code } if code.trim().is_empty() => {
+                    ChannelAvailability::Unconfigured
+                }
+                super::protocol::ShaderInput::File { file: None } => ChannelAvailability::Unconfigured,
+                _ => ChannelAvailability::Unavailable,
             },
         ),
         ChannelSource::Picture { file: None } | ChannelSource::Video { file: None } => {

@@ -197,8 +197,12 @@ impl ChannelRenderer {
     }
     /// Install the shader preparation worker on the native renderer's notification path.
     #[cfg(all(windows, feature = "native-video"))]
-    pub(crate) fn enable_shaders(&mut self, notifier: golden_io::WorkerNotifier) -> Result<(), String> {
-        self.shaders = Some(shaders::Shaders::new(notifier)?);
+    pub(crate) fn enable_shaders(
+        &mut self,
+        root: &std::path::Path,
+        notifier: golden_io::WorkerNotifier,
+    ) -> Result<(), String> {
+        self.shaders = Some(shaders::Shaders::new(root, notifier)?);
         Ok(())
     }
     pub fn retry_pictures(&mut self) -> Result<(), String> {
@@ -235,6 +239,15 @@ impl ChannelRenderer {
 
     /// Rebase relative source preparation after save-as/project relocation on the owner worker.
     pub fn set_file_root(&mut self, root: &std::path::Path) -> Result<bool, String> {
+        #[cfg(all(windows, feature = "native-video"))]
+        let shaders_changed = self
+            .shaders
+            .as_mut()
+            .map(|shaders| shaders.set_root(root))
+            .transpose()?
+            .unwrap_or(false);
+        #[cfg(not(all(windows, feature = "native-video")))]
+        let shaders_changed = false;
         #[cfg(feature = "video-files")]
         let videos_changed = self.videos.as_mut().is_some_and(|videos| videos.set_root(root));
         #[cfg(not(feature = "video-files"))]
@@ -245,7 +258,7 @@ impl ChannelRenderer {
             .map(|pictures| pictures.set_root(root))
             .transpose()
             .map(|changed| changed.unwrap_or(false))?;
-        let changed = changed || videos_changed;
+        let changed = changed || videos_changed || shaders_changed;
         if changed {
             self.resolution_owner = Default::default();
         }
@@ -378,7 +391,7 @@ impl ChannelRenderer {
             }
             #[cfg(all(windows, feature = "native-video"))]
             if let Some(shaders) = &mut self.shaders {
-                shaders.sync(&capture, &demanded);
+                shaders.sync(&capture, &demanded)?;
             }
             #[cfg(feature = "video-files")]
             if let Some(videos) = &mut self.videos {
@@ -511,7 +524,12 @@ impl ChannelRenderer {
             .unwrap_or(false);
         let observations = self.source_observations();
         #[cfg(all(windows, feature = "native-video"))]
-        let shaders_changed = self.shaders.as_mut().is_some_and(shaders::Shaders::service);
+        let shaders_changed = self
+            .shaders
+            .as_mut()
+            .map(shaders::Shaders::service)
+            .transpose()?
+            .unwrap_or(false);
         #[cfg(not(all(windows, feature = "native-video")))]
         let shaders_changed = false;
         #[cfg(feature = "video-files")]

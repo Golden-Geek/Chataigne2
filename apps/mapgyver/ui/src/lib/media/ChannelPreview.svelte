@@ -12,7 +12,7 @@
 		label,
 		extent: explicitExtent
 	}: {
-		channel: ChannelSnapshot;
+		channel: Pick<ChannelSnapshot, 'label' | 'reference'>;
 		fill?: boolean;
 		preview?: PreviewSource;
 		label?: string;

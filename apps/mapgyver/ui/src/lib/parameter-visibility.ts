@@ -94,7 +94,11 @@ function visible(child: UiNodeDto) {
 	if (field === 'source_kind') return false;
 	const source = choice('source_kind');
 	if (source === 'SolidColor') return field === 'rgba';
-	if (source === 'Shader') return field === 'shader_code';
+	if (source === 'Shader')
+		return (
+			field === 'shader_input' ||
+			field === (choice('shader_input') === 'File' ? 'shader_file' : 'shader_code')
+		);
 	if (source === 'Picture') return field === 'file';
 	if (source === 'Video')
 		return (
