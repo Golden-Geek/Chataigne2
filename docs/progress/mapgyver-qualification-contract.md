@@ -82,8 +82,11 @@ single-output Composition must also be exercised. No previous Q03 result qualifi
 For Q03 and Q06, use frame-numbered Video files with mixed 24/30/60 fps channels and transparent
 fixtures where the codec supports alpha. Q06's fixed concurrency is a 1080p60 plus 4K30 file,
 then two 4K60 files for the performance tier, with independent shared consumers and 60 Hz outputs.
-Qualify H.264/H.265/ProRes, HAP/HAP Alpha/HAP Q and DXV/WebP (including animated WebP) separately;
-record exact container, codec/profile/pixel format, decode route and unsupported variants.
+Qualify H.264/H.265/ProRes, HAP/HAP Alpha/HAP Q, and the extended formats DXV, WebP
+(including animated WebP) and MKV separately. Record exact container, codec/profile/pixel format,
+decode route and unsupported variants. For MKV, include multiple distinguishable embedded
+subtitle and audio tracks and verify selection, synchronization across seek/crop/loop, and
+restoration of the selected tracks on project reload in the bundled app.
 Test paused-zero/rate/loop, exact timestamp seeks and selected-channel stepping, final-frame hold,
 cold/warm seeks, superseding seeks, file loss/relink, device/project replacement and final-use
 retirement. Define fixture-specific seek correctness/latency criteria before the first run;

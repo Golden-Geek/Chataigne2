@@ -1,0 +1,9 @@
+{
+	"bundle": {
+		"licenseFile": "../../target/mapgyver-ndi-runtime/installer-license.txt",
+		"resources": {
+			"../../target/mapgyver-ndi-runtime/Processing.NDI.Lib.x64.dll": "ndi/Processing.NDI.Lib.x64.dll",
+			"../../target/mapgyver-ndi-runtime/Processing.NDI.Lib.Licenses.txt": "ndi/Processing.NDI.Lib.Licenses.txt"
+		}
+	}
+}

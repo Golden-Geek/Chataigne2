@@ -9,7 +9,7 @@ those public app-owned contracts. `src/app/labels.rs` shares backend label alloc
 The workbench uses Golden's filtered manager trees for Media, Screens and Applications.
 Media folders are persisted document nodes: select a folder before using the plus menu to create
 inside it. Folder/name/source controls live in the shared Inspector; its Folder selector moves
-existing media or folders through validated backend intents. Screen Manager shows Screens and
+existing media or folders through validated backend intents. The Screens panel shows Screens and
 their Surfaces. Warping, Surface Source and Composition use separate full-panel canvases; Matrix
 uses a full-panel grid with compact icon actions. Selecting an item never launches it.
 
@@ -29,7 +29,7 @@ Scenes that cannot fit alongside the active generation still report the actual b
 Crop gestures stop at the source edges; the backend enforces contained positive crop rectangles
 for every caller, with typed 0–1 bounds in the generic Inspector.
 
-Drag Media labels from Media Manager into the editors. Dropping on the Screen editor
+Drag Media labels from Medias into the editors. Dropping on the Screen editor
 background creates a Surface; dropping on a Surface replaces its source. Composition background
 drops add an instance at the pointer, including after pan/zoom; drops on existing instances replace
 their source. The Surface Source editor also accepts replacement drops. A Media drop uses its first
@@ -57,7 +57,7 @@ Composition's per-panel `editor.svelte.ts` composes a bounded reader/controller 
 query returns at most 128 ordered children plus an independently selected child. Ordinary settings
 stay in the shared Inspector, including when the selected child is outside the visible page.
 Panels persist independent follow/lock/page choices and release their native views on close.
-The internal heading and creation/refresh controls are removed; create Compositions in Media Manager.
+The internal heading and creation/refresh controls are removed; create Compositions in Medias.
 
 `--composition-ui --composition-project-ui` covers current shared-Inspector editing, simultaneous
 independent panels, persisted lock/page state, real reconnect, New during a drag, fresh history and
@@ -155,7 +155,7 @@ application controls and history, correlating them with read-only backend querie
 exact field/argument/environment/readiness values, copy/availability/removal and atomic rejection.
 Native executable-dialog and desktop/physical observations retain their own acceptance checks.
 
-The initial project contains Media and Screen managers and Golden's standard empty Dashboard.
+The initial project contains the Medias and Screens panels and Golden's standard empty Dashboard.
 The primary app panel creates Solid Color, Picture and Shared Texture media with backend-owned defaults and
 edits independent channel sources, color/alpha, automatic/fixed size and sampling. Media and
 channels can be renamed, channels reordered, and media/channels removed through the
@@ -191,12 +191,19 @@ rendering/recovery acceptance remain open in M04.
 
 On Windows x64, **Medias → + → NDI** creates a source with automatic discovery and no activation
 setting. The channel's typed Sender control can select an exact discovered name or accept one
-manually. Discovery uses the installed NDI 6 Runtime. A channel preserves its sender after loss
+manually. MapGyver loads an app-local NDI 6 runtime when bundled. Developer builds can use an
+installed runtime. A channel preserves its sender after loss
 and reconnects when it returns. Media Preview, Surfaces, References and the audio mixer share the
 same receiver. Under **Inspector → Channels → Audio**, assign **Left output** and **Right output**
 to named virtual outputs and adjust **Volume**. Disable the Audio folder to mute the channel.
 Virtual routing works with physical playback disabled. When both streams are active, the receiver
 uses a 90 ms playout target for incoming audio and video. [NDI qualification and Screen publishing](../../docs/plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output)
+
+The Windows packaging command `npm run package:mapgyver` stages the DLL and third-party notices
+from the current standard [NDI SDK](https://ndi.video/). For distribution builds, set
+`NDI_SDK_DIR` to the SDK root and `MAPGYVER_NDI_INSTALLER_LICENSE` to the approved installer
+agreement in plain text. The installer places the runtime in MapGyver's own `ndi/` directory.
+[NDI distribution terms](https://docs.ndi.video/all/developing-with-ndi/sdk/software-distribution)
 
 The Picture editor accepts explicit project-relative or absolute host paths; the native
 desktop also offers Golden's file picker. This is source-file linking, not a browser upload.
@@ -212,7 +219,7 @@ does not allocate identities, choose backend defaults or mutate node internals.
 App invariants run at the detached candidate-validation boundary, after queued
 default/load edits attach and before live activation, for both startup and replacement.
 
-Screen Manager owns Screens and ordered Surfaces. Its Add menu creates actual Screens, each with
+The Screens panel shows Screens and ordered Surfaces. Its Add menu creates actual Screens, each with
 an initial Surface. Automation wrappers and manager Script factories are not document objects. The public
 `mapgyver.screens.edit` app operation accepts the Rust `ScreenEdit` contract. Hosted scripts use
 `local.editScreens(requestId, requestJson)` and `local.inspectScreens(requestId)`; results arrive
@@ -232,7 +239,7 @@ edits retain routing even while that source is missing.
 
 `src/screens/protocol.rs` generates `ui/src/lib/screens/generated` through
 `generate_screen_protocol`; the typed UI operation adapter consumes that contract. The registered
-Screen Manager tab exposes Screen/Surface creation, selection, names, order and removal, target
+Screens tab exposes Screen/Surface creation, selection, names, order and removal, target
 settings and a Surface Source form for assignment, crop, destination corners, opacity and
 calibration. Forms start from authored backend data; selecting a target mode supplies no guessed
 extent, origin or display identity. Apply submits one atomic operation. Missing channel selections
@@ -259,7 +266,7 @@ failing their Screen or healthy peers; rendering resumes automatically once the 
 Invalid authored shapes persist and participate in ordinary Undo/Redo. Source crop precedes
 perspective mapping, with mirrored/off-screen quads supported. Finite native reference patterns
 cover crop/warp and alpha/backdrop preservation.
-The Screen Manager now previews these composed textures through the same native session as
+The Screens panel now previews these composed textures through the same native session as
 Channel previews, including while its authored output is disabled. Screen rectangle/Spout extents
 define preview resolution; fullscreen targets use their intended display's current extent even
 while output is disabled. Unconfigured/unavailable targets use the backend's default preview canvas.
@@ -337,7 +344,7 @@ Rust catalog DTO fixture via an absolute `MAPGYVER_DISPLAY_FIXTURE` path. The fi
 all target modes, missing/restored selection and one API-accepted submission per native consumer;
 it does not alter Windows display settings or claim physical hotplug/scanout.
 
-Media Manager's Add menu creates folders and real media sources: Solid Color, Picture, Shared
+The Medias panel's Add menu creates folders and real media sources: Solid Color, Picture, Shared
 Texture, Composition and Matrix. Channel configuration, import/relink, rename, reorder, removal
 and inspection use the typed `MediaEdit` operation contract. The redundant JSON request/trigger
 command-node types and branded manager Script factories have been removed from MapGyver.

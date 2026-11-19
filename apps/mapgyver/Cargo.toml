@@ -36,7 +36,7 @@ tauri = { version = "2", features = [] }
 
 [build-dependencies]
 golden_codegen_support = { path = "../../crates/golden_core/support/codegen" }
-tauri-build = "2"
+tauri-build = { version = "2", features = [] }
 
 [dev-dependencies]
 tempfile.workspace = true

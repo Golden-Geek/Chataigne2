@@ -36,7 +36,7 @@ impl Runtime {
     fn load() -> Result<Self, NdiError> {
         let path = runtime_path().ok_or_else(|| {
             NdiError::Runtime(format!(
-                "{DLL} was not found in NDI_RUNTIME_DIR_V6 or the standard installation folders"
+                "{DLL} was not found beside the app in ndi/, in NDI_RUNTIME_DIR_V6, or in the standard installation folders. Reinstall the app or install the NDI 6 Runtime."
             ))
         })?;
         // Use an absolute installed path and exclude working-directory DLL lookup.
@@ -85,10 +85,14 @@ impl Runtime {
 }
 
 fn runtime_path() -> Option<PathBuf> {
+    let bundled = std::env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(|directory| directory.join("ndi")));
     let configured = std::env::var_os("NDI_RUNTIME_DIR_V6").map(PathBuf::from);
     let installed = std::env::var_os("ProgramFiles").map(PathBuf::from);
-    configured
+    bundled
         .into_iter()
+        .chain(configured)
         .chain(installed.iter().map(|path| path.join("NDI/NDI 6 Runtime")))
         .chain(installed.iter().map(|path| path.join("NDI/NDI 6 Tools/Runtime")))
         .filter(|path| path.is_absolute())

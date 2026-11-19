@@ -154,6 +154,11 @@
 </script>
 
 {#snippet channelActions()}
+	{#if channel?.definition.source.kind === 'Ndi'}
+		<a href="https://ndi.video/" target="_blank" rel="noopener noreferrer" aria-label="NDI website">
+			NDI
+		</a>
+	{/if}
 	{#if channel?.definition.source.kind === 'Video' && channel.definition.source.file}
 		{@const reference = channel.reference}
 		<IconButton

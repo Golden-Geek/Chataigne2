@@ -68,6 +68,11 @@ try {
     if ($CargoArguments[0] -eq '--tauri') {
         Set-Location -LiteralPath (Join-Path $taskRoot 'apps/mapgyver')
         $taskTauriArguments = @($CargoArguments | Select-Object -Skip 1)
+        if ($taskTauriArguments[0] -eq 'bundle' -or
+            ($taskTauriArguments[0] -eq 'build' -and $taskTauriArguments -notcontains '--no-bundle')) {
+            & (Join-Path $taskRoot 'tools/mapgyver/ndi/prepare-runtime.ps1')
+            $taskTauriArguments += @('--config', 'tauri.ndi.conf.json')
+        }
         & npm.cmd exec -- tauri @taskTauriArguments
     } else {
         & cargo @CargoArguments

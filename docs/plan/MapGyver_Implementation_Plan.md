@@ -13,7 +13,8 @@ See the [architecture](../architecture/mapgyver.md) and [current status](../prog
   Video fade-loop (M10/9) → Shared Texture defaults (M15/11) → Video time cropping (M10/10) →
   subtitles (M10/8) → SGF Matrix feedback (M16/7–14) → earlier SGF feedback (M16/1–6) →
   extended Video formats (M10/3) →
-  Golden Gradient (M15/10) → NDI Media and Screen Output (M17) → deferred deep verification → M09**.
+  Golden Gradient (M15/10) → NDI Media and Screen Output (M17) → Feedback.md tasks (M18) →
+  deferred deep verification → M09**.
   This user revision supersedes older per-feedback full-matrix and acceptance-first ordering.
 - For each small feedback slice, finish all owning-layer changes and run one targeted validation
   cycle: formatting, relevant behavior/type/contract checks and a short app smoke when needed.
@@ -182,6 +183,10 @@ before remaining acceptance closure and M09. M17 added two pending gates, bringi
 M17 builds on the delivered Shared Texture and virtual audio routing paths. M10/3 remains in the
 qualification queue for M09.
 
+**Feedback.md amendment, 2026-11-19.** Deliver [M18](#m18--deliver-feedback-after-ndi) in six
+separate tasks after M17 Media and Screen Output feature delivery and before the deferred
+qualification pass. The six pending gates bring the plan to **145 gates across 19 phases**.
+
 ## Entry, order and delivery
 
 1. Read AGENTS.md, this plan and the compact status page. Reconcile the checkout, current
@@ -202,8 +207,8 @@ qualification queue for M09.
    M15/9 geometry alignment → M10/9 Video fade-loop → M15/11 Shared Texture defaults →
    M10/10 Video time cropping → M10/8 subtitles → M16/7–14 SGF Matrix feedback →
    M16/1–6 earlier SGF feedback → M10/3 extended formats (DXV and MKV Video, still WebP Picture) →
-   M15/10 Golden Gradient → M17 NDI Media and Screen Output → remaining acceptance closure →
-   M09 final qualification**.
+   M15/10 Golden Gradient → M17 NDI Media and Screen Output → M18/1–6 Feedback.md →
+   remaining acceptance closure → M09 final qualification**.
    M08's shared configuration/runtime contract precedes dependent Matrix app controls; this
    dependency does not authorize two active gates. Deliver their coherent slices sequentially.
    M10/1,2,5,6,7 are accepted for their tested scopes. The 2026-11-14 user revision selects
@@ -218,7 +223,7 @@ qualification queue for M09.
    are verified; independent M11 stability/editor work does not depend on unverified external-target
    cleanup. This 2026-11-04 ordering change uses rule 6 below and accepts or waives no gate.
    A reproduced defect blocking the selected product path still takes precedence. Do not start
-   M09 while M08/4 or any M11–M17 gate remains unaccepted. The 2026-11-08 Video priority
+   M09 while M08/4 or any M11–M18 gate remains unaccepted. The 2026-11-08 Video priority
    supersedes the former M10 prerequisite here. The 2026-11-05 user priority
    moves unfinished M05/8 qualification to Pending with its existing evidence and exact return
    action; it does not waive that gate or restart its investigation allowance. That historical
@@ -234,15 +239,15 @@ qualification queue for M09.
 
 M04/1–8 are now accepted, including the retained source qualification returned to after
 Reference and Preview delivery. [M04/6 and the complete phase audit](../progress/mapgyver-m04-source-parity.md)
-close source caller/Picture/project/resource parity. [M06/1's child-media model](../progress/mapgyver-m06-model.md)
+close source caller/Picture/project/resource parity. [M06/1&#39;s child-media model](../progress/mapgyver-m06-model.md)
 now passes the complete degree/structural/API/Parameter/history/project contract.
 [M06/2 dependency/sharing](../progress/mapgyver-m06-dependencies.md) also passes all-media cycles,
 missing/Undo, deep/large graphs and compiled production sharing. The five-producer/six-alias
 software proof satisfied the retained return trigger. [M06/3 native Composition](../progress/mapgyver-m06-native.md)
 now passes all nine original stages on both GPUs, including the active black preview canvas,
-with unchanged scenes/quantization/error tolerance/budgets. [M06/4's anchored editor](../progress/mapgyver-m06-editor.md)
+with unchanged scenes/quantization/error tolerance/budgets. [M06/4&#39;s anchored editor](../progress/mapgyver-m06-editor.md)
 also passes actual native resize/rotation/cursor, pointer/history/zoom and tab lifetime.
-[M06/5's independent panels](../progress/mapgyver-m06-panels.md) now pass bounded selected lookup,
+[M06/5&#39;s independent panels](../progress/mapgyver-m06-panels.md) now pass bounded selected lookup,
 persisted follow/lock/page choices, actual reconnect/project/tab/native lifetime and the current
 generic Inspector/File Open/New regressions. M06 is complete. [M08/2 configuration/demand](../progress/mapgyver-m08-configuration.md#configuration-and-demand-acceptance--2026-11-03)
 is now accepted, including typed Column/Cell settings, standalone removal, normalized sharing,
@@ -342,7 +347,7 @@ Historical batches, pauses and execution instructions in the
 
 IDs remain stable. Accepted M10 functional gates **1,2,5,6,7 → remaining M14 features →
 M15/12–15 → M15/9 → M10/9 → M15/11 → M10/10 → M10/8 → M16/7–14 → M16/1–6 → M10/3 → M15/10 →
-retained acceptance closure → M09** is the current execution order.
+M17 → M18/1–6 → retained acceptance closure → M09** is the current execution order.
 M10/4 remains unfinished and release-blocking, with return in retained acceptance closure.
 Earlier evidence retains its tested scope. M16 owns the new SGF contracts.
 Counts refer to the numbered acceptance gates below, not commits or elapsed work.
@@ -366,7 +371,8 @@ Counts refer to the numbered acceptance gates below, not commits or elapsed work
 | M15 | Latest feedback: controls, colors/Groups, presets, editors, Gradient | Public Golden contracts; 12–15, then 9; 11 and 10 interleave with Video as ordered above | 15    |
 | M16 | SGF Feedback: Matrix transport and UI, audio, OSCQuery and editor fixes | M10/8 subtitles → M16/7–14 → M16/1–6                                | 14    |
 | M17 | NDI Media and Screen Output with audio                            | M04/M05 Shared Texture contracts and M16/1 functional audio routing         | 2     |
-| M09 | Actual-app qualification and Windows artifact                     | All retained feature/qualification gates, including M10–M17                | 1     |
+| M18 | File drops, Project Settings, File Explorer, Shader Media, Inspector selection and browser previews | M17 feature delivery, then M18/1–6 in order | 6 |
+| M09 | Actual-app qualification and Windows artifact                     | All retained feature/qualification gates, including M10–M18                | 1     |
 
 ### M00 — Reconcile and define evidence
 
@@ -445,7 +451,7 @@ and the [qualification contract](../progress/mapgyver-qualification-contract.md)
 ### M04 — Deliver source variants, Reference media and Media Preview
 
 **A. Media/source ownership (gates 1–6).** Channels are stable concurrent output variants in a
-media's **Channels** section. Hide channel nodes from the Media Manager outliner and remove
+media's **Channels** section. Hide channel nodes from the Medias outliner and remove
 channel creation from manager `+` actions. Edit variants as real typed child nodes. Shared
 settings belong to the media; variant differences are Solid Color color, Shared Texture sender,
 Picture asset and Video file. Composition initially has one output; channel retargeting is future work.
@@ -464,9 +470,10 @@ discover format/encoding at the native boundary, use straight alpha, and retain 
 allocation limits and recovery. Remove useless `+` actions from declared Parameter folders
 through their container capabilities.
 M13/1–2 extend sender defaults and automatic format handling; M13/9 replaces Picture's
-indirect asset-authoring workflow with self-contained File Parameters.
+indirect asset-authoring workflow with self-contained File Parameters. M17/1 uses Shared Texture
+as the reference for NDI Media authoring, previews and receiver lifecycle.
 
-1. Default Media Manager, detached creation/import, authoritative identity/defaults and complete
+1. Default Medias, detached creation/import, authoritative identity/defaults and complete
    command/function/callback/snippet API under the revised media/variant ownership.
 2. Concurrent variants with distinct native source sizes, disabled/enabled media Resolution,
    shared consumers and stable channels through resize/reorder/history/reload.
@@ -508,6 +515,7 @@ Invalid crops reject atomically. Screen/Surface settings stay in generic Inspect
 M13/5 adds an initial Screen to every fresh project; M13/13 specifies editor backgrounds and
 M13/14 simplifies Surface source targeting. M13/4 extends interaction acceptance to high-refresh
 displays without replacing M05/8's original physical/latency requirements.
+M17/2 uses the Shared Texture target as the reference for an NDI Screen Output with routed audio.
 
 Golden's reusable viewport animates zoom toward the requested scale around a stable pointer
 anchor. Screen, Surface Source and Composition share it. Native imagery, overlays and hit testing
@@ -570,10 +578,10 @@ editable through bounded backend inspection independent of visible rows.
 
 | Owner  | Typed authored settings                                                                                                                               |
 | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Layer  | Position, size (layer canvas), opacity, blend, transition duration, **Expose Channel (default false)**; retain enabling/group behavior                |
+| Layer  | Position, size (layer canvas), opacity, blend, transition duration, **Expose Channel (default false)**; retain enabling/group behavior          |
 | Column | Optional transition override, optional App file and conditional app-control settings, including integer pre/post                                      |
 | Cell   | Position and placement size relative to Layer (M12/7), opacity, enabled, optional transition override, optional App file and conditional app controls |
-| Group  | Typed opacity/blend/enabling, **Expose Channel (default false)** and actual hierarchy/order; a rendered blend owner, not just a folder                |
+| Group  | Typed opacity/blend/enabling, **Expose Channel (default false)** and actual hierarchy/order; a rendered blend owner, not just a folder          |
 
 Populated Cells own actual child media; empty addresses stay sparse until content/settings need
 a Cell node. Cell media retains its own source size; M12/7 adds independent placement size.
@@ -1188,8 +1196,9 @@ select gate 5 at the next product boundary, retaining gate 4's exact return requ
 Video work (3,8 and retained 4) follows M15. The older first-pass-before-M14 wording above
 does not select the next gate. Preserve every bundled/runtime, recovery and performance
 requirement; a reproduced correctness dependency on the active feature path still takes precedence.
-**Latest override, 2026-11-18:** after M15/12–15, deliver M15/9 → M10/9 → M15/11 →
-M10/10 → M10/8 → M16/7–14 → M16/1–6 → M10/3 → M15/10, then retained qualification and M09.
+**Video order override, 2026-11-18:** after M15/12–15, deliver M15/9 → M10/9 → M15/11 →
+M10/10 → M10/8 → M16/7–14 → M16/1–6 → M10/3 → M15/10. See the current execution order above
+for work after M15/10.
 Video time cropping precedes subtitles. M10 has ten gates. Fade-loop and time cropping are
 functionally verified with full qualification Pending.
 Use existing verified functional contracts; retain unrelated open qualification in its explicit
@@ -1325,7 +1334,6 @@ Library capability is not acceptance of any codec/profile in MapGyver.
    [Functional checkpoint](../progress/evidence/mapgyver-m10-fade-loop-2026-11-18.json).
    Return in retained qualification for moving preview/output pixels, mixed/reverse playback,
    relink and device recovery, and the wider resource/consumer cases.
-
 10. **Video time cropping.** Deliver after M15/11 and before gate 8. MapGyver owns the Video
     range and transport policy. Golden Video owns reusable timestamp sampling and loop preparation.
     Expose typed **Start** and **End** time Parameters in the generic Inspector for the shared
@@ -1492,8 +1500,9 @@ delivered with native presentation qualification Pending. The 2026-11-18 amendme
 M15/8 as the current task through completion, then selects 12–15 before 9–11. M15/8 is now
 complete; M15/12 custom colors is also complete; M15/13 Matrix color menus is also complete; M15/14 compact Layer Groups is also complete; M15/15 nesting rails is also complete; M15/9 geometry alignment is Accepted.
 The current task order interleaves M15, Video and SGF Feedback. After M15/12–15, deliver
-M15/9 → M10/9 → M15/11 → M10/10 → M10/8 → M16/7–14 → M16/1–6 → M10/3 → M15/10. Retain user-deferred M14/1,
-blocked M14/6 and every other unfinished qualification gate with its return trigger before M09.
+M15/9 → M10/9 → M15/11 → M10/10 → M10/8 → M16/7–14 → M16/1–6 → M10/3 → M15/10 → M17 → M18.
+Retain user-deferred M14/1, blocked M14/6 and every other unfinished qualification gate with its
+return trigger before M09.
 
 Golden owns parameter admission, reusable gradients/animation, parameter bindings, shared
 selection/viewport interaction and workbench presentation mechanisms. MapGyver owns Matrix
@@ -1891,14 +1900,64 @@ the supported installer path on a clean Windows system and first use on launch.
 Include NDI receive and send alongside the existing source and Screen target regressions in the
 bundled app. [NDI SDK distribution](https://docs.ndi.video/all/developing-with-ndi/sdk/software-distribution)
 
+### M18 — Deliver feedback after NDI
+
+Deliver in order, with one acceptance gate and one reviewable task per feedback item.
+
+1. **OS file drag-and-drop.** Golden owns file-drop input and reusable drop feedback. MapGyver
+   owns the target-specific import and assignment intents. Dropping on the Medias panel
+   background creates and configures a compatible Media. Dropping on an existing compatible
+   Media updates its file. A drop in Screen Warping creates a Media and assigns it to the
+   targeted Surface or to a new Surface on a background drop. Composition adds a child
+   Media alongside existing children. A Matrix Cell adds or replaces its Media, and a
+   drop in the open area to the right of the Cells adds a Column. Dropping an `.exe` on a
+   Column, Group or Cell configures App Control for that object. Show the intended action and
+   target through clear icons and smoothly animated highlights, with reduced-motion support.
+   Verify each target with real OS drops, including unsupported files, Undo and project reload.
+2. **Project Settings.** Golden provides project-scoped global settings as typed Parameters
+   saved in the project file. Save Preferences at app scope. Open Project Settings from the
+   File menu and provide separate top-bar icons for Preferences and Project Settings. Verify
+   both entry points and confirm that opening another project restores its own settings while
+   retaining app-wide Preferences.
+3. **File Explorer panel.** Golden owns the reusable workbench panel. Default the project
+   folder to the directory containing the project file. Allow an override through Project
+   Settings and a folder-picker icon in the panel. Provide Tree View and Thumbnail View.
+   Drag files from the panel into MapGyver using the same import intents as OS drops. Verify
+   both views, the default and custom folder after project reload, and a drag into a Media target.
+4. **Shader Media.** MapGyver owns the Media type, typed settings, Shader Editor and Shader
+   Library panels. Golden owns reusable GPU shader execution. Support GLSL, ShaderToy and ISF,
+   including multipass shaders. Allow embedded code edited in the Shader Editor or an external
+   file that reloads automatically when changed. Detect shader parameters and expose them as
+   typed Media Parameters. For GLSL and ShaderToy, list declared uniforms with individual Add
+   and Add All actions and honor FragCoord.XYZ metadata such as
+   `uniform float u_value1; //0.5 [0, 1]`. Allow other Medias as input textures. The Shader
+   Library supports browsing and drag-and-drop from ShaderToy, ISF, FragCoord.XYZ and a local
+   library. Verify rendered output for each format, multipass execution, parameter editing,
+   Media inputs, file reload and import from each library source.
+5. **Inspector selection after creation.** Use Golden's shared selection and Inspector with
+   MapGyver choosing the appropriate creation target. Keep the parent Media inspected when
+   adding a Channel, and inspect the Matrix Cell when adding a Media to it. Review related
+   creation flows for other cases where the new child steals useful selection. Verify the
+   resulting selection after creation and that explicitly selecting the child still works.
+6. **Browser video previews.** Golden owns the reusable browser preview transport and quality
+   control. MapGyver supplies its editor textures through the shared preview interface. Add
+   browser top-bar choices for **Disabled**, **Auto** (default), **Forced Low Quality** and
+   **Forced High Quality**. Auto adjusts quality to preserve smooth interaction within
+   available bandwidth. Bound preview work to visible consumers. Verify moving textures in a
+   standalone browser, switching all four modes, adaptation under constrained bandwidth and
+   stream retirement when the preview is disabled or closed.
+
 ### M09 — Qualify the actual app and Windows artifact
 
-**Gate 1:** after all M10–M16 feature/feedback gates, qualify the complete revised bundled
-Windows x64 product and all retained M03–M16 requirements. Run exact binary/assets/dependency
+**Gate 1:** after all M10–M18 feature/feedback gates, qualify the complete revised bundled
+Windows x64 product and all retained M03–M18 requirements. Run exact binary/assets/dependency
 identity and license checks, Rust/UI/codegen/public-boundary and affected Chataigne regressions,
 Q01/Q02 prescribed release series, revised Q03 soak, Q04 authored/active scale and full Q05
-recovery/retirement. Include seven media kinds, Media Preview, revised editors, all three output
+recovery/retirement. Include all media types, Media Preview, revised editors, all Screen output
 modes, optional app control and SGF audio, OSCQuery, editor and Matrix transport workflows.
+Include NDI receive/send with routed audio and verify the selected Windows runtime delivery path
+and behavior with the runtime absent. Include M18's file import, project settings, File Explorer,
+Shader Media, creation selection and remote browser preview workflows.
 The footer reports actual
 video FPS, active GPU, frame time and resource usage through a public Golden contribution hook.
 Publish bounded worker observations.

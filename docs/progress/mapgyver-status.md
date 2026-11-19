@@ -1,11 +1,11 @@
 # MapGyver — simple status
 
 - **Updated:** 19 November 2026.
-- **Overall plan acceptance:** `█████████░` **86% — 119/139 checks accepted, 8/18 phases complete**.
+- **Overall plan acceptance:** `████████░░` **82% — 119/145 checks accepted, 8/19 phases complete**.
 - **Latest delivered:** NDI stereo routes to named virtual outputs. Volume, mute and reconnect passed on Windows with Media Preview hidden and physical playback disabled. [Checks](evidence/mapgyver-m17-ndi-virtual-audio-2026-11-19.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Add routes for NDI audio channels beyond stereo, then verify cross-machine A/V playback.
+- **Active:** App-local NDI staging and lookup are implemented. The native fixture timed out waiting for the Medias tab. Reconcile the fixture with the exact app and frontend build, then verify runtime loading, discovery and native picture with system NDI hidden.
 
 ## Done — code and normal-use checks passed
 
@@ -74,6 +74,15 @@
 - **NDI Media.** Discovery, sender selection, native picture and stereo routes passed with an independent local sender. Routing for additional channels, cross-machine A/V checks and clean Windows setup are pending.
 - **NDI Screen Output.** Publish a Screen as a named NDI stream with audio from selected virtual outputs.
 
+[Feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi) adds six tasks in order.
+
+1. **OS file drag-and-drop.** Import or assign files in Medias, Screen Warping, Composition and Matrix, with clear drop feedback and `.exe` drops for App Control.
+2. **Project Settings.** Save settings per project and open them from the File menu or top bar. Add a separate Preferences icon.
+3. **File Explorer.** Browse the project folder in tree or thumbnail view, choose a custom folder and drag files into Media targets.
+4. **Shader Media.** Play GLSL, ShaderToy and ISF shaders, edit embedded code or reload external files, expose parameters and texture inputs, and browse the Shader Library.
+5. **Inspector selection.** Keep the Media inspected when adding a Channel, and inspect the Matrix Cell when adding Media to it.
+6. **Browser video previews.** Show live editor textures with Disabled, Auto, Forced Low Quality and Forced High Quality options.
+
 ## Pending qualification — in order
 
 1. **Extended Video formats — deferred:**
@@ -96,7 +105,7 @@
 13. **32-bit App Control retirement:** the 64-bit path works; the WOW64 accounting/retirement case still fails. Requires a correction before release.
 14. **Long-run resources and physical latency:** retained peak-memory growth and GPU/timing limits are not all met. Complete the sustained and mixed-display timing checks; fix remaining failures before release.
 15. **Video audio hardware qualification:** capture the actual routed device signal and verify physical audio endpoint disconnect/reconnect while Video is playing. The native mixer, unavailable-device selection and output reopen checks passed.
-16. **Full regression and Windows qualification:** reconcile the remaining parallel Video and older Matrix/tool-fixture failures, including the exact-record reload comparison after Cell relocation. Then run the complete app/installer checks.
+16. **Full regression and Windows qualification:** reconcile the remaining parallel Video and older Matrix/tool-fixture failures, including the exact-record reload comparison after Cell relocation. Then run the complete app/installer checks, including both NDI directions with audio, Windows runtime loading and the six post-NDI workflows.
 
 ## Checking cadence from now on
 

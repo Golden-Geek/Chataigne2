@@ -1,6 +1,6 @@
 // Real NDI sender, native MapGyver authoring, and exact-channel native preview status.
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { access, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -17,12 +17,14 @@ await mkdir(output, { recursive: true });
 const directory = await mkdtemp(path.join(output, 'run-'));
 const providedName = `MapGyver-NDI-Media-${randomUUID()}`;
 const exerciseAudio = process.argv.includes('--audio');
+const expectBundledRuntime = process.argv.includes('--bundled-runtime');
 const initialFeed = launchSender('sender');
 let resumedFeed;
 
 const pageErrors = [];
 const audioChecks = [];
 let native, token, sender, reference, initialSender, selected, availableOptions, preview, failure;
+let runtimeModule;
 let stage = 'start owned NDI sender';
 async function wait(read, accepts, milliseconds = 12000) {
 	const deadline = Date.now() + milliseconds;
@@ -73,6 +75,9 @@ function launchSender(label) {
 			stopPath,
 			'--max-seconds',
 			'90',
+			...(expectBundledRuntime
+				? ['--runtime-dir', path.resolve(path.dirname(process.env.MAPGYVER_TEST_BINARY), 'ndi')]
+				: []),
 			...(exerciseAudio ? ['--pulse-frames', '11'] : [])
 		],
 		{ windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }
@@ -299,6 +304,11 @@ try {
 	await manager.getByRole('button', { name: media.label, exact: true }).click();
 
 	stage = 'select the exact owned sender in the generic Inspector';
+	await page.getByRole('link', { name: 'NDI website' }).waitFor();
+	assert.equal(
+		await page.getByRole('link', { name: 'NDI website' }).getAttribute('href'),
+		'https://ndi.video/'
+	);
 	const picker = page
 		.locator('.channels-section .parameter-inspector')
 		.filter({ has: page.getByText('Sender', { exact: true }) })
@@ -363,6 +373,24 @@ try {
 	assert.deepEqual(preview.source, { kind: 'Channel', reference });
 	assert.deepEqual(preview.nativeStatus.source, preview.source);
 	assert.equal(await panel.getAttribute('data-preview-media'), reference.media);
+	if (expectBundledRuntime) {
+		stage = 'verify the Windows loader uses the app-local NDI runtime';
+		const filename = 'Processing.NDI.Lib.x64.dll';
+		runtimeModule = execFileSync(
+			'powershell.exe',
+			[
+				'-NoProfile',
+				'-NonInteractive',
+				'-Command',
+				`(Get-Process -Id ${native.app.pid} -Module -ErrorAction Stop | Where-Object ModuleName -eq '${filename}').FileName`
+			],
+			{ encoding: 'utf8', windowsHide: true }
+		).trim();
+		assert.equal(
+			path.normalize(runtimeModule).toLowerCase(),
+			path.resolve(path.dirname(process.env.MAPGYVER_TEST_BINARY), 'ndi', filename).toLowerCase()
+		);
+	}
 	if (exerciseAudio) {
 		stage = 'verify NDI audio gain, mute and sender loss on named virtual outputs';
 		await verifyAudio(page, media, reference, tab);
@@ -396,6 +424,7 @@ try {
 				availableOptions,
 				selected,
 				preview,
+				runtimeModule,
 				audioChecks,
 				pageErrors,
 				appLog: failure ? native?.log() : undefined
