@@ -37,6 +37,8 @@ impl Registry {
 pub(crate) struct Source {
     pub registry: Arc<Registry>,
     pub matrix_audio: Arc<crate::matrix::audio::Registry>,
+    #[cfg(all(windows, target_arch = "x86_64"))]
+    pub ndi_inputs: Arc<crate::media::rendering::ndi::Inputs>,
     pub guard: RevisionGuard,
 }
 impl Source {
@@ -48,6 +50,8 @@ impl Source {
         Ok(Self {
             registry: manager.videos.clone(),
             matrix_audio: manager.matrix_audio.clone(),
+            #[cfg(all(windows, target_arch = "x86_64"))]
+            ndi_inputs: manager.ndi_inputs.clone(),
             guard: manager.project_guard(),
         })
     }

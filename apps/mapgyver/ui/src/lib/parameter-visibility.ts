@@ -99,6 +99,7 @@ function visible(child: UiNodeDto) {
 			field === 'video_subtitles'
 		);
 	if (source === 'SharedTexture' || source === 'Ndi') {
+		if (source === 'Ndi' && field === 'video_audio') return true;
 		const media = parent(owner);
 		const parameters = media?.children
 			.map((id) => session.getNodeData(id))

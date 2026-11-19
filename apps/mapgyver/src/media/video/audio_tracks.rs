@@ -71,7 +71,7 @@ impl Default for Tracks {
 
 #[derive(Default)]
 pub(crate) struct ChannelAudio {
-    pub(crate) voice: voice::Binding,
+    pub(crate) voice: std::sync::Arc<voice::Binding>,
     tracks: Mutex<Tracks>,
 }
 

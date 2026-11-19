@@ -9,18 +9,21 @@ use golden_io::{
 };
 use golden_video::{
     image::{ImageData, ImageStream},
-    ndi::{NdiDiscovery, NdiReceiver},
+    ndi::{NdiAudioFrame, NdiDiscovery, NdiError, NdiFrame, NdiReceiver},
 };
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     num::NonZeroUsize,
-    sync::{Arc, Mutex, OnceLock},
+    sync::{Arc, Mutex, OnceLock, Weak},
     time::{Duration, Instant},
 };
+
+mod timing;
 
 const MAX_RECEIVERS: usize = 8;
 const CAPTURE_TIMEOUT: Duration = Duration::from_millis(25);
 const RECEIVER_RETRY: Duration = Duration::from_millis(100);
+const AUDIO_PACKETS: usize = 4;
 
 pub(super) type Observations = HashMap<ChannelReference, Observation>;
 
@@ -39,6 +42,12 @@ impl PartialEq for Observation {
 #[derive(Default)]
 struct Output {
     stream: Option<ImageStream>,
+    video_users: usize,
+    notify: Option<WorkerNotifier>,
+    audio_users: usize,
+    audio_connected: bool,
+    audio: VecDeque<(Instant, NdiAudioFrame)>,
+    audio_epoch: u64,
     retired: bool,
 }
 
@@ -62,27 +71,142 @@ impl Drop for Entry {
     }
 }
 
+type ReceiverEntries = HashMap<(ChannelReference, Arc<str>), Weak<Entry>>;
+
+/// One project-owned receiver directory for both the video and audio consumers.
+#[derive(Default)]
+pub(crate) struct Inputs {
+    entries: Mutex<ReceiverEntries>,
+    #[cfg(feature = "video-files")]
+    bindings: Mutex<std::collections::BTreeMap<uuid::Uuid, Weak<crate::audio::voice::Binding>>>,
+}
+
+fn pool() -> &'static RetirementPool {
+    static POOL: OnceLock<RetirementPool> = OnceLock::new();
+    POOL.get_or_init(|| RetirementPool::new(NonZeroUsize::new(MAX_RECEIVERS).unwrap()))
+}
+
+impl Inputs {
+    fn acquire(&self, reference: ChannelReference, sender: &str) -> Result<Arc<Entry>, WorkerStartError> {
+        let mut entries = self.entries.lock().unwrap();
+        entries.retain(|_, entry| entry.strong_count() != 0);
+        let sender: Arc<str> = Arc::from(sender);
+        let key = (reference, sender.clone());
+        if let Some(entry) = entries.get(&key).and_then(Weak::upgrade) {
+            return Ok(entry);
+        }
+        let output = Arc::new(Mutex::new(Output::default()));
+        let producer = Producer {
+            sender: sender.clone(),
+            output: output.clone(),
+        };
+        let worker = BoundedWorker::spawn(
+            "mapgyver-ndi-receiver",
+            pool(),
+            WorkerLimits {
+                command_items: 1,
+                command_weight: 1,
+                event_items: 1,
+                event_weight: 1,
+            },
+            move |worker| producer.receive(&worker),
+        )?;
+        let entry = Arc::new(Entry {
+            sender,
+            output,
+            _worker: worker,
+        });
+        entries.insert(key, Arc::downgrade(&entry));
+        Ok(entry)
+    }
+
+    #[cfg(feature = "video-files")]
+    pub(crate) fn audio(&self, reference: ChannelReference, sender: &str) -> Result<AudioInput, WorkerStartError> {
+        let entry = self.acquire(reference, sender)?;
+        entry.output.lock().unwrap().audio_users += 1;
+        Ok(AudioInput(entry))
+    }
+
+    #[cfg(feature = "video-files")]
+    pub(crate) fn register_audio(&self, uuid: uuid::Uuid, binding: &Arc<crate::audio::voice::Binding>) {
+        self.bindings.lock().unwrap().insert(uuid, Arc::downgrade(binding));
+    }
+
+    #[cfg(feature = "video-files")]
+    pub(crate) fn audio_bindings(&self) -> Vec<(uuid::Uuid, Arc<crate::audio::voice::Binding>)> {
+        let mut bindings = self.bindings.lock().unwrap();
+        bindings.retain(|_, binding| binding.strong_count() != 0);
+        bindings
+            .iter()
+            .filter_map(|(&id, binding)| binding.upgrade().map(|binding| (id, binding)))
+            .collect()
+    }
+}
+
+#[cfg(feature = "video-files")]
+pub(crate) struct AudioInput(Arc<Entry>);
+
+#[cfg(feature = "video-files")]
+impl AudioInput {
+    pub(crate) fn drain(&self, packets: &mut VecDeque<(Instant, NdiAudioFrame)>) -> u64 {
+        let mut output = self.0.output.lock().unwrap();
+        packets.append(&mut output.audio);
+        output.audio_epoch
+    }
+}
+
+#[cfg(feature = "video-files")]
+impl Drop for AudioInput {
+    fn drop(&mut self) {
+        let mut output = self.0.output.lock().unwrap();
+        output.audio_users -= 1;
+        if output.audio_users == 0 {
+            output.audio.clear();
+            output.audio_connected = false;
+        }
+    }
+}
+
+struct VideoInput(Arc<Entry>);
+
+impl VideoInput {
+    fn new(entry: Arc<Entry>, notify: Option<WorkerNotifier>) -> Self {
+        let mut output = entry.output.lock().unwrap();
+        output.video_users += 1;
+        output.notify = notify;
+        drop(output);
+        Self(entry)
+    }
+}
+
+impl Drop for VideoInput {
+    fn drop(&mut self) {
+        let mut output = self.0.output.lock().unwrap();
+        output.video_users -= 1;
+        if output.video_users == 0 {
+            if let Some(stream) = output.stream.take() {
+                let _ = stream.replace(None);
+            }
+            output.notify = None;
+        }
+    }
+}
+
 struct CapacityWait {
     guard: RevisionGuard,
     _subscription: Option<RevisionSubscription>,
 }
 
 pub(super) struct Receivers {
-    entries: HashMap<ChannelReference, Entry>,
-    pool: RetirementPool,
+    entries: HashMap<ChannelReference, VideoInput>,
     pending: Option<CapacityWait>,
     notify: Option<WorkerNotifier>,
 }
 
 impl Receivers {
     pub fn new(notify: Option<WorkerNotifier>) -> Self {
-        // A replacement renderer shares admission with its still-retiring receivers.
-        static POOL: OnceLock<RetirementPool> = OnceLock::new();
         Self {
             entries: HashMap::new(),
-            pool: POOL
-                .get_or_init(|| RetirementPool::new(NonZeroUsize::new(MAX_RECEIVERS).unwrap()))
-                .clone(),
             pending: None,
             notify,
         }
@@ -107,46 +231,22 @@ impl Receivers {
             )
             .take(MAX_RECEIVERS)
             .collect();
-        let availability = self.pool.availability();
+        let availability = pool().availability();
         let before = availability.current();
         self.entries.retain(|reference, entry| {
             wanted
                 .iter()
-                .any(|(candidate, sender)| candidate == reference && *sender == entry.sender.as_ref())
+                .any(|(candidate, sender)| candidate == reference && *sender == entry.0.sender.as_ref())
         });
         let mut pending = false;
         for (reference, sender) in wanted {
             if self.entries.contains_key(&reference) {
                 continue;
             }
-            let sender: Arc<str> = Arc::from(sender);
-            let output = Arc::new(Mutex::new(Output::default()));
-            let producer = Producer {
-                sender: sender.clone(),
-                output: output.clone(),
-                notify: self.notify.clone(),
-            };
-            let worker = BoundedWorker::spawn(
-                "mapgyver-ndi-receiver",
-                &self.pool,
-                WorkerLimits {
-                    command_items: 1,
-                    command_weight: 1,
-                    event_items: 1,
-                    event_weight: 1,
-                },
-                move |worker| producer.receive(&worker),
-            );
-            match worker {
-                Ok(worker) => {
-                    self.entries.insert(
-                        reference,
-                        Entry {
-                            sender,
-                            output,
-                            _worker: worker,
-                        },
-                    );
+            match capture.ndi_inputs.acquire(reference, sender) {
+                Ok(entry) => {
+                    self.entries
+                        .insert(reference, VideoInput::new(entry, self.notify.clone()));
                 }
                 Err(WorkerStartError::Capacity(_)) => pending = true,
                 Err(error) => return Err(error.to_string()),
@@ -171,11 +271,11 @@ impl Receivers {
         self.entries
             .iter()
             .filter_map(|(&reference, entry)| {
-                let stream = entry.output.lock().ok()?.stream.clone()?;
+                let stream = entry.0.output.lock().ok()?.stream.clone()?;
                 Some((
                     reference,
                     Observation {
-                        sender: entry.sender.clone(),
+                        sender: entry.0.sender.clone(),
                         stream,
                     },
                 ))
@@ -190,7 +290,6 @@ mod tests;
 struct Producer {
     sender: Arc<str>,
     output: Arc<Mutex<Output>>,
-    notify: Option<WorkerNotifier>,
 }
 
 impl Producer {
@@ -199,13 +298,87 @@ impl Producer {
         let mut receiver: Option<NdiReceiver> = None;
         let mut error = None;
         let mut backoff = ReconnectBackoff::new(RECEIVER_RETRY, Duration::from_secs(1));
+        let mut clock = timing::Clock::default();
+        let mut pending_video = VecDeque::<(Instant, ImageData)>::new();
         while !worker.cancellation().is_cancelled() {
             let checkpoint = worker.wake_checkpoint();
             if let Some(session) = &mut receiver {
-                match session.capture_video(CAPTURE_TIMEOUT) {
-                    Ok(Some(image)) => {
-                        if !self.publish(image) {
+                let (video, audio, synchronized) = {
+                    let output = self.output.lock().unwrap();
+                    (output.video_users != 0, output.audio_users != 0, output.audio_connected)
+                };
+                if !audio {
+                    clock = timing::Clock::default();
+                }
+                if !video || !audio {
+                    pending_video.clear();
+                }
+                let now = Instant::now();
+                let mut due = None;
+                while pending_video.front().is_some_and(|(at, _)| *at <= now) {
+                    due = pending_video.pop_front();
+                }
+                if let Some((_, image)) = due
+                    && !self.publish(image)
+                {
+                    break;
+                }
+                let timeout = pending_video.front().map_or(CAPTURE_TIMEOUT, |(at, _)| {
+                    at.saturating_duration_since(now).min(CAPTURE_TIMEOUT)
+                });
+                let result = match (video, audio) {
+                    (true, true) => session.capture_av(timeout),
+                    (true, false) => match session.capture_video(CAPTURE_TIMEOUT) {
+                        Ok(Some(image)) => {
+                            if !self.publish(image) {
+                                break;
+                            }
+                            error = None;
+                            backoff.reset();
+                            continue;
+                        }
+                        Ok(None) => Ok(None),
+                        Err(failure) => Err(failure),
+                    },
+                    (false, true) => session
+                        .capture_audio(CAPTURE_TIMEOUT)
+                        .map(|audio| audio.map(NdiFrame::Audio)),
+                    (false, false) => {
+                        worker.wait_until(checkpoint, Instant::now() + CAPTURE_TIMEOUT);
+                        continue;
+                    }
+                };
+                match result {
+                    Ok(Some(NdiFrame::Video(frame))) => {
+                        if synchronized {
+                            let (at, reset) = clock.playout(frame.timing, Instant::now());
+                            if reset {
+                                pending_video.clear();
+                                self.reset_audio();
+                            }
+                            if pending_video.len() == 8 {
+                                pending_video.pop_front();
+                            }
+                            pending_video.push_back((at, frame.image));
+                        } else if !self.publish(frame.image) {
                             break;
+                        }
+                        error = None;
+                        backoff.reset();
+                    }
+                    Ok(Some(NdiFrame::Audio(frame))) => {
+                        let (at, reset) = clock.playout(frame.timing(), Instant::now());
+                        if reset {
+                            pending_video.clear();
+                            self.reset_audio();
+                        }
+                        let mut output = self.output.lock().unwrap();
+                        if output.audio_users != 0 {
+                            output.audio_connected = true;
+                            if output.audio.len() == AUDIO_PACKETS {
+                                output.audio.pop_front();
+                            }
+                            output.audio.push_back((at, frame));
                         }
                         error = None;
                         backoff.reset();
@@ -214,12 +387,17 @@ impl Producer {
                         if session.connection_count() == 0 {
                             // The SDK reconnects its exact bound source on return. A lost source
                             // withdraws its pixels while the existing receiver stays subscribed.
+                            pending_video.clear();
+                            clock = timing::Clock::default();
                             self.withdraw();
                         }
                     }
+                    Err(failure @ NdiError::AudioFrame(_)) => self.report(&mut error, failure.to_string()),
                     Err(failure) => {
                         self.report(&mut error, failure.to_string());
                         receiver = None;
+                        pending_video.clear();
+                        clock = timing::Clock::default();
                         self.withdraw();
                         worker.wait_until(checkpoint, backoff.schedule(Instant::now()));
                     }
@@ -251,10 +429,19 @@ impl Producer {
         self.withdraw();
     }
 
+    fn reset_audio(&self) {
+        let mut output = self.output.lock().unwrap();
+        output.audio.clear();
+        output.audio_epoch = output.audio_epoch.wrapping_add(1);
+    }
+
     fn publish(&self, image: ImageData) -> bool {
         let mut output = self.output.lock().unwrap_or_else(|error| error.into_inner());
         if output.retired {
             return false;
+        }
+        if output.video_users == 0 {
+            return true;
         }
         let descriptor = image.descriptor();
         let changed = output
@@ -270,8 +457,9 @@ impl Producer {
             None
         };
         let previous = output.stream.as_ref().expect("stream installed").replace(Some(image));
+        let notify = output.notify.clone();
         drop(output);
-        if changed && let Some(notify) = &self.notify {
+        if changed && let Some(notify) = notify {
             notify.notify();
         }
         drop(retired);
@@ -280,11 +468,17 @@ impl Producer {
 
     fn withdraw(&self) {
         let mut output = self.output.lock().unwrap_or_else(|error| error.into_inner());
-        let Some(stream) = output.stream.take() else { return };
-        let retired = stream.replace(None);
+        let retired = output.stream.take().map(|stream| stream.replace(None));
+        if output.audio_connected {
+            output.audio_connected = false;
+            output.audio.clear();
+            output.audio_epoch = output.audio_epoch.wrapping_add(1);
+        }
+        let notify = output.notify.clone();
         drop(output);
+        let changed = retired.is_some();
         drop(retired);
-        if let Some(notify) = &self.notify {
+        if changed && let Some(notify) = notify {
             notify.notify();
         }
     }

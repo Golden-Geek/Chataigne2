@@ -2,6 +2,8 @@
 //! Golden's audio render worker and off the project actor.
 mod decoder;
 mod matrix;
+#[cfg(all(windows, target_arch = "x86_64"))]
+mod ndi;
 mod source;
 
 use super::{preferences, voice};
@@ -28,6 +30,9 @@ pub(super) struct Layout {
     generation: ConfigGeneration,
     lanes: HashMap<AudioChannelId, usize>,
     device_buffer_frames: u64,
+    #[cfg(all(windows, target_arch = "x86_64"))]
+    virtual_lanes: HashMap<AudioChannelId, usize>,
+    local_output_ready: bool,
 }
 
 #[derive(Clone)]
@@ -50,7 +55,7 @@ impl Output {
     pub fn publish(
         &self,
         settings: &preferences::Settings,
-        applied: Option<(&AudioConfiguration, ConfigGeneration, u32)>,
+        applied: Option<(&AudioConfiguration, ConfigGeneration, Option<u32>)>,
     ) {
         let mut state = self.0.lock().unwrap();
         state.options = std::iter::once(preferences::option(voice::UNASSIGNED, voice::UNASSIGNED.into()))
@@ -66,8 +71,12 @@ impl Output {
             state.layout = None;
             return;
         };
+        let local_output_ready = device_buffer_frames.is_some();
+        let device_buffer_frames = u64::from(device_buffer_frames.unwrap_or(0));
         if state.layout.as_ref().is_some_and(|current| {
-            current.generation == generation && current.device_buffer_frames == u64::from(device_buffer_frames)
+            current.generation == generation
+                && current.device_buffer_frames == device_buffer_frames
+                && current.local_output_ready == local_output_ready
         }) {
             return;
         }
@@ -75,17 +84,25 @@ impl Output {
             .playback_patch
             .iter()
             .filter(|route| {
-                config
-                    .output_patch
-                    .iter()
-                    .any(|patch| patch.source == route.destination)
+                local_output_ready
+                    && config
+                        .output_patch
+                        .iter()
+                        .any(|patch| patch.source == route.destination)
             })
             .map(|route| (route.destination, usize::from(route.source_channel)))
             .collect();
         state.layout = Some(Arc::new(Layout {
             generation,
             lanes,
-            device_buffer_frames: u64::from(device_buffer_frames),
+            device_buffer_frames,
+            #[cfg(all(windows, target_arch = "x86_64"))]
+            virtual_lanes: config
+                .playback_patch
+                .iter()
+                .map(|route| (route.destination, usize::from(route.source_channel)))
+                .collect(),
+            local_output_ready,
         }));
     }
 
@@ -121,6 +138,8 @@ pub(super) fn start(
             #[cfg(not(windows))]
             let _ = &mut context;
             let mut sources = Sources::new(voices);
+            #[cfg(all(windows, target_arch = "x86_64"))]
+            let mut ndi = ndi::Mix::default();
             let mut project: Option<registry::Source> = None;
             let mut catalog_due = Instant::now();
             let mut next_frame = None;
@@ -133,6 +152,8 @@ pub(super) fn start(
                 if project.as_ref().is_some_and(|project| !project.guard.is_current()) {
                     writer.invalidate();
                     sources = Sources::new(voices);
+                    #[cfg(all(windows, target_arch = "x86_64"))]
+                    ndi.clear();
                     project = None;
                     next_frame = None;
                     catalog_due = now;
@@ -164,6 +185,19 @@ pub(super) fn start(
                 if let (Some(layout), Some(project)) = (layout.as_deref(), &project) {
                     let mix = project.matrix_audio.collect(now);
                     let (active, changed) = sources.observe(layout, now, refresh_sources || layout_changed, mix, &root);
+                    #[cfg(all(windows, target_arch = "x86_64"))]
+                    let (active, changed) = {
+                        let options = output.0.lock().unwrap().options.clone();
+                        let (ndi_active, ndi_changed) = ndi.observe(
+                            &runtime,
+                            &project.ndi_inputs,
+                            layout,
+                            &options,
+                            refresh_sources || layout_changed,
+                            now,
+                        );
+                        (active || ndi_active, changed || ndi_changed)
+                    };
                     if changed {
                         writer.invalidate();
                         next_frame = None;
@@ -186,6 +220,8 @@ pub(super) fn start(
                                 &project.guard,
                                 context.cancellation(),
                             );
+                            #[cfg(all(windows, target_arch = "x86_64"))]
+                            ndi.render(&mut samples, present, frames as usize, rate);
                             if !project.guard.is_current()
                                 || !writer.try_write(layout.generation, frame, &samples).unwrap_or(false)
                             {
@@ -197,6 +233,8 @@ pub(super) fn start(
                     }
                 } else {
                     sources.release_inactive();
+                    #[cfg(all(windows, target_arch = "x86_64"))]
+                    ndi.clear();
                 }
                 let interval = if layout.is_some() {
                     Duration::from_millis(3)

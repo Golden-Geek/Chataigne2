@@ -163,16 +163,14 @@ impl AudioOwner {
         playback.publish(
             settings,
             self.submitted.as_deref().and_then(|config| {
-                (generation == self.generation
-                    && config.output.enabled
-                    && output.readiness == AudioDeviceReadiness::Ready)
-                    .then(|| {
-                        (
-                            config,
-                            generation,
-                            output.format.as_ref().map_or(0, |format| format.buffer_frames),
-                        )
-                    })
+                (generation == self.generation).then(|| {
+                    let physical = config.output.enabled && output.readiness == AudioDeviceReadiness::Ready;
+                    (
+                        config,
+                        generation,
+                        physical.then(|| output.format.as_ref().map_or(0, |format| format.buffer_frames)),
+                    )
+                })
             }),
         );
         let missing =

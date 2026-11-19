@@ -5,7 +5,7 @@ mod derived;
 mod feedback;
 mod fit;
 #[cfg(all(windows, target_arch = "x86_64"))]
-mod ndi;
+pub(crate) mod ndi;
 mod plan;
 mod screen_raster;
 mod sources;

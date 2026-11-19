@@ -46,11 +46,11 @@ mod subtitles;
                 enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
                 enum_options = super::video::audio_tracks::default_options(), dependency = |node: &Self| node.kind() == MediaKind::Video);
             audio_left: Enum = crate::audio::voice::LEFT (label = "Left output", enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
-                enum_options = crate::audio::voice::default_options(), dependency = |node: &Self| node.kind() == MediaKind::Video);
+                enum_options = crate::audio::voice::default_options(), dependency = |node: &Self| matches!(node.kind(), MediaKind::Video | MediaKind::Ndi));
             audio_right: Enum = crate::audio::voice::RIGHT (label = "Right output", enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
-                enum_options = crate::audio::voice::default_options(), dependency = |node: &Self| node.kind() == MediaKind::Video);
-            audio_gain: f64 = 0.0 [-120.0..24.0] (label = "Volume", unit = "dB", description = "Audio gain for this Video channel.",
-                dependency = |node: &Self| node.kind() == MediaKind::Video);
+                enum_options = crate::audio::voice::default_options(), dependency = |node: &Self| matches!(node.kind(), MediaKind::Video | MediaKind::Ndi));
+            audio_gain: f64 = 0.0 [-120.0..24.0] (label = "Volume", unit = "dB", description = "Audio gain for this channel.",
+                dependency = |node: &Self| matches!(node.kind(), MediaKind::Video | MediaKind::Ndi));
             video_loop_audio: File = File::default() (label = "Loop Audio File", description = "Optional audio played from the start of the repeat section through this channel's outputs.", dependency = |node: &Self| node.kind() == MediaKind::Video);
         }
         folder(video_subtitles, label = "Subtitles", description = "Subtitle settings for this Video channel.", enabled = false, can_be_disabled = true) {
@@ -88,6 +88,8 @@ pub struct ChannelNode {
     matrix_playback: OnceLock<crate::matrix::playback::PlaybackControl>,
     #[state(default = None)]
     video_binding: Option<Arc<super::video::bindings::Registration>>,
+    #[state(default = None)]
+    ndi_audio: Option<Arc<crate::audio::voice::Binding>>,
     #[state(default = Default::default())]
     video_audio_option_ids: [Option<NodeUuid>; 3],
     #[state(default = None)]
@@ -376,7 +378,7 @@ impl ChannelNode {
 #[node("mapgyver.media.channel.v2", from_struct)]
 impl Node for ChannelNode {
     fn init(&mut self, ctx: &mut ProcessCtx) {
-        if self.kind() == MediaKind::Video {
+        if matches!(self.kind(), MediaKind::Video | MediaKind::Ndi) {
             ctx.add_event_listener_subtree(self.id(), self.id(), 3);
         }
     }
@@ -386,7 +388,7 @@ impl Node for ChannelNode {
             self.publish_video_subtitles(ctx);
         }
         if patch.enabled.is_some() {
-            self.publish_video_audio(ctx);
+            self.publish_audio(ctx);
         }
     }
 
@@ -403,6 +405,10 @@ impl Node for ChannelNode {
         self.bind_audio_options(ctx);
         self.bind_subtitles(ctx);
         self.register_video(ctx);
+        #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
+        if self.kind() == MediaKind::Ndi {
+            self.register_ndi_audio(ctx);
+        }
         if let Some(control) = self.matrix_playback() {
             #[cfg(feature = "video-files")]
             {
@@ -480,7 +486,7 @@ impl Node for ChannelNode {
     }
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
         if self.is_audio_parameter(parameter) {
-            self.publish_video_audio(ctx);
+            self.publish_audio(ctx);
             if parameter != self.audio_gain.id() {
                 self.refresh_audio_options(ctx);
             }
@@ -533,7 +539,7 @@ impl Node for ChannelNode {
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, enabled: bool) {
         self.source_lifecycle.advance();
         self.invalidate();
-        self.publish_video_audio(ctx);
+        self.publish_audio(ctx);
         if enabled {
             self.publish_video_subtitles(ctx);
         }
@@ -543,6 +549,10 @@ impl Node for ChannelNode {
     }
     fn destroy(&mut self, ctx: &mut ProcessCtx) {
         self.source_lifecycle.advance();
+        #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
+        if let Some(binding) = self.ndi_audio.take() {
+            binding.retire();
+        }
         if let Some(binding) = self.video_binding.take() {
             if self.node_data().parent.is_some_and(|parent| ctx.is_destroying(parent)) {
                 binding.retire_media();

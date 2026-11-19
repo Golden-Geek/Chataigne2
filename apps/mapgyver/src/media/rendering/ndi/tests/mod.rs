@@ -13,11 +13,13 @@ fn image(width: u32, byte: u8) -> ImageData {
 
 #[test]
 fn frames_reuse_one_stream_and_withdraw_on_format_change_or_disconnect() {
-    let output = Arc::new(Mutex::new(Output::default()));
+    let output = Arc::new(Mutex::new(Output {
+        video_users: 1,
+        ..Output::default()
+    }));
     let producer = Producer {
         sender: Arc::from("Camera (Stage)"),
         output: output.clone(),
-        notify: None,
     };
     let stream = || output.lock().unwrap().stream.clone();
     assert!(producer.publish(image(1, 11)));

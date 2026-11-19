@@ -109,7 +109,7 @@ def paint(buffer, left, top, width, height, pixel):
         buffer[start:start + len(row)] = row
 
 
-def video_payload(index, channels):
+def video_payload(index, channels, pulse_frames):
     pixels = bytearray((22, 22, 22, 255)) * (WIDTH * HEIGHT)
     paint(pixels, 0, 0, WIDTH, 36, (0, 0, 0, 255))
     paint(pixels, 4, 8, 16, 20, (255, 255, 255, 255))
@@ -117,7 +117,7 @@ def video_payload(index, channels):
         if index & (1 << bit):
             paint(pixels, CODE_ORIGIN[0] + bit * CODE_STEP - 6, 8, 12, 20, (255, 255, 255, 255))
     for _, _, start, (center_x, center_y) in CHANNELS[:channels]:
-        pulse = start <= (index % FPS) < start + PULSE_FRAMES
+        pulse = start <= (index % FPS) < start + pulse_frames
         fill = 245 if pulse else 52
         paint(pixels, center_x - 40, center_y - 28, 80, 56, (fill, fill, fill, 255))
     moving_x = 12 + (index * 7) % (WIDTH - 56)
@@ -125,11 +125,11 @@ def video_payload(index, channels):
     return pixels
 
 
-def make_audio_blocks(channels):
+def make_audio_blocks(channels, pulse_frames):
     silence = bytes(SAMPLES_PER_FRAME * 4)
     blocks = []
     for _, frequency, _, _ in CHANNELS[:channels]:
-        count = PULSE_FRAMES * SAMPLES_PER_FRAME
+        count = pulse_frames * SAMPLES_PER_FRAME
         # A short ramp avoids a broadband click while preserving exact frame/pulse alignment.
         pulse = array("f", (
             PULSE_AMPLITUDE
@@ -139,7 +139,7 @@ def make_audio_blocks(channels):
         )).tobytes()
         blocks.append(tuple(
             pulse[index * len(silence):(index + 1) * len(silence)]
-            for index in range(PULSE_FRAMES)
+            for index in range(pulse_frames)
         ))
     return silence, blocks
 
@@ -148,7 +148,7 @@ def audio_payload(index, silence, blocks):
     planes = []
     for (_, _, start, _), pulse in zip(CHANNELS, blocks):
         offset = index % FPS - start
-        planes.append(pulse[offset] if 0 <= offset < PULSE_FRAMES else silence)
+        planes.append(pulse[offset] if 0 <= offset < len(pulse) else silence)
     return b"".join(planes)
 
 
@@ -178,7 +178,7 @@ def ready_record(dll, sender, library, args, epoch):
         "audio": {
             "sample_rate": SAMPLE_RATE,
             "samples_per_frame": SAMPLES_PER_FRAME,
-            "pulse_frames": PULSE_FRAMES,
+            "pulse_frames": args.pulse_frames,
             "pulse_amplitude": PULSE_AMPLITUDE,
             "lanes": [
                 dict(channel=lane, frequency_hz=frequency, first_frame=start, marker=marker)
@@ -189,7 +189,7 @@ def ready_record(dll, sender, library, args, epoch):
 
 
 def publish(dll, sender, library, args):
-    silence, audio_blocks = make_audio_blocks(args.channels)
+    silence, audio_blocks = make_audio_blocks(args.channels, args.pulse_frames)
     video = VideoFrame(WIDTH, HEIGHT, fourcc(b"BGRX"), FPS, 1, WIDTH / HEIGHT, 1,
                        0, None, WIDTH * 4, None, 0)
     audio = AudioFrame(SAMPLE_RATE, args.channels, SAMPLES_PER_FRAME, 0, fourcc(b"FLTp"),
@@ -213,7 +213,7 @@ def publish(dll, sender, library, args):
         if elapsed_index > index:
             skipped += elapsed_index - index
             index = elapsed_index
-        pixels = video_payload(index, args.channels)
+        pixels = video_payload(index, args.channels, args.pulse_frames)
         image = (ctypes.c_ubyte * len(pixels)).from_buffer(pixels)
         video.data = ctypes.addressof(image)
         video.timecode = epoch + index * 10_000_000 // FPS
@@ -240,6 +240,7 @@ def main():
     parser.add_argument("--ready", required=True, type=Path, help="new caller-owned JSON readiness path")
     parser.add_argument("--stop", required=True, type=Path, help="caller-owned marker to stop publishing")
     parser.add_argument("--channels", type=int, choices=(0, 1, 2), default=2)
+    parser.add_argument("--pulse-frames", type=int, choices=range(1, 12), default=PULSE_FRAMES)
     parser.add_argument("--max-seconds", type=int, default=60)
     parser.add_argument("--runtime-dir", type=Path)
     args = parser.parse_args()

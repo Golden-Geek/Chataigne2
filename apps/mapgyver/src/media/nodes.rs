@@ -20,6 +20,8 @@ pub struct MediaManagerNode {
     operation_owner: Arc<()>,
     pub(crate) sender_catalog: super::sender_catalog::Inbox,
     pub(crate) ndi_catalog: super::sender_catalog::Inbox,
+    #[cfg(all(windows, target_arch = "x86_64"))]
+    pub(crate) ndi_inputs: Arc<super::rendering::ndi::Inputs>,
     #[cfg(feature = "video-files")]
     pub(crate) videos: Arc<super::video::registry::Registry>,
     #[cfg(feature = "video-files")]
@@ -43,6 +45,8 @@ impl MediaManagerNode {
             operation_owner: Arc::new(()),
             sender_catalog: Default::default(),
             ndi_catalog: Default::default(),
+            #[cfg(all(windows, target_arch = "x86_64"))]
+            ndi_inputs: Default::default(),
             #[cfg(feature = "video-files")]
             videos: Default::default(),
             #[cfg(feature = "video-files")]
@@ -88,6 +92,10 @@ impl Node for MediaManagerNode {
         }
         self.sender_catalog = Default::default();
         self.ndi_catalog = Default::default();
+        #[cfg(all(windows, target_arch = "x86_64"))]
+        {
+            self.ndi_inputs = Default::default();
+        }
         self.project.advance();
         self.membership.advance();
         self.instance = uuid::Uuid::new_v4();

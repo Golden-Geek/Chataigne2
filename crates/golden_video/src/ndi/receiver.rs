@@ -85,7 +85,7 @@ impl NdiReceiver {
 
     /// Capture one progressive frame with a bounded wait. No SDK buffer crosses the worker boundary.
     pub fn capture_video(&mut self, timeout: Duration) -> Result<Option<ImageData>, NdiError> {
-        match self.capture(timeout, false)? {
+        match self.capture(timeout, true, false)? {
             Some(NdiFrame::Video(video)) => Ok(Some(video.image)),
             _ => Ok(None),
         }
@@ -94,10 +94,23 @@ impl NdiReceiver {
     /// Capture the next available audio or video frame, retaining the SDK's original timing.
     /// The caller owns any buffering beyond this single capture.
     pub fn capture_av(&mut self, timeout: Duration) -> Result<Option<NdiFrame>, NdiError> {
-        self.capture(timeout, true)
+        self.capture(timeout, true, true)
     }
 
-    fn capture(&mut self, timeout: Duration, receive_audio: bool) -> Result<Option<NdiFrame>, NdiError> {
+    /// Capture audio on this connection without copying video pixels.
+    pub fn capture_audio(&mut self, timeout: Duration) -> Result<Option<NdiAudioFrame>, NdiError> {
+        match self.capture(timeout, false, true)? {
+            Some(NdiFrame::Audio(audio)) => Ok(Some(audio)),
+            _ => Ok(None),
+        }
+    }
+
+    fn capture(
+        &mut self,
+        timeout: Duration,
+        receive_video: bool,
+        receive_audio: bool,
+    ) -> Result<Option<NdiFrame>, NdiError> {
         let mut video = MaybeUninit::<sys::NDIlib_video_frame_v2_t>::zeroed();
         let mut audio = MaybeUninit::<sys::NDIlib_audio_frame_v3_t>::zeroed();
         let timeout = timeout.as_millis().min(u128::from(u32::MAX)) as u32;
@@ -105,14 +118,14 @@ impl NdiReceiver {
         let kind = unsafe {
             self.runtime.api.recv_capture_v3.unwrap()(
                 self.instance.as_ptr(),
-                video.as_mut_ptr(),
+                if receive_video { video.as_mut_ptr() } else { null_mut() },
                 if receive_audio { audio.as_mut_ptr() } else { null_mut() },
                 null_mut(),
                 timeout,
             )
         };
         match kind {
-            sys::NDIlib_frame_type_e::NDIlib_frame_type_video => {
+            sys::NDIlib_frame_type_e::NDIlib_frame_type_video if receive_video => {
                 let frame = CapturedVideo {
                     receiver: self,
                     frame: unsafe { video.assume_init() },

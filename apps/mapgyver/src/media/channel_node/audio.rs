@@ -9,6 +9,7 @@ use golden_core::{
     parameter::ParamValue,
     process_ctx::ProcessCtx,
 };
+use std::sync::Arc;
 
 impl ChannelNode {
     fn audio_option_parameters(&self) -> [&ParameterHandle<golden_core::parameter::Enum>; 3] {
@@ -40,15 +41,41 @@ impl ChannelNode {
         if let Some(binding) = &self.video_binding {
             binding.audio().watch_options(waker);
         }
-        self.publish_video_audio(ctx);
+        self.publish_audio(ctx);
     }
 
-    pub(super) fn publish_video_audio(&self, ctx: &mut ProcessCtx) {
-        let Some(binding) = self.video_binding.clone() else {
+    fn audio_binding(&self) -> Option<&Arc<voice::Binding>> {
+        self.video_binding
+            .as_ref()
+            .map(|video| &video.audio().voice)
+            .or(self.ndi_audio.as_ref())
+    }
+
+    #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
+    pub(super) fn register_ndi_audio(&mut self, ctx: &mut ProcessCtx) {
+        let binding = Arc::new(voice::Binding::default());
+        binding.watch_options(ctx.node_waker().ok());
+        self.ndi_audio = Some(binding.clone());
+        let uuid = self.node_data().meta.uuid.0;
+        ctx.register_ancestor_runtime(self.id(), move |owner| {
+            let Some(manager) = owner.as_any().downcast_ref::<crate::media::MediaManagerNode>() else {
+                return Ok(false);
+            };
+            manager.ndi_inputs.register_audio(uuid, &binding);
+            Ok(true)
+        });
+        self.publish_audio(ctx);
+        self.refresh_audio_options(ctx);
+    }
+
+    pub(super) fn publish_audio(&self, ctx: &mut ProcessCtx) {
+        let Some(binding) = self.audio_binding().cloned() else {
             return;
         };
-        if let Ok(track) = AudioTrack::parse(self.video_audio_track.get_ref().as_str()) {
-            binding.audio().set_selection(track);
+        if let Some(video) = &self.video_binding
+            && let Ok(track) = AudioTrack::parse(self.video_audio_track.get_ref().as_str())
+        {
+            video.audio().set_selection(track);
         }
         let Ok(mut routing) = self.audio_routing() else {
             return;
@@ -59,16 +86,16 @@ impl ChannelNode {
                 return Ok(false);
             }
             routing.enabled = folder.node_data().effective_enabled;
-            binding.audio().voice.update_routing(routing);
+            binding.update_routing(routing);
             Ok(true)
         });
     }
 
     pub(super) fn refresh_audio_options(&self, ctx: &mut ProcessCtx) {
-        let Some(binding) = &self.video_binding else {
+        let Some(binding) = self.audio_binding() else {
             return;
         };
-        let voice_options = binding.audio().voice.options().unwrap_or_else(voice::default_options);
+        let voice_options = binding.options().unwrap_or_else(voice::default_options);
         for (value, expected_uuid) in self
             .audio_option_parameters()
             .into_iter()
@@ -80,7 +107,8 @@ impl ChannelNode {
             };
             let choice = value.get_ref().as_str();
             let options = if id == self.video_audio_track.id() {
-                binding.audio().track_options(choice)
+                let Some(video) = &self.video_binding else { continue };
+                video.audio().track_options(choice)
             } else {
                 voice::option_set(&voice_options, choice)
             };
@@ -118,7 +146,7 @@ impl ChannelNode {
             ParamValue::Enum(choice) if change.parameter != self.audio_gain.id() => {
                 voice::parse_route(choice).map(|_| ())
             }
-            _ => Err("Invalid Video audio Parameter type".into()),
+            _ => Err("Invalid audio Parameter type".into()),
         }
     }
 }

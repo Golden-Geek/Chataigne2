@@ -192,9 +192,11 @@ rendering/recovery acceptance remain open in M04.
 On Windows x64, **Medias → + → NDI** creates a source with automatic discovery and no activation
 setting. The channel's typed Sender control can select an exact discovered name or accept one
 manually. Discovery uses the installed NDI 6 Runtime. A channel preserves its sender after loss
-and reconnects when it returns. Media Preview, Surfaces and References share the same live
-picture producer for that channel. NDI audio routing and Screen publishing are tracked in
-[M17](../../docs/plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output).
+and reconnects when it returns. Media Preview, Surfaces, References and the audio mixer share the
+same receiver. Under **Inspector → Channels → Audio**, assign **Left output** and **Right output**
+to named virtual outputs and adjust **Volume**. Disable the Audio folder to mute the channel.
+Virtual routing works with physical playback disabled. When both streams are active, the receiver
+uses a 90 ms playout target for incoming audio and video. [NDI qualification and Screen publishing](../../docs/plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output)
 
 The Picture editor accepts explicit project-relative or absolute host paths; the native
 desktop also offers Golden's file picker. This is source-file linking, not a browser upload.

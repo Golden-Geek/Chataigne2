@@ -64,6 +64,11 @@ impl Binding {
         self.0.lock().unwrap().routing = Some(routing);
     }
 
+    #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
+    pub fn retire(&self) {
+        self.0.lock().unwrap().routing = None;
+    }
+
     pub fn options(&self) -> Option<ParameterEnumOptions> {
         self.0.lock().unwrap().options.clone()
     }

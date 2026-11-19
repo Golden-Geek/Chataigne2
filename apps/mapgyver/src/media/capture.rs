@@ -17,6 +17,8 @@ pub struct CapturedChannels {
     pub(super) assets: Vec<CapturedAsset>,
     sources: Arc<super::retention::RuntimeSources>,
     pub(super) resolutions: Arc<super::resolution::RuntimeResolutions>,
+    #[cfg(all(windows, target_arch = "x86_64"))]
+    pub(super) ndi_inputs: Arc<super::rendering::ndi::Inputs>,
     source_guard: RevisionGuard,
 }
 
@@ -517,6 +519,8 @@ pub(crate) fn capture_channels_with_time(
         source_guard: sources.guard(),
         sources: sources.clone(),
         resolutions: manager.resolutions.clone(),
+        #[cfg(all(windows, target_arch = "x86_64"))]
+        ndi_inputs: manager.ndi_inputs.clone(),
         project: manager.instance,
         guards: Arc::from(guards),
         channels,
