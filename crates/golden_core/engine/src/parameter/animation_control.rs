@@ -1,13 +1,14 @@
 use std::f64::consts::PI;
 
+use crate::edit::Edit;
 use crate::engine::NodeExecutionRule;
 use crate::events::{Event, EventKind};
 use crate::node::{
-    CurveNode, DeclId, EventPropagation, Node, NodeData, NodeId, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID,
-    PARAMETER_ANIMATION_CONTROL_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE, PARAMETER_ANIMATION_CURVE_DECL_ID,
-    PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID, PARAMETER_ANIMATION_PHASE_DECL_ID,
-    PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID, PARAMETER_CONTROL_ITEM_KIND,
-    curve_from_snapshot, parameter_child_exists,
+    CurveNode, DeclId, EventPropagation, GRADIENT_DECL_ID, Gradient, GradientNode, Node, NodeData, NodeId,
+    PARAMETER_ANIMATION_AMPLITUDE_DECL_ID, PARAMETER_ANIMATION_CONTROL_DECL_ID, PARAMETER_ANIMATION_CONTROL_NODE_TYPE,
+    PARAMETER_ANIMATION_CURVE_DECL_ID, PARAMETER_ANIMATION_FREQUENCY_DECL_ID, PARAMETER_ANIMATION_OFFSET_DECL_ID,
+    PARAMETER_ANIMATION_PHASE_DECL_ID, PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID, PARAMETER_ANIMATION_WAVEFORM_DECL_ID,
+    PARAMETER_CONTROL_ITEM_KIND, curve_from_snapshot, gradient_from_snapshot, parameter_child_exists,
 };
 use crate::parameter::{
     AnimationWaveform, ParamValue, Parameter, ParameterChangeCheck, ParameterEnumOption, RangeConstraint,
@@ -147,6 +148,8 @@ fn parse_update_rate_hz(value: &ParamValue) -> u32 {
 /// Internal control node attached to one parameter for animation behavior.
 pub struct ParameterAnimationControlNode {
     node_data: NodeData,
+    color_gradient: Option<Gradient>,
+    color_gradient_dirty: bool,
     curve_node: Option<NodeId>,
     waveform_param: Option<NodeId>,
     frequency_param: Option<NodeId>,
@@ -171,6 +174,8 @@ impl ParameterAnimationControlNode {
         node_data.meta.decl_id = DeclId(PARAMETER_ANIMATION_CONTROL_DECL_ID.to_string());
         Self {
             node_data,
+            color_gradient: None,
+            color_gradient_dirty: false,
             curve_node: None,
             waveform_param: None,
             frequency_param: None,
@@ -296,6 +301,17 @@ impl ParameterAnimationControlNode {
         curve_from_snapshot(snapshot, curve_node_id).and_then(|curve| curve.sample(normalized))
     }
 
+    fn sync_color_gradient(&mut self, ctx: &ProcessCtx) {
+        let (Some(gradient), Some(snapshot)) = (&mut self.color_gradient, ctx.tree_snapshot()) else {
+            return;
+        };
+        *gradient = snapshot
+            .find_child(self.node_data.id, GRADIENT_DECL_ID)
+            .and_then(|node| gradient_from_snapshot(snapshot, node))
+            .unwrap_or_default();
+        self.color_gradient_dirty = false;
+    }
+
     fn sync_waveform_dependent_nodes(&mut self, ctx: &mut ProcessCtx) {
         // Use the decl-bound NodeIds tracked via `bind_decl_child`/`unbind_child` rather
         // than `ctx.tree_snapshot()`: this reconcile runs from `engine_preprocess_inbox`,
@@ -370,16 +386,24 @@ impl Node for ParameterAnimationControlNode {
     }
 
     fn engine_on_attached(&mut self, ctx: &mut ProcessCtx) {
-        if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_WAVEFORM_DECL_ID) {
+        let is_color = self.node_data.parent.is_some_and(|parent| {
+            ctx.tree_snapshot()
+                .and_then(|snapshot| snapshot.node(parent))
+                .is_some_and(|node| matches!(node.param_value, Some(ParamValue::Color(..))))
+        });
+        self.color_gradient = is_color.then(Gradient::default);
+        self.color_gradient_dirty = is_color;
+        let has = |ctx: &ProcessCtx, decl| parameter_child_exists(ctx, self.id(), decl);
+        if !is_color && !has(ctx, PARAMETER_ANIMATION_WAVEFORM_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(make_animation_waveform_parameter()), None);
         }
         if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_FREQUENCY_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(make_animation_frequency_parameter()), None);
         }
-        if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_AMPLITUDE_DECL_ID) {
+        if !is_color && !has(ctx, PARAMETER_ANIMATION_AMPLITUDE_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(make_animation_amplitude_parameter()), None);
         }
-        if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_OFFSET_DECL_ID) {
+        if !is_color && !has(ctx, PARAMETER_ANIMATION_OFFSET_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(make_animation_offset_parameter()), None);
         }
         if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_PHASE_DECL_ID) {
@@ -388,6 +412,9 @@ impl Node for ParameterAnimationControlNode {
         if !parameter_child_exists(ctx, self.id(), PARAMETER_ANIMATION_UPDATE_RATE_DECL_ID) {
             ctx.add_child_boxed(self.id(), Box::new(make_animation_update_rate_parameter()), None);
         }
+        if is_color && !has(ctx, GRADIENT_DECL_ID) {
+            ctx.add_child_boxed(self.id(), Box::new(GradientNode::new()), None);
+        }
         // Waveform-dependent node presence (CurveNode, amplitude, offset) is reconciled
         // in init() rather than here. Removing nodes during engine_on_attached would
         // place those NodeIds in loaded_node_ids before reconcile_loaded_declared_children
@@ -395,6 +422,10 @@ impl Node for ParameterAnimationControlNode {
     }
 
     fn init(&mut self, ctx: &mut ProcessCtx) {
+        if self.color_gradient.is_some() {
+            self.sync_color_gradient(ctx);
+            return;
+        }
         // Read the persisted waveform value directly from the snapshot so that loaded
         // projects immediately reflect the correct waveform-dependent node presence.
         // self.waveform is still the default (Sine) at this point.
@@ -424,7 +455,29 @@ impl Node for ParameterAnimationControlNode {
         self.sync_bound_value(self.update_rate_param, resolve);
     }
 
+    fn engine_child_event_interest_depth(&self, event: &Event) -> u32 {
+        if self.color_gradient.is_some()
+            && matches!(
+                event.kind,
+                EventKind::ParamChanged { .. }
+                    | EventKind::ChildAdded { .. }
+                    | EventKind::ChildRemoved { .. }
+                    | EventKind::ChildReordered { .. }
+                    | EventKind::ChildReplaced { .. }
+                    | EventKind::ChildMoved { .. }
+            )
+        {
+            // Animation → Gradient → Stop → typed stop Parameter.
+            3
+        } else {
+            0
+        }
+    }
+
     fn engine_preprocess_inbox(&mut self, ctx: &mut ProcessCtx) {
+        // Preprocessing also runs without a snapshot. The next scheduled update
+        // reads the settled subtree once, after the pending edits have applied.
+        self.color_gradient_dirty |= self.color_gradient.is_some();
         let mut reevaluate_graph = false;
         let mut waveform_changed = false;
         for event in &ctx.events {
@@ -461,13 +514,13 @@ impl Node for ParameterAnimationControlNode {
         if reevaluate_graph {
             ctx.reevaluate_graph();
         }
-        if waveform_changed {
+        if waveform_changed && self.color_gradient.is_none() {
             self.sync_waveform_dependent_nodes(ctx);
         }
     }
 
     fn update_requires_tree_snapshot(&self) -> bool {
-        self.waveform == AnimationWaveform::Curve
+        self.color_gradient_dirty || self.waveform == AnimationWaveform::Curve
     }
 
     fn update(&mut self, ctx: &mut ProcessCtx) {
@@ -475,6 +528,25 @@ impl Node for ParameterAnimationControlNode {
         let Some(parent_param) = self.node_data.parent else {
             return;
         };
+        if self.color_gradient_dirty {
+            self.sync_color_gradient(ctx);
+        }
+        if let Some(gradient) = &self.color_gradient {
+            let phase = self.phase + self.elapsed_seconds * self.frequency_hz;
+            if phase.is_finite() {
+                let value = gradient
+                    .sample(phase - phase.floor())
+                    .map(|color| ParamValue::Color(color.r(), color.g(), color.b(), color.a()));
+                ctx.edits.push_from(
+                    self.id(),
+                    Edit::SetParamAnimationSample {
+                        node: parent_param,
+                        value,
+                    },
+                );
+            }
+            return;
+        }
         let value = if self.waveform == AnimationWaveform::Curve {
             self.curve_value(ctx)
         } else {

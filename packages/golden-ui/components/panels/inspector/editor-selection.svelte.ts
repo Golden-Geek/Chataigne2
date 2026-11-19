@@ -15,6 +15,7 @@ export interface InspectorEditorSelectionHost {
 interface Context<T> {
 	readonly session: InspectorEditorSelectionHost | null;
 	readonly owner: UiNodeDto;
+	readonly publishToWorkbench?: boolean;
 	read(): T;
 	write(selection: T): void;
 	empty(): T;
@@ -65,8 +66,10 @@ export function createInspectorEditorSelection<T>(context: Context<T>) {
 		if (!nodes) return false;
 		signature = next;
 		if (explicit) context.write(selected);
-		session.selectNodes(nodes, 'REPLACE');
-		input.selected = session.selectedNodesIds;
+		if (context.publishToWorkbench !== false) {
+			session.selectNodes(nodes, 'REPLACE');
+			input.selected = session.selectedNodesIds;
+		}
 		return true;
 	};
 	$effect(() => {
@@ -115,8 +118,10 @@ export function createInspectorEditorSelection<T>(context: Context<T>) {
 			const empty = context.empty();
 			signature = context.signature(empty);
 			context.write(empty);
-			session.selectNodes([owner.node_id], 'REPLACE');
-			if (input) input.selected = session.selectedNodesIds;
+			if (context.publishToWorkbench !== false) {
+				session.selectNodes([owner.node_id], 'REPLACE');
+				if (input) input.selected = session.selectedNodesIds;
+			}
 		},
 		arm(event: Event) {
 			const session = context.session;

@@ -2,6 +2,54 @@ use super::*;
 use crate::engine::apply_tree::AppliedEdit;
 
 impl<T: Node> Engine<T> {
+    pub(in crate::engine) fn apply_param_animation_sample(
+        &mut self,
+        node: NodeId,
+        value: Option<ParamValue>,
+        source: Option<NodeId>,
+    ) {
+        let producer = source.and_then(|source| self.nodes.get(source));
+        if !producer.is_some_and(|producer| {
+            producer.get_type() == PARAMETER_ANIMATION_CONTROL_NODE_TYPE && producer.node_data().parent == Some(node)
+        }) || !self.nodes.get(node).is_some_and(|target| {
+            target
+                .engine_param_control_state()
+                .is_some_and(|state| state.mode == ParameterControlMode::Animation)
+        }) {
+            return;
+        }
+
+        let value = match value {
+            Some(value) => match self.prepare_set_param_value(0, node, value) {
+                Ok(value) => Some(value),
+                // Rejected frame samples leave the last admitted value live.
+                Err(_) => return,
+            },
+            None => None,
+        };
+        self.publish_color_animation_value(node, value, source);
+    }
+
+    fn publish_color_animation_value(&mut self, node: NodeId, value: Option<ParamValue>, source: Option<NodeId>) {
+        let Some(target) = self
+            .nodes
+            .get_mut(node)
+            .and_then(|node| node.as_any_mut().downcast_mut::<Parameter>())
+        else {
+            return;
+        };
+        if target.read_only || target.transient_value || !matches!(target.value, ParamValue::Color(..)) {
+            return;
+        }
+        let old = target.get().clone();
+        target.set_runtime_value(value);
+        let new = target.get().clone();
+        if old != new {
+            self.clear_tick_tree_snapshot();
+            self.emit_param_events_for_state_change(node, &old, &new, source);
+        }
+    }
+
     fn set_param_control_state_impl(
         &mut self,
         param: NodeId,
@@ -45,6 +93,9 @@ impl<T: Node> Engine<T> {
             return Err(format!("parameter node {} was not found", param.0));
         };
         node.engine_set_param_control_state(state)?;
+        if current_state.mode == ParameterControlMode::Animation && next_state.mode != ParameterControlMode::Animation {
+            self.publish_color_animation_value(param, None, None);
+        }
         self.mark_param_control_index_dirty();
         self.emit_event(EventKind::ParamControlChanged {
             param,
@@ -171,6 +222,9 @@ impl<T: Node> Engine<T> {
                 node_type,
                 message,
             })?;
+        if old_state.mode == ParameterControlMode::Animation && state.mode != ParameterControlMode::Animation {
+            self.publish_color_animation_value(node, None, None);
+        }
         self.mark_param_control_index_dirty();
         if old_state != state {
             self.emit_event(EventKind::ParamControlChanged {

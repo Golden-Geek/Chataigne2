@@ -7,8 +7,6 @@ use super::prelude::*;
 use super::snapshot::gradient_from_snapshot;
 use super::stop::GradientStopNode;
 
-const STOP_ORDER_POSITION_EPSILON: f64 = 1e-10;
-
 /// Node hosting one gradient color-stop list.
 pub struct GradientNode {
     node_data: NodeData,
@@ -163,13 +161,7 @@ impl GradientNode {
         }
 
         let mut sorted_stop_entries = stop_entries.clone();
-        sorted_stop_entries.sort_by(|left, right| {
-            if (left.2 - right.2).abs() <= STOP_ORDER_POSITION_EPSILON {
-                left.0.cmp(&right.0)
-            } else {
-                left.2.total_cmp(&right.2)
-            }
-        });
+        sorted_stop_entries.sort_by(|left, right| left.2.total_cmp(&right.2).then_with(|| left.0.cmp(&right.0)));
 
         let current_stop_order = stop_entries.iter().map(|(_, stop_id, _)| *stop_id).collect::<Vec<_>>();
         let sorted_stop_order = sorted_stop_entries
@@ -248,7 +240,7 @@ impl Node for GradientNode {
     }
 
     fn type_description(&self) -> Option<&str> {
-        Some("Internal node hosting one gradient color-stop list.")
+        Some("A color gradient with editable stops and per-segment interpolation.")
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -291,7 +283,8 @@ impl Node for GradientNode {
         self.seed_default_stops_if_empty(ctx);
     }
 
-    fn engine_preprocess_inbox(&mut self, ctx: &mut ProcessCtx) {
+    fn on_inbox(&mut self, ctx: &mut ProcessCtx) {
+        self.dispatch_inbox(ctx);
         let reorder_moves = {
             let Some(snapshot) = ctx.tree_snapshot() else {
                 return;
@@ -308,6 +301,9 @@ impl Node for GradientNode {
                         should_reorder_stops = true;
                     }
                     EventKind::ChildReplaced { parent, .. } if *parent == self.id() => {
+                        should_reorder_stops = true;
+                    }
+                    EventKind::ChildMoved { new_parent, .. } if *new_parent == self.id() => {
                         should_reorder_stops = true;
                     }
                     EventKind::ParamChanged { param, .. } => {

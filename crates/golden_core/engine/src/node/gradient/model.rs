@@ -79,9 +79,10 @@ pub struct Gradient {
 }
 
 impl Gradient {
-    /// Creates one gradient from `stops`, sorted by ascending position.
+    /// Creates a gradient from finite-position stops, sorted by ascending position.
     #[must_use]
     pub fn new(mut stops: Vec<GradientStop>) -> Self {
+        stops.retain(|stop| stop.position.is_finite());
         stops.sort_by(|left, right| left.position.total_cmp(&right.position));
         Self { stops }
     }
@@ -104,25 +105,18 @@ impl Gradient {
     #[must_use]
     pub fn sample(&self, position: f64) -> Option<Color> {
         let first = self.stops.first()?;
-        if !position.is_finite() || position <= first.position {
+        if !position.is_finite() || position < first.position {
             return Some(first.color);
         }
-        let last = self.stops.last().copied()?;
-        if position >= last.position {
-            return Some(last.color);
-        }
-        for pair in self.stops.windows(2) {
-            let left = &pair[0];
-            let right = &pair[1];
-            if position > right.position {
-                continue;
-            }
-            let span = (right.position - left.position).max(f64::EPSILON);
-            let raw = ((position - left.position) / span).clamp(0.0, 1.0);
-            let amount = left.interpolation.apply(raw);
-            return Some(lerp_color(left.color, right.color, amount));
-        }
-        Some(last.color)
+        // At a boundary, the stop at that position takes effect. Coincident stops
+        // retain document order, with the last one taking effect at the boundary.
+        let next = self.stops.partition_point(|stop| stop.position <= position);
+        let left = &self.stops[next - 1];
+        let Some(right) = self.stops.get(next) else {
+            return Some(left.color);
+        };
+        let fraction = (position - left.position) / (right.position - left.position);
+        Some(lerp_color(left.color, right.color, left.interpolation.apply(fraction)))
     }
 
     /// Samples the color at `position`, returning opaque black when empty.

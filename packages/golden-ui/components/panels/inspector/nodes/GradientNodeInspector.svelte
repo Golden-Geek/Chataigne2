@@ -56,6 +56,10 @@
 		get owner() {
 			return liveNode;
 		},
+		// Selecting a nested stop in the workbench would replace this Inspector.
+		get publishToWorkbench() {
+			return level === 0;
+		},
 		read: () => ({ stop: selected_stop_id }),
 		write: (value) => {
 			selected_stop_id = value.stop;
@@ -241,7 +245,7 @@
 		if (stops.length === 0) {
 			return [0, 0, 0, 1];
 		}
-		if (position <= stops[0].position) {
+		if (position < stops[0].position) {
 			return stops[0].color;
 		}
 		const last = stops[stops.length - 1];
@@ -251,10 +255,10 @@
 		for (let index = 1; index < stops.length; index += 1) {
 			const left = stops[index - 1];
 			const right = stops[index];
-			if (position > right.position) {
+			if (position >= right.position) {
 				continue;
 			}
-			const span = Math.max(1e-9, right.position - left.position);
+			const span = right.position - left.position;
 			const amount = applyInterpolation(left.interpolation, (position - left.position) / span);
 			return lerpColor(left.color, right.color, amount);
 		}

@@ -71,3 +71,10 @@ establishes no decoder, frame-rate, GPU-cost, codec or recovery qualification.
 M15/1 has no remaining acceptance item. Next functional delivery is Matrix selection/custom
 colors. The user explicitly selects targeted checks per feedback change and a later deep/
 Intel/edge-case pass; original release requirements remain in the internal ledger.
+
+## Gradient and Color animation
+
+- Add a standalone **Gradient** to a Golden User Context, or select **Animation** on a Color parameter. Both open the same Gradient editor and use typed Position, Color, and Interpolation stop parameters.
+- Color animation traverses the gradient once per cycle. **Frequency (Hz)** sets the number of cycles per second, **Phase** offsets the starting position in cycles, and **Update Rate (Hz)** sets the sampling rate. Frequency zero holds the selected phase.
+- Linear and Smooth interpolate RGBA. None holds the left stop's color up to the next stop. A single stop holds a constant color. An empty animation or a return to Manual restores the authored manual color.
+- The engine rebuilds the sampled gradient after subtree edits. Scheduled updates reuse that model, admit RGBA through the target's normal constraints, and publish the live color without writing it into the project or undo history.

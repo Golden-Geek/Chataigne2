@@ -3,14 +3,15 @@ use std::any::Any;
 use crate::{
     edit::{Edit, NodeTree},
     events::{Event, EventFrame, EventKind},
+    node::GradientNode,
     parameter::{ParamValue, Parameter, ParameterChangeCheck, RangeConstraint, ReferenceTargetKind},
     process_ctx::ProcessCtx,
 };
 
 use super::{
-    EventPropagation, FOLDER_NODE_TYPE, Node, NodeCreationContext, NodeData, NodeId, NodeUserPermissions,
-    PARAMETER_NODE_TYPES, USER_CONTEXT_ALLOWED_ITEM_KINDS, USER_CONTEXT_DEFAULT_LABEL, USER_CONTEXT_FOLDER_NODE_TYPE,
-    USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID, USER_CONTEXT_MULTIPLEX_DEFAULT_LABEL,
+    EventPropagation, FOLDER_NODE_TYPE, GRADIENT_ITEM_KIND, GRADIENT_NODE_TYPE, Node, NodeCreationContext, NodeData,
+    NodeId, NodeUserPermissions, PARAMETER_NODE_TYPES, USER_CONTEXT_ALLOWED_ITEM_KINDS, USER_CONTEXT_DEFAULT_LABEL,
+    USER_CONTEXT_FOLDER_NODE_TYPE, USER_CONTEXT_MULTIPLEX_COUNT_DECL_ID, USER_CONTEXT_MULTIPLEX_DEFAULT_LABEL,
     USER_CONTEXT_MULTIPLEX_DEFAULT_PREVIEW_INDEX_DECL_ID, USER_CONTEXT_MULTIPLEX_ITEM_KIND,
     USER_CONTEXT_MULTIPLEX_LIST_ITEM_KIND, USER_CONTEXT_MULTIPLEX_LIST_NODE_TYPE_PREFIX,
     USER_CONTEXT_MULTIPLEX_NODE_TYPE, USER_CONTEXT_NODE_TYPE, UserContainerRules, UserCreatableItem,
@@ -96,6 +97,7 @@ fn user_context_creatable_items(multiplex_enabled: bool) -> Vec<UserCreatableIte
         UserCreatableItem::new("vec2", "vec2", "Vec2").with_select_when_created(false),
         UserCreatableItem::new("vec3", "vec3", "Vec3").with_select_when_created(false),
         UserCreatableItem::new("color", "color", "Color").with_select_when_created(false),
+        UserCreatableItem::new(GRADIENT_NODE_TYPE, GRADIENT_ITEM_KIND, "Gradient"),
         UserCreatableItem::new("reference", "reference", "Reference").with_select_when_created(false),
     ]);
     items
@@ -108,6 +110,9 @@ fn create_user_context_item(node_type: &str, multiplex_enabled: bool) -> Option<
             "Folder",
             multiplex_enabled,
         )));
+    }
+    if node_type == GRADIENT_NODE_TYPE {
+        return Some(Box::new(GradientNode::new()));
     }
 
     if multiplex_enabled && node_type == USER_CONTEXT_MULTIPLEX_NODE_TYPE {

@@ -58,3 +58,31 @@ fn empty_gradient_has_no_sample() {
     assert_eq!(gradient.sample(0.5), None);
     assert_eq!(gradient.sample_or_black(0.5), black());
 }
+
+#[test]
+fn a_hard_edge_changes_at_the_exact_stop_and_a_single_stop_is_constant() {
+    let red = Color::new(1.0, 0.0, 0.0, 0.25);
+    let gradient = Gradient::new(vec![
+        GradientStop::new(0.0, black(), GradientInterpolation::None),
+        GradientStop::new(0.5, white(), GradientInterpolation::None),
+        GradientStop::new(0.5, red, GradientInterpolation::None),
+        GradientStop::new(1.0, white(), GradientInterpolation::Linear),
+    ]);
+    assert_eq!(gradient.sample(0.49), Some(black()));
+    assert_eq!(gradient.sample(0.5), Some(red));
+    assert_eq!(gradient.sample(0.99), Some(red));
+    assert_eq!(gradient.sample(1.0), Some(white()));
+
+    let single = Gradient::new(vec![GradientStop::new(0.5, red, GradientInterpolation::Smooth)]);
+    assert_eq!(single.sample(0.0), Some(red));
+    assert_eq!(single.sample(1.0), Some(red));
+}
+
+#[test]
+fn smooth_interpolation_eases_all_four_components() {
+    let gradient = Gradient::new(vec![
+        GradientStop::new(0.0, Color::new(1.0, 0.0, 0.0, 0.25), GradientInterpolation::Smooth),
+        GradientStop::new(1.0, Color::new(0.0, 0.0, 1.0, 0.75), GradientInterpolation::Linear),
+    ]);
+    assert_eq!(gradient.sample(0.25), Some(Color::new(0.84375, 0.0, 0.15625, 0.328125)));
+}

@@ -166,6 +166,13 @@ pub enum Edit {
         /// Requested authored control state.
         state: ParameterControlState,
     },
+    /// Publish a sample from an attached parameter animation without editing its authored value.
+    SetParamAnimationSample {
+        /// The parameter that owns the producing animation node.
+        node: NodeId,
+        /// Sample, or `None` when the animation has no value.
+        value: Option<ParamValue>,
+    },
     /// Publish scalar runtime feedback without changing authored state or undo/redo.
     /// Async producers must deliver through their lifetime-fenced node wake callback.
     SetParamFeedback {

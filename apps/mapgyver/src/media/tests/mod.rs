@@ -6,6 +6,7 @@ mod creation;
 mod duplication;
 mod fit_mode;
 mod folders;
+mod gradient_animation;
 mod parameters;
 mod picture_file;
 mod picture_import;

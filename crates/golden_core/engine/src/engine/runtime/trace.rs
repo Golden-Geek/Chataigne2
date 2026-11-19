@@ -67,6 +67,9 @@ impl<T: Node> Engine<T> {
                 format!("EndEditSession client_edit_id={client_edit_id}")
             }
             Edit::SetParam { node, .. } => format!("SetParam target={}", self.describe_node(*node)),
+            Edit::SetParamAnimationSample { node, .. } => {
+                format!("SetParamAnimationSample target={}", self.describe_node(*node))
+            }
             Edit::SetParamRuntimeRange { node, .. } => {
                 format!("SetParamRuntimeRange target={}", self.describe_node(*node))
             }

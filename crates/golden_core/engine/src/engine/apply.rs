@@ -267,6 +267,10 @@ impl<T: Node> Engine<T> {
                             effects.set_policy(behaviour, self.time.tick);
                             (Ok(effects.history()), changed)
                         }
+                        Edit::SetParamAnimationSample { node, value } => {
+                            self.apply_param_animation_sample(node, value, request.param_source);
+                            (Ok(None), false)
+                        }
                         Edit::SetParamFeedback {
                             node,
                             value,
@@ -798,6 +802,7 @@ fn edit_kind_name(edit: &Edit) -> &'static str {
         Edit::BeginEditSession { .. } => "BeginEditSession",
         Edit::EndEditSession { .. } => "EndEditSession",
         Edit::SetParam { .. } => "SetParam",
+        Edit::SetParamAnimationSample { .. } => "SetParamAnimationSample",
         Edit::SetParamFeedback { .. } => "SetParamFeedback",
         Edit::SetParamRuntimeRange { .. } => "SetParamRuntimeRange",
         Edit::BindParamRuntimeRange { .. } => "BindParamRuntimeRange",

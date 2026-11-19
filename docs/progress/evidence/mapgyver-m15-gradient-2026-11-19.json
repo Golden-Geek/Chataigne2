@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-19",
+  "gate": "M15/10",
+  "result": "accepted",
+  "scope": "Standalone Golden Gradient and typed Color animation in the same generic Inspector.",
+  "software": {
+    "goldenGradientModelTests": 7,
+    "mapgyverGradientTests": 2,
+    "mapgyverNumericCurveRegressionTests": 2,
+    "goldenInspectorSelectionTests": 6,
+    "generatedMapGyverTypes": "pass",
+    "strictGoldenEngineAndMapGyverClippy": "pass",
+    "mapgyverSvelteCheck": "0 errors and 0 warnings",
+    "rootAndCoreRustFormatting": "pass",
+    "prettierAndBrowserScriptSyntax": "pass"
+  },
+  "verified": [
+    "The Golden Context catalog creates a standalone Gradient. Editing Positions reorders its typed stops, and duplicate and sparse reload preserve the same sampled model.",
+    "None switches at the next stop boundary, coincident stops resolve in document order, and Linear and Smooth interpolate RGBA.",
+    "Color animation follows current stop edits, clamps out-of-range samples through the target constraints, and preserves stop history and project reload.",
+    "A single stop holds its color. An empty gradient and switching to Manual restore the authored color. Undo restores the previous animation subtree.",
+    "Nested stop input stays in the same Inspector during double-click and color edits."
+  ],
+  "native": {
+    "fixture": "apps/mapgyver/tests/browser/native-gradient.mjs",
+    "appSha256": "29D0EB63A0B4A6C46D4CC81EBD01FCA268D4942ABC080680620D9192D6BDF1CB",
+    "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "receipt": "target/m1510-gradient/run-k3CijT/result.json",
+    "hostAndFixtureExitCode": 0,
+    "pageErrors": 0,
+    "extent": [96, 64],
+    "uniformOutputRgba": {
+      "manualGreen": [0, 255, 0, 255],
+      "animatedRed": [255, 0, 0, 255],
+      "linearMidpoint": [188, 0, 188, 191],
+      "translucentBlue": [0, 0, 255, 128],
+      "reloadedBlue": [0, 0, 255, 128],
+      "restoredManualGreen": [0, 255, 0, 255]
+    },
+    "failedAttempts": {
+      "run-B7aqDg": "Fixture read the frontend Color shape from the raw wire payload. Corrected the fixture.",
+      "run-tCbczO": "Nested stop selection unmounted the Inspector during the first double-click. Fixed selection ownership.",
+      "run-kDm6uJ": "Stop edits and red Spout output passed. The fixture's descendant label lookup addressed Frequency when it intended Phase. Corrected the fixture to use exact Parameter IDs."
+    }
+  }
+}
