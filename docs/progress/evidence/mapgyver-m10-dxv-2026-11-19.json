@@ -1,7 +1,7 @@
 {
   "date": "2026-11-19",
   "gate": "M10/3",
-  "result": "Verified legacy and version 3 DXV playback in the bundled app. Full extended-format qualification remains open.",
+  "result": "Verified legacy and version 3 DXV playback in the bundled app, including translucent Normal and High Quality. Full extended-format qualification remains open.",
   "fixture": "apps/mapgyver/tests/browser/native-video-dxv.mjs",
   "publicSamples": "https://fate-suite.ffmpeg.org/dxv/",
   "baseline": {
@@ -44,8 +44,33 @@
     "strictClippy": "pass",
     "bundledBuild": "pass"
   },
+  "highQualityAlphaFollowUp": {
+    "generator": "apps/mapgyver/tests/native/dxv_high_quality_fixture.py",
+    "fixture": "Deterministic DXD3 MOV with literal YG10 BC5 blocks. Resolume Alley was installed and its desktop connection was unavailable. The installed Resolume clips checked were Normal Quality.",
+    "receipt": "target/m103-dxv-hq-alpha-native/run-y47lk5/result.json",
+    "environment": "target/m103-dxv-hq-alpha-native/environment.json",
+    "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "bundleRevision": "b6a53940",
+    "binarySha256": "3530a938ea42a25a98c810e576ad93e06c30b7a486dcd6e55dac832f1dbf62de",
+    "fixtureSha256": "9d65cbab19e8f8b5fe86870619977ed734314d209281cc92a6a3eff08e6ad39f",
+    "receiptSha256": "28e79db473a6948131cffb530fe9ed1feeb26c1d1e36cd7336be64637d972a87",
+    "inputsSha256": "1895fe4ec3d88e7b0a3b742a297ed67bab3359533e1631214cae8dc4ee19d01d",
+    "unchangedInputHashes": 19,
+    "extent": [128, 64],
+    "frameRate": 8,
+    "decodedFramesMatchingAllAuthoredPlanes": 24,
+    "authoredAlphaLevels": [0, 64, 160, 255],
+    "heldSeekMs": [0, 1250, 2500, 0],
+    "comparedPixelsForAllHeldCaptures": 3612,
+    "translucentComparedPixels": 1785,
+    "transparentComparedPixels": 924,
+    "translucentP99ByCapture": [0, 1, 0, 0],
+    "maximumErrorByCapture": [0, 1, 0, 0],
+    "transportAdvancedWhilePlaying": true,
+    "allNativePixelCaptures": 13,
+    "result": "Passed all six existing profile checks and the moving Normal Quality regression in the same run. The High Quality result covers the tested YG10 literal-packet clip and the independent nonlinear color reference with a linear-light yellow composite."
+  },
   "remaining": [
-    "Native high-quality samples were opaque. Verify translucent DXV3 High Quality from an encoded clip when available. The Alley desktop connection was unavailable during this batch.",
-    "Remaining MKV profile and moving sync coverage, and extended-format recovery, sustained performance and resource qualification."
+    "Sustained DXV performance and resource acceptance, additional MKV profiles, and extended-format recovery remain open."
   ]
 }

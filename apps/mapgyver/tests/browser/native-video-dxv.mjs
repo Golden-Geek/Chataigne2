@@ -5,6 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { observeNativeAdapter } from './native-adapter.mjs';
 import { openNativeEditor } from './native-editor.mjs';
@@ -49,6 +50,13 @@ const moving = path.join(directory, 'moving-dxt1.mov');
 const alphaFixture = process.env.MAPGYVER_DXV_ALPHA_FIXTURE
 	? path.resolve(process.env.MAPGYVER_DXV_ALPHA_FIXTURE)
 	: null;
+const highQualityAlpha = path.join(directory, 'moving-yg10-alpha.mov');
+const highQualityAlphaProof = JSON.parse(
+	await run('python', [
+		fileURLToPath(new URL('../native/dxv_high_quality_fixture.py', import.meta.url)),
+		highQualityAlpha
+	])
+);
 await run('ffmpeg', [
 	'-hide_banner',
 	'-loglevel',
@@ -144,10 +152,12 @@ def srgb(value):
 errors = []
 translucent_errors = []
 transparent = 0
+alpha_levels = set()
 for y in range(1, height, 3):
     for x in range(1, width, 3):
         r,g,b,a = reference.getpixel((x,y))
         opacity = a / 255
+        alpha_levels.add(a)
         transparent += a == 0
         expected = [srgb(linear(component) * opacity + bg * (1 - opacity))
                     for component,bg in zip((r,g,b),(1,1,0))] + [255]
@@ -160,6 +170,7 @@ translucent_errors.sort()
 count = len(translucent_errors)
 print(json.dumps(dict(samples=len(errors), transparent=transparent, translucent=count,
                       p99=ordered[int(len(errors) * .99)], maximum=ordered[-1],
+                      alphaLevels=sorted(alpha_levels),
                       translucentP99=translucent_errors[int(count * .99)] if count else None)))
 `;
 let captures = 0;
@@ -203,12 +214,16 @@ async function pixels(file, sender, extent, hq, timestamp, baseline) {
 			await run('python', ['-c', compare, reference, path.join(folder, 'pixels.png')])
 		);
 	};
+	const requiresAlpha = file === alphaFixture || file === highQualityAlpha;
 	return baseline
 		? measure()
 		: wait(
 				measure,
-				({ p99, translucentP99 }) =>
-					p99 <= 5 && (file !== alphaFixture || (translucentP99 !== null && translucentP99 <= 5)),
+				({ p99, translucentP99, alphaLevels }) =>
+					p99 <= 5 &&
+					(!requiresAlpha || (translucentP99 !== null && translucentP99 <= 5)) &&
+					(file !== highQualityAlpha ||
+						alphaLevels.join() === highQualityAlphaProof.authoredAlphaLevels.join()),
 				`${file} at ${timestamp} ms`
 			);
 }
@@ -235,12 +250,17 @@ try {
 	const frame = async () => (await edit({ kind: 'InspectVideoFrame', reference })).frame;
 	const transport = async (command) =>
 		(await edit({ kind: 'Video', media: reference.media, edit: command })).snapshot;
-	const files = [...samples.map(([name]) => path.join(fixtures, name)), moving];
+	const files = [...samples.map(([name]) => path.join(fixtures, name)), moving, highQualityAlpha];
 	if (alphaFixture) files.push(alphaFixture);
 	for (const file of files) {
 		const name = path.basename(file);
 		const stream = await inspect(file);
 		const hq = stream.color_space === 'ycgco';
+		if (file === highQualityAlpha) {
+			assert(hq && stream.codec_tag_string === 'DXD3' && stream.pix_fmt === 'yuva420p');
+			assert.equal(Number(stream.nb_frames), highQualityAlphaProof.matchedPlaneFrames);
+			evidence.push({ name, ...highQualityAlphaProof });
+		}
 		const extent = { width: stream.width, height: stream.height };
 		const sender = `MapGyver-Video-DXV-${randomUUID()}`;
 		await edit({ kind: 'ConfigureVideoFile', reference, file });
@@ -265,10 +285,14 @@ try {
 			assert.match(status.error?.message ?? '', /color matrix is not yet supported/);
 			continue;
 		}
+		if (file === highQualityAlpha) {
+			await transport({ kind: 'Seek', position_ms: 0 });
+			await wait(frame, (value) => value?.position_ms === 0, 'DXV HQ first frame');
+		}
 		const held = await pixels(file, sender, extent, hq, 0, baseline);
 		evidence.push({ name, timestamp: 0, ...held });
-		if (file === moving && !baseline) {
-			for (const position of [1250, 0]) {
+		if (!baseline && (file === moving || file === highQualityAlpha)) {
+			for (const position of file === highQualityAlpha ? [1250, 2500, 0] : [1250, 0]) {
 				await transport({ kind: 'Seek', position_ms: position });
 				await wait(frame, (value) => value?.position_ms === position, `DXV frame ${position}`);
 				evidence.push({

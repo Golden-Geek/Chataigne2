@@ -2,8 +2,8 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `█████████░` **87% — 119/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** 4K animated WebP now converts and decodes in parallel. The NVIDIA test reached 15.2 frame updates/s, up from 13.0. [NVIDIA comparison](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)
-- **Working on next:** Verify translucent DXV3 High Quality playback.
+- **Latest delivered:** Translucent DXV3 High Quality playback passed exact-seek and color checks. [DXV checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
+- **Working on next:** Improve 4K animated WebP decoder throughput and finish the loop.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -45,7 +45,7 @@
 - [x] **Video subtitles are per channel.** Select the Video in Medias, expand **Inspector → Channels → [channel name] → Subtitles**, enable the folder, and choose that channel’s embedded track or subtitle file. Size, font, and position are also per channel. Editing one preserved the other’s output with two different files and with two channels sharing one MKV. Both MKV selections survived reload. [Two files](evidence/mapgyver-m10-channel-subtitles-2026-11-18.json) · [Shared MKV](evidence/mapgyver-m10-mkv-tracks-2026-11-19.json)
 - [x] **MKV playback with track selection.** Verified H.264 with stereo PCM and embedded SubRip. Choose **Inspector → Channels → [channel name] → Audio → Track** to switch tracks during playback. Automatic follows the file’s default, and a missing explicit track is silent. Selections survived reload. [Checks](evidence/mapgyver-m10-mkv-tracks-2026-11-19.json)
 - [x] **WebP playback.** Open a still or animated WebP as a Video channel File. Lossless and lossy transparency, variable frame durations, seeking and looping passed on native output. [Checks](evidence/mapgyver-m10-webp-2026-11-19.json)
-- [x] **DXV playback.** Open DXV MOV files as a Video channel File. Legacy and DXV3 Normal and High Quality passed native pixel checks. Normal Quality playback, seeking and translucent compositing passed. [Checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
+- [x] **DXV playback.** Open DXV MOV files as a Video channel File. Legacy and DXV3 Normal and High Quality passed native pixel checks. Playback, seeking and translucent compositing passed for Normal and High Quality. [Checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
 - [x] **Moving MKV tracks and loops.** HEVC with two Opus and two SubRip tracks passed live switching and cropped hard and smooth loops. Native picture and caption samples matched the corresponding WASAPI mixer signals. [Checks](evidence/mapgyver-m10-mkv-loop-2026-11-19.json)
 - [x] **Video file recovery.** Missing or malformed input clears stale track options and silences the channel while keeping its selections. Restoring a valid MKV at the same path recovered picture, captions, and audio during playback. Relinking to animated WebP and DXV also passed. [Checks](evidence/mapgyver-m10-file-replacement-2026-11-19.json)
 - [x] **Editor manipulation:** the smoothness improvements you accepted in Screen Warping, Surface Source and Composition.
@@ -68,8 +68,7 @@
 
 ## Pending qualification — in order
 
-1. **NOW — Extended Video formats:** verify translucent pixels from a DXV3 High Quality file. [DXV checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
-   - Animated WebP reached 49.1 updates/s at 1080p and 15.2 at 4K on NVIDIA. All connected frame markers matched. The 4K clip reached 3.67 of 4 seconds. The loop tail, cadence, latency and minimized/disconnected CPU checks remain open. [WebP comparison](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)
+1. **NOW — Extended Video formats:** animated WebP reached 49.1 updates/s at 1080p and 15.2 at 4K on NVIDIA. All connected frame markers matched. The 4K clip reached 3.67 of 4 seconds. The loop tail, cadence, latency and minimized/disconnected CPU checks remain open. [WebP comparison](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)
    - H.264 MKV passed frame identity, output cadence and CPU checks. The 4K latency upper bound exceeds 50 ms. [MKV run](evidence/mapgyver-m10-mkv-sustained-2026-11-19.json)
    - Sustained DXV, additional profiles, repeat runs, complete GPU timing and device recovery remain open.
 2. **Shared editor feedback presentation:** built and functionally checked. Native paint packets are accepted, but matching installation/presented-frame proof is missing. Finish native paint/alignment and actual Composition/Matrix presentation checks.
