@@ -1,4 +1,4 @@
-use super::{DecodeError, TimeBase, ffmpeg, metadata::raw_tag};
+use super::{DecodeError, TimeBase, ffmpeg, metadata::raw_tag, webp};
 use std::path::Path;
 
 /// Container timing for its selected video stream, without retaining a frame decoder.
@@ -15,15 +15,14 @@ pub fn probe_timing_with_interrupt(
     path: &Path,
     interrupt: impl FnMut() -> bool + Send + 'static,
 ) -> Result<StreamTiming, DecodeError> {
-    if !path.is_file() {
-        return Err(DecodeError::NotAFile);
-    }
-    ffmpeg::init()?;
-    let input = ffmpeg::format::input_with_interrupt(&path, interrupt)?;
-    stream_timing(&input)
+    let (input, animation) = webp::open_video(path, interrupt)?;
+    stream_timing(&input, animation.as_ref())
 }
 
-pub(super) fn stream_timing(input: &ffmpeg::format::context::Input) -> Result<StreamTiming, DecodeError> {
+pub(super) fn stream_timing(
+    input: &ffmpeg::format::context::Input,
+    animation: Option<&webp::Animation>,
+) -> Result<StreamTiming, DecodeError> {
     let stream = input
         .streams()
         .best(ffmpeg::media::Type::Video)
@@ -33,7 +32,7 @@ pub(super) fn stream_timing(input: &ffmpeg::format::context::Input) -> Result<St
         return Err(ffmpeg::Error::InvalidData.into());
     }
     Ok(StreamTiming {
-        duration: stream_duration(input, &stream),
+        duration: stream_duration(input, &stream, animation),
         time_base: TimeBase {
             numerator: base.numerator() as u32,
             denominator: base.denominator() as u32,
@@ -41,12 +40,24 @@ pub(super) fn stream_timing(input: &ffmpeg::format::context::Input) -> Result<St
     })
 }
 
-pub(super) fn stream_duration(input: &ffmpeg::format::context::Input, stream: &ffmpeg::Stream<'_>) -> Option<i64> {
+pub(super) fn stream_duration(
+    input: &ffmpeg::format::context::Input,
+    stream: &ffmpeg::Stream<'_>,
+    animation: Option<&webp::Animation>,
+) -> Option<i64> {
+    if let Some(animation) = animation {
+        return Some(animation.duration_ms);
+    }
     let declared = stream.duration();
     if declared > 0 {
         return Some(declared);
     }
-    if !input.format().name().split(',').any(|format| format == "matroska") {
+    let format = input.format();
+    if format.name() == "webp_pipe" && stream.parameters().id() == ffmpeg::codec::Id::WEBP {
+        // The demuxer publishes the still image at tick zero with one tick of duration.
+        return Some(1);
+    }
+    if !format.name().split(',').any(|format| format == "matroska") {
         return None;
     }
     let base = stream.time_base();

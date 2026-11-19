@@ -17,6 +17,7 @@ impl From<DecodeError> for Failure {
     fn from(error: DecodeError) -> Self {
         let kind = match error {
             DecodeError::NotAFile => VideoSourceErrorKind::Missing,
+            DecodeError::Io(_) => VideoSourceErrorKind::Io,
             DecodeError::UnsupportedCodec
             | DecodeError::UnsupportedHardware
             | DecodeError::UnsupportedSoftwareStorage => VideoSourceErrorKind::Unsupported,

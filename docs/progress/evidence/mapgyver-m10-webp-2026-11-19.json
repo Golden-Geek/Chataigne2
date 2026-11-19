@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-19",
+  "gate": "M10/3",
+  "result": "Verified still and animated WebP playback through the bundled Video channel. Full extended-format qualification remains open.",
+  "fixture": "apps/mapgyver/tests/browser/native-video-webp.mjs",
+  "baseline": {
+    "revision": "c5b4622f",
+    "receipt": "target/m103-webp-baseline/run-gpJXZV/result.json",
+    "observed": "Still and animated inputs both reported Video stream duration is unavailable."
+  },
+  "bundle": {
+    "receipt": "target/m103-webp-corrected/run-ub4ym4/result.json",
+    "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "variants": ["Lossless VP8L", "Lossy VP8 with alpha"],
+    "color": "Unprofiled sRGB. The lossy samples used a separate libwebp decode as the color reference.",
+    "extent": [64, 48],
+    "stillDurationMs": 40,
+    "animationDurationsMs": [240, 560, 400],
+    "animationDurationMs": 1200,
+    "heldSeeksMs": [0, 239, 240, 800, 1199, 240],
+    "selectedFramesMs": [0, 0, 240, 800, 800, 240],
+    "verified": [
+      "Each source replaced the previous file on the same Video channel and produced its own pixels.",
+      "Eleven independent Spout samples preserved the yellow surface under the transparent half. Foreground samples stayed within two 8-bit channel values of the reference.",
+      "A natural wrap returned from the last animation frame to the first while Video was playing.",
+      "The lossy animation rendered its third frame after a seek."
+    ]
+  },
+  "software": {
+    "goldenVideoDecodeTestsPassed": 50,
+    "mapgyverVideoTestsPassed": 23,
+    "strictClippy": "pass",
+    "bundledBuild": "pass"
+  },
+  "remaining": [
+    "DXV and remaining MKV profile and moving sync coverage.",
+    "Extended-format bundled recovery, sustained performance and resource qualification."
+  ]
+}

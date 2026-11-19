@@ -76,9 +76,11 @@ impl SoftwareImageConverter {
         }
         let input = frame.software_image().ok_or(ConversionError::HardwareStorage)?;
         let space = input.color_space();
-        if !matches!(space, Space::RGB | Space::BT709 | Space::Unspecified) {
-            return Err(ConversionError::UnsupportedMatrix);
-        }
+        let matrix = match space {
+            Space::RGB | Space::BT709 | Space::Unspecified => ffmpeg::ffi::SWS_CS_ITU709,
+            Space::SMPTE170M => ffmpeg::ffi::SWS_CS_ITU601,
+            _ => return Err(ConversionError::UnsupportedMatrix),
+        };
         let transfer = input.color_transfer_characteristic();
         if !matches!(
             transfer,
@@ -124,7 +126,7 @@ impl SoftwareImageConverter {
         // SAFETY: live uniquely owned SwsContext and FFmpeg's static coefficient table.
         // RGB output is full range; input full/limited range is read from the actual frame.
         let color = unsafe {
-            let coefficients = ffmpeg::ffi::sws_getCoefficients(ffmpeg::ffi::SWS_CS_ITU709);
+            let coefficients = ffmpeg::ffi::sws_getCoefficients(matrix);
             ffmpeg::ffi::sws_setColorspaceDetails(
                 scaler.as_mut_ptr(),
                 coefficients,

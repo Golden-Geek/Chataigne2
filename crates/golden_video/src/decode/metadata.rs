@@ -1,5 +1,5 @@
 //! Metadata from one bounded, interruptible local demux context.
-use super::{DecodeError, StreamTiming, ffmpeg, subtitles, timing::stream_timing};
+use super::{DecodeError, StreamTiming, ffmpeg, subtitles, timing::stream_timing, webp};
 use std::{ffi::CStr, path::Path};
 
 const MAX_TRACKS: usize = 64;
@@ -34,8 +34,8 @@ pub fn probe_media(
     path: &Path,
     interrupt: impl FnMut() -> bool + Send + 'static,
 ) -> Result<MediaMetadata, DecodeError> {
-    let input = open_local(path, interrupt)?;
-    let video = stream_timing(&input)?;
+    let (input, animation) = webp::open_video(path, interrupt)?;
+    let video = stream_timing(&input, animation.as_ref())?;
     let audio = input
         .streams()
         .filter(|stream| supported_audio(stream))

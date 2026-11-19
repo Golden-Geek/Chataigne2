@@ -15,6 +15,7 @@ mod metadata;
 mod parallelism;
 mod software_pool;
 pub mod subtitles;
+mod webp;
 pub use audio::{AudioChunk, AudioReader};
 pub use hap::{HapFormat, HapFrame};
 pub use image::{ConversionError, SoftwareImageConverter};
@@ -143,6 +144,9 @@ pub enum DecodeError {
     /// Network endpoints and missing/non-regular paths are not local decode inputs.
     #[error("video path is not an existing regular file")]
     NotAFile,
+    /// Local file metadata or container header IO failed.
+    #[error("video IO: {0}")]
+    Io(#[from] std::io::Error),
     /// The selected stream's codec has no available decoder in this build.
     #[error("no decoder is available for this video codec")]
     UnsupportedCodec,
@@ -185,6 +189,7 @@ pub enum DecodeError {
 /// Worker queue admission and retained frame budgets remain the owning runtime's responsibility.
 pub struct Decoder {
     input: ffmpeg::format::context::Input,
+    animation: Option<webp::Animation>,
     decoder: Option<ffmpeg::decoder::Video>,
     stream: usize,
     info: StreamInfo,
@@ -332,11 +337,7 @@ impl Decoder {
         {
             return Err(DecodeError::InvalidLimits);
         }
-        if !path.is_file() {
-            return Err(DecodeError::NotAFile);
-        }
-        ffmpeg::init()?;
-        let input = ffmpeg::format::input_with_interrupt(&path, interrupt)?;
+        let (input, animation) = webp::open_video(path, interrupt)?;
         let stream = input
             .streams()
             .best(ffmpeg::media::Type::Video)
@@ -375,10 +376,11 @@ impl Decoder {
                 denominator: base.denominator() as u32,
             },
             start: timestamp(stream.start_time()),
-            duration: timing::stream_duration(&input, &stream),
+            duration: timing::stream_duration(&input, &stream, animation.as_ref()),
         };
         Ok(Self {
             input,
+            animation,
             decoder,
             stream: index,
             info,
@@ -484,6 +486,34 @@ impl Decoder {
                 return Err(DecodeError::OutsideStream);
             }
         }
+        if let Some(animation) = &self.animation {
+            let reset = animation.rewind().and_then(|input| {
+                // The decoder's compositing canvas is format state as well as packet state.
+                let decoder = open_decoder(
+                    &input,
+                    self.stream,
+                    self.limits,
+                    &self.kind,
+                    self.allocation_pixel_limit,
+                )?;
+                if (decoder.width(), decoder.height()) != (self.info.width, self.info.height) {
+                    return Err(DecodeError::CompanionMismatch);
+                }
+                Ok((input, decoder))
+            });
+            match reset {
+                Ok((input, decoder)) => {
+                    self.input = input;
+                    self.decoder = Some(decoder);
+                    self.state = DecodeState::Reading;
+                    return Ok(());
+                }
+                Err(error) => {
+                    self.state = DecodeState::Failed;
+                    return Err(error);
+                }
+            }
+        }
         // Ordinary scrubbing keeps the admitted codec and hardware frame pool. Recreating
         // them per pointer update can starve the latest request. Drained HEVC can emit an
         // old delayed frame after flush, so a drain/EOF discontinuity still gets a new codec.
@@ -552,10 +582,14 @@ impl Decoder {
         let mut packets = 0;
         loop {
             let mut image = ffmpeg::frame::Video::empty();
-            match self.decoder.as_mut().unwrap().receive_frame(&mut image) {
+            let decoder = self.decoder.as_mut().unwrap();
+            match decoder.receive_frame(&mut image) {
                 Ok(()) => {
                     admit_extent(image.width(), image.height(), self.limits.max_pixels)?;
                     let timestamp = image.timestamp().ok_or(DecodeError::MissingTimestamp)?;
+                    if matches!(decoder.id(), ffmpeg::codec::Id::WEBP | ffmpeg::codec::Id::WEBP_ANIM) {
+                        webp::set_color_metadata(&mut image);
+                    }
                     let storage = self.kind.frame(image)?;
                     return Ok(Some(DecodedFrame { timestamp, storage }));
                 }
