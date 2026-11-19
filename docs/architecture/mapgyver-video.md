@@ -418,10 +418,11 @@ image; the render turn performs GPU imports/copies rather than CPU `UpdateSubres
 GPU-frame publishers use the same explicit timeline-fence completion as Golden's source workers;
 copy-only progress must not depend on rendering/timestamp-query batches being submitted.
 All three source slots are charged to existing GPU admission before native allocation.
-MapGyver admits this software GPU route for rasters up to1920×1080 pixels; larger software
-files retain their direct ImageStream upload. This operational profile choice preserves the
-measured faster4K path while the new HD path reaches59.71 observed updates/s on NVIDIA.
-It does not change authored resolution, source limits, memory budgets or qualification targets.
+MapGyver uses this software GPU route for rasters up to 1920×1080 pixels. Larger animated WebP
+files also use it when the source can admit three GPU slots for the software converter's exact
+output descriptor. When that admission fails, the same decoder continues through direct
+ImageStream upload. Other large software files use direct upload. The staging pool is charged
+to the existing GPU budget before creating native resources.
 The Reader converts one already-decoded future image while the selected image uploads, and
 consumes it only at its exact timestamp. Seek, predecessor probing and EOF clear prepared data.
 A fresh media-clock check skips speculative conversion if sampling is already due or the

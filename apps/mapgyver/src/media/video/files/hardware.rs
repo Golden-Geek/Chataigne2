@@ -1,9 +1,29 @@
 //! Exact-adapter file decode and asynchronous, clock-fenced GPU publication.
 use super::super::control::scheduling;
 use super::*;
-use golden_video::decode::{DecodeStorage, HapFormat};
+use golden_video::decode::{DecodeStorage, HapFormat, SoftwareImageConverter};
 use golden_video::native::{GpuFrameError, GpuFrameInput, GpuFramePublisher, GpuFrameSampling};
 use loop_pair::LoopPair;
+
+pub(super) struct SoftwareAdmission {
+    pub cpu: Arc<Lease>,
+    pub publisher: Option<GpuFramePublisher>,
+}
+
+impl Hardware {
+    pub(super) fn stage_software(
+        &self,
+        extent: golden_video::Extent2D,
+        wake: WorkerNotifier,
+    ) -> Result<GpuFramePublisher, GpuFrameError> {
+        GpuFramePublisher::new_software(
+            SoftwareImageConverter::output_descriptor(extent),
+            self.adapter,
+            &self.budget,
+            Some(wake),
+        )
+    }
+}
 
 #[derive(Clone, Copy)]
 struct PreparedFrame {
@@ -81,7 +101,7 @@ impl Run {
         owner: uuid::Uuid,
         hardware: &Hardware,
         mut decoder: Decoder,
-        cpu_lease: Option<Arc<Lease>>,
+        software_admission: Option<SoftwareAdmission>,
     ) -> Result<(), Failure> {
         let compressed = decoder.storage() == DecodeStorage::Hap;
         let software = decoder.storage() == DecodeStorage::Software;
@@ -95,12 +115,15 @@ impl Run {
                 .and_then(|frames| frames.checked_add(bytes))
                 .ok_or("HAP storage overflow")?;
         }
-        let mut cpu_lease = match cpu_lease {
-            Some(lease) => lease,
-            None => Arc::new(
-                self.budget
-                    .reserve_bytes(bytes)
-                    .map_err(|error| Failure(VideoSourceError::new(VideoSourceErrorKind::Capacity, error)))?,
+        let (mut cpu_lease, mut admitted_publisher) = match software_admission {
+            Some(admission) => (admission.cpu, admission.publisher),
+            None => (
+                Arc::new(
+                    self.budget
+                        .reserve_bytes(bytes)
+                        .map_err(|error| Failure(VideoSourceError::new(VideoSourceErrorKind::Capacity, error)))?,
+                ),
+                None,
             ),
         };
         if compressed {
@@ -270,7 +293,9 @@ impl Run {
                         };
                         let frame = reader.frame();
                         if publisher.is_none() {
-                            publisher = Some(if let Some(image) = &image {
+                            publisher = Some(if let Some(admitted) = admitted_publisher.take() {
+                                admitted
+                            } else if let Some(image) = &image {
                                 GpuFramePublisher::new_software(
                                     image.descriptor(),
                                     hardware.adapter,

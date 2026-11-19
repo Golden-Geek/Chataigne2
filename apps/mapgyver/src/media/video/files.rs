@@ -601,13 +601,30 @@ impl Run {
                 info.codec, info.width, info.height
             );
         }
-        // The measured software GPU transfer helps HD. Large rasters use direct upload.
         #[cfg(all(windows, feature = "native-video"))]
         if let Some(hardware) = &self.hardware
             && hardware.has_storage_budget()
-            && u64::from(decoder.info().width) * u64::from(decoder.info().height) <= super::reader::HD_PIXELS
         {
-            return self.drive_native(worker, owner, hardware, decoder, Some(lease));
+            let info = decoder.info();
+            let hd = u64::from(info.width) * u64::from(info.height) <= super::reader::HD_PIXELS;
+            let publisher = if !hd && decoder.seek_rewinds_to_start() {
+                // Budget or device admission may be unavailable while other sources retire.
+                // Keep the direct software route and its admitted decoder in that case.
+                golden_video::Extent2D::new(info.width, info.height)
+                    .ok()
+                    .and_then(|extent| hardware.stage_software(extent, worker.wake_notifier()).ok())
+            } else {
+                None
+            };
+            if hd || publisher.is_some() {
+                return self.drive_native(
+                    worker,
+                    owner,
+                    hardware,
+                    decoder,
+                    Some(hardware::SoftwareAdmission { cpu: lease, publisher }),
+                );
+            }
         }
         let mut reader = Reader::new(decoder)?;
         self.control

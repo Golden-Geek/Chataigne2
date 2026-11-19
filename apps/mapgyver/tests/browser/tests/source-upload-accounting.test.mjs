@@ -57,9 +57,11 @@ test('Q06 checks codec-specific payloads and rejects absent, expanded or mixed u
 		'HAP Q'
 	]) {
 		const hap = codec.startsWith('HAP');
+		const webp = codec === 'WebP VP8 Alpha';
 		const kind = hap ? 'hap' : 'software';
 		const allocation = hap ? 'hap_producers' : 'software_producers';
-		const bytes = hap ? (codec === 'HAP' ? 129600032 : 134784032) : 1920 * 1080 * 4 * 3;
+		const pixels = webp ? 1920 * 1080 + 3840 * 2160 : 1920 * 1080;
+		const bytes = hap ? (codec === 'HAP' ? 129600032 : 134784032) : pixels * 4 * 3;
 		const budget = {
 			peak_admitted_bytes: bytes,
 			maximum_observed_classes: Object.fromEntries(
@@ -67,7 +69,7 @@ test('Q06 checks codec-specific payloads and rejects absent, expanded or mixed u
 					(name) => [
 						name,
 						{
-							allocations: name === allocation ? (hap ? 2 : 1) : 0,
+							allocations: name === allocation ? (hap || webp ? 2 : 1) : 0,
 							bytes: name === allocation ? bytes : 0
 						}
 					]
@@ -79,7 +81,7 @@ test('Q06 checks codec-specific payloads and rejects absent, expanded or mixed u
 		};
 		budget.upload_budgets[0].uploads[kind] = {
 			calls: 2,
-			bytes: 1920 * 1080 * (hap ? (codec === 'HAP' ? 2.5 : 5) : 8)
+			bytes: hap ? 1920 * 1080 * (codec === 'HAP' ? 2.5 : 5) : pixels * (webp ? 4 : 8)
 		};
 		assertQ06SourceUploads(codec, budget, standardCases);
 		for (const mutate of [

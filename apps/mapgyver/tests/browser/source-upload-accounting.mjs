@@ -24,8 +24,8 @@ export function assertQ06Workload(cases) {
 	);
 }
 
-// Q06 shares the first software file; the second file uploads in the renderer.
-// HAP has one GPU publisher per file, independent of the number of consumers.
+// HAP and animated WebP have one GPU publisher per file. Other software cohorts
+// stage the HD file and upload the large file in the renderer.
 export function assertQ06SourceUploads(codec, budget, cases) {
 	assertQ06Workload(cases);
 	assert(
@@ -51,14 +51,15 @@ export function assertQ06SourceUploads(codec, budget, cases) {
 	const kind = hap ? 'hap' : 'software';
 	const allocation = hap ? 'hap_producers' : 'software_producers';
 	const groups = budget.maximum_observed_classes;
-	assert.equal(groups[allocation].allocations, hap ? 2 : 1, 'one publisher per shared source');
+	const staged = hap || codec === 'WebP VP8 Alpha' ? cases : cases.slice(0, 1);
+	assert.equal(groups[allocation].allocations, staged.length, 'one publisher per staged file');
 	// Each HAP retains one compressed input, three RGBA outputs and 16 constant bytes.
-	const compressedBytesPerPixel = codec === 'HAP' ? 0.5 : 1;
-	const pixels = cases.map(({ width, height }) => width * height);
-	const blocks = pixels.map((value) => value * compressedBytesPerPixel);
-	const expected = hap
-		? pixels.reduce((sum, pixels) => sum + pixels * (4 * 3 + compressedBytesPerPixel) + 16, 0)
-		: pixels[0] * 4 * 3;
+	const bytesPerPixel = hap ? (codec === 'HAP' ? 0.5 : 1) : 4;
+	const pixels = staged.map(({ width, height }) => width * height);
+	const expected = pixels.reduce(
+		(sum, count) => sum + count * 4 * 3 + (hap ? count * bytesPerPixel + 16 : 0),
+		0
+	);
 	assert.equal(groups[allocation].bytes, expected);
 	assert.equal(budget.peak_admitted_bytes, groups[allocation].bytes);
 	for (const [name, group] of Object.entries(groups))
@@ -66,14 +67,13 @@ export function assertQ06SourceUploads(codec, budget, cases) {
 	const uploads = budget.upload_budgets.filter((entry) => entry.uploads[kind].calls > 0);
 	assert.equal(uploads.length, 1, 'one counted source budget');
 	const total = uploads[0].uploads[kind];
-	if (hap) {
-		// Aggregate conservation only; the strict audit must still join each file/PTS payload.
-		if (blocks[0] === blocks[1]) assert.equal(total.bytes, total.calls * blocks[0]);
-		else {
-			const secondCalls = (total.bytes - total.calls * blocks[0]) / (blocks[1] - blocks[0]);
-			assert(Number.isSafeInteger(secondCalls) && secondCalls > 0 && secondCalls < total.calls);
-		}
-	} else assert.equal(total.bytes, total.calls * pixels[0] * 4);
+	const [first, second = first] = pixels.map((count) => count * bytesPerPixel);
+	// Aggregate conservation only; the strict audit must still join each file/PTS payload.
+	if (first === second) assert.equal(total.bytes, total.calls * first);
+	else {
+		const secondCalls = (total.bytes - total.calls * first) / (second - first);
+		assert(Number.isSafeInteger(secondCalls) && secondCalls > 0 && secondCalls < total.calls);
+	}
 	for (const entry of budget.upload_budgets)
 		assert.deepEqual(entry.uploads[hap ? 'software' : 'hap'], { calls: 0, bytes: 0 });
 }

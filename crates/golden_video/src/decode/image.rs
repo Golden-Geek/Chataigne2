@@ -52,6 +52,16 @@ enum Scaler {
 }
 
 impl SoftwareImageConverter {
+    /// Exact pixel contract for an admitted software projection at this output size.
+    pub const fn output_descriptor(extent: Extent2D) -> TextureDescriptor {
+        TextureDescriptor {
+            extent,
+            format: PixelFormat::Rgba8Unorm,
+            color_encoding: ColorEncoding::Srgb,
+            alpha_mode: AlphaMode::Straight,
+        }
+    }
+
     /// Explicit bound shared by scratch and every separately retained output image.
     /// Codec/scaler-private allocations and heap overhead are separate.
     pub fn new(max_bytes: u64) -> Result<Self, ConversionError> {
@@ -170,17 +180,9 @@ impl SoftwareImageConverter {
                 }
             }
         }
-        ImageData::new(
-            TextureDescriptor {
-                extent,
-                format: PixelFormat::Rgba8Unorm,
-                color_encoding: ColorEncoding::Srgb,
-                alpha_mode: AlphaMode::Straight,
-            },
-            pixels,
-        )
-        .and_then(|image| image.with_storage(image_lease))
-        .map_err(|e| failed(e.to_string()))
+        ImageData::new(Self::output_descriptor(extent), pixels)
+            .and_then(|image| image.with_storage(image_lease))
+            .map_err(|e| failed(e.to_string()))
     }
 }
 

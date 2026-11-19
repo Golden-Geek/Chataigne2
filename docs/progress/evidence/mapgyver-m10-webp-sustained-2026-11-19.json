@@ -409,6 +409,43 @@
       "commit": "3f4b593f51538723107ced8bb4ef82e098bcd80a"
     }
   },
+  "stagedUploadFollowUp": {
+    "baseRevision": "edd5b93d",
+    "direct": "target/m103-q06-webp/sample-nvidia-11-direct",
+    "staged": "target/m103-q06-webp/sample-nvidia-10",
+    "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "binarySha256DirectStaged": ["e317ef81f6a115d0ab32a25d15d497b8e5a9d72c018432709d809553997aceba", "1de5f52e0d4d3145d3909142f53159ee7a254674ac77da9cf0a9c56f2716b047"],
+    "captureReceiptSha256DirectStaged": ["e46ff0a982cdacea8af111c1932b38facd8b1b682e33a48cd21f09ffda1c8e68", "4a9ef4aa3ba15bb22e6d60149b99c8ac11ca9251cbd4d6679ad4821e65765875"],
+    "auditSha256DirectStaged": ["926fa813daf608adad2e3025e912f301e31e5ac9d5e74bd0653cfabeffd26e35", "34a49a3eb88fc7754be17ccfa57bef2f8df26451274a96f5b18c84ef79bb935f"],
+    "unchangedInputHashesAtCaptureDirectStaged": [23, 71],
+    "checks": {
+      "goldenVideoPassed": 365,
+      "mapGyverVideoPassed": 80,
+      "sourceAccountingNodePassed": 11,
+      "nativeBothGpuSoftwareUploadPixelsAndSlotOwnership": "pass",
+      "strictClippyAndBundledBuild": "pass",
+      "controllerExitDirectStaged": [0, 1],
+      "stagedControllerFailure": "The controller completed all phases and preserved diagnostics, then its old assertion expected one software publisher. The updated assertion passes against the preserved two-publisher inventory. Offline strict attribution and pixel audits used the unchanged diagnostic-failure receipt."
+    },
+    "rendererCpuP95MsDirectStagedVisibleMinimizedDisconnected": [[3.3063, 0.7360], [6.0517, 0.7750], [5.7321, 1.0600]],
+    "rendererGpuP95MsDirectStagedVisibleMinimizedDisconnected": [[8.8119, 4.4993], [10.5904, 5.0706], [10.8297, 5.7183]],
+    "publicationRatesHD_UHDDirectStaged": {
+      "visible": [[46.7783, 29.9944], [46.8372, 29.9032]],
+      "minimized": [[40.9590, 27.8055], [47.0501, 29.6019]],
+      "disconnected": [[42.7534, 29.9174], [44.8542, 28.7873]]
+    },
+    "deadlineVerdictsDirectStagedVisibleMinimizedDisconnected": [[true, false, true], [true, true, true]],
+    "uhdConnectedAgeP95UpperMsDirectStagedVisibleMinimized": [[36.7350, 38.2861], [58.4480, 39.0366]],
+    "stagedConnectedMatchingMarkers": 32414,
+    "stagedConnectedMissingOrMismatchedMarkers": 0,
+    "heldImagesByteIdentical": [true, true, true],
+    "visibleUhdLoopsWithFinalFrameOf29": [29, 29],
+    "sourceGpuPeakBytesDirectStaged": [24883200, 124416000],
+    "nativePlanAndOutputTexelPeakBytesDirectStaged": [353811208, 353811208],
+    "finalTrackedSourceAndNativeTexelBytesDirectStaged": [[0, 0], [0, 0]],
+    "finalPlanTextureAllocationsCreatedReleasedDirectStaged": [[49, 49], [26, 26]],
+    "decision": "Keep the staging route as a product checkpoint for substantially lower renderer CPU and improved minimized deadlines and age. 4K source cadence after receiver disconnect was lower in the staged comparison. Full HD cadence, disconnected UHD cadence, complete GPU budget proof, repeated runs, Intel sustained WebP and device recovery remain open."
+  },
   "softwareChecks": {
     "mapGyverVideo": 75,
     "goldenVideoScheduling": 5,

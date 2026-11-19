@@ -2,8 +2,8 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `█████████░` **87% — 119/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** Hidden or slower outputs skip unused render passes. Both GPUs passed the 30/60 Hz and restore checks. Minimizing MapGyver halved rendered passes in the Intel DXV run. [DXV checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
-- **Working on next:** Reduce 4K animated WebP upload cost to keep concurrent HD playback smooth.
+- **Latest delivered:** Large animated WebP uploads move off the renderer when GPU slots are available. NVIDIA minimized renderer CPU p95 dropped from 6.05 to 0.78 ms, with matching connected pixels. [WebP checks](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)
+- **Working on next:** Recover the remaining HD and disconnected 4K animated WebP cadence.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
