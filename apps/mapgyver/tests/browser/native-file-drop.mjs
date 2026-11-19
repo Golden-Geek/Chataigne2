@@ -20,7 +20,9 @@ let observed;
 page.on('pageerror', (error) => errors.push(String(error)));
 let token, stage, failure, media;
 const editorDrops = process.argv.includes('--editors');
+const matrixDrops = process.argv.includes('--matrix');
 const editors = {};
+let matrixResult;
 
 async function post(route, body) {
 	const response = await fetch(native.base + route, {
@@ -62,6 +64,108 @@ async function wait(read, accepts, timeout = 5000) {
 const manager = page.locator('section[data-panel-id="media-manager"]');
 const tab = (name) => page.getByRole('tab').filter({ hasText: new RegExp(`^${name}(?::|$)`) });
 const showMedia = () => tab('Medias').click();
+
+async function verifyMatrix(drop) {
+	stage = 'open a Matrix with its default sparse grid';
+	const label = 'File import Matrix';
+	const { reference } = await edit({ kind: 'CreateMedia', media_kind: 'Matrix', label });
+	const operation = (command) => edit({ kind: 'Matrix', media: reference.media, edit: command });
+	const matrix = async () => (await operation({ kind: 'Inspect' })).snapshot;
+	const filePath = async (cell) => {
+		const source = cell?.definition.source;
+		return source
+			? (await edit({ kind: 'InspectChannel', reference: source })).snapshot.definition.source.file
+					?.path
+			: undefined;
+	};
+	const initial = await matrix();
+	const layer = initial.items[0].id.id;
+	const column = initial.columns[0].id;
+	await manager.getByRole('button', { name: label, exact: true }).click();
+	await tab('Matrix').click();
+	const panel = page.locator('section[aria-label="Matrix"]');
+	const grid = panel.getByRole('grid');
+	const cell = panel.locator(`[data-cell-layer="${layer}"][data-cell-column="${column}"]`);
+	const fileSlot = panel.locator(`[data-matrix-file-new-column="${layer}"]`);
+	const scrollToLastColumn = () =>
+		grid.evaluate((element) => element.scrollTo(element.scrollWidth, 0));
+	await cell.waitFor();
+
+	stage = 'import a disk-backed Picture into an empty Cell';
+	await drop(panel, cell, original, 'Import into Cell');
+	const first = await wait(async () => (await matrix()).cells[0], Boolean);
+	assert.equal(await filePath(first), original);
+	assert.equal(first.layer, layer);
+	assert.equal(first.definition.column, column);
+	await wait(
+		() => cell.locator('[data-cell-id]').getAttribute('data-cell-id'),
+		(id) => id === first.id
+	);
+
+	stage = 'replace Media while keeping the Cell and restore it with one Undo';
+	await drop(panel, cell, replacement, 'Replace Cell media');
+	const replaced = await wait(
+		async () => (await matrix()).cells[0],
+		(entry) => entry != null && entry.media !== first.media
+	);
+	assert.equal(replaced.id, first.id);
+	assert.equal(await filePath(replaced), replacement);
+	await intent({ kind: 'undo' });
+	assert.deepEqual((await matrix()).cells[0], first);
+	await intent({ kind: 'redo' });
+	assert.deepEqual((await matrix()).cells[0], replaced);
+
+	stage = 'drop in the open area and undo the new Column and Cell together';
+	await scrollToLastColumn();
+	await fileSlot.waitFor();
+	await drop(panel, fileSlot, original, 'Add Column');
+	const expanded = await wait(
+		matrix,
+		(value) => value.columns.length === initial.columns.length + 1
+	);
+	const addedColumn = expanded.columns.at(-1).id;
+	const addedCell = expanded.cells.find((entry) => entry.definition.column === addedColumn);
+	assert.equal(addedCell?.layer, layer);
+	assert.equal(await filePath(addedCell), original);
+	await intent({ kind: 'undo' });
+	assert.deepEqual((await matrix()).columns, initial.columns);
+	assert.deepEqual((await matrix()).cells, [replaced]);
+	await intent({ kind: 'redo' });
+	assert.deepEqual(await matrix(), expanded);
+
+	stage = 'reject unsupported files in the right-hand space without adding a Column';
+	await wait(
+		() => grid.getAttribute('aria-colcount'),
+		(count) => Number(count) === expanded.columns.length + 2
+	);
+	await scrollToLastColumn();
+	await fileSlot.waitFor();
+	await drop(panel, fileSlot, unsupported, 'Add Column');
+	await panel.getByRole('alert').filter({ hasText: 'not a supported picture or video' }).waitFor();
+	assert.deepEqual(await matrix(), expanded);
+
+	stage = 'reload the Matrix with both owned files and their exact addresses';
+	const project = path.join(directory, 'Matrix file imports.mapgyver');
+	assert((await post('/api/ui/project-save', { path: project })).ok);
+	assert((await post('/api/ui/project-new', {})).ok);
+	await post('/api/ui/project-load', { path: project });
+	assert.deepEqual(await matrix(), expanded);
+	assert.equal(
+		await filePath((await matrix()).cells.find((entry) => entry.id === first.id)),
+		replacement
+	);
+	assert.equal(
+		await filePath((await matrix()).cells.find((entry) => entry.id === addedCell.id)),
+		original
+	);
+	matrixResult = {
+		matrix: reference.media,
+		layer,
+		firstColumn: column,
+		addedColumn,
+		cells: [first.id, addedCell.id]
+	};
+}
 
 async function verifyEditors(drop) {
 	const screenEdit = (payload) => edit(payload, 'mapgyver.screens');
@@ -227,8 +331,7 @@ try {
 	const cdp = await page.context().newCDPSession(page);
 	async function drop(area, locator, file, label, [x, y] = [0.5, 0.5]) {
 		const active = area.locator('.file-drop-feedback.active');
-		const box = await locator.boundingBox();
-		assert(box);
+		const box = await wait(() => locator.boundingBox(), Boolean);
 		const target = {
 			x: box.x + box.width * x,
 			y: box.y + box.height * y,
@@ -258,60 +361,65 @@ try {
 		await cdp.send('Input.dispatchDragEvent', { ...target, type: 'drop' });
 		await active.waitFor({ state: 'detached' });
 	}
-	const label = 'Projector café';
-	const authored = async () => (await inspect()).media.find((entry) => entry.label === label);
-	const currentFile = (entry) => entry?.channels[0].definition.source.file?.path;
-	const row = manager.locator('.outliner-item-content').filter({
-		has: page.getByRole('button', { name: label, exact: true })
-	});
+	if (matrixDrops) {
+		await verifyMatrix(drop);
+	} else {
+		const label = 'Projector café';
+		const authored = async () => (await inspect()).media.find((entry) => entry.label === label);
+		const currentFile = (entry) => entry?.channels[0].definition.source.file?.path;
+		const row = manager.locator('.outliner-item-content').filter({
+			has: page.getByRole('button', { name: label, exact: true })
+		});
 
-	stage = 'native path and background import';
-	assert.equal(await authored(), undefined);
-	await drop(manager, manager, original, 'Import Media', [0.5, 0.85]);
-	media = await wait(
-		async () => {
-			const message = await manager
-				.locator('.file-drop-error')
-				.textContent({ timeout: 60 })
-				.catch(() => null);
-			assert(!message, message);
-			return authored();
-		},
-		(entry) => currentFile(entry) === original
-	);
-	assert.equal(media.media_kind, 'Picture');
-	await intent({ kind: 'undo' });
-	assert.equal(await authored(), undefined);
-	await intent({ kind: 'redo' });
-	assert.equal((await authored()).id, media.id);
+		stage = 'native path and background import';
+		assert.equal(await authored(), undefined);
+		await drop(manager, manager, original, 'Import Media', [0.5, 0.85]);
+		media = await wait(
+			async () => {
+				const message = await manager
+					.locator('.file-drop-error')
+					.textContent({ timeout: 60 })
+					.catch(() => null);
+				assert(!message, message);
+				return authored();
+			},
+			(entry) => currentFile(entry) === original
+		);
+		assert.equal(media.media_kind, 'Picture');
+		await intent({ kind: 'undo' });
+		assert.equal(await authored(), undefined);
+		await intent({ kind: 'redo' });
+		assert.equal((await authored()).id, media.id);
 
-	stage = 'replace file on the exact Media row with one undo step';
-	await row.waitFor();
-	await drop(manager, row, replacement, `Replace file in ${label}`);
-	await wait(authored, (entry) => currentFile(entry) === replacement);
-	assert.equal((await authored()).id, media.id);
-	await intent({ kind: 'undo' });
-	assert.equal(currentFile(await authored()), original);
-	await intent({ kind: 'redo' });
-	assert.equal(currentFile(await authored()), replacement);
+		stage = 'replace file on the exact Media row with one undo step';
+		await row.waitFor();
+		await drop(manager, row, replacement, `Replace file in ${label}`);
+		await wait(authored, (entry) => currentFile(entry) === replacement);
+		assert.equal((await authored()).id, media.id);
+		await intent({ kind: 'undo' });
+		assert.equal(currentFile(await authored()), original);
+		await intent({ kind: 'redo' });
+		assert.equal(currentFile(await authored()), replacement);
 
-	stage = 'reject an unsupported file and preserve history';
-	const readHistory = async () => (await post('/api/ui/snapshot', { scope: 'wholeGraph' })).history;
-	const history = await readHistory();
-	await drop(manager, row, unsupported, `Replace file in ${label}`);
-	await manager.getByText(/This file is not a supported picture or video/).waitFor();
-	assert.deepEqual(await readHistory(), history);
-	assert.equal(currentFile(await authored()), replacement);
-	if (editorDrops) await verifyEditors(drop);
+		stage = 'reject an unsupported file and preserve history';
+		const readHistory = async () =>
+			(await post('/api/ui/snapshot', { scope: 'wholeGraph' })).history;
+		const history = await readHistory();
+		await drop(manager, row, unsupported, `Replace file in ${label}`);
+		await manager.getByText(/This file is not a supported picture or video/).waitFor();
+		assert.deepEqual(await readHistory(), history);
+		assert.equal(currentFile(await authored()), replacement);
+		if (editorDrops) await verifyEditors(drop);
 
-	stage = 'save and reload the same path and Media identity';
-	const project = path.join(directory, 'Native files.mapgyver');
-	assert((await post('/api/ui/project-save', { path: project })).ok);
-	assert((await post('/api/ui/project-new', {})).ok);
-	assert.equal(await authored(), undefined);
-	await post('/api/ui/project-load', { path: project });
-	assert.equal((await authored()).id, media.id);
-	assert.equal(currentFile(await authored()), replacement);
+		stage = 'save and reload the same path and Media identity';
+		const project = path.join(directory, 'Native files.mapgyver');
+		assert((await post('/api/ui/project-save', { path: project })).ok);
+		assert((await post('/api/ui/project-new', {})).ok);
+		assert.equal(await authored(), undefined);
+		await post('/api/ui/project-load', { path: project });
+		assert.equal((await authored()).id, media.id);
+		assert.equal(currentFile(await authored()), replacement);
+	}
 	assert.deepEqual(errors, []);
 } catch (error) {
 	failure = String(error.stack ?? error);
@@ -332,6 +440,7 @@ await writeFile(
 			stage,
 			media: media?.id,
 			editors: editorDrops ? editors : undefined,
+			matrix: matrixResult,
 			errors,
 			observed,
 			failure,

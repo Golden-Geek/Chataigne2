@@ -589,6 +589,11 @@ pub enum MediaEditResult {
         cell: crate::matrix::protocol::CellId,
         media: MediaId,
     },
+    MatrixFileImported {
+        column: crate::matrix::protocol::ColumnId,
+        cell: crate::matrix::protocol::CellId,
+        media: MediaId,
+    },
     Channels {
         page: MediaChannelsPage,
     },

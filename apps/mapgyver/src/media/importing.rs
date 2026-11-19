@@ -29,7 +29,11 @@ impl FileMedia {
         })
     }
 
-    pub(crate) fn tree(self, engine: &AppEngine, parent: NodeId) -> Result<(NodeTree, ChannelReference), String> {
+    pub(crate) fn tree(
+        self,
+        engine: &AppEngine,
+        parent: Option<NodeId>,
+    ) -> Result<(NodeTree, ChannelReference), String> {
         prepare_tree(engine, parent, self.source, self.label)
     }
 }
@@ -111,7 +115,7 @@ fn append(
     source: ChannelSource,
     label: Option<String>,
 ) -> Result<ChannelReference, String> {
-    let (tree, reference) = prepare_tree(engine, parent, source, label)?;
+    let (tree, reference) = prepare_tree(engine, Some(parent), source, label)?;
     engine.edits.push(Edit::AddUserItemTree {
         parent,
         prev_sibling: engine.nodes.get(parent).and_then(|node| node.node_data().last_child),
@@ -122,7 +126,7 @@ fn append(
 
 fn prepare_tree(
     engine: &AppEngine,
-    parent: NodeId,
+    parent: Option<NodeId>,
     source: ChannelSource,
     label: Option<String>,
 ) -> Result<(NodeTree, ChannelReference), String> {
@@ -130,6 +134,10 @@ fn prepare_tree(
         source,
         ..ChannelDefinition::default()
     };
-    let label = label_with_reserved(engine, parent, label, definition.media_kind().default_label(), &[])?;
+    let fallback = definition.media_kind().default_label();
+    let label = match parent {
+        Some(parent) => label_with_reserved(engine, parent, label, fallback, &[])?,
+        None => label.as_deref().unwrap_or(fallback).trim().to_owned(),
+    };
     Ok(media_tree(label, definition))
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import {
+		FileDropFeedback,
 		IconButton,
 		appState,
 		registerCommandHandler,
@@ -8,6 +9,7 @@
 		clearViewportSelection
 	} from 'golden_ui';
 	import SourceDropZone from '../media/SourceDropZone.svelte';
+	import { mediaFileDrop } from '../media/file-drop';
 	import playIcon from 'golden_ui/style/icons/play.svg';
 	import addIcon from 'golden_ui/style/icons/node/add.svg';
 	import deleteIcon from 'golden_ui/style/icons/panels/close.svg';
@@ -56,6 +58,7 @@
 		clearSelection,
 		trigger,
 		drop,
+		dropFile,
 		cellSource,
 		cellDrop,
 		cellCopy,
@@ -80,6 +83,7 @@
 		clearSelection(): void;
 		trigger(row: MatrixViewRow, column: ColumnSnapshot): void;
 		drop(row: MatrixViewRow, column: ColumnSnapshot, source: string, copy: boolean): void;
+		dropFile?(layer: string, column: string | null, path: string): Promise<void>;
 		cellSource(cell: string): CellDrag | null;
 		cellDrop(source: CellDrag, layer: string, column: string, event: DragEvent): void;
 		cellCopy(cell: string, cut?: boolean): boolean;
@@ -138,6 +142,26 @@
 		)
 	);
 	let element: HTMLDivElement;
+	let fileDropArea = $state<HTMLDivElement>();
+	function fileDestination(element: Element) {
+		const submit = dropFile;
+		if (disabled || !submit) return null;
+		const cell = element.closest<HTMLElement>('[data-cell-drop]');
+		const newColumn = element.closest<HTMLElement>('[data-matrix-file-new-column]');
+		const bounds = cell ?? newColumn;
+		const layer = cell?.dataset.cellLayer ?? newColumn?.dataset.matrixFileNewColumn;
+		if (!bounds || !layer) return null;
+		const column = cell?.dataset.cellColumn ?? null;
+		const populated = column !== null && cells.get(`${layer}:${column}`)?.cell.media != null;
+		return mediaFileDrop(
+			{
+				bounds,
+				label: newColumn ? 'Add Column' : populated ? 'Replace Cell media' : 'Import into Cell',
+				action: populated ? 'replace' : 'add'
+			},
+			(path) => submit(layer, column, path)
+		);
+	}
 	let dragging = $state<GridDrag | null>(null);
 	let cellDragging = $state(false);
 	let highlighted: HTMLElement | null = null;
@@ -416,7 +440,7 @@
 <svelte:window ondragend={endDrag} />
 
 <div class="matrix-viewport-shell">
-	<div class="viewport-container">
+	<div class="viewport-container" bind:this={fileDropArea}>
 		<div
 			class="viewport"
 			data-local-context-menu
@@ -590,6 +614,7 @@
 					{/each}
 				</div>
 				{#each snapshot.rows as row, index (row.item.id.id)}
+					{@const columnEnd = projection.columnOrigin + snapshot.axis_total * projection.column}
 					<div
 						class="row"
 						class:group={row.item.id.kind === 'Group'}
@@ -717,12 +742,20 @@
 								{/if}
 							</SourceDropZone>
 						{/each}
+						{#if dropFile && row.item.id.kind === 'Layer' && columnEnd < projection.left + metrics.width / metrics.rem}
+							<div
+								class="new-column-file-drop"
+								data-matrix-file-new-column={row.item.id.id}
+								style:left={`${columnEnd}rem`}>
+							</div>
+						{/if}
 					</div>
 				{/each}
 			</div>
 		</div>
 		<CellPreviews {snapshot} {metrics} />
 		<GroupRails spans={snapshot.row_groups} {projection} {metrics} />
+		{#if dropFile}<FileDropFeedback area={fileDropArea} resolve={fileDestination} />{/if}
 	</div>
 </div>
 
@@ -811,6 +844,11 @@
 		position: absolute;
 		height: var(--row);
 		width: 100%;
+	}
+	.new-column-file-drop {
+		position: absolute;
+		inset-block: 0;
+		right: 0;
 	}
 	.heading.custom-color {
 		background: color-mix(in srgb, var(--matrix-item-color) 18%, var(--gc-color-header));

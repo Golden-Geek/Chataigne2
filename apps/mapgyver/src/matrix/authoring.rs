@@ -73,6 +73,26 @@ fn admit_count(document: &Document, count: u16) -> Result<usize, String> {
     Ok(count)
 }
 
+pub(super) fn new_columns(
+    engine: &AppEngine,
+    parent: NodeId,
+    count: usize,
+) -> Result<Vec<(ColumnId, NodeTree)>, String> {
+    let names = children(engine, parent)?
+        .into_iter()
+        .map(|id| engine.nodes.get(id).unwrap().node_data().meta.label.as_str())
+        .collect::<HashSet<_>>();
+    Ok((1u64..)
+        .map(|index| format!("Column {index}"))
+        .filter(|label| !names.contains(label.as_str()))
+        .take(count)
+        .map(|label| {
+            let node = super::ColumnNode::from_definition(label, ColumnDefinition::default());
+            (ColumnId(node.node_data().meta.uuid), NodeTree::new(node))
+        })
+        .collect())
+}
+
 pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) -> Result<MediaEditResult, String> {
     if let MatrixEdit::Preset { edit } = edit {
         return super::presets::apply(engine, media, edit);
@@ -168,6 +188,9 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
             source,
             copy,
         } => return super::cells::drop_source(engine, &document, layer, column, source, copy),
+        MatrixEdit::DropMediaFile { layer, column, path } => {
+            return super::cells::drop_media_file(engine, &document, layer, column, path);
+        }
         MatrixEdit::InspectTargets { .. } => unreachable!(),
         MatrixEdit::DropColumnItem { .. } => unreachable!(),
         MatrixEdit::InspectViewport { .. } => unreachable!(),
@@ -264,25 +287,10 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
         MatrixEdit::AddColumns { parent, count } => {
             let count = admit_count(&document, count)?;
             let parent = document.column_parent(parent)?;
-            let mut names = children(engine, parent)?
+            let (columns, items) = new_columns(engine, parent, count)?
                 .into_iter()
-                .map(|id| engine.nodes.get(id).unwrap().node_data().meta.label.clone())
-                .collect::<HashSet<_>>();
-            let mut index = 1u64;
-            let mut items = Vec::with_capacity(count);
-            let mut columns = Vec::with_capacity(count);
-            for _ in 0..count {
-                let label = loop {
-                    let candidate = format!("Column {index}");
-                    index += 1;
-                    if names.insert(candidate.clone()) {
-                        break candidate;
-                    }
-                };
-                let node = super::ColumnNode::from_definition(label, ColumnDefinition::default());
-                columns.push(ColumnId(node.node_data().meta.uuid));
-                items.push(UserItemTreeInsertion::new(parent, NodeTree::new(node)));
-            }
+                .map(|(column, tree)| (column, UserItemTreeInsertion::new(parent, tree)))
+                .unzip();
             engine.edits.push(Edit::AddUserItemTrees { items });
             return Ok(MediaEditResult::MatrixCreated { items: vec![], columns });
         }

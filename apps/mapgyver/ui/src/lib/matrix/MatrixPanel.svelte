@@ -323,6 +323,12 @@
 							selectDocumentNode(result.cell);
 						}
 					}}
+					dropFile={async (layer, column, path) => {
+						const selectDropped = selection.capture();
+						const result = await owner.edit({ kind: 'DropMediaFile', layer, column, path });
+						if (result?.kind === 'MatrixFileImported' && selectDropped(result.cell))
+							controller.select({ kind: 'Layer', id: layer }, result.column, result.cell);
+					}}
 					trigger={(row, column) => {
 						if (row.item.id.kind === 'Layer')
 							void owner.edit({

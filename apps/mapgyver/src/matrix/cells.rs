@@ -1,4 +1,9 @@
-use super::{CellNode, authoring::MAX_BATCH, document::Document, protocol::*};
+use super::{
+    CellNode,
+    authoring::{MAX_BATCH, new_columns},
+    document::Document,
+    protocol::*,
+};
 use crate::{
     app::{AppEngine, AppNode},
     media::{ReferenceNode, protocol::*},
@@ -135,6 +140,69 @@ pub(super) fn create_media(
         cell
     };
     Ok(MediaEditResult::MatrixMediaCreated { cell, media })
+}
+
+pub(super) fn drop_media_file(
+    engine: &mut AppEngine,
+    document: &Document,
+    layer: LayerId,
+    column: Option<ColumnId>,
+    path: golden_assets::AbsoluteAssetPath,
+) -> Result<MediaEditResult, String> {
+    let layer_node = document.item(MatrixItemId::Layer { id: layer })?;
+    let (tree, reference) = crate::media::importing::FileMedia::new(path)?.tree(engine, None)?;
+    let mut insertions = Vec::new();
+    let column = if let Some(column) = column {
+        document.column(column)?;
+        column
+    } else {
+        let parent = document.root;
+        let (column, tree) = new_columns(engine, parent, 1)?.pop().expect("one new Column");
+        insertions.push(UserItemTreeInsertion::new(parent, tree));
+        column
+    };
+    let cell = if let Some(&id) = document.cells.get(&(layer, column)) {
+        let Some(AppNode::MatrixCell(cell)) = engine.nodes.get(id) else {
+            return Err("Matrix Cell is missing".into());
+        };
+        cell.bind_runtime(binding(engine, document));
+        let previous = cell.content(engine)?;
+        let prev_sibling = match previous {
+            Some(previous) => engine.nodes.get(previous).unwrap().node_data().prev_sibling,
+            None => cell.node_data().last_child,
+        };
+        let identity = CellId(cell.node_data().meta.uuid);
+        engine.edits.push(Edit::SetParam {
+            node: cell.output_parameter(),
+            value: ParamValue::Reference(NodeReference::empty()),
+            behaviour: ParameterEventBehaviour::Append,
+        });
+        if let Some(previous) = previous {
+            engine.edits.push(Edit::RemoveNode { node: previous });
+        }
+        engine.edits.push(Edit::AddUserItemTree {
+            parent: id,
+            prev_sibling,
+            tree,
+        });
+        identity
+    } else {
+        document.admit(insertions.len() + 1)?;
+        let cell = CellNode::from_address("Cell".into(), column, None);
+        cell.bind_runtime(binding(engine, document));
+        let identity = CellId(cell.node_data().meta.uuid);
+        insertions.push(UserItemTreeInsertion::new(
+            layer_node,
+            NodeTree::new(cell).with_child(tree.as_user_item()),
+        ));
+        engine.edits.push(Edit::AddUserItemTrees { items: insertions });
+        identity
+    };
+    Ok(MediaEditResult::MatrixFileImported {
+        column,
+        cell,
+        media: reference.media,
+    })
 }
 
 pub(super) fn configure(

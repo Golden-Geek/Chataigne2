@@ -38,7 +38,7 @@ pub(super) fn apply(
             (creation::owned_tree(engine, kind, label), [position.x, position.y])
         }
         Child::File(file) => (
-            file.tree(engine, parent)?.0,
+            file.tree(engine, Some(parent))?.0,
             [
                 position.x.clamp(0.0, canvas.width() as f32),
                 position.y.clamp(0.0, canvas.height() as f32),

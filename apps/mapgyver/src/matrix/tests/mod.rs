@@ -35,6 +35,7 @@ mod creation;
 mod defaults;
 mod editor;
 mod enabled;
+mod file_drop;
 mod front_order;
 mod group_spans;
 mod layer_geometry;

@@ -270,7 +270,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                 None => super::editor::hit_test(engine, screen, point)?,
             };
             let parent = crate::media::authoring::manager(engine)?;
-            let (tree, source) = crate::media::importing::FileMedia::new(path)?.tree(engine, parent)?;
+            let (tree, source) = crate::media::importing::FileMedia::new(path)?.tree(engine, Some(parent))?;
             let (edit, result) = prepare_source_drop(engine, screen, target, source)?;
             append(engine, parent, tree);
             engine.edits.push(edit);

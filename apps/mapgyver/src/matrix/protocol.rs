@@ -553,6 +553,13 @@ pub enum MatrixEdit {
         #[serde(default)]
         copy: bool,
     },
+    /// Without a Column, append a new root Column and import into it at this Layer.
+    DropMediaFile {
+        layer: LayerId,
+        column: Option<ColumnId>,
+        #[ts(type = "string")]
+        path: golden_assets::AbsoluteAssetPath,
+    },
     InspectTargets {
         query: MatrixTargetQuery,
     },

@@ -87,6 +87,9 @@ Layer/Group or Column label to rename it; row and Column menus own structural op
 The centered empty-Cell plus uses the backend media catalog. `MatrixEdit::CreateCellMedia`
 creates the actual owned media subtree with shared backend defaults, one history step and no
 implicit playback. Removing media preserves the Cell and its typed settings/app control.
+On Windows, drop a picture or video file on a Cell to import or replace its Media while keeping
+the Cell settings. Drop to the right of that Layer's Cells to create a Column and import there.
+Each drop is one Undo step.
 Ordinary settings stay in the generic Inspector; the Matrix supplement only presents runtime
 observations. `--matrix-grid-ui`, `--matrix-parameters-ui` and `--matrix-defaults-ui` verify this
 slice. [Grid evidence](../../docs/progress/mapgyver-m07-grid.md) retains the remaining complete
