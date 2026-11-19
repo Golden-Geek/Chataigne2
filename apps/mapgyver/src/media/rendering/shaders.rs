@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
 use golden_io::{BoundedWorker, RetirementPool, WorkerLimits, WorkerNotifier};
-use golden_video::shader::{CompileError, FragmentProgram};
+use golden_video::shader::{CompileError, FragmentFormat, FragmentProgram};
 
 use crate::media::capture::CapturedChannels;
 use crate::media::protocol::{ChannelReference, ChannelSource, ShaderInput};
@@ -15,11 +15,17 @@ use crate::media::resolution::ChannelAvailability;
 mod files;
 
 type Compiled = Result<FragmentProgram, CompileError>;
-type Outcome = (Arc<str>, Compiled);
+type Outcome = (ProgramSource, Compiled);
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct ProgramSource {
+    format: FragmentFormat,
+    code: Arc<str>,
+}
 
 pub(super) struct Shaders {
-    worker: BoundedWorker<Arc<str>, Outcome>,
-    entries: HashMap<Arc<str>, Option<Compiled>>,
+    worker: BoundedWorker<ProgramSource, Outcome>,
+    entries: HashMap<ProgramSource, Option<Compiled>>,
     running: bool,
     root: PathBuf,
     notify: WorkerNotifier,
@@ -30,7 +36,7 @@ impl Shaders {
     pub(super) fn new(root: &Path, notify: WorkerNotifier) -> Result<Self, String> {
         static WORKERS: OnceLock<RetirementPool> = OnceLock::new();
         let pool = WORKERS.get_or_init(|| RetirementPool::new(NonZeroUsize::new(16).unwrap()));
-        let worker = BoundedWorker::<Arc<str>, Outcome>::spawn_notified(
+        let worker = BoundedWorker::<ProgramSource, Outcome>::spawn_notified(
             "mapgyver-shader-compile",
             pool,
             WorkerLimits {
@@ -41,9 +47,9 @@ impl Shaders {
             },
             notify.clone(),
             |worker| {
-                while let Some(code) = worker.receive() {
-                    let program = FragmentProgram::compile_glsl(&code);
-                    if worker.publish_weighted((code, program), 1).is_err() {
+                while let Some(source) = worker.receive() {
+                    let program = FragmentProgram::compile(source.format, &source.code);
+                    if worker.publish_weighted((source, program), 1).is_err() {
                         break;
                     }
                 }
@@ -78,13 +84,13 @@ impl Shaders {
             .iter()
             .filter(|channel| channel.enabled && references.contains(&channel.reference))
             .filter_map(|channel| match &channel.definition.as_ref()?.source {
-                ChannelSource::Shader { input } => Some(input),
+                ChannelSource::Shader { format, input } => Some((*format, input)),
                 _ => None,
             })
             .collect::<Vec<_>>();
         let external = inputs
             .iter()
-            .filter_map(|input| match input {
+            .filter_map(|(_, input)| match input {
                 ShaderInput::File { file: Some(file) } => Some(file.clone()),
                 _ => None,
             })
@@ -98,12 +104,18 @@ impl Shaders {
         }
         let wanted = inputs
             .into_iter()
-            .filter_map(|input| self.code(input).ok().flatten().cloned())
-            .filter(|code| !code.trim().is_empty())
+            .filter_map(|(format, input)| {
+                self.code(input)
+                    .ok()
+                    .flatten()
+                    .cloned()
+                    .map(|code| ProgramSource { format, code })
+            })
+            .filter(|source| !source.code.trim().is_empty())
             .collect::<HashSet<_>>();
-        self.entries.retain(|code, _| wanted.contains(code));
-        for code in wanted {
-            self.entries.entry(code).or_insert(None);
+        self.entries.retain(|source, _| wanted.contains(source));
+        for source in wanted {
+            self.entries.entry(source).or_insert(None);
         }
         self.service_programs();
         Ok(())
@@ -121,9 +133,9 @@ impl Shaders {
         let mut outcomes = Vec::new();
         self.worker.drain_events(&mut outcomes, NonZeroUsize::MIN);
         let mut changed = false;
-        for (code, outcome) in outcomes {
+        for (source, outcome) in outcomes {
             self.running = false;
-            if let Some(entry) = self.entries.get_mut(&code) {
+            if let Some(entry) = self.entries.get_mut(&source) {
                 if let Err(error) = &outcome {
                     eprintln!("[mapgyver-shader] {error}");
                 }
@@ -132,9 +144,9 @@ impl Shaders {
             }
         }
         if !self.running
-            && let Some((code, _)) = self.entries.iter().find(|(_, entry)| entry.is_none())
+            && let Some((source, _)) = self.entries.iter().find(|(_, entry)| entry.is_none())
         {
-            self.running = self.worker.send_weighted(code.clone(), 1).is_ok();
+            self.running = self.worker.send_weighted(source.clone(), 1).is_ok();
         }
         changed
     }
@@ -152,12 +164,20 @@ impl Shaders {
         }
     }
 
-    pub(super) fn program(&self, input: &ShaderInput) -> Result<Option<&FragmentProgram>, ChannelAvailability> {
+    pub(super) fn program(
+        &self,
+        format: FragmentFormat,
+        input: &ShaderInput,
+    ) -> Result<Option<&FragmentProgram>, ChannelAvailability> {
         let Some(code) = self.code(input)? else { return Ok(None) };
         if code.trim().is_empty() {
             return Err(ChannelAvailability::Unconfigured);
         }
-        match self.entries.get(code).and_then(Option::as_ref) {
+        let source = ProgramSource {
+            format,
+            code: code.clone(),
+        };
+        match self.entries.get(&source).and_then(Option::as_ref) {
             Some(Ok(program)) => Ok(Some(program)),
             Some(Err(_)) => Err(ChannelAvailability::Incompatible),
             None => Ok(None),

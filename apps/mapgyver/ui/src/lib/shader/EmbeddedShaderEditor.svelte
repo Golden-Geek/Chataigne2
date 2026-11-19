@@ -50,9 +50,8 @@
 	}
 </script>
 
-<div class="embedded-shader-editor" aria-label="Embedded GLSL code">
+<div class="embedded-shader-editor" aria-label="Embedded shader code">
 	<div class="embedded-shader-toolbar">
-		<span>GLSL</span>
 		<IconButton
 			icon={applyIcon}
 			label="Apply shader"
@@ -80,7 +79,7 @@
 	.embedded-shader-toolbar {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
+		justify-content: flex-end;
 		padding-inline: 0.4rem;
 		font-size: 0.75rem;
 	}

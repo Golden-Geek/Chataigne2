@@ -5,10 +5,52 @@ use windows::Win32::Graphics::Direct3D11::ID3D11Device;
 use windows::core::Result;
 
 use crate::plan::{CompiledPlan, ExternalSource, RenderOperation};
+use crate::runtime::ProjectEpoch;
+use crate::shader::FragmentProgram;
 use crate::{OutputId, PassId, TextureDescriptor, TextureId};
 
+use super::super::pipeline::{ShaderDraw, ShaderPass};
 use super::super::texture::Texture;
 use super::{D3d11Resources, NativeState};
+
+/// Share bytecode resources per device and retain a logical pass clock across plan revisions.
+#[derive(Default)]
+pub(super) struct ShaderCache {
+    programs: HashMap<usize, Weak<ShaderDraw>>,
+    passes: HashMap<(ProjectEpoch, PassId, usize), Weak<ShaderPass>>,
+}
+
+impl ShaderCache {
+    fn prune(&mut self) {
+        self.programs.retain(|_, value| value.strong_count() != 0);
+        self.passes.retain(|_, value| value.strong_count() != 0);
+    }
+
+    fn pass(
+        &mut self,
+        project: ProjectEpoch,
+        pass: PassId,
+        program: &FragmentProgram,
+        device: &ID3D11Device,
+    ) -> Result<Rc<ShaderPass>> {
+        let program_key = program.bytecode().as_ptr() as usize;
+        let pass_key = (project, pass, program_key);
+        if let Some(shader) = self.passes.get(&pass_key).and_then(Weak::upgrade) {
+            return Ok(shader);
+        }
+        let draw = match self.programs.get(&program_key).and_then(Weak::upgrade) {
+            Some(draw) => draw,
+            None => {
+                let draw = Rc::new(ShaderDraw::new(device, program)?);
+                self.programs.insert(program_key, Rc::downgrade(&draw));
+                draw
+            }
+        };
+        let shader = Rc::new(ShaderPass::new(draw));
+        self.passes.insert(pass_key, Rc::downgrade(&shader));
+        Ok(shader)
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 enum Role {
@@ -109,7 +151,7 @@ pub(super) fn prepare(
 ) -> Result<D3d11Resources> {
     let mut source_routes = Vec::new();
     native.textures.prune();
-    native.shaders.retain(|_, shader| shader.strong_count() != 0);
+    native.shaders.prune();
     let mut resources = D3d11Resources {
         render_cache: std::cell::RefCell::new(super::cache::Cache::new(plan)),
         presentation: std::cell::RefCell::new(super::presentation::Presentation::new(plan, notify)),
@@ -215,15 +257,9 @@ pub(super) fn prepare(
             );
         }
         if let RenderOperation::Shader(program) = &pass.operation {
-            let key = program.bytecode().as_ptr() as usize;
-            let shader = match native.shaders.get(&key).and_then(Weak::upgrade) {
-                Some(shader) => shader,
-                None => {
-                    let shader = Rc::new(super::super::pipeline::ShaderDraw::new(device, program)?);
-                    native.shaders.insert(key, Rc::downgrade(&shader));
-                    shader
-                }
-            };
+            let shader = native
+                .shaders
+                .pass(generation.identity.project, pass.id, program, device)?;
             resources.shaders.insert(pass.id, shader);
         }
     }

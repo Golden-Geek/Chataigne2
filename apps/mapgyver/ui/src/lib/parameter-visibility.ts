@@ -96,6 +96,7 @@ function visible(child: UiNodeDto) {
 	if (source === 'SolidColor') return field === 'rgba';
 	if (source === 'Shader')
 		return (
+			field === 'shader_format' ||
 			field === 'shader_input' ||
 			field === (choice('shader_input') === 'File' ? 'shader_file' : 'shader_code')
 		);

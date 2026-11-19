@@ -427,12 +427,15 @@ pub(super) fn build(
                             .map_err(|error| error.to_string())?,
                     );
                 }
-                Some(ChannelSource::Shader { input: _input }) => {
+                Some(ChannelSource::Shader {
+                    format: _format,
+                    input: _input,
+                }) => {
                     entry.source = None;
                     resolution =
                         resolution::resolve(channel.definition.as_ref().unwrap(), SourceObservation::Unavailable)?;
                     #[cfg(all(windows, feature = "native-video"))]
-                    match shaders.map_or(Ok(None), |shaders| shaders.program(_input)) {
+                    match shaders.map_or(Ok(None), |shaders| shaders.program(*_format, _input)) {
                         Ok(Some(program)) => {
                             resolution.availability = ChannelAvailability::Ready;
                             operation = RenderOperation::Shader(program.clone());

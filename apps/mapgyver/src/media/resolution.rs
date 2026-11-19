@@ -62,6 +62,7 @@ impl ChannelDefinition {
             MediaKind::Picture => ChannelSource::Picture { file: None },
             MediaKind::Video => ChannelSource::Video { file: None },
             MediaKind::Shader => ChannelSource::Shader {
+                format: golden_video::shader::FragmentFormat::Glsl,
                 input: super::protocol::ShaderInput::Embedded {
                     code: super::shader::DEFAULT_CODE.into(),
                 },
@@ -113,9 +114,11 @@ impl ChannelDefinition {
             ChannelSource::Picture { .. } | ChannelSource::Video { .. } => {}
             ChannelSource::Shader {
                 input: super::protocol::ShaderInput::Embedded { code },
+                ..
             } => super::shader::validate_code(code)?,
             ChannelSource::Shader {
                 input: super::protocol::ShaderInput::File { .. },
+                ..
             } => {}
             ChannelSource::Composition { canvas } => validate_extent(*canvas)?,
             ChannelSource::SolidColor { rgba } => {
@@ -213,7 +216,7 @@ pub fn resolve(definition: &ChannelDefinition, observed: SourceObservation) -> R
             },
         ),
         ChannelSource::SolidColor { .. } => (Some(default_canvas()), ChannelAvailability::Ready),
-        ChannelSource::Shader { input } => (
+        ChannelSource::Shader { input, .. } => (
             Some(default_canvas()),
             match input {
                 super::protocol::ShaderInput::Embedded { code } if code.trim().is_empty() => {

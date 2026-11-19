@@ -15,6 +15,7 @@ use golden_core::{
     process_ctx::ProcessCtx,
 };
 use golden_io::{RevisionGuard, RevisionSource};
+use golden_video::shader::FragmentFormat;
 
 use std::sync::{Arc, OnceLock};
 
@@ -27,14 +28,18 @@ mod subtitles;
         source_kind: Enum = "SolidColor" (label = "Source kind", read_only = true, persist_read_only_value = true,
             enum_options = crate::parameters::enum_options(&["Picture", "Video", "Shader", "SolidColor", "SharedTexture", "Ndi", "Composition", "Matrix"]));
         rgba: Color = Color::new(1.0, 1.0, 1.0, 1.0) [0.0..1.0] (label = "Color", description = "Straight linear-light RGBA.", constraint_policy = "reject");
+        shader_format: Enum = "GLSL" (label = "Format",
+            enum_options = crate::parameters::enum_options(&FragmentFormat::ALL.map(FragmentFormat::name)),
+            dependency = |node: &Self| node.kind() == MediaKind::Shader);
         shader_input: Enum = "Embedded" (label = "Source", enum_options = crate::parameters::enum_options(&["Embedded", "File"]),
             dependency = |node: &Self| node.kind() == MediaKind::Shader);
-        shader_code: String = String::new() (label = "GLSL", widget = "code",
-            description = "Define void main() and write linear RGBA to fragColor. Use iResolution, iTime and gl_FragCoord for frame inputs.",
-            dependency = |node: &Self| node.kind() == MediaKind::Shader && node.shader_input.get_ref().as_str() == "Embedded");
-        shader_file: File = File::default() (label = "Shader File", file_allowed_extensions = vec!["glsl".into(), "frag".into(), "fs".into()],
-            description = "Project-relative or absolute GLSL file. Changes reload automatically.",
-            dependency = |node: &Self| node.kind() == MediaKind::Shader && node.shader_input.get_ref().as_str() == "File");
+        // Both source values belong to the channel even while the other source is active.
+        shader_code: String = String::new() (label = "Shader Code", widget = "code",
+            description = "Fragment source in the selected Format.",
+            dependency = |node: &Self| node.kind() == MediaKind::Shader);
+        shader_file: File = File::default() (label = "Shader File", file_allowed_extensions = vec!["glsl".into(), "frag".into(), "fs".into(), "isf".into()],
+            description = "Project-relative or absolute fragment source. Changes reload automatically.",
+            dependency = |node: &Self| node.kind() == MediaKind::Shader);
         file: File = File::default() (label = "File", description = "This channel's project-relative or native absolute source path.", dependency = |node: &Self| matches!(node.kind(), super::protocol::MediaKind::Picture | super::protocol::MediaKind::Video));
         video_loop_file: File = File::default() (label = "Loop File", description = "Optional video played after this channel's intro when Loop is enabled.", dependency = |node: &Self| node.kind() == MediaKind::Video);
         sender: String = String::new() (label = "Spout sender");
@@ -200,18 +205,21 @@ impl ChannelNode {
                     Color::new(rgba[0].into(), rgba[1].into(), rgba[2].into(), rgba[3].into())
                 );
             }
-            ChannelSource::Shader { input } => match input {
-                ShaderInput::Embedded { code } => {
-                    seed!(shader_code, code.to_string());
+            ChannelSource::Shader { format, input } => {
+                seed!(shader_format, Enum::new(format.name()));
+                match input {
+                    ShaderInput::Embedded { code } => {
+                        seed!(shader_code, code.to_string());
+                    }
+                    ShaderInput::File { file } => {
+                        seed!(shader_input, Enum::new("File"));
+                        seed!(
+                            shader_file,
+                            File::new(file.as_ref().map(super::assets::locator_path).unwrap_or_default())
+                        );
+                    }
                 }
-                ShaderInput::File { file } => {
-                    seed!(shader_input, Enum::new("File"));
-                    seed!(
-                        shader_file,
-                        File::new(file.as_ref().map(super::assets::locator_path).unwrap_or_default())
-                    );
-                }
-            },
+            }
             ChannelSource::Picture { file } | ChannelSource::Video { file } => {
                 seed!(
                     file,
@@ -274,6 +282,8 @@ impl ChannelNode {
         let settings = media.matrix_settings();
         let source = match self.source_kind.get_ref().as_str() {
             "Shader" => ChannelSource::Shader {
+                format: FragmentFormat::from_name(self.shader_format.get_ref().as_str())
+                    .expect("validated Shader Format"),
                 input: if self.shader_input.get_ref().as_str() == "File" {
                     ShaderInput::File {
                         file: super::assets::parse_file(self.shader_file.get_ref().as_str())
@@ -337,24 +347,27 @@ impl ChannelNode {
     ) -> Result<Vec<Edit>, String> {
         let mut values = Vec::new();
         match source {
-            ChannelSource::Shader { input } => match input {
-                ShaderInput::Embedded { code } => values.extend([
-                    (self.shader_input.id(), ParamValue::Enum("Embedded".into())),
-                    (self.shader_code.id(), ParamValue::Str(code.to_string())),
-                ]),
-                ShaderInput::File { file } => values.extend([
-                    (self.shader_input.id(), ParamValue::Enum("File".into())),
-                    (
-                        self.shader_file.id(),
-                        ParamValue::File(
-                            file.as_ref()
-                                .map(super::assets::locator_path)
-                                .unwrap_or_default()
-                                .to_owned(),
+            ChannelSource::Shader { format, input } => {
+                values.push((self.shader_format.id(), ParamValue::Enum(format.name().into())));
+                match input {
+                    ShaderInput::Embedded { code } => values.extend([
+                        (self.shader_input.id(), ParamValue::Enum("Embedded".into())),
+                        (self.shader_code.id(), ParamValue::Str(code.to_string())),
+                    ]),
+                    ShaderInput::File { file } => values.extend([
+                        (self.shader_input.id(), ParamValue::Enum("File".into())),
+                        (
+                            self.shader_file.id(),
+                            ParamValue::File(
+                                file.as_ref()
+                                    .map(super::assets::locator_path)
+                                    .unwrap_or_default()
+                                    .to_owned(),
+                            ),
                         ),
-                    ),
-                ]),
-            },
+                    ]),
+                }
+            }
             ChannelSource::SolidColor { rgba } => values.push((
                 self.rgba.id(),
                 ParamValue::Color(rgba[0].into(), rgba[1].into(), rgba[2].into(), rgba[3].into()),
@@ -567,6 +580,7 @@ impl Node for ChannelNode {
         if [
             self.source_kind.id(),
             self.rgba.id(),
+            self.shader_format.id(),
             self.shader_input.id(),
             self.shader_code.id(),
             self.shader_file.id(),
@@ -726,6 +740,9 @@ impl Node for ChannelNode {
         }
         super::shader::validate_code(self.shader_code.get_ref())?;
         super::assets::parse_file(self.shader_file.get_ref().as_str())?;
+        if FragmentFormat::from_name(self.shader_format.get_ref().as_str()).is_none() {
+            return Err("Unknown Shader format".into());
+        }
         if !matches!(self.shader_input.get_ref().as_str(), "Embedded" | "File") {
             return Err("Unknown Shader source".into());
         }

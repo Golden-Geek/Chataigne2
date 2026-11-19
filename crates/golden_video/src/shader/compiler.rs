@@ -6,28 +6,10 @@ use naga::{AddressSpace, Binding, BuiltIn, ResourceBinding, ShaderStage, TypeInn
 use windows::Win32::Graphics::Direct3D::{Fxc::D3DCompile, ID3DBlob};
 use windows::core::{PCSTR, s};
 
-use super::MAX_SOURCE_BYTES;
+use super::{FragmentFormat, MAX_SOURCE_BYTES, adapter};
 
 const MAX_BYTECODE_BYTES: usize = 256 * 1024;
 const FRAME_BINDING: ResourceBinding = ResourceBinding { group: 0, binding: 0 };
-
-const INPUTS: &str = r#"
-layout(std140, binding = 0) uniform GoldenFrame { vec4 sizeAndTime; } goldenFrame;
-#define iResolution (goldenFrame.sizeAndTime.xyz)
-#define iTime (goldenFrame.sizeAndTime.w)
-layout(location = 0) out vec4 fragColor;
-#define main goldenUserMain
-"#;
-
-const ENTRY: &str = r#"
-#undef main
-void main() {
-    fragColor = vec4(0.0);
-    goldenUserMain();
-    fragColor.a = clamp(fragColor.a, 0.0, 1.0);
-    fragColor.rgb *= fragColor.a;
-}
-"#;
 
 /// A validated device-independent fragment program. Cloning shares its bytecode.
 #[derive(Clone)]
@@ -60,16 +42,17 @@ impl FragmentProgram {
     /// `gl_FragCoord` follows Vulkan's upper-left origin. No other stage inputs or
     /// resource bindings are furnished by this entry point.
     pub fn compile_glsl(source: &str) -> Result<Self, CompileError> {
+        Self::compile(FragmentFormat::Glsl, source)
+    }
+
+    /// Compile a single fragment pass in the selected source dialect, away from render and engine threads.
+    /// ShaderToy supports procedural Image passes. ISF supports unbuffered generators with scalar
+    /// and vector defaults. Both dialects receive bottom-left coordinates and frame timing.
+    pub fn compile(format: FragmentFormat, source: &str) -> Result<Self, CompileError> {
         if source.trim().is_empty() || source.len() > MAX_SOURCE_BYTES {
             return Err(CompileError::Size);
         }
-        let source = source.trim_start_matches('\u{feff}').trim_start();
-        let source = if source.starts_with("#version ") {
-            source.split_once('\n').map_or("", |(_, body)| body)
-        } else {
-            source
-        };
-        let glsl = format!("#version 450 core\n{INPUTS}\n{source}\n{ENTRY}");
+        let glsl = adapter::fragment_source(format, source)?;
         let module = glsl::Frontend::default()
             .parse(&glsl::Options::from(ShaderStage::Fragment), &glsl)
             .map_err(|error| CompileError::Invalid(error.emit_to_string(&glsl)))?;

@@ -190,7 +190,8 @@ try {
 	await observer.observePixels('editor-magenta', [255, 0, 255, 255]);
 
 	stage = 'select and automatically reload an external shader';
-	const source = panel.locator('select.dropdown-editor');
+	const source = panel.getByRole('combobox', { name: 'Source', exact: true });
+	const format = panel.getByRole('combobox', { name: 'Format', exact: true });
 	const name = 'Live.glsl';
 	const filename = path.join(directory, name);
 	await writeFile(filename, green);
@@ -222,6 +223,63 @@ try {
 	assert.equal(path.resolve((await post('/api/ui/project-load', { path: project })).path), project);
 	await delay(750);
 	await observer.observePixels('saved-external-red', [255, 0, 0, 255]);
+
+	stage = 'compile a ShaderToy Image pass and isolate the format from other compiled sources';
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Medias$/ })
+		.click();
+	await manager.getByRole('button', { name: 'Shader', exact: true }).click();
+	await shaderTab.click();
+	await source.selectOption('Embedded');
+	await waitFor(
+		async () =>
+			(await graph()).find((node) => node.uuid === code.uuid)?.data.param.value.Str === magenta
+	);
+	await delay(500);
+	await observer.observePixels('reloaded-dormant-embedded-magenta', [255, 0, 255, 255]);
+	await format.selectOption('ShaderToy');
+	await delay(500);
+	await observer.observePixels('format-change-clears-glsl', [0, 0, 0, 0]);
+	const shadertoy = [
+		'void mainImage(out vec4 color, in vec2 pixel) {',
+		'    color = vec4(float(iResolution.x > pixel.x && iFrame >= 0), 1.0, 1.0, 1.0);',
+		'}'
+	].join('\n');
+	await codeEditor.fill(shadertoy);
+	await panel.getByRole('button', { name: 'Apply shader', exact: true }).click();
+	await waitFor(
+		async () =>
+			(await graph()).find((node) => node.uuid === code.uuid)?.data.param.value.Str === shadertoy
+	);
+	await delay(500);
+	await observer.observePixels('shadertoy-image', [255, 255, 255, 255]);
+
+	stage = 'load an external ISF generator and round-trip its Format and File parameters';
+	const isfName = 'Generator.fs';
+	await writeFile(
+		path.join(directory, isfName),
+		`/*{
+		"ISFVSN": "2", "PASSES": [{}],
+		"INPUTS": [
+			{"NAME":"drawTint","TYPE":"bool","DEFAULT":1},
+			{"NAME":"tint","TYPE":"color","DEFAULT":[0,1,1,1]}
+		]
+	}*/
+	void main() {
+		gl_FragColor = drawTint && PASSINDEX == 0 ? tint : vec4(1.0, 0.0, 0.0, 1.0);
+	}`
+	);
+	await format.selectOption('ISF');
+	await source.selectOption('File');
+	await file.fill(isfName);
+	await file.press('Enter');
+	await delay(750);
+	await observer.observePixels('isf-file-generator', [0, 255, 255, 255]);
+	assert((await post('/api/ui/project-save', { path: project })).ok);
+	assert.equal(path.resolve((await post('/api/ui/project-load', { path: project })).path), project);
+	await delay(750);
+	await observer.observePixels('reloaded-isf-format-file', [0, 255, 255, 255]);
 	assert.deepEqual(errors, []);
 	assert(!appLog.includes('[mapgyver-output] window id='));
 	await writeFile(

@@ -38,6 +38,7 @@
 			.find((node) => node?.decl_id === `parameters/${decl}` && node.data.kind === 'parameter') ??
 		undefined;
 	const input = $derived(find('shader_input'));
+	const format = $derived(find('shader_format'));
 	const code = $derived(find('shader_code'));
 	const file = $derived(find('shader_file'));
 	const fileMode = $derived(
@@ -66,6 +67,9 @@
 				</select>
 			{/if}
 			<ParameterInspector node={input} level={0} order="solo" density="compact" />
+			{#if format}
+				<ParameterInspector node={format} level={0} order="solo" density="compact" />
+			{/if}
 			{#if fileMode && file}
 				<ParameterInspector node={file} level={0} order="solo" density="compact" />
 			{/if}

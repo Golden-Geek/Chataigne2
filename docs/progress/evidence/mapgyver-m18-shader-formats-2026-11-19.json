@@ -1,0 +1,26 @@
+{
+	"date": "2026-11-19",
+	"gate": "M18/4",
+	"result": "pass",
+	"scope": "Procedural ShaderToy Image and single-pass ISF generator playback on Windows, with the per-channel Format selector.",
+	"software": {
+		"goldenVideoShaderTestsPassed": 5,
+		"mapGyverCreationAndContractTestsPassed": 4,
+		"checks": "Rust formatting for both workspaces, generated TypeScript parity, strict Clippy, default Windows app build, Svelte checks and Prettier passed."
+	},
+	"d3d11": {
+		"testsPassed": 2,
+		"pixels": "The 2x2 readbacks covered GLSL coordinates, time and alpha, plus ShaderToy and ISF bottom-left coordinates, resolution, the first frame, delta on the next frame, repeated timestamps and independent pass counters."
+	},
+	"windowsApp": {
+		"adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+		"startupDisplay": "RTK FHD HDR, Windows display 2",
+		"physicalWindowsOpened": 0,
+		"independentSpoutFrames": 17,
+		"extent": [96, 64],
+		"checks": "The Shader Editor applied an embedded ShaderToy Image shader. Selecting a different format invalidated the previous program. An ISF file used Boolean and color metadata defaults, and reopening the project restored its format, file and pixels.",
+		"persistence": "The first run exposed dormant code loss. The Source dependency removed the inactive Parameter from the project tree. After the fix, the app reopened in File mode, switched back to Embedded and reproduced the saved magenta frame before changing dialects.",
+		"receipt": "target/m18-formats-native/run-FSe4r4/result.json"
+	},
+	"remaining": "Multipass, editable typed uniforms, Media texture inputs, and Shader Library imports. M18/4 remains Active."
+}
