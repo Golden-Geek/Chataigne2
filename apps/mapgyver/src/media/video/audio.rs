@@ -9,6 +9,7 @@ use super::TransportSample;
 pub(crate) struct Source {
     pub channel: ChannelId,
     pub generation: uuid::Uuid,
+    pub contents: golden_io::RevisionGuard,
     pub file: Option<AssetLocator>,
     pub duration: Option<Duration>,
     pub binding: Arc<ChannelAudio>,

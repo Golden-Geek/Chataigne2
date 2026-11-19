@@ -76,15 +76,10 @@ impl Probe {
                 continue;
             }
             job.retry = now + Duration::from_secs(1);
-            let fingerprint = std::fs::metadata(&job.path).and_then(|meta| {
-                if !meta.is_file() {
-                    return Err(io::Error::other("Video source is not a regular file"));
-                }
-                Ok((meta.len(), meta.modified()?))
-            });
+            let stamp = fingerprint(&job.path);
             // Endpoint loss retains known duration, but reports its current availability.
-            let fingerprint = match fingerprint {
-                Ok(fingerprint) => fingerprint,
+            let stamp = match stamp {
+                Ok(stamp) => stamp,
                 Err(error) => {
                     job.fingerprint = None;
                     let kind = if error.kind() == io::ErrorKind::NotFound {
@@ -104,8 +99,14 @@ impl Probe {
                     continue;
                 }
             };
-            if job.fingerprint == Some(fingerprint) {
+            if job.fingerprint == Some(stamp) {
                 continue;
+            }
+            if job.fingerprint.take().is_some()
+                && source.guard.is_current()
+                && let Some(control) = job.control.upgrade()
+            {
+                control.invalidate_file_contents(*channel, *generation, None)?;
             }
             let guard = source.guard.clone();
             let cancel = cancelled.clone();
@@ -131,22 +132,22 @@ impl Probe {
                     .map(|duration| (duration, metadata))
                     .map_err(|error| VideoSourceError::new(VideoSourceErrorKind::Unsupported, error))
             });
+            // A file can be replaced again while the demuxer is open. Neither a
+            // catalog nor a failure from the previous contents describes that path.
+            if cancelled() || !source.guard.is_current() || fingerprint(&job.path).ok() != Some(stamp) {
+                continue;
+            }
             let (duration, metadata) = match probed {
                 Ok(probed) => probed,
                 Err(error) => {
                     job.fingerprint = None;
-                    if !cancelled()
-                        && source.guard.is_current()
-                        && let Some(control) = job.control.upgrade()
-                    {
+                    if let Some(control) = job.control.upgrade() {
                         control.metadata_failure(*channel, *generation, error)?;
                     }
                     continue;
                 }
             };
-            if !cancelled()
-                && source.guard.is_current()
-                && let Some(control) = job.control.upgrade()
+            if let Some(control) = job.control.upgrade()
                 && control.metadata_duration(*channel, *generation, duration)?
             {
                 let subtitles = metadata
@@ -166,11 +167,19 @@ impl Probe {
                     track_option(index, label(track.title, track.language, &track.codec, index))
                 }));
                 control.metadata_tracks(*channel, *generation, subtitles, audio.into())?;
-                job.fingerprint = Some(fingerprint);
+                job.fingerprint = Some(stamp);
             }
         }
         Ok(())
     }
+}
+
+fn fingerprint(path: &Path) -> io::Result<(u64, SystemTime)> {
+    let metadata = std::fs::metadata(path)?;
+    if !metadata.is_file() {
+        return Err(io::Error::other("Video source is not a regular file"));
+    }
+    Ok((metadata.len(), metadata.modified()?))
 }
 
 fn label(title: Option<String>, language: Option<String>, codec: &str, index: usize) -> String {

@@ -196,6 +196,7 @@ pub(super) struct File {
     pub owner: uuid::Uuid,
     #[cfg(any(feature = "video-files", test))]
     pub generation: uuid::Uuid,
+    pub contents: golden_io::RevisionSource,
     pub locator: Option<AssetLocator>,
     pub duration: Option<std::time::Duration>,
     pub subtitles: Arc<ChannelSubtitles>,

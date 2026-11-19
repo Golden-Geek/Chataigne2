@@ -31,6 +31,10 @@ impl VideoControl {
             .map(|(channel, file)| Source {
                 channel: *channel,
                 generation: file.generation,
+                contents: {
+                    let contents = file.contents.reader();
+                    contents.guard_at(contents.current())
+                },
                 file: file.locator.clone(),
                 duration: file.duration,
                 binding: file.audio.clone(),

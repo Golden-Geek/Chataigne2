@@ -96,7 +96,7 @@ fn source_diagnostics_distinguish_metadata_pixels_recovery_and_fence_retired_fil
     assert!(status.retrying);
     assert_eq!(status.error, Some(problem.clone()));
     let replacement = uuid::Uuid::new_v4();
-    control
+    let (_, contents) = control
         .claim_channel(reference.channel, replacement, file.clone())
         .unwrap();
     control
@@ -108,6 +108,30 @@ fn source_diagnostics_distinguish_metadata_pixels_recovery_and_fence_retired_fil
             .unwrap()
             .error
             .is_none()
+    );
+    control
+        .metadata_failure(
+            reference.channel,
+            generation,
+            VideoSourceError::new(VideoSourceErrorKind::Missing, "file replaced"),
+        )
+        .unwrap();
+    assert!(!contents.is_current());
+    assert!(
+        control
+            .channel_duration(reference.channel, replacement, Duration::from_secs(4))
+            .is_err()
+    );
+    let status = control.source_status(reference, &Some(file.clone())).unwrap();
+    assert_eq!(status.state, VideoSourceState::Unavailable);
+    assert_eq!(status.error.unwrap().kind, VideoSourceErrorKind::Missing);
+    assert_eq!(status.duration_ms, Some(1000.0));
+    control
+        .metadata_duration(reference.channel, generation, Duration::from_secs(1))
+        .unwrap();
+    assert_eq!(
+        control.source_status(reference, &Some(file.clone())).unwrap().state,
+        VideoSourceState::Prepared
     );
     control.bind_file(reference.channel, binding, None).unwrap();
     control

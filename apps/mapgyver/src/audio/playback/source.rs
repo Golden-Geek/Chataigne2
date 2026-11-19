@@ -58,6 +58,7 @@ impl Sources {
                 let next = match old.remove(&source.channel.0.0) {
                     Some(mut voice)
                         if voice.generation == source.generation
+                            && voice.contents.is_current()
                             && voice.path == path
                             && voice.repeat == repeat
                             && voice.track == source.track =>
@@ -175,6 +176,7 @@ struct Voice {
     control: Arc<VideoControl>,
     channel: ChannelId,
     generation: uuid::Uuid,
+    contents: RevisionGuard,
     binding: Arc<ChannelAudio>,
     track: AudioTrack,
     path: PathBuf,
@@ -200,6 +202,7 @@ impl Voice {
             control: control.clone(),
             channel: source.channel,
             generation: source.generation,
+            contents: source.contents,
             binding: source.binding,
             track: source.track,
             path,
@@ -243,6 +246,9 @@ impl Voice {
     }
 
     fn next_voice(&self, layout: &Layout, now: Instant) -> Option<Active> {
+        if !self.contents.is_current() {
+            return None;
+        }
         let routing = self.binding.voice.routing().filter(|route| route.enabled)?;
         let lanes = routing
             .destinations
@@ -268,7 +274,7 @@ impl Voice {
         cancel: &WorkerCancellation,
         weights: Option<&[crate::matrix::audio::Weight]>,
     ) {
-        let Some(active) = self.active else {
+        let Some(active) = self.active.filter(|_| self.contents.is_current()) else {
             return;
         };
         let Some(timeline) = self

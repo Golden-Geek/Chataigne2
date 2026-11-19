@@ -266,6 +266,15 @@ impl VideoControl {
         generation: uuid::Uuid,
         error: VideoSourceError,
     ) -> Result<(), String> {
+        self.invalidate_file_contents(channel, generation, Some(error))
+    }
+    #[cfg(feature = "video-files")]
+    pub(super) fn invalidate_file_contents(
+        &self,
+        channel: super::super::protocol::ChannelId,
+        generation: uuid::Uuid,
+        error: Option<VideoSourceError>,
+    ) -> Result<(), String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
         let Some(file) = state
             .files
@@ -274,12 +283,17 @@ impl VideoControl {
         else {
             return Ok(());
         };
-        if file.metadata_error.as_ref() == Some(&error) {
+        if error.is_some() && file.metadata_error == error {
             return Ok(());
         }
-        file.metadata_error = Some(error);
+        // Keep the authored binding and known duration. The old worker cannot republish
+        // through its retired frame owner, and audio observes the same content revision.
+        file.subtitles.set_tracks(Vec::new())?;
+        file.audio.set_options(super::audio_tracks::default_options());
+        file.metadata_error = error;
+        file.contents.advance();
+        state.frames.remove(channel);
         self.1.advance();
-        drop(state);
         Ok(())
     }
     #[cfg(feature = "video-files")]
@@ -369,6 +383,7 @@ impl VideoControl {
                 owner,
                 #[cfg(any(feature = "video-files", test))]
                 generation: uuid::Uuid::new_v4(),
+                contents: Default::default(),
                 locator,
                 duration: None,
                 subtitles,
@@ -481,17 +496,18 @@ impl VideoControl {
         channel: super::super::protocol::ChannelId,
         owner: uuid::Uuid,
         file: super::super::protocol::AssetLocator,
-    ) -> Result<Arc<super::bindings::ChannelSubtitles>, String> {
+    ) -> Result<(Arc<super::bindings::ChannelSubtitles>, golden_io::RevisionGuard), String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
-        let subtitles = state
+        let binding = state
             .files
             .get(&channel)
             .filter(|binding| binding.locator.as_ref() == Some(&file))
-            .ok_or("Video source no longer matches its authored File")?
-            .subtitles
-            .clone();
+            .ok_or("Video source no longer matches its authored File")?;
+        let subtitles = binding.subtitles.clone();
+        let contents = binding.contents.reader();
+        let contents = contents.guard_at(contents.current());
         state.frames.claim(channel, owner, file);
-        Ok(subtitles)
+        Ok((subtitles, contents))
     }
     pub fn revisions(&self) -> golden_io::RevisionReader {
         self.1.reader()

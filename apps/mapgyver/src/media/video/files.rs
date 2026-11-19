@@ -187,6 +187,8 @@ struct Entry {
     binding: crate::media::protocol::AssetLocator,
     sequence: Option<sequence::Source>,
     control: Arc<VideoControl>,
+    contents: RevisionGuard,
+    _content_subscription: Option<RevisionSubscription>,
     output: Arc<Mutex<Output>>,
     _worker: BoundedWorker<(), ()>,
 }
@@ -350,12 +352,13 @@ impl Files {
             return Err("Video demand exceeds eight admitted file workers".into());
         }
         self.entries.retain(|reference, entry| {
-            wanted.get(reference).is_some_and(|(file, control, binding, sequence)| {
-                *file == entry.file
-                    && *binding == entry.binding
-                    && *sequence == entry.sequence
-                    && Arc::ptr_eq(control, &entry.control)
-            })
+            entry.contents.is_current()
+                && wanted.get(reference).is_some_and(|(file, control, binding, sequence)| {
+                    *file == entry.file
+                        && *binding == entry.binding
+                        && *sequence == entry.sequence
+                        && Arc::ptr_eq(control, &entry.control)
+                })
         });
         let mut pending = false;
         for (reference, (file, control, binding, sequence)) in wanted {
@@ -364,7 +367,11 @@ impl Files {
             }
             let output = Arc::new(Mutex::new(Output::default()));
             let owner = uuid::Uuid::new_v4();
-            let _subtitle_channel = control.claim_channel(reference.channel, owner, binding.clone())?;
+            let (_subtitle_channel, contents) = control.claim_channel(reference.channel, owner, binding.clone())?;
+            let content_subscription = self
+                .notifier
+                .as_ref()
+                .map(|notifier| contents.subscribe(notifier.clone()));
             let context = Run {
                 #[cfg(all(windows, feature = "native-video"))]
                 hardware: self.hardware.clone(),
@@ -412,6 +419,8 @@ impl Files {
                     binding,
                     sequence,
                     control,
+                    contents,
+                    _content_subscription: content_subscription,
                     output,
                     _worker: worker,
                 },
@@ -457,6 +466,7 @@ impl Files {
     pub fn service(&mut self) -> bool {
         let revision = self.changes.reader().current();
         let changed = self.observed != revision
+            || self.entries.values().any(|entry| !entry.contents.is_current())
             || self
                 .capacity_wait
                 .as_ref()
