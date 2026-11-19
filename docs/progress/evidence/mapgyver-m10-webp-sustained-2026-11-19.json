@@ -2,7 +2,7 @@
   "date": "2026-11-19",
   "gate": "M10/3",
   "accepted": false,
-  "scope": "One NVIDIA baseline and one corrective comparison for looping lossy VP8 animated WebP with alpha. The workload uses 1080p60 and 4K30 Files, an HD Reference, three independent Spout receivers and 30/120/60/60 seconds of warmup, visible, minimized and disconnected operation.",
+  "scope": "One NVIDIA baseline and two sequential corrective comparisons for looping lossy VP8 animated WebP with alpha. The workload uses 1080p60 and 4K30 Files, an HD Reference, three independent Spout receivers and 30/120/60/60 seconds of warmup, visible, minimized and disconnected operation.",
   "environment": {
     "baseRevision": "44fd621b",
     "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
@@ -64,6 +64,54 @@
       "finalPlanTextureAllocationsCreatedReleased": [27, 27]
     }
   },
+  "catchUpFollowUp": {
+    "baseRevision": "763687a6",
+    "localRun": "target/m103-q06-webp/sample-nvidia-03",
+    "binarySha256": "d921c776c1877aeec220db5c0d2e26bd5e4ad144a64e492072ee67fa8e252087",
+    "sampleSha256": "3201b08bf68b9900d70cfd6efaf4c875100ae481c9db550627bd8292b0803e30",
+    "auditSha256": "b1c14b68b9bb95bc955a868dced7c971c8c9457f27be8222f09c4db8ce483059",
+    "inputsSha256": "0256e7d2725a3dea535366c3ca51539044c26accaaad88fea6fa010a7367ac71",
+    "unchangedInputHashes": 66,
+    "buildScope": "The bundled working build used the pinned FFmpeg runtime. Its local input manifest includes unrelated tracked changes present for compilation.",
+    "change": "After initial current/lookahead selection, a late forward playback turn reuses the decoded lookahead and decodes one more frame. Each delivered image keeps its actual timestamp and following timestamp.",
+    "controllerAndAuditExits": [0, 0],
+    "mapGyverVideoTests": 75,
+    "strictClippyAndBundledBuild": "pass",
+    "visiblePublicationsHD_UHD": [5963, 1533],
+    "visiblePublicationRatesHD_UHD": [49.6696, 12.7693],
+    "minimizedPublicationRatesHD_UHD": [50.4845, 14.2362],
+    "visibleDistinctEncodedPtsHD_UHD_Reference": [205, 52, 205],
+    "heldSeekMarkersAt1000MsHD_UHD_Reference": [60, 2078, 60],
+    "heldAlphaEachOutput": [255, 0, 129],
+    "connectedMarkerMatches": {
+      "visibleHD_UHD_Reference": [7202, 7200, 7203],
+      "minimizedHD_UHD_Reference": [3602, 3601, 3603],
+      "total": 32411,
+      "missingOrMismatched": 0
+    },
+    "visibleDeadlineMissesOf7203HD_UHD_Reference": [1, 3, 0],
+    "visibleCpuSubmissionP95P99Ms": [2.6765, 3.4377],
+    "visibleFilePublicationToCopyP95UpperMsHD_UHD_Reference": [24.4602, 79.1706, 24.7314],
+    "minimizedFilePublicationToCopyP95UpperMsHD_UHD_Reference": [23.9353, 71.5325, 24.6592],
+    "visibleUhdSourceToOutputAgeP95LowerMs": 65.3665,
+    "visibleUhdTrace": {
+      "medianSteadyGapBeforeAfterMs": [141.6135, 76.0876],
+      "medianWrapGapBeforeAfterMs": [285.4028, 217.8401],
+      "renderUploadP95BeforeAfterMs": [3.6405, 2.7754],
+      "latestDisplayedSourcePtsBeforeAfterMs": [1800, 1700],
+      "fullClipDurationMs": 3999
+    },
+    "gpuCriticalPath": "The direct 4K software upload still lacks a matched producer dependency in the GPU-path audit.",
+    "resources": {
+      "visibleSoftwareUploadCallsHD_UHD": [5963, 1532],
+      "visibleSoftwareUploadBytesHD_UHD": [49459507200, 50828083200],
+      "sourcePublisherPeakBytes": 24883200,
+      "nativePlanAndOutputTexelPeakBytes": 370400008,
+      "maxObservedProcessPrivateBytesMeasuredPhases": 903475200,
+      "finalTrackedSourceAndNativeTexelsBytes": [0, 0],
+      "finalPlanTextureAllocationsCreatedReleased": [27, 27]
+    }
+  },
   "softwareChecks": {
     "mapGyverVideo": 75,
     "goldenVideoScheduling": 5,
@@ -72,7 +120,7 @@
     "mapGyverClippyAndBundledBuild": "pass"
   },
   "remaining": [
-    "The workloads still fall short of the encoded source cadence. The 4K source age exceeds 50 ms even at the conservative lower bound.",
+    "The workloads still fall short of the encoded source cadence. The 4K source age exceeds 50 ms even at the conservative lower bound, and the decoder did not advance through the full loop before the clock wrapped.",
     "The audit lacks full GPU-path coverage for 4K software uploads. Additional profiles, repeat runs, sustained DXV, device recovery and license qualification remain open."
   ]
 }

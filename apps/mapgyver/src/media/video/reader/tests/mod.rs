@@ -50,6 +50,10 @@ fn animated_webp_forward_catch_up_progresses_and_held_seeks_remain_exact() {
 
     assert!(reader.advance_for_playback(ms(1200), Some(ms(0))).unwrap());
     let frame = reader.selected_neighbours().unwrap().unwrap();
+    assert_eq!((frame.position, frame.next), (ms(200), Some(ms(400))));
+    reader.mark_published();
+    assert!(reader.advance_for_playback(ms(1200), Some(ms(0))).unwrap());
+    let frame = reader.selected_neighbours().unwrap().unwrap();
     assert_eq!((frame.position, frame.next), (ms(400), Some(ms(600))));
     reader.mark_published();
     assert!(reader.advance(ms(1200)).unwrap());
@@ -58,6 +62,7 @@ fn animated_webp_forward_catch_up_progresses_and_held_seeks_remain_exact() {
     assert_eq!(reader.neighbours().unwrap().unwrap().position, ms(400));
 
     let mut cropped = Reader::new(open()).unwrap();
+    assert!(!cropped.advance_for_playback(ms(800), Some(ms(400))).unwrap());
     assert!(!cropped.advance_for_playback(ms(800), Some(ms(400))).unwrap());
     assert!(cropped.advance_for_playback(ms(800), Some(ms(400))).unwrap());
     assert_eq!(cropped.selected_neighbours().unwrap().unwrap().position, ms(400));

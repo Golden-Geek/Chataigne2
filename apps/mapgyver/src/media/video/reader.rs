@@ -231,7 +231,13 @@ impl Reader {
             self.published = None;
         }
         self.requested = Some(target);
-        let budget = if progressive { 2 } else { 8 };
+        // Share the following frame between turns so a slow sequential decoder can
+        // show each completed image. Initial selection still needs both timestamps.
+        let budget = if progressive {
+            1 + usize::from(self.current.is_none())
+        } else {
+            8
+        };
         let mut decoded = 0;
         while decoded < budget {
             if self.current.is_none() {
