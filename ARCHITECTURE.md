@@ -99,7 +99,7 @@ conditions, processors, or Chataigne state machines.
 
 ### MapGyver and proposed Golden Video
 
-`apps/mapgyver/` will own Media/Screen managers, composition authoring, Matrix column/app policy,
+`apps/mapgyver/` will own the Medias and Screens panels, composition authoring, Matrix column/app policy,
 projection surfaces and four specialized editors. Proposed `crates/golden_video/` owns reusable
 GPU resources, render passes, Spout and output/recovery mechanics, following Golden Audio's
 independent runtime boundary. Proposed `packages/golden-video-ui/` owns native preview bindings;

@@ -44,7 +44,7 @@ Current automated checks:
   typed Placement editing, missing-target recovery and Save/New/Load.
 
 For manual review, launch the app, load the saved project through **File → Open** and select
-**Review Composition** in Media Manager. Expand it to select actual child media; the shared
+**Review Composition** in Medias. Expand it to select actual child media; the shared
 Inspector shows their Placement Parameters. A Composition panel follows compatible document
 selection or can be locked while browsing sources. Open another panel from a docking group's
 plus menu to compare independent locks.

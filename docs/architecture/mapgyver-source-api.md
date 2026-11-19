@@ -5,7 +5,7 @@ Golden owns the script runtime, method dispatch, bounded app-operation queue, hi
 callback delivery. Named methods translate arguments to the existing Rust-owned `MediaEdit`
 contract; they do not edit internal Parameters directly or invent alternate source policy.
 
-Create a script with **Add Media Script** in the Media Manager Inspector, or the
+Create a script with **Add Media Script** in the Medias Inspector, or the
 `CreateScript { label }` media intent. This explicit operation installs the embedded app
 template as an ordinary Golden Script child and commits one history step. Scripts stay out
 of the manager's object outliner and creation menus. Its Inspector Scripts section mounts at
@@ -14,7 +14,7 @@ templates have no update callback and remain passive after loading.
 Save edited source with the standard editor's Ctrl+S action, then use **Reload Runtime** to
 execute changed initialization code.
 
-`local` refers to Media Manager from these scripts. Each method starts with a nonempty request
+`local` refers to Medias from these scripts. Each method starts with a nonempty request
 id. UUID arguments come from committed results, not numeric session node IDs. Empty optional
 labels use backend defaults; empty File/sender strings clear that channel's source setting.
 `Reference` creation returns `ReferenceCreated { media }`, because an unconfigured Reference
@@ -74,7 +74,7 @@ No repository files are read when an installed app creates the template. The gen
 `editMedia` surface retains folders, asset management, ordering/removal and specialized
 Composition/Matrix intents; see [the Rust contract](../../apps/mapgyver/src/media/protocol.rs).
 
-The Media Manager Inspector's **Commands** section creates app-owned
+The Medias Inspector's **Commands** section creates app-owned
 `mapgyver.media.command.v6` children through `CreateCommand`. `InspectCommandCatalog` returns
 the Rust-owned catalog; the generator exports each command's visible Parameter fields.
 The section mounts at most 32 commands per page. Commands stay out of object creation menus

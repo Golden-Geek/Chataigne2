@@ -101,7 +101,7 @@ for the exact convention.
 
 `apps/mapgyver/` is an existing Rust/npm workspace member. Its `src/app/` declares the product
 identity, `.mapgyver` project specification and shared-host defaults; new projects contain the
-standard Dashboard and Media Manager authoring container. Its `ui/` mounts the reusable workbench
+standard Dashboard and Medias authoring container. Its `ui/` mounts the reusable workbench
 with MapGyver branding and a typed media-intent adapter. App-owned
 Tauri configuration, icons, permissions and build script remain under that directory; UI bundling
 uses the public `golden_codegen_support::ui_bundle` boundary shared with Chataigne.

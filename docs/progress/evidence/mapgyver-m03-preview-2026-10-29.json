@@ -111,6 +111,6 @@
     "overall_total_phases": 10,
     "remaining_m03_gates": [4,9],
     "next": "Production source/output/device recovery and bounded retirement, then unchanged Q01/Q02 renderer qualification",
-    "limitations": ["No genuine hardware device removal or sustained qualification pass", "Fixed backing projection is not physical-size fidelity or scanout", "Specialized editors/full physical/DPI/input remain M05-M07", "Default app remains the thin workbench; this fixture consumes generic preview mechanisms", "Media Manager controls/commands/callbacks/snippets/ready-file watching remain M04", "All historical qualification failures and budgets remain unchanged"]
+    "limitations": ["No genuine hardware device removal or sustained qualification pass", "Fixed backing projection is not physical-size fidelity or scanout", "Specialized editors/full physical/DPI/input remain M05-M07", "Default app remains the thin workbench; this fixture consumes generic preview mechanisms", "Medias controls/commands/callbacks/snippets/ready-file watching remain M04", "All historical qualification failures and budgets remain unchanged"]
   }
 }

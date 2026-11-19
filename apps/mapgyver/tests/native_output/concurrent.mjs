@@ -130,7 +130,7 @@ try {
 	token = (await post('/api/ui/session', {})).token;
 	await native.page
 		.getByRole('tab')
-		.filter({ hasText: /^Screen Manager$/ })
+		.filter({ hasText: /^Screens$/ })
 		.waitFor();
 	let catalog;
 	const deadline = Date.now() + 10000;
@@ -178,9 +178,9 @@ try {
 	observer = await createPreviewOutputObserver(post, path.join(directory, 'spout'), native.page);
 	await observer.observe('first-grid', { first: source });
 	const tab = (name) => native.page.getByRole('tab').filter({ hasText: new RegExp(`^${name}$`) });
-	await tab('Screen Manager').click();
+	await tab('Screens').click();
 	await native.page
-		.locator('section[aria-label="Screen Manager"]')
+		.locator('section[aria-label="Screens"]')
 		.getByRole('button', { name: surfaces[0].label, exact: true })
 		.click();
 	await tab('Screen Warping').click();

@@ -103,7 +103,7 @@
     "Native forced device-loss/recreation and full healthy-output independence remain unqualified",
     "Window backing extent is fixed; client resize uses DXGI stretch",
     "Sustained Q01/Q02 budgets, physical display/DPI/input and full-app qualification remain open",
-    "Main app remains the workbench; no product Media Manager is delivered by this batch"
+    "Main app remains the workbench; no product Medias is delivered by this batch"
   ],
   "acceptance": {"newly_closed_m03_gate": 3, "m03_done": 4, "m03_total": 9, "overall_complete_phases": 3, "overall_total_phases": 10}
 }

@@ -37,7 +37,7 @@
   "corrected_findings": [
     "Default declared-child UUIDs are sparse implementation details; the persisted Cell now owns application identity",
     "Unconfigured declared materialization must not invalidate logical demand; configured activation/change/clearing still do",
-    "The new Cell UI fixture now selects a real Media Manager object instead of the obsolete channel-row helper"
+    "The new Cell UI fixture now selects a real Medias object instead of the obsolete channel-row helper"
   ],
   "receipts": "target/m08-cell-{codegen,tests,caller-check,clippy,ui-check,native-build,native,app-build,ui,application-regression}.log",
   "remaining": "Column integration and standalone removal; normalized-key shared ownership; independent Cell triggers and complete transition/final-use acceptance; M08/3-4 picker/commands/snippets/access/retirement coverage",

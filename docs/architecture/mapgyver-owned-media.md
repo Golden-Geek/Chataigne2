@@ -30,7 +30,7 @@ content retains the exact Placement subtree and returns the new media identity. 
 groups the complete operation, including imported media and replacement cleanup.
 
 `AddInstances`, duplication, geometry, reorder/removal and inspection operate on actual media
-children. Batched creation uses a detached forest. Media Manager follows the real hierarchy;
+children. Batched creation uses a detached forest. Medias follows the real hierarchy;
 the generic Inspector displays each child's media Parameters and Placement. The canvas sends
 the drag's Alt state as `copy` and viewport-derived coordinates, with defaults/validation owned
 by the backend. Missing/unconfigured Reference media can be dropped with an empty automatic
@@ -69,7 +69,7 @@ is excluded because Matrix owns its layout. Group/Column copies remap all intern
 including Cell addresses and paired exports, in one history operation. Matrix row/column
 settings still use the earlier opaque model; their typed redesign remains M07/M08 work.
 
-The virtualized grid selects the actual Cell for Golden's Inspector. Media Manager traverses
+The virtualized grid selects the actual Cell for Golden's Inspector. Medias traverses
 Matrix hierarchy and owned sources. `dropMatrixMedia`, the typed **Drop Matrix Media** command,
 and `MatrixEdit::DropSource` share the backend implementation; command schema v4 has 33 kinds.
 Old Cell records reject explicitly instead of restoring the removed opaque source model.
@@ -92,7 +92,7 @@ clearing an Output to automatic (or an integer to zero) therefore survives proje
 The fix belongs in Golden persistence, with direct codec tests, rather than in app-specific
 serialization or an authored-state migration.
 
-The Media Manager owns one runtime-only producer registry in `media/retention.rs`.
+The Medias owns one runtime-only producer registry in `media/retention.rs`.
 Admitted Matrix bindings retain reachable channel definitions and derived inputs there; shared
 producers occupy one record across Cells and Matrices. Replacing or removing playing owned
 media needs no Unload. Capture reads a deleted Cell-owned source from this immutable graph,

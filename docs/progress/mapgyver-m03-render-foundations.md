@@ -301,7 +301,7 @@ select labels and initial settings. Removing the last channel is rejected; remov
 makes references explicitly missing, and undo restores the authored UUIDs. Source kind and
 owner validation reject mismatched pairs without mutation or a history step.
 
-New projects include the standard Dashboard and a Media Manager authoring container. The initial
+New projects include the standard Dashboard and a Medias authoring container. The initial
 definitions cover Solid Color and Shared Texture. Automatic size uses source metadata or the
 backend Solid Color canvas; absent sources stay unresolved. Fixed size retains its output
 extent separately from unavailable/unconfigured/incompatible status. Dimensions are nonzero
@@ -341,7 +341,7 @@ Verified checks:
 
 Gate 5 remains **partial** and M03 stays **4/9 = 44%**. Actual app demand/configuration must still
 publish fenced runtime bindings, consume source observations and preserve these IDs through
-native resource recreation. Startup native bindings are still immutable. Full Media Manager
+native resource recreation. Startup native bindings are still immutable. Full Medias
 controls, command nodes and app-owned script templates belong to M04; the generic QuickJS app
 operation/callback path is already exercised. Picture/assets, Composition and Matrix remain
 with their planned deliveries. No renderer, physical-output or full-app budget is relaxed.
@@ -414,7 +414,7 @@ access, plan construction, wait or whole-tree snapshot. A host/preparation worke
 `ChannelRenderer`, which publishes immutable plans through public `VideoRuntime` APIs. GPU work
 starts only with consumer demand; the default workbench does not create a renderer by itself.
 
-The typed Media Manager owns a runtime-only instance and revision lifetime. Manager membership,
+The typed Medias owns a runtime-only instance and revision lifetime. Manager membership,
 media membership and channel revisions fence captured leaves across configure, enable changes,
 removal, undo and reload. Destruction explicitly invalidates guards even when history retains
 the removed node payload. These clocks and all source observations stay out of persistence.
@@ -466,7 +466,7 @@ Verified checks:
   Chataigne startup default, display or overlay setting changes.
 
 This closes fixed **gate 5**, bringing M03 to **5/9 = 56%**; overall stays **3/10 = 30%**. No
-denominator or qualification budget changed. Dedicated Media Manager controls, command nodes,
+denominator or qualification budget changed. Dedicated Medias controls, command nodes,
 callbacks and app-owned snippets remain M04; production Screen/preview demand belongs to M05.
 Gates 4/7/8/9 remain open, including genuine device-removal recovery and sustained Q01/Q02
 qualification. Next is the shared persistent asset/preparation boundary needed by Picture media.
@@ -518,7 +518,7 @@ remain Chataigne. No native implementation, UI, display/overlay or qualification
 
 Gate 7 remains **partial**, so M03 stays **5/9 = 56%**, overall **3/10 = 30%**, with unchanged
 denominators. Next is app-owned asset catalog/codec/history and Picture preparation/resource
-integration using this boundary. Full Picture/Media Manager controls, commands/callbacks/snippets
+integration using this boundary. Full Picture/Medias controls, commands/callbacks/snippets
 remain M04; source watching/recovery and GPU lifetime admission must be exercised there. The
 shared [P15 plan](../plan/Chataigne2_Codex_Implementation_Plan.md#p15--establish-asset-identity-and-preparation)
 records this reusable evidence without claiming Chataigne audio migration, collect/relink,
@@ -546,7 +546,7 @@ One per-source scope fences retries independently. Missing/IO/source-change/capa
 schedule a coarse one-second owner wake; ready-file notifications can call `retry_picture(id)`
 without invalidating healthy sources. An owner without a notifier can use the exposed next retry
 deadline. Relocation invalidates source scopes and prepares against the new directory. Full
-Media Manager controls, command nodes, callbacks/snippets and ready-file watching remain M04;
+Medias controls, command nodes, callbacks/snippets and ready-file watching remain M04;
 the workbench still starts no GPU work without a consumer's demand.
 
 Golden Video now accepts `ExternalSource::Image(PreparedAsset<ImageData>)` beside Spout sources.

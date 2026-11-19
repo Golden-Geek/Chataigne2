@@ -89,7 +89,7 @@
     "calibration": "Grid/ColorBars/Off form choices preserve exact source/crop/mapping and other saved fields. This proves authored/UI semantics, not procedural native pixels.",
     "handles": "All four crop handles, inside-rectangle origin drag, and Escape after accepted origin motion preserve peers and non-crop fields. Each sampled gesture is one complete Undo/Redo; origin keeps width/height.",
     "rejection": "Invalid pointer and contained-crop form edits reject visibly, preserve the last valid definition and consume no authored history.",
-    "source_loss": "Actual Media Manager Delete and Undo produce the explicit Missing source picker option without changing the saved Surface binding; Undo restores original media IDs/catalog.",
+    "source_loss": "Actual Medias Delete and Undo produce the explicit Missing source picker option without changing the saved Surface binding; Undo restores original media IDs/catalog.",
     "lifetime": "Peer selection and Screen/Surface Source tab switching preserve committed state and usable controls."
   },
   "checks": {

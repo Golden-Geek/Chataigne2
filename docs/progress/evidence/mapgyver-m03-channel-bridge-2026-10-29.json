@@ -97,7 +97,7 @@
     "remaining_m03_gates": [4,7,8,9],
     "next": "Shared persistent asset/preparation boundary for Picture media",
     "limitations": [
-      "Main workbench has no production Screen/preview consumer or dedicated Media Manager controls yet",
+      "Main workbench has no production Screen/preview consumer or dedicated Medias controls yet",
       "Actual device-removal, sustained Q01/Q02 budgets, physical output/DPI/input remain unqualified",
       "Existing qualification budgets/failures unchanged; no display or overlay setting changed"
     ]

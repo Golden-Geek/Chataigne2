@@ -1,5 +1,5 @@
 {
-  "gate": "M04.5 Media Manager UI",
+  "gate": "M04.5 Medias UI",
   "observed_at_utc": "2026-10-31T16:04:42Z",
   "route": "ordinary --headless host serving bundled UI over loopback; isolated temporary APPDATA",
   "binary": "target/debug/MapGyver.exe",
@@ -11,7 +11,7 @@
   "initial_observer_failure": "Exact tab-name locator omitted the accessible close-button name; timed out before authoring. Kernel reset closed that browser, verified absent before starting its replacement. Corrected locator uses observed tab text. Host was retained.",
   "assertion_observation": "Node REPL cross-realm prototypes caused strict comparison of structurally equal JSON to fail. Normalized both operands as JSON and verified the original committed values without repeating authoring.",
   "checks": [
-    { "case": "Default empty Media Manager and module registration", "result": "pass" },
+    { "case": "Default empty Medias and module registration", "result": "pass" },
     { "case": "Create Solid Color, Picture and Shared Texture through UI controls", "result": "pass" },
     { "case": "Rename Solid media and Primary/Secondary channels with stable references", "result": "pass" },
     { "case": "Add/select/reorder channels; retain Primary defaults while Secondary becomes fixed 320x180, Nearest, straight linear RGBA [0.25,0.5,0.75,0.5]", "result": "pass" },

@@ -338,7 +338,7 @@ history and reload coverage. Only tests for deleted wrapper/template behavior we
 Verification: full MapGyver suite262pass/1existing hardware ignore; strict all-target Clippy and
 ordinary bundled app build pass. Two new backend regressions verify exact catalog labels, factory
 rejection, no history/document mutation and absent type registration. The bundled `--catalog-ui`
-flow verifies Media Manager and Folder menus plus direct Screen creation, with0page errors or
+flow verifies Medias and Folder menus plus direct Screen creation, with zero page errors or
 rejected requests, and its ordinary host source/history/Save/New/Load prerequisites pass. Initial
 browser fixture errors (observer API, untrimmed DOM text and an unrelated menu-dismissal assertion)
 were corrected; no application defect or native qualification is inferred. Root and Golden Core
@@ -983,7 +983,7 @@ Publish before opening the M05 gate6 migration batch; no further M04 comparison 
 
 **M04 source acceptance batch — 2026-11-01 19:53 CET, stop 20:38 CET:** previous turn is
 progress, published as `c0a52035` with a clean checkout. M04 gate5 is the sole active gate.
-Owner: app Media Manager/Inspector and ordinary browser acceptance fixtures. Recover the full
+Owner: app Medias/Inspector and ordinary browser acceptance fixtures. Recover the full
 original batch50 matrix (source creation/settings/rename/reorder/delete, Picture import/relink,
 independent Spout selectors, guards, Undo/reload), including the missing top-level import affordance,
 using existing backend operations. Migrate Picture reload input to the shared Inspector.
@@ -1202,7 +1202,7 @@ review file remains unchanged. Native image/extent outlines stay open: **M06 3/4
 **4/10 (40%)**. [Composition lifetime evidence](evidence/mapgyver-m06-project-lifetime-2026-11-01.json).
 
 **Retained checkpoint, batch94:** the trace identifies four obsolete Matrix InspectPlayback/Inspect
-requests from Media Manager's hidden channel editor. Its catalog now belongs to one session/epoch;
+requests from Medias's hidden channel editor. Its catalog now belongs to one session/epoch;
 children unpublish immediately during replacement, and stale reads/mutation replies cannot adopt
 new selection. The strengthened strict New/upload check passes **exit0 /7,875 ms**, zero rejected
 requests, missing-media messages and page errors. Svelte/build/formatting pass. **Correctness defect
@@ -3133,7 +3133,7 @@ scratch pass when needed. Empty/unlaunched/deleted columns render transparent an
 Scratch/edge admission preserves existing limits and can withdraw the affected producer while a
 healthy output continues. Preview/Screen pass overhead is reserved before admitting scratch targets.
 
-Media Manager now exposes bounded searchable explicit Cut buttons and committed requested-column
+Medias now exposes bounded searchable explicit Cut buttons and committed requested-column
 feedback, distinct from renderer installation; selecting or assigning a source never launches it.
 The virtualized grid, preparation/live indicators, shared-time fades/interruption/outgoing retention
 and full native/interactive/large-grid checks remain required. **No gate closes; M07 stays 1/4.**
@@ -3194,7 +3194,7 @@ to Matrix-owned nodes; mixed removals, moves, creation and copy requests reject 
 contains no Matrix policy, and the bare engine remains a trusted internal mechanism. The regression
 test failed before the guard and passes after it; no new diagnostic framework or native run was used.
 
-Create Matrix is exposed in Media Manager and command presets. Its focused settings/inspection UI
+Create Matrix is exposed in Medias and command presets. Its focused settings/inspection UI
 supports canvas/transition configuration, root group/layer/column creation and source assignment;
 bounded selectors/readback show authoritative data. Generic commands, hosted `editMedia`, committed
 callbacks and app snippets use the same generated DTOs. The Final/Layer/Group producer remains
@@ -3230,7 +3230,7 @@ do not repeat definition forms or the broad passing Composition/Matrix candidate
 
 **Composition project lifetime batch95:** 2026-11-01 **06:28 UTC**, stop **07:13 UTC**;
 investigation cutoff **06:48 UTC**, at most two finite app invocations. Only M06 gate4 is active.
-Previous turn is progress: `3589786f` fixes exact hidden Media Manager stale queries and passes
+Previous turn is progress: `3589786f` fixes exact hidden Medias stale queries and passes
 strict Matrix New/upload. Target remaining original Composition lifetime: New during an accepted
 drag, held-pointer disposal, fresh identities/history/controls and actual saved-review upload.
 Reuse existing browser/menu/receipt observation and unchanged review; no broad input rerun, fake
@@ -3288,7 +3288,7 @@ normally; no MapGyver remains. The complete candidate is not a passing acceptanc
 
 The inspected failure capture also shows a narrow docked panel squeezing the canvas beside a
 15rem form column because its media query uses the much wider browser viewport. Composition now
-queries its own container width, following Media Manager/SurfaceWorkbench. Svelte reports zero
+queries its own container width, following Medias/SurfaceWorkbench. Svelte reports zero
 errors/warnings; syntax/Prettier, ordinary app rebuild and both workspace formatters pass. Layout
 and full input require runtime verification. **M06 remains3/4; overall4/10 (40%)**. Preserve the two
 failed invocations cumulatively; the specific assertion/layout corrections, not a new batch name,
@@ -3424,7 +3424,7 @@ the cumulative 20-minute/two-experiment limit; unresolved scope stays open at th
 coverage. [Dependency tests](../../apps/mapgyver/src/media/dependencies/tests/mod.rs) verify all
 five source kinds (Solid Color, Picture, Shared Texture, Composition and Matrix) preserve the two
 referencing instances through removal/Undo/Redo, restore the exact source and keep missing leaves
-valid. A detached Media Manager forest constructs **4,096 nested compositions /16,384 composition
+valid. A detached Medias forest constructs **4,096 nested compositions /16,384 composition
 nodes**, sharing one leaf. Whole-project validation succeeds; adding the back edge returns the
 specific dependency-cycle error with byte-identical persisted document and unchanged history.
 Reload retains node count/identity and passes project validation. The focused forest insertion plus
@@ -3596,7 +3596,7 @@ logical canvas layout. Missing references remain authored, with no source substi
 and indirect Composition feedback reject before mutation; edit/load validation is iterative.
 Matrix integration and full demanded-graph/native correctness remain in gates 2–3.
 
-Create Composition is exposed in Media Manager and command presets; canvas controls, hosted
+Create Composition is exposed in Medias and command presets; canvas controls, hosted
 `editMedia`, generic commands, committed callbacks and app-owned snippets share the generated DTOs.
 Golden's existing blend enum gains serialization/TS derives, avoiding another blend declaration.
 Add/copy admits 1–4,096 instances per forest and 100,000 per output; one finite 1,000-instance
@@ -3781,7 +3781,7 @@ preserves width/height during movement and rejects invalid candidates before mut
 destination quad, calibration, opacity and enable state survive crop gestures. Missing sources
 retain their identities; no substitute channel is selected.
 
-Screen Manager and Surface Source are separate default dock tabs over one window-owned authoring
+Screens and Surface Source are separate default dock tabs over one window-owned authoring
 context, catalog, selection and gesture controller. Shared selection follows either view; closing
 all views stops new inspections and finalizes accepted input. Numeric fields remain available for
 keyboard editing. The existing Golden edit session/history and native preview contracts are reused;
@@ -4072,7 +4072,7 @@ gestures and full physical qualification retain gates 4–8. Overall remains **3
 **7/9**, M04 **1/6**. Next is virtual Spout output activation with an end-to-end calibration check.
 
 **Product batch 11:** started 2026-10-30 **22:34 UTC**, recorded stop **23:19 UTC**.
-Deliver native composed Screen preview in the Screen Manager through the existing shared host:
+Deliver native composed Screen preview in the Screens through the existing shared host:
 typed app-owned preview source keys, bounded Screen/channel capture, shared renderer demand,
 revision invalidation and status/error presentation. Owners: MapGyver preview preparation and UI;
 Golden keeps native geometry, visibility fences and GPU lifetimes. Proof: mixed Screen/channel
@@ -4082,7 +4082,7 @@ Screen publication, clipped by the existing native compositor, without a separat
 Native investigation stops by **22:54 UTC** or two experiments; if capture/input remains limited,
 retain that limit and finish the software-backed delivery without automation recovery or M03 work.
 
-**Batch 11 result:** the Screen Manager shows composed native Screen textures through the same
+**Batch 11 result:** the Screens shows composed native Screen textures through the same
 preview session, renderer and window compositor as Channels. Tagged Rust-owned Channel/Screen
 source keys and status DTOs have a dedicated generator and UI consumer. Shared routing/capture/
 host code moved from `media/preview` to `src/preview`; Golden geometry/visibility/GPU mechanisms
@@ -4171,7 +4171,7 @@ unsupported error rather than substituting the source. Overall remains **3/10 (3
 M04 **1/6**. Next product slice is native Screen preview through the existing shared host.
 
 **Product batch 9:** started 2026-10-30 **21:55 UTC**, recorded stop **22:40 UTC**.
-Deliver the registered Screen Manager authoring panel: Screen/Surface selection and CRUD,
+Deliver the registered Screens authoring panel: Screen/Surface selection and CRUD,
 explicit target settings, channel assignment and authored mapping/calibration controls using
 the generated ScreenEdit contract. Owner: `apps/mapgyver/ui/src/lib/screens` and app UI registration.
 Proof: Svelte/build checks, operation/client tests and a bounded native UI observation if the
@@ -4179,7 +4179,7 @@ supported desktop route is available. A form/field change is one submitted atomi
 drag gestures and rendered mapping remain separate acceptance. Investigation stops by
 **22:15 UTC** or two experiments; do not recover the unavailable browser or resume M03 diagnostics.
 
-**Batch 9 result:** the required Screen Manager tab is registered beside Media Manager through
+**Batch 9 result:** the required Screens tab is registered beside Medias through
 Golden's public panel API. It exposes Screen/ordered Surface creation, selection, rename, moves
 and removal; explicit fullscreen identity/physical rectangle/Spout settings; and source, crop,
 destination corners, opacity, enablement and calibration forms. Draft values come from the
@@ -4198,7 +4198,7 @@ Validation: Svelte checking passes with zero errors/warnings; all **7/7** app UI
 media cases). The final bundled app build, Prettier and both workspace formatters pass.
 Implementation/checks finished by **22:11 UTC**, before the recorded **22:40 UTC** stop.
 The ordinary bundled app displayed the registered
-Screen Manager and empty state. The single native run used public loopback operations to author
+Screens and empty state. The single native run used public loopback operations to author
 a signed physical rectangle and cropped/calibration-selected Surface from a Solid Color channel;
 the live UI issued fresh event-driven catalog reads. Configured-field captures were obscured by
 another window, and helper/app integrity still limits input. No input automation, configured-form
@@ -4212,7 +4212,7 @@ product capability; no gate closes from form/build evidence. Next is actual crop
 not another desktop automation or qualification investigation.
 
 **Product batch 8:** started 2026-10-30 **21:44 UTC**, recorded stop **22:29 UTC**.
-Deliver persistent Screen Manager/Screen/ordered Surface authoring through the atomic app
+Deliver persistent Screens/Screen/ordered Surface authoring through the atomic app
 operation route, including command nodes, script methods, callbacks and embedded snippets.
 Owner: `apps/mapgyver/src/screens`; public media/channel references connect existing sources.
 Proof: create/configure/reorder/remove, invalid edits with no state/history change, source
@@ -4224,7 +4224,7 @@ fixed gates. Overall phase count remains 10; none is accepted by defining this b
 
 | #   | Acceptance scope                                                                                                                                                                                                                                                          | State                                                                                                                                                                                                                                                                                      |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | Default Screen Manager; atomic Screen/ordered Surface authoring with stable source references, validated targets/crops/quads, project/history roundtrip, commands, script methods, callbacks and app-owned snippets.                                                      | Accepted — batch 8 evidence below                                                                                                                                                                                                                                                          |
+| 1   | Default Screens; atomic Screen/ordered Surface authoring with stable source references, validated targets/crops/quads, project/history roundtrip, commands, script methods, callbacks and app-owned snippets.                                                      | Accepted — batch 8 evidence below                                                                                                                                                                                                                                                          |
 | 2   | Runtime crop followed by perspective warp matches reference patterns; invalid/singular mapping fails atomically.                                                                                                                                                          | Accepted — batch 10 reference and publication evidence above                                                                                                                                                                                                                               |
 | 3   | Calibration with no source restores authored routing; overlapping Surfaces preserve order and alpha.                                                                                                                                                                      | Accepted — batch 12 backend/runtime and finite GPU evidence                                                                                                                                                                                                                                |
 | 4   | Physical fullscreen, physical desktop rectangle and virtual Spout targets work concurrently and continue when editors close/minimize.                                                                                                                                     | Open — batches 13–15 verify all modes, three-consumer API acceptance and no-editor demand; physical pixels/full concurrent/minimize scope remain                                                                                                                                           |
@@ -4233,7 +4233,7 @@ fixed gates. Overall phase count remains 10; none is accepted by defining this b
 | 7 | Surface Source editor exposes crop/mapping/calibration with coherent source, history and script behavior. | Accepted — 2 November guided native check4 supplies full-source image/crop-overlay/mapped-result observation, completing existing generic Parameter/calibration/history/source-loss/script proof. [Evidence](evidence/mapgyver-m05-manual-editor-acceptance-2026-11-02.json). |
 | 8   | Full retained physical presentation matrix: exact geometry, alpha/color/reference patterns, 100/125/150/200% and mixed DPI, negative origins, overlays/pointer capture, measured alignment/input latency and editor independence. Unavailable configurations remain open. | Open                                                                                                                                                                                                                                                                                       |
 
-**Batch 8 result:** `src/screens` owns persistent Screen Manager, Screen and Surface nodes and
+**Batch 8 result:** `src/screens` owns persistent Screens, Screen and Surface nodes and
 the `mapgyver.screens.edit` route. CreateScreen builds the Screen and first full-source/full-screen
 Surface as one detached subtree and one history entry. Backend labels/IDs, configure, rename,
 ordered Screen/Surface moves, removal and read-only inspection work through typed operations.
@@ -4246,7 +4246,7 @@ validates ownership against the public media API. Invalid crops, nonfinite/conca
 quads, opacity and physical bounds are rejected before mutation. Off-screen convex/mirrored quads
 are allowed. Source availability, native handles and device observations are not persisted.
 
-Screen Manager's Add menu exposes Screen Operation, Create Screen and an embedded Screen Script.
+Screens's Add menu exposes Screen Operation, Create Screen and an embedded Screen Script.
 `editScreens`/`inspectScreens`, command Execute/`execute()` and committed/rejected
 `onAppOperationResult` callbacks use Golden's existing bounded atomic operation service. Disabled
 or destroyed request owners and failed originating edit batches cannot leak queued operations.
@@ -4260,7 +4260,7 @@ Strict all-feature bins/tests Clippy, Svelte checking, the bundled app build and
 formatters pass. Implementation/checks finished by **21:55 UTC**, before the **22:29 UTC** stop;
 the batch finishes early rather than expanding its scope. No native experiment or M03 investigation was needed.
 Only M05 gate 1 closes: **1/8 (13%)**; overall remains **3/10 (30%)**, M03 **7/9**, M04 **1/6**.
-Next product slice is the Screen Manager/Screen editor authoring UI; actual warp/calibration,
+Next product slice is the Screens/Screen editor authoring UI; actual warp/calibration,
 physical/Spout outputs and display/editor qualification retain gates 2–8.
 
 ### M04 acceptance items
@@ -4323,12 +4323,12 @@ terminal successes within the original window; no third or corrective run occurs
 
 | Requirement                                                                                                                | Accepted evidence                                                                                                                                                                                                                                                                                                           |
 | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Default Media Manager, detached creation/import, authoritative IDs, commands/methods/callbacks/snippets                    | Gate 1 module tests and app-owned registration; batch 51's 152 caller executions additionally verify returned owned identities, defaults, single committed callbacks and atomic history/allocation.                                                                                                                         |
+| Default Medias, detached creation/import, authoritative IDs, commands/methods/callbacks/snippets                    | Gate 1 module tests and app-owned registration; batch 51's 152 caller executions additionally verify returned owned identities, defaults, single committed callbacks and atomic history/allocation.                                                                                                                         |
 | At least two differently sized channels per source kind, Automatic/Fixed sizing and shared consumers                       | Native Solid Color batch 47, Picture batches 48/52 and Shared Texture batch 49 use two channels in one relevant media and independent A/A/B consumers. Source extents/output policies and shared production/resources are checked.                                                                                          |
 | Worker Picture decode, color/alpha and source/pixel/decode/cache bounds                                                    | Gate 3 codec/Golden Assets/renderer tests establish admission, worker execution, retained lease/cancellation/retirement and production 4K PNG bounds. Batches 48/52 observe actual PNG/JPEG output; unsupported layouts fail explicitly, not by silently raising budgets.                                                   |
 | Missing/relinked/replaced pictures; one failed source leaves a healthy peer                                                | Native Picture matrix plus public-intent worker tests and batch 52 replacement now exercise the real caller route. Reload changes no locator/asset/channel ID or authored history. No automatic watcher is claimed.                                                                                                         |
 | Exact independent Spout selection/discovery, absence/restart/rename/resize, isolated failure and explicit adapter mismatch | Accepted gate 4 / batch 49 checks actual outputs, advancing healthy peer, exact-name discovery, no implicit renamed selection, bounded oversize recovery and both cross-adapter error directions without fallback.                                                                                                          |
-| Media Manager UI, project/history, UI/script/headless parity and functional native resource recreation                     | Gate 5 actual UI authoring; batch 51 typed caller matrix, sparse/full codecs and source recreation evidence; batch 52 actual new Reload Picture UI/HTTP plus updated native replacement. Original source-gate tests retain controlled renderer/device teardown/recreation, upload/resource ownership and stable references. |
+| Medias UI, project/history, UI/script/headless parity and functional native resource recreation                     | Gate 5 actual UI authoring; batch 51 typed caller matrix, sparse/full codecs and source recreation evidence; batch 52 actual new Reload Picture UI/HTTP plus updated native replacement. Original source-gate tests retain controlled renderer/device teardown/recreation, upload/resource ownership and stable references. |
 
 Candidate hashes match their actual runs: ordinary bundled app
 `7e354546503c10fc2a532ecff8c4d187ed981903757c91bdb57363291973b1c4`; native test
@@ -4351,7 +4351,7 @@ missing cross-source caller cases, and add only focused public-path checks neede
 Do not repeat passing source pixel qualification or introduce picker/preview input as new gates.
 Run software/build/Clippy prerequisites before any live check; at most two live invocations/20
 minutes and the 16:53 batch stop. No other phase, driver, GPU timing or desktop recovery work.
-Previous goal turn is progress: pushed `d35930dc` closes Media Manager UI gate 5 with actual input.
+Previous goal turn is progress: pushed `d35930dc` closes Medias UI gate 5 with actual input.
 
 **Batch 51 fixed parity matrix:** clone one authored baseline with Solid Color/Picture/Shared
 Texture, two channels each, Automatic/Fixed sizing and one shared Picture asset. Compare 27
@@ -4443,7 +4443,7 @@ test build so the next UI/HTTP run uses the intended host. Candidate hashes, not
 `c9b851d1721f08bc375d8465939dec393055265d73ede5a1ba2da2f2797bb681`.
 
 **Qualification batch 50:** started 2026-10-31 **15:54 UTC**, recorded stop **16:39 UTC**.
-M04 Media Manager UI gate 5 is the only active acceptance work. Owners: app-owned media components
+M04 Medias UI gate 5 is the only active acceptance work. Owners: app-owned media components
 and their existing backend intent contract. Map controls/software coverage, then verify inspection,
 channel/source/size/rename/reorder/delete through the running interface. Prefer the app's supported
 browser/headless route if it permits ordinary UI input without native integrity barriers; preserve
@@ -4454,7 +4454,7 @@ Previous goal turn is progress: pushed `a9a280d6` closes Shared Texture gate 4 w
 
 **Batch 50 fixed interaction matrix, before execution:** use a fresh isolated ordinary headless
 host serving its bundled UI, and the existing Playwright Chromium installation (the in-app browser
-is unavailable). Through actual controls: inspect the default empty Media Manager; create Solid
+is unavailable). Through actual controls: inspect the default empty Medias; create Solid
 Color/Picture/Shared Texture; rename media and channels; add/select/reorder/delete a channel while
 retaining one; author independent Solid RGBA and automatic/fixed extents/filter; import/assign,
 select and relink a Picture host locator; set/change/clear an exact Spout selector and its admitted
@@ -4470,7 +4470,7 @@ Prettier and **58 frontend tests**. Interaction baseline starts **15:57 UTC**, c
 also bounded by 16:39. The owned host is `http://127.0.0.1:59475`, executive session **57325**, with
 private temporary APPDATA and its recorded orderly-shutdown sentinel. No user project is opened.
 
-**Batch 50 result — Media Manager UI gate 5 accepted, 16:04 UTC:** actual browser input through
+**Batch 50 result — Medias UI gate 5 accepted, 16:04 UTC:** actual browser input through
 the bundled UI passes the fixed matrix, with public **read-only** `InspectManager` calls confirming
 committed backend values. [Compact evidence](evidence/mapgyver-m04-ui-2026-10-31.json) records the
 binary/browser, cases, observer failures and limits; [catalog](evidence/mapgyver-m04-ui-catalog-2026-10-31.png)
@@ -4573,7 +4573,7 @@ test SHA-256 (`channel_rendering-f720e7eaa9bd21d7.exe`):
 Producer SHA-256 (`native_source_fixture.exe`):
 `7e172879ef8131016af907da9c4e8b66896a2d7ed85b215fa4b0fe046b378504`.
 Only M04 gate 4 closes: **4/6 = 67%**; overall remains **3/10 = 30%**, denominators unchanged.
-Stay in M04 for Media Manager UI gate 5, then full intent parity gate 6. No other phase gate,
+Stay in M04 for Medias UI gate 5, then full intent parity gate 6. No other phase gate,
 physical-output/UI input, device-removal or performance qualification is inferred.
 
 **Qualification batch 48:** started 2026-10-31 **15:26 UTC**, recorded stop **16:11 UTC**.
@@ -4774,7 +4774,7 @@ qualification. A failure permits one focused correction/rerun within the investi
 do not add a sender-count sweep or resume M03 measurement work.
 
 **Product batch 5:** started 2026-10-30 **19:59 UTC**, recorded stop **20:44 UTC**.
-Deliver Media Manager command nodes, script-callable methods, committed-result callbacks and
+Deliver Medias command nodes, script-callable methods, committed-result callbacks and
 app-owned snippets through the existing typed media operations. Owner: `apps/mapgyver/src/media`
 and its app registration. Proof: real command/QuickJS execution, atomic failure/history/project
 tests, generated-contract checks and the bundled app build. Keep native qualification parked.
@@ -4788,16 +4788,16 @@ overall remains fully accepted phases divided by ten.
 
 | Gate | Acceptance                                                                                                                                                                 | State                                                                                                                                                                                                                                                   |
 | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Media Manager in the default project, backend authoring/inspection and module commands, script methods, callbacks and app-owned snippets wired through the same operations | Accepted — [evidence](#media-module-commands-and-scripts--2026-10-30)                                                                                                                                                                                   |
+| 1    | Medias in the default project, backend authoring/inspection and module commands, script methods, callbacks and app-owned snippets wired through the same operations | Accepted — [evidence](#media-module-commands-and-scripts--2026-10-30)                                                                                                                                                                                   |
 | 2    | Solid Color with at least two differently sized channels, automatic/fixed sizing, color/alpha and shared consumers through the app/native rendering path                   | Accepted — batch 47: full-image color/alpha/extents/sharing/reload/recreation on Intel and NVIDIA                                                                                                                                                       |
 | 3    | Picture worker decode/preparation, pixel/decode/cache bounds, color/alpha, missing/relinked/replaced assets and shared consumers                                           | Accepted — batch 48: bounded worker/codec/lifetime software evidence and full native pixel/lifecycle matrix on Intel and NVIDIA                                                                                                                         |
 | 4    | Independent multi-channel Shared Texture selection/discovery, absence/restart/rename/resize recovery, one failed channel remaining isolated and explicit adapter mismatch  | Accepted — batch 49: fixed app/native pixel/lifecycle matrix on Intel and NVIDIA, including both cross-adapter rejection directions and healthy peer continuity                                                                                         |
-| 5    | App-owned Media Manager UI for inspection and channel/source/size/rename/reorder/delete operations, using backend intents and generated contracts                          | Accepted again after redesign — [complete new-layout source matrix](evidence/mapgyver-m04-workbench-source-acceptance-2026-11-01.json), plus tree/folder/Inspector workbench and backend folder history/roundtrip. Original batch50 scope is preserved. |
+| 5    | App-owned Medias UI for inspection and channel/source/size/rename/reorder/delete operations, using backend intents and generated contracts                          | Accepted again after redesign — [complete new-layout source matrix](evidence/mapgyver-m04-workbench-source-acceptance-2026-11-01.json), plus tree/folder/Inspector workbench and backend folder history/roundtrip. Original batch50 scope is preserved. |
 | 6    | UI/script/headless intent parity, stable references through project/history roundtrip and functional native/resource-recreation checks across the source types             | Accepted — batches 51–52: 152 caller executions, sparse/full codecs, full ordinary HTTP/history/Save/New/Load, actual Reload Picture UI and native public-intent replacement/recreation on Intel/NVIDIA                                                 |
 
 #### Media module commands and scripts — 2026-10-30
 
-- Media Manager now offers a Media Operation command, Rust-serialized creation presets for Solid
+- Medias now offers a Media Operation command, Rust-serialized creation presets for Solid
   Color/Picture/Shared Texture and a hosted Media Script. A command's Request parameter accepts
   the canonical `MediaEdit`, covering all existing authoring/inspection operations; Execute and
   its script `execute()` method use the same route. No second domain model or Chataigne-private
@@ -4883,19 +4883,19 @@ overall remains fully accepted phases divided by ten.
 
 **First product batch:** started 2026-10-30 18:07 UTC, feature verification completed at 18:32 UTC,
 within the recorded **18:52 UTC** stop (45 minutes). Owners: `apps/mapgyver/src/media` and
-`apps/mapgyver/ui`. The deliverable was a usable Media Manager/Solid Color authoring panel with
+`apps/mapgyver/ui`. The deliverable was a usable Medias/Solid Color authoring panel with
 backend defaults, ordered channel inspection and typed color/size editing. The M03 stash stayed parked.
 
 #### First authoring slice — 2026-10-30
 
-- Delivered a registered, primary Media Manager panel: create Solid Color media; add/select,
+- Delivered a registered, primary Medias panel: create Solid Color media; add/select,
   rename, reorder and remove channels; rename/remove media; edit straight linear RGBA,
   automatic/fixed extent and sampling. Backend operations retain ownership of IDs, defaults,
   label allocation, validation and history. The UI collects explicit user intents only.
 - Added Rust-owned `InspectManager` and generated ordered media/channel DTOs. Catalog inspection
   walks the manager/media/channel lists once, excludes assets and does not mutate history.
   History/snapshot/reconnection signals refresh the panel without engine polling.
-- Fixed the reproduced default-app startup failure (`Media Manager is missing`) at the lifecycle
+- Fixed the reproduced default-app startup failure (`Medias is missing`) at the lifecycle
   boundary. Golden's shared transport startup now settles detached initialization, runs the
   app candidate hook and its queued edits/validation, then activates resources. MapGyver's
   structural validation belongs in that candidate hook, rather than the earlier post-load hook.
@@ -5039,7 +5039,7 @@ Proof: existing relevant tests/checks and bounded public-API/native observation.
 - Manager inspection now returns a separate, ordered asset catalog with labels and optional
   authored locators. Shared asset selection/relink uses stable catalog identity. Unconfigured
   or missing references are represented explicitly; the UI never picks a replacement implicitly.
-- The Media Manager adds blank Picture creation, atomic import/create, import/assign, catalog
+- The Medias adds blank Picture creation, atomic import/create, import/assign, catalog
   selection, relink and common automatic/fixed extent/sampling controls. Native source browsing
   uses Golden's public file picker; browser users can supply explicit host locators. Picture and
   Solid Color share one focused output-settings form. The UI performs no decode or frame transport.
@@ -5088,7 +5088,7 @@ module commands/scripts are the fifth delivered capability and close M04 gate 1.
 discovery/selection is the sixth; its native registry check does not close full source acceptance.
 Native 4K PNG display with relink/missing/recovery is the seventh; full Picture acceptance stays open.
 Screen/Surface backend authoring with commands/scripts is the eighth and closes M05 gate 1.
-The registered Screen Manager authoring UI is the ninth; full editor/input acceptance stays open.
+The registered Screens authoring UI is the ninth; full editor/input acceptance stays open.
 Checked GPU crop/warp plus shared Screen-plan publication is the tenth and closes M05 gate 2.
 Native Screen preview with observed Surface withdraw/restore is the eleventh; full editor gates stay open.
 Source-independent calibration/restoration and ordered procedural layers are the twelfth and close
@@ -5216,7 +5216,7 @@ functional gate, not a retrospective pass of the original eight-item matrix.
 | Item                                              | State | Accepted scope / remaining work                                                                                                                                                                                                                                                                                    |
 | ------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Public UI-bundling boundary                       | Done  | [Public helper](../../crates/golden_core/support/codegen/src/ui_bundle/mod.rs) adopted by Chataigne; 19 support tests, strict Clippy and a real app build check with UI bundling enabled pass. SDK/formula/node/Tauri steps remain app-owned.                                                                      |
-| MapGyver host/UI scaffold                         | Done  | [Thin shell](mapgyver-m02-shell.md#implementation-boundaries) uses Golden's public host/workbench, app identity, project format/data directory, resources and capabilities. Fresh projects have the standard Dashboard; no placeholder Media/Screen managers.                                                      |
+| MapGyver host/UI scaffold                         | Done  | [Thin shell](mapgyver-m02-shell.md#implementation-boundaries) uses Golden's public host/workbench, app identity, project format/data directory, resources and capabilities. Fresh projects at this milestone had the standard Dashboard without placeholder Medias or Screens panels. |
 | App branding and browser-state isolation          | Done  | [Backend metadata and browser namespaces](mapgyver-m02-shell.md#implementation-boundaries) separate layout, selection, recent path and credentials; app projects carry a validated identity. Stream Deck's editor belongs to Chataigne.                                                                            |
 | Generic discovery and endpoint isolation          | Done  | [Rust-owned discovery DTOs](mapgyver-m02-shell.md#implementation-boundaries), generated protocol 0.13.0 and distinct backend/frontend ports; app identity is checked before UI admission and on fresh credentials.                                                                                                 |
 | Explicit app selection in tools                   | Done  | [Cargo/npm/xtask/watch/package commands](mapgyver-m02-shell.md#reproduction) select MapGyver explicitly; root defaults remain Chataigne.                                                                                                                                                                           |
@@ -6632,7 +6632,7 @@ Chataigne's separate [ledger](implementation-status.md) and default root launch 
 | M04 Source media               | COMPLETE_LOCAL | All6/6 gates accepted. [Complete new-layout source UI](evidence/mapgyver-m04-workbench-source-acceptance-2026-11-01.json) reaccepts gate5; original source-native, command/script/headless, asset/history and recreation evidence is retained.                                                                                                                                                                         |
 | M05 Screens/Surfaces/editors   | IN_PROGRESS    | [Authoring, crop/warp, calibration and full new-layout Screen input](#m05-acceptance-items) close gates1–3 and6:4/8. Complete new-layout Source input also passes; native preview, hotplug/minimize and the physical matrix remain open.                                                                                                                                                                               |
 | M06 Composition/editor         | IN_PROGRESS    | [Authoring, dependencies, native rasters and actual browser lifetime](#m06-acceptance-items): gates1–3/4 accepted. Input/history/dock layout and accepted-drag New/review reload pass; native imagery/extent-based outline/shape selection retain gate4.                                                                                                                                                               |
-| M07 Matrix/editor              | IN_PROGRESS    | [Document/module, native content, actual grid input and strict project lifetime](#m07-acceptance-items): gates1–2 and4/4 accepted. Stale Media Manager catalog fixed and strict lifecycle passes; actual native renderer feedback retains gate3.                                                                                                                                                                       |
+| M07 Matrix/editor              | IN_PROGRESS    | [Document/module, native content, actual grid input and strict project lifetime](#m07-acceptance-items): gates1–2 and4/4 accepted. Stale Medias catalog fixed and strict lifecycle passes; actual native renderer feedback retains gate3.                                                                                                                                                                       |
 | M08 App lifetimes              | IN_PROGRESS    | [Owned process/model/controller/Matrix retention](#m08-acceptance-items): gates 1–3/4 accepted; lifecycle controller qualification includes actual crash/backoff, suspended cancellation, timeout and descendant cleanup. Editing/status/callbacks/default headless and operator-visible service failures/recovery work; complete app/mode/UI/unsupported-target parity and recovery/cleanup acceptance retain gate 4. |
 | M09 App/artifact qualification | NOT_STARTED    | Requires implemented product and fixed native workloads                                                                                                                                                                                                                                                                                                                                                                |
 
@@ -7504,7 +7504,7 @@ renderer handle/growth/drain and genuine removal/recovery remain required under 
   Upload counters stay fixed across subsequent frames; images consume zero Spout receiver slots.
 - Rebuilt host smoke, strict default/native all-target Clippy, both-app default checks, generated
   contracts, UI check/lint, root/Core formatting and whitespace checks pass. No native performance,
-  hardware-removal, physical/DPI or complete Media Manager qualification is inferred.
+  hardware-removal, physical/DPI or complete Medias qualification is inferred.
 - **M03 6/9 = 67%, overall 3/10 = 30%**. No denominator/budget changes. Gates 4/8/9 remain open;
   dedicated manager controls, commands/callbacks/snippets and ready-file watching remain M04.
 
@@ -7542,7 +7542,7 @@ renderer handle/growth/drain and genuine removal/recovery remain required under 
   generated-contract drift, root/Core formatters and whitespace checks pass. Lockfile changes
   add only two existing dependency edges. No display/overlay setting or qualification budget changes.
 - Gate 5 closes: **M03 5/9 = 56%, overall 3/10 = 30%**. The denominator stays nine.
-  Gates 4/7/8/9 remain open. Next is shared persistent assets/preparation; full Media Manager
+  Gates 4/7/8/9 remain open. Next is shared persistent assets/preparation; full Medias
   controls/commands/templates and production Screen/preview consumers retain M04/M05 ownership.
 
 ## M03 plan-owned subscription checkpoint — 2026-10-29

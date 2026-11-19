@@ -131,7 +131,7 @@
     "bundled_defaults": {
       "command": "node apps/mapgyver/tests/headless/media.mjs --matrix-defaults-ui",
       "exit": 0,
-      "scope": "Actual Media Manager catalog creation; three Layers/Columns; nine empty cells; four exports; one-step exact Undo/Redo, stable identities, no launch or rejected requests; source/history/Save-New-Load",
+      "scope": "Actual Medias catalog creation; three Layers/Columns; nine empty cells; four exports; one-step exact Undo/Redo, stable identities, no launch or rejected requests; source/history/Save-New-Load",
       "log": "target/m07-defaults-browser-current.log"
     },
     "bundled_parameters": {

@@ -147,7 +147,7 @@ the complete revised direct-trigger/disabled-render/outgoing/final-use matrix re
   edits, inactive visibility, Undo/Redo, owner identity, zero standalone catalog entries and no
   authoring process side effects. Existing application-widget UI regression also passes.
   Zero browser errors/rejected intents occur. The initial Cell UI fixture used an obsolete
-  channel-row helper; selecting the current Media Manager object corrected that fixture.
+  channel-row helper; selecting the current Medias object corrected that fixture.
 
 **No complete M08 gate closes in this slice.** Column-owned controls, standalone/association
 removal, cross-consumer normalized-key sharing, independent Cell triggering and full retained

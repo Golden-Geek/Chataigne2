@@ -96,12 +96,12 @@ committed results as app intents; typed command-node authoring remains in M04/1'
 ## Media, channels and Reference ownership
 
 Channels are stable **concurrent output variants** within each media's Channels section.
-They are hidden from the Media Manager outliner and its creation actions, while remaining real
+They are hidden from the Medias outliner and its creation actions, while remaining real
 typed editable nodes. Persisted media folders organize the actual document. Shared media settings
 live on the media; channel fields contain source differences only.
 
 `ChannelsSection` in the app Inspector presents at most 32 actual channel nodes per page,
-using Golden's generic child inspectors and context menu. The Media Manager filters out
+using Golden's generic child inspectors and context menu. The Medias filters out
 channels and only folder rows carry an inline creation button. Its row context menus use Golden's
 public `canCreateNodeChildren` predicate: folders expose Add/Paste, media rows omit child creation.
 Channels retain their real backend factory and Inspector creation actions. Channel snapshots are queried by

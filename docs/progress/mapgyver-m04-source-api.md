@@ -6,7 +6,7 @@ widgets, script execution, bounded operation delivery, history and persistence. 
 defaults or graph mutation policy live in the UI. See the
 [source automation contract](../architecture/mapgyver-source-api.md).
 
-**Accepted: 2026-11-02.** This closes revised M04/1: default Media Manager, detached
+**Accepted: 2026-11-02.** This closes revised M04/1: default Medias, detached
 creation/import, authoritative identity/defaults and complete command/function/callback/snippet
 API. Native source rendering and full revised project/resource parity remain separate gates.
 

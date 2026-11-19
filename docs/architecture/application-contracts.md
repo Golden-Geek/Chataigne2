@@ -150,7 +150,7 @@ Chataigne audio; qualification evidence remains in the app's status ledger.
 MapGyver's explicit `ReloadAsset` intent invalidates only that asset's runtime revision. It keeps
 the authored locator, asset/channel IDs and undo history unchanged. Existing capture guards make
 the presentation worker recapture and reprepare a replaced file; file IO/decode stays on the asset
-worker and unrelated prepared sources remain retained. Media Manager's Reload Picture control,
+worker and unrelated prepared sources remain retained. Medias's Reload Picture control,
 module commands, hosted/generic scripts and headless callers use the same backend intent. This
 does not add an automatic filesystem watcher or move file checks into the engine loop.
 
@@ -165,7 +165,7 @@ manager/membership/channel revisions fence history-retained removals and reload.
 guarded plans through public Video APIs. Shared channel consumers reuse one target; native source
 layout/session/pool guards and project/device stamps reject stale observations. Source-state
 notifications exclude per-frame counters. The owned native channel harness exercises the bridge;
-dedicated Media Manager controls and production Screen/preview consumers remain M04/M05 work.
+dedicated Medias controls and production Screen/preview consumers remain M04/M05 work.
 
 For queued native-derived edits, `golden_engine::edit::EditQueue::retain_payload` attaches an
 already-admitted Golden IO payload lease to the requests currently in the queue. Admission survives
