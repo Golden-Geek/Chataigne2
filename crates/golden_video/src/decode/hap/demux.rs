@@ -28,6 +28,7 @@ impl Decoder {
                     )?;
                     return Ok(Some(DecodedFrame {
                         timestamp,
+                        omitted_before: None,
                         storage: FrameStorage::Hap(frame),
                     }));
                 }

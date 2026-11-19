@@ -7,7 +7,7 @@ fn cpu_admission_survives_cancelled_owner_and_last_image_observer_with_stable_id
     let observer = files.retirement();
     let initial = observer.cpu_admission();
     assert_eq!(initial.retained_bytes, 0);
-    let lease = Arc::new(files.budget.reserve(64 * 48).unwrap());
+    let lease = Arc::new(files.budget.reserve(64 * 48, 0).unwrap());
     let descriptor = golden_video::TextureDescriptor {
         extent: golden_video::Extent2D::new(1, 1).unwrap(),
         format: golden_video::PixelFormat::Rgba8Unorm,
@@ -40,7 +40,7 @@ fn cpu_admission_survives_cancelled_owner_and_last_image_observer_with_stable_id
 fn cpu_capacity_zero_and_overflow_rejections_leave_the_snapshot_unchanged() {
     let budget = Arc::new(Budget::default());
     let initial = budget.snapshot();
-    assert!(budget.reserve(u64::MAX).is_err());
+    assert!(budget.reserve(u64::MAX, 0).is_err());
     assert!(budget.reserve_bytes(0).is_err());
     assert_eq!(budget.snapshot(), initial);
     let lease = budget.reserve_bytes(MAX_BYTES).unwrap();

@@ -220,7 +220,15 @@ impl Reader {
             && self.requested.is_none_or(|old| {
                 i128::from(target) - i128::from(old) > i128::from(base.denominator) / i128::from(base.numerator) / 2
             });
-        if self.current.as_ref().is_some_and(|frame| frame.timestamp() > target) || (jump && target > self.origin) {
+        let omitted_target = (!progressive || self.requested.is_some_and(|old| target < old))
+            && self.next.as_ref().is_some_and(|next| {
+                next.omitted_before()
+                    .is_some_and(|(first, _)| (first..next.timestamp()).contains(&target))
+            });
+        if self.current.as_ref().is_some_and(|frame| frame.timestamp() > target)
+            || (jump && target > self.origin)
+            || omitted_target
+        {
             self.decoder.seek_before(target)?;
             self.current = None;
             self.next = None;
@@ -251,7 +259,11 @@ impl Reader {
                 if decoded == budget {
                     return Ok(false);
                 }
-                self.next = self.decoder.next_frame()?;
+                self.next = if progressive {
+                    self.decoder.next_frame_for_forward_playback(target)?
+                } else {
+                    self.decoder.next_frame()?
+                };
                 decoded += 1;
                 self.eof = self.next.is_none();
             }
@@ -260,7 +272,12 @@ impl Reader {
                     // Keep an actual following PTS to describe this image's original window.
                     break;
                 }
-                self.previous = self.current.as_ref().map(DecodedFrame::timestamp);
+                self.previous = self
+                    .next
+                    .as_ref()
+                    .and_then(DecodedFrame::omitted_before)
+                    .map(|(_, last)| last)
+                    .or_else(|| self.current.as_ref().map(DecodedFrame::timestamp));
                 self.current = self.next.take();
                 continue;
             }
@@ -271,13 +288,16 @@ impl Reader {
             }
             return Ok(true);
         }
-        let (Some(start), Some(next), Some(current)) = (forward_start, &self.next, &self.current) else {
+        let (Some(start), Some(next), Some(current)) = (forward_start, self.next_source_timestamp(), &self.current)
+        else {
             return Ok(false);
         };
         // Frames wholly before the active crop/loop start are decoder work only.
-        Ok(current.timestamp() <= target
-            && self.published != Some(current.timestamp())
-            && self.position(next.timestamp())? > start)
+        Ok(
+            current.timestamp() <= target
+                && self.published != Some(current.timestamp())
+                && self.position(next)? > start,
+        )
     }
     fn position(&self, timestamp: i64) -> Result<Duration, String> {
         let ticks = u128::try_from(i128::from(timestamp) - i128::from(self.origin))
@@ -295,6 +315,14 @@ impl Reader {
         self.selected_neighbours()
     }
 
+    fn next_source_timestamp(&self) -> Option<i64> {
+        self.next.as_ref().map(|frame| {
+            frame
+                .omitted_before()
+                .map_or_else(|| frame.timestamp(), |(first, _)| first)
+        })
+    }
+
     pub(super) fn selected_neighbours(&self) -> Result<Option<super::frames::Neighbours>, String> {
         let Some(frame) = &self.current else {
             return Ok(None);
@@ -310,9 +338,8 @@ impl Reader {
                     .as_ref()
                     .is_some_and(|probe| probe.target == timestamp && probe.before <= self.origin),
             next: self
-                .next
-                .as_ref()
-                .map(|frame| self.position(frame.timestamp()))
+                .next_source_timestamp()
+                .map(|timestamp| self.position(timestamp))
                 .transpose()?
                 .filter(|&position| position < self.duration),
         }))

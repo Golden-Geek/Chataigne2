@@ -66,6 +66,7 @@ fn decoded_and_converter_layouts_are_explicit_and_tight_published_bytes_stay_sep
     image.data_mut(0).fill(127);
     let frame = DecodedFrame {
         timestamp: 0,
+        omitted_before: None,
         storage: FrameStorage::Software(image),
     };
     let input = frame.software_layout().unwrap();

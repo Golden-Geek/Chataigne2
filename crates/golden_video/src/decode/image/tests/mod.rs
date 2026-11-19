@@ -26,6 +26,7 @@ fn input(format: ffmpeg::format::Pixel, width: u32, height: u32, value: u8) -> D
     }
     DecodedFrame {
         timestamp: 0,
+        omitted_before: None,
         storage: FrameStorage::Software(image),
     }
 }
@@ -57,6 +58,7 @@ fn full_range_ycgco_converts_color_and_preserves_straight_alpha() {
     let image = converter
         .convert(&DecodedFrame {
             timestamp: 0,
+            omitted_before: None,
             storage: FrameStorage::Software(frame),
         })
         .unwrap();

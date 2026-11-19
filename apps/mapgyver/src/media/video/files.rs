@@ -135,19 +135,20 @@ impl Budget {
     fn snapshot(&self) -> FileCpuAdmission {
         *self.used.lock().unwrap()
     }
-    fn reserve(self: &Arc<Self>, pixels: u64) -> Result<Lease, String> {
+    fn reserve(self: &Arc<Self>, pixels: u64, compressed_lookahead: u64) -> Result<Lease, String> {
         // Decoded planes get 24 bytes/pixel + 8 MiB; the remaining reservation covers
         // scaler/tight images/observers, separately from codec-private allocations.
         let bytes = pixels
             .checked_mul(40)
             .and_then(|bytes| bytes.checked_add(16 * 1024 * 1024))
+            .and_then(|bytes| bytes.checked_add(compressed_lookahead))
             .ok_or("Video storage overflow")?;
         self.reserve_bytes(bytes)
     }
     fn admit_software(self: &Arc<Self>, decoder: &mut Decoder) -> Result<Lease, Failure> {
         let pixels = u64::from(decoder.info().width) * u64::from(decoder.info().height);
         let lease = self
-            .reserve(pixels)
+            .reserve(pixels, decoder.packet_lookahead_bytes() as u64)
             .map_err(|error| Failure(VideoSourceError::new(VideoSourceErrorKind::Capacity, error)))?;
         decoder.tighten_pixel_limit(pixels)?;
         if decoder.storage() == golden_video::decode::DecodeStorage::Software {

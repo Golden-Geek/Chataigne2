@@ -2,7 +2,7 @@
   "date": "2026-11-19",
   "gate": "M10/3",
   "accepted": false,
-  "scope": "One NVIDIA baseline and two sequential corrective comparisons for looping lossy VP8 animated WebP with alpha. The workload uses 1080p60 and 4K30 Files, an HD Reference, three independent Spout receivers and 30/120/60/60 seconds of warmup, visible, minimized and disconnected operation.",
+  "scope": "One NVIDIA baseline and three sequential corrective comparisons for looping lossy VP8 animated WebP with alpha. The workload uses 1080p60 and 4K30 Files, an HD Reference, three independent Spout receivers and 30/120/60/60 seconds of warmup, visible, minimized and disconnected operation.",
   "environment": {
     "baseRevision": "44fd621b",
     "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
@@ -108,6 +108,59 @@
       "sourcePublisherPeakBytes": 24883200,
       "nativePlanAndOutputTexelPeakBytes": 370400008,
       "maxObservedProcessPrivateBytesMeasuredPhases": 903475200,
+      "finalTrackedSourceAndNativeTexelsBytes": [0, 0],
+      "finalPlanTextureAllocationsCreatedReleased": [27, 27]
+    }
+  },
+  "expiredOverwriteFollowUp": {
+    "baseRevision": "0eeb17e0",
+    "localRun": "target/m103-q06-webp/sample-nvidia-04",
+    "binarySha256": "43fd68a26ad0f0754b33c2eb5f6de974598601cdf033be9b0e535841ffb1fa59",
+    "sampleSha256": "32189ddb40158b4fe6d9534ed3b66d844a599e4469e43ab17ecc1161dbabd1aa",
+    "auditSha256": "6e8fac33867e9fd73b9e9d64cb83c6202ae2f8078ea114b35abb7a0dd67d1a67",
+    "inputsSha256": "02bd7fbecf1a56c53a2dc7c070834f27926a29cef28138d6d4e4408c0a05d9ce",
+    "unchangedInputHashes": 77,
+    "buildScope": "Tested the bundled working build with pinned executable-local FFmpeg. The local input manifest records unrelated tracked changes present for compilation.",
+    "isolatedUhdStages": {
+      "probeSource": "target/m103-q06-webp/timing_stages.rs",
+      "frames": 120,
+      "lastPtsMs": 3966,
+      "codecSliceThreadAdmission": 4,
+      "pinnedDecodeMedianP95Ms": [56.365, 60.693],
+      "pinnedRgbaConversionMedianP95Ms": [9.162, 9.877],
+      "pillowLibwebp1_6DecodeToRgbaMedianP95Ms": [58.236, 60.556],
+      "result": "Pinned canvas decode dominated the per-frame cost. The independent libwebp path also exceeded a 33.33 ms frame period in isolation."
+    },
+    "change": "Skip a contiguous expired VP8 update only when another expired frame fully covers it without blending or disposal. The retained packet is charged to the existing source memory ceiling. Omitted timestamps remain available for exact frame windows and held seek recovery.",
+    "controllerAndAuditExits": [0, 0],
+    "mapGyverVideoTests": 77,
+    "goldenVideoDecodeTests": { "passed": 55, "ignored": 3 },
+    "strictClippyAndBundledBuild": "pass",
+    "visiblePublicationRatesHD_UHD": [49.8601, 13.2272],
+    "minimizedPublicationRatesHD_UHD": [50.3541, 14.3869],
+    "heldSeekMarkersAt1000MsHD_UHD_Reference": [60, 2078, 60],
+    "heldAlphaEachOutput": [255, 0, 129],
+    "connectedMarkerMatches": {
+      "visibleHD_UHD_Reference": [7202, 7201, 7199],
+      "minimizedHD_UHD_Reference": [3603, 3600, 3601],
+      "total": 32406,
+      "missingOrMismatched": 0
+    },
+    "visibleDeadlineMissesOf7203HD_UHD_Reference": [1, 2, 4],
+    "visibleCpuSubmissionP95P99Ms": [2.6649, 3.3366],
+    "visibleFilePublicationToCopyP95UpperMsHD_UHD_Reference": [23.5406, 76.5552, 23.8552],
+    "visibleUhdSourceToOutputAgeP95LowerMs": 65.3012,
+    "visibleUhdCompleteLoopsEachRun": 29,
+    "visibleUhdLastPtsPerLoopMinMedianMaxMsBefore": [1633, 1666, 1700],
+    "visibleUhdLastPtsPerLoopMinMedianMaxMsAfter": [2966, 3133, 3133],
+    "fullClipDurationMs": 3999,
+    "gpuCriticalPath": "The direct 4K software upload still lacks a matched producer dependency in the GPU-path audit.",
+    "resources": {
+      "visibleSoftwareUploadCallsHD_UHD": [5986, 1587],
+      "visibleSoftwareUploadBytesHD_UHD": [49650278400, 52652851200],
+      "sourcePublisherPeakBytes": 24883200,
+      "nativePlanAndOutputTexelPeakBytes": 370400008,
+      "maxObservedProcessPrivateBytesMeasuredPhases": 827981824,
       "finalTrackedSourceAndNativeTexelsBytes": [0, 0],
       "finalPlanTextureAllocationsCreatedReleased": [27, 27]
     }

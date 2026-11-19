@@ -7,6 +7,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+mod packets;
+
 const ANIMATION_FORMAT: &str = "webp_anim";
 const MAX_CHUNKS: usize = 1_000_000;
 type Interrupt = Arc<Mutex<dyn FnMut() -> bool + Send>>;
@@ -32,6 +34,7 @@ pub(super) struct Animation {
     path: PathBuf,
     interrupt: Interrupt,
     pub duration_ms: i64,
+    pub(super) lookahead: Option<ffmpeg::Packet>,
 }
 
 pub(super) fn open_video(
@@ -49,6 +52,7 @@ pub(super) fn open_video(
             path: path.to_owned(),
             interrupt,
             duration_ms,
+            lookahead: None,
         })
     } else {
         None

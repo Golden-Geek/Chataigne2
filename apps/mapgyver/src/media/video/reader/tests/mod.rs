@@ -1,6 +1,8 @@
 #[cfg(all(windows, feature = "native-video"))]
 use super::*;
 mod hap;
+#[cfg(all(windows, feature = "native-video"))]
+mod webp_omission;
 
 #[test]
 #[cfg(all(windows, feature = "native-video"))]

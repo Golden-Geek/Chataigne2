@@ -45,6 +45,7 @@ fn padded_rgba_rows_preserve_all_byte_values_alpha_and_changing_sdr_transfers() 
         }
         let frame = DecodedFrame {
             timestamp: 0,
+            omitted_before: None,
             storage: FrameStorage::Software(input),
         };
         let image = converter.convert(&frame).unwrap();

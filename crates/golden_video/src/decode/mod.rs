@@ -86,6 +86,7 @@ pub enum DecodeStorage {
 /// One owned decoded image. Retaining it does not retain a borrow of the decoder.
 pub struct DecodedFrame {
     timestamp: i64,
+    omitted_before: Option<(i64, i64)>,
     storage: FrameStorage,
 }
 enum FrameStorage {
@@ -99,6 +100,11 @@ impl DecodedFrame {
     /// Best-effort presentation timestamp in the stream's original time base.
     pub fn timestamp(&self) -> i64 {
         self.timestamp
+    }
+
+    /// First and last source PTS omitted immediately before this frame during forward playback.
+    pub fn omitted_before(&self) -> Option<(i64, i64)> {
+        self.omitted_before
     }
 
     /// Software planes only. Hardware storage cannot be mistaken for CPU pixel pointers.
@@ -491,7 +497,7 @@ impl Decoder {
                 return Err(DecodeError::OutsideStream);
             }
         }
-        if let Some(animation) = &self.animation {
+        if let Some(animation) = &mut self.animation {
             let reset = animation.rewind().and_then(|input| {
                 // The decoder's compositing canvas is format state as well as packet state.
                 let decoder = open_decoder(
@@ -510,6 +516,7 @@ impl Decoder {
                 Ok((input, decoder)) => {
                     self.input = input;
                     self.decoder = Some(decoder);
+                    animation.lookahead = None;
                     self.state = DecodeState::Reading;
                     return Ok(());
                 }
@@ -556,10 +563,25 @@ impl Decoder {
     /// Decode one presentation-ordered frame, including delayed frames at end of stream.
     /// Returns `None` only for clean decoder EOF. Errors require dropping/reopening the owner.
     pub fn next_frame(&mut self) -> Result<Option<DecodedFrame>, DecodeError> {
+        self.decode_next(None)
+    }
+
+    /// While playing forward, omit animated WebP updates fully overwritten by a due
+    /// frame. Other codecs decode one frame in presentation order.
+    pub fn next_frame_for_forward_playback(&mut self, due: i64) -> Result<Option<DecodedFrame>, DecodeError> {
+        self.decode_next(Some(due))
+    }
+
+    /// Additional maximum compressed payload retained for forward packet lookahead.
+    pub fn packet_lookahead_bytes(&self) -> usize {
+        self.animation.as_ref().map_or(0, |_| self.limits.max_packet_bytes)
+    }
+
+    fn decode_next(&mut self, due: Option<i64>) -> Result<Option<DecodedFrame>, DecodeError> {
         if self.state == DecodeState::Failed {
             return Err(DecodeError::ReopenRequired);
         }
-        let result = self.receive_next();
+        let result = self.receive_next(due);
         let result = result.map_err(|error| match &self.kind {
             DecoderKind::Software(allocator) => allocator.failure(error),
             _ => error,
@@ -577,7 +599,7 @@ impl Decoder {
         result
     }
 
-    fn receive_next(&mut self) -> Result<Option<DecodedFrame>, DecodeError> {
+    fn receive_next(&mut self, due: Option<i64>) -> Result<Option<DecodedFrame>, DecodeError> {
         if matches!(self.kind, DecoderKind::Hap(_)) {
             return self.receive_hap();
         }
@@ -585,6 +607,7 @@ impl Decoder {
             return Ok(None);
         }
         let mut packets = 0;
+        let mut omitted_before = None;
         loop {
             let mut image = ffmpeg::frame::Video::empty();
             let decoder = self.decoder.as_mut().unwrap();
@@ -608,7 +631,11 @@ impl Decoder {
                         _ => {}
                     }
                     let storage = self.kind.frame(image)?;
-                    return Ok(Some(DecodedFrame { timestamp, storage }));
+                    return Ok(Some(DecodedFrame {
+                        timestamp,
+                        omitted_before,
+                        storage,
+                    }));
                 }
                 Err(ffmpeg::Error::Eof) => {
                     self.state = DecodeState::Ended;
@@ -620,34 +647,50 @@ impl Decoder {
             if self.state == DecodeState::Draining {
                 return Err(ffmpeg::Error::InvalidData.into());
             }
-            loop {
-                if packets == self.limits.max_packets_per_frame {
-                    return Err(DecodeError::LimitExceeded);
-                }
-                packets += 1;
-                let mut packet = ffmpeg::Packet::empty();
-                // PacketIter hides some demux failures as EOF; read directly so corrupt or
-                // interrupted input cannot masquerade as successful transport completion.
-                match packet.read(&mut self.input) {
-                    Ok(()) => {
-                        if packet.size() > self.limits.max_packet_bytes {
-                            return Err(DecodeError::LimitExceeded);
-                        }
-                        if packet.stream() == self.stream {
-                            self.decoder.as_mut().unwrap().send_packet(&packet)?;
-                            break;
-                        }
-                    }
-                    Err(ffmpeg::Error::Eof) => {
-                        self.decoder.as_mut().unwrap().send_eof()?;
-                        self.state = DecodeState::Draining;
-                        break;
-                    }
-                    Err(error) => return Err(error.into()),
-                }
+            // A standalone animation demux yields one video packet per read.
+            let extra_packets = self.limits.max_packets_per_frame.saturating_sub(packets + 1);
+            let mut read = || read_video_packet(&mut self.input, self.stream, self.limits, &mut packets);
+            let next = if let Some(animation) = &mut self.animation {
+                animation.next_packet(due, (self.info.width, self.info.height), extra_packets, read)?
+            } else {
+                read()?.map(|packet| (packet, None))
+            };
+            let decoder = self.decoder.as_mut().unwrap();
+            if let Some((packet, omitted)) = next {
+                decoder.send_packet(&packet)?;
+                omitted_before = omitted;
+            } else {
+                decoder.send_eof()?;
+                self.state = DecodeState::Draining;
             }
         }
     }
+}
+
+fn read_video_packet(
+    input: &mut ffmpeg::format::context::Input,
+    stream: usize,
+    limits: DecodeLimits,
+    packets: &mut usize,
+) -> Result<Option<ffmpeg::Packet>, DecodeError> {
+    while *packets < limits.max_packets_per_frame {
+        *packets += 1;
+        let mut packet = ffmpeg::Packet::empty();
+        // PacketIter hides some demux failures as EOF; preserve corruption and cancellation.
+        match packet.read(input) {
+            Ok(()) => {
+                if packet.size() > limits.max_packet_bytes {
+                    return Err(DecodeError::LimitExceeded);
+                }
+                if packet.stream() == stream {
+                    return Ok(Some(packet));
+                }
+            }
+            Err(ffmpeg::Error::Eof) => return Ok(None),
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Err(DecodeError::LimitExceeded)
 }
 
 fn seek_input_before(
