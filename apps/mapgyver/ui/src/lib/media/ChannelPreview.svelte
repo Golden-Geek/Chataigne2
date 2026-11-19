@@ -3,6 +3,7 @@
 	import type { ChannelSnapshot } from './generated/ChannelSnapshot';
 	import { usePreview } from '../preview/context.svelte';
 	import { previewKey } from '../preview/identity';
+	import PreviewMessage from '../preview/PreviewMessage.svelte';
 	import type { PreviewSource } from '../preview/generated/PreviewSource';
 	let {
 		channel,
@@ -23,6 +24,7 @@
 	);
 	const source = $derived(JSON.stringify(identity));
 	const status = $derived(owner.statuses.get(previewKey(identity)));
+	const message = $derived(status?.error ?? status?.message);
 	const extent = $derived(explicitExtent ?? status?.extent);
 </script>
 
@@ -32,11 +34,7 @@
 		style:--preview-aspect={extent ? extent.width / extent.height : 16 / 9}
 		style:aspect-ratio={extent ? `${extent.width} / ${extent.height}` : '16 / 9'}>
 		<NativePreview session={owner.session} {source} label={`Preview of ${label ?? channel.label}`}>
-			{#if status && (status.error || status.message)}
-				<div class="message">
-					{status.error ?? status.message}
-				</div>
-			{/if}
+			{#if message}<PreviewMessage {message} />{/if}
 		</NativePreview>
 	</div>
 </section>
@@ -60,14 +58,5 @@
 		width: min(100%, calc(10rem * var(--preview-aspect)));
 		margin: auto;
 		background: transparent;
-	}
-	.message {
-		position: absolute;
-		inset: 0;
-		display: grid;
-		place-content: center;
-		padding: 1em;
-		background: #000;
-		overflow-wrap: anywhere;
 	}
 </style>

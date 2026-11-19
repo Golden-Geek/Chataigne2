@@ -88,6 +88,7 @@ fn native_active_areas_are_black_even_without_sources_while_the_workbench_keeps_
             &HashMap::new(),
             &HashMap::from([(screens[0], source)]),
             &mut Default::default(),
+            None,
         )
         .unwrap();
     let pass = |id| {

@@ -112,6 +112,7 @@ fn inactive_cell_editor_preview_is_transient_placed_bounded_and_does_not_launch_
         super::super::plan::Previous {
             channels: &Default::default(),
             screens: &Default::default(),
+            preview_images: &Default::default(),
         },
         &mut 3,
         config().plan_limits,

@@ -111,6 +111,7 @@ pub(super) fn prepared(
         super::super::plan::Previous {
             channels: &Default::default(),
             screens: &Default::default(),
+            preview_images: &Default::default(),
         },
         &mut 3,
         config().plan_limits,

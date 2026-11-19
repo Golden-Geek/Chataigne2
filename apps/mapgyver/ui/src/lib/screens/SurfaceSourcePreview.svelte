@@ -11,6 +11,7 @@
 	import type { SurfaceHandle, SurfacePresentation } from './surface-gesture';
 	import { usePreview } from '../preview/context.svelte';
 	import { previewKey } from '../preview/identity';
+	import PreviewMessage from '../preview/PreviewMessage.svelte';
 	import CropHandles from './CropHandles.svelte';
 	import AlignmentToggle from '../spatial/AlignmentToggle.svelte';
 	let {
@@ -62,6 +63,7 @@
 	const project = $derived(appState.session?.projectGeneration ?? 0);
 	const source = $derived(JSON.stringify(identity));
 	const status = $derived(identity ? owner.statuses.get(previewKey(identity)) : undefined);
+	const message = $derived(status?.error ?? status?.message);
 	const extent = $derived(status?.extent);
 </script>
 
@@ -120,11 +122,9 @@
 				overlayCapacity={80}
 				session={owner.session}
 				{source}
-				overlays={status?.error || status?.message ? [] : [...relatedOverlays, ...overlays]}
+				overlays={message ? [] : [...relatedOverlays, ...overlays]}
 				label={`Full source for ${surface.label}`}>
-				{#if status?.error || status?.message}<div class="message">
-						{status.error ?? status.message}
-					</div>{/if}
+				{#if message}<PreviewMessage {message} />{/if}
 				{@render controls()}
 			</NativePreview>
 		{:else}

@@ -8,6 +8,9 @@ use golden_video::runtime::PlanSubmission;
 use golden_video::{Extent2D, LinearColor, Opacity, OutputId, PassId, TextureDescriptor, TextureId};
 use std::collections::HashMap;
 
+mod handoff;
+pub(crate) use handoff::{Handoff, PreviewImages};
+
 pub(super) fn validate_calibration(mode: Calibration, extent: Extent2D) -> Result<(), String> {
     if mode == Calibration::Off {
         return Err("calibration preview requires an active pattern".into());
@@ -26,9 +29,11 @@ pub struct PreviewLayout {
 }
 
 impl PreviewLayout {
-    /// Stable calibration slots precede ordinary channel allocations; unused slots allocate no GPU memory.
-    pub(crate) const RESERVED_TEXTURES: u64 = 5 + super::config::MAX_NATIVE_PRODUCERS as u64;
+    /// The fixed window-compositor passes precede ordinary channel allocations.
+    pub(crate) const RESERVED_TEXTURES: u64 = 5;
     pub(crate) const PASS_COUNT: usize = 5;
+    /// Calibration route identities encode mode and extent in a separate namespace.
+    pub(crate) const CALIBRATION_TEXTURE_BASE: u64 = 1 << 63;
 
     pub(crate) fn maximum_dependencies(&self) -> Result<usize, String> {
         Ok(self.layout.maximum_dependencies()
@@ -88,11 +93,18 @@ impl PreviewLayout {
         channels: &HashMap<ChannelReference, TextureId>,
         screens: &HashMap<ScreenId, TextureId>,
         assets: &mut crate::screens::CalibrationAssets,
-    ) -> Result<(), String> {
+        handoff: Option<Handoff<'_>>,
+    ) -> Result<PreviewImages, String> {
         self.references()?;
         let mut patterns = HashMap::new();
-        for (index, (mode, extent)) in self.calibrations()?.into_iter().enumerate() {
-            let texture = TextureId::new(6 + index as u64).unwrap();
+        for (mode, extent) in self.calibrations()? {
+            let texture = TextureId::new(
+                Self::CALIBRATION_TEXTURE_BASE
+                    | ((mode as u64) << 32)
+                    | (u64::from(extent.width()) << 16)
+                    | u64::from(extent.height()),
+            )
+            .unwrap();
             let pattern = crate::screens::calibration::pattern(mode, extent, assets)?
                 .ok_or("calibration preview requires an active pattern")?;
             submission.plan.passes.push(RenderPass {
@@ -115,6 +127,9 @@ impl PreviewLayout {
             });
             patterns.insert(PreviewSource::Calibration { mode, extent }, texture);
         }
+        let images = handoff
+            .map(|handoff| handoff.images(&self.layout, &mut submission.plan, channels, &patterns))
+            .unwrap_or_default();
         let texture = TextureId::new(1).unwrap();
         submission.plan.passes.push(RenderPass {
             id: PassId::new(1).unwrap(),
@@ -122,7 +137,10 @@ impl PreviewLayout {
             descriptor: self.descriptor,
             operation: RenderOperation::Regions {
                 visibility: None,
-                regions: self.layout.regions(self.output, |source| {
+                regions: self.layout.regions_by_view(self.output, |view, source| {
+                    if let Some(image) = images.get(&view.id) {
+                        return Some(image.texture());
+                    }
                     match serde_json::from_str::<PreviewSource>(source).ok()? {
                         PreviewSource::Channel { reference } => channels.get(&reference).copied(),
                         PreviewSource::MatrixPlayback { .. } => None,
@@ -207,6 +225,6 @@ impl PreviewLayout {
             id: self.output,
             source: output,
         });
-        Ok(())
+        Ok(images)
     }
 }

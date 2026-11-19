@@ -165,6 +165,7 @@ fn composed_screen_consumers_share_one_channel_and_one_mapped_pass() {
         super::super::plan::Previous {
             channels: &HashMap::new(),
             screens: &HashMap::new(),
+            preview_images: &Default::default(),
         },
         &mut 3,
         config().plan_limits,
@@ -357,6 +358,7 @@ fn calibration_needs_no_source_and_uses_the_authored_crop_quad_and_opacity() {
             super::super::plan::Previous {
                 channels: &HashMap::new(),
                 screens: &HashMap::new(),
+                preview_images: &Default::default(),
             },
             &mut 3,
             config().plan_limits,

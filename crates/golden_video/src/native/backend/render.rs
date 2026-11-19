@@ -35,12 +35,17 @@ pub(super) fn execute(
         }
         let output = &resources.textures[&pass.output];
         let written = |source| resources.textures[&source].last_write.get();
+        if matches!(pass.operation, RenderOperation::Retain) && output.last_write.get().is_some() {
+            work.reused += 1;
+            continue;
+        }
         if !cache.needs_render(index, output.last_write.get(), written) {
             work.reused += 1;
             continue;
         }
         match &pass.operation {
             RenderOperation::Clear(color) => pipeline.clear(context, output, *color),
+            RenderOperation::Retain => pipeline.clear(context, output, LinearColor::TRANSPARENT),
             RenderOperation::Sample { source, filter } => {
                 pipeline.draw(
                     context,

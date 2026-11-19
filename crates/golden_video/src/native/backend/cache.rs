@@ -34,7 +34,7 @@ impl Cache {
                             layer.opacity_envelope.is_some()
                                 || matches!(layer.source, LayerSource::Pattern(Pattern::Canvas(_)))
                         }),
-                        RenderOperation::Clear(_) | RenderOperation::Sample { .. } => false,
+                        RenderOperation::Clear(_) | RenderOperation::Retain | RenderOperation::Sample { .. } => false,
                     } || pass.operation.sources().any(|source| untracked.contains(&source));
                     Pass {
                         sources: pass.operation.sources().map(|source| (source, None)).collect(),

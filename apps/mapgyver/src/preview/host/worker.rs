@@ -12,7 +12,7 @@ use golden_video::native::{
     AdapterInfo, D3d11Config, D3d11Control, InputLimits, OutputBinding, WindowTarget, query_adapter_memory,
 };
 use golden_video::preview::{HostViewport, PreviewController, PreviewReceiver};
-use golden_video::runtime::{CompletionToken, GenerationInfo, OutcomeKind, VideoRuntime};
+use golden_video::runtime::{CompletionToken, GenerationInfo, OutcomeKind, RequestId, VideoRuntime};
 use golden_video::{AlphaMode, ColorEncoding, Extent2D, OutputId, PixelFormat, TextureDescriptor};
 use std::{
     io,
@@ -225,7 +225,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut capture: Option<CapturedPreview> = None;
     let mut _capture_subscriptions = Vec::new();
     let mut published = None;
-    let mut installed: Option<(u64, GenerationInfo, Option<CompletionToken>)> = None;
+    let mut installed: Option<(u64, RequestId, GenerationInfo, Option<CompletionToken>)> = None;
     let mut observation_events = super::observations::Observations::default();
     let mut confirmed = None;
     let mut retry = Instant::now();
@@ -660,7 +660,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                                 capture.as_ref().map_or(0, |capture| capture.screens.len()),
                                 topology.len()
                             );
-                            installed = Some((layout.routing_generation, generation, None));
+                            installed = Some((layout.routing_generation, outcome.request, generation, None));
                         }
                         OutcomeKind::Rejected(failure) if Some(outcome.request) == renderer.latest_request() => {
                             return Err(failure.to_string());
@@ -668,7 +668,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                         _ => {}
                     }
                 }
-                if let Some((generation, plan, first)) = &mut installed
+                if let Some((generation, request, plan, first)) = &mut installed
                     && let Some(frame) = renderer
                         .snapshot()
                         .last_frame
@@ -686,13 +686,15 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     if accepted
                         .and_then(|accepted| input.receiver.mark_frame_installed(*generation, accepted))
                         .is_some()
-                        && confirmed != Some(*generation)
                     {
-                        eprintln!(
-                            "[mapgyver-preview] native layout {generation} installed; channels={}",
-                            renderer.channels().len()
-                        );
-                        confirmed = Some(*generation);
+                        renderer.confirm_preview(*request);
+                        if confirmed != Some(*generation) {
+                            eprintln!(
+                                "[mapgyver-preview] native layout {generation} installed; channels={}",
+                                renderer.channels().len()
+                            );
+                            confirmed = Some(*generation);
+                        }
                     }
                 }
                 let mut statuses = capture

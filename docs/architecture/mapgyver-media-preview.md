@@ -47,6 +47,13 @@ Surface Source also keeps the native registration for the project and panel life
 selected Surface still owns its crop handles and camera. Selecting a Surface assigned to the
 same channel keeps the native source key and the existing source demand.
 
+When a different configured source is still preparing, each view can keep its last accepted
+image. MapGyver records the image route after the native output accepts the frame. A later plan
+can retain that pass target in Golden's same-project, same-device texture cache while it
+prepares the replacement. The old decoder or receiver can retire while its GPU image remains
+visible. The first ready replacement supersedes the retained image. A small status message sits
+over the image during the wait.
+
 `ChannelPreview` fits native geometry to the available panel while preserving source aspect.
 The shared `NativePreview` retires registration when explicitly hidden or outside its viewport,
 and re-registers on return. Its existing retirement covers remain alive until the host confirms

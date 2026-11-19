@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-19",
+  "gate": "M16/5",
+  "status": "accepted",
+  "fixture": "apps/mapgyver/tests/browser/native-navigation.mjs --delayed-preview-selection",
+  "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU (dxgi:00000000:000155d6)",
+  "baseline": {
+    "localReceipt": "target/m165-handoff-baseline/surface-source-xGtOK8/pixels.json",
+    "sampled": 33,
+    "blankOrLoading": 16
+  },
+  "surfaceSource": {
+    "localReceipt": "target/m165-handoff-corrected/surface-source-VPZRNC/pixels.json",
+    "sampled": 43,
+    "previousRed": 21,
+    "replacementBlue": 22,
+    "other": 0,
+    "sameSourceSwitches": 4,
+    "sameSourceScope": "Direct channel on two Surfaces, and an automatic Reference to that channel on a third Surface. All changes used the same native view.",
+    "sourceBinding": "1bb4cff8-4b66-4cba-a563-414c646f48cb",
+    "texture": 8,
+    "distinctSampledProducerPublications": 74
+  },
+  "mediaPreview": {
+    "localReceipt": "target/m165-handoff-corrected/media-preview-AseevO/pixels.json",
+    "sampled": 30,
+    "previousRed": 21,
+    "replacementBlue": 9,
+    "other": 0
+  },
+  "diagnostics": {
+    "localReceipt": "target/m165-handoff-corrected/diagnostics/native-7124-df32f346-91f3-450f-9331-f6963ed62b82.jsonl",
+    "captureEvents": 2052,
+    "droppedEvents": 0,
+    "bindings": "One receiver binding across the Surface selection sequence. A distinct binding was created when the sender and panel were restarted for Media Preview."
+  },
+  "checks": ["bundled MapGyver build", "40 MapGyver preview unit tests including the generated TypeScript contract", "strict Clippy for the MapGyver and golden_video libraries", "MapGyver Svelte check", "JavaScript syntax", "Prettier", "root and golden_core Cargo formatting"],
+  "previousReadySourceEvidence": "mapgyver-m16-surface-preview-selection-2026-11-19.json"
+}

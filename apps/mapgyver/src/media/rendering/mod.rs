@@ -7,6 +7,7 @@ mod fit;
 mod plan;
 mod screen_raster;
 mod sources;
+use crate::preview::layout::PreviewImages;
 pub use crate::preview::layout::PreviewLayout;
 
 use super::capture::CapturedChannels;
@@ -67,6 +68,8 @@ pub struct ChannelRenderer {
     observations: Option<SourceObservations>,
     channels: Vec<PreparedChannel>,
     latest_request: Option<RequestId>,
+    pending_preview: Option<PreviewImages>,
+    presented_preview: PreviewImages,
     pictures: Option<super::picture::Pictures>,
     #[cfg(feature = "video-files")]
     videos: Option<super::video::files::Files>,
@@ -98,6 +101,8 @@ impl ChannelRenderer {
             observations: None,
             channels: Vec::new(),
             latest_request: None,
+            pending_preview: Default::default(),
+            presented_preview: Default::default(),
             pictures: None,
             #[cfg(feature = "video-files")]
             videos: None,
@@ -267,6 +272,8 @@ impl ChannelRenderer {
             self.observations = None;
             self.desired = None;
             self.latest_request = None;
+            self.pending_preview = None;
+            self.presented_preview.clear();
             self.channels.clear();
             self.resolution_owner = Default::default();
             *self.feedback.lock().expect("Matrix feedback lock poisoned") = Default::default();
@@ -343,6 +350,7 @@ impl ChannelRenderer {
             plan::Previous {
                 channels: &self.entries,
                 screens: &self.screen_entries,
+                preview_images: &self.presented_preview,
             },
             &mut self.next_texture,
             self.limits,
@@ -400,6 +408,7 @@ impl ChannelRenderer {
         self.project = Some(capture.project);
         self.entries = prepared.entries;
         self.screen_entries = prepared.screens;
+        self.pending_preview = Some(prepared.preview_images);
         self.channels = prepared.channels;
         self.desired = Some(Desired {
             capture,
@@ -487,6 +496,15 @@ impl ChannelRenderer {
     }
     pub fn latest_request(&self) -> Option<RequestId> {
         self.latest_request
+    }
+    /// The host calls this only after the matching native layout and output frame were accepted.
+    #[cfg(all(windows, feature = "native-video"))]
+    pub(crate) fn confirm_preview(&mut self, request: RequestId) {
+        if self.latest_request == Some(request)
+            && let Some(images) = self.pending_preview.take()
+        {
+            self.presented_preview = images;
+        }
     }
     pub fn snapshot(&self) -> RuntimeSnapshot {
         self.runtime.snapshot()

@@ -54,6 +54,7 @@ fn prepare(engine: &AppEngine, reference: ChannelReference) -> super::super::pla
         super::super::plan::Previous {
             channels: &std::collections::HashMap::new(),
             screens: &std::collections::HashMap::new(),
+            preview_images: &Default::default(),
         },
         &mut 3,
         config().plan_limits,

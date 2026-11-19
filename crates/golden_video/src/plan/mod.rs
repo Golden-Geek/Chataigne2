@@ -92,6 +92,9 @@ impl Layer {
 pub enum RenderOperation {
     /// Fill the output with a finite linear premultiplied color.
     Clear(LinearColor),
+    /// Keep an existing pass target's image in the same project and device. If its exact
+    /// ID and descriptor do not still own a written allocation, initialize it to transparent.
+    Retain,
     /// Sample one texture over the entire output, converting its declared color/alpha contract.
     Sample {
         /// Texture sampled by the pass.
@@ -128,7 +131,7 @@ impl RenderOperation {
     }
     fn dependency_count(&self) -> usize {
         match self {
-            Self::Clear(_) => 0,
+            Self::Clear(_) | Self::Retain => 0,
             Self::Sample { .. } => 1,
             Self::Composite { layers } => layers.iter().fold(0_usize, |count, layer| {
                 let work = match &layer.source {
@@ -143,7 +146,7 @@ impl RenderOperation {
 
     pub(crate) fn sources(&self) -> impl Iterator<Item = TextureId> + '_ {
         let (sample, layers, regions) = match self {
-            Self::Clear(_) => (None, &[][..], &[][..]),
+            Self::Clear(_) | Self::Retain => (None, &[][..], &[][..]),
             Self::Sample { source, .. } => (Some(*source), &[][..], &[][..]),
             Self::Composite { layers } => (None, layers.as_slice(), &[][..]),
             Self::Regions { regions, .. } => (None, &[][..], regions.as_slice()),

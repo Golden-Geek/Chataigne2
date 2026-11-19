@@ -129,6 +129,16 @@ impl PreviewSnapshot {
         output: crate::OutputId,
         mut resolve: impl FnMut(&str) -> Option<TextureId>,
     ) -> Vec<BlitRegion> {
+        self.regions_by_view(output, |_, key| resolve(key))
+    }
+
+    /// Resolve each source using its owning view as well as its opaque key. Independent views
+    /// may be displaying different prior images while preparing the same replacement source.
+    pub fn regions_by_view(
+        &self,
+        output: crate::OutputId,
+        mut resolve: impl FnMut(&ResolvedView, &str) -> Option<TextureId>,
+    ) -> Vec<BlitRegion> {
         let mut regions = Vec::new();
         for view in &self.views {
             if self
@@ -146,11 +156,11 @@ impl PreviewSnapshot {
                     &self.tile_placements,
                     output,
                     visibility,
-                    &mut resolve,
+                    &mut |key| resolve(view, key),
                 ));
                 continue;
             }
-            if let Some(source) = resolve(&view.source) {
+            if let Some(source) = resolve(view, &view.source) {
                 regions.push(BlitRegion {
                     source,
                     destination: view.destination,

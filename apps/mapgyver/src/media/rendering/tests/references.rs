@@ -22,6 +22,7 @@ fn plan(engine: &AppEngine, references: &[ChannelReference]) -> super::super::pl
         super::super::plan::Previous {
             channels: &HashMap::new(),
             screens: &HashMap::new(),
+            preview_images: &Default::default(),
         },
         &mut 0,
         config().plan_limits,

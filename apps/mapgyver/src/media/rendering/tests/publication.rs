@@ -207,6 +207,7 @@ fn missing_and_unconfigured_channels_publish_explicit_transparent_placeholders()
         super::super::plan::Previous {
             channels: &HashMap::new(),
             screens: &HashMap::new(),
+            preview_images: &Default::default(),
         },
         &mut 0,
         config().plan_limits,
@@ -243,6 +244,7 @@ fn missing_and_unconfigured_channels_publish_explicit_transparent_placeholders()
         super::super::plan::Previous {
             channels: &HashMap::new(),
             screens: &HashMap::new(),
+            preview_images: &Default::default(),
         },
         &mut 0,
         config().plan_limits,

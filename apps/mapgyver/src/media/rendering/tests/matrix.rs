@@ -281,6 +281,7 @@ pub(super) fn prepare(engine: &AppEngine, roots: &[ChannelReference]) -> super::
         super::super::plan::Previous {
             channels: &Default::default(),
             screens: &Default::default(),
+            preview_images: &Default::default(),
         },
         &mut 3,
         config().plan_limits,
@@ -437,6 +438,7 @@ fn selected_column_shares_layer_group_final_passes_and_group_opacity_is_post_com
         super::super::plan::Previous {
             channels: &Default::default(),
             screens: &Default::default(),
+            preview_images: &Default::default(),
         },
         &mut 3,
         limits,

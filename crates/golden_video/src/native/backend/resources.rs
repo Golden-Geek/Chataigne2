@@ -14,7 +14,7 @@ use super::{D3d11Resources, NativeState};
 enum Role {
     Image,
     External(TextureId),
-    Pass(TextureId),
+    Pass(crate::runtime::ProjectEpoch, TextureId),
     Scratch(PassId),
     Output(OutputId),
 }
@@ -198,7 +198,12 @@ pub(super) fn prepare(
         }
         resources.textures.insert(
             pass.output,
-            cache.mutable(Role::Pass(pass.output), pass.descriptor, device, counts)?,
+            cache.mutable(
+                Role::Pass(generation.identity.project, pass.output),
+                pass.descriptor,
+                device,
+                counts,
+            )?,
         );
         if matches!(&pass.operation, RenderOperation::Composite { layers } if layers.len() > 1) {
             resources.scratch.insert(

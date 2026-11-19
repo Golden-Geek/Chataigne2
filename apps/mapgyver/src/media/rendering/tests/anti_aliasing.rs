@@ -29,6 +29,7 @@ fn prepare(
         super::super::plan::Previous {
             channels: previous.map_or(&empty_channels, |previous| &previous.entries),
             screens: previous.map_or(&empty_screens, |previous| &previous.screens),
+            preview_images: &Default::default(),
         },
         next,
         limits,

@@ -2,6 +2,7 @@ use super::{ChannelRoute, Entry, PreparedChannel, ScreenEntry, ScreenRoute, Sour
 use crate::media::capture::CapturedChannels;
 use crate::media::protocol::{ChannelReference, ChannelSource};
 use crate::media::resolution::{self, ChannelAvailability, ChannelResolution, SourceObservation};
+use crate::preview::layout::{Handoff, PreviewImages};
 use crate::screens::protocol::ScreenId;
 use golden_video::plan::{
     ExternalTexture, PlanLimits, PlanOutput, RenderOperation, RenderPass, RenderPlan, SampleFilter, SpoutSource,
@@ -18,16 +19,19 @@ pub(super) struct Prepared {
     pub entries: HashMap<ChannelReference, Entry>,
     pub channels: Vec<PreparedChannel>,
     pub screens: HashMap<ScreenId, ScreenEntry>,
+    pub preview_images: PreviewImages,
 }
 
 pub(super) struct Previous<'a> {
     pub channels: &'a HashMap<ChannelReference, Entry>,
     pub screens: &'a HashMap<ScreenId, ScreenEntry>,
+    pub preview_images: &'a PreviewImages,
 }
 
 pub(super) fn allocate(next: &mut u64) -> Result<TextureId, String> {
     *next = next
         .checked_add(1)
+        .filter(|&value| value < super::PreviewLayout::CALIBRATION_TEXTURE_BASE)
         .ok_or("channel runtime texture identity exhausted")?;
     Ok(TextureId::new(*next).expect("checked nonzero texture identity"))
 }
@@ -694,13 +698,30 @@ pub(super) fn build(
             });
         }
     }
-    if let Some(preview) = preview {
+    let preview_images = if let Some(preview) = preview {
         if !seen_outputs.insert(preview.output) {
             return Err("preview output duplicates an output route".into());
         }
         let screen_targets = screen_entries.iter().map(|(id, entry)| (*id, entry.target)).collect();
-        preview.append(&mut submission, &source_targets, &screen_targets, calibration)?;
-    }
+        let availability = channels
+            .iter()
+            .filter(|channel| captured[&channel.reference].public_output)
+            .map(|channel| (channel.reference, channel.resolution.availability))
+            .collect();
+        preview.append(
+            &mut submission,
+            &source_targets,
+            &screen_targets,
+            calibration,
+            Some(Handoff {
+                previous: previous.preview_images,
+                availability: &availability,
+                max_passes: limits.max_passes,
+            }),
+        )?
+    } else {
+        PreviewImages::new()
+    };
     for channel in &mut channels {
         if !captured[&channel.reference].public_output {
             channel.resolution = ChannelResolution {
@@ -722,5 +743,6 @@ pub(super) fn build(
         entries,
         channels,
         screens: screen_entries,
+        preview_images,
     })
 }

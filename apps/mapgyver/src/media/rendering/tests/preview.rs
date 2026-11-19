@@ -62,6 +62,7 @@ fn preview_reuses_channel_textures_and_withdraws_geometry_without_revoking_other
         super::super::plan::Previous {
             channels: &HashMap::new(),
             screens: &HashMap::new(),
+            preview_images: &Default::default(),
         },
         &mut next,
         config().plan_limits,
@@ -248,6 +249,7 @@ fn mixed_screen_and_channel_views_share_sources_and_invalidate_on_surface_edits_
         super::super::plan::Previous {
             channels: &HashMap::new(),
             screens: &HashMap::new(),
+            preview_images: &Default::default(),
         },
         &mut next,
         config().plan_limits,

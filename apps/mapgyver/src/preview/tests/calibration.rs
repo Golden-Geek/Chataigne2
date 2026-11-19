@@ -70,13 +70,19 @@ fn repeated_pattern_views_share_one_stable_native_pass_without_channels_or_exter
     assert!(preview.references().unwrap().is_empty());
     let mut first = PlanSubmission::new(Default::default());
     preview
-        .append(&mut first, &HashMap::new(), &HashMap::new(), &mut Default::default())
+        .append(
+            &mut first,
+            &HashMap::new(),
+            &HashMap::new(),
+            &mut Default::default(),
+            None,
+        )
         .unwrap();
     assert!(first.plan.external_textures.is_empty());
     let patterns = first.plan.passes.iter().filter(|pass| matches!(&pass.operation, RenderOperation::Composite { layers } if layers.iter().any(|layer| matches!(layer.source, LayerSource::Pattern(_))))).collect::<Vec<_>>();
     assert_eq!(patterns.len(), 1);
     assert_eq!(patterns[0].descriptor.extent, Extent2D::new(96, 64).unwrap());
-    assert!(patterns[0].output.get() <= PreviewLayout::RESERVED_TEXTURES);
+    assert!(patterns[0].output.get() >= PreviewLayout::CALIBRATION_TEXTURE_BASE);
     let pattern_texture = patterns[0].output;
     let RenderOperation::Regions { regions, .. } = &first
         .plan
@@ -93,7 +99,13 @@ fn repeated_pattern_views_share_one_stable_native_pass_without_channels_or_exter
     first.plan.compile(&limits()).unwrap();
     let mut second = PlanSubmission::new(Default::default());
     preview
-        .append(&mut second, &HashMap::new(), &HashMap::new(), &mut Default::default())
+        .append(
+            &mut second,
+            &HashMap::new(),
+            &HashMap::new(),
+            &mut Default::default(),
+            None,
+        )
         .unwrap();
     assert_eq!(second.plan.passes[0].output, pattern_texture);
 }
@@ -112,6 +124,7 @@ fn grid_uses_the_existing_native_canvas_pattern_and_original_admission_limits() 
             &HashMap::new(),
             &HashMap::new(),
             &mut Default::default(),
+            None,
         )
         .unwrap();
     assert!(

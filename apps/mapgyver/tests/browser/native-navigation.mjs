@@ -18,6 +18,7 @@ import { verifyMatrixFeedback } from './matrix-feedback.mjs';
 import { verifyInspectorStability } from './inspector-stability.mjs';
 import { verifyPreviewSelectionStability } from './preview-selection-stability.mjs';
 import { verifySurfacePreviewSelection } from './surface-preview-selection.mjs';
+import { verifyDelayedPreviewSelection } from './delayed-preview-selection.mjs';
 import { verifyNativePreviewContinuity } from './native-preview-continuity.mjs';
 import { verifyNativeInputStability } from './native-input-stability.mjs';
 import { verifyNativeProjectTransitions } from './native-project-transitions.mjs';
@@ -179,6 +180,7 @@ try {
 			['--preview-continuity', verifyNativePreviewContinuity],
 			['--preview-selection-stability', verifyPreviewSelectionStability],
 			['--surface-preview-selection', verifySurfacePreviewSelection],
+			['--delayed-preview-selection', verifyDelayedPreviewSelection],
 			['--inspector-stability', verifyInspectorStability],
 			['--matrix-feedback', verifyMatrixFeedback],
 			['--composition-panels', verifyCompositionUi],
