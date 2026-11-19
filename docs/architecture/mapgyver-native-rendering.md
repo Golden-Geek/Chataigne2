@@ -81,6 +81,10 @@ texture layer match in order, including crop, warp and opacity. Each Screen keep
 target identity for later edits that split the shared route. Golden Video also shares a
 persistent Spout conversion when outputs use the same source texture and exact destination
 descriptor. Each sender retains independent pacing, admission, SDK storage and recovery.
+Same-size conversion from linear premultiplied RGBA8 to straight sRGB in RGBA8 or BGRA8 uses
+a shader specialized for that layout and transfer. It reads at the exact texel index and
+retains the generic shader's alpha and transfer arithmetic. Spout receives the original
+typed texture format. Resizes and other layouts or transfers use general sampling.
 Window back buffers and live editor placements follow their own presentation paths.
 
 Editor decorations belong to the same native presentation as the image. Golden Video owns

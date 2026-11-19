@@ -15,7 +15,7 @@ use windows::core::{Error, HRESULT, Result};
 use crate::plan::{BlendMode, BlitRegion, Layer, LayerSource, Pattern, ProjectiveMapping, SampleFilter, UnitRect};
 mod overlay;
 mod pattern;
-use crate::{AlphaMode, ColorEncoding, LinearColor};
+use crate::{AlphaMode, ColorEncoding, LinearColor, PixelFormat};
 use pattern::PatternParameters;
 use std::cell::Cell;
 
@@ -87,6 +87,7 @@ pub(super) struct Pipeline {
     frame_text: Cell<pattern::frame::FrameText>,
     vertex: ID3D11VertexShader,
     pixel: ID3D11PixelShader,
+    straight_srgb_pixel: ID3D11PixelShader,
     mapped_pixel: ID3D11PixelShader,
     pattern_pixel: ID3D11PixelShader,
     overlay_pixel: ID3D11PixelShader,
@@ -112,6 +113,7 @@ impl Pipeline {
     pub(super) fn new(device: &ID3D11Device) -> Result<Self> {
         let mut vertex = None;
         let mut pixel = None;
+        let mut straight_srgb_pixel = None;
         let mut mapped_pixel = None;
         let mut pattern_pixel = None;
         let mut constants = None;
@@ -121,6 +123,7 @@ impl Pipeline {
         unsafe {
             device.CreateVertexShader(shaders::VERTEX, None, Some(&mut vertex))?;
             device.CreatePixelShader(shaders::PIXEL, None, Some(&mut pixel))?;
+            device.CreatePixelShader(shaders::STRAIGHT_SRGB_PIXEL, None, Some(&mut straight_srgb_pixel))?;
             device.CreatePixelShader(shaders::MAPPED_PIXEL, None, Some(&mut mapped_pixel))?;
             device.CreateBuffer(
                 &D3D11_BUFFER_DESC {
@@ -153,6 +156,7 @@ impl Pipeline {
             overlay_blend,
             vertex: vertex.ok_or_else(missing_output)?,
             pixel: pixel.ok_or_else(missing_output)?,
+            straight_srgb_pixel: straight_srgb_pixel.ok_or_else(missing_output)?,
             mapped_pixel: mapped_pixel.ok_or_else(missing_output)?,
             pattern_pixel: pattern_pixel.ok_or_else(missing_output)?,
             constants: constants.ok_or_else(missing_output)?,
@@ -278,6 +282,27 @@ impl Pipeline {
             })
             .unwrap_or((None, ColorEncoding::Linear));
         let integer_slot = source.and_then(|source| super::texture::integer_slot(source.descriptor.format));
+        // Same-size delivery can address the source by pixel index. Keep general
+        // sampling for placements, resizes and every other color/alpha contract.
+        let straight_srgb = pattern.is_none()
+            && mapping.is_none()
+            && previous.is_none()
+            && source_rect == UnitRect::FULL
+            && destination == UnitRect::FULL
+            && opacity == 1.0
+            && filter == SampleFilter::Nearest
+            && target.shader_encoding == ColorEncoding::Srgb
+            && target.descriptor.alpha_mode == AlphaMode::Straight
+            && matches!(
+                target.descriptor.format,
+                PixelFormat::Rgba8Unorm | PixelFormat::Bgra8Unorm
+            )
+            && source.is_some_and(|source| {
+                source.descriptor.extent == target.descriptor.extent
+                    && source.descriptor.format == PixelFormat::Rgba8Unorm
+                    && source.descriptor.color_encoding == ColorEncoding::Linear
+                    && source.descriptor.alpha_mode == AlphaMode::Premultiplied
+            });
         let parameters = Parameters {
             source_extent: source.map_or([1, 1], |source| {
                 [source.descriptor.extent.width(), source.descriptor.extent.height()]
@@ -326,12 +351,13 @@ impl Pipeline {
             context.GSSetShader(None, None);
             context.HSSetShader(None, None);
             context.DSSetShader(None, None);
-            // Existing full-target/region draws retain their original pixel entry point.
             context.PSSetShader(
                 if pattern.is_some() {
                     &self.pattern_pixel
                 } else if mapping.is_some() {
                     &self.mapped_pixel
+                } else if straight_srgb {
+                    &self.straight_srgb_pixel
                 } else {
                     &self.pixel
                 },

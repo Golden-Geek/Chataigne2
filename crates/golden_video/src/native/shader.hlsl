@@ -304,6 +304,14 @@ float4 ps_main(Vertex input) : SV_Target {
     return finish_pixel(input, sample_source(source_rect.xy + input.uv * source_rect.zw) * opacity);
 }
 
+float4 ps_straight_srgb(Vertex input) : SV_Target {
+    float4 stored = source_image.Load(int3(int2(input.position.xy), 0));
+    if (stored.a == 0) return 0;
+    // Keep the generic path's linear premultiplication round trip before transfer.
+    float3 premultiplied = (stored.rgb / stored.a) * stored.a;
+    return float4(encode_rgb(premultiplied / stored.a), stored.a);
+}
+
 float4 ps_mapped(Vertex input) : SV_Target {
     float3 position = float3(input.uv, 1);
     float3 projected = float3(

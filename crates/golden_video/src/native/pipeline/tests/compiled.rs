@@ -7,6 +7,7 @@ fn embedded_programs_match_the_current_shader_source_byte_for_byte() {
     for (entry, profile, embedded) in [
         (s!("vs_main"), s!("vs_5_0"), shaders::VERTEX),
         (s!("ps_main"), s!("ps_5_0"), shaders::PIXEL),
+        (s!("ps_straight_srgb"), s!("ps_5_0"), shaders::STRAIGHT_SRGB_PIXEL),
         (s!("ps_mapped"), s!("ps_5_0"), shaders::MAPPED_PIXEL),
         (s!("ps_pattern"), s!("ps_5_0"), shaders::PATTERN_PIXEL),
         (s!("ps_overlay"), s!("ps_5_0"), shaders::OVERLAY_PIXEL),

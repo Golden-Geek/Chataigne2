@@ -3,6 +3,7 @@ mod bitmap;
 mod canvas;
 mod compiled;
 mod mapping;
+mod output;
 mod pattern;
 use std::num::NonZeroUsize;
 use std::time::{Duration, Instant};

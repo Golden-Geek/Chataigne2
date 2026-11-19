@@ -84,6 +84,12 @@ fn compile_native_shaders() {
     for (name, entry, profile, file) in [
         ("VERTEX", s!("vs_main"), s!("vs_5_0"), "vs_main.dxbc"),
         ("PIXEL", s!("ps_main"), s!("ps_5_0"), "ps_main.dxbc"),
+        (
+            "STRAIGHT_SRGB_PIXEL",
+            s!("ps_straight_srgb"),
+            s!("ps_5_0"),
+            "ps_straight_srgb.dxbc",
+        ),
         ("MAPPED_PIXEL", s!("ps_mapped"), s!("ps_5_0"), "ps_mapped.dxbc"),
         ("PATTERN_PIXEL", s!("ps_pattern"), s!("ps_5_0"), "ps_pattern.dxbc"),
         ("OVERLAY_PIXEL", s!("ps_overlay"), s!("ps_5_0"), "ps_overlay.dxbc"),

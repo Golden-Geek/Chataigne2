@@ -248,6 +248,47 @@
       "commit": "f39aae83720d4a0a1740a7a0e30c73fc09dec75f"
     }
   },
+  "spoutConversionFollowUp": {
+    "baseRevision": "cf07e852",
+    "baseline": "target/m103-q06-dxv3-dxt1/sample-intel-02",
+    "localRun": "target/m103-q06-dxv3-dxt1/sample-intel-04",
+    "binarySha256": "ad8b28b6ac2ba5820f2b1ce1882379946229c0df478bf17a381d178730854229",
+    "sampleSha256": "04460a076b074985d95067b1a685620433d4f839bff0ff9d59b862c433769d41",
+    "auditSha256": "1afb3bea4bbe7d5df9190e1cea535e066f697b3b8d1118a8a15eb2ce6e405614",
+    "inputsSha256": "60ea8748fab9769c618df6492903341595752ff87bb57695c63c8d4881d814ce",
+    "unchangedInputHashesAfterRun": 73,
+    "nativeControllerAndStrictAttributionAuditExits": [0, 0],
+    "change": "Specialize exact same-size conversion from linear premultiplied RGBA8 to straight sRGB in BGRA8 or RGBA8. Read the corresponding texel directly and retain the generic shader's transfer and alpha arithmetic. Spout keeps its typed layout, existing SDK copy and independent delivery.",
+    "softwareAndPixelPreflight": {
+      "goldenVideoPassed": 363,
+      "mapGyverRenderingPassed": 95,
+      "hardwarePixelTest": "Both Intel and NVIDIA matched the generic shader byte for byte for each wire layout and eight tested alpha levels, including zero and full opacity.",
+      "embeddedHlslBytecodeFormattingStrictClippyBundledBuild": "pass"
+    },
+    "outputGpuStageP95MsVisibleMinimizedDisconnectedBeforeAfter": [[8.975469, 8.536146], [8.623698, 8.313594], [7.426458, 6.932917]],
+    "rendererGpuP95P99MsVisibleMinimizedDisconnected": [[17.129271, 18.372969], [17.614635, 18.241771], [19.431146, 20.497865]],
+    "rendererGpuQueriesCompleteAllPhases": true,
+    "cpuSubmissionP95P99MsVisibleMinimizedDisconnected": [[3.0195, 3.3373], [3.5314, 3.8715], [3.5902, 3.9350]],
+    "publicationRateHD_UHDVisibleMinimizedDisconnected": [[59.9524, 30.0095], [59.6397, 29.9863], [59.8752, 30.0042]],
+    "visibleUhdLoopsWithFinalFrameOf29": 29,
+    "visibleDeadlineBudgetPassed": true,
+    "minimizedDeadlineMissesOf3604HD_UHD_Reference": [8, 10, 9],
+    "filePublicationToCopyP95UpperMsVisibleHD_UHD_Reference": [45.5482, 43.3384, 46.8914],
+    "filePublicationToCopyP95UpperMsMinimizedHD_UHD_Reference": [33.5552, 43.0355, 38.6953],
+    "heldPixelIdenticalToIntelBaselineHD_UHD_Reference": [true, true, true],
+    "visibleMatchedMarkersHD_UHD_Reference": [7198, 7183, 7197],
+    "minimizedMatchedMarkersHD_UHD_Reference": [3597, 3594, 3595],
+    "visibleMissingWitnessesHD_UHD_Reference": [3, 19, 6],
+    "connectedMismatchedMarkers": 0,
+    "resources": {
+      "knownNativeTexturePeakBytes": 353811208,
+      "processPrivatePeakBytes": 764657664,
+      "sourceGpuPeakBytes": 24883200,
+      "finalTrackedSourceGpuAndNativeTextureBytes": [0, 0],
+      "finalPlanTextureAllocationsCreatedReleased": [23, 23]
+    },
+    "assessment": "Ship the exact conversion path. The output-stage p95 was lower in all three phases, with exact held images and no wrong captured marker. This single comparison does not qualify the remaining Intel GPU or minimized deadline limits. Direct 4K upload GPU-path attribution, 28 visible pixel witnesses, other profiles and repeats remain open."
+  },
   "remaining": [
     "Reduce Intel output conversion GPU work and close minimized deadline misses. Complete GPU-path attribution, sustained alpha/High Quality DXV and additional MKV profiles, independent repeats, and extended-format recovery."
   ]
