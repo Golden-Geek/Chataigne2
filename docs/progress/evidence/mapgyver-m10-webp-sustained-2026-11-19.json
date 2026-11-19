@@ -2,7 +2,7 @@
   "date": "2026-11-19",
   "gate": "M10/3",
   "accepted": false,
-  "scope": "One NVIDIA baseline and six sequential corrective comparisons for looping lossy VP8 animated WebP with alpha. The workload uses 1080p60 and 4K30 Files, an HD Reference, three independent Spout receivers and 30/120/60/60 seconds of warmup, visible, minimized and disconnected operation.",
+  "scope": "One NVIDIA baseline and seven corrective comparisons for looping lossy VP8 animated WebP with alpha. The workload uses 1080p60 and 4K30 Files, an HD Reference, three independent Spout receivers and 30/120/60/60 seconds of warmup, visible, minimized and disconnected operation.",
   "environment": {
     "baseRevision": "44fd621b",
     "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
@@ -313,6 +313,63 @@
       "finalPlanTextureAllocationsCreatedReleased": [27, 27]
     }
   },
+  "hdParallelFollowUp": {
+    "baseRevision": "bec77fb0",
+    "localRun": "target/m103-q06-webp/sample-nvidia-08",
+    "binarySha256": "93c60d52941cd0ac968d40009d575bb0693210e0ceab28f4208b06b20bea707e",
+    "sampleSha256": "bbf384ccfb124045915eab9190424968868acf9c797177416242e94a543a200b",
+    "auditSha256": "037b25f6f6b23f1f06aab1e4e4e8ec2cad4408f7912f88aa0b92c8a253d1d3c7",
+    "inputsSha256": "e0e5ef0c5bf9d9e7ed60a681f520100a08e1fad94bc6311ef753cafd307572f5",
+    "unchangedInputHashes": 70,
+    "buildScope": "Bundled working build with pinned executable-local FFmpeg. The input manifest includes unrelated tracked changes present for compilation.",
+    "change": "Extend independent VP8 alpha patch decoding to eligible 1080p animations and release the unused serial context after the two patch workers initialize. HD uses its existing GPU bridge and 4K retains the direct software upload.",
+    "controllerAndStrictAttributionAuditExits": [0, 0],
+    "software": {
+      "mapGyverVideoTestsPassed": 80,
+      "goldenVideoDecodeTests": { "passed": 57, "ignored": 3 },
+      "formattingStrictClippyAndBundledBuild": "pass"
+    },
+    "visiblePublicationRatesHD_UHD": [57.7972, 30.0022],
+    "minimizedPublicationRatesHD_UHD": [58.3766, 29.9709],
+    "disconnectedPublicationRatesHD_UHD": [58.8214, 29.9851],
+    "visibleDistinctEncodedPtsHD_UHD_Reference": [240, 120, 240],
+    "heldSeekMarkersAt1000MsHD_UHD_Reference": [60, 2078, 60],
+    "heldImagesByteIdenticalToPreviousBuild": [true, true, true],
+    "connectedMarkerMatches": {
+      "visibleHD_UHD_Reference": [7202, 7202, 7199],
+      "minimizedHD_UHD_Reference": [3600, 3601, 3604],
+      "total": 32408,
+      "missingOrMismatched": 0
+    },
+    "visibleDeadlineMissesOf7203HD_UHD_Reference": [1, 1, 4],
+    "cpuSubmissionP95P99MsVisibleMinimizedDisconnected": [[3.5548, 4.0130], [5.3972, 6.3116], [5.5199, 6.4783]],
+    "visibleFilePublicationToCopyP95UpperMsHD_UHD_Reference": [28.1738, 36.3784, 28.3286],
+    "minimizedFilePublicationToCopyP95UpperMsHD_UHD_Reference": [27.9038, 37.6248, 28.3041],
+    "visibleUhdFinalEncodedFrameLoopsBeforeAfter": [29, 28],
+    "visibleUhdCompleteLoopsEachRun": 29,
+    "visibleUhdLastPtsPerLoopMinMedianMaxMs": [3933, 3966, 3966],
+    "renderInputWorkP95MsBy4KUpload": {
+      "definition": "Join FrameCpu and UHD ImageUpload by device generation and renderer token. Columns are with and without a fresh 4K upload. Rows are visible, minimized and disconnected.",
+      "previous": [[2.9179, 0.1327], [4.5487, 0.1391], [4.4226, 0.1405]],
+      "candidate": [[3.2437, 0.1318], [5.3840, 0.1394], [5.3141, 0.1337]]
+    },
+    "resources": {
+      "visibleSoftwareUploadCallsHD_UHD": [6940, 3601],
+      "visibleSoftwareUploadBytesHD_UHD": [57563136000, 119472537600],
+      "peakSourceCpuAdmissionBytes": 615104752,
+      "sourceCpuAdmissionCeilingBytes": 805306368,
+      "sourcePublisherPeakBytes": 24883200,
+      "nativePlanAndOutputTexelPeakBytes": 370400008,
+      "maxObservedProcessPrivateBytesMeasuredPhases": 1119490048,
+      "finalTrackedSourceAndNativeTexelsBytes": [0, 0],
+      "finalPlanTextureAllocationsCreatedReleased": [27, 27]
+    },
+    "decision": "Keep the shipped above-HD routing. Higher 1080p cadence raised CPU cost in all phases and one 4K loop missed the last timestamp. Revisit HD parallel decoding when direct 4K upload input work has been reduced and the combined workload meets its budgets.",
+    "localCandidateStash": {
+      "name": "pending/mapgyver-m103-hd-webp-upload-budget-2026-11-19",
+      "commit": "936fa0e86f593486fdcd60825587d36f34e1fff2"
+    }
+  },
   "softwareChecks": {
     "mapGyverVideo": 75,
     "goldenVideoScheduling": 5,
@@ -321,7 +378,7 @@
     "mapGyverClippyAndBundledBuild": "pass"
   },
   "remaining": [
-    "The latest 4K NVIDIA sample reached the final frame at about 30 updates/s and passed connected 50 ms image-age checks. HD source cadence still falls short of 60 updates/s, and minimized/disconnected CPU p95 exceeds 4 ms.",
+    "The shipped 4K NVIDIA path reached the final frame in all 29 complete loops at about 30 updates/s and passed connected 50 ms image-age checks. HD source cadence still falls short of 60 updates/s, and minimized/disconnected CPU p95 exceeds 4 ms. The HD acceleration candidate is parked pending a lower-cost 4K upload path.",
     "The audit lacks full GPU-path coverage for 4K software uploads. Additional profiles, repeat runs, sustained DXV, device recovery and license qualification remain open."
   ]
 }

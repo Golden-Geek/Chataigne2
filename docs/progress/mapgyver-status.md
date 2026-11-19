@@ -3,7 +3,7 @@
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `█████████░` **87% — 119/137 checks accepted, 8/17 phases complete**.
 - **Latest delivered:** Animated WebP reached 30 updates/s at 4K and showed the final frame in all 29 NVIDIA test loops. [WebP comparison](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)
-- **Working on next:** Improve 1080p animated WebP cadence and background CPU cost.
+- **Working on next:** Reduce the cost of 4K software uploads so mixed 1080p/4K Video can update faster.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -69,6 +69,7 @@
 ## Pending qualification — in order
 
 1. **NOW — Extended Video formats:** the NVIDIA 4K animated WebP run reached 30 updates/s, showed the final encoded frame in all 29 complete loops, and met the 50 ms image-age target. The 1080p source reached about 48 updates/s against 60. Minimized and disconnected CPU p95 still exceeds 4 ms. [WebP comparison](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)
+   - **1080p WebP candidate parked:** reached 57.8 updates/s. Background CPU p95 rose to 5.4–5.5 ms and one 4K loop missed its final frame. Revisit after reducing 4K upload cost.
    - H.264 MKV passed frame identity, output cadence and CPU checks. The 4K latency upper bound exceeds 50 ms. [MKV run](evidence/mapgyver-m10-mkv-sustained-2026-11-19.json)
    - Sustained DXV, additional profiles, repeat runs, complete GPU timing and device recovery remain open.
 2. **Shared editor feedback presentation:** built and functionally checked. Native paint packets are accepted, but matching installation/presented-frame proof is missing. Finish native paint/alignment and actual Composition/Matrix presentation checks.
