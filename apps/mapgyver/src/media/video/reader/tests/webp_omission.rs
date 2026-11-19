@@ -132,3 +132,26 @@ fn one_later_overwrite_can_replace_a_group_with_different_rectangles() {
         expected_95.pixels()
     );
 }
+
+#[test]
+fn overlapped_projection_preserves_the_selected_pixels_across_a_held_seek() {
+    let fixture = file(&fixture());
+    let ms = Duration::from_millis;
+    let mut exact = open(&fixture);
+    let expected_first = exact.poll(ms(0), None).unwrap().unwrap();
+    let expected_held = exact.poll(ms(95), None).unwrap().unwrap();
+
+    let mut playing = open(&fixture);
+    let conversion = SoftwareConversionWorker::new(16 * 1024 * 1024).unwrap();
+    playing.converter = Some(Conversion::Overlapped(conversion));
+    assert!(playing.advance_for_playback(ms(225), Some(ms(0))).unwrap());
+    assert_eq!(playing.prepared.as_ref().map(|(timestamp, _)| *timestamp), Some(0));
+    assert_eq!(playing.software_image().unwrap().pixels(), expected_first.pixels());
+    playing.mark_published();
+
+    assert_eq!(
+        playing.poll(ms(95), None).unwrap().unwrap().pixels(),
+        expected_held.pixels()
+    );
+    assert_eq!(playing.neighbours().unwrap().unwrap().position, ms(95));
+}

@@ -445,6 +445,11 @@ to eight future packets and holds at most twice the input packet limit in compre
 existing source memory ceiling covers that reservation. Omitted timestamps still define source
 neighbours and presentation windows, and an exact seek into a gap reconstructs the canvas.
 [WebP container specification](https://www.rfc-editor.org/rfc/rfc9649.html#section-2.7.1.2)
+For animated WebP above 1080p, one file-owned scaler can convert the selected software frame
+while its decoder finds the next frame. Golden retains the admitted software planes and uses the
+same projection budget as inline conversion. The file worker consumes the result before
+publication and the existing epoch and cycle checks reject stale results. File retirement joins
+the scaler before the source worker releases its slot.
 Advancing playback's frame-neighbour inspection samples the same two presentation windows, so
 preparing a future image does not advance Inspector frame-step state. A stationary clock
 (pause, zero rate or final hold) instead publishes immediate epoch-fenced pixels and ordinary

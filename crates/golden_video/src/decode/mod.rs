@@ -18,7 +18,7 @@ pub mod subtitles;
 mod webp;
 pub use audio::{AudioChunk, AudioReader};
 pub use hap::{HapFormat, HapFrame};
-pub use image::{ConversionError, SoftwareImageConverter};
+pub use image::{ConversionError, PendingSoftwareConversion, SoftwareConversionWorker, SoftwareImageConverter};
 pub use layout::{SoftwareFrameLayout, SoftwarePlaneLayout};
 pub use metadata::{AudioTrack, MediaMetadata, probe_media};
 pub use parallelism::SoftwareDecodeThreads;
@@ -89,6 +89,7 @@ pub struct DecodedFrame {
     omitted_before: Option<(i64, i64)>,
     storage: FrameStorage,
 }
+
 enum FrameStorage {
     Software(ffmpeg::frame::Video),
     Hap(HapFrame),

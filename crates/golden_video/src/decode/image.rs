@@ -3,11 +3,13 @@ use super::{DecodedFrame, ffmpeg};
 use crate::image::ImageStorageBudget;
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor, image::ImageData};
 mod scratch;
+mod worker;
 mod ycgco;
 use ffmpeg::{
     software::scaling::{Context, Flags},
     util::color::{Range, Space, TransferCharacteristic as Transfer},
 };
+pub use worker::{PendingSoftwareConversion, SoftwareConversionWorker};
 
 /// Explicit conversion failure; callers need not parse display strings to report support.
 #[derive(Debug, thiserror::Error)]
@@ -53,11 +55,15 @@ impl SoftwareImageConverter {
     /// Explicit bound shared by scratch and every separately retained output image.
     /// Codec/scaler-private allocations and heap overhead are separate.
     pub fn new(max_bytes: u64) -> Result<Self, ConversionError> {
-        Ok(Self {
+        let budget = ImageStorageBudget::new(max_bytes).map_err(|_| ConversionError::Capacity)?;
+        Ok(Self::with_budget(budget))
+    }
+    fn with_budget(budget: ImageStorageBudget) -> Self {
+        Self {
             conversion: None,
-            budget: ImageStorageBudget::new(max_bytes).map_err(|_| ConversionError::Capacity)?,
+            budget,
             extent: None,
-        })
+        }
     }
     /// Convert to a fixed output canvas, even if the decoded stream has a different extent.
     pub fn with_extent(max_bytes: u64, extent: Extent2D) -> Result<Self, ConversionError> {
@@ -79,10 +85,10 @@ impl SoftwareImageConverter {
     /// Convert supported SDR frames explicitly. HDR/wide-gamut metadata is rejected rather
     /// than silently interpreted as sRGB. Untagged SDR follows the documented BT.709 default.
     pub fn convert(&mut self, frame: &DecodedFrame) -> Result<ImageData, ConversionError> {
-        if frame.hap_frame().is_some() {
-            return Err(ConversionError::CompressedStorage);
-        }
-        let input = frame.software_image().ok_or(ConversionError::HardwareStorage)?;
+        self.convert_planes(software_planes(frame)?)
+    }
+
+    fn convert_planes(&mut self, input: &ffmpeg::frame::Video) -> Result<ImageData, ConversionError> {
         let space = input.color_space();
         let matrix = match space {
             Space::RGB | Space::BT709 | Space::Unspecified => Some(ffmpeg::ffi::SWS_CS_ITU709),
@@ -176,6 +182,13 @@ impl SoftwareImageConverter {
         .and_then(|image| image.with_storage(image_lease))
         .map_err(|e| failed(e.to_string()))
     }
+}
+
+fn software_planes(frame: &DecodedFrame) -> Result<&ffmpeg::frame::Video, ConversionError> {
+    if frame.hap_frame().is_some() {
+        return Err(ConversionError::CompressedStorage);
+    }
+    frame.software_image().ok_or(ConversionError::HardwareStorage)
 }
 
 fn legacy_scale(

@@ -26,11 +26,6 @@ use std::{
 
 const MAX_SOURCES: usize = 8;
 const MAX_BYTES: u64 = 768 * 1024 * 1024;
-// The measured software GPU bridge improves HD cadence, but its extra shared-image
-// transfer lowers 4K throughput. Keep large software rasters on the direct upload path
-// until the unchanged 4K workload qualifies the bridge; this does not waive that gate.
-#[cfg(all(windows, feature = "native-video"))]
-const MAX_SOFTWARE_GPU_PIXELS: u64 = 1920 * 1080;
 mod diagnostics;
 #[cfg(all(windows, feature = "native-video"))]
 mod hardware;
@@ -586,10 +581,11 @@ impl Run {
             );
         }
         let mut lease = Arc::new(self.budget.admit_software(&mut decoder)?);
+        // The measured software GPU transfer helps HD. Large rasters use direct upload.
         #[cfg(all(windows, feature = "native-video"))]
         if let Some(hardware) = &self.hardware
             && hardware.has_storage_budget()
-            && u64::from(decoder.info().width) * u64::from(decoder.info().height) <= MAX_SOFTWARE_GPU_PIXELS
+            && u64::from(decoder.info().width) * u64::from(decoder.info().height) <= super::reader::HD_PIXELS
         {
             return self.drive_native(worker, owner, hardware, decoder, Some(lease));
         }

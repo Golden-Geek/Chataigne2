@@ -1,14 +1,20 @@
 //! Timestamp sampling and bounded decode turns on an owning file worker.
 use super::failure::Failure;
 use golden_video::{
-    decode::{ConversionError, DecodeStorage, DecodedFrame, Decoder, SoftwareImageConverter, TimeBase},
+    decode::{
+        ConversionError, DecodeStorage, DecodedFrame, Decoder, SoftwareConversionWorker, SoftwareFrameLayout,
+        SoftwareImageConverter, TimeBase,
+    },
     image::ImageData,
+    image::ImageStorageAllocation,
 };
 use std::time::Duration;
 
+pub(super) const HD_PIXELS: u64 = 1920 * 1080;
+
 pub(super) struct Reader {
     decoder: Decoder,
-    converter: Option<SoftwareImageConverter>,
+    converter: Option<Conversion>,
     prepared: Option<(i64, ImageData)>,
     current: Option<DecodedFrame>,
     next: Option<DecodedFrame>,
@@ -27,7 +33,42 @@ struct PreviousProbe {
     distance: i64,
 }
 
-fn convert_frame(converter: &mut Option<SoftwareImageConverter>, frame: &DecodedFrame) -> Result<ImageData, Failure> {
+enum Conversion {
+    Inline(SoftwareImageConverter),
+    Overlapped(SoftwareConversionWorker),
+}
+
+impl Conversion {
+    fn new(bytes: u64, overlap: bool) -> Result<Self, ConversionError> {
+        if overlap && let Ok(worker) = SoftwareConversionWorker::new(bytes) {
+            return Ok(Self::Overlapped(worker));
+        }
+        Ok(Self::Inline(SoftwareImageConverter::new(bytes)?))
+    }
+
+    fn convert(&mut self, frame: &DecodedFrame) -> Result<ImageData, Failure> {
+        Ok(match self {
+            Self::Inline(converter) => converter.convert(frame)?,
+            Self::Overlapped(worker) => worker.begin(frame)?.finish()?,
+        })
+    }
+
+    fn storage(&self) -> ImageStorageAllocation {
+        match self {
+            Self::Inline(converter) => converter.storage_budget().snapshot(),
+            Self::Overlapped(worker) => worker.storage_budget().snapshot(),
+        }
+    }
+
+    fn scratch(&self) -> Option<SoftwareFrameLayout> {
+        match self {
+            Self::Inline(converter) => converter.scratch_layout(),
+            Self::Overlapped(worker) => worker.scratch_layout(),
+        }
+    }
+}
+
+fn convert_frame(converter: &mut Option<Conversion>, frame: &DecodedFrame) -> Result<ImageData, Failure> {
     let converter = converter.as_mut().ok_or_else(|| {
         if frame.hap_frame().is_some() {
             ConversionError::CompressedStorage
@@ -35,7 +76,7 @@ fn convert_frame(converter: &mut Option<SoftwareImageConverter>, frame: &Decoded
             ConversionError::HardwareStorage
         }
     })?;
-    Ok(converter.convert(frame)?)
+    converter.convert(frame)
 }
 
 #[derive(serde::Serialize)]
@@ -59,7 +100,7 @@ pub(super) fn duration(ticks: i64, base: TimeBase) -> Result<Duration, String> {
 }
 impl Reader {
     pub(super) fn with_output_extent(mut self, extent: golden_video::Extent2D, bytes: u64) -> Result<Self, Failure> {
-        self.converter = Some(SoftwareImageConverter::with_extent(bytes, extent)?);
+        self.converter = Some(Conversion::Inline(SoftwareImageConverter::with_extent(bytes, extent)?));
         Ok(self)
     }
     #[cfg(all(windows, feature = "native-video"))]
@@ -83,13 +124,10 @@ impl Reader {
     pub fn cpu_layouts(&self) -> CpuLayouts {
         CpuLayouts {
             decoded_storage: self.decoder.cpu_frame_budget().map(|budget| budget.snapshot()),
-            conversion_storage: self
-                .converter
-                .as_ref()
-                .map(|converter| converter.storage_budget().snapshot()),
+            conversion_storage: self.converter.as_ref().map(Conversion::storage),
             current: self.current.as_ref().and_then(DecodedFrame::software_layout),
             lookahead: self.next.as_ref().and_then(DecodedFrame::software_layout),
-            scratch: self.converter.as_ref().and_then(SoftwareImageConverter::scratch_layout),
+            scratch: self.converter.as_ref().and_then(Conversion::scratch),
             prepared_image_bytes: self.prepared.as_ref().map_or(0, |(_, image)| image.pixels().len()),
             current_hap_bytes: self
                 .current
@@ -122,12 +160,15 @@ impl Reader {
         )?;
         let origin = info.start.unwrap_or(0);
         let converter = if decoder.storage() == DecodeStorage::Software {
-            let bytes = u64::from(info.width)
-                .checked_mul(u64::from(info.height))
-                .and_then(|pixels| pixels.checked_mul(16))
+            let pixels = u64::from(info.width) * u64::from(info.height);
+            let bytes = pixels
+                .checked_mul(16)
                 .and_then(|bytes| bytes.checked_add(8 * 1024 * 1024))
                 .ok_or("Video conversion storage overflow")?;
-            Some(SoftwareImageConverter::new(bytes)?)
+            Some(Conversion::new(
+                bytes,
+                decoder.seek_rewinds_to_start() && pixels > HD_PIXELS,
+            )?)
         } else {
             None
         };
@@ -259,11 +300,30 @@ impl Reader {
                 if decoded == budget {
                     return Ok(false);
                 }
+                let current = self.current.as_ref().unwrap();
+                let timestamp = current.timestamp();
+                // This is the current image for this progressive turn. Decode its
+                // following timestamp while the scaler reads the retained planes.
+                let overlap = if let Some(start) = forward_start
+                    && matches!(self.converter, Some(Conversion::Overlapped(_)))
+                    && self.published != Some(timestamp)
+                    && self.prepared.as_ref().is_none_or(|(id, _)| *id != timestamp)
+                    && timestamp <= target
+                    && self.position(timestamp)? >= start
+                    && let Some(Conversion::Overlapped(worker)) = &mut self.converter
+                {
+                    Some(worker.begin(current)?)
+                } else {
+                    None
+                };
                 self.next = if progressive {
                     self.decoder.next_frame_for_forward_playback(target)?
                 } else {
                     self.decoder.next_frame()?
                 };
+                if let Some(pending) = overlap {
+                    self.prepared = Some((timestamp, pending.finish()?));
+                }
                 decoded += 1;
                 self.eof = self.next.is_none();
             }

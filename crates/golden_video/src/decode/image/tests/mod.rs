@@ -46,6 +46,28 @@ fn check(image: &ImageData, width: u32, height: u32, value: u8) {
 }
 
 #[test]
+fn conversion_worker_retains_software_planes_and_drains_discarded_work() {
+    use ffmpeg::format::Pixel;
+    let mut worker = SoftwareConversionWorker::new(16 * 1024 * 1024).unwrap();
+    let budget = worker.storage_budget();
+    let first = input(Pixel::BGRA, 65, 4, 33);
+    let pending = worker.begin(&first).unwrap();
+    drop(first);
+    drop(pending);
+
+    let second = input(Pixel::RGBA, 65, 4, 43);
+    let pending = worker.begin(&second).unwrap();
+    drop(second);
+    let image = pending.finish().unwrap();
+    check(&image, 65, 4, 43);
+    assert!(worker.scratch_layout().is_some());
+    drop(worker);
+    assert_eq!(budget.snapshot().retained_bytes, image.pixels().len() as u64);
+    drop(image);
+    assert_eq!(budget.snapshot().retained_bytes, 0);
+}
+
+#[test]
 fn full_range_ycgco_converts_color_and_preserves_straight_alpha() {
     let mut frame = ffmpeg::frame::Video::new(ffmpeg::format::Pixel::YUVA420P, 16, 16);
     for (plane, value) in [100, 148, 158, 73].into_iter().enumerate() {

@@ -2,8 +2,8 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `█████████░` **87% — 119/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** Animated WebP skips groups of fully overwritten updates. The 4K test now reaches at least 3.60 seconds in each 4-second loop. [NVIDIA comparison](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)
-- **Working on next:** Reduce per-frame processing time so 4K animated WebP reaches the end of each loop.
+- **Latest delivered:** 4K animated WebP now converts and decodes in parallel. The NVIDIA test reached 15.2 frame updates/s, up from 13.0. [NVIDIA comparison](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)
+- **Working on next:** Verify translucent DXV3 High Quality playback.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -68,7 +68,8 @@
 
 ## Pending qualification — in order
 
-1. **NOW — Extended Video formats:** animated WebP reached about 50 updates/s at 1080p and 13 at 4K on NVIDIA. All connected frame markers matched. Across 29 complete 4K loops, the last frame reached was 3.60–3.63 seconds into the 4-second clip. The final part of the loop, 4K cadence and latency remain open. [WebP comparison](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)
+1. **NOW — Extended Video formats:** verify translucent pixels from a DXV3 High Quality file. [DXV checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
+   - Animated WebP reached 49.1 updates/s at 1080p and 15.2 at 4K on NVIDIA. All connected frame markers matched. The 4K clip reached 3.67 of 4 seconds. The loop tail, cadence, latency and minimized/disconnected CPU checks remain open. [WebP comparison](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)
    - H.264 MKV passed frame identity, output cadence and CPU checks. The 4K latency upper bound exceeds 50 ms. [MKV run](evidence/mapgyver-m10-mkv-sustained-2026-11-19.json)
    - Sustained DXV, additional profiles, repeat runs, complete GPU timing and device recovery remain open.
 2. **Shared editor feedback presentation:** built and functionally checked. Native paint packets are accepted, but matching installation/presented-frame proof is missing. Finish native paint/alignment and actual Composition/Matrix presentation checks.

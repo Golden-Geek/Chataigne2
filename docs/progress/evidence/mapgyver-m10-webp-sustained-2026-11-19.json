@@ -2,7 +2,7 @@
   "date": "2026-11-19",
   "gate": "M10/3",
   "accepted": false,
-  "scope": "One NVIDIA baseline and four sequential corrective comparisons for looping lossy VP8 animated WebP with alpha. The workload uses 1080p60 and 4K30 Files, an HD Reference, three independent Spout receivers and 30/120/60/60 seconds of warmup, visible, minimized and disconnected operation.",
+  "scope": "One NVIDIA baseline and five sequential corrective comparisons for looping lossy VP8 animated WebP with alpha. The workload uses 1080p60 and 4K30 Files, an HD Reference, three independent Spout receivers and 30/120/60/60 seconds of warmup, visible, minimized and disconnected operation.",
   "environment": {
     "baseRevision": "44fd621b",
     "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
@@ -212,6 +212,54 @@
       "finalPlanTextureAllocationsCreatedReleased": [27, 27]
     }
   },
+  "overlappedConversionFollowUp": {
+    "baseRevision": "82f2f617",
+    "localRun": "target/m103-q06-webp/sample-nvidia-06",
+    "binarySha256": "3530a938ea42a25a98c810e576ad93e06c30b7a486dcd6e55dac832f1dbf62de",
+    "sampleSha256": "a01043d6bc3b7710024416914b4e5dacf56d53c995a5e6db26df917b23643d73",
+    "auditSha256": "bba748f6f5e0bda6ed0378c2b760bc749ea77a0b7f3d62c1f12fc7ac8e9adcfc",
+    "inputsSha256": "c2fe97853b4b59d79bae46e20700a0c660fe06830a81480ac0850c8525f7c32c",
+    "unchangedInputHashes": 72,
+    "buildScope": "Tested the bundled working build with pinned executable-local FFmpeg. The local input manifest records unrelated tracked changes present for compilation.",
+    "change": "One scaler converts retained software planes while the owning file worker decodes the next frame. It shares the original projection budget and finishes before normal epoch and cycle fencing. Source retirement joins the scaler.",
+    "controllerAndAuditExits": [0, 0],
+    "mapGyverVideoTests": 79,
+    "goldenVideoDecodeTests": { "passed": 57, "ignored": 3 },
+    "strictClippyAndBundledBuild": "pass",
+    "visiblePublicationRatesHD_UHD": [49.1108, 15.1847],
+    "minimizedPublicationRatesHD_UHD": [50.0178, 16.1675],
+    "heldSeekMarkersAt1000MsHD_UHD_Reference": [60, 2078, 60],
+    "heldAlphaEachOutput": [255, 0, 129],
+    "connectedMarkerMatches": {
+      "visibleHD_UHD_Reference": [7203, 7203, 7200],
+      "minimizedHD_UHD_Reference": [3603, 3603, 3601],
+      "total": 32413,
+      "missingOrMismatched": 0
+    },
+    "visibleDeadlineMissesOf7203HD_UHD_Reference": [0, 0, 3],
+    "cpuSubmissionP95P99MsVisibleMinimizedDisconnected": [[3.1303, 3.7536], [4.3050, 5.2466], [4.5078, 5.4169]],
+    "visibleFilePublicationToCopyP95UpperMsHD_UHD_Reference": [24.2504, 67.5178, 24.4537],
+    "minimizedFilePublicationToCopyP95UpperMsHD_UHD_Reference": [25.0695, 63.0179, 25.6425],
+    "visibleUhdSourceToOutputAgeP95LowerMs": 48.6695,
+    "visibleUhdCompleteLoopsEachRun": 29,
+    "visibleUhdLastPtsPerLoopMinMedianMaxMsBefore": [3600, 3633, 3633],
+    "visibleUhdLastPtsPerLoopMinMedianMaxMsAfter": [3633, 3666, 3666],
+    "visibleUhdSteadyGapMedianMsBeforeAfter": [74.4416, 64.0317],
+    "visibleUhdWrapGapMedianMsBeforeAfter": [214.1302, 193.5640],
+    "fullClipDurationMs": 3999,
+    "gpuCriticalPath": "The direct 4K software upload still lacks a matched producer dependency in the GPU-path audit.",
+    "resources": {
+      "visibleSoftwareUploadCallsHD_UHD": [5896, 1823],
+      "visibleSoftwareUploadBytesHD_UHD": [48903782400, 60482764800],
+      "peakSourceCpuAdmissionBytes": 515383296,
+      "sourceCpuAdmissionCeilingBytes": 805306368,
+      "sourcePublisherPeakBytes": 24883200,
+      "nativePlanAndOutputTexelPeakBytes": 370400008,
+      "maxObservedProcessPrivateBytesMeasuredPhases": 844435456,
+      "finalTrackedSourceAndNativeTexelsBytes": [0, 0],
+      "finalPlanTextureAllocationsCreatedReleased": [23, 23]
+    }
+  },
   "softwareChecks": {
     "mapGyverVideo": 75,
     "goldenVideoScheduling": 5,
@@ -220,7 +268,7 @@
     "mapGyverClippyAndBundledBuild": "pass"
   },
   "remaining": [
-    "The workloads still fall short of the encoded source cadence. The 4K source age exceeds 50 ms even at the conservative lower bound, and the decoder did not advance through the full loop before the clock wrapped.",
+    "The workloads still fall short of the encoded source cadence. The latest 4K p95 age bounds straddle 50 ms, the decoder falls short of the full loop, and minimized/disconnected CPU p95 exceeds 4 ms.",
     "The audit lacks full GPU-path coverage for 4K software uploads. Additional profiles, repeat runs, sustained DXV, device recovery and license qualification remain open."
   ]
 }
