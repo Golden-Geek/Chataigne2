@@ -18,6 +18,10 @@ pub use golden_model::ProjectFileSpec;
 
 /// Declaration id of the app-wide Preferences folder under the project root.
 pub const PREFERENCES_DECL_ID: &str = "preferences";
+/// Declaration id of the document's Project Settings folder.
+pub const PROJECT_SETTINGS_DECL_ID: &str = "project_settings";
+/// Declaration id of the optional project folder override.
+pub const PROJECT_FOLDER_DECL_ID: &str = "project_folder";
 /// Metadata tag marking nodes that belong to app-data persistence, not project persistence.
 pub const PREFERENCES_APP_DATA_TAG: &str = "golden.preferences.app_data";
 /// Declaration id of the Startup and Update preferences category.
@@ -157,6 +161,22 @@ pub fn default_preferences_tree(default_data_folder: impl Into<String>) -> NodeT
     interface.push_child(NodeTree::new(osc_address_help));
     preferences.push_child(interface);
     preferences
+}
+
+/// Builds the standard typed Project Settings tree for apps that use it.
+pub fn default_project_settings_tree() -> NodeTree {
+    let mut root = Folder::new_schema_owned("Project Settings");
+    root.node_data_mut().meta.decl_id = DeclId(PROJECT_SETTINGS_DECL_ID.into());
+    let mut folder = Parameter::new(
+        "Project Folder",
+        ParamValue::File(String::new()),
+        ParameterChangeCheck::ValueChange,
+    );
+    folder.node_data_mut().meta.decl_id = DeclId(PROJECT_FOLDER_DECL_ID.into());
+    folder.node_data_mut().meta.description = Some("Leave empty to use the folder containing the project file.".into());
+    folder.ui_hints.widget = Some("directory".into());
+    folder.control_modes_enabled = false;
+    NodeTree::new(root).with_child(NodeTree::new(folder))
 }
 
 fn child_by_decl(snapshot: &ProcessTreeSnapshot, parent: NodeId, decl_id: &str) -> Option<NodeId> {
@@ -335,21 +355,15 @@ pub fn ensure_preferences_tree<T: Node>(engine: &mut Engine<T>, default_data_fol
 /// Merges declared Preferences defaults, adding each missing subtree in one operation.
 /// Existing node identities, parameter values and extra saved declarations are preserved.
 pub fn ensure_preferences_defaults<T: Node>(engine: &mut Engine<T>, defaults: NodeTree) {
-    let snapshot = engine.process_tree_snapshot();
     let root = engine.root;
-    merge_preferences_defaults(engine, snapshot.as_ref(), root, defaults);
+    merge_declared_defaults(engine, root, defaults);
 }
 
-fn merge_preferences_defaults<T: Node>(
-    engine: &mut Engine<T>,
-    snapshot: &ProcessTreeSnapshot,
-    parent: NodeId,
-    tree: NodeTree,
-) {
+fn merge_declared_defaults<T: Node>(engine: &mut Engine<T>, parent: NodeId, tree: NodeTree) {
     let decl_id = tree.node.node_data().meta.decl_id.0.as_str();
-    if let Some(existing) = child_by_decl(snapshot, parent, decl_id) {
+    if let Some(existing) = live_child_by_decl(engine, parent, decl_id) {
         for child in tree.children {
-            merge_preferences_defaults(engine, snapshot, existing, child);
+            merge_declared_defaults(engine, existing, child);
         }
     } else {
         engine.edits.push(Edit::AddNodeTree {
@@ -357,6 +371,13 @@ fn merge_preferences_defaults<T: Node>(
             parent,
             prev_sibling: None,
         });
+    }
+}
+
+fn ensure_project_settings<T: ProjectLifecycle>(engine: &mut Engine<T>) {
+    if let Some(defaults) = T::project_settings_tree() {
+        let root = engine.root;
+        merge_declared_defaults(engine, root, defaults);
     }
 }
 
@@ -420,6 +441,7 @@ where
 {
     let mut engine = create_engine::<T>()?;
     T::initialize_new_project(&mut engine)?;
+    ensure_project_settings(&mut engine);
     Ok(engine)
 }
 
@@ -429,6 +451,7 @@ where
     T: ProjectLifecycle,
 {
     T::configure_engine(engine)?;
+    ensure_project_settings(engine);
     T::project_opened(engine)
 }
 

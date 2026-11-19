@@ -21,6 +21,7 @@ fn manager_catalogs_expose_document_objects_and_reject_automation_wrappers() {
                 "Picture",
                 "Video",
                 "Shared Texture",
+                "NDI",
                 "Composition",
                 "Matrix",
             ],

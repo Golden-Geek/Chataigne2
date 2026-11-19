@@ -41,6 +41,8 @@ its reconciliation is tracked under final M09 qualification, not cited as curren
 
 The default layout reserves most space for the editor. Existing saved docking layouts are
 retained; **Clear UI** clears persisted UI state and reloads the default arrangement.
+Open **File → Project Settings** or use the document icon in the top bar. Project Folder is
+saved with each project. The separate gear button opens app-wide **Preferences**.
 Run `node apps/mapgyver/tests/headless/media.mjs --workbench-ui` for the ordinary bundled-browser
 tree/Inspector/canvas/Matrix/Application/New flow and source HTTP/history/Save/New/Load checks.
 Browser previews correctly report unavailable; this check does not qualify native display output.

@@ -79,6 +79,12 @@ pub trait ProjectLifecycle: ProjectNode + From<Folder> + From<DashboardNode> {
         super::default_preferences_tree(default_data_folder)
     }
 
+    /// Opts into typed Project Settings. Their declarations belong to the document and
+    /// are merged into new and loaded projects while retaining authored values.
+    fn project_settings_tree() -> Option<crate::edit::NodeTree> {
+        None
+    }
+
     /// Applies runtime-only engine setup that must run on every recreation.
     fn configure_engine(_engine: &mut Engine<Self>) -> Result<(), String>
     where

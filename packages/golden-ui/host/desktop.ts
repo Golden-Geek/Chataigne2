@@ -23,8 +23,7 @@ const normalizeDialogPath = (value: unknown): string | null => {
 	return normalized.length > 0 ? normalized : null;
 };
 
-export const hasDesktopHost = (): boolean =>
-	typeof window !== 'undefined' && isTauri();
+export const hasDesktopHost = (): boolean => typeof window !== 'undefined' && isTauri();
 
 export const subscribeDesktopWindowCloseRequested = (handler: () => void): (() => void) => {
 	if (typeof window === 'undefined' || !hasDesktopHost()) {
@@ -58,14 +57,15 @@ export const invokeDesktopCommand = async <T = unknown>(
 };
 
 export const openDesktopFileDialog = async (
-	options: DesktopFileDialogOptions = {}
+	options: DesktopFileDialogOptions & { directory?: boolean } = {}
 ): Promise<string | null> => {
 	const selected = await invokeDesktopCommand<string | null>(
 		'open_file_dialog',
 		{
 			allowed_extensions: options.allowedExtensions,
 			filter_label: options.filterLabel,
-			title: options.title
+			title: options.title,
+			directory: options.directory
 		},
 		options.logTag ?? 'desktop-host'
 	);

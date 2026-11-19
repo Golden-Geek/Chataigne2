@@ -17,6 +17,7 @@ use crate::parameter::{ParamValue, ParameterEventBehaviour};
 
 mod preferences_extensions;
 mod project_identity;
+mod project_settings;
 mod sparse_identity;
 mod sparse_presentation;
 

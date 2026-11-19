@@ -11,6 +11,7 @@ import {
 } from '../project-files.svelte';
 import { copyTextToClipboard } from '../../utils/clipboard';
 import type { SelectionMode } from './types';
+import { workbenchSettingsNode, type WorkbenchSettingsScope } from './runtime-settings';
 import {
 	buildNodeTreeClipboardPayload,
 	nodeTreeClipboardFromJson,
@@ -44,7 +45,6 @@ export const createWorkbenchCommandSuite = (
 	options: WorkbenchCommandSuiteOptions
 ): WorkbenchCommandSuite => {
 	let nodeClipboard = $state<NodeTreeClipboardNode[]>([]);
-	const PREFERENCES_DECL_ID = 'preferences';
 
 	const getNodeDepth = (nodeId: NodeId): number => {
 		let depth = 0;
@@ -562,32 +562,9 @@ export const createWorkbenchCommandSuite = (
 		return true;
 	};
 
-	const preferencesNode = (): UiNodeDto | null => {
-		const rootId = options.graph.state.rootId;
-		if (rootId !== null) {
-			const root = options.graph.state.nodesById.get(rootId);
-			for (const childId of root?.children ?? []) {
-				const child = options.graph.state.nodesById.get(childId);
-				if (child?.decl_id === PREFERENCES_DECL_ID) {
-					return child;
-				}
-			}
-		}
-
-		for (const node of options.graph.state.nodesById.values()) {
-			if (node.decl_id === PREFERENCES_DECL_ID) {
-				return node;
-			}
-		}
-		return null;
-	};
-
-	const revealPreferencesCommand = (): boolean => {
-		const preferences = preferencesNode();
-		if (!preferences) {
-			return false;
-		}
-		return options.revealNodeInInspector(preferences.node_id);
+	const revealSettings = (scope: WorkbenchSettingsScope): boolean => {
+		const settings = workbenchSettingsNode(options.graph, scope);
+		return settings !== null && options.revealNodeInInspector(settings.node_id);
 	};
 
 	const registerCommandHandlers = (): (() => void) => {
@@ -628,7 +605,8 @@ export const createWorkbenchCommandSuite = (
 		bind('file.saveAs', () => saveProjectFileAs(), 15);
 		bind('file.open', () => openProjectFile(), 15);
 		bind('file.reopenLast', () => reopenLastProjectFile(), 15);
-		bind('file.preferences', () => revealPreferencesCommand(), 15);
+		bind('file.preferences', () => revealSettings('preferences'), 15);
+		bind('file.projectSettings', () => revealSettings('project_settings'), 15);
 
 		return (): void => {
 			for (const cleanup of cleanups) {

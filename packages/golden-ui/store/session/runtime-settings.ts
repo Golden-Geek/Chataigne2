@@ -1,7 +1,6 @@
 import type { ParamValue, UiNodeDto, UiParameterControlState } from '../../types';
 import type { GraphStore } from '../graph.svelte';
 
-const PREFERENCES_DECL_ID = 'preferences';
 const INTERFACE_DECL_ID = 'interface';
 const SHOW_OSC_ADDRESS_IN_HELP_DECL_ID = 'show_osc_address_in_help';
 const ENGINE_DECL_ID = 'engine';
@@ -25,6 +24,16 @@ const childByDeclId = (
 	return null;
 };
 
+export type WorkbenchSettingsScope = 'preferences' | 'project_settings';
+
+export const workbenchSettingsNode = (
+	graph: GraphStore,
+	scope: WorkbenchSettingsScope
+): UiNodeDto | null => {
+	const rootId = graph.state.rootId;
+	return rootId === null ? null : childByDeclId(graph, graph.state.nodesById.get(rootId), scope);
+};
+
 const frequencyValue = (value: ParamValue, fallback: number): number => {
 	let frequency: number | null = null;
 	if (value.kind === 'int' || value.kind === 'float') {
@@ -36,12 +45,7 @@ const frequencyValue = (value: ParamValue, fallback: number): number => {
 };
 
 export const engineLowFrequencyFromGraph = (graph: GraphStore): number => {
-	const rootId = graph.state.rootId;
-	if (rootId === null) {
-		return DEFAULT_ENGINE_LOW_FREQUENCY_HZ;
-	}
-	const root = graph.state.nodesById.get(rootId);
-	const preferences = childByDeclId(graph, root, PREFERENCES_DECL_ID);
+	const preferences = workbenchSettingsNode(graph, 'preferences');
 	const engine = childByDeclId(graph, preferences, ENGINE_DECL_ID);
 	const lowFrequency = childByDeclId(graph, engine, ENGINE_LOW_FREQUENCY_DECL_ID);
 	if (!lowFrequency || lowFrequency.data.kind !== 'parameter') {
@@ -51,9 +55,7 @@ export const engineLowFrequencyFromGraph = (graph: GraphStore): number => {
 };
 
 export const showOscAddressInHelp = (graph: GraphStore): boolean => {
-	const rootId = graph.state.rootId;
-	const root = rootId === null ? null : graph.state.nodesById.get(rootId);
-	const preferences = childByDeclId(graph, root, PREFERENCES_DECL_ID);
+	const preferences = workbenchSettingsNode(graph, 'preferences');
 	const ui = childByDeclId(graph, preferences, INTERFACE_DECL_ID);
 	const field = childByDeclId(graph, ui, SHOW_OSC_ADDRESS_IN_HELP_DECL_ID);
 	return (

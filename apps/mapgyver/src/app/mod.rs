@@ -79,6 +79,10 @@ impl ProjectLifecycle for AppNode {
         crate::preferences::tree(default_data_folder)
     }
 
+    fn project_settings_tree() -> Option<golden_core::edit::NodeTree> {
+        Some(golden_core::app::default_project_settings_tree())
+    }
+
     fn initialize_new_project(engine: &mut AppEngine) -> Result<(), String> {
         crate::media::initialize(engine);
         crate::screens::initialize(engine);

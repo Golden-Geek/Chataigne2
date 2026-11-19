@@ -22,6 +22,11 @@ the public lifetime-fenced node-wake/edit APIs. MapGyver registers its GPU Enum 
 `apps/mapgyver/src/preferences`; Golden Video supplies adapter enumeration/selection, and its
 presentation task pins the startup choice until restart rather than migrating shared textures.
 
+Apps that use document-wide settings return a typed tree from
+`ProjectLifecycle::project_settings_tree`. Golden merges its defaults on New and Open and saves
+the settings with the project graph. The File menu and top bar open that tree in the Inspector.
+MapGyver opts into the standard tree with its Project Folder override.
+
 The transport host owns cancellation through `golden_transport_server::UiServerShutdown` and
 `UiServerConfig::shutdown`. A request wakes idle listener waits, closes tracked connections and
 ends runtime, WebSocket hub and snapshot-encoder work. The host drains its bounded thread set

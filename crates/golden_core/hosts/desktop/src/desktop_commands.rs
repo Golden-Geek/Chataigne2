@@ -215,14 +215,18 @@ pub async fn open_file_dialog<R: tauri::Runtime>(
     allowed_extensions: Option<Vec<String>>,
     filter_label: Option<String>,
     title: Option<String>,
+    directory: Option<bool>,
 ) -> Result<Option<String>, String> {
-    let normalized_extensions = normalize_extensions(allowed_extensions);
     let dialog = apply_dialog_title(rfd::AsyncFileDialog::new().set_parent(&window), title);
-    let dialog = apply_extension_filter(dialog, filter_label, &normalized_extensions);
-    Ok(dialog
-        .pick_file()
-        .await
-        .map(|file| file.path().to_string_lossy().to_string()))
+    let selected = if directory.unwrap_or_default() {
+        dialog.pick_folder().await
+    } else {
+        let extensions = normalize_extensions(allowed_extensions);
+        apply_extension_filter(dialog, filter_label, &extensions)
+            .pick_file()
+            .await
+    };
+    Ok(selected.map(|file| file.path().to_string_lossy().into_owned()))
 }
 
 #[tauri::command(rename_all = "snake_case")]

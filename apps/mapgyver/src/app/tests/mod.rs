@@ -10,7 +10,7 @@ mod removal;
 mod structure;
 
 #[test]
-fn new_project_contains_the_standard_dashboard_media_and_screen_managers() {
+fn new_project_contains_the_standard_dashboard_managers_and_project_settings() {
     let mut engine = create_new_project_engine::<AppNode>().expect("create MapGyver project");
     engine.apply_edits().expect("attach default project");
     let children = engine
@@ -18,7 +18,7 @@ fn new_project_contains_the_standard_dashboard_media_and_screen_managers() {
         .iter()
         .filter(|(_, node)| node.node_data().parent == Some(engine.root))
         .collect::<Vec<_>>();
-    assert_eq!(children.len(), 3);
+    assert_eq!(children.len(), 4);
     assert!(children.iter().any(|(_, node)| matches!(node, AppNode::Dashboard(_))));
     assert!(
         children
@@ -29,6 +29,11 @@ fn new_project_contains_the_standard_dashboard_media_and_screen_managers() {
         children
             .iter()
             .any(|(_, node)| matches!(node, AppNode::ScreenManager(_)))
+    );
+    assert!(
+        children
+            .iter()
+            .any(|(_, node)| { node.node_data().meta.decl_id.0 == golden_core::app::PROJECT_SETTINGS_DECL_ID })
     );
 }
 

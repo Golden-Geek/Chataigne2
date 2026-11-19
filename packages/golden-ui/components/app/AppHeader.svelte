@@ -7,6 +7,11 @@
 	import { projectFileDisplayName, projectFileState } from '../../store/project-files.svelte';
 	import { requestWindowExit } from '../../store/window-exit.svelte';
 	import FileMenu from './FileMenu.svelte';
+	import IconButton from '../common/IconButton.svelte';
+	import { executeCommand } from '../../store/commands.svelte';
+	import { workbenchSettingsNode } from '../../store/session/runtime-settings';
+	import preferencesIcon from '../../style/icons/settings.svg';
+	import projectSettingsIcon from '../../style/icons/parameter/file.svg';
 	import type { UiApplicationInfoDto } from '../../generated/rust_protocol/UiApplicationInfoDto';
 
 	let isWindowMaximized = $state(false);
@@ -21,6 +26,12 @@
 		icon?: string;
 		session?: WorkbenchSession | null;
 	}>();
+	const hasProjectSettings = $derived(
+		Boolean(session && workbenchSettingsNode(session.graph, 'project_settings'))
+	);
+	const hasPreferences = $derived(
+		Boolean(session && workbenchSettingsNode(session.graph, 'preferences'))
+	);
 
 	let projectTitle = $derived.by((): string => {
 		const fileName = projectFileDisplayName(projectFileState.currentPath);
@@ -151,7 +162,7 @@
 	role="banner"
 	use:bindHeaderInteraction>
 	<div class="header-start">
-		<FileMenu />
+		<FileMenu {hasProjectSettings} />
 		{#if icon}<img class="app-icon" src={icon} alt="" draggable="false" />{/if}
 		<div class="app-title">
 			<span class="project-title">{projectTitle}</span>
@@ -166,6 +177,22 @@
 		onkeydown={() => {}}>
 	</div>
 	<div class="controls">
+		{#if hasProjectSettings}
+			<div class="settings-actions" role="group" aria-label="Settings">
+				<IconButton
+					icon={projectSettingsIcon}
+					label="Project Settings"
+					disabled={projectFileState.busy}
+					onclick={() => void executeCommand('file.projectSettings', { source: 'api' })} />
+				{#if hasPreferences}
+					<IconButton
+						icon={preferencesIcon}
+						label="Preferences"
+						disabled={projectFileState.busy}
+						onclick={() => void executeCommand('file.preferences', { source: 'api' })} />
+				{/if}
+			</div>
+		{/if}
 		<div class="history-actions">
 			<button
 				type="button"
@@ -271,6 +298,11 @@
 	.history-actions {
 		display: flex;
 		gap: 0.25rem;
+	}
+	.settings-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.15rem;
 	}
 
 	.history-actions button {

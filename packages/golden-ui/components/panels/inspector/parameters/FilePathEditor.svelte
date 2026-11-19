@@ -22,6 +22,7 @@
 	{value}
 	{readOnly}
 	enabled={liveNode.meta.enabled}
+	directory={param?.ui_hints.widget === 'directory'}
 	fileConstraints={param?.constraints.file}
 	label={liveNode.meta.label}
 	oncommit={(value) => {

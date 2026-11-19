@@ -9,6 +9,7 @@
 		value = '',
 		enabled = true,
 		readOnly = false,
+		directory = false,
 		fileConstraints = null,
 		label = 'File',
 		oncommit
@@ -16,6 +17,7 @@
 		value?: string;
 		enabled?: boolean;
 		readOnly?: boolean;
+		directory?: boolean;
 		fileConstraints?: UiFileConstraints | null;
 		label?: string;
 		oncommit: (value: string) => unknown;
@@ -28,6 +30,7 @@
 	};
 
 	let hasDesktopDialog = $derived(hasDesktopHost());
+	const subject = $derived(directory ? 'folder' : 'file');
 
 	let draftValue = $state('');
 	let isPicking = $state(false);
@@ -72,8 +75,9 @@
 
 	let allowedExtensions = $derived.by(collectAllowedExtensions);
 	let hasConstraintHints = $derived(
-		(fileConstraints?.allowed_types.length ?? 0) > 0 ||
-			(fileConstraints?.allowed_extensions.length ?? 0) > 0
+		!directory &&
+			((fileConstraints?.allowed_types.length ?? 0) > 0 ||
+				(fileConstraints?.allowed_extensions.length ?? 0) > 0)
 	);
 	let allowedExtensionsLabel = $derived.by(() => {
 		if (allowedExtensions.length === 0) {
@@ -107,6 +111,7 @@
 		try {
 			const selected = await openDesktopFileDialog({
 				allowedExtensions: allowedExtensions,
+				directory,
 				logTag: 'file-editor'
 			});
 			if (selected) {
@@ -131,7 +136,7 @@
 			value={draftValue}
 			disabled={!enabled}
 			class:readonly={readOnly}
-			placeholder="Select a file path"
+			placeholder={`Select a ${subject} path`}
 			onfocus={() => {
 				focused = true;
 			}}
@@ -159,7 +164,7 @@
 		<IconButton
 			icon={browseIcon}
 			label="Browse"
-			title={isPicking ? 'Choosing file…' : 'Browse for a file'}
+			title={isPicking ? `Choosing ${subject}…` : `Browse for a ${subject}`}
 			class="browse"
 			disabled={!enabled || readOnly || !hasDesktopDialog || isPicking}
 			onclick={() => {
@@ -169,7 +174,7 @@
 		<IconButton
 			icon={clearIcon}
 			label="Clear"
-			title="Clear file"
+			title={`Clear ${subject}`}
 			class="clear"
 			disabled={!enabled || readOnly || draftValue.length === 0}
 			onclick={clearValue} />

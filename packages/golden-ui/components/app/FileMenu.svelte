@@ -14,6 +14,7 @@
 		projectFileUploadAccept
 	} from '../../store/project-file-format.svelte';
 
+	const { hasProjectSettings = false }: { hasProjectSettings?: boolean } = $props();
 	let menuOpen = $state(false);
 	let triggerElement: HTMLButtonElement | null = $state(null);
 	let uploadInputElement: HTMLInputElement | null = $state(null);
@@ -85,6 +86,9 @@
 	});
 
 	let menuItems = $derived.by((): ContextMenuItem[] => {
+		const settings = [commandMenuItem('file.preferences', false)];
+		if (hasProjectSettings)
+			settings.unshift(commandMenuItem('file.projectSettings', fileActionsBlocked));
 		if (hasDesktopDialogs) {
 			return [
 				commandMenuItem('file.new', fileActionsBlocked),
@@ -94,7 +98,7 @@
 				commandMenuItem('file.save', fileActionsBlocked),
 				commandMenuItem('file.saveAs', fileActionsBlocked),
 				{ separator: true },
-				commandMenuItem('file.preferences', false)
+				...settings
 			];
 		}
 
@@ -128,7 +132,7 @@
 				hint: 'Browser save dialog coming later'
 			},
 			{ separator: true },
-			commandMenuItem('file.preferences', false)
+			...settings
 		];
 	});
 </script>
