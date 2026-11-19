@@ -137,9 +137,8 @@ impl NdiCatalog {
             })
             .unwrap_or_default();
         let result = reconcile(runtime, self.source.take(), MediaKind::Ndi).and_then(|mut source| {
-            // Own NDI publisher identity arrives with Screen Output. Other processes on
-            // this machine are external, just like senders discovered over the network.
-            source.publish_discovery(&names, &[], runtime_error)?;
+            let internal = golden_video::ndi::active_sender_names();
+            source.publish_discovery(&names, &internal, runtime_error)?;
             self.source = Some(source);
             Ok(())
         });

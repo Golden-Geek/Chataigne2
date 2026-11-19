@@ -2,4 +2,4 @@
 import type { Extent2D } from "./Extent2D";
 import type { PhysicalRectangle } from "./PhysicalRectangle";
 
-export type ScreenTarget = { "kind": "Fullscreen", display: string, } | { "kind": "Rectangle", bounds: PhysicalRectangle, } | { "kind": "Spout", sender: string, extent: Extent2D, } | { "kind": "AutomaticSpout", extent: Extent2D, };
+export type ScreenTarget = { "kind": "Fullscreen", display: string, } | { "kind": "Rectangle", bounds: PhysicalRectangle, } | { "kind": "Spout", sender: string, extent: Extent2D, } | { "kind": "AutomaticSpout", extent: Extent2D, } | { "kind": "Ndi", sender: string | null, extent: Extent2D, };

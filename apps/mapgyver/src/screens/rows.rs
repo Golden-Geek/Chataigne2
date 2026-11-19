@@ -60,6 +60,12 @@ pub(super) fn inspect(engine: &AppEngine, node: NodeUuid) -> Result<Option<Scree
                 Some(ScreenTarget::AutomaticSpout { .. }) => {
                     format!("Spout · MapGyver - {}", screen.node_data().meta.label)
                 }
+                Some(target @ ScreenTarget::Ndi { .. }) => {
+                    format!(
+                        "NDI · {}",
+                        target.sender_name(&screen.node_data().meta.label).expect("NDI target")
+                    )
+                }
                 None => "Unconfigured".into(),
             };
             (

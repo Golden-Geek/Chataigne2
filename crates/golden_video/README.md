@@ -24,7 +24,10 @@ The implemented foundations are:
   runtime and uses [`ndi-sdk`'s generated
   ABI types](https://docs.rs/ndi-sdk/0.2.0/ndi_sdk/sys/). Capture handles and buffers stay on the
   calling worker. Copied frames use the existing CPU image budget and stay charged while any
-  renderer generation holds them. A missing runtime returns an endpoint error.
+  renderer generation holds them. On send, D3D11 uses two nonblocking staging slots and a
+  separate bounded SDK worker. The rendered image is converted to progressive sRGB BGRA,
+  with exact sender naming and an explicit rate and timecode. SDK calls and destruction stay
+  on that worker. [NDI sender API](https://docs.ndi.video/all/developing-with-ndi/sdk/ndi-send)
 - `decode/` (optional `ffmpeg` feature) demuxes local files and owns software decoder/frame
   lifetimes on a caller's worker. Original timestamps, planes and colour metadata survive;
   exact stream-timestamp seeking flushes and reuses a reading codec/pool; drain/EOF seeks

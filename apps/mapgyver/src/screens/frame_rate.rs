@@ -24,7 +24,7 @@ pub(super) fn resolve(policy: ScreenFrameRate, target: &ResolvedTarget, displays
                     .then_with(|| b.id.cmp(&a.id))
             })
             .map(|(display, _)| display),
-        ResolvedTarget::Spout { .. } => None,
+        ResolvedTarget::Spout { .. } | ResolvedTarget::Ndi { .. } => None,
     };
     display
         .and_then(|display| display.refresh_rate)

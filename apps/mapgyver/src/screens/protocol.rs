@@ -133,6 +133,17 @@ pub enum ScreenTarget {
     AutomaticSpout {
         extent: Extent2D,
     },
+    /// Named NDI publication. None uses the current Screen label.
+    Ndi {
+        sender: Option<String>,
+        extent: Extent2D,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) enum SenderKind {
+    Spout,
+    Ndi,
 }
 
 impl ScreenTarget {
@@ -140,8 +151,23 @@ impl ScreenTarget {
         match self {
             Self::Spout { sender, .. } => Some(sender.clone()),
             Self::AutomaticSpout { .. } => Some(format!("MapGyver - {screen_label}")),
+            Self::Ndi { sender, .. } => Some(
+                sender
+                    .clone()
+                    .unwrap_or_else(|| golden_video::normalize_ndi_sender_name(&format!("MapGyver - {screen_label}"))),
+            ),
             _ => None,
         }
+    }
+
+    pub(crate) fn sender_identity(&self, screen_label: &str) -> Option<(SenderKind, String)> {
+        let sender = self.sender_name(screen_label)?;
+        let protocol = if matches!(self, Self::Ndi { .. }) {
+            SenderKind::Ndi
+        } else {
+            SenderKind::Spout
+        };
+        Some((protocol, sender))
     }
 }
 
@@ -621,6 +647,17 @@ impl ScreenDefinition {
                 extent(*size)?;
             }
             Some(ScreenTarget::AutomaticSpout { extent: size }) => extent(*size)?,
+            Some(ScreenTarget::Ndi { sender, extent: size }) => {
+                if sender
+                    .as_deref()
+                    .is_some_and(|name| !golden_video::valid_ndi_sender_name(name))
+                {
+                    return Err(
+                        "NDI sender names require 1 to 180 UTF-8 bytes without control or path characters".into(),
+                    );
+                }
+                extent(*size)?;
+            }
             None => {}
         }
         Ok(())

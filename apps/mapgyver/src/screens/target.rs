@@ -33,7 +33,11 @@ pub(super) fn output_extent(engine: &AppEngine, screen: ScreenId) -> Result<Exte
         unreachable!()
     };
     match node.definition(engine).target {
-        Some(ScreenTarget::Spout { extent, .. } | ScreenTarget::AutomaticSpout { extent }) => Ok(extent),
+        Some(
+            ScreenTarget::Spout { extent, .. }
+            | ScreenTarget::AutomaticSpout { extent }
+            | ScreenTarget::Ndi { extent, .. },
+        ) => Ok(extent),
         Some(ScreenTarget::Rectangle { bounds }) => Ok(bounds.extent),
         Some(ScreenTarget::Fullscreen { .. }) => {
             let manager = super::authoring::manager(engine)?;

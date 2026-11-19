@@ -31,7 +31,7 @@ impl OutputWindows {
             targets.iter().any(|target| {
                 target.project == project
                     && target.screen == screen
-                    && !matches!(target.kind, ResolvedTarget::Spout { .. })
+                    && !matches!(target.kind, ResolvedTarget::Spout { .. } | ResolvedTarget::Ndi { .. })
             })
         });
     }
@@ -72,6 +72,26 @@ impl OutputWindows {
                 },
                 None,
             ));
+        }
+        if let ResolvedTarget::Ndi { sender, .. } = &target.kind {
+            #[cfg(target_arch = "x86_64")]
+            {
+                let format = golden_video::ndi::NdiVideoFormat::new(target.descriptor, target.frame_rate)
+                    .map_err(|error| error.to_string())?;
+                return Ok((
+                    OutputBinding::Ndi {
+                        id: target.id,
+                        name: sender.clone(),
+                        format,
+                    },
+                    None,
+                ));
+            }
+            #[cfg(not(target_arch = "x86_64"))]
+            {
+                let _ = sender;
+                return Err("NDI Screen Output requires Windows x64".into());
+            }
         }
         let bounds = target.window_bounds()?.ok_or("native window bounds missing")?;
         let lease = match self.entries.entry((target.project, target.screen)) {

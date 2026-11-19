@@ -51,6 +51,7 @@ pub struct CapturedOutput {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ResolvedTarget {
     Spout { sender: String, extent: Extent2D },
+    Ndi { sender: String, extent: Extent2D },
     Rectangle(PhysicalRectangle),
     Fullscreen { display: String, bounds: PhysicalRectangle },
 }
@@ -58,7 +59,7 @@ pub enum ResolvedTarget {
 impl CapturedOutput {
     pub fn extent(&self) -> Extent2D {
         match &self.target {
-            ResolvedTarget::Spout { extent, .. } => *extent,
+            ResolvedTarget::Spout { extent, .. } | ResolvedTarget::Ndi { extent, .. } => *extent,
             ResolvedTarget::Rectangle(bounds) | ResolvedTarget::Fullscreen { bounds, .. } => bounds.extent,
         }
     }
@@ -92,6 +93,7 @@ pub fn capture_outputs(
     let mut outputs = Vec::new();
     let mut guards = vec![membership_guard(engine)?];
     let mut names = HashSet::new();
+    let mut ndi_names = HashSet::new();
     let mut unavailable = Vec::new();
     let mut preview_extents = HashMap::new();
     let mut physical_displays = HashSet::new();
@@ -134,6 +136,17 @@ pub fn capture_outputs(
                         return Err("duplicate Shared Texture output sender name".into());
                     }
                     ResolvedTarget::Spout {
+                        sender,
+                        extent: *extent,
+                    }
+                }
+                ScreenTarget::Ndi { extent, .. } => {
+                    let sender = target.sender_name(&node.node_data().meta.label).expect("NDI target");
+                    if !golden_video::valid_ndi_sender_name(&sender) || !ndi_names.insert(sender.clone()) {
+                        unavailable.push((screen, "NDI Screen requires a valid, unique sender name".into()));
+                        continue;
+                    }
+                    ResolvedTarget::Ndi {
                         sender,
                         extent: *extent,
                     }
@@ -320,7 +333,11 @@ pub fn capture_screen(engine: &AppEngine, screen: ScreenId, maximum_surfaces: us
         anti_aliasing: node.definition(engine).anti_aliasing,
         target_extent: match &node.definition(engine).target {
             Some(ScreenTarget::Rectangle { bounds }) => Some(bounds.extent),
-            Some(ScreenTarget::Spout { extent, .. } | ScreenTarget::AutomaticSpout { extent }) => Some(*extent),
+            Some(
+                ScreenTarget::Spout { extent, .. }
+                | ScreenTarget::AutomaticSpout { extent }
+                | ScreenTarget::Ndi { extent, .. },
+            ) => Some(*extent),
             _ => None,
         },
     })

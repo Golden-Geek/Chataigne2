@@ -62,6 +62,16 @@ pub enum OutputBinding {
         /// Explicit storage, size, transfer and alpha contract supplied to consumers.
         descriptor: TextureDescriptor,
     },
+    /// A named NDI stream fed by the renderer's bounded BGRA staging path.
+    #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+    Ndi {
+        /// Consumer identity referenced by a render plan.
+        id: OutputId,
+        /// Authored name before the SDK adds the host prefix.
+        name: String,
+        /// Progressive BGRA layout and advertised frame rate.
+        format: crate::ndi::NdiVideoFormat,
+    },
 }
 
 impl OutputBinding {
@@ -69,6 +79,8 @@ impl OutputBinding {
     pub fn id(&self) -> OutputId {
         match self {
             Self::Window { id, .. } | Self::Spout { id, .. } => *id,
+            #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+            Self::Ndi { id, .. } => *id,
         }
     }
 
@@ -82,6 +94,8 @@ impl OutputBinding {
                 alpha_mode: AlphaMode::Opaque,
             },
             Self::Spout { descriptor, .. } => *descriptor,
+            #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+            Self::Ndi { format, .. } => format.descriptor(),
         }
     }
 
@@ -89,7 +103,13 @@ impl OutputBinding {
         match self {
             Self::Window { .. } => 2,
             Self::Spout { .. } => 1,
+            #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+            Self::Ndi { .. } => super::outputs::ndi::PAYLOAD_COPIES,
         }
+    }
+
+    pub(super) fn needs_conversion_texture(&self) -> bool {
+        !matches!(self, Self::Window { .. })
     }
 }
 
@@ -164,6 +184,8 @@ impl D3d11Config {
         let mut ids = BTreeSet::new();
         let mut windows = BTreeSet::new();
         let mut names = BTreeSet::new();
+        #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+        let mut ndi_names = BTreeSet::new();
         for output in &self.outputs {
             if !ids.insert(output.id()) {
                 return Err(invalid("duplicate native output identity"));
@@ -186,6 +208,16 @@ impl D3d11Config {
                     if !matches!(descriptor.format, PixelFormat::Rgba8Unorm | PixelFormat::Bgra8Unorm) =>
                 {
                     return Err(invalid("Spout outputs require eight-bit RGBA or BGRA storage"));
+                }
+                #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+                OutputBinding::Ndi { id, name, format }
+                    if !crate::valid_ndi_sender_name(name)
+                        || !ndi_names.insert(name)
+                        || !self.output_rates.contains(&(*id, format.rate())) =>
+                {
+                    return Err(invalid(
+                        "NDI requires a valid unique sender name and matching output rate",
+                    ));
                 }
                 _ => {}
             }

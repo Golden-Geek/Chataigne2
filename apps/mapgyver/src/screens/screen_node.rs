@@ -27,7 +27,7 @@ mod selection;
 )]
 #[children(
     folder(parameters, label = "Parameters") {
-        target_kind: Enum = "Shared Texture" (label = "Target", enum_options = crate::parameters::enum_options(&["Fullscreen", "Rectangle", "Shared Texture"]));
+        target_kind: Enum = "Shared Texture" (label = "Target", enum_options = crate::parameters::enum_options(&["Fullscreen", "Rectangle", "Shared Texture", "NDI"]));
         display: Enum = "" (label = "Display");
         left: i32 = 0 (label = "Left", description = "Physical desktop pixels.");
         top: i32 = 0 (label = "Top", description = "Physical desktop pixels.");
@@ -35,7 +35,7 @@ mod selection;
         height: i32 = 1080 [1..8192] (label = "Height", description = "Physical output pixels.", constraint_policy = "reject");
         sender: String = "Screen".to_owned() (label = "Sender name", description = "Disabled uses MapGyver - <Screen name>. The custom value is preserved.", enabled = self.initial_sender_enabled, can_be_disabled = true);
         anti_aliasing: Enum = "Raw" (label = "Anti-aliasing", enum_options = crate::parameters::enum_options(&["Raw", "Smooth (2×)", "Smooth (4×)"]), constraint_policy = "reject");
-        frame_rate_mode: Enum = "Follow display" (label = "Frame rate", enum_options = crate::parameters::enum_options(&["Follow display", "Explicit"]), constraint_policy = "reject", description = "Follow the resolved display refresh. Shared Texture or unknown display refresh uses 60 FPS. Editing and previews retain their independent cadence.");
+        frame_rate_mode: Enum = "Follow display" (label = "Frame rate", enum_options = crate::parameters::enum_options(&["Follow display", "Explicit"]), constraint_policy = "reject", description = "Follow the resolved display refresh. Shared Texture, NDI and unknown refresh rates use 60 FPS. Editing and previews retain their independent cadence.");
         frames_per_second: f64 = 60.0 [1.0..1000.0] (label = "FPS", constraint_policy = "reject");
         display_edid: String = String::new() (label = "Display EDID", read_only = true, persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false);
         display_name: String = String::new() (label = "Display name hint", read_only = true, persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false);
@@ -88,6 +88,15 @@ impl ScreenNode {
             }
             Some(ScreenTarget::AutomaticSpout { extent }) => {
                 node.initial_sender_enabled = false;
+                node.width = ParameterHandle::new(extent.width() as i32);
+                node.height = ParameterHandle::new(extent.height() as i32);
+            }
+            Some(ScreenTarget::Ndi { sender, extent }) => {
+                node.target_kind = ParameterHandle::new(Enum::new("NDI"));
+                node.initial_sender_enabled = sender.is_some();
+                if let Some(sender) = sender {
+                    node.sender = ParameterHandle::new(sender);
+                }
                 node.width = ParameterHandle::new(extent.width() as i32);
                 node.height = ParameterHandle::new(extent.height() as i32);
             }
@@ -149,6 +158,16 @@ impl ScreenNode {
                     (self.height.id(), ParamValue::Int(extent.height() as i32)),
                 ]);
                 "Shared Texture"
+            }
+            Some(ScreenTarget::Ndi { sender, extent }) => {
+                if let Some(sender) = sender {
+                    values.push((self.sender.id(), ParamValue::Str(sender)));
+                }
+                values.extend([
+                    (self.width.id(), ParamValue::Int(extent.width() as i32)),
+                    (self.height.id(), ParamValue::Int(extent.height() as i32)),
+                ]);
+                "NDI"
             }
             None if self.target_kind.get_ref().as_str() == "Fullscreen" => {
                 values.push((self.display.id(), ParamValue::Enum(String::new())));
@@ -319,10 +338,11 @@ impl Node for ScreenNode {
             .map(|node| node.node_data().meta.enabled)
             .unwrap_or(self.initial_sender_enabled);
         let definition = candidate.definition(custom);
+        definition.validate()?;
         let Some(sender) = definition
             .target
             .filter(|_| definition.enabled)
-            .and_then(|target| target.sender_name(&self.node_data().meta.label))
+            .and_then(|target| target.sender_identity(&self.node_data().meta.label))
         else {
             return Ok(());
         };
@@ -349,11 +369,11 @@ impl Node for ScreenNode {
                 && other
                     .target
                     .as_ref()
-                    .and_then(|target| target.sender_name(&screen.node_data().meta.label))
+                    .and_then(|target| target.sender_identity(&screen.node_data().meta.label))
                     .as_ref()
                     == Some(&sender)
             {
-                return Err("enabled Screens must have distinct Shared Texture sender names".into());
+                return Err("enabled Screens must have distinct sender names within each protocol".into());
             }
         }
         Ok(())
@@ -403,6 +423,10 @@ impl ScreenValues {
                 sender: self.sender.clone(),
                 extent: projection_extent(self.width, self.height),
             }),
+            "NDI" => Some(ScreenTarget::Ndi {
+                sender: (custom_sender && !self.sender.is_empty()).then(|| self.sender.clone()),
+                extent: projection_extent(self.width, self.height),
+            }),
             _ => None,
         };
         ScreenDefinition {
@@ -428,7 +452,7 @@ impl ScreenValues {
         if ScreenAntiAliasing::parse(self.anti_aliasing.as_str()).is_none() {
             return Err("unknown Screen anti-aliasing mode".into());
         }
-        if !["Fullscreen", "Rectangle", "Shared Texture"].contains(&self.kind.as_str()) {
+        if !["Fullscreen", "Rectangle", "Shared Texture", "NDI"].contains(&self.kind.as_str()) {
             return Err("unknown Screen target kind".into());
         }
         if !(1..=MAX_SCREEN_DIMENSION).contains(&self.width) || !(1..=MAX_SCREEN_DIMENSION).contains(&self.height) {
@@ -436,7 +460,7 @@ impl ScreenValues {
         }
         validate_endpoint(self.display.as_str(), 1024, "display identity")?;
         validate_endpoint(&self.sender, 239, "Shared Texture sender")?;
-        self.definition(true).validate()
+        self.definition(self.kind.as_str() != "NDI").validate()
     }
 }
 

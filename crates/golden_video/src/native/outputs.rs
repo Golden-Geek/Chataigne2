@@ -18,6 +18,8 @@ use lifetime::Endpoint;
 use recovery::Recovery;
 
 mod lifetime;
+#[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+pub(super) mod ndi;
 mod pacing;
 mod recovery;
 pub(super) mod scheduling;
@@ -59,6 +61,8 @@ impl From<Delivery> for DiagnosticDelivery {
 enum Output {
     Window(window::WindowOutput),
     Spout(spout::SpoutOutput),
+    #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+    Ndi(ndi::NdiOutput),
 }
 
 impl Output {
@@ -66,6 +70,8 @@ impl Output {
         match self {
             Self::Window(output) => output.allocation(),
             Self::Spout(output) => output.allocation(),
+            #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+            Self::Ndi(output) => output.allocation(),
         }
     }
     fn new(device: &ID3D11Device, binding: &OutputBinding, diagnostics: bool) -> Result<Self> {
@@ -75,12 +81,18 @@ impl Output {
             }
             OutputBinding::Spout { name, .. } => spout::SpoutOutput::new(device, name.clone(), binding.descriptor())
                 .map(|output| Self::Spout(output.track_publication())),
+            #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+            OutputBinding::Ndi { name, format, .. } => {
+                ndi::NdiOutput::new(device, name.clone(), *format).map(Self::Ndi)
+            }
         }
     }
     fn admit(&mut self, timeout_ms: u32) -> std::result::Result<(), Delivery> {
         match self {
             Self::Window(output) => output.admit(timeout_ms),
             Self::Spout(_) => Ok(()),
+            #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+            Self::Ndi(_) => Ok(()),
         }
     }
     fn deliver(
@@ -88,6 +100,7 @@ impl Output {
         texture: Option<&Texture>,
         recorder: Option<&Recorder>,
         consumer_api: &mut Option<CpuInterval>,
+        #[cfg(all(target_arch = "x86_64", feature = "ndi"))] stage: (&ID3D11DeviceContext, i64),
     ) -> Delivery {
         match self {
             Self::Window(output) => output.present(recorder, consumer_api),
@@ -97,6 +110,8 @@ impl Output {
                 recorder,
                 consumer_api,
             ),
+            #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+            Self::Ndi(output) => output.deliver(stage.0, texture.expect("prepared NDI conversion texture"), stage.1),
         }
     }
 }
@@ -128,6 +143,8 @@ impl AdmittedOutput<'_> {
         match endpoint {
             Output::Window(window) => window.render_target(),
             Output::Spout(_) => converted.expect("prepared Spout conversion texture").into(),
+            #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+            Output::Ndi(_) => converted.expect("prepared NDI conversion texture").into(),
         }
     }
 
@@ -136,6 +153,7 @@ impl AdmittedOutput<'_> {
         texture: Option<&Texture>,
         recorder: Option<&Recorder>,
         consumer_api: &mut Option<CpuInterval>,
+        #[cfg(all(target_arch = "x86_64", feature = "ndi"))] stage: (&ID3D11DeviceContext, i64),
     ) -> Delivered {
         let endpoint = self
             .binding
@@ -146,7 +164,13 @@ impl AdmittedOutput<'_> {
             (Output::Window(window), true) => Some(window.publication_queue()),
             _ => None,
         };
-        let delivered = endpoint.deliver(texture, recorder, consumer_api);
+        let delivered = endpoint.deliver(
+            texture,
+            recorder,
+            consumer_api,
+            #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+            stage,
+        );
         let image = match (&endpoint, delivered, recorder.is_some()) {
             (Output::Spout(sender), Delivery::Accepted, true) => sender.copied_image_version(),
             _ => None,
@@ -353,10 +377,9 @@ impl OutputPool {
     }
 
     pub(super) fn needs_conversion_texture(&self, id: OutputId) -> bool {
-        matches!(
-            self.bindings.get(&id).map(|binding| &binding.config),
-            Some(OutputBinding::Spout { .. })
-        )
+        self.bindings
+            .get(&id)
+            .is_some_and(|binding| binding.config.needs_conversion_texture())
     }
 
     pub(super) fn admit(
@@ -437,6 +460,10 @@ impl OutputPool {
         self.stopping = true;
         for binding in self.bindings.values_mut() {
             binding.recovery.stop();
+            #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+            if let Some(Output::Ndi(output)) = binding.endpoint.value() {
+                output.stop();
+            }
             binding.publish(&self.control, self.generation);
         }
     }

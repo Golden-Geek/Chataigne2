@@ -111,7 +111,7 @@
 	const extent = $derived(
 		target?.kind === 'Rectangle'
 			? target.bounds.extent
-			: target?.kind === 'Spout' || target?.kind === 'AutomaticSpout'
+			: target?.kind === 'Spout' || target?.kind === 'AutomaticSpout' || target?.kind === 'Ndi'
 				? target.extent
 				: status?.extent
 	);

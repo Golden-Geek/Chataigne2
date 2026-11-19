@@ -104,6 +104,14 @@ pub enum OutputTextureAllocation {
         /// Normalized legacy shared-image identity, never opened by observers.
         shared_handle: u32,
     },
+    /// Staging textures owned by an NDI output. Its CPU and SDK storage is separate.
+    #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+    Ndi {
+        /// Layout copied from the rendered output.
+        descriptor: TextureDescriptor,
+        /// Number of staging textures.
+        staging_buffers: u32,
+    },
     /// SDK owner exists but no successful send established its complete allocation metadata.
     /// Failed/partial SDK initialization must never be reported as zero allocated bytes.
     UnknownSdk,
@@ -115,6 +123,11 @@ impl OutputTextureAllocation {
         match self {
             Self::Window { descriptor, buffers } => descriptor.byte_len().ok()?.checked_mul(u64::from(buffers)),
             Self::Spout { descriptor, .. } => descriptor.byte_len().ok(),
+            #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+            Self::Ndi {
+                descriptor,
+                staging_buffers,
+            } => descriptor.byte_len().ok()?.checked_mul(u64::from(staging_buffers)),
             Self::UnknownSdk => None,
         }
     }

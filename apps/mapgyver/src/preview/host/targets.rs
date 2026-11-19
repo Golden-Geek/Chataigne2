@@ -25,7 +25,7 @@ pub(super) struct Target {
 impl Target {
     pub fn window_bounds(&self) -> Result<Option<NativeOutputBounds>, String> {
         match &self.kind {
-            ResolvedTarget::Spout { .. } => Ok(None),
+            ResolvedTarget::Spout { .. } | ResolvedTarget::Ndi { .. } => Ok(None),
             ResolvedTarget::Rectangle(bounds) | ResolvedTarget::Fullscreen { bounds, .. } => {
                 NativeOutputBounds::new(bounds.left, bounds.top, bounds.extent.width(), bounds.extent.height())
                     .map(Some)
@@ -45,7 +45,9 @@ impl Target {
                 (ResolvedTarget::Spout { sender: left, .. }, ResolvedTarget::Spout { sender: right, .. }) => {
                     left == right
                 }
-                (ResolvedTarget::Spout { .. }, _) | (_, ResolvedTarget::Spout { .. }) => false,
+                (ResolvedTarget::Ndi { sender: left, .. }, ResolvedTarget::Ndi { sender: right, .. }) => left == right,
+                (ResolvedTarget::Spout { .. } | ResolvedTarget::Ndi { .. }, _)
+                | (_, ResolvedTarget::Spout { .. } | ResolvedTarget::Ndi { .. }) => false,
                 _ => true,
             }
     }
@@ -100,7 +102,7 @@ impl Targets {
                     extent: output.extent(),
                     format: PixelFormat::Bgra8Unorm,
                     color_encoding: ColorEncoding::Srgb,
-                    alpha_mode: if matches!(output.target, ResolvedTarget::Spout { .. }) {
+                    alpha_mode: if matches!(output.target, ResolvedTarget::Spout { .. } | ResolvedTarget::Ndi { .. }) {
                         AlphaMode::Straight
                     } else {
                         AlphaMode::Opaque

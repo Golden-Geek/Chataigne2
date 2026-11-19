@@ -207,6 +207,12 @@ from the current standard [NDI SDK](https://ndi.video/). For distribution builds
 agreement in plain text. The installer places the runtime in MapGyver's own `ndi/` directory.
 [NDI distribution terms](https://docs.ndi.video/all/developing-with-ndi/sdk/software-distribution)
 
+Choose **NDI** in a Screen's **Target** control to publish its rendered picture on Windows x64.
+The Screen's **Width**, **Height**, and **Frame rate** set the stream format. An unset **Sender
+name** uses **MapGyver - <Screen name>**. Closing editor panels keeps the output live. The Medias
+sender list marks this app's exact advertised names **(internal)**. Routed Screen audio is tracked
+in [M17/2](../../docs/plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output).
+
 The Picture editor accepts explicit project-relative or absolute host paths; the native
 desktop also offers Golden's file picker. This is source-file linking, not a browser upload.
 Asset path validation, ID/label allocation and all domain changes stay in Rust. Worker

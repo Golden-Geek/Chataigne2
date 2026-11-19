@@ -11,12 +11,14 @@ use crate::image::ImageError;
 mod audio;
 mod receiver;
 mod runtime;
+mod sender;
 #[cfg(test)]
 mod tests;
 
 pub use audio::NdiAudioFrame;
 pub use receiver::{NdiFrame, NdiReceiver, NdiTiming, NdiVideoFrame};
 use runtime::Runtime;
+pub use sender::{NdiSender, NdiVideoFormat, active_sender_names};
 
 /// A missing SDK or a failed NDI operation. Ordinary rendering does not depend on this runtime.
 #[derive(Debug, Error)]
@@ -27,6 +29,9 @@ pub enum NdiError {
     /// The initialized SDK could not create an endpoint.
     #[error("NDI could not create {0}")]
     Endpoint(&'static str),
+    /// The caller supplied an invalid NDI sender name.
+    #[error("NDI sender names require 1 to 180 UTF-8 bytes and cannot contain control or path characters")]
+    SenderName,
     /// The receiver reported an interruption.
     #[error("NDI receiver lost its connection")]
     Disconnected,

@@ -2,10 +2,10 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `████████░░` **82% — 119/145 checks accepted, 8/19 phases complete**.
-- **Latest delivered:** NDI inputs 3–256 can route to named virtual outputs. A four-channel sender verified live routing, mute, removal and Undo with stereo unassigned. [Checks](evidence/mapgyver-m17-ndi-multichannel-2026-11-19.json)
+- **Latest delivered:** A Screen can publish its picture as an NDI stream. An independent receiver verified default and custom names, two sizes and frame rates, live color changes with editors closed, and sender withdrawal. [Checks](evidence/mapgyver-m17-ndi-screen-picture-2026-11-19.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Publish a Screen as an NDI sender with routed audio.
+- **Next:** Route virtual audio outputs to NDI Screen streams and verify synchronization.
 
 ## Done — code and normal-use checks passed
 
@@ -72,7 +72,7 @@
 [NDI with audio](../plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output) is the next feature while extended Video qualification is deferred.
 
 - **NDI Media.** Discovery, native picture, stereo and additional audio routes work with an independent local sender. The app-local runtime passed. Cross-machine A/V and clean Windows installation remain pending. [App-local runtime](evidence/mapgyver-m17-ndi-package-2026-11-19.json)
-- **NDI Screen Output.** Publish a Screen as a named NDI stream with audio from selected virtual outputs.
+- **NDI Screen Output.** Picture passed locally with an independent receiver. Routed audio, synchronization and LAN qualification remain pending. [Picture checks](evidence/mapgyver-m17-ndi-screen-picture-2026-11-19.json)
 
 [Feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi) adds six tasks in order.
 

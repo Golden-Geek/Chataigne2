@@ -75,7 +75,8 @@ function visible(child: UiNodeDto) {
 		const target = choice('target_kind');
 		if (target === 'Fullscreen') return field === 'display';
 		if (target === 'Rectangle') return ['left', 'top', 'width', 'height'].includes(field ?? '');
-		if (target === 'Shared Texture') return ['sender', 'width', 'height'].includes(field ?? '');
+		if (target === 'Shared Texture' || target === 'NDI')
+			return ['sender', 'width', 'height'].includes(field ?? '');
 		return false;
 	}
 	if (owner.node_type === 'mapgyver.media.v11') {

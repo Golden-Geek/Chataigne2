@@ -144,6 +144,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             let sender_mode = match &definition.target {
                 Some(ScreenTarget::Spout { .. }) => Some(true),
                 Some(ScreenTarget::AutomaticSpout { .. }) => Some(false),
+                Some(ScreenTarget::Ndi { sender, .. }) => Some(sender.is_some()),
                 None if !current.is_fullscreen() => Some(true),
                 _ => None,
             };
@@ -151,7 +152,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                 && let Some(sender) = definition
                     .target
                     .as_ref()
-                    .and_then(|target| target.sender_name(&current.node_data().meta.label))
+                    .and_then(|target| target.sender_identity(&current.node_data().meta.label))
             {
                 let mut child = engine
                     .nodes
@@ -167,11 +168,11 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                             .definition(engine)
                             .target
                             .as_ref()
-                            .and_then(|target| target.sender_name(&candidate.node_data().meta.label))
+                            .and_then(|target| target.sender_identity(&candidate.node_data().meta.label))
                             .as_ref()
                             == Some(&sender)
                     {
-                        return Err("enabled Screens must have distinct Shared Texture sender names".into());
+                        return Err("enabled Screens must have distinct sender names within each protocol".into());
                     }
                 }
             }
@@ -477,10 +478,10 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                     && let Some(sender) = definition
                         .target
                         .as_ref()
-                        .and_then(|target| target.sender_name(&node.node_data().meta.label))
+                        .and_then(|target| target.sender_identity(&node.node_data().meta.label))
                     && !senders.insert(sender)
                 {
-                    return Err("enabled Screens must have distinct Shared Texture sender names".into());
+                    return Err("enabled Screens must have distinct sender names within each protocol".into());
                 }
                 let mut child = node.node_data().first_child;
                 while let Some(id) = child {

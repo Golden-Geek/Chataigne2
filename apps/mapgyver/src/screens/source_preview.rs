@@ -15,7 +15,11 @@ pub(super) fn source(
     }
     let extent = match &screen.target {
         Some(ScreenTarget::Rectangle { bounds }) => Some(bounds.extent),
-        Some(ScreenTarget::Spout { extent, .. } | ScreenTarget::AutomaticSpout { extent }) => Some(*extent),
+        Some(
+            ScreenTarget::Spout { extent, .. }
+            | ScreenTarget::AutomaticSpout { extent }
+            | ScreenTarget::Ndi { extent, .. },
+        ) => Some(*extent),
         Some(ScreenTarget::Fullscreen { display }) => {
             let manager = super::authoring::manager(engine)?;
             match engine.nodes.get(manager) {

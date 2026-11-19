@@ -25,7 +25,7 @@ use super::timing::{
     CpuScope, DiagnosticContext, DiagnosticEvent, FrameCpuTrace, GpuTiming, OutputTrace, PublicationTiming, Recorder,
     SourceUseTrace,
 };
-use super::{D3d11Config, D3d11Control, InputLimits, NativeFailure, OutputBinding};
+use super::{D3d11Config, D3d11Control, InputLimits, NativeFailure};
 mod input_observation;
 
 mod cache;
@@ -413,9 +413,7 @@ impl Backend for D3d11Backend {
                 .iter()
                 .find(|binding| binding.id() == output.id)
                 .unwrap();
-            if matches!(binding, OutputBinding::Spout { .. })
-                && conversions.insert((output.source, binding.descriptor()))
-            {
+            if binding.needs_conversion_texture() && conversions.insert((output.source, binding.descriptor())) {
                 total = total
                     .checked_add(bytes(binding.descriptor())?)
                     .ok_or(BackendError::ResourceSizeOverflow)?;
@@ -791,7 +789,7 @@ impl D3d11Backend {
                         None
                     } else {
                         let conversion_begin = recorder.and_then(Recorder::stamp);
-                        // Only persistent Spout targets can reuse pixels. Window back buffers
+                        // Persistent conversion targets can reuse pixels. Window back buffers
                         // still draw on each admitted Present, independently of source cadence.
                         let target = admitted.render_target(converted);
                         let filter = if source.descriptor.extent == target.descriptor.extent {
@@ -815,7 +813,13 @@ impl D3d11Backend {
                         tap.record(context, input, converted, token);
                     }
                     let delivery_begin = recorder.and_then(Recorder::stamp);
-                    let delivered = admitted.deliver(converted, recorder, &mut consumer_api);
+                    let delivered = admitted.deliver(
+                        converted,
+                        recorder,
+                        &mut consumer_api,
+                        #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+                        (context, (time.monotonic().as_nanos() / 100) as i64),
+                    );
                     window_present = delivered.window_present;
                     publication_queue = delivered.publication_queue;
                     let delivery = recorder.and_then(|recorder| recorder.interval(delivery_begin));

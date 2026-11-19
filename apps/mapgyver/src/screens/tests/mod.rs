@@ -14,6 +14,7 @@ mod geometry_parameters;
 mod gestures;
 mod handle_candidates;
 mod handle_links;
+mod ndi_output;
 mod output_input;
 mod parameters;
 mod pixel_gestures;

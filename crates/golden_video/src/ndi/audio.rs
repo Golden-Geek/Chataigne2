@@ -5,7 +5,7 @@ use ndi_sdk::sys;
 
 use super::{NdiError, NdiTiming, Runtime};
 
-const MAX_AUDIO_CHANNELS: usize = 256;
+pub(super) const MAX_AUDIO_CHANNELS: usize = 256;
 const MAX_AUDIO_BYTES: usize = 4 * 1024 * 1024;
 
 /// One owned, tightly packed planar block. The samples use NDI's native float level convention.
