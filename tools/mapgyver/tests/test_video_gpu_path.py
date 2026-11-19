@@ -42,6 +42,21 @@ def analyze(data=None, healthy=True):
     return ANALYZE(*(fixture() if data is None else data), 1000, distribution, healthy=healthy)
 
 
+def direct_fixture():
+    frames, native, bindings = fixture()
+    renderer = frames[0]['token']
+    frames[0]['inputs'] = {'begin': 112, 'end': 113}
+    native['FrameCpu'] = frames.copy()
+    native['SourceUse'][0].update(
+        publication=None, software_upload=None,
+        frame={'pts_nanos': 0, 'start_nanos': 0, 'end_nanos': 10, 'publication_qpc': 100})
+    native['ImageUpload'] = [
+        {'token': renderer, 'texture': 13, 'stream': 'file-a', 'sequence': 29,
+         'row_pitch': 15360, 'rows': 2160, 'bytes': 33177600, 'cpu': {'begin': 112, 'end': 113}},
+    ]
+    return frames, native, bindings
+
+
 class VideoGpuPathTests(unittest.TestCase):
     def test_exact_source_token_not_texture_number_or_publication_sequence_proves_path(self):
         result = analyze()
@@ -49,6 +64,63 @@ class VideoGpuPathTests(unittest.TestCase):
         self.assertIs(result['observed_within_target'], True)
         self.assertEqual(result['cpu_enclosed_gpu_path_upper_bound']['p95_ms'], 10)
         self.assertEqual(result['records'][0]['source_tokens'], [token('producer', 7)])
+
+    def test_direct_upload_is_included_once_in_the_current_renderer_batch(self):
+        result = analyze(direct_fixture())
+        self.assertTrue(result['coverage_complete'])
+        self.assertIs(result['observed_within_target'], True)
+        self.assertEqual(result['records'][0]['source_tokens'], [])
+        self.assertEqual(result['records'][0]['renderer_uploads'],
+                         [{'texture': 13, 'token': token('renderer'), 'begin_qpc': 112}])
+        self.assertEqual(result['cpu_enclosed_gpu_path_upper_bound']['p95_ms'], 5)
+        self.assertEqual(result['context_span_serial_charge_not_critical_path']['p95_ms'], 2)
+
+    def test_held_direct_upload_extends_only_the_upper_enclosure(self):
+        frames, native, bindings = direct_fixture()
+        origin = frames[0]
+        held = token('renderer', 2)
+        # The original query contains unrelated drawing after the upload. Its
+        # completion need not be collected to trace a later same-context consumer.
+        native['Gpu'][0].update(end=(1 << 62) + 30, completed_qpc=150)
+        native['Gpu'].append({**native['Gpu'][0], 'token': held, 'end': (1 << 62) + 2,
+                              'submitted_qpc': 211, 'completed_qpc': 215})
+        frames[0] = {**origin, 'token': held, 'wall': {'begin': 210, 'end': 214}}
+        native['FrameCpu'].append(frames[0])
+        native['SourceUse'].append({**native['SourceUse'][0], 'token': held})
+        native['Output'][0]['token'] = held
+        result = analyze((frames, native, bindings))
+        self.assertTrue(result['coverage_complete'])
+        self.assertEqual(result['records'][0]['renderer_uploads'][0]['token'], origin['token'])
+        self.assertEqual(result['cpu_enclosed_gpu_path_upper_bound']['p95_ms'], 104)
+        self.assertEqual(result['context_span_serial_charge_not_critical_path']['p95_ms'], 2)
+        self.assertFalse(result['definite_failure_lower_bound_exceeds_budget'])
+        native['Gpu'][0].update(status='Uncollected', completed_qpc=None)
+        self.assertTrue(analyze((frames, native, bindings))['coverage_complete'])
+        native['ImageUpload'].append({**native['ImageUpload'][0], 'token': held, 'sequence': 30})
+        self.assertFalse(analyze((frames, native, bindings))['coverage_complete'])
+        native['ImageUpload'].pop()
+        native['SourceUse'][-1]['frame'] = {'pts_nanos': 1}
+        self.assertFalse(analyze((frames, native, bindings))['coverage_complete'])
+
+    def test_direct_upload_requires_exact_prior_identity_payload_and_input_clock(self):
+        for patch in [
+            {'token': token('other')}, {'token': token('renderer', 2)}, {'texture': 14},
+            {'stream': 'other'}, {'sequence': 30}, {'rows': 2159}, {'bytes': 1},
+            {'cpu': None}, {'cpu': {'begin': 111, 'end': 112}}, {'cpu': {'begin': 113, 'end': 114}},
+        ]:
+            with self.subTest(patch=patch):
+                fixture_data = direct_fixture()
+                fixture_data[1]['ImageUpload'][0].update(patch)
+                result = analyze(fixture_data)
+                self.assertEqual(result['expected_frames'], 1)
+                self.assertFalse(result['coverage_complete'])
+        fixture_data = direct_fixture()
+        fixture_data[1]['Gpu'][0]['submitted_qpc'] = 113
+        self.assertFalse(analyze(fixture_data)['coverage_complete'])
+        fixture_data = direct_fixture()
+        fixture_data[1]['ImageUpload'] *= 2
+        with self.assertRaisesRegex(ValueError, 'duplicate'):
+            analyze(fixture_data)
 
     def test_shared_reference_and_texture_alias_charge_one_immutable_producer(self):
         frames, native, bindings = fixture()

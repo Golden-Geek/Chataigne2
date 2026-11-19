@@ -1,0 +1,63 @@
+{
+  "date": "2026-11-19",
+  "gate": "M10/3",
+  "baseRevision": "4307ea26",
+  "result": "Direct 4K upload attribution covers every evaluated renderer batch in three retained samples. Intel DXV exceeds the GPU budget. NVIDIA DXV and WebP timing remain inconclusive.",
+  "newNativeRuns": 0,
+  "audit": {
+    "entrypoint": "tools/mapgyver/video_sample.py",
+    "videoGpuPathSha256": "7d19607a2bcaaaf1925cd637bea6a2cdcaf999f2b2215158db71e1d5c13ac9f6",
+    "productionGpuPathSha256": "34d644e408f86dfbaee2c39552764d08671309c0921375cd3b6e3bf0ddb5b65d",
+    "videoSampleSha256": "27ecf47e79f61d464af02753186f0d137a04df62f1c0d8b2d5a667989b9b05d8",
+    "proof": "Match the latest prior upload in the current device, logical texture and immutable stream lifetime. Require the same sequence, descriptor, exact frame metadata, payload and upload clock inside the submitting batch's input stage. An exact same-context held upload extends the CPU upper enclosure without charging unrelated prior GPU work. External producer dependencies still require their exact source token.",
+    "validation": "75 Video audit tests and 13 production GPU-path tests. Strict CPU upload attribution passed for all three replays. The original audit files and native samples retained their original checksums."
+  },
+  "metrics": {
+    "phaseOrder": ["visible", "minimized", "receiver-disconnected"],
+    "gpuBudgetP95P99Ms": [12, 16.667],
+    "upperBound": "From the first applicable CPU submission marker or exact upload call to the last query collection. Queue/feed delays and intentionally held frames can make this upper bound loose.",
+    "lowerBound": "Largest measured and quantization-corrected local GPU span among current renderer and exact source-worker dependencies. Previous renderer batches supply no lower-duration charge."
+  },
+  "replayedSamples": [
+    {
+      "profile": "DXV3 Normal DXT1",
+      "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "localRun": "target/m103-q06-dxv3-dxt1/sample-nvidia-01",
+      "sampleSha256": "c7bd8450eb6e31ee9127f66bd2ce149f2fee45c4ac61f453c2f33ebc802fe668",
+      "auditDirectGpuLineageSha256": "bc08af6d29c0bdc75e8dd5e2311a6b17cd1cbead1d1b929b7bcf818be8371ecd",
+      "exactBatches": [7203, 3603, 3603],
+      "newAndHeldDirectUploads": [[3602, 3601], [1802, 1801], [1801, 1802]],
+      "upperP95P99Ms": [[50.1415, 57.9310], [50.1289, 57.3293], [50.1474, 57.1466]],
+      "lowerP95P99Ms": [[2.419295, 2.492383], [2.305951, 2.372831], [9.970751, 10.591007]],
+      "gpuVerdict": [null, null, null]
+    },
+    {
+      "profile": "DXV3 Normal DXT1, specialized Spout output",
+      "adapter": "Intel(R) Graphics",
+      "localRun": "target/m103-q06-dxv3-dxt1/sample-intel-04",
+      "sampleSha256": "04460a076b074985d95067b1a685620433d4f839bff0ff9d59b862c433769d41",
+      "auditDirectGpuLineageSha256": "27710576b6a8804253d07fc80cc9297fc087b3de48008fdec9bf29f57a132455",
+      "exactBatches": [7204, 3597, 3603],
+      "newAndHeldDirectUploads": [[3602, 3602], [1801, 1796], [1801, 1802]],
+      "upperP95P99Ms": [[54.1836, 54.3782], [54.9776, 55.4254], [54.8766, 57.6156]],
+      "lowerP95P99Ms": [[17.12921875, 18.37291667], [17.61458333, 18.24171875], [19.43109375, 20.49781250]],
+      "gpuVerdict": [false, false, false]
+    },
+    {
+      "profile": "Animated WebP VP8 alpha",
+      "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "localRun": "target/m103-q06-webp/sample-nvidia-07",
+      "sampleSha256": "ce19ab3e0fd9e1fbca350f636d0fabb0331e8789b403d95c724d9dabba40d8ae",
+      "auditDirectGpuLineageSha256": "5a052ac1111ef015b8e51a0c79eb931eb5385020a2ef985b9eb83bd6d7a818cb",
+      "exactBatches": [7203, 3603, 3603],
+      "newAndHeldDirectUploads": [[3601, 3602], [1800, 1803], [1800, 1803]],
+      "upperP95P99Ms": [[49.6806, 66.6273], [49.8219, 66.4381], [49.8420, 66.5957]],
+      "lowerP95P99Ms": [[2.487167, 2.710431], [2.523135, 2.697535], [2.646399, 10.307199]],
+      "gpuVerdict": [null, null, null]
+    }
+  ],
+  "remaining": [
+    "Tighter GPU upper evidence on NVIDIA and lower measured GPU cost on Intel.",
+    "Independent repeats, minimized output deadlines, missing receiver pixel witnesses and other profiles, recovery and license requirements remain."
+  ]
+}

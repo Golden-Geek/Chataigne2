@@ -89,9 +89,9 @@ def analyze_gpu_path(frames, native, frequency, distribution, *, healthy, resolv
 
     records, upper, lower, serial = [], [], [], []
     for frame in frames:
-        missing, dependencies = [], []
+        missing, dependencies, inline_uploads = [], [], []
         if resolve_dependencies is not None:
-            dependencies, missing = resolve_dependencies(frame, uses, sources)
+            dependencies, inline_uploads, missing = resolve_dependencies(frame, uses, sources)
         else:
             for texture in (1, 2):
                 use = uses.get((key(frame['token']), texture))
@@ -109,6 +109,9 @@ def analyze_gpu_path(frames, native, frequency, distribution, *, healthy, resolv
             bound, span, reason = enclosure(cpu, context)
             if reason:
                 missing.append(reason)
+            elif cpu is frame and any(row['token'] == frame['token'] and row['begin_qpc'] < bound[0]
+                                      for row in inline_uploads):
+                missing.append('renderer upload predates GPU submission scope')
             else:
                 bounds.append(bound)
                 spans.append(span)
@@ -117,8 +120,15 @@ def analyze_gpu_path(frames, native, frequency, distribution, *, healthy, resolv
                   'enclosure_begin_qpc': None, 'enclosure_end_qpc': None,
                   'upper_bound_ms': None, 'lower_bound_ms': None, 'context_span_serial_charge_ms': None,
                   'unknown_reasons': sorted(set(missing))}
+        if inline_uploads:
+            record['renderer_uploads'] = inline_uploads
         if not missing:
             begin, end = min(v[0] for v in bounds), max(v[1] for v in bounds)
+            # A validated inline write was submitted on the renderer context. Its
+            # elapsed GPU work has no separate query, so it can only extend the upper
+            # enclosure. The current draw's completion bounds that write from above.
+            if inline_uploads:
+                begin = min(begin, min(row['begin_qpc'] for row in inline_uploads))
             # One CPU-counter tick covers endpoint quantization; do not round a bound down.
             value = Fraction((end - begin + 1) * 1000, frequency)
             upper.append(value)

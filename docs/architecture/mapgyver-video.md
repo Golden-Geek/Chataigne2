@@ -382,6 +382,11 @@ linear transfer, rejects other matrices/transfers, and never reads a hardware fr
 Displaced pixel buffers are freed outside the media control lock.
 Existing opt-in bounded native diagnostics record software `SourceUse` with stream identity and
 the visible sequence (zero after withdrawal), plus an `ImageUpload` only at a real CPU upload.
+For direct software File uploads, the GPU audit joins the matching device, texture, stream,
+sequence and frame to the submitting renderer input interval. A new upload is inside the
+current renderer query scope. For a held frame, the earlier same-context upload call extends
+the conservative start bound without counting unrelated rendering from that older batch.
+Externally produced File frames still require their own exact producer token.
 That event reports tightly packed input row pitch, rows, bytes and API wall time. It does not
 describe the original decoder planes, GPU execution, HAP block uploads or end-to-end source age;
 software publication timing remains unknown. GPU-frame copy/import accounting is separate.
