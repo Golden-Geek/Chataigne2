@@ -10,15 +10,18 @@ import { openNativeEditor } from './native-editor.mjs';
 const output = path.resolve(process.argv[2] ?? 'target/mapgyver-ndi-screen');
 await mkdir(output, { recursive: true });
 const directory = await mkdtemp(path.join(output, 'run-'));
-const native = await openNativeEditor({
+const nativeOptions = {
+	appDataDirectory: path.join(directory, 'profile'),
 	environment: { NDI_RUNTIME_DIR_V6: undefined, ProgramFiles: directory }
-});
+};
+let native = await openNativeEditor(nativeOptions);
+const firstPid = native.app.pid;
 const { page } = native;
 const pageErrors = [];
 const observations = [];
 const exerciseAudio = process.argv.includes('--audio');
 page.on('pageerror', (error) => pageErrors.push(String(error)));
-let token, receiver, sender, stage, failure;
+let token, receiver, sender, stage, failure, reopenedPid;
 
 async function post(route, body) {
 	const response = await fetch(native.base + route, {
@@ -252,7 +255,7 @@ try {
 			screen,
 			definition: { target, enabled, frame_rate: { kind: 'Explicit', fps } }
 		});
-	await configure({ kind: 'Rectangle', bounds: { left: 0, top: 0, extent } }, false, 30);
+	await configure({ kind: 'AutomaticSpout', extent }, true, 30);
 
 	stage = 'choose NDI from the ordinary Screen Inspector';
 	const selectScreen = async () => {
@@ -275,7 +278,13 @@ try {
 	);
 	const automatic = { kind: 'Ndi', sender: null, extent };
 	const defaultName = `MapGyver - ${label}`;
-	await configure(automatic, true, 30);
+	const definition = await wait(
+		async () => (await edit('screens', { kind: 'InspectScreen', screen })).definition,
+		(value) => value.target?.kind === 'Ndi',
+		5000
+	);
+	assert.equal(definition.enabled, true);
+	assert.deepEqual(definition.target, automatic);
 
 	stage = 'receive the automatic sender at 320×240 and 30 fps';
 	receiver = observe(
@@ -340,6 +349,8 @@ try {
 		);
 		assert.equal(audio.silent_peak, 0);
 	}
+	const project = path.join(directory, 'NDI Screen on startup.mapgyver');
+	assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
 	await configure(automatic, false, 30);
 	assert.equal((await receiver.at(exerciseAudio ? 3 : 2)).kind, 'withdrawn');
 	await receiver.done();
@@ -352,11 +363,39 @@ try {
 	await edit('screens', { kind: 'RemoveScreen', screen });
 	assert.equal((await receiver.at(1)).kind, 'withdrawn');
 	await receiver.done();
+
+	stage = 'restart MapGyver and reopen the saved NDI project';
+	try {
+		await native.close();
+	} finally {
+		native = undefined;
+	}
+	native = await openNativeEditor(nativeOptions);
+	reopenedPid = native.app.pid;
+	assert.notEqual(reopenedPid, firstPid);
+	native.page.on('pageerror', (error) => pageErrors.push(String(error)));
+	token = undefined;
+	token = (await post('/api/ui/session', {})).token;
+	assert.equal(path.resolve((await post('/api/ui/project-load', { path: project })).path), project);
+	receiver = observe('reopened', defaultName, ['0,255,0'], exerciseAudio ? '880,0,440' : null);
+	checkPicture(await receiver.at(0), extent, 30);
+	if (exerciseAudio) {
+		const audio = await receiver.at(1);
+		assert.equal(audio.kind, 'audio');
+		assert.deepEqual(
+			audio.tones.map(({ hz }) => hz),
+			[880, 440]
+		);
+		assert.equal(audio.silent_peak, 0);
+	}
+	await edit('screens', { kind: 'RemoveScreen', screen });
+	assert.equal((await receiver.at(exerciseAudio ? 2 : 1)).kind, 'withdrawn');
+	await receiver.done();
 	assert.deepEqual(pageErrors, []);
 } catch (error) {
 	failure = String(error.stack ?? error);
 } finally {
-	const cleanup = await Promise.allSettled([receiver?.stop(), sender?.(), native.close()]);
+	const cleanup = await Promise.allSettled([receiver?.stop(), sender?.(), native?.close()]);
 	const cleanupErrors = cleanup
 		.filter((result) => result.status === 'rejected')
 		.map((result) => String(result.reason));
@@ -367,11 +406,13 @@ try {
 			{
 				result: failure || cleanupErrors.length ? 'fail' : 'pass',
 				stage,
+				firstPid,
+				reopenedPid,
 				observations,
 				pageErrors,
 				failure,
 				cleanupErrors,
-				appLog: failure ? native.log() : undefined
+				appLog: failure ? native?.log() : undefined
 			},
 			null,
 			2

@@ -189,9 +189,9 @@ Discovery currently uses the desktop-native metadata capability. Browser/headles
 exact-name authoring. Interactive selection, cross-host/source parity and full independent-source
 rendering/recovery acceptance remain open in M04.
 
-The Windows x64 package includes the NDI 6 runtime. **Medias → + → NDI** is available on first
-launch and starts sender discovery automatically. **Screen → Target → NDI** starts publishing
-when the Screen is enabled. Developer builds can use an installed runtime. The channel's typed
+The Windows x64 package includes the NDI 6 runtime and enables NDI from the first launch.
+Use **Medias → + → NDI** to receive, or choose **Target → NDI** on an enabled Screen to publish.
+Opening a project resumes its active NDI streams automatically. Developer builds can use an installed runtime. The channel's typed
 Sender control can select an exact discovered name or accept one manually. A channel preserves its
 sender after loss and reconnects when it returns. Media Preview, Surfaces, References and the audio mixer share the
 same receiver. Under **Inspector → Channels → Audio**, assign **Left output** and **Right output**

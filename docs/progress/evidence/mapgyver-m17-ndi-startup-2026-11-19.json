@@ -1,0 +1,23 @@
+{
+	"date": "2026-11-19",
+	"scope": "Automatic NDI startup in the Windows x64 app layout, using a fresh profile and only the app-local NDI runtime.",
+	"appRevision": "c18653622",
+	"checks": {
+		"media": {
+			"result": "pass",
+			"observed": "Medias Add offered NDI. Auto selected the exact external sender, installed its 320x240 native preview, and loaded the DLL from the application's ndi directory. No activation or sender-selection action was needed.",
+			"receipt": "target/m17-ndi-startup-media/run-6wGTAK/result.json"
+		},
+		"screen": {
+			"result": "pass",
+			"observed": "Choosing NDI on an enabled Screen published 320x240 at 30 FPS immediately. A separate receiver verified output color and routed audio with the editors closed. After MapGyver exited and restarted, opening the saved project restored the same sender, green picture and 880/440 Hz routes with channel 2 silent and physical output disabled. Removing the Screen withdrew its sender.",
+			"receipt": "target/m17-ndi-startup-screen/run-1xltka/result.json"
+		},
+		"mediaGain": {
+			"result": "fail",
+			"observed": "A separate Media audio run passed initialization, sender selection and preview. One measured virtual output level after setting -12 dB was 0.00822 versus 0.01815 at unity. The other output measured 0.00445 versus 0.01773. The fixture rejected the first ratio.",
+			"receipt": "target/m17-ndi-startup-media/run-QxVlJm/result.json"
+		}
+	},
+	"qualification": "M17/1 and M17/2 remain pending. The startup test used an isolated bundle layout on this Windows machine. Clean installation, the Media gain failure and the remaining independent LAN and lifecycle cases still need qualification."
+}
