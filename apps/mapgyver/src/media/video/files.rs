@@ -142,9 +142,23 @@ impl Budget {
     }
     fn admit_software(self: &Arc<Self>, decoder: &mut Decoder) -> Result<Lease, Failure> {
         let pixels = u64::from(decoder.info().width) * u64::from(decoder.info().height);
-        let lease = self
-            .reserve(pixels, decoder.packet_lookahead_bytes() as u64)
-            .map_err(|error| Failure(VideoSourceError::new(VideoSourceErrorKind::Capacity, error)))?;
+        let lookahead = decoder.packet_lookahead_bytes() as u64;
+        let accelerated = decoder
+            .parallel_webp_storage()
+            .filter(|_| pixels > super::reader::HD_PIXELS)
+            .and_then(|extra| {
+                self.reserve(pixels, lookahead + extra.decoded_bytes + extra.packet_bytes)
+                    .ok()
+                    .map(|lease| (lease, extra.decoded_bytes))
+            });
+        let (lease, decoded_extra) = match accelerated {
+            Some(admitted) => admitted,
+            None => (
+                self.reserve(pixels, lookahead)
+                    .map_err(|error| Failure(VideoSourceError::new(VideoSourceErrorKind::Capacity, error)))?,
+                0,
+            ),
+        };
         decoder.tighten_pixel_limit(pixels)?;
         if decoder.storage() == golden_video::decode::DecodeStorage::Software {
             // Keep decoded pools inside the source reservation, leaving sixteen bytes
@@ -153,7 +167,13 @@ impl Budget {
                 .checked_mul(24)
                 .and_then(|bytes| bytes.checked_add(8 * 1024 * 1024))
                 .ok_or("Video decoded-plane storage overflow")?;
-            decoder.tighten_cpu_frame_limit(planes)?;
+            decoder.tighten_cpu_frame_limit(planes + decoded_extra)?;
+            if decoded_extra != 0
+                && let Err(error) = decoder.enable_parallel_webp()
+                && std::env::var_os("MAPGYVER_NATIVE_DIAGNOSTICS").is_some_and(|value| !value.is_empty())
+            {
+                eprintln!("[mapgyver-video] using serial WebP decode: {error}");
+            }
         }
         Ok(lease)
     }
@@ -571,6 +591,7 @@ impl Run {
             },
             move || cancel.is_cancelled(),
         )?;
+        let mut lease = Arc::new(self.budget.admit_software(&mut decoder)?);
         if std::env::var_os("MAPGYVER_NATIVE_DIAGNOSTICS").is_some_and(|value| !value.is_empty())
             && let Some(threads) = decoder.software_decode_threads()
         {
@@ -580,7 +601,6 @@ impl Run {
                 info.codec, info.width, info.height
             );
         }
-        let mut lease = Arc::new(self.budget.admit_software(&mut decoder)?);
         // The measured software GPU transfer helps HD. Large rasters use direct upload.
         #[cfg(all(windows, feature = "native-video"))]
         if let Some(hardware) = &self.hardware

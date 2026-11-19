@@ -2,6 +2,7 @@
 use super::{Animation, DecodeError, ffmpeg};
 
 const MAX_OMITTED: usize = 8;
+pub(super) const MAX_PATCH_BYTES: usize = 2 * 1024 * 1024;
 pub(in crate::decode) type PacketWithOmission = (ffmpeg::Packet, Option<(i64, i64)>);
 
 impl Animation {
@@ -13,6 +14,7 @@ impl Animation {
         max_packet_bytes: usize,
         mut read: impl FnMut() -> Result<Option<ffmpeg::Packet>, DecodeError>,
     ) -> Result<Option<PacketWithOmission>, DecodeError> {
+        self.started = true;
         if self.lookahead.is_empty() {
             let Some(packet) = read()? else {
                 return Ok(None);
@@ -67,14 +69,22 @@ impl Animation {
 }
 
 #[derive(Clone, Copy)]
-struct Rect {
-    x: u32,
-    y: u32,
+pub(super) struct Rect {
+    pub(super) x: u32,
+    pub(super) y: u32,
     right: u32,
     bottom: u32,
 }
 
 impl Rect {
+    pub(super) fn extent(self) -> (u32, u32) {
+        (self.right - self.x, self.bottom - self.y)
+    }
+
+    pub(super) fn is_full(self, canvas: (u32, u32)) -> bool {
+        (self.x, self.y) == (0, 0) && self.extent() == canvas
+    }
+
     fn covers(self, other: Self) -> bool {
         self.x <= other.x && self.y <= other.y && self.right >= other.right && self.bottom >= other.bottom
     }
@@ -103,29 +113,41 @@ fn overwrite(packet: &ffmpeg::Packet, (canvas_width, canvas_height): (u32, u32))
         return None;
     }
     let (header, mut chunks) = packet.data()?.split_first_chunk::<16>()?;
+    let rect = overwrite_rect(header, (canvas_width, canvas_height))?;
+    let (mut tag, mut bytes, mut rest) = chunk(chunks)?;
+    if tag == b"ALPH" && bytes.len() > 1 && bytes[0] & 0b11 <= 1 {
+        chunks = rest;
+        (tag, bytes, rest) = chunk(chunks)?;
+    }
+    (tag == b"VP8 " && rest.is_empty() && matches_vp8_header(bytes, rect.extent())).then_some(rect)
+}
+
+pub(super) fn overwrite_rect(header: &[u8; 16], canvas: (u32, u32)) -> Option<Rect> {
     // RFC 9649 ANMF flags: replace the rectangle and leave it in place afterward.
-    // Lossless updates may change the canvas representation; always decode those.
     if header[15] != 2 {
         return None;
     }
     let field = |index| u32::from_le_bytes([header[index], header[index + 1], header[index + 2], 0]);
     let (x, y, width, height) = (2 * field(0), 2 * field(3), 1 + field(6), 1 + field(9));
     let (right, bottom) = (x + width, y + height);
-    if right > canvas_width || bottom > canvas_height {
+    (right <= canvas.0 && bottom <= canvas.1).then_some(Rect { x, y, right, bottom })
+}
+
+pub(super) fn matches_vp8_header(bytes: &[u8], extent: (u32, u32)) -> bool {
+    let Some((frame, _)) = bytes.split_first_chunk::<10>() else {
+        return false;
+    };
+    let width = u32::from(u16::from_le_bytes([frame[6], frame[7]]) & 0x3fff);
+    let height = u32::from(u16::from_le_bytes([frame[8], frame[9]]) & 0x3fff);
+    frame[0] & 1 == 0 && frame[3..6] == [0x9d, 0x01, 0x2a] && (width, height) == extent
+}
+
+pub(super) fn independent_patch(packet: &ffmpeg::Packet, canvas: (u32, u32)) -> Option<Rect> {
+    let data = packet.data()?;
+    if data.len() > MAX_PATCH_BYTES || data.get(16..20) != Some(b"ALPH") {
         return None;
     }
-    let (mut tag, mut bytes, mut rest) = chunk(chunks)?;
-    if tag == b"ALPH" && bytes.len() > 1 && bytes[0] & 0b11 <= 1 {
-        chunks = rest;
-        (tag, bytes, rest) = chunk(chunks)?;
-    }
-    let (frame, _) = bytes.split_first_chunk::<10>()?;
-    if tag != b"VP8 " || !rest.is_empty() || frame[0] & 1 != 0 || frame[3..6] != [0x9d, 0x01, 0x2a] {
-        return None;
-    }
-    let vp8_width = u32::from(u16::from_le_bytes([frame[6], frame[7]]) & 0x3fff);
-    let vp8_height = u32::from(u16::from_le_bytes([frame[8], frame[9]]) & 0x3fff);
-    (width == vp8_width && height == vp8_height).then_some(Rect { x, y, right, bottom })
+    overwrite(packet, canvas)
 }
 
 fn chunk(data: &[u8]) -> Option<(&[u8; 4], &[u8], &[u8])> {

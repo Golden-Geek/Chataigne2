@@ -450,6 +450,12 @@ while its decoder finds the next frame. Golden retains the admitted software pla
 same projection budget as inline conversion. The file worker consumes the result before
 publication and the existing epoch and cycle checks reject stale results. File retirement joins
 the scaler before the source worker releases its slot.
+For eligible animations above 1080p, two workers decode VP8 alpha patches independently through
+FFmpeg and the file owner applies them in packet order. A bounded header scan checks that the first
+patch covers the whole canvas and that every patch is a supported overwrite. Blending, disposal
+and unsupported or unadmitted inputs use the existing serial decoder. The ordered canvas and both
+workers share decoded-plane admission. Each worker has one patch in flight, and changing the
+source position drains outstanding patches before rebuilding the canvas.
 Advancing playback's frame-neighbour inspection samples the same two presentation windows, so
 preparing a future image does not advance Inspector frame-step state. A stationary clock
 (pause, zero rate or final hold) instead publishes immediate epoch-fenced pixels and ordinary

@@ -26,9 +26,9 @@ fn animated_duration_matches_demux_delays_and_skips_padded_metadata() {
         append_frame(&mut chunks, delay);
     }
     let file = file(&chunks);
-    assert_eq!(duration(file.path(), || false).unwrap(), 1300);
+    assert_eq!(inspect(file.path(), || false).unwrap().duration_ms, 1300);
     assert!(matches!(
-        duration(file.path(), || true),
+        inspect(file.path(), || true),
         Err(DecodeError::Ffmpeg(ffmpeg::Error::Exit))
     ));
 }
@@ -38,7 +38,7 @@ fn chunk_bounds_and_empty_animations_fail_before_publishing_timing() {
     for chunks in [b"ANMF\x20\0\0\0".as_slice(), b"JUNK\x03\0\0\0abc\0"] {
         let file = file(chunks);
         assert!(matches!(
-            duration(file.path(), || false),
+            inspect(file.path(), || false),
             Err(DecodeError::Ffmpeg(ffmpeg::Error::InvalidData))
         ));
     }
@@ -63,6 +63,9 @@ fn packet_lookahead_stays_bounded_and_keeps_non_omitted_updates_in_order() {
         interrupt: Arc::new(Mutex::new(|| false)),
         duration_ms: 160,
         lookahead: VecDeque::new(),
+        independent_patches: false,
+        parallel: None,
+        started: false,
     };
     let mut packets = [
         overwrite_packet(0, 16, 0),

@@ -83,6 +83,15 @@ pub enum DecodeStorage {
     D3d11,
 }
 
+/// Additional source admission for the independent WebP patch pipeline.
+#[derive(Clone, Copy)]
+pub struct ParallelWebpStorage {
+    /// Additional shared decoded-plane headroom.
+    pub decoded_bytes: u64,
+    /// Additional compressed jobs and their standalone packet headers.
+    pub packet_bytes: u64,
+}
+
 /// One owned decoded image. Retaining it does not retain a borrow of the decoder.
 pub struct DecodedFrame {
     timestamp: i64,
@@ -469,6 +478,13 @@ impl Decoder {
     /// Actual codec thread count for an available software decoder; HAP/hardware return None.
     /// This excludes the owning IO task and does not describe decoder storage bytes.
     pub fn software_decode_threads(&self) -> Option<usize> {
+        if self
+            .animation
+            .as_ref()
+            .is_some_and(|animation| animation.parallel.is_some())
+        {
+            return Some(webp::WORKERS);
+        }
         self.decoder
             .as_ref()
             .filter(|_| matches!(self.kind, DecoderKind::Software(_)))
@@ -478,6 +494,34 @@ impl Decoder {
     /// Whether positioning requires reconstructing the animation from the first canvas.
     pub fn seek_rewinds_to_start(&self) -> bool {
         self.animation.is_some()
+    }
+
+    /// Check for a full opening canvas and independently decodable, overwrite-only
+    /// VP8 alpha patches throughout the file. Other animations use the serial canvas.
+    pub fn parallel_webp_storage(&self) -> Option<ParallelWebpStorage> {
+        (self.storage() == DecodeStorage::Software
+            && self.limits.software_threads == SoftwareDecodeThreads::Four
+            && self.limits.max_packets_per_frame >= 18
+            && self
+                .animation
+                .as_ref()
+                .is_some_and(|animation| animation.independent_patches && !animation.started))
+        .then_some(ParallelWebpStorage {
+            decoded_bytes: u64::from(self.info.width) * u64::from(self.info.height) * 8,
+            packet_bytes: webp::PACKET_RESERVATION,
+        })
+    }
+
+    /// Enable two patch decoders before the first read, after admitting the additional
+    /// payload with the file owner's budget. Returns false for an ineligible stream.
+    pub fn enable_parallel_webp(&mut self) -> Result<bool, DecodeError> {
+        if self.parallel_webp_storage().is_none() {
+            return Ok(false);
+        }
+        let budget = self.cpu_frame_budget().ok_or(DecodeError::InvalidLimits)?;
+        let worker = webp::Parallel::new((self.info.width, self.info.height), budget, self.allocation_pixel_limit)?;
+        self.animation.as_mut().unwrap().parallel = Some(worker);
+        Ok(true)
     }
 
     /// Seek to a keyframe at/before an original stream timestamp.
@@ -518,6 +562,9 @@ impl Decoder {
                     self.input = input;
                     self.decoder = Some(decoder);
                     animation.lookahead.clear();
+                    if let Some(parallel) = &mut animation.parallel {
+                        parallel.reset();
+                    }
                     self.state = DecodeState::Reading;
                     return Ok(());
                 }
@@ -610,6 +657,25 @@ impl Decoder {
             return Ok(None);
         }
         let mut packets = 0usize;
+        if let Some(animation) = &mut self.animation
+            && let Some(mut parallel) = animation.parallel.take()
+        {
+            let dimensions = (self.info.width, self.info.height);
+            let result = parallel.next(|| {
+                let extra = self
+                    .limits
+                    .max_packets_per_frame
+                    .saturating_sub(packets.saturating_add(1));
+                animation.next_packet(due, dimensions, extra, self.limits.max_packet_bytes, || {
+                    read_video_packet(&mut self.input, self.stream, self.limits, &mut packets)
+                })
+            });
+            animation.parallel = Some(parallel);
+            if let Ok(None) = result {
+                self.state = DecodeState::Ended;
+            }
+            return result;
+        }
         let mut omitted_before = None;
         loop {
             let mut image = ffmpeg::frame::Video::empty();

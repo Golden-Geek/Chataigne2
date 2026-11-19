@@ -32,11 +32,35 @@ impl Allocator {
         if bytes == 0 {
             return Err(DecodeError::InvalidLimits);
         }
-        Ok(Self {
-            budget: ImageStorageBudget::new(bytes).map_err(|_| DecodeError::InvalidLimits)?,
+        Ok(Self::with_budget(
+            ImageStorageBudget::new(bytes).map_err(|_| DecodeError::InvalidLimits)?,
+        ))
+    }
+    pub fn with_budget(budget: ImageStorageBudget) -> Self {
+        Self {
+            budget,
             pool: Mutex::new(None),
             exhausted: AtomicBool::new(false),
-        })
+        }
+    }
+    pub fn yuva420_canvas(&self, width: u32, height: u32) -> Result<ffmpeg::frame::Video, DecodeError> {
+        let mut context = ffmpeg::codec::context::Context::new();
+        let mut frame = ffmpeg::frame::Video::empty();
+        let format = ffmpeg::format::Pixel::YUVA420P;
+        frame.set_format(format);
+        frame.set_width(width);
+        frame.set_height(height);
+        // SAFETY: this temporary context belongs to the call. The allocator lives
+        // through the callback and the resulting frame owns independent buffer refs.
+        let result = unsafe {
+            (*context.as_mut_ptr()).pix_fmt = format.into();
+            (*context.as_mut_ptr()).opaque = (self as *const Self).cast_mut().cast();
+            get_buffer(context.as_mut_ptr(), frame.as_mut_ptr(), 0)
+        };
+        if result < 0 {
+            return Err(self.failure(ffmpeg::Error::from(result).into()));
+        }
+        Ok(frame)
     }
     pub fn configure(&self, context: &mut ffmpeg::codec::context::Context) -> Result<(), DecodeError> {
         let supported = ffmpeg::decoder::find(context.id()).is_some_and(|codec| {

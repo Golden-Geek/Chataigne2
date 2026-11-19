@@ -155,3 +155,44 @@ fn overlapped_projection_preserves_the_selected_pixels_across_a_held_seek() {
     );
     assert_eq!(playing.neighbours().unwrap().unwrap().position, ms(95));
 }
+
+#[test]
+fn parallel_patch_decoding_matches_the_serial_canvas_across_seek_and_eof() {
+    let mut bytes = fixture();
+    bytes[256 + 8] = 1;
+    let encoded = file(&bytes);
+    let parallel_open = |file: &tempfile::NamedTempFile| {
+        Decoder::open(
+            file.path(),
+            DecodeLimits {
+                max_pixels: 4096,
+                max_cpu_frame_bytes: 16 * 1024 * 1024,
+                max_packet_bytes: 1024 * 1024,
+                max_packets_per_frame: 256,
+                software_threads: SoftwareDecodeThreads::Four,
+            },
+        )
+        .unwrap()
+    };
+    let mut parallel = parallel_open(&encoded);
+    assert!(parallel.enable_parallel_webp().unwrap());
+    let mut serial = open(&encoded).decoder;
+    let mut converter = SoftwareImageConverter::new(16 * 1024 * 1024).unwrap();
+    assert_eq!(parallel.next_frame().unwrap().unwrap().timestamp(), 0);
+    parallel.seek_before(95).unwrap(); // Abandon an already queued patch.
+    for timestamp in [0, 40, 95, 185, 225, 310] {
+        let actual = parallel.next_frame().unwrap().unwrap();
+        let expected = serial.next_frame().unwrap().unwrap();
+        assert_eq!((actual.timestamp(), expected.timestamp()), (timestamp, timestamp));
+        let actual = converter.convert(&actual).unwrap();
+        let expected = converter.convert(&expected).unwrap();
+        assert_eq!(actual.pixels(), expected.pixels());
+    }
+    assert!(parallel.next_frame().unwrap().is_none());
+    parallel.seek_before(0).unwrap();
+    assert_eq!(parallel.next_frame().unwrap().unwrap().timestamp(), 0);
+
+    bytes[164 + 8 + 15] = 0;
+    let blending = file(&bytes);
+    assert!(!parallel_open(&blending).enable_parallel_webp().unwrap());
+}

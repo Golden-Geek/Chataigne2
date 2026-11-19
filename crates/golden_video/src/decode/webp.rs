@@ -3,12 +3,15 @@ use super::{DecodeError, ffmpeg, metadata::open_local};
 use std::{
     collections::VecDeque,
     fs::File,
-    io::{BufReader, Read},
+    io::{BufReader, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
 
 mod packets;
+mod parallel;
+use packets::{MAX_PATCH_BYTES, matches_vp8_header, overwrite_rect};
+pub(super) use parallel::{PACKET_RESERVATION, Parallel, WORKERS};
 
 const ANIMATION_FORMAT: &str = "webp_anim";
 const MAX_CHUNKS: usize = 1_000_000;
@@ -36,6 +39,9 @@ pub(super) struct Animation {
     interrupt: Interrupt,
     pub duration_ms: i64,
     pub(super) lookahead: VecDeque<ffmpeg::Packet>,
+    pub(super) independent_patches: bool,
+    pub(super) parallel: Option<Parallel>,
+    pub(super) started: bool,
 }
 
 pub(super) fn open_video(
@@ -48,12 +54,15 @@ pub(super) fn open_video(
         move || cancelled(&interrupt)
     })?;
     let animation = if input.format().name() == ANIMATION_FORMAT {
-        let duration_ms = duration(path, || cancelled(&interrupt))?;
+        let inspected = inspect(path, || cancelled(&interrupt))?;
         Some(Animation {
             path: path.to_owned(),
             interrupt,
-            duration_ms,
+            duration_ms: inspected.duration_ms,
             lookahead: VecDeque::new(),
+            independent_patches: inspected.independent_patches,
+            parallel: None,
+            started: false,
         })
     } else {
         None
@@ -78,7 +87,12 @@ impl Animation {
     }
 }
 
-fn duration(path: &Path, mut interrupt: impl FnMut() -> bool) -> Result<i64, DecodeError> {
+struct Inspection {
+    duration_ms: i64,
+    independent_patches: bool,
+}
+
+fn inspect(path: &Path, mut interrupt: impl FnMut() -> bool) -> Result<Inspection, DecodeError> {
     let file = File::open(path)?;
     let file_len = file.metadata()?.len();
     let mut reader = BufReader::new(file);
@@ -92,6 +106,9 @@ fn duration(path: &Path, mut interrupt: impl FnMut() -> bool) -> Result<i64, Dec
     let mut remaining = end - 12;
     let mut duration = 0i64;
     let mut chunks = 0;
+    let mut canvas = None;
+    let mut independent = false;
+    let mut first = true;
     while remaining != 0 {
         if interrupt() {
             return Err(ffmpeg::Error::Exit.into());
@@ -104,26 +121,70 @@ fn duration(path: &Path, mut interrupt: impl FnMut() -> bool) -> Result<i64, Dec
         remaining = remaining.checked_sub(8).ok_or(ffmpeg::Error::InvalidData)?;
         reader.read_exact(&mut chunk)?;
         let size = u64::from(u32::from_le_bytes(chunk[4..].try_into().unwrap()));
-        let mut skip = size.next_multiple_of(2);
+        let skip = size.next_multiple_of(2);
         remaining = remaining.checked_sub(skip).ok_or(ffmpeg::Error::InvalidData)?;
+        let chunk_end = end - remaining;
+        if chunks == 1 && &chunk[..4] == b"VP8X" && size == 10 {
+            let mut header = [0u8; 10];
+            reader.read_exact(&mut header)?;
+            let dimension = |i| 1 + u32::from_le_bytes([header[i], header[i + 1], header[i + 2], 0]);
+            canvas = Some((dimension(4), dimension(7)));
+            // Keep mixed, color-profiled or non-alpha files on FFmpeg's canvas path.
+            independent = header[0] & 0x32 == 0x12;
+        }
         if &chunk[..4] == b"ANMF" {
             if size < 16 {
                 return Err(ffmpeg::Error::InvalidData.into());
             }
             let mut frame = [0u8; 16];
             reader.read_exact(&mut frame)?;
-            skip -= 16;
             let delay = u32::from_le_bytes([frame[12], frame[13], frame[14], 0]);
             // Match the pinned demuxer's delay normalization so the last frame's
             // declared end agrees with the packet timestamps delivered to the decoder.
             duration += if delay <= 10 { 100 } else { i64::from(delay) };
+            if independent {
+                let shape = canvas.unwrap();
+                independent = if let Some(rect) = overwrite_rect(&frame, shape)
+                    && (!first || rect.is_full(shape))
+                    && size <= MAX_PATCH_BYTES as u64
+                {
+                    independent_payload(&mut reader, size - 16, rect.extent())?
+                } else {
+                    false
+                };
+            }
+            first = false;
         }
-        reader.seek_relative(skip as i64)?;
+        reader.seek(SeekFrom::Start(chunk_end))?;
     }
     if duration == 0 {
         return Err(ffmpeg::Error::InvalidData.into());
     }
-    Ok(duration)
+    Ok(Inspection {
+        duration_ms: duration,
+        independent_patches: independent && !first,
+    })
+}
+
+fn independent_payload(reader: &mut BufReader<File>, len: u64, extent: (u32, u32)) -> Result<bool, DecodeError> {
+    if len < 28 {
+        return Ok(false);
+    }
+    let mut header = [0u8; 9];
+    reader.read_exact(&mut header)?;
+    let alpha = u64::from(u32::from_le_bytes(header[4..8].try_into().unwrap()));
+    let padded_alpha = alpha.next_multiple_of(2);
+    if &header[..4] != b"ALPH" || alpha <= 1 || header[8] & 3 > 1 || padded_alpha + 26 > len {
+        return Ok(false);
+    }
+    reader.seek_relative((padded_alpha - 1) as i64)?;
+    let mut vp8 = [0u8; 18];
+    reader.read_exact(&mut vp8)?;
+    let size = u64::from(u32::from_le_bytes(vp8[4..8].try_into().unwrap()));
+    Ok(&vp8[..4] == b"VP8 "
+        && size >= 10
+        && 16 + padded_alpha + size.next_multiple_of(2) == len
+        && matches_vp8_header(&vp8[8..], extent))
 }
 
 #[cfg(test)]
