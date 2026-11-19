@@ -89,3 +89,79 @@ fn ndi_sender_catalog_is_separate_and_exact_selection_survives_loss_mode_switch_
     assert_eq!(source(&loaded, extra), expected);
     assert_eq!(source(&loaded, spout), source(&engine, spout));
 }
+
+#[test]
+fn additional_ndi_route_is_typed_and_survives_removal_undo_and_reload() {
+    use crate::audio::{ndi_route, voice};
+    use golden_core::parameter::ParameterEventBehaviour;
+
+    let mut engine = fixture();
+    let reference = create(&mut engine, MediaKind::Ndi);
+    let parent = engine.node_id_by_uuid(reference.channel.0).unwrap();
+    let video = create(&mut engine, MediaKind::Video);
+    let video_channel = engine.node_id_by_uuid(video.channel.0).unwrap();
+    let add = |engine: &mut AppEngine, parent| {
+        apply_project_intent(
+            engine,
+            UiEditIntent::CreateUserItem {
+                parent,
+                node_type: ndi_route::TYPE.into(),
+                label: None,
+                initial_params: vec![],
+            },
+        )
+    };
+    assert!(!add(&mut engine, video_channel).success);
+    let created = add(&mut engine, parent).created_node.expect("created audio route");
+    let parameter = |engine: &AppEngine, route, name: &str| {
+        engine
+            .process_tree_snapshot()
+            .child_ids(route)
+            .into_iter()
+            .find(|id| engine.nodes.get(*id).unwrap().node_data().meta.decl_id.0 == name)
+            .unwrap()
+    };
+    let set = |engine: &mut AppEngine, node, value| {
+        apply_project_intent(
+            engine,
+            UiEditIntent::SetParam {
+                node,
+                value,
+                behaviour: ParameterEventBehaviour::Append,
+            },
+        )
+        .success
+    };
+    let input = parameter(&engine, created.node_id, "source_channel");
+    let output = parameter(&engine, created.node_id, "destination");
+    crate::tests::clamps_and_undo(&mut engine, input, ParamValue::Int(2), ParamValue::Int(3));
+    crate::tests::clamps_and_undo(&mut engine, input, ParamValue::Int(257), ParamValue::Int(256));
+    assert!(set(&mut engine, input, ParamValue::Int(4)));
+    assert!(!set(&mut engine, output, ParamValue::Enum("invalid".into())));
+    assert!(set(&mut engine, output, ParamValue::Enum(voice::RIGHT.into())));
+    assert!(apply_project_intent(&mut engine, UiEditIntent::RemoveNode { node: created.node_id }).success);
+    assert!(engine.node_id_by_uuid(created.uuid).is_none());
+    assert!(engine.undo().unwrap());
+    engine.settle_edit_notifications(16).unwrap();
+
+    let route_values = |engine: &AppEngine| {
+        let route = engine.node_id_by_uuid(created.uuid).expect("saved audio route");
+        ["source_channel", "destination"].map(|name| {
+            engine
+                .nodes
+                .get(parameter(engine, route, name))
+                .unwrap()
+                .engine_param_snapshot()
+                .unwrap()
+                .value
+        })
+    };
+    let expected = [ParamValue::Int(4), ParamValue::Enum(voice::RIGHT.into())];
+    assert_eq!(route_values(&engine), expected);
+    let json = to_sparse_project_json_pretty(&engine).unwrap();
+    let mut loaded = from_sparse_project_json::<AppNode>(&json).unwrap();
+    loaded.apply_edits().unwrap();
+    golden_core::app::prepare_engine_for_runtime(&mut loaded).unwrap();
+    crate::media::validate_project(&loaded).unwrap();
+    assert_eq!(route_values(&loaded), expected);
+}

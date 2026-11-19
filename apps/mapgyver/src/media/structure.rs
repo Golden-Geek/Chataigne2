@@ -73,10 +73,10 @@ pub(crate) fn validate_ui_intent(engine: &AppEngine, intent: &UiEditIntent) -> R
         UiEditIntent::MoveNode { node, new_parent, .. } => validate_move(engine, *node, *new_parent),
         UiEditIntent::RemoveNode { node } => validate_removals(engine, &[*node]),
         UiEditIntent::RemoveNodes { nodes } => validate_removals(engine, nodes),
-        UiEditIntent::DuplicateNode { source, new_parent, .. } => validate_channel_copy(engine, *source, *new_parent),
+        UiEditIntent::DuplicateNode { source, new_parent, .. } => validate_source_copy(engine, *source, *new_parent),
         UiEditIntent::DuplicateNodes { nodes, .. } => {
             for node in nodes {
-                validate_channel_copy(engine, node.source, node.new_parent)?;
+                validate_source_copy(engine, node.source, node.new_parent)?;
             }
             Ok(())
         }
@@ -84,7 +84,13 @@ pub(crate) fn validate_ui_intent(engine: &AppEngine, intent: &UiEditIntent) -> R
     }
 }
 
-fn validate_channel_copy(engine: &AppEngine, source: NodeId, parent: NodeId) -> Result<(), String> {
+fn validate_source_copy(engine: &AppEngine, source: NodeId, parent: NodeId) -> Result<(), String> {
+    if matches!(engine.nodes.get(source), Some(AppNode::NdiAudioRoute(_))) {
+        return match engine.nodes.get(parent) {
+            Some(AppNode::MediaChannel(channel)) if channel.kind() == super::protocol::MediaKind::Ndi => Ok(()),
+            _ => Err("additional audio routes can only be copied to an NDI channel".into()),
+        };
+    }
     let Some(AppNode::MediaChannel(channel)) = engine.nodes.get(source) else {
         return Ok(());
     };
@@ -118,7 +124,9 @@ pub(super) fn validate_move(engine: &AppEngine, id: NodeId, parent: NodeId) -> R
             };
             super::folders::parent(engine, folder)? == parent
         }
-        AppNode::MediaChannel(_) | AppNode::CompositionPlacement(_) => old_parent == Some(parent),
+        AppNode::MediaChannel(_) | AppNode::CompositionPlacement(_) | AppNode::NdiAudioRoute(_) => {
+            old_parent == Some(parent)
+        }
         AppNode::MediaAsset(_) | AppNode::Application(_) => parent == super::authoring::manager(engine)?,
         AppNode::MediaCommand(_) => parent == super::authoring::manager(engine)?,
         AppNode::Screen(_) => {

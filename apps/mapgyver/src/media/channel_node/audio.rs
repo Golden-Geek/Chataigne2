@@ -48,22 +48,28 @@ impl ChannelNode {
         self.video_binding
             .as_ref()
             .map(|video| &video.audio().voice)
-            .or(self.ndi_audio.as_ref())
+            .or(self.ndi_audio.get())
     }
 
-    #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
-    pub(super) fn register_ndi_audio(&mut self, ctx: &mut ProcessCtx) {
-        let binding = Arc::new(voice::Binding::default());
+    pub(crate) fn ndi_audio_binding(&self) -> &Arc<voice::Binding> {
+        self.ndi_audio.get_or_init(Default::default)
+    }
+
+    pub(super) fn register_ndi_audio(&self, ctx: &mut ProcessCtx) {
+        let binding = self.ndi_audio_binding();
         binding.watch_options(ctx.node_waker().ok());
-        self.ndi_audio = Some(binding.clone());
-        let uuid = self.node_data().meta.uuid.0;
-        ctx.register_ancestor_runtime(self.id(), move |owner| {
-            let Some(manager) = owner.as_any().downcast_ref::<crate::media::MediaManagerNode>() else {
-                return Ok(false);
-            };
-            manager.ndi_inputs.register_audio(uuid, &binding);
-            Ok(true)
-        });
+        #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
+        {
+            let binding = binding.clone();
+            let uuid = self.node_data().meta.uuid.0;
+            ctx.register_ancestor_runtime(self.id(), move |owner| {
+                let Some(manager) = owner.as_any().downcast_ref::<crate::media::MediaManagerNode>() else {
+                    return Ok(false);
+                };
+                manager.ndi_inputs.register_audio(uuid, &binding);
+                Ok(true)
+            });
+        }
         self.publish_audio(ctx);
         self.refresh_audio_options(ctx);
     }

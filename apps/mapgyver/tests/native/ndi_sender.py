@@ -19,7 +19,12 @@ HEIGHT = 240
 FPS = 30
 SAMPLE_RATE = 48000
 SAMPLES_PER_FRAME = SAMPLE_RATE // FPS
-CHANNELS = (("left", 440, 4, (80, 135)), ("right", 880, 19, (240, 135)))
+CHANNELS = (
+    ("left", 440, 4, (80, 135)),
+    ("right", 880, 19, (240, 135)),
+    ("third", 660, 7, (80, 68)),
+    ("fourth", 1320, 16, (240, 68)),
+)
 PULSE_FRAMES = 3
 PULSE_AMPLITUDE = 0.25
 CODE_BITS = 13
@@ -109,15 +114,15 @@ def paint(buffer, left, top, width, height, pixel):
         buffer[start:start + len(row)] = row
 
 
-def video_payload(index, channels, pulse_frames):
+def video_payload(index, channels, pulse_frames, silent_channel):
     pixels = bytearray((22, 22, 22, 255)) * (WIDTH * HEIGHT)
     paint(pixels, 0, 0, WIDTH, 36, (0, 0, 0, 255))
     paint(pixels, 4, 8, 16, 20, (255, 255, 255, 255))
     for bit in range(CODE_BITS):
         if index & (1 << bit):
             paint(pixels, CODE_ORIGIN[0] + bit * CODE_STEP - 6, 8, 12, 20, (255, 255, 255, 255))
-    for _, _, start, (center_x, center_y) in CHANNELS[:channels]:
-        pulse = start <= (index % FPS) < start + pulse_frames
+    for lane, (_, _, start, (center_x, center_y)) in enumerate(CHANNELS[:channels], 1):
+        pulse = lane != silent_channel and start <= (index % FPS) < start + pulse_frames
         fill = 245 if pulse else 52
         paint(pixels, center_x - 40, center_y - 28, 80, 56, (fill, fill, fill, 255))
     moving_x = 12 + (index * 7) % (WIDTH - 56)
@@ -125,10 +130,13 @@ def video_payload(index, channels, pulse_frames):
     return pixels
 
 
-def make_audio_blocks(channels, pulse_frames):
+def make_audio_blocks(channels, pulse_frames, silent_channel):
     silence = bytes(SAMPLES_PER_FRAME * 4)
     blocks = []
-    for _, frequency, _, _ in CHANNELS[:channels]:
+    for lane, (_, frequency, _, _) in enumerate(CHANNELS[:channels], 1):
+        if lane == silent_channel:
+            blocks.append((silence,) * pulse_frames)
+            continue
         count = pulse_frames * SAMPLES_PER_FRAME
         # A short ramp avoids a broadband click while preserving exact frame/pulse alignment.
         pulse = array("f", (
@@ -180,6 +188,7 @@ def ready_record(dll, sender, library, args, epoch):
             "samples_per_frame": SAMPLES_PER_FRAME,
             "pulse_frames": args.pulse_frames,
             "pulse_amplitude": PULSE_AMPLITUDE,
+            "silent_channel": args.silent_channel,
             "lanes": [
                 dict(channel=lane, frequency_hz=frequency, first_frame=start, marker=marker)
                 for lane, frequency, start, marker in CHANNELS[:args.channels]
@@ -189,7 +198,7 @@ def ready_record(dll, sender, library, args, epoch):
 
 
 def publish(dll, sender, library, args):
-    silence, audio_blocks = make_audio_blocks(args.channels, args.pulse_frames)
+    silence, audio_blocks = make_audio_blocks(args.channels, args.pulse_frames, args.silent_channel)
     video = VideoFrame(WIDTH, HEIGHT, fourcc(b"BGRX"), FPS, 1, WIDTH / HEIGHT, 1,
                        0, None, WIDTH * 4, None, 0)
     audio = AudioFrame(SAMPLE_RATE, args.channels, SAMPLES_PER_FRAME, 0, fourcc(b"FLTp"),
@@ -213,7 +222,7 @@ def publish(dll, sender, library, args):
         if elapsed_index > index:
             skipped += elapsed_index - index
             index = elapsed_index
-        pixels = video_payload(index, args.channels, args.pulse_frames)
+        pixels = video_payload(index, args.channels, args.pulse_frames, args.silent_channel)
         image = (ctypes.c_ubyte * len(pixels)).from_buffer(pixels)
         video.data = ctypes.addressof(image)
         video.timecode = epoch + index * 10_000_000 // FPS
@@ -239,13 +248,16 @@ def main():
     parser.add_argument("--name", required=True, help="short unique synthetic sender name")
     parser.add_argument("--ready", required=True, type=Path, help="new caller-owned JSON readiness path")
     parser.add_argument("--stop", required=True, type=Path, help="caller-owned marker to stop publishing")
-    parser.add_argument("--channels", type=int, choices=(0, 1, 2), default=2)
+    parser.add_argument("--channels", type=int, choices=range(len(CHANNELS) + 1), default=2)
+    parser.add_argument("--silent-channel", type=int, help="keep this 1-based plane and its marker silent")
     parser.add_argument("--pulse-frames", type=int, choices=range(1, 12), default=PULSE_FRAMES)
     parser.add_argument("--max-seconds", type=int, default=60)
     parser.add_argument("--runtime-dir", type=Path)
     args = parser.parse_args()
     if not 1 <= args.max_seconds <= 180:
         parser.error("--max-seconds must be between 1 and 180")
+    if args.silent_channel is not None and not 1 <= args.silent_channel <= args.channels:
+        parser.error("--silent-channel must select a published audio plane")
     encoded = args.name.encode("utf-8")
     if not args.name.strip() or len(encoded) > 180 or not args.name.isprintable():
         parser.error("--name must be 1 to 180 UTF-8 bytes without control characters")

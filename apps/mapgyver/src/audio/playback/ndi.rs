@@ -9,7 +9,7 @@ use crate::{
         rendering::ndi::{AudioInput, Inputs},
     },
 };
-use golden_audio::GainSmoother;
+use golden_audio::{GainDb, GainSmoother};
 use golden_core::{
     application::ProductionRuntime,
     node::{Node, NodeUuid},
@@ -31,6 +31,7 @@ const SMPTE_FULL_SCALE: f32 = 0.1;
 #[derive(Default)]
 pub(super) struct Mix {
     voices: HashMap<ChannelReference, Voice>,
+    scratch_lanes: Vec<(usize, usize)>,
 }
 
 struct Selected {
@@ -46,7 +47,7 @@ struct Voice {
     input: AudioInput,
     epoch: u64,
     packets: VecDeque<(Instant, NdiAudioFrame)>,
-    lanes: [Option<usize>; 2],
+    lanes: Vec<(usize, usize)>,
     gain: GainSmoother,
 }
 
@@ -66,34 +67,19 @@ impl Mix {
     ) -> (bool, bool) {
         let mut changed = false;
         self.voices.retain(|_, voice| {
-            let usable = voice.selected.channel.is_current()
-                && voice.selected.media.is_current()
-                && voice.selected.binding.routing().is_some_and(|route| {
-                    route.enabled
-                        && route
-                            .destinations
-                            .iter()
-                            .flatten()
-                            .any(|id| layout.virtual_lanes.contains_key(id))
-                });
-            changed |= !usable;
-            usable
-        });
-        if refresh {
-            changed |= self.reconcile(runtime, inputs, layout, options);
-        }
-        for voice in self.voices.values_mut() {
-            let Some(routing) = voice.selected.binding.routing().filter(|route| route.enabled) else {
-                changed |= voice.lanes != [None, None];
-                voice.lanes = [None, None];
-                continue;
+            if !voice.selected.channel.is_current() || !voice.selected.media.is_current() {
+                changed = true;
+                return false;
+            }
+            let Some(gain) = map_routes(&voice.selected.binding, layout, &mut self.scratch_lanes) else {
+                changed = true;
+                return false;
             };
-            let lanes = routing
-                .destinations
-                .map(|id| id.and_then(|id| layout.virtual_lanes.get(&id).copied()));
-            changed |= voice.lanes != lanes;
-            voice.lanes = lanes;
-            let gain = routing.gain.to_linear() * SMPTE_FULL_SCALE;
+            if voice.lanes != self.scratch_lanes {
+                std::mem::swap(&mut voice.lanes, &mut self.scratch_lanes);
+                changed = true;
+            }
+            let gain = gain.to_linear() * SMPTE_FULL_SCALE;
             if voice.gain.target() != gain {
                 voice.gain.set_target(gain, 64);
             }
@@ -113,8 +99,12 @@ impl Mix {
             {
                 voice.packets.pop_front();
             }
+            true
+        });
+        if refresh {
+            changed |= self.reconcile(runtime, inputs, layout, options);
         }
-        (self.voices.values().any(|voice| voice.lanes != [None, None]), changed)
+        (!self.voices.is_empty(), changed)
     }
 
     fn reconcile(
@@ -127,16 +117,7 @@ impl Mix {
         let mut bindings = Vec::new();
         for (id, binding) in inputs.audio_bindings() {
             binding.update_options(options);
-            if bindings.len() < MAX_SOURCES
-                && binding.routing().is_some_and(|route| {
-                    route.enabled
-                        && route
-                            .destinations
-                            .iter()
-                            .flatten()
-                            .any(|id| layout.virtual_lanes.contains_key(id))
-                })
-            {
+            if bindings.len() < MAX_SOURCES && map_routes(&binding, layout, &mut self.scratch_lanes).is_some() {
                 bindings.push((id, binding));
             }
         }
@@ -196,7 +177,7 @@ impl Mix {
                         input,
                         epoch: 0,
                         packets: VecDeque::new(),
-                        lanes: [None, None],
+                        lanes: Vec::new(),
                         gain: GainSmoother::settled(0.0),
                     },
                 );
@@ -208,13 +189,25 @@ impl Mix {
 
     pub fn render(&mut self, output: &mut [f32], present: Instant, frames: usize, rate: u32) {
         for voice in self.voices.values_mut() {
-            if voice.lanes == [None, None] || !voice.selected.channel.is_current() || !voice.selected.media.is_current()
-            {
+            if voice.lanes.is_empty() || !voice.selected.channel.is_current() || !voice.selected.media.is_current() {
                 continue;
             }
             voice.render(output, present, frames, rate);
         }
     }
+}
+
+fn map_routes(binding: &Binding, layout: &Layout, lanes: &mut Vec<(usize, usize)>) -> Option<GainDb> {
+    lanes.clear();
+    let gain = binding.visit_ndi_routes(|input, destination| {
+        if let Some(lane) = layout.virtual_lanes.get(&destination) {
+            lanes.push((input, *lane));
+        }
+    })?;
+    // An exact duplicate route must not double the amplitude of the same source plane.
+    lanes.sort_unstable();
+    lanes.dedup();
+    (!lanes.is_empty()).then_some(gain)
 }
 
 fn packet_end(start: Instant, packet: &NdiAudioFrame) -> Instant {
@@ -247,10 +240,8 @@ impl Voice {
             let before = (sample as usize).min(packet.frames() - 1);
             let after = (before + 1).min(packet.frames() - 1);
             let fraction = (sample - before as f64) as f32;
-            for (channel, lane) in self.lanes.iter().enumerate() {
-                if let Some(lane) = lane
-                    && let Some(plane) = packet.plane(channel)
-                {
+            for &(channel, lane) in &self.lanes {
+                if let Some(plane) = packet.plane(channel) {
                     output[lane * frames + frame] += (plane[before] + (plane[after] - plane[before]) * fraction) * gain;
                 }
             }

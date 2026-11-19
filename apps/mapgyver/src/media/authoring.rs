@@ -762,9 +762,24 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 if kind != node.kind() {
                     return Err("channel source does not match its media kind".into());
                 }
-                if !node.is_matrix_final() && crate::parameters::has_domain_children(engine, id) {
-                    return Err("only Matrix final channels may own domain children".into());
+                if kind == MediaKind::Ndi {
+                    for route in crate::parameters::domain_children(engine, id)? {
+                        if !matches!(engine.nodes.get(route), Some(AppNode::NdiAudioRoute(_))) {
+                            return Err("NDI channels only accept additional audio routes".into());
+                        }
+                    }
+                } else if !node.is_matrix_final() && crate::parameters::has_domain_children(engine, id) {
+                    return Err("only Matrix final and NDI channels may own domain children".into());
                 }
+            }
+            AppNode::NdiAudioRoute(node) => {
+                if !matches!(
+                    node.node_data().parent.and_then(|parent| engine.nodes.get(parent)),
+                    Some(AppNode::MediaChannel(channel)) if channel.kind() == MediaKind::Ndi
+                ) {
+                    return Err("additional audio routes belong to an NDI channel".into());
+                }
+                node.validate(engine)?;
             }
             AppNode::CompositionPlacement(node) => {
                 let parent = node.node_data().parent.ok_or("Placement has no media owner")?;

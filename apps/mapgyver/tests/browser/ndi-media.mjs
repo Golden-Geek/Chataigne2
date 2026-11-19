@@ -16,7 +16,8 @@ const output = path.resolve(process.argv[2] ?? 'target/mapgyver-ndi-media');
 await mkdir(output, { recursive: true });
 const directory = await mkdtemp(path.join(output, 'run-'));
 const providedName = `MapGyver-NDI-Media-${randomUUID()}`;
-const exerciseAudio = process.argv.includes('--audio');
+const exerciseMultichannel = process.argv.includes('--multichannel');
+const exerciseAudio = exerciseMultichannel || process.argv.includes('--audio');
 const expectBundledRuntime = process.argv.includes('--bundled-runtime');
 const initialFeed = launchSender('sender');
 let resumedFeed;
@@ -78,7 +79,8 @@ function launchSender(label) {
 			...(expectBundledRuntime
 				? ['--runtime-dir', path.resolve(path.dirname(process.env.MAPGYVER_TEST_BINARY), 'ndi')]
 				: []),
-			...(exerciseAudio ? ['--pulse-frames', '11'] : [])
+			...(exerciseAudio ? ['--pulse-frames', '11'] : []),
+			...(exerciseMultichannel ? ['--channels', '4', '--silent-channel', '3'] : [])
 		],
 		{ windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }
 	);
@@ -272,6 +274,96 @@ async function verifyAudio(page, media, reference, tab) {
 	await wait(inspectAudio, (levels) => levels[auxiliary] > 0.0005 || levels[second] > 0.0005);
 	const recovered = await record('same sender recovers both routes');
 	assert(recovered[auxiliary] > 0.0005 && recovered[second] > 0.0005, JSON.stringify(recovered));
+	if (!exerciseMultichannel) return;
+
+	stage = 'add an audio route from the NDI channel Inspector';
+	assert.equal(resumed.audio.lanes.length, 4);
+	assert.equal(resumed.audio.silent_channel, 3);
+	for (const stereo of [left, lookup(nodes, channel, 'audio_right')]) {
+		await intent({
+			kind: 'setParam',
+			node: stereo.node_id,
+			value: { Enum: 'Unassigned' },
+			behaviour: 'Append'
+		});
+	}
+	await intent({
+		kind: 'setParam',
+		node: gain.node_id,
+		value: { Float: 0 },
+		behaviour: 'Append'
+	});
+	await page
+		.locator(`.channels-section .node-inspector[data-node-id="${channel.node_id}"] > .node-header`)
+		.getByRole('button', { name: 'Add child item' })
+		.click();
+	const route = await wait(async () => {
+		const current = await snapshot();
+		const parent = current.find((entry) => entry.uuid === reference.channel);
+		const child = current.find(
+			(entry) =>
+				parent.children.includes(entry.node_id) && entry.node_type === 'mapgyver.ndi.audio_route'
+		);
+		return child
+			? {
+					node: child,
+					input: lookup(current, child, 'source_channel'),
+					destination: lookup(current, child, 'destination')
+				}
+			: null;
+	}, Boolean);
+	const destination = page.locator(
+		`.parameter-inspector[data-node-id="${route.destination.node_id}"] select`
+	);
+	await destination.locator('option', { hasText: 'NDI auxiliary' }).waitFor({ state: 'attached' });
+	await destination.selectOption(auxiliary);
+	await delay(650);
+	const silent = await record('silent plane three with stereo unassigned');
+	for (const lane of [auxiliary, first, second])
+		assert(silent[lane] < 0.0001, JSON.stringify(silent));
+
+	stage = 'mix input four independently and retire its route';
+	await intent({
+		kind: 'setParam',
+		node: route.input.node_id,
+		value: { Int: 4 },
+		behaviour: 'Append'
+	});
+	await wait(inspectAudio, (levels) => levels[auxiliary] > 0.003, 6500);
+	const fourth = await record('input four on its named output with stereo unassigned');
+	assert(
+		fourth[auxiliary] > 0.003 && fourth[first] < 0.0001 && fourth[second] < 0.0001,
+		JSON.stringify(fourth)
+	);
+	await page.keyboard.press('Escape');
+	await page
+		.getByRole('region', { name: 'Medias', exact: true })
+		.getByRole('button', { name: media.label, exact: true })
+		.click();
+	const routeToggle = page
+		.locator(
+			`.channels-section .node-inspector[data-node-id="${route.node.node_id}"] > .node-header`
+		)
+		.getByRole('switch', { name: 'Toggle node enabled', exact: true });
+	await routeToggle.click();
+	await wait(
+		() => routeToggle.getAttribute('aria-checked'),
+		(checked) => checked === 'false'
+	);
+	await delay(850);
+	const disabled = await record('additional route disabled');
+	assert(disabled[auxiliary] < 0.0001, JSON.stringify(disabled));
+	await routeToggle.click();
+	await wait(inspectAudio, (levels) => levels[auxiliary] > 0.003, 6500);
+	await intent({ kind: 'removeNode', node: route.node.node_id });
+	await delay(850);
+	const removed = await record('additional route removed');
+	assert(removed[auxiliary] < 0.0001, JSON.stringify(removed));
+	await intent({ kind: 'undo' });
+	assert((await snapshot()).some((entry) => entry.uuid === route.node.uuid));
+	await wait(inspectAudio, (levels) => levels[auxiliary] > 0.003, 6500);
+	const restored = await record('undo restores the same route');
+	assert(restored[auxiliary] > 0.003, JSON.stringify(restored));
 }
 
 try {
@@ -291,6 +383,23 @@ try {
 	stage = 'create NDI from Medias Add menu';
 	const tab = (label) => page.getByRole('tab').filter({ hasText: new RegExp(`^${label}$`) });
 	await tab('Medias').click();
+	// Auto discovery may install a preview before the explicit sender selection completes.
+	await page.evaluate(async () => {
+		const host = window.__TAURI_INTERNALS__;
+		const statuses = (window.__mapgyverNdiSmokeStatuses = new Map());
+		const handler = host.transformCallback(({ payload }) => {
+			for (const status of payload) {
+				if (status.source.kind === 'Channel') {
+					statuses.set(status.source.reference.channel, status);
+				}
+			}
+		}, false);
+		await host.invoke('plugin:event|listen', {
+			event: 'mapgyver-preview-status',
+			target: { kind: 'Any' },
+			handler
+		});
+	});
 	const manager = page.getByRole('region', { name: 'Medias', exact: true });
 	await manager
 		.locator('.manager-list-header')
@@ -338,35 +447,21 @@ try {
 	assert.equal(await picker.inputValue(), sender.name);
 
 	stage = 'verify native Media Preview source, availability and decoded extent';
-	await page.evaluate(async (expected) => {
-		const host = window.__TAURI_INTERNALS__;
-		const handler = host.transformCallback(({ payload }) => {
-			const status = payload.find(
-				(item) =>
-					item.source.kind === 'Channel' &&
-					item.source.reference.media === expected.media &&
-					item.source.reference.channel === expected.channel
-			);
-			if (status) window.__mapgyverNdiSmokeStatus = status;
-		}, false);
-		await host.invoke('plugin:event|listen', {
-			event: 'mapgyver-preview-status',
-			target: { kind: 'Any' },
-			handler
-		});
-	}, reference);
 	await tab('Media Preview').click();
 	const panel = page.locator('[data-panel-id="media-preview"]');
 	const nativeView = panel.locator('.native-preview');
 	await nativeView.waitFor();
 	preview = await wait(
 		() =>
-			nativeView.evaluate((view) => ({
-				source: JSON.parse(view.dataset.previewSource),
-				state: view.dataset.previewState,
-				installed: view.dataset.previewInstalled === 'true',
-				nativeStatus: window.__mapgyverNdiSmokeStatus ?? null
-			})),
+			nativeView.evaluate(
+				(view, channel) => ({
+					source: JSON.parse(view.dataset.previewSource),
+					state: view.dataset.previewState,
+					installed: view.dataset.previewInstalled === 'true',
+					nativeStatus: window.__mapgyverNdiSmokeStatuses.get(channel) ?? null
+				}),
+				reference.channel
+			),
 		(value) =>
 			value.state === 'available' &&
 			value.installed &&

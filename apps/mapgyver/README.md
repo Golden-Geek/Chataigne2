@@ -195,7 +195,9 @@ manually. MapGyver loads an app-local NDI 6 runtime when bundled. Developer buil
 installed runtime. A channel preserves its sender after loss
 and reconnects when it returns. Media Preview, Surfaces, References and the audio mixer share the
 same receiver. Under **Inspector → Channels → Audio**, assign **Left output** and **Right output**
-to named virtual outputs and adjust **Volume**. Disable the Audio folder to mute the channel.
+to named virtual outputs and adjust **Volume**. For inputs 3–256, use **+** on the NDI channel
+header to add an **Audio Route**, then choose its **Input channel** and **Virtual output**.
+Disable an individual Audio Route to mute it or disable the Audio folder to mute all routes.
 Virtual routing works with physical playback disabled. When both streams are active, the receiver
 uses a 90 ms playout target for incoming audio and video. [NDI qualification and Screen publishing](../../docs/plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output)
 

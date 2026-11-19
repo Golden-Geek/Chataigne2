@@ -88,8 +88,8 @@ pub struct ChannelNode {
     matrix_playback: OnceLock<crate::matrix::playback::PlaybackControl>,
     #[state(default = None)]
     video_binding: Option<Arc<super::video::bindings::Registration>>,
-    #[state(default = None)]
-    ndi_audio: Option<Arc<crate::audio::voice::Binding>>,
+    #[state(default = OnceLock::new())]
+    ndi_audio: OnceLock<Arc<crate::audio::voice::Binding>>,
     #[state(default = Default::default())]
     video_audio_option_ids: [Option<NodeUuid>; 3],
     #[state(default = None)]
@@ -405,7 +405,6 @@ impl Node for ChannelNode {
         self.bind_audio_options(ctx);
         self.bind_subtitles(ctx);
         self.register_video(ctx);
-        #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
         if self.kind() == MediaKind::Ndi {
             self.register_ndi_audio(ctx);
         }
@@ -549,7 +548,6 @@ impl Node for ChannelNode {
     }
     fn destroy(&mut self, ctx: &mut ProcessCtx) {
         self.source_lifecycle.advance();
-        #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
         if let Some(binding) = self.ndi_audio.take() {
             binding.retire();
         }
@@ -566,17 +564,26 @@ impl Node for ChannelNode {
         self.revision.advance();
     }
     fn user_container_rules(&self) -> Option<UserContainerRules> {
+        // The sparse codec builds child schema baselines before replaying Source kind.
         Some(UserContainerRules::new(&[
             crate::matrix::node::LAYER_TYPE,
             crate::matrix::node::GROUP_TYPE,
             crate::matrix::node::COLUMN_TYPE,
             crate::matrix::column_group_node::COLUMN_GROUP_TYPE,
+            crate::audio::ndi_route::TYPE,
         ]))
     }
     fn user_creatable_items(&self) -> Vec<UserCreatableItem> {
+        if self.kind() == MediaKind::Ndi {
+            let kind = crate::audio::ndi_route::TYPE;
+            return vec![UserCreatableItem::new(kind, kind, "Audio Route").with_select_when_created(false)];
+        }
         Vec::new()
     }
     fn create_user_item(&self, node_type: &str) -> Option<Box<dyn Node>> {
+        if self.kind() == MediaKind::Ndi && node_type == crate::audio::ndi_route::TYPE {
+            return Some(Box::new(crate::audio::NdiAudioRouteNode::new()));
+        }
         if self.is_matrix_final() {
             if node_type == crate::matrix::column_node::COLUMN_TYPE {
                 return Some(Box::new(crate::matrix::ColumnNode::new()));

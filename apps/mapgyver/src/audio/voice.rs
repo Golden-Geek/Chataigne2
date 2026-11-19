@@ -1,12 +1,12 @@
 //! The channel node owns routing values. Workers consume these typed, replaceable snapshots.
+use super::{ndi_route::RouteBinding, preferences};
 use golden_audio::{AudioChannelId, GainDb};
 use golden_core::{engine::NodeWaker, parameter::ParameterEnumOptions};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, Weak};
 
 pub(crate) const LEFT: &str = "8fe83692-442b-4bc0-92b8-87256dfe0001";
 pub(crate) const RIGHT: &str = "8fe83692-442b-4bc0-92b8-87256dfe0002";
 pub(crate) const UNASSIGNED: &str = preferences::UNASSIGNED;
-use super::preferences;
 
 pub(crate) fn default_options() -> ParameterEnumOptions {
     [
@@ -50,6 +50,7 @@ struct State {
     routing: Option<Routing>,
     options: Option<ParameterEnumOptions>,
     waker: Option<NodeWaker>,
+    additional_routes: Vec<Weak<RouteBinding>>,
 }
 
 #[derive(Default)]
@@ -64,9 +65,10 @@ impl Binding {
         self.0.lock().unwrap().routing = Some(routing);
     }
 
-    #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
     pub fn retire(&self) {
-        self.0.lock().unwrap().routing = None;
+        let mut state = self.0.lock().unwrap();
+        state.routing = None;
+        state.additional_routes.clear();
     }
 
     pub fn options(&self) -> Option<ParameterEnumOptions> {
@@ -78,6 +80,32 @@ impl Binding {
         self.0.lock().unwrap().routing
     }
 
+    pub fn register_ndi_route(&self, route: &Arc<RouteBinding>) {
+        let mut state = self.0.lock().unwrap();
+        state.additional_routes.retain(|prior| prior.strong_count() != 0);
+        state.additional_routes.push(Arc::downgrade(route));
+        if let Some(options) = &state.options {
+            route.update_options(options);
+        }
+    }
+
+    #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
+    pub fn visit_ndi_routes(&self, mut visit: impl FnMut(usize, AudioChannelId)) -> Option<GainDb> {
+        let state = self.0.lock().unwrap();
+        let routing = state.routing.filter(|routing| routing.enabled)?;
+        for (source, destination) in routing.destinations.into_iter().enumerate() {
+            if let Some(destination) = destination {
+                visit(source, destination);
+            }
+        }
+        for route in state.additional_routes.iter().filter_map(Weak::upgrade) {
+            if let Some((source, destination)) = route.route() {
+                visit(source, destination);
+            }
+        }
+        Some(routing.gain)
+    }
+
     #[cfg(feature = "video-files")]
     pub fn update_options(&self, options: &ParameterEnumOptions) {
         let mut state = self.0.lock().unwrap();
@@ -85,6 +113,14 @@ impl Binding {
             return;
         }
         state.options = Some(options.clone());
+        state.additional_routes.retain(|route| {
+            if let Some(route) = route.upgrade() {
+                route.update_options(options);
+                true
+            } else {
+                false
+            }
+        });
         let waker = state.waker.clone();
         drop(state);
         if let Some(waker) = waker {

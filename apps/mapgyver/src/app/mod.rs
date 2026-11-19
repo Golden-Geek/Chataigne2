@@ -10,6 +10,7 @@ golden_core::define_node_enum!(
         ReferenceMedia(crate::media::ReferenceNode),
         ReferenceOutput(crate::media::ReferenceOutputNode),
         MediaChannel(crate::media::ChannelNode),
+        NdiAudioRoute(crate::audio::NdiAudioRouteNode),
         MediaCommand(crate::media::MediaCommandNode),
         MediaAsset(crate::media::AssetNode),
         Application(crate::applications::AppControlNode),
