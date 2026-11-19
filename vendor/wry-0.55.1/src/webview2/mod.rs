@@ -904,7 +904,14 @@ impl InnerWebView {
 
         let js = {
           let mut js = PWSTR::null();
-          args.TryGetWebMessageAsString(&mut js)?;
+          if let Err(error) = args.TryGetWebMessageAsString(&mut js) {
+            // Object messages belong to other WebView2 listeners, such as an app's file-drop host.
+            return if error.code() == E_INVALIDARG {
+              Ok(())
+            } else {
+              Err(error)
+            };
+          }
           take_pwstr(js)
         };
 

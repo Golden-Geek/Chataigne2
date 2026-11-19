@@ -1,11 +1,14 @@
-//! Picture import creates one owned media tree or edits an existing channel, never an asset.
+//! Importing a file builds one owned Media tree or edits an existing channel's typed File.
 use super::{
     authoring::{channel, configure_channel, label_with_reserved, manager, media_tree},
     protocol::*,
 };
 use crate::app::AppEngine;
+use crate::app::AppNode;
+use golden_assets::AbsoluteAssetPath;
 use golden_core::edit::Edit;
-use golden_core::node::Node;
+use golden_core::node::{Node, NodeId, NodeUuid};
+use std::path::Path;
 
 pub(super) fn picture(
     engine: &mut AppEngine,
@@ -25,18 +28,80 @@ pub(super) fn picture(
         reference
     } else {
         let parent = manager(engine)?;
-        let label = label_with_reserved(engine, parent, label, MediaKind::Picture.default_label(), &[])?;
-        let definition = ChannelDefinition {
-            source,
-            ..ChannelDefinition::for_media(MediaKind::Picture)
-        };
-        let (tree, reference) = media_tree(label, definition);
-        engine.edits.push(Edit::AddUserItemTree {
-            parent,
-            prev_sibling: engine.nodes.get(parent).and_then(|node| node.node_data().last_child),
-            tree,
-        });
-        reference
+        append(engine, parent, source, label)?
     };
     Ok(MediaEditResult::PictureImported { reference })
+}
+
+pub(super) fn drop_file(
+    engine: &mut AppEngine,
+    path: AbsoluteAssetPath,
+    target: Option<NodeUuid>,
+) -> Result<MediaEditResult, String> {
+    let label = Path::new(path.as_str())
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .filter(|stem| !stem.trim().is_empty() && stem.len() <= 240)
+        .map(str::to_owned);
+    let source = file_source(path)?;
+    let parent = match target {
+        Some(uuid) => {
+            let node = engine.node_id_by_uuid(uuid).ok_or("File drop target is missing")?;
+            match engine.nodes.get(node) {
+                Some(AppNode::MediaFolder(_)) => super::folders::parent(engine, Some(uuid))?,
+                Some(AppNode::Media(_)) => {
+                    let reference = super::MediaSource {
+                        media: MediaId(uuid),
+                        channel: None,
+                    }
+                    .output(engine)?
+                    .ok_or("File drop target has no channel")?;
+                    configure_channel(engine, reference, source)?;
+                    return Ok(MediaEditResult::Changed);
+                }
+                _ => return Err("Drop a file on Medias, a folder, or a compatible Media".into()),
+            }
+        }
+        None => manager(engine)?,
+    };
+    let reference = append(engine, parent, source, label)?;
+    Ok(MediaEditResult::Created { reference })
+}
+
+fn file_source(path: AbsoluteAssetPath) -> Result<ChannelSource, String> {
+    let extension = Path::new(path.as_str())
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let file = Some(AssetLocator::Absolute { path });
+    match extension.as_str() {
+        "png" | "jpg" | "jpeg" | "webp" => Ok(ChannelSource::Picture { file }),
+        "mp4" | "mov" | "mkv" | "m4v" | "webm" | "avi" | "mpg" | "mpeg" | "ts" | "m2ts" | "wmv"
+            if cfg!(feature = "video-files") =>
+        {
+            Ok(ChannelSource::Video { file })
+        }
+        _ => Err("This file is not a supported picture or video".into()),
+    }
+}
+
+fn append(
+    engine: &mut AppEngine,
+    parent: NodeId,
+    source: ChannelSource,
+    label: Option<String>,
+) -> Result<ChannelReference, String> {
+    let definition = ChannelDefinition {
+        source,
+        ..ChannelDefinition::default()
+    };
+    let label = label_with_reserved(engine, parent, label, definition.media_kind().default_label(), &[])?;
+    let (tree, reference) = media_tree(label, definition);
+    engine.edits.push(Edit::AddUserItemTree {
+        parent,
+        prev_sibling: engine.nodes.get(parent).and_then(|node| node.node_data().last_child),
+        tree,
+    });
+    Ok(reference)
 }

@@ -174,6 +174,8 @@ fn create_main_window<R: Runtime>(
     native_underlay: bool,
     automation_webview: Option<(NonZeroU16, &std::path::Path)>,
 ) -> io::Result<tauri::WebviewWindow<R>> {
+    #[cfg(target_os = "windows")]
+    let frontend = url.clone();
     let mut builder = tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
         .title(title)
         .decorations(false)
@@ -208,6 +210,10 @@ fn create_main_window<R: Runtime>(
     let window = builder
         .build()
         .map_err(|err| Error::other(format!("failed creating Tauri window: {err}")))?;
+    #[cfg(target_os = "windows")]
+    if let Err(error) = crate::file_drop::attach(&window, frontend) {
+        eprintln!("warning: could not register desktop file drops: {error}");
+    }
     restore_window_state(&window, window_state);
     Ok(window)
 }

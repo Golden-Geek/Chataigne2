@@ -362,6 +362,12 @@ pub enum MediaEdit {
         target: Option<ChannelReference>,
         label: Option<String>,
     },
+    /// Import a native file in Medias or replace the primary channel on a compatible Media.
+    DropMediaFile {
+        path: golden_assets::AbsoluteAssetPath,
+        #[ts(type = "string | null")]
+        target: Option<NodeUuid>,
+    },
     ImportAsset {
         locator: AssetLocator,
         label: Option<String>,

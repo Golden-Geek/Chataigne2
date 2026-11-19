@@ -43,7 +43,11 @@ crates/
 App metadata comes from the engine's pure `ProjectLifecycle` hooks; shared desktop listener and
 frontend defaults come from `DesktopHostConfig`. The desktop host's `native_presentation/`
 owns the optional typed UI/worker/retirement boundary, while `desktop_window.rs` owns Tauri
-window construction and its event-loop adapter. `services/protocol/` owns discovery and UI DTOs,
+window construction and its event-loop adapter. On Windows, `file_drop.rs` resolves paths from
+WebView2's native File objects for Golden UI's reusable file-drop feedback. Apps own the
+destination-specific edits. [WebView2 File objects](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/javascript/webview)
+
+`services/protocol/` owns discovery and UI DTOs,
 generated into `packages/golden-ui/generated/rust_protocol/`; the current protocol is `0.13.0`
 and the discovery route is `/.well-known/golden-ui`. `services/persistence/` owns the required
 application-ID envelope for full app projects, while generic graph, subtree and Preferences

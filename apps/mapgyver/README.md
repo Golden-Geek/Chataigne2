@@ -216,6 +216,10 @@ Use **Add NDI audio route** for stream channels 3–256 and select a **Virtual o
 route. Unassigned stream channels are silent. Publishing audio works with physical playback disabled.
 [Screen output qualification](../../docs/plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output)
 
+On Windows, drop a picture or video on the **Medias** background or a media folder to create a
+Media linked to that file. Drop a compatible file on a Picture or Video row to update its
+first channel. Each drop handles one file and has one Undo step.
+
 The Picture editor accepts explicit project-relative or absolute host paths; the native
 desktop also offers Golden's file picker. This is source-file linking, not a browser upload.
 Asset path validation, ID/label allocation and all domain changes stay in Rust. Worker

@@ -6,6 +6,8 @@ mod desktop;
 mod desktop_commands;
 mod desktop_window;
 mod displays;
+#[cfg(target_os = "windows")]
+mod file_drop;
 mod headless_shutdown;
 mod host_config;
 mod host_services;

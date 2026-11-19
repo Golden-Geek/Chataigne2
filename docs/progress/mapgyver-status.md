@@ -2,10 +2,10 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `████████░░` **82% — 119/145 checks accepted, 8/19 phases complete**.
-- **Latest delivered:** NDI appears in the Windows x64 package on first launch. Screens publish picture and routed virtual audio with physical playback off. An independent receiver verified two distinct audio channels and silence on an unassigned channel. [Checks](evidence/mapgyver-m17-ndi-screen-audio-2026-11-19.json)
+- **Latest delivered:** The Windows Medias panel imports a dropped file or updates a compatible row, with an animated target highlight. Native WebView2 checks covered full paths, replacement, Undo, reload and unsupported files. [Checks](evidence/mapgyver-m18-medias-file-drop-2026-11-19.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** M18/1 OS file drag-and-drop. NDI’s clean-install and cross-machine qualification stay in the return queue.
+- **Active:** M18/1 OS file drag-and-drop. Next are Screen Warping and Composition drops, then Matrix and `.exe` drops. File Explorer verification remains pending.
 
 ## Done — code and normal-use checks passed
 
@@ -76,7 +76,7 @@
 
 [Feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi) adds six tasks in order.
 
-1. **OS file drag-and-drop.** Import or assign files in Medias, Screen Warping, Composition and Matrix, with clear drop feedback and `.exe` drops for App Control.
+1. **OS file drag-and-drop.** Medias import and replacement work in the Windows WebView2 check. Screen Warping, Composition, Matrix, `.exe` App Control assignment and File Explorer drops remain. [Medias checks](evidence/mapgyver-m18-medias-file-drop-2026-11-19.json)
 2. **Project Settings.** Save settings per project and open them from the File menu or top bar. Add a separate Preferences icon.
 3. **File Explorer.** Browse the project folder in tree or thumbnail view, choose a custom folder and drag files into Media targets.
 4. **Shader Media.** Play GLSL, ShaderToy and ISF shaders, edit embedded code or reload external files, expose parameters and texture inputs, and browse the Shader Library.

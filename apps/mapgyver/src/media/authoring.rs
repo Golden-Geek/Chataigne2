@@ -311,6 +311,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             let parent = manager(engine)?;
             create_media(engine, parent, media_kind, requested)?
         }
+        MediaEdit::DropMediaFile { path, target } => super::importing::drop_file(engine, path, target)?,
         MediaEdit::CreateMediaInFolder {
             folder,
             media_kind,
