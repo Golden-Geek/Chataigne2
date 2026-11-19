@@ -40,6 +40,7 @@ pub(super) fn ordered(
     mut budget: usize,
     mut guard_budget: usize,
     mut extra_passes: usize,
+    shader_work: impl Fn(&CapturedChannel) -> (usize, usize),
 ) -> Result<(Vec<ChannelReference>, HashSet<ChannelReference>), String> {
     let channels = capture
         .channels
@@ -73,8 +74,10 @@ pub(super) fn ordered(
             states.insert(reference, 1);
             pending.push((reference, true));
             if channel.enabled && channel.derived() {
-                let extra = usize::from(channel.matrix.as_ref().is_some_and(|matrix| matrix.needs_scratch()));
-                let count = channel.dependencies().count() + extra;
+                let matrix_extra = usize::from(channel.matrix.as_ref().is_some_and(|matrix| matrix.needs_scratch()));
+                let (shader_passes, shader_dependencies) = shader_work(channel);
+                let extra = matrix_extra + shader_passes;
+                let count = channel.dependencies().count() + matrix_extra + shader_dependencies;
                 match channel.instances.is_some()
                     || channel.matrix.is_some()
                     || channel.definition.as_ref().is_some_and(|definition| {

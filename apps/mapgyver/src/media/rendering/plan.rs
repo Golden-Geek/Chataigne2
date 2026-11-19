@@ -182,6 +182,8 @@ pub(super) fn build(
         .saturating_sub(guards.len())
         .saturating_sub(observations.sources.len())
         .saturating_sub(image_guards);
+    #[cfg(all(windows, feature = "native-video"))]
+    let shader_passes = super::shaders::passes::prepare(shaders, capture, limits.max_texture_dimension);
     let (references, mut rejected) = super::derived::ordered(
         capture,
         &roots,
@@ -192,6 +194,13 @@ pub(super) fn build(
             .saturating_sub(channel_passes)
             .saturating_sub(screen_count)
             .saturating_sub(preview_passes),
+        |_channel| {
+            #[cfg(all(windows, feature = "native-video"))]
+            if let Some(Ok(passes)) = shader_passes.get(&_channel.reference) {
+                return passes.work(&_channel.shader_inputs);
+            }
+            (0, 0)
+        },
     )?;
     for reference in references {
         if let std::collections::hash_map::Entry::Vacant(slot) = entries.entry(reference) {
@@ -207,6 +216,7 @@ pub(super) fn build(
                     subtitles: None,
                     sender_external_only: false,
                     scratch: None,
+                    shader_buffers: Vec::new(),
                 },
             };
             let mut resolution = ChannelResolution {
@@ -427,11 +437,7 @@ pub(super) fn build(
                             .map_err(|error| error.to_string())?,
                     );
                 }
-                Some(ChannelSource::Shader {
-                    format: _format,
-                    input: _input,
-                    ..
-                }) => {
+                Some(ChannelSource::Shader { .. }) => {
                     entry.source = None;
                     resolution =
                         resolution::resolve(channel.definition.as_ref().unwrap(), SourceObservation::Unavailable)?;
@@ -439,27 +445,20 @@ pub(super) fn build(
                     if rejected.contains(&reference) {
                         resolution.availability = ChannelAvailability::Incompatible;
                     } else {
-                        match shaders.map_or(Ok(None), |shaders| shaders.program(*_format, _input)) {
-                            Ok(Some(program)) => {
-                                let sampled = program.sampled_inputs();
+                        match shader_passes.get(&reference) {
+                            Some(Ok(passes)) => {
                                 let inputs = std::array::from_fn(|slot| {
                                     let input = channel.shader_inputs[slot]?;
-                                    if !sampled[slot] {
-                                        return None;
-                                    }
                                     prepared_channels
                                         .get(&input)
                                         .filter(|input| input.resolution.availability == ChannelAvailability::Ready)
                                         .map(|input| input.target)
                                 });
                                 resolution.availability = ChannelAvailability::Ready;
-                                operation = RenderOperation::Shader {
-                                    program: program.clone(),
-                                    inputs,
-                                };
+                                operation = passes.append(&mut submission.plan.passes, &mut entry, inputs, next)?;
                             }
-                            Err(availability) => resolution.availability = availability,
-                            Ok(_) => {}
+                            Some(Err(availability)) => resolution.availability = *availability,
+                            None => {}
                         }
                     }
                 }
@@ -650,7 +649,11 @@ pub(super) fn build(
     channels.retain(|channel| live.contains(&channel.reference));
     let targets = entries
         .values()
-        .flat_map(|entry| std::iter::once(entry.target).chain(entry.scratch))
+        .flat_map(|entry| {
+            std::iter::once(entry.target)
+                .chain(entry.scratch)
+                .chain(entry.shader_buffers.iter().copied())
+        })
         .collect::<HashSet<_>>();
     let sources = entries
         .values()

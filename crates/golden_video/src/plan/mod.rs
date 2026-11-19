@@ -98,7 +98,11 @@ pub enum RenderOperation {
         /// Validated fragment bytecode and its input layout.
         program: crate::shader::FragmentProgram,
         /// Linear premultiplied 2D textures. Empty slots sample transparent black.
-        inputs: [Option<TextureId>; crate::shader::TEXTURE_INPUTS],
+        inputs: [Option<TextureId>; crate::shader::TEXTURE_BINDINGS],
+        /// Stages of the same effect share their frame index and frame delta.
+        clock: PassId,
+        /// The logical pass index within this effect, even if earlier unused draws are pruned.
+        index: u8,
     },
     /// Keep an existing pass target's image in the same project and device. If its exact
     /// ID and descriptor do not still own a written allocation, initialize it to transparent.

@@ -4,7 +4,7 @@ use golden_time::{PlaybackRate, ShowPosition, SystemClock, TimeAuthority};
 
 use super::*;
 use crate::native::tests::pixels::readback;
-use crate::shader::{FragmentFormat, FragmentProgram, TEXTURE_INPUTS};
+use crate::shader::{FragmentFormat, FragmentProgram, TEXTURE_BINDINGS};
 
 #[test]
 #[ignore = "requires an explicitly available Windows hardware D3D11 adapter"]
@@ -35,7 +35,14 @@ fn hardware_shader_uses_target_coordinates_time_and_premultiplied_alpha() {
     .unwrap();
     let shader = ShaderPass::new(Rc::new(ShaderDraw::new(&gpu.device, &program).unwrap()));
     let mut time = TimeAuthority::new(SystemClock::new(), ShowPosition::from_nanos(0), PlaybackRate::PAUSED).unwrap();
-    pipeline.draw_shader(&gpu.context, &target, &shader, [None; 4], time.sample().unwrap());
+    pipeline.draw_shader(
+        &gpu.context,
+        &target,
+        &shader,
+        [None; TEXTURE_BINDINGS],
+        0,
+        time.sample().unwrap(),
+    );
     assert_eq!(
         readback(&gpu, &target),
         [[0, 0, 128, 128], [0, 128, 128, 128], [0; 4], [0; 4]]
@@ -44,7 +51,7 @@ fn hardware_shader_uses_target_coordinates_time_and_premultiplied_alpha() {
     let later = time
         .discontinuity(ShowPosition::from_nanos(2_000_000_000), PlaybackRate::PAUSED)
         .unwrap();
-    pipeline.draw_shader(&gpu.context, &target, &shader, [None; 4], later);
+    pipeline.draw_shader(&gpu.context, &target, &shader, [None; TEXTURE_BINDINGS], 0, later);
     assert_eq!(
         readback(&gpu, &target),
         [[128, 0, 128, 128], [128, 128, 128, 128], [0; 4], [0; 4]]
@@ -97,7 +104,7 @@ fn hardware_shadertoy_and_isf_use_bottom_left_coordinates_and_per_pass_frames() 
             TimeAuthority::new(SystemClock::new(), ShowPosition::from_nanos(0), PlaybackRate::PAUSED).unwrap();
         let first = time.sample().unwrap();
         let initial = [[255, 0, 0, 255], [255, 0, 0, 255], [0, 0, 0, 255], [0, 0, 0, 255]];
-        pipeline.draw_shader(&gpu.context, &target, &primary, [None; 4], first);
+        pipeline.draw_shader(&gpu.context, &target, &primary, [None; TEXTURE_BINDINGS], 0, first);
         assert_eq!(readback(&gpu, &target), initial, "{format:?}");
         let next = time.sample().unwrap();
         let advanced = [
@@ -107,10 +114,10 @@ fn hardware_shadertoy_and_isf_use_bottom_left_coordinates_and_per_pass_frames() 
             [0, 255, 255, 255],
         ];
         for _ in 0..2 {
-            pipeline.draw_shader(&gpu.context, &target, &primary, [None; 4], next);
+            pipeline.draw_shader(&gpu.context, &target, &primary, [None; TEXTURE_BINDINGS], 0, next);
             assert_eq!(readback(&gpu, &target), advanced, "{format:?}");
         }
-        pipeline.draw_shader(&gpu.context, &target, &secondary, [None; 4], next);
+        pipeline.draw_shader(&gpu.context, &target, &secondary, [None; TEXTURE_BINDINGS], 0, next);
         assert_eq!(readback(&gpu, &target), initial, "{format:?}");
     }
 }
@@ -147,8 +154,8 @@ fn hardware_shader_inputs_preserve_orientation_and_alpha_and_clear_when_unbound(
         .unwrap()
         .sample()
         .unwrap();
-    let empty = [None; TEXTURE_INPUTS];
-    pipeline.draw_shader(&gpu.context, &source, &producer, empty, time);
+    let empty = [None; TEXTURE_BINDINGS];
+    pipeline.draw_shader(&gpu.context, &source, &producer, empty, 0, time);
     let expected = [[128, 0, 0, 128], [128, 0, 0, 128], [0, 255, 0, 255], [0, 255, 0, 255]];
     for (format, code, slot) in [
         (
@@ -171,9 +178,9 @@ fn hardware_shader_inputs_preserve_orientation_and_alpha_and_clear_when_unbound(
         let consumer = compile(format, code);
         let mut inputs = empty;
         inputs[slot] = Some(&source);
-        pipeline.draw_shader(&gpu.context, &target, &consumer, inputs, time);
+        pipeline.draw_shader(&gpu.context, &target, &consumer, inputs, 0, time);
         assert_eq!(readback(&gpu, &target), expected, "{format:?}");
-        pipeline.draw_shader(&gpu.context, &target, &consumer, empty, time);
+        pipeline.draw_shader(&gpu.context, &target, &consumer, empty, 0, time);
         assert_eq!(readback(&gpu, &target), [[0; 4]; 4], "{format:?}");
     }
 }

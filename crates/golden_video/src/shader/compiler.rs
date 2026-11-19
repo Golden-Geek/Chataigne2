@@ -6,7 +6,9 @@ use naga::{AddressSpace, Binding, BuiltIn, ResourceBinding, ShaderStage, TypeInn
 use windows::Win32::Graphics::Direct3D::{Fxc::D3DCompile, ID3DBlob};
 use windows::core::{PCSTR, s};
 
-use super::{FragmentFormat, MAX_SOURCE_BYTES, TEXTURE_INPUTS, adapter};
+use super::stages::{FragmentStage, Stage};
+use super::{FragmentFormat, MAX_SOURCE_BYTES, TEXTURE_BINDINGS, TEXTURE_INPUTS, adapter};
+use crate::TextureDescriptor;
 
 const MAX_BYTECODE_BYTES: usize = 256 * 1024;
 const FRAME_BINDING: ResourceBinding = ResourceBinding { group: 0, binding: 0 };
@@ -15,14 +17,16 @@ const FRAME_BINDING: ResourceBinding = ResourceBinding { group: 0, binding: 0 };
 #[derive(Clone)]
 pub struct FragmentProgram {
     bytecode: Arc<[u8]>,
-    sampled_inputs: [bool; TEXTURE_INPUTS],
+    sampled_bindings: [bool; TEXTURE_BINDINGS],
+    stages: Arc<[Stage]>,
 }
 
 impl fmt::Debug for FragmentProgram {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FragmentProgram")
             .field("bytecode_bytes", &self.bytecode.len())
-            .field("sampled_inputs", &self.sampled_inputs)
+            .field("sampled_bindings", &self.sampled_bindings)
+            .field("stages", &self.stages.len())
             .finish()
     }
 }
@@ -48,14 +52,14 @@ impl FragmentProgram {
         Self::compile(FragmentFormat::Glsl, source)
     }
 
-    /// Compile a single fragment pass in the selected source dialect, away from render and engine threads.
-    /// ShaderToy supports Image passes. ISF supports single passes with scalar and vector defaults.
+    /// Compile fragment source and its pass layout away from render and engine threads.
+    /// ShaderToy supports Image passes. ISF supports ordered temporary buffers and input defaults.
     /// Both dialects receive bottom-left coordinates, frame timing and up to four 2D inputs.
     pub fn compile(format: FragmentFormat, source: &str) -> Result<Self, CompileError> {
         if source.trim().is_empty() || source.len() > MAX_SOURCE_BYTES {
             return Err(CompileError::Size);
         }
-        let glsl = adapter::fragment_source(format, source)?;
+        let (glsl, stages) = adapter::fragment_source(format, source)?;
         let module = glsl::Frontend::default()
             .parse(&glsl::Options::from(ShaderStage::Fragment), &glsl)
             .map_err(|error| CompileError::Invalid(error.emit_to_string(&glsl)))?;
@@ -82,7 +86,7 @@ impl FragmentProgram {
             ..Default::default()
         };
         options.binding_map.insert(FRAME_BINDING, hlsl::BindTarget::default());
-        let mut sampled_inputs = [false; TEXTURE_INPUTS];
+        let mut sampled_bindings = [false; TEXTURE_BINDINGS];
         for (handle, global) in module.global_variables.iter() {
             if global.space == AddressSpace::Private
                 || (global.space == AddressSpace::Uniform
@@ -102,7 +106,7 @@ impl FragmentProgram {
                     ..Default::default()
                 },
             );
-            sampled_inputs[slot] = !info.get_entry_point(0)[handle].is_empty();
+            sampled_bindings[slot] = !info.get_entry_point(0)[handle].is_empty();
         }
         let mut hlsl = String::new();
         let reflection = hlsl::Writer::new(&mut hlsl, &options, &Default::default())
@@ -115,7 +119,8 @@ impl FragmentProgram {
             .ok_or_else(|| CompileError::Invalid("Missing fragment entry point".into()))?;
         Ok(Self {
             bytecode: Self::compile_hlsl(&hlsl, entry)?,
-            sampled_inputs,
+            sampled_bindings,
+            stages: stages.into(),
         })
     }
 
@@ -160,9 +165,23 @@ impl FragmentProgram {
         Ok(Arc::from(code))
     }
 
-    /// Which input bindings are used by the validated fragment entry point.
+    /// Which Media input bindings are used by the validated fragment entry point.
     pub fn sampled_inputs(&self) -> [bool; TEXTURE_INPUTS] {
-        self.sampled_inputs
+        std::array::from_fn(|index| self.sampled_bindings[index])
+    }
+
+    /// Which Media and temporary buffer bindings are used by this program.
+    pub fn sampled_bindings(&self) -> [bool; TEXTURE_BINDINGS] {
+        self.sampled_bindings
+    }
+
+    /// Resolve ordered draws using the requested output dimensions.
+    pub fn stage_layout(&self, output: TextureDescriptor) -> Result<Vec<FragmentStage>, CompileError> {
+        self.stages.iter().map(|pass| pass.resolve(output)).collect()
+    }
+
+    pub(crate) fn retained_bytes(&self) -> usize {
+        self.bytecode.len() + self.stages.iter().map(Stage::retained_bytes).sum::<usize>() + 4 * size_of::<usize>()
     }
 
     pub(crate) fn bytecode(&self) -> &[u8] {

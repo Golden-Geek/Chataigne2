@@ -2,12 +2,21 @@
 
 use std::fmt::Write;
 
-use super::{CompileError, FragmentFormat, TEXTURE_INPUTS};
+use super::stages::Stage;
+use super::{CompileError, FragmentFormat, TEXTURE_BINDINGS, TEXTURE_INPUTS};
 
 mod isf;
 
-pub(super) const TEXTURE_NAMES: [&str; TEXTURE_INPUTS] =
-    ["goldenMedia0", "goldenMedia1", "goldenMedia2", "goldenMedia3"];
+pub(super) const TEXTURE_NAMES: [&str; TEXTURE_BINDINGS] = [
+    "goldenMedia0",
+    "goldenMedia1",
+    "goldenMedia2",
+    "goldenMedia3",
+    "goldenBuffer0",
+    "goldenBuffer1",
+    "goldenBuffer2",
+    "goldenBuffer3",
+];
 
 // Texture loads keep filtering in Shader Model 5.0 without a sampler descriptor heap.
 const SAMPLE_TEXTURE: &str = r#"
@@ -82,7 +91,12 @@ const ISF_IMAGES: &str = r#"
 
 fn textures(format: FragmentFormat) -> String {
     let mut source = String::new();
-    for (slot, name) in TEXTURE_NAMES.iter().enumerate() {
+    let count = if format == FragmentFormat::Isf {
+        TEXTURE_BINDINGS
+    } else {
+        TEXTURE_INPUTS
+    };
+    for (slot, name) in TEXTURE_NAMES.iter().take(count).enumerate() {
         writeln!(source, "layout(binding = {}) uniform texture2D {name};", slot + 1).unwrap();
         if format != FragmentFormat::Isf {
             writeln!(source, "#define iChannel{slot} {name}").unwrap();
@@ -100,19 +114,20 @@ fn textures(format: FragmentFormat) -> String {
     source
 }
 
-pub(super) fn fragment_source(format: FragmentFormat, source: &str) -> Result<String, CompileError> {
+pub(super) fn fragment_source(format: FragmentFormat, source: &str) -> Result<(String, Vec<Stage>), CompileError> {
     let source = source.trim_start_matches('\u{feff}').trim_start();
-    let (source, prelude, declarations, call) = match format {
-        FragmentFormat::Glsl => (source, GLSL, String::new(), "goldenUserMain();"),
+    let (source, prelude, declarations, stages, call) = match format {
+        FragmentFormat::Glsl => (source, GLSL, String::new(), vec![Stage::default()], "goldenUserMain();"),
         FragmentFormat::ShaderToy => (
             source,
             SHADERTOY,
             String::new(),
+            vec![Stage::default()],
             "mainImage(goldenOutput, gl_FragCoord.xy);",
         ),
         FragmentFormat::Isf => {
-            let (body, declarations) = isf::single_pass(source)?;
-            (body, ISF, declarations, "goldenUserMain();")
+            let (body, declarations, stages) = isf::source(source)?;
+            (body, ISF, declarations, stages, "goldenUserMain();")
         }
     };
     let coordinates = match format {
@@ -126,9 +141,10 @@ pub(super) fn fragment_source(format: FragmentFormat, source: &str) -> Result<St
     } else {
         source
     };
-    Ok(format!(
+    let text = format!(
         "#version 450 core\n{FRAME}\n{coordinates}\n{prelude}\n{textures}\n{declarations}\n{source}\n\
          #undef main\nvoid main() {{\n    goldenOutput = vec4(0.0);\n    {call}\n\
          goldenOutput.a = clamp(goldenOutput.a, 0.0, 1.0);\n    goldenOutput.rgb *= goldenOutput.a;\n}}\n"
-    ))
+    );
+    Ok((text, stages))
 }

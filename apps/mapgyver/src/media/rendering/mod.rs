@@ -50,6 +50,7 @@ struct Entry {
     subtitles: Option<(TextureId, uuid::Uuid)>,
     sender_external_only: bool,
     scratch: Option<TextureId>,
+    shader_buffers: Vec<TextureId>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -384,6 +385,7 @@ impl ChannelRenderer {
                 self.limits.max_dependencies,
                 self.limits.max_dependencies,
                 self.limits.max_passes.saturating_sub(derived::base_passes(&capture)),
+                |_| (0, 0),
             )?
             .0;
             if let Some(pictures) = &mut self.pictures {

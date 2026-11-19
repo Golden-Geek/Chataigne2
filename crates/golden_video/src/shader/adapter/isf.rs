@@ -1,22 +1,70 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Write;
 
 use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::Value;
 
 use super::TEXTURE_NAMES;
-use crate::shader::CompileError;
+use crate::shader::stages::{Dimension, Stage};
+use crate::shader::{CompileError, TEMPORARY_BUFFERS, TEXTURE_INPUTS};
 
 const MAX_INPUTS: usize = 64;
+const MAX_PASSES: usize = 8;
 
 #[derive(Deserialize)]
 struct Header {
     #[serde(rename = "INPUTS", default)]
     inputs: Vec<Input>,
     #[serde(rename = "PASSES", default)]
-    passes: Vec<BTreeMap<String, Value>>,
+    passes: Vec<Pass>,
     #[serde(rename = "IMPORTED", default)]
     imported: BTreeMap<String, Value>,
+}
+
+#[derive(Deserialize)]
+struct Pass {
+    #[serde(rename = "TARGET")]
+    target: Option<String>,
+    #[serde(rename = "WIDTH")]
+    width: Option<Size>,
+    #[serde(rename = "HEIGHT")]
+    height: Option<Size>,
+    #[serde(rename = "FLOAT")]
+    float: Option<Flag>,
+    #[serde(rename = "PERSISTENT")]
+    persistent: Option<Flag>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum Size {
+    Equation(String),
+    Pixels(f64),
+}
+
+impl Size {
+    fn parse(&self, defaults: &BTreeMap<&str, f64>) -> Result<Dimension, CompileError> {
+        match self {
+            Self::Equation(equation) => Dimension::parse(equation, defaults),
+            Self::Pixels(value) => Dimension::parse(&value.to_string(), defaults),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum Flag {
+    Bool(bool),
+    Number(f64),
+}
+
+impl Flag {
+    fn enabled(&self) -> bool {
+        match self {
+            Self::Bool(value) => *value,
+            Self::Number(value) => *value > 0.0,
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -51,15 +99,15 @@ enum InputType {
     AudioFft,
 }
 
-pub(super) fn single_pass(source: &str) -> Result<(&str, String), CompileError> {
+pub(super) fn source(source: &str) -> Result<(&str, String, Vec<Stage>), CompileError> {
     let (json, body) = source
         .strip_prefix("/*")
         .and_then(|comment| comment.split_once("*/"))
         .ok_or_else(|| invalid("ISF source must begin with its JSON metadata comment"))?;
     let header =
         serde_json::from_str::<Header>(json).map_err(|error| invalid(format!("Invalid ISF metadata: {error}")))?;
-    if header.passes.len() > 1 || header.passes.iter().any(|pass| !pass.is_empty()) {
-        return Err(invalid("ISF pass targets require multipass playback"));
+    if header.passes.len() > MAX_PASSES {
+        return Err(invalid("Too many ISF passes"));
     }
     if !header.imported.is_empty() {
         return Err(invalid("ISF imported images require texture inputs"));
@@ -69,18 +117,12 @@ pub(super) fn single_pass(source: &str) -> Result<(&str, String), CompileError> 
     }
 
     let mut names = HashSet::new();
-    let mut images = TEXTURE_NAMES.into_iter();
+    let mut images = TEXTURE_NAMES[..TEXTURE_INPUTS].iter();
     let mut declarations = String::new();
-    for input in header.inputs {
+    let mut defaults = BTreeMap::new();
+    for input in &header.inputs {
         let name = input.name.as_str();
-        let mut bytes = name.bytes();
-        if !bytes
-            .next()
-            .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_')
-            || !bytes.all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
-            || name.starts_with("gl_")
-            || !names.insert(input.name.clone())
-        {
+        if !valid_name(name) || !names.insert(name) {
             return Err(invalid("Invalid or duplicate ISF input name"));
         }
         if matches!(input.kind, InputType::Image) {
@@ -89,12 +131,88 @@ pub(super) fn single_pass(source: &str) -> Result<(&str, String), CompileError> 
         } else {
             let (ty, literal) = input.literal()?;
             writeln!(declarations, "const {ty} {name} = {literal};").unwrap();
+            if let Some(default) = input.scalar_default() {
+                defaults.insert(name, default);
+            }
         }
     }
-    Ok((body, declarations))
+    let stages = if header.passes.is_empty() {
+        vec![Stage::default()]
+    } else {
+        stages(&header.passes, &mut names, &defaults, &mut declarations)?
+    };
+    Ok((body, declarations, stages))
+}
+
+fn stages<'a>(
+    passes: &'a [Pass],
+    names: &mut HashSet<&'a str>,
+    defaults: &BTreeMap<&str, f64>,
+    declarations: &mut String,
+) -> Result<Vec<Stage>, CompileError> {
+    let mut slots = HashMap::new();
+    let mut previous = [None; TEMPORARY_BUFFERS];
+    let mut result = Vec::with_capacity(passes.len());
+    for (index, pass) in passes.iter().enumerate() {
+        if pass.persistent.as_ref().is_some_and(Flag::enabled) {
+            return Err(invalid("ISF persistent buffers require frame history"));
+        }
+        result.push(Stage {
+            size: [
+                pass.width.as_ref().map(|size| size.parse(defaults)).transpose()?,
+                pass.height.as_ref().map(|size| size.parse(defaults)).transpose()?,
+            ],
+            float: pass.float.as_ref().is_some_and(Flag::enabled),
+            previous,
+        });
+        let Some(name) = pass.target.as_deref() else {
+            if index + 1 < passes.len() {
+                return Err(invalid("Each intermediate ISF pass requires a TARGET"));
+            }
+            continue;
+        };
+        let slot = match slots.get(name) {
+            Some(&slot) => slot,
+            None => {
+                if !valid_name(name) || !names.insert(name) {
+                    return Err(invalid("Invalid or conflicting ISF pass target name"));
+                }
+                let slot = slots.len();
+                let texture = TEXTURE_NAMES
+                    .get(TEXTURE_INPUTS + slot)
+                    .ok_or_else(|| invalid("Too many ISF temporary buffers"))?;
+                writeln!(declarations, "#define {name} {texture}").unwrap();
+                slots.insert(name, slot);
+                slot
+            }
+        };
+        previous[slot] = Some(index as u8);
+    }
+    Ok(result)
+}
+
+fn valid_name(name: &str) -> bool {
+    let mut bytes = name.bytes();
+    bytes
+        .next()
+        .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_')
+        && bytes.all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+        && !name.starts_with("gl_")
 }
 
 impl Input {
+    fn scalar_default(&self) -> Option<f64> {
+        match self.kind {
+            InputType::Event => Some(0.0),
+            InputType::Bool => Some(self.default.as_ref().map_or(0.0, |value| match value {
+                Value::Bool(value) => f64::from(u8::from(*value)),
+                _ => value.as_f64().unwrap_or(0.0),
+            })),
+            InputType::Long | InputType::Float => Some(self.default.as_ref().and_then(Value::as_f64).unwrap_or(0.0)),
+            _ => None,
+        }
+    }
+
     fn literal(&self) -> Result<(&'static str, String), CompileError> {
         Ok(match self.kind {
             InputType::Event => ("bool", "false".into()),

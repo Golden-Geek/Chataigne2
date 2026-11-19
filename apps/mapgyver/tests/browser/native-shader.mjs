@@ -404,6 +404,63 @@ try {
 	await file.press('Enter');
 	await delay(750);
 	await observer.observePixels('isf-named-media-image', [0, 0, 255, 255]);
+
+	stage = 'render a three-pass ISF file with resized temporary targets and one frame counter';
+	await mediaOperation({
+		kind: 'ConfigureMediaResolution',
+		media: reference.media,
+		size: { kind: 'Fixed', extent: { width: 64, height: 32 } }
+	});
+	const multipassName = 'ThreePasses.isf';
+	const multipass = `/*{
+		"ISFVSN":"2",
+		"INPUTS":[{"NAME":"inputImage","TYPE":"image"}],
+		"PASSES":[
+			{"TARGET":"small","WIDTH":"$WIDTH / 2","HEIGHT":"$HEIGHT / 4","FLOAT":true},
+			{"TARGET":"mixed","WIDTH":16,"HEIGHT":4},
+			{}
+		]
+	}*/
+	void main() {
+		float frameMarker = 2.0 + float(FRAMEINDEX % 3);
+		if (PASSINDEX == 0) {
+			gl_FragColor = vec4(frameMarker, RENDERSIZE.x == 32.0 && RENDERSIZE.y == 8.0 ? 1.0 : 0.0, 0.0, 1.0);
+		} else if (PASSINDEX == 1) {
+			vec4 raw = IMG_THIS_NORM_PIXEL(small);
+			bool correct = raw.r == frameMarker && raw.g == 1.0 &&
+				IMG_SIZE(small) == vec2(32.0, 8.0) && RENDERSIZE == vec2(16.0, 4.0);
+			vec4 media = IMG_THIS_NORM_PIXEL(inputImage);
+			gl_FragColor = correct ? vec4(media.rgb + vec3(0.0, 1.0, 0.0), 1.0) : vec4(1.0, 0.0, 1.0, 1.0);
+		} else if (PASSINDEX == 2 && RENDERSIZE == vec2(64.0, 32.0)) {
+			gl_FragColor = IMG_THIS_NORM_PIXEL(mixed);
+		}
+	}`;
+	const multipassPath = path.join(directory, multipassName);
+	await writeFile(multipassPath, multipass);
+	await file.fill(multipassName);
+	await file.press('Enter');
+	await delay(750);
+	await observer.observePixels('isf-multipass-float-and-shared-frame', [0, 255, 255, 255]);
+	await color(firstTexture, [1, 0, 0, 1]);
+	await delay(500);
+	await observer.observePixels('isf-multipass-live-media', [255, 255, 0, 255]);
+
+	stage = 'reopen the multipass file and replace its pass layout live';
+	assert((await post('/api/ui/project-save', { path: project })).ok);
+	assert.equal(path.resolve((await post('/api/ui/project-load', { path: project })).path), project);
+	await delay(750);
+	await observer.observePixels('isf-multipass-after-reopen', [255, 255, 0, 255]);
+	await writeFile(
+		`${multipassPath}.new`,
+		'/*{}*/\nvoid main() { gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0); }'
+	);
+	await rename(`${multipassPath}.new`, multipassPath);
+	await delay(750);
+	await observer.observePixels('isf-multipass-replaced-by-single-pass', [0, 255, 0, 255]);
+	await writeFile(`${multipassPath}.new`, multipass);
+	await rename(`${multipassPath}.new`, multipassPath);
+	await delay(750);
+	await observer.observePixels('isf-multipass-layout-restored', [255, 255, 0, 255]);
 	assert.deepEqual(errors, []);
 	assert(!appLog.includes('[mapgyver-output] window id='));
 	await writeFile(

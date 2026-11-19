@@ -6,7 +6,7 @@ use windows::core::Result;
 
 use super::{D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST, Pipeline, RECT, Texture, missing_output};
 use crate::LinearColor;
-use crate::shader::{FragmentProgram, TEXTURE_INPUTS};
+use crate::shader::{FragmentProgram, TEXTURE_BINDINGS};
 
 #[repr(C)]
 struct FrameConstants {
@@ -93,7 +93,8 @@ impl Pipeline {
         context: &ID3D11DeviceContext,
         target: &Texture,
         pass: &ShaderPass,
-        inputs: [Option<&Texture>; TEXTURE_INPUTS],
+        inputs: [Option<&Texture>; TEXTURE_BINDINGS],
+        pass_index: u8,
         time: TimeSnapshot,
     ) {
         let extent = target.descriptor.extent;
@@ -109,7 +110,7 @@ impl Pipeline {
         let frame = FrameConstants {
             size_and_time: [width as f32, height as f32, 1.0, seconds],
             timing: [sample.delta_seconds, rate, 0.0, 0.0],
-            indices: [sample.index, 0, 0, 0],
+            indices: [sample.index, i32::from(pass_index), 0, 0],
         };
         let shader = &pass.draw;
         // A legal fragment can discard a pixel, which leaves that pixel transparent.
@@ -144,7 +145,7 @@ impl Pipeline {
             context.Draw(3, 0);
             context.PSSetShader(None, None);
             context.PSSetConstantBuffers(0, Some(&[None]));
-            context.PSSetShaderResources(0, Some(&[const { None }; TEXTURE_INPUTS]));
+            context.PSSetShaderResources(0, Some(&[const { None }; TEXTURE_BINDINGS]));
             context.OMSetRenderTargets(None, None);
         }
     }

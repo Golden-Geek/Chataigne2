@@ -9,6 +9,12 @@ pub const MAX_SOURCE_BYTES: usize = 128 * 1024;
 /// Maximum number of sampled 2D input textures in a fragment pass.
 pub const TEXTURE_INPUTS: usize = 4;
 
+/// Maximum number of named temporary buffers visible to one fragment pass.
+pub const TEMPORARY_BUFFERS: usize = 4;
+
+/// Texture registers shared by Media inputs and effect-owned buffers.
+pub const TEXTURE_BINDINGS: usize = TEXTURE_INPUTS + TEMPORARY_BUFFERS;
+
 /// Source dialect for a GPU fragment program.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Deserialize, Serialize, TS)]
 pub enum FragmentFormat {
@@ -48,6 +54,10 @@ mod adapter;
 mod compiler;
 #[cfg(all(windows, feature = "d3d11"))]
 pub use compiler::{CompileError, FragmentProgram};
+#[cfg(all(windows, feature = "d3d11"))]
+mod stages;
+#[cfg(all(windows, feature = "d3d11"))]
+pub use stages::FragmentStage;
 
 #[cfg(all(test, windows, feature = "d3d11"))]
 mod tests;

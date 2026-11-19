@@ -256,10 +256,10 @@ pub(super) fn prepare(
                 cache.mutable(Role::Scratch(pass.id), pass.descriptor, device, counts)?,
             );
         }
-        if let RenderOperation::Shader { program, .. } = &pass.operation {
+        if let RenderOperation::Shader { program, clock, .. } = &pass.operation {
             let shader = native
                 .shaders
-                .pass(generation.identity.project, pass.id, program, device)?;
+                .pass(generation.identity.project, *clock, program, device)?;
             resources.shaders.insert(pass.id, shader);
         }
     }

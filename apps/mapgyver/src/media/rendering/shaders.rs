@@ -13,6 +13,7 @@ use crate::media::protocol::{ChannelReference, ChannelSource, ShaderInput};
 use crate::media::resolution::ChannelAvailability;
 
 mod files;
+pub(super) mod passes;
 
 type Compiled = Result<FragmentProgram, CompileError>;
 type Outcome = (ProgramSource, Compiled);

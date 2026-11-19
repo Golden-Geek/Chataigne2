@@ -30,14 +30,14 @@ fn shader_feedback_clears_the_cyclic_branch_and_recovers_after_rebinding() {
 
     let roots = [first, independent];
     let capture = capture_channels(&engine, &roots, 16).unwrap();
-    let (_, rejected) = super::super::derived::ordered(&capture, &roots, 16, 16, 16).unwrap();
+    let (_, rejected) = super::super::derived::ordered(&capture, &roots, 16, 16, 16, |_| (0, 0)).unwrap();
     assert_eq!(rejected, std::collections::HashSet::from([first]));
     let reachable = super::super::derived::reachable(&capture, &roots, &rejected);
     assert_eq!(reachable, std::collections::HashSet::from([first, independent]));
 
     configure_texture(&mut engine, second, Some(independent));
     let capture = capture_channels(&engine, &roots, 16).unwrap();
-    let (ordered, rejected) = super::super::derived::ordered(&capture, &roots, 16, 16, 16).unwrap();
+    let (ordered, rejected) = super::super::derived::ordered(&capture, &roots, 16, 16, 16, |_| (0, 0)).unwrap();
     assert!(rejected.is_empty());
     assert_eq!(ordered, [independent, second, first]);
 }

@@ -1,0 +1,22 @@
+{
+	"date": "2026-11-19",
+	"gate": "M18/4",
+	"result": "pass",
+	"scope": "Ordered ISF PASSES with transient named targets, arithmetic sizes, a shared frame counter and 32-bit float color buffers.",
+	"software": {
+		"goldenVideoTestsPassed": 18,
+		"mapGyverTestsPassed": 11,
+		"checks": "Shader compilation and input binding, latest earlier writer, stage dimensions, float descriptor, graph pass limit and byte budget, one effect clock, Composition and Reference regressions, generated TypeScript parity, Rust formatting, strict Clippy, default app build and fixture syntax and formatting."
+	},
+	"d3d11ShaderRegressionsPassed": 3,
+	"windowsApp": {
+		"adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+		"physicalWindowsOpened": 0,
+		"independentSpoutFrames": 29,
+		"multipassScenarios": 5,
+		"extent": [96, 64],
+		"checks": "The first ISF pass wrote a value above one that varied with FRAMEINDEX into a 32x8 float target. The second pass checked that value and both pass dimensions, then combined the named texture and a live Media texture in a 16x4 target. The final pass sampled the result at 64x32. Captures covered live Media changes, project reopen, replacing the file with a single pass and restoring the three-pass version.",
+		"receipt": "target/m18-isf-multipass-native/run-JuH6P1/result.json"
+	},
+	"remaining": "Persistent ISF buffers, ShaderToy Buffer passes, editable typed uniforms and Shader Library imports. M18/4 remains Active."
+}

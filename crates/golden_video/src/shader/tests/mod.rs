@@ -1,4 +1,5 @@
 use super::{CompileError, FragmentFormat, FragmentProgram, MAX_SOURCE_BYTES};
+use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor};
 
 #[test]
 fn translates_glsl_with_pixel_coordinates_and_frame_input_to_d3d11() {
@@ -12,7 +13,15 @@ fn translates_glsl_with_pixel_coordinates_and_frame_input_to_d3d11() {
 #[test]
 fn rejects_unsupported_isf_passes_and_resources_explicitly() {
     for (header, diagnostic) in [
-        (r#"{"PASSES":[{"TARGET":"buffer"},{}]}"#, "multipass"),
+        (
+            r#"{"PASSES":[{"TARGET":"buffer","PERSISTENT":true},{}]}"#,
+            "frame history",
+        ),
+        (r#"{"PASSES":[{},{}]}"#, "requires a TARGET"),
+        (
+            r#"{"PASSES":[{"TARGET":"buffer","WIDTH":"$WIDTH/foo"},{}]}"#,
+            "dimension",
+        ),
         (r#"{"IMPORTED":{"mask":{"PATH":"mask.png"}}}"#, "imported images"),
         (r#"{"INPUTS":[{"NAME":"levels","TYPE":"audioFFT"}]}"#, "texture binding"),
         (
@@ -28,6 +37,41 @@ fn rejects_unsupported_isf_passes_and_resources_explicitly() {
         let error = FragmentProgram::compile(FragmentFormat::Isf, &source).unwrap_err();
         assert!(error.to_string().contains(diagnostic), "{error}");
     }
+}
+
+#[test]
+fn isf_layout_resolves_dimensions_precision_and_latest_earlier_writer() {
+    let program = FragmentProgram::compile(
+        FragmentFormat::Isf,
+        r#"/*{
+        "INPUTS":[{"NAME":"divisor","TYPE":"float","DEFAULT":2.0}],
+        "PASSES":[
+            {"TARGET":"buffer","WIDTH":"($WIDTH + 8) / $divisor","HEIGHT":"$HEIGHT * 0.25","FLOAT":1},
+            {"TARGET":"buffer","WIDTH":12,"HEIGHT":"1e+1"},
+            {}
+        ]
+    }*/
+    void main() {
+        gl_FragColor = PASSINDEX == 0 ? vec4(2.0, 0.0, 1.0, 1.0) : IMG_THIS_NORM_PIXEL(buffer);
+    }"#,
+    )
+    .unwrap();
+    let target = TextureDescriptor {
+        extent: Extent2D::new(88, 80).unwrap(),
+        format: PixelFormat::Rgba8Unorm,
+        color_encoding: ColorEncoding::Linear,
+        alpha_mode: AlphaMode::Premultiplied,
+    };
+    let passes = program.stage_layout(target).unwrap();
+    assert_eq!(passes.len(), 3);
+    assert_eq!(passes[0].target.extent, Extent2D::new(48, 20).unwrap());
+    assert_eq!(passes[0].target.format, PixelFormat::Rgba32Float);
+    assert_eq!(passes[0].previous, [None; 4]);
+    assert_eq!(passes[1].target.extent, Extent2D::new(12, 10).unwrap());
+    assert_eq!(passes[1].previous, [Some(0), None, None, None]);
+    assert_eq!(passes[2].target, target);
+    assert_eq!(passes[2].previous, [Some(1), None, None, None]);
+    assert!(program.sampled_bindings()[super::TEXTURE_INPUTS]);
 }
 
 #[test]

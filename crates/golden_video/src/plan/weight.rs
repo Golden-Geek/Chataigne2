@@ -29,9 +29,7 @@ impl RenderPlan {
                 #[cfg(all(windows, feature = "d3d11"))]
                 RenderOperation::Shader { program: shader, .. } => {
                     if shaders.insert(shader.bytecode().as_ptr()) {
-                        bytes = bytes
-                            .checked_add(shader.bytecode().len())?
-                            .checked_add(2 * size_of::<usize>())?;
+                        bytes = bytes.checked_add(shader.retained_bytes())?;
                     }
                 }
                 RenderOperation::Composite { layers } => {
