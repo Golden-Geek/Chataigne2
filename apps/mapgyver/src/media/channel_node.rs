@@ -53,7 +53,7 @@ fn shader_texture_reference(target: Option<NodeUuid>) -> NodeReference {
         shader_code: String = String::new() (label = "Shader Code", widget = "code",
             description = "Fragment source in the selected Format.",
             dependency = |node: &Self| node.kind() == MediaKind::Shader);
-        shader_file: File = File::default() (label = "Shader File", file_allowed_extensions = vec!["glsl".into(), "frag".into(), "fs".into(), "isf".into()],
+        shader_file: File = File::default() (label = "Shader File", file_allowed_extensions = vec!["glsl".into(), "frag".into(), "fs".into(), "isf".into(), "json".into()],
             description = "Project-relative or absolute fragment source. Changes reload automatically.",
             dependency = |node: &Self| node.kind() == MediaKind::Shader);
         shader_texture_0: NodeReference = NodeReference::empty() (label = "Texture 0",

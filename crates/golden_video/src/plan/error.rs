@@ -65,6 +65,13 @@ pub enum PlanError {
         /// Undefined demanded texture.
         source: TextureId,
     },
+    /// An effect-owned data buffer cannot be used as a display output.
+    RawShaderOutput {
+        /// Consumer demanding an effect's private data.
+        output: OutputId,
+        /// Private effect target.
+        source: TextureId,
+    },
     /// A submitted texture dimension exceeds the configured maximum.
     TextureDimensionExceeded {
         /// Texture with the invalid extent.
@@ -83,14 +90,14 @@ pub enum PlanError {
         /// Descriptor validation failure.
         source: TextureError,
     },
-    /// Internal pass targets must use the linear premultiplied compositing contract.
+    /// A pass target must match its color or effect buffer contract.
     InvalidTargetContract {
         /// Pass declaring an incompatible target.
         pass: PassId,
         /// Target texture identity.
         output: TextureId,
     },
-    /// Shader inputs use the same linear premultiplied contract as pass targets.
+    /// A shader input requires compatible color storage or a buffer from the same effect.
     InvalidShaderInput {
         /// Shader pass using the input.
         pass: PassId,
@@ -174,6 +181,12 @@ impl fmt::Display for PlanError {
                     source.get()
                 )
             }
+            Self::RawShaderOutput { output, source } => write!(
+                formatter,
+                "output {} cannot present shader buffer {}",
+                output.get(),
+                source.get()
+            ),
             Self::TextureDimensionExceeded {
                 texture,
                 width,
@@ -190,13 +203,13 @@ impl fmt::Display for PlanError {
             }
             Self::InvalidTargetContract { pass, output } => write!(
                 formatter,
-                "pass {} target {} must be linear and premultiplied",
+                "pass {} target {} does not match its color or shader buffer contract",
                 pass.get(),
                 output.get()
             ),
             Self::InvalidShaderInput { pass, source } => write!(
                 formatter,
-                "shader pass {} input {} must be linear and premultiplied",
+                "pass {} input {} does not match its color or shader buffer contract",
                 pass.get(),
                 source.get()
             ),

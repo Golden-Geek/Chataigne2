@@ -5,7 +5,7 @@ use golden_video::{Extent2D, OutputId};
 
 #[test]
 fn float_pass_uses_an_ordered_budgeted_target_and_one_effect_clock() {
-    let program = FragmentProgram::compile(
+    let program = FragmentEffect::compile(
         FragmentFormat::Isf,
         r#"/*{
         "PASSES":[{"TARGET":"scale","WIDTH":"$WIDTH / 2","HEIGHT":"$HEIGHT / 2","FLOAT":true},{}]
@@ -87,7 +87,7 @@ fn float_pass_uses_an_ordered_budgeted_target_and_one_effect_clock() {
 
 #[test]
 fn a_single_named_persistent_pass_reads_its_own_final_target() {
-    let program = FragmentProgram::compile(
+    let program = FragmentEffect::compile(
         FragmentFormat::Isf,
         r#"/*{
         "PASSES":[{"TARGET":"trail","PERSISTENT":true}]

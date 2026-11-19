@@ -2,10 +2,10 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `████████░░` **83% — 121/145 checks accepted, 8/19 phases complete**.
-- **Latest delivered:** Persistent ISF targets sample the previous frame. Windows verified accumulation, retention after Media edits and resets on buffer resize, source change and project reopen. [Checks](evidence/mapgyver-m18-isf-history-2026-11-19.json)
+- **Latest delivered:** ShaderToy JSON runs Common, Buffer and Image passes with live Media inputs and previous-frame feedback. Windows verified project reopen and file reload. [Checks](evidence/mapgyver-m18-shadertoy-buffers-2026-11-19.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Add ShaderToy Buffer passes, then editable uniforms (M18/4).
+- **Next:** Add editable shader uniforms, then Shader Library imports (M18/4).
 
 ## Done — code and normal-use checks passed
 
@@ -17,12 +17,13 @@
 - [x] **Pictures and Solid Color:** real channel settings/files, independent copies, file reload and color controls.
 - [x] **Shared Texture:** receiving, previews and preview cadence, sender retention across Manual/Auto, and ordinary reconnect. New sources pick the first external sender or None. **(internal)** marks Screen outputs. Native pixel checks passed for deliberate internal selection, same-name takeover and external recovery.
 - [x] **Screens/Surfaces:** creation, warping, crop/source editing, opacity, enable/disable, calibration and native outputs.
-- [x] **Startup display:** fresh Screens prefer the lowest available Windows display number. The isolated Windows app chose RTK FHD HDR with the projector active. [Checks](mapgyver-m14-screen-defaults.md#numbered-display-feedback)
+- [x] **Startup display:** Fresh projects prefer the lowest available external Windows display number. The current build chose RTK FHD HDR with the Optoma also active. Saved projects retain their Screen targets. [Checks](mapgyver-m14-screen-defaults.md#numbered-display-feedback)
 - [x] **Shader Editor:** edit embedded GLSL beside its preview or choose a file that reloads on change. Windows Screen output passed for applied edits, file replacement, recovery and saved-project reload. [Checks](evidence/mapgyver-m18-embedded-glsl-2026-11-19.json)
 - [x] **Shader formats:** procedural ShaderToy Image and single-pass ISF playback. ISF metadata defaults and saved-project reload pass. Embedded shader code stays saved in File mode. [Checks](evidence/mapgyver-m18-shader-formats-2026-11-19.json)
 - [x] **Shader texture inputs:** pick up to four Media or Channels. Live updates, removal, Undo and project reload passed. [Checks](evidence/mapgyver-m18-shader-textures-2026-11-19.json)
 - [x] **ISF multipass:** ordered passes sample earlier named temporary textures. Live Media input, file replacement and reopening passed. [Checks](evidence/mapgyver-m18-isf-multipass-2026-11-19.json)
 - [x] **ISF previous-frame buffers:** verified accumulation, history across compatible edits, and clean resets. [Checks](evidence/mapgyver-m18-isf-history-2026-11-19.json)
+- [x] **ShaderToy Buffer passes:** Common, Buffer and Image code with live Media input and previous-frame feedback. Project reopen and file reload passed. [Checks](evidence/mapgyver-m18-shadertoy-buffers-2026-11-19.json)
 - [x] **Initial document/editors:** startup and New create and immediately show the automatic Screen and Surface. Hidden/reopened panels, saved targets/locks, reload and empty projects pass; no extra Undo steps.
 - [x] **Surface Editor display:** related Surfaces across Screens/References, independent toggles/locks, bounded paging, selection/Inspector and Undo/reload. ColorBars/Grid work without a source and obey its crop in Screen Warping/output mapping. Native patterns/contours, cropped ColorBars/Grid, mixed pattern/channel panels and70-Surface toolbar paging pass.
 - [x] **Surface-handle links:** same-Screen snapping/link/unlink, supplied colored/grey magnet and live updates of all peers. Five native drag/link/Undo cycles, three-member groups, held-pointer GPU images and foreground image/control alignment pass.
@@ -85,7 +86,7 @@
 
 [Remaining feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi), in order.
 
-4. **Shader Media.** Add ShaderToy Buffer passes, typed uniforms and Shader Library browsing and drops.
+4. **Shader Media.** Add editable typed uniforms and Shader Library browsing and drops.
 5. **Inspector selection.** Keep the Media inspected when adding a Channel, and inspect the Matrix Cell when adding Media to it.
 6. **Browser video previews.** Show live editor textures with Disabled, Auto, Forced Low Quality and Forced High Quality options.
 

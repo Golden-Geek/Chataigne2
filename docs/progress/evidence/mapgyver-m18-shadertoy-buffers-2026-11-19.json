@@ -1,0 +1,25 @@
+{
+	"result": "pass",
+	"scope": "ShaderToy JSON Common, ordered Buffer and Image passes, raw float RGBA feedback, and live 2D Media inputs.",
+	"goldenVideoSoftware": { "passed": 27, "ignored": 6 },
+	"mapGyverSoftware": { "passed": 12 },
+	"d3d11ShaderAndHistory": { "passed": 5 },
+	"build": "Strict MapGyver and Golden Video library Clippy and the default MapGyver application build passed.",
+	"windows": {
+		"adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+		"independentSpoutSamples": 41,
+		"newShaderToySamples": [
+			"Common and two Buffer passes with raw float data",
+			"Live Media update through a Buffer",
+			"Buffer layout after project reopen",
+			"File reload with an Image-only pass",
+			"Restored Buffer layout after file reload"
+		],
+		"startupDisplay": "RTK FHD HDR (GDI 2) with Optoma UHD also active",
+		"physicalWindowsOpened": 0,
+		"pageErrors": 0,
+		"receipt": "target/m18-shadertoy-buffers-native/run-osKZOz/result.json"
+	},
+	"fixedDuringVerification": "Shader draw and history initialization used a color-only clear for raw data targets. Both now clear the native texture directly. The D3D11 regression verifies data with zero alpha survives multiple frames.",
+	"remaining": "Editable typed uniforms, FragCoord metadata, Shader Library import and broader asset and sampler compatibility remain open."
+}

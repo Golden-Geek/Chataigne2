@@ -207,7 +207,7 @@ Shader or its Channel and open **Shader Editor**. Use **Apply shader** or Ctrl+S
 code and see the result in the adjacent preview. Embedded code is saved with the project and is
 also editable in the channel Inspector.
 
-Set **Source** to **File** and choose a `.glsl`, `.frag`, `.fs` or `.isf` file to edit externally. Relative
+Set **Source** to **File** and choose a `.glsl`, `.frag`, `.fs`, `.isf` or ShaderToy `.json` file to edit externally. Relative
 paths resolve from the saved project's directory. MapGyver reloads changed files while a preview
 or output uses the channel. Switching the source back to Embedded restores its saved code.
 
@@ -217,6 +217,11 @@ Choose **Format** in the Shader Editor or channel Inspector.
   `iResolution`, `iTime` in seconds and `gl_FragCoord` in pixels from the top left.
 - **ShaderToy** accepts an Image shader with `mainImage(out vec4 color, in vec2 pixel)`.
   It provides bottom-left pixel coordinates, resolution, show time, frame delta, frame rate and index.
+  A ShaderToy JSON document can also supply Common, Buffer A through D, and Image. Buffers draw
+  in letter order. An input reading a buffer uses the most recent draw, including the previous
+  frame when its writer has yet to run. Use the corresponding Texture input to supply external
+  2D texture, video or webcam channels. Buffers store 32-bit float RGBA. This path supports
+  linear, clamped 2D sampling and level-zero texel reads.
 - **ISF** uses a JSON metadata comment and `void main()`. It provides bottom-left coordinates and
   uses the metadata defaults for numeric, Boolean, point and color inputs. Ordered `PASSES` can
   read earlier named temporary targets with `IMG_*`, with up to eight passes and four named
@@ -231,8 +236,8 @@ Open **Texture inputs** to choose up to four Media or Channels. A Media target s
 channel, while a Channel target samples the selected variant. Empty or unavailable inputs sample
 transparent black. Use `texture(iChannel0, uv)` through `iChannel3` for GLSL and ShaderToy. ISF
 binds named `image` inputs to slots in declaration order and supports its `IMG_*` sampling functions.
-Shader Media can feed Screens, Compositions, Matrix Cells and previews. ShaderToy Buffer passes
-and editable uniform values are pending.
+Shader Media can feed Screens, Compositions, Matrix Cells and previews. Editable uniform values
+are pending.
 
 The Windows x64 package includes the NDI 6 runtime and enables NDI from the first launch.
 Use **Medias → + → NDI** to receive, or choose **Target → NDI** on an enabled Screen to publish.

@@ -5,8 +5,6 @@ use std::rc::Rc;
 use golden_time::MonotonicTime;
 use windows::Win32::Graphics::Direct3D11::ID3D11DeviceContext;
 
-use crate::LinearColor;
-use crate::native::pipeline::Pipeline;
 use crate::native::texture::Texture;
 use crate::shader::FragmentProgram;
 
@@ -30,7 +28,7 @@ impl History {
         }
     }
 
-    pub(super) fn begin(&self, context: &ID3D11DeviceContext, pipeline: &Pipeline, time: MonotonicTime) {
+    pub(super) fn begin(&self, context: &ID3D11DeviceContext, time: MonotonicTime) {
         if self.last_sample.get().is_some_and(|sample| sample >= time) {
             return;
         }
@@ -40,7 +38,7 @@ impl History {
             // Queue the snapshot before any pass writes its new frame.
             unsafe { context.CopyResource(&self.previous.texture, &self.current.texture) };
         } else {
-            pipeline.clear(context, &self.previous, LinearColor::TRANSPARENT);
+            self.previous.clear_zero(context);
         }
     }
 

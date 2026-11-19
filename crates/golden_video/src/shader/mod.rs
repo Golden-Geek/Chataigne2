@@ -53,11 +53,15 @@ mod adapter;
 #[cfg(all(windows, feature = "d3d11"))]
 mod compiler;
 #[cfg(all(windows, feature = "d3d11"))]
+mod effect;
+#[cfg(all(windows, feature = "d3d11"))]
 pub use compiler::{CompileError, FragmentProgram};
+#[cfg(all(windows, feature = "d3d11"))]
+pub use effect::FragmentEffect;
 #[cfg(all(windows, feature = "d3d11"))]
 mod stages;
 #[cfg(all(windows, feature = "d3d11"))]
-pub use stages::{FragmentBuffer, FragmentStage};
+pub use stages::{FragmentInput, FragmentStage};
 
 #[cfg(all(test, windows, feature = "d3d11"))]
 mod tests;

@@ -6,9 +6,7 @@ use naga::{AddressSpace, Binding, BuiltIn, ResourceBinding, ShaderStage, TypeInn
 use windows::Win32::Graphics::Direct3D::{Fxc::D3DCompile, ID3DBlob};
 use windows::core::{PCSTR, s};
 
-use super::stages::{FragmentStage, Stage};
 use super::{FragmentFormat, MAX_SOURCE_BYTES, TEXTURE_BINDINGS, TEXTURE_INPUTS, adapter};
-use crate::TextureDescriptor;
 
 const MAX_BYTECODE_BYTES: usize = 256 * 1024;
 const FRAME_BINDING: ResourceBinding = ResourceBinding { group: 0, binding: 0 };
@@ -18,7 +16,8 @@ const FRAME_BINDING: ResourceBinding = ResourceBinding { group: 0, binding: 0 };
 pub struct FragmentProgram {
     bytecode: Arc<[u8]>,
     sampled_bindings: [bool; TEXTURE_BINDINGS],
-    stages: Arc<[Stage]>,
+    effect: uuid::Uuid,
+    buffers: adapter::ShaderToyBuffers,
 }
 
 impl fmt::Debug for FragmentProgram {
@@ -26,7 +25,6 @@ impl fmt::Debug for FragmentProgram {
         f.debug_struct("FragmentProgram")
             .field("bytecode_bytes", &self.bytecode.len())
             .field("sampled_bindings", &self.sampled_bindings)
-            .field("stages", &self.stages.len())
             .finish()
     }
 }
@@ -52,17 +50,28 @@ impl FragmentProgram {
         Self::compile(FragmentFormat::Glsl, source)
     }
 
-    /// Compile fragment source and its pass layout away from render and engine threads.
-    /// ShaderToy supports Image passes. ISF supports ordered passes, frame history and input defaults.
-    /// Both dialects receive bottom-left coordinates, frame timing and up to four 2D inputs.
+    /// Compile a standalone draw. Use [super::FragmentEffect] for a multi-pass source.
     pub fn compile(format: FragmentFormat, source: &str) -> Result<Self, CompileError> {
         if source.trim().is_empty() || source.len() > MAX_SOURCE_BYTES {
             return Err(CompileError::Size);
         }
         let (glsl, stages) = adapter::fragment_source(format, source)?;
+        if stages.len() != 1 || stages[0].inputs[TEXTURE_INPUTS..].iter().any(Option::is_some) {
+            return Err(CompileError::Invalid(
+                "Use a FragmentEffect for a multi-pass or feedback shader".into(),
+            ));
+        }
+        Self::compile_source(&glsl, uuid::Uuid::new_v4(), Default::default())
+    }
+
+    pub(super) fn compile_source(
+        glsl: &str,
+        effect: uuid::Uuid,
+        buffers: adapter::ShaderToyBuffers,
+    ) -> Result<Self, CompileError> {
         let module = glsl::Frontend::default()
-            .parse(&glsl::Options::from(ShaderStage::Fragment), &glsl)
-            .map_err(|error| CompileError::Invalid(error.emit_to_string(&glsl)))?;
+            .parse(&glsl::Options::from(ShaderStage::Fragment), glsl)
+            .map_err(|error| CompileError::Invalid(error.emit_to_string(glsl)))?;
         let entry = &module.entry_points[0].function;
         if entry.arguments.iter().any(|argument| {
             !matches!(
@@ -79,7 +88,7 @@ impl FragmentProgram {
         }
         let info = valid::Validator::new(valid::ValidationFlags::all(), valid::Capabilities::empty())
             .validate(&module)
-            .map_err(|error| CompileError::Invalid(error.emit_to_string(&glsl)))?;
+            .map_err(|error| CompileError::Invalid(error.emit_to_string(glsl)))?;
         let mut options = hlsl::Options {
             shader_model: hlsl::ShaderModel::V5_0,
             fake_missing_bindings: false,
@@ -120,7 +129,8 @@ impl FragmentProgram {
         Ok(Self {
             bytecode: Self::compile_hlsl(&hlsl, entry)?,
             sampled_bindings,
-            stages: stages.into(),
+            effect,
+            buffers,
         })
     }
 
@@ -175,13 +185,20 @@ impl FragmentProgram {
         self.sampled_bindings
     }
 
-    /// Resolve ordered draws using the requested output dimensions.
-    pub fn stage_layout(&self, output: TextureDescriptor) -> Result<Vec<FragmentStage>, CompileError> {
-        self.stages.iter().map(|pass| pass.resolve(output)).collect()
+    pub(crate) fn effect(&self) -> uuid::Uuid {
+        self.effect
+    }
+
+    pub(crate) fn raw_output(&self) -> bool {
+        self.buffers.raw_output
+    }
+
+    pub(crate) fn raw_input(&self, slot: usize) -> bool {
+        self.buffers.raw_inputs.get(slot).copied().unwrap_or(false)
     }
 
     pub(crate) fn retained_bytes(&self) -> usize {
-        self.bytecode.len() + self.stages.iter().map(Stage::retained_bytes).sum::<usize>() + 4 * size_of::<usize>()
+        self.bytecode.len() + 2 * size_of::<usize>()
     }
 
     pub(crate) fn bytecode(&self) -> &[u8] {

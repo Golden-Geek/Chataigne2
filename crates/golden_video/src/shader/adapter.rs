@@ -6,6 +6,7 @@ use super::stages::Stage;
 use super::{CompileError, FragmentFormat, TEXTURE_BINDINGS, TEXTURE_INPUTS};
 
 mod isf;
+pub(super) mod shadertoy;
 
 pub(super) const TEXTURE_NAMES: [&str; TEXTURE_BINDINGS] = [
     "goldenMedia0",
@@ -20,7 +21,10 @@ pub(super) const TEXTURE_NAMES: [&str; TEXTURE_BINDINGS] = [
 
 // Texture loads keep filtering in Shader Model 5.0 without a sampler descriptor heap.
 const SAMPLE_TEXTURE: &str = r#"
-vec4 goldenSample(texture2D image, vec2 uv) {
+vec4 goldenStraightColor(vec4 rgba) {
+    return rgba.a > 0.0 ? vec4(rgba.rgb / rgba.a, rgba.a) : vec4(0.0);
+}
+vec4 goldenSample(texture2D image, bool raw, vec2 uv) {
     ivec2 extent = textureSize(image, 0);
     if (any(lessThanEqual(extent, ivec2(0)))) return vec4(0.0);
     vec2 p = clamp(goldenTextureCoordinates(uv), vec2(0.0), vec2(1.0)) * vec2(extent) - 0.5;
@@ -31,7 +35,10 @@ vec4 goldenSample(texture2D image, vec2 uv) {
     vec4 upper = mix(texelFetch(image, lo, 0), texelFetch(image, ivec2(hi.x, lo.y), 0), weight.x);
     vec4 lower = mix(texelFetch(image, ivec2(lo.x, hi.y), 0), texelFetch(image, hi, 0), weight.x);
     vec4 rgba = mix(upper, lower, weight.y);
-    return rgba.a > 0.0 ? vec4(rgba.rgb / rgba.a, rgba.a) : vec4(0.0);
+    return raw ? rgba : goldenStraightColor(rgba);
+}
+vec4 goldenSample(texture2D image, vec2 uv) {
+    return goldenSample(image, false, uv);
 }
 #define texture(image, uv) goldenSample(image, uv)
 #define texture2D(image, uv) goldenSample(image, uv)
@@ -69,6 +76,23 @@ const SHADERTOY: &str = r#"
 #define iFrame (goldenFrame.indices.x)
 "#;
 
+const CHANNEL_RESOLUTION: &str = r#"
+vec3 iChannelResolution[4];
+vec3 goldenChannelResolution(texture2D source) {
+    ivec2 extent = textureSize(source, 0);
+    return vec3(vec2(extent), all(greaterThan(extent, ivec2(0))) ? 1.0 : 0.0);
+}
+vec3 goldenChannelResolution(texture2D source, bool raw) {
+    return goldenChannelResolution(source);
+}
+"#;
+
+const SET_CHANNEL_RESOLUTION: &str = r#"
+    iChannelResolution[0] = goldenChannelResolution(iChannel0);
+    iChannelResolution[1] = goldenChannelResolution(iChannel1);
+    iChannelResolution[2] = goldenChannelResolution(iChannel2);
+    iChannelResolution[3] = goldenChannelResolution(iChannel3);
+"#;
 const ISF: &str = r#"
 #define RENDERSIZE (goldenFrame.sizeAndTime.xy)
 #define TIME (goldenFrame.sizeAndTime.w)
@@ -89,7 +113,32 @@ const ISF_IMAGES: &str = r#"
 #define IMG_THIS_PIXEL(image) IMG_PIXEL(image, gl_FragCoord.xy)
 "#;
 
-fn textures(format: FragmentFormat) -> String {
+const SHADERTOY_TEXELS: &str = r#"
+ivec2 goldenTextureSize(texture2D image, bool raw, int level) {
+    return textureSize(image, level);
+}
+ivec2 goldenTextureSize(texture2D image, int level) {
+    return textureSize(image, level);
+}
+vec4 goldenTexelFetch(texture2D image, bool raw, ivec2 pixel, int level) {
+    ivec2 size = textureSize(image, level);
+    vec4 rgba = texelFetch(image, ivec2(pixel.x, size.y - 1 - pixel.y), level);
+    return raw ? rgba : goldenStraightColor(rgba);
+}
+vec4 goldenTexelFetch(texture2D image, ivec2 pixel, int level) {
+    return goldenTexelFetch(image, false, pixel, level);
+}
+#define textureSize(image, level) goldenTextureSize(image, level)
+#define texelFetch(image, pixel, level) goldenTexelFetch(image, pixel, level)
+"#;
+
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct ShaderToyBuffers {
+    pub raw_output: bool,
+    pub raw_inputs: [bool; TEXTURE_INPUTS],
+}
+
+fn textures(format: FragmentFormat, shadertoy: &ShaderToyBuffers) -> String {
     let mut source = String::new();
     let count = if format == FragmentFormat::Isf {
         TEXTURE_BINDINGS
@@ -99,7 +148,8 @@ fn textures(format: FragmentFormat) -> String {
     for (slot, name) in TEXTURE_NAMES.iter().take(count).enumerate() {
         writeln!(source, "layout(binding = {}) uniform texture2D {name};", slot + 1).unwrap();
         if format != FragmentFormat::Isf {
-            writeln!(source, "#define iChannel{slot} {name}").unwrap();
+            let raw = if shadertoy.raw_inputs[slot] { ", true" } else { "" };
+            writeln!(source, "#define iChannel{slot} {name}{raw}").unwrap();
         }
     }
     let coords = match format {
@@ -110,11 +160,21 @@ fn textures(format: FragmentFormat) -> String {
     source.push_str(SAMPLE_TEXTURE);
     if format == FragmentFormat::Isf {
         source.push_str(ISF_IMAGES);
+    } else if format == FragmentFormat::ShaderToy {
+        source.push_str(SHADERTOY_TEXELS);
     }
     source
 }
 
 pub(super) fn fragment_source(format: FragmentFormat, source: &str) -> Result<(String, Vec<Stage>), CompileError> {
+    fragment_source_with_buffers(format, source, ShaderToyBuffers::default())
+}
+
+pub(super) fn fragment_source_with_buffers(
+    format: FragmentFormat,
+    source: &str,
+    shadertoy: ShaderToyBuffers,
+) -> Result<(String, Vec<Stage>), CompileError> {
     let source = source.trim_start_matches('\u{feff}').trim_start();
     let (source, prelude, declarations, stages, call) = match format {
         FragmentFormat::Glsl => (source, GLSL, String::new(), vec![Stage::default()], "goldenUserMain();"),
@@ -134,17 +194,30 @@ pub(super) fn fragment_source(format: FragmentFormat, source: &str) -> Result<(S
         FragmentFormat::Glsl => "",
         FragmentFormat::ShaderToy | FragmentFormat::Isf => BOTTOM_LEFT,
     };
-    let textures = textures(format);
+    let textures = textures(format, &shadertoy);
     let source = source.trim_start();
     let source = if source.starts_with("#version ") {
         source.split_once('\n').map_or("", |(_, body)| body)
     } else {
         source
     };
+    let uses_channel_resolution = format == FragmentFormat::ShaderToy
+        && source
+            .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
+            .any(|token| token == "iChannelResolution");
+    let (channel_resolution, channel_setup) = if uses_channel_resolution {
+        (CHANNEL_RESOLUTION, SET_CHANNEL_RESOLUTION)
+    } else {
+        ("", "")
+    };
+    let color_output = if shadertoy.raw_output {
+        ""
+    } else {
+        "    goldenOutput.a = clamp(goldenOutput.a, 0.0, 1.0);\n    goldenOutput.rgb *= goldenOutput.a;\n"
+    };
     let text = format!(
-        "#version 450 core\n{FRAME}\n{coordinates}\n{prelude}\n{textures}\n{declarations}\n{source}\n\
-         #undef main\nvoid main() {{\n    goldenOutput = vec4(0.0);\n    {call}\n\
-         goldenOutput.a = clamp(goldenOutput.a, 0.0, 1.0);\n    goldenOutput.rgb *= goldenOutput.a;\n}}\n"
+        "#version 450 core\n{FRAME}\n{coordinates}\n{prelude}\n{textures}\n{declarations}\n{channel_resolution}\n{source}\n\
+         #undef main\nvoid main() {{\n    goldenOutput = vec4(0.0);\n{channel_setup}    {call}\n{color_output}}}\n"
     );
     Ok((text, stages))
 }

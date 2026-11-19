@@ -9,7 +9,7 @@ use crate::runtime::ProjectEpoch;
 use crate::shader::FragmentProgram;
 use crate::{OutputId, PassId, TextureDescriptor, TextureId};
 
-use super::super::pipeline::{ShaderDraw, ShaderPass};
+use super::super::pipeline::{ShaderClock, ShaderDraw, ShaderPass};
 use super::super::texture::Texture;
 use super::history::History;
 use super::{D3d11Resources, NativeState};
@@ -19,12 +19,14 @@ use super::{D3d11Resources, NativeState};
 pub(super) struct ShaderCache {
     programs: HashMap<usize, Weak<ShaderDraw>>,
     passes: HashMap<(ProjectEpoch, PassId, usize), Weak<ShaderPass>>,
+    clocks: HashMap<(ProjectEpoch, PassId, uuid::Uuid), Weak<ShaderClock>>,
 }
 
 impl ShaderCache {
     fn prune(&mut self) {
         self.programs.retain(|_, value| value.strong_count() != 0);
         self.passes.retain(|_, value| value.strong_count() != 0);
+        self.clocks.retain(|_, value| value.strong_count() != 0);
     }
 
     fn pass(
@@ -47,7 +49,13 @@ impl ShaderCache {
                 draw
             }
         };
-        let shader = Rc::new(ShaderPass::new(draw));
+        let clock_key = (project, pass, program.effect());
+        let clock = self.clocks.get(&clock_key).and_then(Weak::upgrade).unwrap_or_else(|| {
+            let clock = Rc::new(ShaderClock::default());
+            self.clocks.insert(clock_key, Rc::downgrade(&clock));
+            clock
+        });
+        let shader = Rc::new(ShaderPass::new(draw, clock));
         self.passes.insert(pass_key, Rc::downgrade(&shader));
         Ok(shader)
     }

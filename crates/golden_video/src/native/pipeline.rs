@@ -18,7 +18,7 @@ mod pattern;
 mod shader;
 use crate::{AlphaMode, ColorEncoding, LinearColor, PixelFormat};
 use pattern::PatternParameters;
-pub(super) use shader::{ShaderDraw, ShaderPass};
+pub(super) use shader::{ShaderClock, ShaderDraw, ShaderPass};
 use std::cell::Cell;
 
 use super::texture::Texture;

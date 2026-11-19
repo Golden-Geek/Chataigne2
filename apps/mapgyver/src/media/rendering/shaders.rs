@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
 use golden_io::{BoundedWorker, RetirementPool, WorkerLimits, WorkerNotifier};
-use golden_video::shader::{CompileError, FragmentFormat, FragmentProgram};
+use golden_video::shader::{CompileError, FragmentEffect, FragmentFormat};
 
 use crate::media::capture::CapturedChannels;
 use crate::media::protocol::{ChannelReference, ChannelSource, ShaderInput};
@@ -15,7 +15,7 @@ use crate::media::resolution::ChannelAvailability;
 mod files;
 pub(super) mod passes;
 
-type Compiled = Result<FragmentProgram, CompileError>;
+type Compiled = Result<FragmentEffect, CompileError>;
 type Outcome = (ProgramSource, Compiled);
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -49,7 +49,7 @@ impl Shaders {
             notify.clone(),
             |worker| {
                 while let Some(source) = worker.receive() {
-                    let program = FragmentProgram::compile(source.format, &source.code);
+                    let program = FragmentEffect::compile(source.format, &source.code);
                     if worker.publish_weighted((source, program), 1).is_err() {
                         break;
                     }
@@ -169,7 +169,7 @@ impl Shaders {
         &self,
         format: FragmentFormat,
         input: &ShaderInput,
-    ) -> Result<Option<&FragmentProgram>, ChannelAvailability> {
+    ) -> Result<Option<&FragmentEffect>, ChannelAvailability> {
         let Some(code) = self.code(input)? else { return Ok(None) };
         if code.trim().is_empty() {
             return Err(ChannelAvailability::Unconfigured);

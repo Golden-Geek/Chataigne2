@@ -519,6 +519,93 @@ try {
 	assert.equal(path.resolve((await post('/api/ui/project-load', { path: project })).path), project);
 	await delay(750);
 	await observer.observePixels('isf-history-reseeds-after-reopen', [0, 255, 255, 255]);
+
+	stage = 'load ShaderToy JSON with Common, two Buffers, and Image';
+	const toy = {
+		Shader: {
+			renderpass: [
+				{
+					type: 'image',
+					name: 'Image',
+					inputs: [{ channel: 1, ctype: 'buffer', id: 258 }],
+					code: 'void mainImage(out vec4 c, in vec2 p) { c = texture(iChannel1, uv(p)); }'
+				},
+				{
+					type: 'buffer',
+					name: 'Buffer B',
+					outputs: [{ channel: 0, id: 258 }],
+					inputs: [
+						{ channel: 0, ctype: 'texture', id: 1, src: '/media/example.png' },
+						{ channel: 2, ctype: 'buffer', id: 257 }
+					],
+					code: `
+					void mainImage(out vec4 c, in vec2 p) {
+						vec4 a = texture(iChannel2, uv(p));
+						vec4 media = texture(iChannel0, uv(p));
+						bool valid = a.r == frameMarker() && a.g == 1.0 && a.b == 1.0 && a.a == 0.0
+							&& iChannelResolution[2].xy == iResolution.xy;
+						c = valid ? vec4(media.rgb + vec3(0.0, 1.0, 0.0), 2.0) : vec4(1.0, 0.0, 1.0, 2.0);
+					}`
+				},
+				{
+					type: 'common',
+					name: 'Common',
+					code: `
+					vec2 uv(vec2 p) { return p / iResolution.xy; }
+					float frameMarker() { return 2.0 + float(iFrame % 5); }`
+				},
+				{
+					type: 'buffer',
+					name: 'Buffer A',
+					outputs: [{ channel: 0, id: 257 }],
+					inputs: [
+						{ channel: 0, ctype: 'buffer', id: 257 },
+						{ channel: 1, ctype: 'buffer', id: 258 }
+					],
+					code: `
+					void mainImage(out vec4 c, in vec2 p) {
+						vec4 priorA = texture(iChannel0, uv(p));
+						vec4 priorB = texture(iChannel1, uv(p));
+						c = vec4(frameMarker(), min(1.0, priorA.g + 0.25), float(priorB.a > 1.0), 0.0);
+					}`
+				}
+			]
+		}
+	};
+	const toyName = 'Buffers.json';
+	const toyPath = path.join(directory, toyName);
+	await writeFile(toyPath, JSON.stringify(toy));
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Medias$/ })
+		.click();
+	await manager.getByRole('button', { name: 'Shader', exact: true }).click();
+	await shaderTab.click();
+	await format.selectOption('ShaderToy');
+	await file.fill(toyName);
+	await file.press('Enter');
+	await delay(900);
+	await observer.observePixels('shadertoy-common-and-buffers', [0, 255, 255, 255]);
+	await color(firstTexture, [1, 0, 0, 1]);
+	await delay(750);
+	await observer.observePixels('shadertoy-buffer-live-media', [255, 255, 0, 255]);
+
+	stage = 'reopen ShaderToy JSON and reload a changed Image pass';
+	assert((await post('/api/ui/project-save', { path: project })).ok);
+	assert.equal(path.resolve((await post('/api/ui/project-load', { path: project })).path), project);
+	await delay(900);
+	await observer.observePixels('shadertoy-buffer-after-reopen', [255, 255, 0, 255]);
+	const replacement = structuredClone(toy);
+	replacement.Shader.renderpass[0].code =
+		'void mainImage(out vec4 c, in vec2 p) { c = vec4(0.0, 1.0, 0.0, 1.0); }';
+	await writeFile(`${toyPath}.new`, JSON.stringify(replacement));
+	await rename(`${toyPath}.new`, toyPath);
+	await delay(900);
+	await observer.observePixels('shadertoy-reloaded-image-draw', [0, 255, 0, 255]);
+	await writeFile(`${toyPath}.new`, JSON.stringify(toy));
+	await rename(`${toyPath}.new`, toyPath);
+	await delay(900);
+	await observer.observePixels('shadertoy-restored-buffer-layout', [255, 255, 0, 255]);
 	assert.deepEqual(errors, []);
 	assert(!appLog.includes('[mapgyver-output] window id='));
 	await writeFile(

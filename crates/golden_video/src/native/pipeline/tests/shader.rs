@@ -33,7 +33,10 @@ fn hardware_shader_uses_target_coordinates_time_and_premultiplied_alpha() {
         }"#,
     )
     .unwrap();
-    let shader = ShaderPass::new(Rc::new(ShaderDraw::new(&gpu.device, &program).unwrap()));
+    let shader = ShaderPass::new(
+        Rc::new(ShaderDraw::new(&gpu.device, &program).unwrap()),
+        Default::default(),
+    );
     let mut time = TimeAuthority::new(SystemClock::new(), ShowPosition::from_nanos(0), PlaybackRate::PAUSED).unwrap();
     pipeline.draw_shader(
         &gpu.context,
@@ -98,8 +101,8 @@ fn hardware_shadertoy_and_isf_use_bottom_left_coordinates_and_per_pass_frames() 
     ] {
         let program = FragmentProgram::compile(format, code).unwrap();
         let draw = Rc::new(ShaderDraw::new(&gpu.device, &program).unwrap());
-        let primary = ShaderPass::new(draw.clone());
-        let secondary = ShaderPass::new(draw);
+        let primary = ShaderPass::new(draw.clone(), Default::default());
+        let secondary = ShaderPass::new(draw, Default::default());
         let mut time =
             TimeAuthority::new(SystemClock::new(), ShowPosition::from_nanos(0), PlaybackRate::PAUSED).unwrap();
         let first = time.sample().unwrap();
@@ -142,7 +145,10 @@ fn hardware_shader_inputs_preserve_orientation_and_alpha_and_clear_when_unbound(
     let target = Texture::new(&gpu.device, descriptor).unwrap();
     let compile = |format, code: &str| {
         let program = FragmentProgram::compile(format, code).unwrap();
-        ShaderPass::new(Rc::new(ShaderDraw::new(&gpu.device, &program).unwrap()))
+        ShaderPass::new(
+            Rc::new(ShaderDraw::new(&gpu.device, &program).unwrap()),
+            Default::default(),
+        )
     };
     let producer = compile(
         FragmentFormat::Glsl,

@@ -74,10 +74,6 @@ impl Dimension {
         }
         Ok(value.floor().max(1.0) as u32)
     }
-
-    pub(super) fn retained_bytes(&self) -> usize {
-        std::mem::size_of_val(self.0.as_ref())
-    }
 }
 
 struct Parser<'a> {

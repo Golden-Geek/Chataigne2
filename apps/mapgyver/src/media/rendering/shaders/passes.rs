@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use golden_video::plan::{RenderOperation, RenderPass, SampleFilter, ShaderTexture};
-use golden_video::shader::{FragmentBuffer, FragmentProgram, FragmentStage, TEXTURE_INPUTS};
+use golden_video::shader::{FragmentEffect, FragmentInput, FragmentStage, TEXTURE_INPUTS};
 use golden_video::{AlphaMode, ColorEncoding, PassId, PixelFormat, TextureDescriptor, TextureId};
 
 use crate::media::capture::CapturedChannels;
@@ -14,17 +14,16 @@ use super::Shaders;
 #[cfg(test)]
 mod tests;
 
-pub(in crate::media::rendering) struct Passes<'a> {
-    program: &'a FragmentProgram,
+pub(in crate::media::rendering) struct Passes {
     stages: Vec<FragmentStage>,
     resolve_output: bool,
 }
 
-pub(in crate::media::rendering) fn prepare<'a>(
-    shaders: Option<&'a Shaders>,
+pub(in crate::media::rendering) fn prepare(
+    shaders: Option<&Shaders>,
     capture: &CapturedChannels,
     dimension_limit: u32,
-) -> HashMap<ChannelReference, Result<Passes<'a>, ChannelAvailability>> {
+) -> HashMap<ChannelReference, Result<Passes, ChannelAvailability>> {
     let Some(shaders) = shaders else {
         return HashMap::new();
     };
@@ -62,13 +61,13 @@ pub(in crate::media::rendering) fn prepare<'a>(
         .collect()
 }
 
-impl<'a> Passes<'a> {
+impl Passes {
     fn new(
-        program: &'a FragmentProgram,
+        effect: &FragmentEffect,
         output: TextureDescriptor,
         dimension_limit: u32,
     ) -> Result<Self, ChannelAvailability> {
-        let stages = program
+        let stages = effect
             .stage_layout(output)
             .map_err(|_| ChannelAvailability::Incompatible)?;
         if stages.iter().any(|stage| {
@@ -77,11 +76,7 @@ impl<'a> Passes<'a> {
             return Err(ChannelAvailability::Incompatible);
         }
         let resolve_output = stages.last().expect("effect has an output stage").target != output;
-        Ok(Self {
-            program,
-            stages,
-            resolve_output,
-        })
+        Ok(Self { stages, resolve_output })
     }
 
     fn buffer_count(&self) -> usize {
@@ -92,27 +87,24 @@ impl<'a> Passes<'a> {
         &self,
         references: &[Option<ChannelReference>; TEXTURE_INPUTS],
     ) -> (usize, usize) {
-        let sampled = self.program.sampled_bindings();
-        let media = references
-            .iter()
-            .zip(sampled)
-            .filter(|(source, used)| source.is_some() && *used)
-            .count();
-        let buffers = self
+        let dependencies = self
             .stages
             .iter()
             .map(|stage| {
-                stage
-                    .buffers
+                1 + stage
+                    .inputs
                     .iter()
-                    .zip(&sampled[TEXTURE_INPUTS..])
-                    .filter(|(source, used)| source.is_some() && **used)
+                    .flatten()
+                    .filter(|binding| match binding {
+                        FragmentInput::Media(slot) => references[usize::from(*slot)].is_some(),
+                        _ => true,
+                    })
                     .count()
             })
             .sum::<usize>();
         // Derived admission already charges the authored Media edges once.
         let extra_dependencies =
-            self.stages.len() + media * (self.stages.len() - 1) + buffers + usize::from(self.resolve_output);
+            (dependencies + usize::from(self.resolve_output)).saturating_sub(references.iter().flatten().count());
         (self.buffer_count(), extra_dependencies)
     }
 
@@ -131,21 +123,12 @@ impl<'a> Passes<'a> {
         let clock = PassId::new(entry.target.get()).expect("nonzero channel target");
         let channel_target = entry.target;
         let target = |stage: u8| temporary.get(usize::from(stage)).copied().unwrap_or(channel_target);
-        let used = self.program.sampled_bindings();
         let operation = |index: usize, stage: &FragmentStage| RenderOperation::Shader {
-            program: self.program.clone(),
-            inputs: std::array::from_fn(|slot| {
-                if !used[slot] {
-                    return None;
-                }
-                if slot < TEXTURE_INPUTS {
-                    media[slot].map(ShaderTexture::Current)
-                } else {
-                    stage.buffers[slot - TEXTURE_INPUTS].map(|buffer| match buffer {
-                        FragmentBuffer::EarlierPass(writer) => ShaderTexture::Current(target(writer)),
-                        FragmentBuffer::PreviousFrame(writer) => ShaderTexture::PreviousFrame(target(writer)),
-                    })
-                }
+            program: stage.program.clone(),
+            inputs: stage.inputs.map(|input| match input? {
+                FragmentInput::Media(slot) => media[usize::from(slot)].map(ShaderTexture::Current),
+                FragmentInput::EarlierPass(writer) => Some(ShaderTexture::Current(target(writer))),
+                FragmentInput::PreviousFrame(writer) => Some(ShaderTexture::PreviousFrame(target(writer))),
             }),
             clock,
             index: index as u8,

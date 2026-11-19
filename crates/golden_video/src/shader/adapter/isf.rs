@@ -5,7 +5,7 @@ use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::Value;
 
 use super::TEXTURE_NAMES;
-use crate::shader::stages::{Dimension, FragmentBuffer, Stage};
+use crate::shader::stages::{Dimension, FragmentInput, Stage};
 use crate::shader::{CompileError, TEMPORARY_BUFFERS, TEXTURE_INPUTS};
 
 const MAX_INPUTS: usize = 64;
@@ -182,25 +182,26 @@ fn stages<'a>(
         last_writer[slot] = Some(index as u8);
         persistent[slot] |= persists;
     }
-    let mut previous = std::array::from_fn(|slot| {
+    let mut previous: [_; TEMPORARY_BUFFERS] = std::array::from_fn(|slot| {
         last_writer[slot]
             .filter(|_| persistent[slot])
-            .map(FragmentBuffer::PreviousFrame)
+            .map(FragmentInput::PreviousFrame)
     });
     passes
         .iter()
         .enumerate()
         .map(|(index, pass)| {
-            let stage = Stage {
+            let mut stage = Stage {
                 size: [
                     pass.width.as_ref().map(|size| size.parse(defaults)).transpose()?,
                     pass.height.as_ref().map(|size| size.parse(defaults)).transpose()?,
                 ],
                 float: pass.float.as_ref().is_some_and(Flag::enabled),
-                buffers: previous,
+                ..Stage::default()
             };
+            stage.inputs[TEXTURE_INPUTS..].copy_from_slice(&previous);
             if let Some(name) = pass.target.as_deref() {
-                previous[slots[name]] = Some(FragmentBuffer::EarlierPass(index as u8));
+                previous[slots[name]] = Some(FragmentInput::EarlierPass(index as u8));
             }
             Ok(stage)
         })

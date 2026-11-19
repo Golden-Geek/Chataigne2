@@ -31,7 +31,7 @@ pub(super) fn execute(
     let mut work = Work::default();
     for (index, history) in resources.history.values() {
         if presentation.pass(*index) {
-            history.begin(context, pipeline, time.monotonic());
+            history.begin(context, time.monotonic());
         }
     }
     for (index, pass) in plan.passes().iter().enumerate() {

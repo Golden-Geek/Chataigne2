@@ -40,6 +40,12 @@ enum ImageLease {
 }
 
 impl Texture {
+    /// Initialize every channel to zero in the resource's own storage format.
+    pub(super) fn clear_zero(&self, context: &ID3D11DeviceContext) {
+        // SAFETY: the prepared view belongs to the device owning this context.
+        unsafe { context.ClearRenderTargetView(&self.rtv, &[0.0; 4]) };
+    }
+
     pub(super) fn from_asset(
         device: &ID3D11Device,
         image: &golden_assets::PreparedAsset<crate::image::ImageData>,

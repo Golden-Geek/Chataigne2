@@ -5,7 +5,6 @@ use windows::Win32::Graphics::Direct3D11::*;
 use windows::core::Result;
 
 use super::{D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST, Pipeline, RECT, Texture, missing_output};
-use crate::LinearColor;
 use crate::shader::{FragmentProgram, TEXTURE_BINDINGS};
 
 #[repr(C)]
@@ -24,17 +23,21 @@ struct FrameSample {
 
 pub(in crate::native) struct ShaderPass {
     draw: Rc<ShaderDraw>,
-    last_frame: Cell<Option<FrameSample>>,
+    clock: Rc<ShaderClock>,
 }
 
 impl ShaderPass {
-    pub(in crate::native) fn new(draw: Rc<ShaderDraw>) -> Self {
-        Self {
-            draw,
-            last_frame: Cell::new(None),
-        }
+    pub(in crate::native) fn new(draw: Rc<ShaderDraw>, clock: Rc<ShaderClock>) -> Self {
+        Self { draw, clock }
     }
+}
 
+#[derive(Default)]
+pub(in crate::native) struct ShaderClock {
+    last_frame: Cell<Option<FrameSample>>,
+}
+
+impl ShaderClock {
     fn sample(&self, time: TimeSnapshot) -> FrameSample {
         let monotonic_ns = time.monotonic().as_nanos();
         let sample = match self.last_frame.get() {
@@ -101,7 +104,7 @@ impl Pipeline {
         let width = extent.width();
         let height = extent.height();
         let seconds = time.show_position().as_nanos() as f32 * 1e-9;
-        let sample = pass.sample(time);
+        let sample = pass.clock.sample(time);
         let rate = if sample.delta_seconds > 0.0 {
             sample.delta_seconds.recip()
         } else {
@@ -114,7 +117,7 @@ impl Pipeline {
         };
         let shader = &pass.draw;
         // A legal fragment can discard a pixel, which leaves that pixel transparent.
-        self.clear(context, target, LinearColor::TRANSPARENT);
+        target.clear_zero(context);
         // SAFETY: the shader, constant buffer, context and target belong to the same device.
         unsafe {
             context.UpdateSubresource(&shader.frame, 0, None, std::ptr::from_ref(&frame).cast(), 0, 0);

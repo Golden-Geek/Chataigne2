@@ -15,6 +15,8 @@ enum Writer {
 struct Resource {
     writer: Writer,
     bytes: u64,
+    raw: bool,
+    #[cfg(all(windows, feature = "d3d11"))]
     compositing_contract: bool,
 }
 
@@ -69,7 +71,14 @@ pub(super) fn compile(
                 }
             }
         }
-        insert_resource(&mut resources, texture.id, Writer::External, bytes, texture.descriptor)?;
+        insert_resource(
+            &mut resources,
+            texture.id,
+            Writer::External,
+            bytes,
+            texture.descriptor,
+            false,
+        )?;
     }
     for (index, pass) in plan.passes.iter().enumerate() {
         let bytes = validate_descriptor(pass.output, &pass.descriptor, limits)?;
@@ -83,7 +92,18 @@ pub(super) fn compile(
                 });
             }
         }
-        if !pass.descriptor.is_compositing_target() {
+        #[cfg(all(windows, feature = "d3d11"))]
+        let raw = matches!(&pass.operation, RenderOperation::Shader { program, .. } if program.raw_output());
+        #[cfg(not(all(windows, feature = "d3d11")))]
+        let raw = false;
+        let valid_target = if raw {
+            pass.descriptor.format == crate::PixelFormat::Rgba32Float
+                && pass.descriptor.color_encoding == crate::ColorEncoding::Linear
+                && pass.descriptor.alpha_mode == crate::AlphaMode::Straight
+        } else {
+            pass.descriptor.is_compositing_target()
+        };
+        if !valid_target {
             return Err(PlanError::InvalidTargetContract {
                 pass: pass.id,
                 output: pass.output,
@@ -99,7 +119,14 @@ pub(super) fn compile(
                 }
             }
         }
-        insert_resource(&mut resources, pass.output, Writer::Pass(index), bytes, pass.descriptor)?;
+        insert_resource(
+            &mut resources,
+            pass.output,
+            Writer::Pass(index),
+            bytes,
+            pass.descriptor,
+            raw,
+        )?;
     }
 
     let mut output_ids = BTreeSet::new();
@@ -107,8 +134,14 @@ pub(super) fn compile(
         if !output_ids.insert(output.id) {
             return Err(PlanError::DuplicateOutput(output.id));
         }
-        if !resources.contains_key(&output.source) {
+        let Some(source) = resources.get(&output.source) else {
             return Err(PlanError::MissingOutputSource {
+                output: output.id,
+                source: output.source,
+            });
+        };
+        if source.raw {
+            return Err(PlanError::RawShaderOutput {
                 output: output.id,
                 source: output.source,
             });
@@ -127,7 +160,7 @@ pub(super) fn compile(
     }
     let ordered = topological_order(&plan, &pass_indices, &resources)?;
     #[cfg(all(windows, feature = "d3d11"))]
-    validate_shader_history(&plan, &resources)?;
+    validate_shader_bindings(&plan, &resources)?;
     let mut demanded = demanded_textures(&plan, &resources);
     demanded.extend(source_demands.iter().copied());
     let history_targets = plan
@@ -169,18 +202,44 @@ pub(super) fn compile(
 }
 
 #[cfg(all(windows, feature = "d3d11"))]
-fn validate_shader_history(plan: &RenderPlan, resources: &BTreeMap<TextureId, Resource>) -> Result<(), PlanError> {
+fn validate_shader_bindings(plan: &RenderPlan, resources: &BTreeMap<TextureId, Resource>) -> Result<(), PlanError> {
+    use super::ShaderTexture;
+
     for pass in &plan.passes {
-        let RenderOperation::Shader { clock, .. } = &pass.operation else {
+        let RenderOperation::Shader {
+            clock, program, inputs, ..
+        } = &pass.operation
+        else {
             continue;
         };
-        for source in pass.operation.history_sources() {
-            let owner = resources.get(&source).and_then(|resource| match resource.writer {
+        for (slot, binding) in inputs
+            .iter()
+            .enumerate()
+            .filter_map(|(slot, binding)| binding.map(|binding| (slot, binding)))
+        {
+            let (source, delayed) = match binding {
+                ShaderTexture::Current(source) => (source, false),
+                ShaderTexture::PreviousFrame(source) => (source, true),
+            };
+            let Some(resource) = resources.get(&source) else {
+                return Err(PlanError::MissingPassInput { pass: pass.id, source });
+            };
+            let owner = match resource.writer {
                 Writer::Pass(index) => Some(&plan.passes[index].operation),
                 Writer::External => None,
-            });
-            if !matches!(owner, Some(RenderOperation::Shader { clock: owner, .. }) if owner == clock) {
+            };
+            let same_effect = matches!(owner, Some(RenderOperation::Shader { clock: writer, program: source, .. })
+                if writer == clock && source.effect() == program.effect());
+            if delayed && !same_effect {
                 return Err(PlanError::InvalidShaderHistory { pass: pass.id, source });
+            }
+            let compatible = if program.raw_input(slot) {
+                resource.raw && same_effect
+            } else {
+                resource.compositing_contract
+            };
+            if !compatible {
+                return Err(PlanError::InvalidShaderInput { pass: pass.id, source });
             }
         }
     }
@@ -235,12 +294,15 @@ fn insert_resource(
     id: TextureId,
     writer: Writer,
     bytes: u64,
-    descriptor: TextureDescriptor,
+    _descriptor: TextureDescriptor,
+    raw: bool,
 ) -> Result<(), PlanError> {
     let resource = Resource {
         writer,
         bytes,
-        compositing_contract: descriptor.is_compositing_target(),
+        raw,
+        #[cfg(all(windows, feature = "d3d11"))]
+        compositing_contract: _descriptor.is_compositing_target(),
     };
     if resources.insert(id, resource).is_some() {
         return Err(PlanError::DuplicateTextureWriter(id));
@@ -264,7 +326,7 @@ fn topological_order(
             let resource = resources
                 .get(&source)
                 .ok_or(PlanError::MissingPassInput { pass: pass.id, source })?;
-            if shader && !resource.compositing_contract {
+            if resource.raw && !shader {
                 return Err(PlanError::InvalidShaderInput { pass: pass.id, source });
             }
             if let Writer::Pass(producer) = resource.writer {
