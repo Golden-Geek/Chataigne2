@@ -10,7 +10,9 @@ import { SurfaceGesture, createSurfaceGestureState } from './surface-gesture';
 import { invokeScreenEdit } from './operations';
 import { SCREEN_NAMESPACE } from './generated/constants';
 import type { ScreenEditorQuery } from './generated/ScreenEditorQuery';
-import type { SurfacePresentation } from './surface-gesture';
+import type { SurfaceHandle, SurfacePresentation } from './surface-gesture';
+import type { ScreenEditorPage } from './generated/ScreenEditorPage';
+import { acceptedWarp, type WarpVertices } from './gesture-presentation';
 import { warpEditGroup, type CornerLinkEdit } from './warp-edit-group';
 
 export function createScreenEditor(query: () => ScreenEditorQuery) {
@@ -50,16 +52,23 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 			: controller.screen
 	);
 	let presentation = $state.raw<SurfacePresentation | null>(null);
+	let acknowledged = $state.raw<{ page: ScreenEditorPage; warp: WarpVertices } | null>(null);
+	let handle: SurfaceHandle | null = null;
+	$effect(() => {
+		if (acknowledged && acknowledged.page !== controller.page) acknowledged = null;
+	});
 	let finalLink: CornerLinkEdit | null = null;
 	const gesture = new SurfaceGesture<WorkbenchSession>(() => session, gestureState, {
-		group: (current, handle) => {
+		group: (current, nextHandle) => {
+			handle = nextHandle;
+			acknowledged = null;
 			finalLink = null;
 			const generation = current.snapshotGeneration,
 				project = current.projectGeneration;
 			const group = createUiEditSession(
-				handle.kind === 'QuadCorner' ||
-					handle.kind === 'QuadCornerPixels' ||
-					handle.kind === 'QuadTranslation'
+				nextHandle.kind === 'QuadCorner' ||
+					nextHandle.kind === 'QuadCornerPixels' ||
+					nextHandle.kind === 'QuadTranslation'
 					? 'Warp Surface'
 					: 'Crop Surface',
 				'surface-geometry',
@@ -95,11 +104,19 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 			if (result.kind !== 'SurfaceChanged') throw new Error('Unexpected Surface geometry response');
 			return result.snapshot;
 		},
-		accepted: (snapshot) => controller.acceptSurface(snapshot),
+		accepted: (snapshot) => {
+			controller.acceptSurface(snapshot);
+			const page = controller.page;
+			const warp = handle && acceptedWarp(snapshot, handle);
+			if (page && warp) acknowledged = { page, warp };
+		},
 		present: (value) => {
 			presentation = value;
 		},
-		active: (active) => controller.setInteracting(active),
+		active: (active) => {
+			if (!active) handle = null;
+			controller.setInteracting(active);
+		},
 		finished: () => controller.refresh()
 	});
 	observeEditor({
@@ -138,6 +155,9 @@ export function createScreenEditor(query: () => ScreenEditorQuery) {
 		},
 		get presentation() {
 			return presentation;
+		},
+		get acknowledgedWarp() {
+			return acknowledged && acknowledged.page === controller.page ? acknowledged.warp : null;
 		}
 	};
 }

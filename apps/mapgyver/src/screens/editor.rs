@@ -99,6 +99,7 @@ pub(super) fn inspect(engine: &AppEngine, query: ScreenEditorQuery) -> Result<Sc
         has_more_surfaces: false,
         selected_surface: None,
         surface: None,
+        linked_corners: Vec::new(),
         source_preview: None,
     };
     if !page.document_matches {
@@ -143,6 +144,11 @@ pub(super) fn inspect(engine: &AppEngine, query: ScreenEditorQuery) -> Result<Sc
     });
     if query.editor == ScreenEditorKind::Surface && page.surface.is_none() {
         return Ok(page);
+    }
+    if query.editor == ScreenEditorKind::Screen
+        && let Some(surface) = &page.surface
+    {
+        page.linked_corners = super::handle_candidates::linked_corners(engine, surface.reference)?;
     }
     let mut snapshot = ScreenSnapshot {
         id: screen,

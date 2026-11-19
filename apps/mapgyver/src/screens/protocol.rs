@@ -510,6 +510,8 @@ pub struct ScreenEditorPage {
     pub selected_surface: Option<SurfaceId>,
     /// Independent lookup keeps off-page selected geometry editable.
     pub surface: Option<SurfaceSnapshot>,
+    /// Existing corner groups for the selected Surface, independent of snap candidates.
+    pub linked_corners: Vec<ScreenHandleGroup>,
     /// Backend-owned choice between the full channel, active calibration, or no image.
     pub source_preview: Option<crate::preview::protocol::PreviewSource>,
 }

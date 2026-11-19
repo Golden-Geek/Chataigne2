@@ -351,6 +351,8 @@
 					nativeOverlays = JSON.stringify(value);
 				}}
 				{screen}
+				outlines={new Map()}
+				presenting={false}
 				{selected}
 				selectedCorner={warpCorner}
 				disabled={warpBusy}

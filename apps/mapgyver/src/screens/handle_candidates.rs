@@ -7,6 +7,46 @@ use golden_core::{
 };
 use std::collections::HashMap;
 
+struct SelectedCorners {
+    groups: Vec<ScreenHandleGroup>,
+    bindings: Vec<Vec<NodeId>>,
+}
+
+fn selected_corners(engine: &AppEngine, reference: SurfaceReference) -> Result<SelectedCorners, String> {
+    let mut groups = Vec::new();
+    let mut bindings = Vec::with_capacity(4);
+    for corner in 0..4 {
+        let param = handle_links::parameter(engine, ScreenCorner { reference, corner })?;
+        let group = engine.parameter_binding_group(param);
+        let valid = handle_links::validate_members(engine, &group, false).is_ok();
+        let missing = engine
+            .nodes
+            .get(param)
+            .and_then(|node| node.engine_param_control_state())
+            .is_some_and(|state| state.mode == ParameterControlMode::Binding)
+            && engine.parameter_binding_target(param).is_none();
+        if valid && (group.len() > 1 || missing) {
+            groups.push(ScreenHandleGroup {
+                corner,
+                members: group
+                    .iter()
+                    .map(|&id| handle_links::corner(engine, id))
+                    .collect::<Result<_, _>>()?,
+                missing,
+            });
+        }
+        bindings.push(group);
+    }
+    Ok(SelectedCorners { groups, bindings })
+}
+
+pub(super) fn linked_corners(
+    engine: &AppEngine,
+    reference: SurfaceReference,
+) -> Result<Vec<ScreenHandleGroup>, String> {
+    Ok(selected_corners(engine, reference)?.groups)
+}
+
 pub(super) fn inspect(engine: &AppEngine, query: ScreenHandleQuery) -> Result<ScreenHandlePage, String> {
     let document = engine
         .nodes
@@ -25,33 +65,8 @@ pub(super) fn inspect(engine: &AppEngine, query: ScreenHandleQuery) -> Result<Sc
     if !page.document_matches || authoring::surface_id(engine, query.reference).is_err() {
         return Ok(page);
     }
-    let mut source_groups = Vec::new();
-    for corner in 0..4 {
-        let member = ScreenCorner {
-            reference: query.reference,
-            corner,
-        };
-        let param = handle_links::parameter(engine, member)?;
-        let group = engine.parameter_binding_group(param);
-        let valid = handle_links::validate_members(engine, &group, false).is_ok();
-        let missing = engine
-            .nodes
-            .get(param)
-            .and_then(|node| node.engine_param_control_state())
-            .is_some_and(|state| state.mode == ParameterControlMode::Binding)
-            && engine.parameter_binding_target(param).is_none();
-        if valid && (group.len() > 1 || missing) {
-            page.groups.push(ScreenHandleGroup {
-                corner,
-                members: group
-                    .iter()
-                    .map(|&id| handle_links::corner(engine, id))
-                    .collect::<Result<_, _>>()?,
-                missing,
-            });
-        }
-        source_groups.push(group);
-    }
+    let SelectedCorners { groups, bindings } = selected_corners(engine, query.reference)?;
+    page.groups = groups;
     if !query.include_candidates {
         return Ok(page);
     }
@@ -112,7 +127,7 @@ pub(super) fn inspect(engine: &AppEngine, query: ScreenHandleQuery) -> Result<Sc
                 group
             };
             let linkable = std::array::from_fn(|index| {
-                let source = &source_groups[index];
+                let source = &bindings[index];
                 if source.contains(&param)
                     || !handle_links::directly_linkable(engine, source)
                     || !handle_links::directly_linkable(engine, &target_group)

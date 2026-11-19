@@ -1,9 +1,9 @@
 # MapGyver — simple status
 
 - **Updated:** 19 November 2026.
-- **Overall plan acceptance:** `█████████░` **85% — 117/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** Surface Editor and Media Preview keep the previous image visible while a new source loads.
-- **Working on next:** Linked outline stability in Screen Warping.
+- **Overall plan acceptance:** `█████████░` **86% — 118/137 checks accepted, 8/17 phases complete**.
+- **Latest delivered:** Linked Screen Warping outlines move together through drag, release, Undo and Redo.
+- **Working on next:** Extended Video formats.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -58,13 +58,13 @@
 - [x] **Live OSCQuery feedback:** each client receives the values and triggers it subscribes to. Individual updates arrive immediately and bursts are bundled. Two-client isolation, trigger delivery and project replacement passed. [Checks](evidence/mapgyver-m16-oscquery-feedback-2026-11-19.json)
 - [x] **OSC addresses:** right-click a node to copy its address. Enable **Preferences → Interface → Show OSC Address in Help** to see the hovered node's address in the bottom bar. Copy, duplicate names, move/Undo and project replacement passed. [Checks](evidence/mapgyver-m16-oscquery-addresses-2026-11-19.json)
 - [x] **Seamless previews:** Surface Editor and Media Preview held the previous image until a delayed Spout sender produced frames. Switching between Surfaces using the same channel, including through a Reference, reused one live receiver. [Checks](evidence/mapgyver-m16-seamless-previews-2026-11-19.json)
+- [x] **Linked outlines:** both Screen Warping outlines follow the latest drag before the engine replies, including with snapping off. Release, Undo/Redo, native hit testing and independent Spout pixels passed. [Checks](evidence/mapgyver-m16-linked-outlines-2026-11-19.json)
 
 ## Next features — implementation order
 
-1. **NOW — Linked outlines in Screen Warping.** Fix outline flicker while dragging linked handles.
-2. **Extended Video formats.** Add DXV, WebP (including animated WebP), and MKV playback
+1. **NOW — Extended Video formats.** Add DXV, WebP (including animated WebP), and MKV playback
     with selectable embedded subtitles and audio tracks.
-3. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
+2. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
 

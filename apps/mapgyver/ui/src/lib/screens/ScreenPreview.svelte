@@ -12,7 +12,7 @@
 	import type { Point } from './generated/Point';
 	import { createSurfaceKeyboard, type KeyboardTarget } from './surface-keyboard';
 	import type { SurfaceHandle, SurfacePresentation } from './surface-gesture';
-	import { surfaceQuad } from './gesture-presentation';
+	import { warpDraft, warpOutlines, type WarpVertices } from './gesture-presentation';
 	import type { ScreenHandleCandidate } from './generated/ScreenHandleCandidate';
 	import type { ScreenHandleGroup } from './generated/ScreenHandleGroup';
 	import type { CornerLinkEdit } from './warp-edit-group';
@@ -25,6 +25,7 @@
 		screen,
 		inputAvailable,
 		presentation = null,
+		acknowledgedWarp = null,
 		selected,
 		disabled,
 		select,
@@ -43,6 +44,7 @@
 		screen: ScreenSnapshot;
 		inputAvailable: boolean;
 		presentation?: SurfacePresentation | null;
+		acknowledgedWarp?: WarpVertices | null;
 		selected: SurfaceId | null;
 		disabled: boolean;
 		select(id: SurfaceId | null): void;
@@ -116,8 +118,15 @@
 	const selectedSurface = $derived(
 		screen.surfaces.find((surface) => surface.reference.surface === selected)
 	);
+	const outlines = $derived(
+		warpOutlines(screen, presentation ? warpDraft(presentation, extent) : acknowledgedWarp, groups)
+	);
 	const selection = $derived(
-		selectedSurface ? pointBounds(surfaceQuad(selectedSurface, presentation, extent)) : null
+		selectedSurface
+			? pointBounds(
+					outlines.get(selectedSurface.reference.surface) ?? selectedSurface.definition.quad.corners
+				)
+			: null
 	);
 </script>
 
@@ -168,8 +177,8 @@
 					{groups}
 					{unlink}
 					unlinkDisabled={gestureActive}
-					{presentation}
-					{extent}
+					{outlines}
+					presenting={presentation !== null}
 					onoverlays={setOverlays}
 					{screen}
 					{selected}

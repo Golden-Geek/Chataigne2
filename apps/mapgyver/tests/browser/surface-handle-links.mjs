@@ -13,6 +13,21 @@ const directory = path.resolve(process.argv[2]);
 await mkdir(directory, { recursive: true });
 const host = await openNativeEditor();
 const { page } = host;
+const outlineStability = process.argv.includes('--outline-stability');
+let holdGeometry = false;
+const pendingGeometry = [];
+if (outlineStability) {
+	await page.routeWebSocket('**', (socket) => {
+		const server = socket.connectToServer();
+		socket.onMessage((message) => {
+			const frame = JSON.parse(String(message));
+			if (holdGeometry && frame.intent?.payload?.kind === 'EditSurfaceGeometry')
+				pendingGeometry.push({ server, message });
+			else server.send(message);
+		});
+	});
+	await page.reload();
+}
 let token,
 	stage = 'prepare';
 const checks = [],
@@ -185,6 +200,185 @@ async function pointEqual(reference, corner, expected) {
 		assert(Date.now() < deadline, `corner did not update while held: ${JSON.stringify(point)}`);
 		await delay(30);
 	}
+}
+async function outlinePoint(reference, index) {
+	const points = await panel
+		.locator(`polygon[data-native-hit-id="${reference.surface}"]`)
+		.getAttribute('points');
+	return points.split(' ')[index].split(',').map(Number);
+}
+
+async function verifyLinkedOutlines(a, b) {
+	const corners = [
+		[a, 1],
+		[b, 0]
+	];
+	const selector = (reference) => `polygon[data-native-hit-id="${reference.surface}"]`;
+	const contours = corners.map(([reference, index]) => [selector(reference), index]);
+	const within = (sample, expected) =>
+		Math.hypot(sample[0] - expected.x, sample[1] - expected.y) < 1e-5;
+	const original = (await surface(a)).definition.quad.corners[1];
+	const swings = [
+		{ x: 0.48, y: 0.29 },
+		{ x: 0.52, y: 0.33 },
+		{ x: 0.43, y: 0.28 }
+	];
+	const last = swings.at(-1);
+	const view = panel.locator('.native-preview');
+	const bounds = await panel.locator('svg[aria-label="Surface mapping controls"]').boundingBox();
+	assert(bounds);
+	const css = ({ x, y }) => [bounds.x + x * bounds.width, bounds.y + y * bounds.height];
+	async function expectNativeHit(point, expected) {
+		const deadline = Date.now() + 5000;
+		for (;;) {
+			const result = await view.evaluate(
+				async (node, point) =>
+					JSON.parse(
+						await window.__TAURI_INTERNALS__.invoke('native_presentation_control', {
+							request: JSON.stringify({
+								kind: 'Pointer',
+								session: node.dataset.previewSession,
+								view: node.dataset.previewView,
+								source: node.dataset.previewSource,
+								point
+							})
+						})
+					),
+				css(point)
+			);
+			if (result.sample?.hit === expected) return;
+			assert(
+				Date.now() < deadline,
+				`native outline hit at ${JSON.stringify(point)}: ${JSON.stringify(result)}`
+			);
+			await delay(15);
+		}
+	}
+	async function inspectOutlines(expected) {
+		for (const [reference, index] of corners) {
+			const actual = await outlinePoint(reference, index);
+			assert(
+				within(actual, expected),
+				`outline ${reference.surface}, corner ${index}: ${actual} expected ${expected.x},${expected.y}`
+			);
+		}
+	}
+	async function sampleOutlines() {
+		await page.evaluate((contours) => {
+			const record = { samples: [], active: true };
+			window.__linkedOutlineSamples = record;
+			function frame() {
+				if (!record.active) return;
+				record.samples.push(
+					contours.map(([selector, index]) =>
+						document
+							.querySelector(selector)
+							?.getAttribute('points')
+							.split(' ')
+							[index].split(',')
+							.map(Number)
+					)
+				);
+				requestAnimationFrame(frame);
+			}
+			frame();
+		}, contours);
+	}
+	async function stopSampling() {
+		return page.evaluate(() => {
+			const record = window.__linkedOutlineSamples;
+			record.active = false;
+			return record.samples;
+		});
+	}
+	holdGeometry = true;
+	try {
+		await move(1, swings[0], false);
+		await page.waitForFunction(() =>
+			document.querySelector('[data-geometry-presentation="pending"]')
+		);
+		const deadline = Date.now() + 5000;
+		while (!pendingGeometry.length) {
+			assert(Date.now() < deadline, 'linked drag must reach the held geometry transport');
+			await delay(15);
+		}
+		assert.equal(pendingGeometry.length, 1);
+		await inspectOutlines(swings[0]);
+		for (const point of swings.slice(1)) {
+			await page.mouse.move(...css(point), { steps: 3 });
+			await page.waitForFunction(
+				({ selector, point }) => {
+					const [x, y] = document
+						.querySelector(selector)
+						.getAttribute('points')
+						.split(' ')[1]
+						.split(',')
+						.map(Number);
+					return Math.hypot(x - point.x, y - point.y) < 1e-5;
+				},
+				{ selector: selector(a), point }
+			);
+			await inspectOutlines(point);
+		}
+		for (const [reference, index] of corners)
+			assert.deepEqual((await surface(reference)).definition.quad.corners[index], original);
+		await expectNativeHit({ x: 0.485, y: 0.37 }, b.surface);
+		await expectNativeHit(last, `${a.surface}:1`);
+		stage = 'linked outlines during release';
+		await sampleOutlines();
+		await page.mouse.up();
+		await delay(60);
+	} finally {
+		holdGeometry = false;
+		for (const { server, message } of pendingGeometry.splice(0)) server.send(message);
+	}
+	for (const [reference, index] of corners) await pointEqual(reference, index, last);
+	await settled();
+	const releaseSamples = await stopSampling();
+	assert(releaseSamples.length >= 3, 'observe one or more frames across the release handoff');
+	assert(
+		releaseSamples.every((pair) => pair.every((point) => point && within(point, last))),
+		'neither outline may jump back on release'
+	);
+	await inspectOutlines(last);
+	await expectNativeHit({ x: 0.485, y: 0.37 }, b.surface);
+	const historyFrames = {};
+	for (const [kind, point, peerHit] of [
+		['undo', original, a.surface],
+		['redo', last, b.surface]
+	]) {
+		stage = `linked outlines during ${kind}`;
+		await sampleOutlines();
+		await intent({ kind });
+		for (const [reference, index] of corners) await pointEqual(reference, index, point);
+		// The request applies over HTTP. The editor consumes the resulting history over WebSocket.
+		await page.waitForFunction(
+			({ contours, point }) =>
+				contours.every(([selector, index]) => {
+					const vertex = document.querySelector(selector)?.getAttribute('points')?.split(' ')[
+						index
+					];
+					if (!vertex) return false;
+					const [x, y] = vertex.split(',').map(Number);
+					return Math.hypot(x - point.x, y - point.y) < 1e-5;
+				}),
+			{ contours, point }
+		);
+		await settled();
+		await inspectOutlines(point);
+		await expectNativeHit({ x: 0.485, y: 0.37 }, peerHit);
+		const samples = await stopSampling();
+		assert(samples.length >= 2);
+		const split = samples.find(([a, b]) => !a || !b || !within(a, { x: b[0], y: b[1] }));
+		assert.equal(split, undefined, `linked outline pair must update together during ${kind}`);
+		historyFrames[kind] = samples.length;
+	}
+	checks.push({
+		stage: 'linked-outline-stability',
+		samples: swings.length,
+		releaseFrames: releaseSamples.length,
+		historyFrames
+	});
 }
 async function review(name) {
 	if (!process.argv.includes('--review') || name === 'initial') return;
@@ -383,6 +577,10 @@ try {
 	);
 	await magnet.click();
 	await settled();
+	if (outlineStability) {
+		stage = 'linked outlines before backend acknowledgement';
+		await verifyLinkedOutlines(a, b);
+	}
 	const held = { x: 0.5, y: 0.35 };
 	await move(1, held, false);
 	await pointEqual(a, 1, held);

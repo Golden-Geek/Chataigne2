@@ -78,6 +78,24 @@ fn handle_queries_project_real_groups_and_backend_eligibility_without_authoring_
     let off = read(&mut engine, a, None, false);
     assert_eq!(off.groups.len(), 1);
     assert!(off.candidates.is_empty() && off.next.is_none());
+    let ScreenEditResult::Editor { page: editor } = apply(
+        &mut engine,
+        ScreenEdit::InspectEditor {
+            query: ScreenEditorQuery {
+                editor: ScreenEditorKind::Screen,
+                selected: Some(a.surface.0),
+                document: None,
+                locked: None,
+                retained: None,
+                surface: None,
+            },
+        },
+    ) else {
+        panic!("expected a Screen editor page");
+    };
+    assert_eq!(editor.linked_corners.len(), 1);
+    assert_eq!(editor.linked_corners[0].corner, off.groups[0].corner);
+    assert_eq!(editor.linked_corners[0].members, off.groups[0].members);
     assert_eq!(engine.ui_history_state(), history);
     assert_eq!(
         golden_core::app::to_sparse_project_json_pretty(&engine).unwrap(),

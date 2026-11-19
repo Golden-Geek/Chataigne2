@@ -65,6 +65,7 @@ const reply = (id = 'current', selected: SurfaceSnapshot | null = surface()): Sc
 		},
 		has_more_surfaces: false,
 		selected_surface: selected?.reference.surface ?? null,
+		linked_corners: [],
 		source_preview: null,
 		surface: selected
 	}

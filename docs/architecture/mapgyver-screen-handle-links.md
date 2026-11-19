@@ -47,8 +47,12 @@ The final drag/link request is flushed before the existing Golden edit group clo
 Focused tests and five native drag/link/Undo cycles reverse both in one Undo. Earlier
 automation failures are retained in the receipt; the corrected fixture requires authoring
 readiness immediately before pointer-down as well as accepted native hit readiness.
-Typed Parameter projection stays live during manipulation
-for every linked Surface, while the active handle retains its immediate presentation.
+Screen Warping projects the latest dragged vertices onto every visible member of the
+selected Surface's admitted corner groups. The Screen editor read returns those groups
+alongside geometry. The snapping toggle controls the separate candidate read. The SVG
+outlines, native outlines and hit geometry use one projection. After release, the last
+accepted geometry covers the handoff to the next authoritative editor read. Golden
+Parameters still own the authored geometry and binding propagation.
 Held-pointer peer contours and independent red/blue output pixels pass. The guarded
 foreground capture also matches all eight image edges to DOM geometry (32 color-boundary
 probes within the contour-stroke/pixel-rounding allowance) and all four corner/unlink native

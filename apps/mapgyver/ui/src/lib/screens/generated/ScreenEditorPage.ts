@@ -3,6 +3,7 @@ import type { EngineTime } from "./EngineTime";
 import type { NodeUuid } from "./NodeUuid";
 import type { PreviewSource } from "./PreviewSource";
 import type { ScreenEditorTarget } from "./ScreenEditorTarget";
+import type { ScreenHandleGroup } from "./ScreenHandleGroup";
 import type { ScreenSnapshot } from "./ScreenSnapshot";
 import type { SurfaceId } from "./SurfaceId";
 import type { SurfaceParameterBindings } from "./SurfaceParameterBindings";
@@ -25,6 +26,10 @@ selected_surface: SurfaceId | null,
  * Independent lookup keeps off-page selected geometry editable.
  */
 surface: SurfaceSnapshot | null,
+/**
+ * Existing corner groups for the selected Surface, independent of snap candidates.
+ */
+linked_corners: Array<ScreenHandleGroup>,
 /**
  * Backend-owned choice between the full channel, active calibration, or no image.
  */

@@ -84,11 +84,11 @@
 	);
 	const screenHandles = createScreenHandles(
 		() =>
-			editor === 'screen' && surface && controller.page
+			editor === 'screen' && choice.snap && surface && controller.page
 				? {
 						document: controller.page.document,
 						reference: surface.reference,
-						include_candidates: choice.snap,
+						include_candidates: true,
 						cursor: null
 					}
 				: null,
@@ -303,7 +303,7 @@
 			<ScreenPreview
 				snapping={choice.snap}
 				candidates={screenHandles.candidates}
-				groups={screenHandles.page?.groups ?? []}
+				groups={controller.page?.linked_corners ?? []}
 				unlink={(corner) => {
 					if (surface)
 						void controller.edit({
@@ -313,6 +313,7 @@
 				}}
 				{inputAvailable}
 				presentation={owner.presentation}
+				acknowledgedWarp={owner.acknowledgedWarp}
 				{actions}
 				{screen}
 				selected={surface?.reference.surface ?? null}

@@ -6,9 +6,10 @@
 	import type { ScreenSnapshot } from './generated/ScreenSnapshot';
 	import type { SurfaceId } from './generated/SurfaceId';
 	import type { SurfaceReference } from './generated/SurfaceReference';
+	import type { SurfaceSnapshot } from './generated/SurfaceSnapshot';
 	import type { Point } from './generated/Point';
-	import type { SurfaceHandle, SurfacePresentation } from './surface-gesture';
-	import { surfaceQuad } from './gesture-presentation';
+	import type { SurfaceHandle } from './surface-gesture';
+	import type { WarpOutlines } from './gesture-presentation';
 	import { nearestHandle } from './handle-snap';
 	import { linkOverlays } from './link-overlays';
 	import { customNodeColor } from '../node-color.svelte';
@@ -23,8 +24,8 @@
 		unlink = () => {},
 		unlinkDisabled = false,
 		screen,
-		presentation = null,
-		extent = null,
+		outlines,
+		presenting,
 		selected,
 		selectedCorner,
 		pickCorner,
@@ -43,8 +44,8 @@
 		unlink?(corner: number): void;
 		unlinkDisabled?: boolean;
 		screen: ScreenSnapshot;
-		presentation?: SurfacePresentation | null;
-		extent?: { width: number; height: number } | null;
+		outlines: WarpOutlines;
+		presenting: boolean;
 		selected: SurfaceId | null;
 		selectedCorner: number | null;
 		pickCorner(surface: SurfaceId, corner: number): void;
@@ -86,6 +87,8 @@
 	let focusedSurface = $state<SurfaceId | null>(null);
 	let focusedHandle = $state<string | null>(null);
 	const visible = $derived(screen.surfaces.slice(0, 128));
+	const corners = (surface: SurfaceSnapshot) =>
+		outlines.get(surface.reference.surface) ?? surface.definition.quad.corners;
 	const handles = $derived(
 		[selected].flatMap((id, index, all) => {
 			if (!id || all.indexOf(id) !== index) return [];
@@ -98,7 +101,7 @@
 		onoverlays([
 			imageFrameOverlay(rem, customNodeColor(screen.id)),
 			...visible.map((item) =>
-				quadOverlay(surfaceQuad(item, presentation, extent), rem, {
+				quadOverlay(corners(item), rem, {
 					color: customNodeColor(item.reference.surface),
 					hit: item.reference.surface,
 					selected: item.reference.surface === selected,
@@ -108,7 +111,7 @@
 				})
 			),
 			...handles.flatMap((item) =>
-				surfaceQuad(item, presentation, extent).flatMap((point, index) =>
+				corners(item).flatMap((point, index) =>
 					handleOverlays(
 						point,
 						rem,
@@ -122,7 +125,7 @@
 			...(ghost ? handleOverlays(ghost, rem, false, true) : []),
 			...handles.flatMap((item) =>
 				groups.flatMap((group) => {
-					const point = surfaceQuad(item, presentation, extent)[group.corner];
+					const point = corners(item)[group.corner];
 					return point
 						? linkOverlays(
 								point,
@@ -258,7 +261,7 @@
 	viewBox="0 0 1 1"
 	preserveAspectRatio="none"
 	aria-label="Surface mapping controls"
-	data-geometry-presentation={presentation ? 'pending' : 'committed'}
+	data-geometry-presentation={presenting ? 'pending' : 'committed'}
 	role="group"
 	onclick={(event) => event.stopPropagation()}
 	onkeydown={(event) => {
@@ -287,7 +290,7 @@
 			data-native-hit-id={item.reference.surface}
 			data-surface-drop-target={item.reference.surface}
 			data-source-drop-object={item.reference.surface}
-			points={surfaceQuad(item, presentation, extent)
+			points={corners(item)
 				.map((point) => `${point.x},${point.y}`)
 				.join(' ')}
 			class:selected={item.reference.surface === selected}
@@ -314,7 +317,7 @@
 
 {#each handles as item (item.reference.surface)}
 	<div class="corners" role="group" aria-label={`Warp handles for ${item.label}`}>
-		{#each surfaceQuad(item, presentation, extent) as corner, index}
+		{#each corners(item) as corner, index}
 			<ViewportHandle
 				data-native-hit-id={`${item.reference.surface}:${index}`}
 				data-native-overlay-control
@@ -352,7 +355,7 @@
 				}} />
 		{/each}
 		{#each groups as group (group.corner)}
-			{@const point = surfaceQuad(item, presentation, extent)[group.corner]}
+			{@const point = corners(item)[group.corner]}
 			{#if point}
 				<button
 					type="button"
