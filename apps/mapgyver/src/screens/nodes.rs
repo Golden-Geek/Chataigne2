@@ -23,6 +23,8 @@ pub struct ScreenManagerNode {
     resolved_displays: std::collections::HashMap<super::protocol::ScreenId, super::catalog_runtime::RecoveredDisplay>,
     allocation_guard: Option<RevisionGuard>,
     pub(super) catalog_inbox: super::catalog_runtime::CatalogInbox,
+    #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
+    pub(super) ndi_audio: Arc<super::screen_node::ndi_audio::Registry>,
 }
 
 impl ScreenManagerNode {
@@ -39,6 +41,8 @@ impl ScreenManagerNode {
             resolved_displays: Default::default(),
             allocation_guard: None,
             catalog_inbox: Default::default(),
+            #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
+            ndi_audio: Default::default(),
         }
     }
     pub(crate) fn guard(&self) -> RevisionGuard {

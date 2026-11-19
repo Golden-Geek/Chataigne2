@@ -23,3 +23,5 @@ pub use reference::render_scalar_reference;
 
 #[cfg(test)]
 mod tests;
+#[cfg(all(feature = "analysis", feature = "playback"))]
+pub(crate) mod virtual_output_tap;

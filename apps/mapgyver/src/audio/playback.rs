@@ -4,6 +4,8 @@ mod decoder;
 mod matrix;
 #[cfg(all(windows, target_arch = "x86_64"))]
 mod ndi;
+#[cfg(all(windows, target_arch = "x86_64"))]
+pub(super) mod ndi_screen;
 mod source;
 
 use super::{preferences, voice};
@@ -118,6 +120,7 @@ pub(super) fn start(
     config: &AudioEngineConfig,
     limits: &EngineLimits,
     pool: &RetirementPool,
+    #[cfg(all(windows, target_arch = "x86_64"))] mut ndi_tap: golden_audio::VirtualOutputTapReader,
 ) -> io::Result<BoundedWorker<(), ()>> {
     let frames = config.internal_block_frames.get() as u64;
     let rate = config.sample_rate.get();
@@ -140,6 +143,8 @@ pub(super) fn start(
             let mut sources = Sources::new(voices);
             #[cfg(all(windows, target_arch = "x86_64"))]
             let mut ndi = ndi::Mix::default();
+            #[cfg(all(windows, target_arch = "x86_64"))]
+            let mut ndi_screens = ndi_screen::Mix::default();
             let mut project: Option<registry::Source> = None;
             let mut catalog_due = Instant::now();
             let mut next_frame = None;
@@ -154,6 +159,12 @@ pub(super) fn start(
                     sources = Sources::new(voices);
                     #[cfg(all(windows, target_arch = "x86_64"))]
                     ndi.clear();
+                    #[cfg(all(windows, target_arch = "x86_64"))]
+                    {
+                        ndi_tap.set_enabled(false);
+                        ndi_tap.drain(8, |_| {});
+                        ndi_screens = ndi_screen::Mix::default();
+                    }
                     project = None;
                     next_frame = None;
                     catalog_due = now;
@@ -169,6 +180,8 @@ pub(super) fn start(
                         root = project_root(&runtime);
                         sources.reconcile(project, &root, &options, now);
                         project.matrix_audio.options(&options, now);
+                        #[cfg(all(windows, target_arch = "x86_64"))]
+                        ndi_screens.refresh(project.ndi_outputs.as_deref(), &options);
                     }
                 }
                 let layout = output.0.lock().unwrap().layout.clone();
@@ -182,9 +195,14 @@ pub(super) fn start(
                     current_layout = layout.clone();
                     next_frame = None;
                 }
+                #[cfg(all(windows, target_arch = "x86_64"))]
+                let playback_lanes = ndi_screens.service(layout.as_deref(), &mut ndi_tap);
                 if let (Some(layout), Some(project)) = (layout.as_deref(), &project) {
                     let mix = project.matrix_audio.collect(now);
-                    let (active, changed) = sources.observe(layout, now, refresh_sources || layout_changed, mix, &root);
+                    #[cfg(not(all(windows, target_arch = "x86_64")))]
+                    let playback_lanes = &layout.lanes;
+                    let (active, changed) =
+                        sources.observe(playback_lanes, now, refresh_sources || layout_changed, mix, &root);
                     #[cfg(all(windows, target_arch = "x86_64"))]
                     let (active, changed) = {
                         let options = output.0.lock().unwrap().options.clone();

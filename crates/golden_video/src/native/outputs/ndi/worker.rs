@@ -8,10 +8,11 @@ use std::time::{Duration, Instant};
 
 use golden_io::{
     BoundedWorker, PayloadPool, PayloadReservation, PendingSendError, ReconnectBackoff, RetirementPool, WorkerLimits,
+    WorkerReceive, WorkerWake,
 };
 use windows::core::{Error, HRESULT, Result};
 
-use crate::ndi::{NdiSender, NdiVideoFormat};
+use crate::ndi::{NdiOutputAudio, NdiSender, NdiVideoFormat, output_timecode};
 
 pub(super) const CPU_BUFFERS: usize = 2;
 const CAPACITY: HRESULT = HRESULT(0x8007000e_u32 as i32);
@@ -30,7 +31,7 @@ pub(super) struct Publisher {
 }
 
 impl Publisher {
-    pub fn start(name: String, format: NdiVideoFormat) -> Result<Self> {
+    pub fn start(name: String, format: NdiVideoFormat, audio: Option<NdiOutputAudio>) -> Result<Self> {
         static LIFETIMES: OnceLock<RetirementPool> = OnceLock::new();
         static PAYLOAD: OnceLock<PayloadPool> = OnceLock::new();
         let lifetimes = LIFETIMES.get_or_init(|| RetirementPool::new(NonZeroUsize::new(16).unwrap()));
@@ -91,12 +92,38 @@ impl Publisher {
                         }
                     }
                 };
+                let audio = audio.map(|audio| audio.attach(context.wake_notifier()));
                 worker_ready.store(true, Ordering::Release);
-                while let Some(mut frame) = context.receive() {
-                    if sender
-                        .send_video(format, &mut frame.pixels, Some(frame.timecode))
-                        .is_err()
-                        || context.publish_weighted(frame.pixels, bytes).is_err()
+                while !cancellation.is_cancelled() {
+                    let checkpoint = context.wake_checkpoint();
+                    match context.receive_until(Instant::now()) {
+                        WorkerReceive::Command(mut frame) => {
+                            if sender
+                                .send_video(format, &mut frame.pixels, Some(frame.timecode))
+                                .is_err()
+                                || context.publish_weighted(frame.pixels, bytes).is_err()
+                            {
+                                break;
+                            }
+                        }
+                        WorkerReceive::Disconnected => break,
+                        WorkerReceive::Deadline => {}
+                    }
+                    if let Some(mut block) = audio.as_ref().and_then(|audio| audio.take()) {
+                        if cancellation.is_cancelled() {
+                            break;
+                        }
+                        let _ = sender.send_audio(
+                            block.sample_rate,
+                            block.channels,
+                            &mut block.samples,
+                            Some(output_timecode(block.starts_at)),
+                        );
+                        // Alternate streams under pressure on the shared worker.
+                        continue;
+                    }
+                    if context.wait_until(checkpoint, Instant::now() + Duration::from_secs(30))
+                        == WorkerWake::Disconnected
                     {
                         break;
                     }

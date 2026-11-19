@@ -1,0 +1,20 @@
+{
+	"date": "2026-11-19",
+	"gate": "M17/2",
+	"state": "Pending qualification",
+	"delivered": "Windows x64 Screen Target NDI publishes picture and named virtual audio with physical playback disabled. NDI is available from the normal Media and Screen controls at first launch.",
+	"checks": {
+		"runtime": "Fresh app profile in a private bundle layout with NDI_RUNTIME_DIR_V6 removed and ProgramFiles redirected for the app process.",
+		"fixture": "node apps/mapgyver/tests/browser/ndi-screen.mjs target/m17-ndi-screen-audio-native --audio",
+		"nativeReceipt": "target/m17-ndi-screen-audio-native/run-gf0sbm/result.json",
+		"picture": "Independent SDK receiver sampled red then green at 320x240/30 after closing the editor panels, and green at 240x160/24 on a custom sender. Disable and delete withdrew their senders.",
+		"audio": "At 48 kHz, channel 1 carried the 880 Hz Right virtual bus signal and channel 3 carried the 440 Hz Left bus signal. Channel 2 was unassigned with zero RMS across 89 sampled audio blocks. Physical output was disabled.",
+		"timestamps": "Nearest observed picture timecodes were 46.3151 ms and 9.4264 ms from the two sampled audio blocks. This measured timestamp proximity on one machine.",
+		"software": "117 Screen tests, two NDI Media tests, Golden Audio tap and managed-render regression, strict Rust clippy, Svelte check, Prettier and the Windows build passed."
+	},
+	"remaining": [
+		"Measure actual A/V offset and drift with synchronized markers at an independent LAN receiver.",
+		"Qualify concurrent Screens, live route and format changes, minimizing the main window, unavailable local output, network reconnect and final-use retirement.",
+		"Run the supported installer on clean Windows with the approved distribution inputs, and verify missing or incompatible runtime guidance."
+	]
+}

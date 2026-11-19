@@ -1,5 +1,5 @@
 //! Cell-owned files use the same bounded PCM reader, virtual lanes and worker as Video.
-use super::{Layout, frame_nanos, source::Head};
+use super::{frame_nanos, source::Head};
 use crate::{
     matrix::{
         audio::{FileUse, Weight},
@@ -7,7 +7,7 @@ use crate::{
     },
     media::protocol::AssetLocator,
 };
-use golden_audio::{GainDb, GainSmoother};
+use golden_audio::{AudioChannelId, GainDb, GainSmoother};
 use golden_io::{RevisionGuard, WorkerCancellation};
 use std::{
     collections::{HashMap, hash_map::Entry},
@@ -43,7 +43,7 @@ impl Files {
         &mut self,
         mut files: Vec<FileUse>,
         root: &Path,
-        layout: &Layout,
+        outputs: &HashMap<AudioChannelId, usize>,
         capacity: usize,
     ) -> (bool, bool) {
         files.sort_unstable_by_key(|file| (file.id.0.0.0, file.id.1));
@@ -54,7 +54,7 @@ impl Files {
             let lanes = source
                 .routing
                 .destinations
-                .map(|id| id.and_then(|id| layout.lanes.get(&id).copied()));
+                .map(|id| id.and_then(|id| outputs.get(&id).copied()));
             if !source.routing.enabled || lanes == [None, None] {
                 continue;
             }

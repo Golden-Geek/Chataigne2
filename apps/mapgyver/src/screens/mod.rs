@@ -31,6 +31,8 @@ pub(crate) use calibration::CalibrationAssets;
 pub use nodes::ScreenManagerNode;
 pub(crate) use queries::query_operation;
 pub use screen_node::ScreenNode;
+#[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
+pub(crate) use screen_node::ndi_audio::{Registry as NdiAudioRegistry, ScreenAudio};
 pub use surface_node::SurfaceNode;
 
 #[cfg(test)]

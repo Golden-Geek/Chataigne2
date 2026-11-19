@@ -200,7 +200,7 @@ impl Mix {
 fn map_routes(binding: &Binding, layout: &Layout, lanes: &mut Vec<(usize, usize)>) -> Option<GainDb> {
     lanes.clear();
     let gain = binding.visit_ndi_routes(|input, destination| {
-        if let Some(lane) = layout.virtual_lanes.get(&destination) {
+        if let Some(lane) = destination.and_then(|destination| layout.virtual_lanes.get(&destination)) {
             lanes.push((input, *lane));
         }
     })?;

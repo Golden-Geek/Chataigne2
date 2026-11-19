@@ -78,6 +78,8 @@ pub struct AudioEngineBuilder {
     managed_render_runtime: bool,
     #[cfg(all(feature = "analysis", feature = "playback"))]
     pcm_playback: Option<crate::PcmPlaybackReader>,
+    #[cfg(all(feature = "analysis", feature = "playback"))]
+    virtual_output_tap: Option<crate::VirtualOutputTapWriter>,
     ordered_events: bool,
 }
 
@@ -91,6 +93,8 @@ impl Default for AudioEngineBuilder {
             managed_render_runtime: false,
             #[cfg(all(feature = "analysis", feature = "playback"))]
             pcm_playback: None,
+            #[cfg(all(feature = "analysis", feature = "playback"))]
+            virtual_output_tap: None,
             ordered_events: false,
         }
     }
@@ -153,6 +157,15 @@ impl AudioEngineBuilder {
         self
     }
 
+    /// Export post-gain virtual output PCM from the managed renderer to a bounded tap.
+    #[cfg(all(feature = "analysis", feature = "playback"))]
+    #[must_use]
+    pub fn with_virtual_output_tap(mut self, tap: crate::VirtualOutputTapWriter) -> Self {
+        self.managed_render_runtime = true;
+        self.virtual_output_tap = Some(tap);
+        self
+    }
+
     pub fn build(self) -> Result<AudioEngine, AudioError> {
         self.config.validate()?;
         self.limits.validate()?;
@@ -203,6 +216,7 @@ impl AudioEngineBuilder {
                     .take()
                     .expect("playback renderer is present during engine construction"),
                 self.pcm_playback,
+                self.virtual_output_tap,
             )?)
         } else {
             None

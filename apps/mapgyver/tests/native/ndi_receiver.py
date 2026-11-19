@@ -2,10 +2,11 @@
 import argparse
 import ctypes
 import json
+import math
 from pathlib import Path
 import time
 
-from ndi_sender import Source, VideoFrame, fourcc, runtime
+from ndi_sender import AudioFrame, Source, VideoFrame, fourcc, runtime
 
 
 class FindSettings(ctypes.Structure):
@@ -32,9 +33,10 @@ def receiver_api(dll):
         ("recv_destroy", None, [ctypes.c_void_p]),
         ("recv_get_no_connections", ctypes.c_int32, [ctypes.c_void_p]),
         ("recv_capture_v3", ctypes.c_int32, [
-            ctypes.c_void_p, ctypes.POINTER(VideoFrame), ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint32,
+            ctypes.c_void_p, ctypes.POINTER(VideoFrame), ctypes.POINTER(AudioFrame), ctypes.c_void_p, ctypes.c_uint32,
         ]),
         ("recv_free_video_v2", None, [ctypes.c_void_p, ctypes.POINTER(VideoFrame)]),
+        ("recv_free_audio_v3", None, [ctypes.c_void_p, ctypes.POINTER(AudioFrame)]),
     ]:
         method = getattr(dll, f"NDIlib_{function}")
         method.argtypes = arguments
@@ -57,10 +59,7 @@ def match_source(dll, finder, name):
     return matches[0] if matches else None
 
 
-def capture(dll, receiver):
-    frame = VideoFrame()
-    if dll.NDIlib_recv_capture_v3(receiver, ctypes.byref(frame), None, None, 125) != 1:
-        return None
+def video_sample(dll, receiver, frame):
     try:
         if (
             frame.fourcc not in (fourcc(b"BGRA"), fourcc(b"BGRX"))
@@ -81,6 +80,67 @@ def capture(dll, receiver):
         )
     finally:
         dll.NDIlib_recv_free_video_v2(receiver, ctypes.byref(frame))
+
+
+def capture(dll, receiver):
+    frame = VideoFrame()
+    if dll.NDIlib_recv_capture_v3(receiver, ctypes.byref(frame), None, None, 125) == 1:
+        return video_sample(dll, receiver, frame)
+    return None
+
+
+def tone_power(samples, frequency, rate):
+    radians = math.tau * frequency / rate
+    sine = sum(value * math.sin(index * radians) for index, value in enumerate(samples))
+    cosine = sum(value * math.cos(index * radians) for index, value in enumerate(samples))
+    return sine * sine + cosine * cosine
+
+
+def observe_audio(dll, receiver, expected, name, write):
+    video_ticks = []
+    tones = [None] * len(expected)
+    silent_peak = 0.0
+    blocks = 0
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        picture, sound = VideoFrame(), AudioFrame()
+        kind = dll.NDIlib_recv_capture_v3(receiver, ctypes.byref(picture), ctypes.byref(sound), None, 125)
+        if kind == 1:
+            video_ticks.append(int(video_sample(dll, receiver, picture)["timecode"]))
+        if kind == 2:
+            try:
+                if sound.channels != len(expected):
+                    continue
+                if (
+                    sound.sample_rate != 48000 or sound.fourcc != fourcc(b"FLTp") or not sound.data
+                    or not 1 <= sound.samples <= 4096
+                    or sound.channel_stride < sound.samples * ctypes.sizeof(ctypes.c_float)
+                ):
+                    raise RuntimeError("unexpected incoming NDI audio contract")
+                blocks += 1
+                for channel, frequency in enumerate(expected):
+                    data = (ctypes.c_float * sound.samples).from_address(sound.data + channel * sound.channel_stride)
+                    rms = math.sqrt(sum(value * value for value in data) / sound.samples)
+                    if frequency == 0:
+                        silent_peak = max(silent_peak, rms)
+                        if rms > 0.00001:
+                            raise RuntimeError(f"unassigned stream channel {channel + 1} is audible: {rms}")
+                    else:
+                        expected_power = tone_power(data, frequency, sound.sample_rate)
+                        other = max((tone_power(data, hz, sound.sample_rate) for hz in expected if hz not in (0, frequency)), default=0)
+                        if rms > 0.035 and expected_power > other * 1.7:
+                            tones[channel] = dict(channel=channel + 1, hz=frequency, rms=rms, timecode=str(sound.timecode))
+            finally:
+                dll.NDIlib_recv_free_audio_v3(receiver, ctypes.byref(sound))
+        if any(hz and tone is None for hz, tone in zip(expected, tones, strict=True)) or not video_ticks:
+            continue
+        measured = [tone for tone in tones if tone is not None]
+        gaps = [min(abs(int(tone["timecode"]) - tick) for tick in video_ticks) / 10000 for tone in measured]
+        if max(gaps, default=0) <= 80:
+            write(dict(kind="audio", name=name, channels=len(expected), tones=measured,
+                       silent_peak=silent_peak, received_blocks=blocks, nearest_picture_ms=gaps))
+            return
+    raise RuntimeError(f"NDI audio did not match {expected}: tones={tones}, blocks={blocks}, picture={video_ticks[-3:]}")
 
 
 def observe(dll, finder, args, write):
@@ -111,6 +171,8 @@ def observe(dll, finder, args, write):
                     break
             else:
                 raise RuntimeError(f"expected picture {expected} from {name}; last sample: {last}")
+        if args.tones is not None:
+            observe_audio(dll, receiver, args.tones, name, write)
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
             capture(dll, receiver)
@@ -137,6 +199,8 @@ def main():
     parser.add_argument("--name", required=True)
     parser.add_argument("--receipt", required=True, type=Path)
     parser.add_argument("--runtime-dir", type=Path)
+    parser.add_argument("--tones", type=lambda value: [int(hz) for hz in value.split(",")],
+                        help="expected frequencies by stream channel, with zero for silence")
     parser.add_argument("colors", nargs="+", type=color)
     args = parser.parse_args()
     dll, _ = runtime(args.runtime_dir)

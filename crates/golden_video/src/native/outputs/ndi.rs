@@ -1,5 +1,5 @@
 //! D3D11 staging stays on the renderer. Only owned CPU rows reach the publisher.
-use std::collections::VecDeque;
+use std::{collections::VecDeque, time::Instant};
 
 use windows::{
     Win32::Graphics::{
@@ -14,7 +14,7 @@ use windows::{
 
 use super::{Delivery, INVALID_ARGUMENT};
 use crate::native::{OutputTextureAllocation, texture::Texture};
-use crate::ndi::NdiVideoFormat;
+use crate::ndi::{NdiOutputAudio, NdiVideoFormat, output_timecode};
 
 mod worker;
 use worker::Publisher;
@@ -32,7 +32,12 @@ pub(super) struct NdiOutput {
 }
 
 impl NdiOutput {
-    pub fn new(device: &ID3D11Device, name: String, format: NdiVideoFormat) -> Result<Self> {
+    pub fn new(
+        device: &ID3D11Device,
+        name: String,
+        format: NdiVideoFormat,
+        audio: Option<NdiOutputAudio>,
+    ) -> Result<Self> {
         let descriptor = format.descriptor();
         let layout = D3D11_TEXTURE2D_DESC {
             Width: descriptor.extent.width(),
@@ -53,7 +58,7 @@ impl NdiOutput {
                 return Err(Error::from_hresult(FAILURE));
             }
         }
-        let publisher = Publisher::start(name, format)?;
+        let publisher = Publisher::start(name, format, audio)?;
         Ok(Self {
             format,
             staging: staging.map(Option::unwrap),
@@ -74,7 +79,7 @@ impl NdiOutput {
         self.publisher.stop();
     }
 
-    pub fn deliver(&mut self, context: &ID3D11DeviceContext, texture: &Texture, timecode: i64) -> Delivery {
+    pub fn deliver(&mut self, context: &ID3D11DeviceContext, texture: &Texture) -> Delivery {
         if !self.publisher.is_open() {
             return Delivery::Failed(FAILURE);
         }
@@ -103,7 +108,7 @@ impl NdiOutput {
         // SAFETY: matching same-device layouts, with no mapped or outstanding use of this
         // ring slot. Endpoint retirement retains all staging and conversion storage by token.
         unsafe { context.CopyResource(&self.staging[self.next], &texture.texture) };
-        self.pending.push_back((self.next, timecode));
+        self.pending.push_back((self.next, output_timecode(Instant::now())));
         self.next = (self.next + 1) % STAGING_BUFFERS;
         Delivery::Accepted
     }

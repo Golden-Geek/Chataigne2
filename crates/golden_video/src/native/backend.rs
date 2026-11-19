@@ -818,7 +818,7 @@ impl D3d11Backend {
                         recorder,
                         &mut consumer_api,
                         #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
-                        (context, (time.monotonic().as_nanos() / 100) as i64),
+                        context,
                     );
                     window_present = delivered.window_present;
                     publication_queue = delivered.publication_queue;

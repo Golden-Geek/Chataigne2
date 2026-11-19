@@ -88,7 +88,8 @@ fn validate_source_copy(engine: &AppEngine, source: NodeId, parent: NodeId) -> R
     if matches!(engine.nodes.get(source), Some(AppNode::NdiAudioRoute(_))) {
         return match engine.nodes.get(parent) {
             Some(AppNode::MediaChannel(channel)) if channel.kind() == super::protocol::MediaKind::Ndi => Ok(()),
-            _ => Err("additional audio routes can only be copied to an NDI channel".into()),
+            Some(AppNode::Screen(screen)) if screen.is_ndi() => Ok(()),
+            _ => Err("additional audio routes can only be copied to an NDI channel or NDI Screen".into()),
         };
     }
     let Some(AppNode::MediaChannel(channel)) = engine.nodes.get(source) else {

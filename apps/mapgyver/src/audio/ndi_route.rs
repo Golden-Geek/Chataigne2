@@ -1,4 +1,4 @@
-//! Typed routes for NDI inputs beyond the channel's built-in Left and Right.
+//! Typed routes for NDI audio beyond the built-in Left and Right.
 use super::voice;
 use crate::{
     app::AppEngine,
@@ -16,7 +16,7 @@ use golden_core::{
 use std::sync::{Arc, Mutex};
 
 pub(crate) const TYPE: &str = "mapgyver.ndi.audio_route";
-type Route = (usize, AudioChannelId);
+type Route = (usize, Option<AudioChannelId>);
 
 #[derive(Default)]
 struct RouteState {
@@ -60,7 +60,7 @@ impl RouteBinding {
         can_edit_name: true, can_remove_and_duplicate: true, ..Default::default()
     })]
 #[children(
-    source_channel: i32 = 3 [3..256] (label = "Input channel", constraint_policy = "reject");
+    source_channel: i32 = 3 [3..256] (label = "NDI channel", constraint_policy = "reject");
     destination: Enum = voice::UNASSIGNED (label = "Virtual output",
         enum_domain = ParameterEnumDomainPolicy::Open, enum_options = voice::default_options());
 )]
@@ -83,7 +83,7 @@ impl NdiAudioRouteNode {
             child = node.node_data().next_sibling;
         }
         if !(3..=256).contains(&self.source_channel.get()) {
-            return Err("NDI additional input channel must be between 3 and 256".into());
+            return Err("An additional NDI audio channel must be between 3 and 256".into());
         }
         voice::parse_route(self.destination.get_ref().as_str()).map(|_| ())
     }
@@ -92,11 +92,12 @@ impl NdiAudioRouteNode {
         if let Some(binding) = &self.binding {
             let input = self.source_channel.get();
             let destination = voice::parse_route(self.destination.get_ref().as_str()).ok().flatten();
-            binding.set_route(
-                destination
-                    .filter(|_| self.node_data().effective_enabled && (3..=256).contains(&input))
-                    .map(|destination| (input as usize - 1, destination)),
-            );
+            binding.set_route((3..=256).contains(&input).then(|| {
+                (
+                    input as usize - 1,
+                    destination.filter(|_| self.node_data().effective_enabled),
+                )
+            }));
         }
     }
 }
@@ -126,6 +127,10 @@ impl Node for NdiAudioRouteNode {
         self.binding = Some(binding.clone());
         self.publish();
         ctx.register_ancestor_runtime(self.id(), move |owner| {
+            if let Some(screen) = owner.as_any().downcast_ref::<crate::screens::ScreenNode>() {
+                screen.ndi_audio().routing.register_ndi_route(&binding);
+                return Ok(true);
+            }
             let Some(channel) = owner.as_any().downcast_ref::<ChannelNode>() else {
                 return Ok(false);
             };

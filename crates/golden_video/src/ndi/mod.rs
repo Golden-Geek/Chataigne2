@@ -9,6 +9,7 @@ use thiserror::Error;
 use crate::image::ImageError;
 
 mod audio;
+mod output_audio;
 mod receiver;
 mod runtime;
 mod sender;
@@ -16,8 +17,31 @@ mod sender;
 mod tests;
 
 pub use audio::NdiAudioFrame;
+pub use output_audio::NdiOutputAudio;
 pub use receiver::{NdiFrame, NdiReceiver, NdiTiming, NdiVideoFrame};
 use runtime::Runtime;
+
+pub(crate) fn output_timecode(at: std::time::Instant) -> i64 {
+    use std::{
+        sync::OnceLock,
+        time::{Instant, SystemTime, UNIX_EPOCH},
+    };
+    static ANCHOR: OnceLock<(Instant, i64)> = OnceLock::new();
+    let (instant, utc) = *ANCHOR.get_or_init(|| {
+        let ticks = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+            / 100;
+        (Instant::now(), i64::try_from(ticks).unwrap_or(i64::MAX - 1))
+    });
+    if let Some(delta) = at.checked_duration_since(instant) {
+        utc.saturating_add(i64::try_from(delta.as_nanos() / 100).unwrap_or(i64::MAX))
+            .min(i64::MAX - 1)
+    } else {
+        utc.saturating_sub(i64::try_from(instant.duration_since(at).as_nanos() / 100).unwrap_or(i64::MAX))
+    }
+}
 pub use sender::{NdiSender, NdiVideoFormat, active_sender_names};
 
 /// A missing SDK or a failed NDI operation. Ordinary rendering does not depend on this runtime.

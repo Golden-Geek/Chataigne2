@@ -51,6 +51,7 @@ fn external_pcm_uses_the_managed_playback_patch_and_physical_output_bridge() {
     let mut plan = Some(plan);
     let (_voice_control, voices) = playback_voice_pool(4, 2, frames).unwrap();
     let mut playback = PlaybackBus {
+        virtual_output_tap: None,
         voices,
         pcm: Some(reader),
         buffer: PlanarBuffer::new(2, frames).unwrap(),

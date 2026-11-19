@@ -83,6 +83,16 @@ impl OutputWindows {
                         id: target.id,
                         name: sender.clone(),
                         format,
+                        audio: {
+                            #[cfg(feature = "video-files")]
+                            {
+                                target.ndi_audio.clone()
+                            }
+                            #[cfg(not(feature = "video-files"))]
+                            {
+                                None
+                            }
+                        },
                     },
                     None,
                 ));

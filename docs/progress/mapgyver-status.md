@@ -2,10 +2,10 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `████████░░` **82% — 119/145 checks accepted, 8/19 phases complete**.
-- **Latest delivered:** A Screen can publish its picture as an NDI stream. An independent receiver verified default and custom names, two sizes and frame rates, live color changes with editors closed, and sender withdrawal. [Checks](evidence/mapgyver-m17-ndi-screen-picture-2026-11-19.json)
+- **Latest delivered:** NDI appears in the Windows x64 package on first launch. Screens publish picture and routed virtual audio with physical playback off. An independent receiver verified two distinct audio channels and silence on an unassigned channel. [Checks](evidence/mapgyver-m17-ndi-screen-audio-2026-11-19.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Route virtual audio outputs to NDI Screen streams and verify synchronization.
+- **Next:** M18/1 OS file drag-and-drop. NDI’s clean-install and cross-machine qualification stay in the return queue.
 
 ## Done — code and normal-use checks passed
 
@@ -69,10 +69,10 @@
 
 ## Planned features
 
-[NDI with audio](../plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output) is the next feature while extended Video qualification is deferred.
+[NDI with audio](../plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output) is implemented and verified locally.
 
-- **NDI Media.** Discovery, native picture, stereo and additional audio routes work with an independent local sender. The app-local runtime passed. Cross-machine A/V and clean Windows installation remain pending. [App-local runtime](evidence/mapgyver-m17-ndi-package-2026-11-19.json)
-- **NDI Screen Output.** Picture passed locally with an independent receiver. Routed audio, synchronization and LAN qualification remain pending. [Picture checks](evidence/mapgyver-m17-ndi-screen-picture-2026-11-19.json)
+- **NDI Media.** Available on first launch in the Windows x64 package. The bundled runtime starts discovery automatically when you add NDI Media. Native picture, stereo and additional audio routes passed with an independent local sender. Clean Windows installation and cross-machine A/V checks remain pending. [First-launch check](evidence/mapgyver-m17-ndi-package-2026-11-19.json)
+- **NDI Screen Output.** Picture and named virtual audio passed with a separate receiver and editors closed. Cross-machine A/V offset and drift, recovery, and final-use qualification remain pending. [Screen checks](evidence/mapgyver-m17-ndi-screen-audio-2026-11-19.json)
 
 [Feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi) adds six tasks in order.
 

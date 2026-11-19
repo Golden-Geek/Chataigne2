@@ -1,4 +1,4 @@
-use super::{Layout, decoder::Decoder, frame_nanos, matrix::Files};
+use super::{decoder::Decoder, frame_nanos, matrix::Files};
 use crate::media::{
     protocol::ChannelId,
     video::{
@@ -8,13 +8,13 @@ use crate::media::{
         registry,
     },
 };
-use golden_audio::{GainDb, GainSmoother};
+use golden_audio::{AudioChannelId, GainDb, GainSmoother};
 use golden_core::parameter::ParameterEnumOptions;
 use golden_io::{RevisionGuard, WorkerCancellation};
 use golden_time::TimeEpoch;
 use golden_video::decode::{AudioReader, DecodeError};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     fs,
     path::{Path, PathBuf},
     sync::Arc,
@@ -80,7 +80,7 @@ impl Sources {
 
     pub fn observe(
         &mut self,
-        layout: &Layout,
+        lanes: &HashMap<AudioChannelId, usize>,
         now: Instant,
         scan_inactive: bool,
         mix: crate::matrix::audio::Mix,
@@ -99,7 +99,7 @@ impl Sources {
                 if weights.is_some_and(Vec::is_empty) || (weights.is_none() && !voice.control.standalone_audio()) {
                     None
                 } else {
-                    voice.next_voice(layout, now)
+                    voice.next_voice(lanes, now)
                 };
             let active = active.filter(|_| {
                 if admitted == self.capacity {
@@ -127,7 +127,7 @@ impl Sources {
             self.at_capacity = at_capacity;
         }
         self.matrix_media = mix.media;
-        let (file_active, file_changed) = self.files.reconcile(mix.files, root, layout, self.capacity - admitted);
+        let (file_active, file_changed) = self.files.reconcile(mix.files, root, lanes, self.capacity - admitted);
         (admitted != 0 || file_active, changed || file_changed)
     }
 
@@ -245,14 +245,14 @@ impl Voice {
         false
     }
 
-    fn next_voice(&self, layout: &Layout, now: Instant) -> Option<Active> {
+    fn next_voice(&self, outputs: &HashMap<AudioChannelId, usize>, now: Instant) -> Option<Active> {
         if !self.contents.is_current() {
             return None;
         }
         let routing = self.binding.voice.routing().filter(|route| route.enabled)?;
         let lanes = routing
             .destinations
-            .map(|id| id.and_then(|id| layout.lanes.get(&id).copied()));
+            .map(|id| id.and_then(|id| outputs.get(&id).copied()));
         if lanes == [None, None] || !self.control.owns_audio(self.channel, self.generation) {
             return None;
         }

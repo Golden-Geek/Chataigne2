@@ -434,6 +434,9 @@ pub fn inspect(engine: &AppEngine) -> Result<ScreenManagerSnapshot, String> {
                 if crate::parameters::is_parameter_folder(child) {
                     continue;
                 }
+                if matches!(child, AppNode::NdiAudioRoute(_)) {
+                    continue;
+                }
                 let AppNode::Surface(node) = child else {
                     return Err("Screen children must be Surfaces".into());
                 };
@@ -490,9 +493,9 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                     if crate::parameters::is_parameter_folder(node) {
                         continue;
                     }
-                    let AppNode::Surface(_) = node else {
-                        return Err("Screen children must be Surfaces".into());
-                    };
+                    if !matches!(node, AppNode::Surface(_) | AppNode::NdiAudioRoute(_)) {
+                        return Err("Screen children must be Surfaces or NDI audio routes".into());
+                    }
                 }
             }
             AppNode::Surface(node) => {

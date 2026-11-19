@@ -82,9 +82,9 @@ impl Output {
             OutputBinding::Spout { name, .. } => spout::SpoutOutput::new(device, name.clone(), binding.descriptor())
                 .map(|output| Self::Spout(output.track_publication())),
             #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
-            OutputBinding::Ndi { name, format, .. } => {
-                ndi::NdiOutput::new(device, name.clone(), *format).map(Self::Ndi)
-            }
+            OutputBinding::Ndi {
+                name, format, audio, ..
+            } => ndi::NdiOutput::new(device, name.clone(), *format, audio.clone()).map(Self::Ndi),
         }
     }
     fn admit(&mut self, timeout_ms: u32) -> std::result::Result<(), Delivery> {
@@ -100,7 +100,7 @@ impl Output {
         texture: Option<&Texture>,
         recorder: Option<&Recorder>,
         consumer_api: &mut Option<CpuInterval>,
-        #[cfg(all(target_arch = "x86_64", feature = "ndi"))] stage: (&ID3D11DeviceContext, i64),
+        #[cfg(all(target_arch = "x86_64", feature = "ndi"))] context: &ID3D11DeviceContext,
     ) -> Delivery {
         match self {
             Self::Window(output) => output.present(recorder, consumer_api),
@@ -111,7 +111,7 @@ impl Output {
                 consumer_api,
             ),
             #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
-            Self::Ndi(output) => output.deliver(stage.0, texture.expect("prepared NDI conversion texture"), stage.1),
+            Self::Ndi(output) => output.deliver(context, texture.expect("prepared NDI conversion texture")),
         }
     }
 }
@@ -153,7 +153,7 @@ impl AdmittedOutput<'_> {
         texture: Option<&Texture>,
         recorder: Option<&Recorder>,
         consumer_api: &mut Option<CpuInterval>,
-        #[cfg(all(target_arch = "x86_64", feature = "ndi"))] stage: (&ID3D11DeviceContext, i64),
+        #[cfg(all(target_arch = "x86_64", feature = "ndi"))] context: &ID3D11DeviceContext,
     ) -> Delivered {
         let endpoint = self
             .binding
@@ -169,7 +169,7 @@ impl AdmittedOutput<'_> {
             recorder,
             consumer_api,
             #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
-            stage,
+            context,
         );
         let image = match (&endpoint, delivered, recorder.is_some()) {
             (Output::Spout(sender), Delivery::Accepted, true) => sender.copied_image_version(),

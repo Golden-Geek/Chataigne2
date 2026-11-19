@@ -20,6 +20,8 @@ pub(super) struct Target {
     pub kind: ResolvedTarget,
     pub descriptor: TextureDescriptor,
     pub frame_rate: golden_time::RationalRate,
+    #[cfg(all(target_arch = "x86_64", feature = "video-files"))]
+    pub ndi_audio: Option<golden_video::ndi::NdiOutputAudio>,
 }
 
 impl Target {
@@ -41,6 +43,7 @@ impl Target {
             && self.id == next.id
             && self.descriptor == next.descriptor
             && self.frame_rate == next.frame_rate
+            && self.same_audio(next)
             && match (&self.kind, &next.kind) {
                 (ResolvedTarget::Spout { sender: left, .. }, ResolvedTarget::Spout { sender: right, .. }) => {
                     left == right
@@ -50,6 +53,16 @@ impl Target {
                 | (_, ResolvedTarget::Spout { .. } | ResolvedTarget::Ndi { .. }) => false,
                 _ => true,
             }
+    }
+
+    fn same_audio(&self, next: &Self) -> bool {
+        #[cfg(all(target_arch = "x86_64", feature = "video-files"))]
+        return self.ndi_audio == next.ndi_audio;
+        #[cfg(not(all(target_arch = "x86_64", feature = "video-files")))]
+        {
+            let _ = next;
+            true
+        }
     }
 }
 
@@ -98,6 +111,8 @@ impl Targets {
                 id,
                 kind: output.target.clone(),
                 frame_rate: output.frame_rate,
+                #[cfg(all(target_arch = "x86_64", feature = "video-files"))]
+                ndi_audio: output.ndi_audio.clone(),
                 descriptor: TextureDescriptor {
                     extent: output.extent(),
                     format: PixelFormat::Bgra8Unorm,

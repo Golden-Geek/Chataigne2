@@ -58,6 +58,11 @@ impl RenderProcessor {
         self.metrics
     }
 
+    #[cfg(all(feature = "analysis", feature = "playback"))]
+    pub(crate) fn virtual_output_block(&self) -> &PlanarBuffer {
+        &self.virtual_outputs
+    }
+
     #[cfg(feature = "analysis")]
     pub fn attach_analysis(&mut self, renderer: AnalysisRenderer) -> Result<(), AudioError> {
         if self.analysis.is_some() {

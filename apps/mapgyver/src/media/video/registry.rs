@@ -39,6 +39,8 @@ pub(crate) struct Source {
     pub matrix_audio: Arc<crate::matrix::audio::Registry>,
     #[cfg(all(windows, target_arch = "x86_64"))]
     pub ndi_inputs: Arc<crate::media::rendering::ndi::Inputs>,
+    #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
+    pub ndi_outputs: Option<Arc<crate::screens::NdiAudioRegistry>>,
     pub guard: RevisionGuard,
 }
 impl Source {
@@ -52,6 +54,8 @@ impl Source {
             matrix_audio: manager.matrix_audio.clone(),
             #[cfg(all(windows, target_arch = "x86_64"))]
             ndi_inputs: manager.ndi_inputs.clone(),
+            #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
+            ndi_outputs: crate::screens::NdiAudioRegistry::capture(engine),
             guard: manager.project_guard(),
         })
     }

@@ -11,6 +11,23 @@ use golden_core::{
 use std::collections::HashMap;
 
 pub(super) fn parameters(engine: &AppEngine, root: NodeId) -> HashMap<String, NodeId> {
+    fn collect(engine: &AppEngine, folder: NodeId, fields: &mut HashMap<String, NodeId>) {
+        let mut child = engine.nodes.get(folder).unwrap().node_data().first_child;
+        while let Some(id) = child {
+            let node = engine.nodes.get(id).unwrap();
+            child = node.node_data().next_sibling;
+            if node.get_type() == "folder" {
+                collect(engine, id, fields);
+            } else {
+                assert!(
+                    node.engine_param_snapshot().is_some(),
+                    "every property is a real Parameter"
+                );
+                fields.insert(node.node_data().meta.decl_id.0.clone(), id);
+            }
+        }
+    }
+
     let mut child = engine.nodes.get(root).unwrap().node_data().first_child;
     while let Some(id) = child {
         let node = engine.nodes.get(id).unwrap();
@@ -19,16 +36,7 @@ pub(super) fn parameters(engine: &AppEngine, root: NodeId) -> HashMap<String, No
             continue;
         }
         let mut fields = HashMap::new();
-        let mut parameter = node.node_data().first_child;
-        while let Some(id) = parameter {
-            let node = engine.nodes.get(id).unwrap();
-            assert!(
-                node.engine_param_snapshot().is_some(),
-                "every property is a real Parameter"
-            );
-            fields.insert(node.node_data().meta.decl_id.0.clone(), id);
-            parameter = node.node_data().next_sibling;
-        }
+        collect(engine, id, &mut fields);
         return fields;
     }
     panic!("missing Parameters folder")
@@ -260,7 +268,7 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
     let surface_node = engine.node_id_by_uuid(surface.surface.0).unwrap();
     let screen_fields = parameters(&engine, screen_node);
     let surface_fields = parameters(&engine, surface_node);
-    assert_eq!(screen_fields.len(), 17);
+    assert_eq!(screen_fields.len(), 19);
     assert!(
         apply_project_intent(
             &mut engine,
@@ -387,7 +395,7 @@ fn generic_screen_and_surface_parameters_own_projection_history_and_project_stat
     assert_eq!(super::super::inspect(&loaded).unwrap(), snapshot);
     let loaded_screen_fields = parameters(&loaded, loaded.node_id_by_uuid(screen.0).unwrap());
     let loaded_surface_fields = parameters(&loaded, loaded.node_id_by_uuid(surface.surface.0).unwrap());
-    assert_eq!(loaded_screen_fields.len(), 17);
+    assert_eq!(loaded_screen_fields.len(), 19);
     assert_eq!(loaded_surface_fields.len(), 10);
     // Sparse projects omit unchanged, unreferenced declared leaves. Their schema
     // declarations restore the same parameter configuration with fresh identities.

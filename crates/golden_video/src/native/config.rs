@@ -71,6 +71,8 @@ pub enum OutputBinding {
         name: String,
         /// Progressive BGRA layout and advertised frame rate.
         format: crate::ndi::NdiVideoFormat,
+        /// Optional bounded planar PCM input to this publication worker.
+        audio: Option<crate::ndi::NdiOutputAudio>,
     },
 }
 
@@ -210,7 +212,7 @@ impl D3d11Config {
                     return Err(invalid("Spout outputs require eight-bit RGBA or BGRA storage"));
                 }
                 #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
-                OutputBinding::Ndi { id, name, format }
+                OutputBinding::Ndi { id, name, format, .. }
                     if !crate::valid_ndi_sender_name(name)
                         || !ndi_names.insert(name)
                         || !self.output_rates.contains(&(*id, format.rate())) =>

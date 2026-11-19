@@ -189,14 +189,14 @@ Discovery currently uses the desktop-native metadata capability. Browser/headles
 exact-name authoring. Interactive selection, cross-host/source parity and full independent-source
 rendering/recovery acceptance remain open in M04.
 
-On Windows x64, **Medias → + → NDI** creates a source with automatic discovery and no activation
-setting. The channel's typed Sender control can select an exact discovered name or accept one
-manually. MapGyver loads an app-local NDI 6 runtime when bundled. Developer builds can use an
-installed runtime. A channel preserves its sender after loss
-and reconnects when it returns. Media Preview, Surfaces, References and the audio mixer share the
+The Windows x64 package includes the NDI 6 runtime. **Medias → + → NDI** is available on first
+launch and starts sender discovery automatically. **Screen → Target → NDI** starts publishing
+when the Screen is enabled. Developer builds can use an installed runtime. The channel's typed
+Sender control can select an exact discovered name or accept one manually. A channel preserves its
+sender after loss and reconnects when it returns. Media Preview, Surfaces, References and the audio mixer share the
 same receiver. Under **Inspector → Channels → Audio**, assign **Left output** and **Right output**
 to named virtual outputs and adjust **Volume**. For inputs 3–256, use **+** on the NDI channel
-header to add an **Audio Route**, then choose its **Input channel** and **Virtual output**.
+header to add an **Audio Route**, then choose its **NDI channel** and **Virtual output**.
 Disable an individual Audio Route to mute it or disable the Audio folder to mute all routes.
 Virtual routing works with physical playback disabled. When both streams are active, the receiver
 uses a 90 ms playout target for incoming audio and video. [NDI qualification and Screen publishing](../../docs/plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output)
@@ -210,8 +210,11 @@ agreement in plain text. The installer places the runtime in MapGyver's own `ndi
 Choose **NDI** in a Screen's **Target** control to publish its rendered picture on Windows x64.
 The Screen's **Width**, **Height**, and **Frame rate** set the stream format. An unset **Sender
 name** uses **MapGyver - <Screen name>**. Closing editor panels keeps the output live. The Medias
-sender list marks this app's exact advertised names **(internal)**. Routed Screen audio is tracked
-in [M17/2](../../docs/plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output).
+sender list marks this app's exact advertised names **(internal)**. In the Screen Inspector's
+**NDI Audio** section, assign **Left source** and **Right source** to named virtual outputs.
+Use **Add NDI audio route** for stream channels 3–256 and select a **Virtual output** for each
+route. Unassigned stream channels are silent. Publishing audio works with physical playback disabled.
+[Screen output qualification](../../docs/plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output)
 
 The Picture editor accepts explicit project-relative or absolute host paths; the native
 desktop also offers Golden's file picker. This is source-file linking, not a browser upload.

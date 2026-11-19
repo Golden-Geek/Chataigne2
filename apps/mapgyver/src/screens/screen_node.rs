@@ -10,9 +10,11 @@ use golden_core::{
 };
 use golden_io::{RevisionGuard, RevisionSource};
 use golden_video::Extent2D;
+use std::sync::{Arc, OnceLock};
 
 const MAX_SCREEN_DIMENSION: i32 = 8192;
 mod hints;
+pub(super) mod ndi_audio;
 mod selection;
 
 #[node(
@@ -34,6 +36,14 @@ mod selection;
         width: i32 = 1920 [1..8192] (label = "Width", description = "Physical output pixels.", constraint_policy = "reject");
         height: i32 = 1080 [1..8192] (label = "Height", description = "Physical output pixels.", constraint_policy = "reject");
         sender: String = "Screen".to_owned() (label = "Sender name", description = "Disabled uses MapGyver - <Screen name>. The custom value is preserved.", enabled = self.initial_sender_enabled, can_be_disabled = true);
+        folder(ndi_audio, label = "NDI Audio") {
+            ndi_left: Enum = crate::audio::voice::UNASSIGNED (label = "Left source",
+                enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
+                enum_options = crate::audio::voice::default_options());
+            ndi_right: Enum = crate::audio::voice::UNASSIGNED (label = "Right source",
+                enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
+                enum_options = crate::audio::voice::default_options());
+        }
         anti_aliasing: Enum = "Raw" (label = "Anti-aliasing", enum_options = crate::parameters::enum_options(&["Raw", "Smooth (2×)", "Smooth (4×)"]), constraint_policy = "reject");
         frame_rate_mode: Enum = "Follow display" (label = "Frame rate", enum_options = crate::parameters::enum_options(&["Follow display", "Explicit"]), constraint_policy = "reject", description = "Follow the resolved display refresh. Shared Texture, NDI and unknown refresh rates use 60 FPS. Editing and previews retain their independent cadence.");
         frames_per_second: f64 = 60.0 [1.0..1000.0] (label = "FPS", constraint_policy = "reject");
@@ -52,6 +62,10 @@ pub struct ScreenNode {
     initial_sender_enabled: bool,
     #[state(default = RevisionSource::default())]
     revision: RevisionSource,
+    #[state(default = OnceLock::new())]
+    ndi_audio_binding: OnceLock<Arc<ndi_audio::ScreenAudio>>,
+    #[state(default = [None; 2])]
+    ndi_audio_option_ids: [Option<golden_core::node::NodeUuid>; 2],
 }
 
 impl ScreenNode {
@@ -252,7 +266,7 @@ impl ScreenNode {
 #[node("mapgyver.screen", from_struct)]
 impl Node for ScreenNode {
     fn init(&mut self, ctx: &mut ProcessCtx) {
-        ctx.add_event_listener_subtree(self.id(), self.id(), 2);
+        ctx.add_event_listener_subtree(self.id(), self.id(), 3);
     }
 
     fn on_meta_changed(&mut self, ctx: &mut ProcessCtx, node: NodeId, patch: golden_core::node::NodeMetaPatch) {
@@ -262,16 +276,29 @@ impl Node for ScreenNode {
         }
     }
     fn user_container_rules(&self) -> Option<UserContainerRules> {
-        Some(UserContainerRules::new(&["mapgyver.surface"]))
+        Some(UserContainerRules::new(&[
+            "mapgyver.surface",
+            crate::audio::ndi_route::TYPE,
+        ]))
     }
     fn user_creatable_items(&self) -> Vec<golden_core::node::UserCreatableItem> {
-        vec![golden_core::node::UserCreatableItem::new(
+        let mut items = vec![golden_core::node::UserCreatableItem::new(
             "mapgyver.surface",
             "mapgyver.surface",
             "Surface",
-        )]
+        )];
+        if self.is_ndi() {
+            let kind = crate::audio::ndi_route::TYPE;
+            items.push(
+                golden_core::node::UserCreatableItem::new(kind, kind, "Audio Route").with_select_when_created(false),
+            );
+        }
+        items
     }
     fn create_user_item_tree(&self, node_type: &str) -> Option<golden_core::edit::NodeTree> {
+        if self.is_ndi() && node_type == crate::audio::ndi_route::TYPE {
+            return Some(golden_core::edit::NodeTree::new(crate::audio::NdiAudioRouteNode::new()));
+        }
         (node_type == "mapgyver.surface").then(|| {
             golden_core::edit::NodeTree::new(super::SurfaceNode::from_definition(
                 "Surface".into(),
@@ -283,6 +310,18 @@ impl Node for ScreenNode {
         false
     }
 
+    fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
+        self.bind_ndi_audio(ctx);
+    }
+
+    fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
+        self.refresh_ndi_audio_options(ctx);
+    }
+
+    fn worker_wake_when_disabled(&self) -> bool {
+        true
+    }
+
     fn execution_rule(&self) -> golden_core::engine::NodeExecutionRule {
         golden_core::engine::NodeExecutionRule::passive()
     }
@@ -292,6 +331,9 @@ impl Node for ScreenNode {
     }
 
     fn destroy(&mut self, _: &mut ProcessCtx) {
+        if let Some(audio) = self.ndi_audio_binding.take() {
+            audio.routing.retire();
+        }
         self.revision.advance();
     }
 
@@ -300,11 +342,21 @@ impl Node for ScreenNode {
     }
 
     fn on_effective_enabled_changed(&mut self, ctx: &mut ProcessCtx, _: bool) {
+        self.publish_ndi_audio();
         self.revision.advance();
         self.catalog_changed(ctx);
     }
 
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: NodeId, old: ParamValue) {
+        if self.is_ndi_audio_parameter(parameter) {
+            self.publish_ndi_audio();
+            self.refresh_ndi_audio_options(ctx);
+            return;
+        }
+        if parameter == self.target_kind.id() {
+            self.publish_ndi_audio();
+            self.advertise_ndi_audio(ctx);
+        }
         self.log_selection_change(parameter, &old);
         if self.parameter_ids().contains(&parameter) || self.is_display_hint_parameter(parameter) {
             self.revision.advance();
@@ -327,6 +379,12 @@ impl Node for ScreenNode {
     }
 
     fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
+        if self.is_ndi_audio_parameter(change.parameter) {
+            let ParamValue::Enum(choice) = change.value else {
+                return Err("NDI audio routing requires a virtual output choice".into());
+            };
+            return crate::audio::voice::parse_route(choice).map(|_| ());
+        }
         if !self.parameter_ids().contains(&change.parameter) {
             return Ok(());
         }

@@ -46,6 +46,8 @@ pub struct CapturedOutput {
     pub authored: ScreenTarget,
     pub target: ResolvedTarget,
     pub frame_rate: golden_time::RationalRate,
+    #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
+    pub(crate) ndi_audio: Option<golden_video::ndi::NdiOutputAudio>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -187,6 +189,8 @@ pub fn capture_outputs(
                 screen,
                 authored,
                 frame_rate: super::frame_rate::resolve(node.definition(engine).frame_rate, &target, displays),
+                #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
+                ndi_audio: matches!(target, ResolvedTarget::Ndi { .. }).then(|| node.ndi_audio().stream.clone()),
                 target,
             });
         }
@@ -312,6 +316,9 @@ pub fn capture_screen(engine: &AppEngine, screen: ScreenId, maximum_surfaces: us
         let child_node = engine.nodes.get(id).ok_or("Screen child is missing")?;
         child = child_node.node_data().next_sibling;
         if crate::parameters::is_parameter_folder(child_node) {
+            continue;
+        }
+        if matches!(child_node, AppNode::NdiAudioRoute(_)) {
             continue;
         }
         if surfaces.len() == maximum_surfaces {

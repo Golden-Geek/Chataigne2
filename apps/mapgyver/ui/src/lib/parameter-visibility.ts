@@ -76,7 +76,10 @@ function visible(child: UiNodeDto) {
 		if (target === 'Fullscreen') return field === 'display';
 		if (target === 'Rectangle') return ['left', 'top', 'width', 'height'].includes(field ?? '');
 		if (target === 'Shared Texture' || target === 'NDI')
-			return ['sender', 'width', 'height'].includes(field ?? '');
+			return (
+				['sender', 'width', 'height'].includes(field ?? '') ||
+				(target === 'NDI' && field === 'ndi_audio')
+			);
 		return false;
 	}
 	if (owner.node_type === 'mapgyver.media.v11') {

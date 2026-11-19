@@ -136,6 +136,7 @@ struct PlaybackBus {
     voices: PlaybackVoiceRenderer,
     pcm: Option<PcmPlaybackReader>,
     buffer: PlanarBuffer,
+    virtual_output_tap: Option<crate::VirtualOutputTapWriter>,
 }
 
 #[derive(Debug)]
@@ -159,6 +160,7 @@ impl ManagedRenderRuntime {
         limits: &EngineLimits,
         playback: PlaybackVoiceRenderer,
         pcm: Option<PcmPlaybackReader>,
+        virtual_output_tap: Option<crate::VirtualOutputTapWriter>,
     ) -> Result<Self, AudioError> {
         let (input_publisher, inputs) = acknowledged_plan_exchange(Box::new(None));
         let (output_publisher, outputs) = acknowledged_plan_exchange(Box::new(None));
@@ -172,10 +174,14 @@ impl ManagedRenderRuntime {
         if let Some(pcm) = &pcm {
             pcm.validate(config.internal_block_frames, limits)?;
         }
+        if let Some(tap) = &virtual_output_tap {
+            tap.validate(config, limits)?;
+        }
         let playback = PlaybackBus {
             voices: playback,
             pcm,
             buffer: PlanarBuffer::new(usize::from(limits.max_virtual_outputs), block_frames)?,
+            virtual_output_tap,
         };
         let (priority_sender, priority_receiver) = sync_channel(1);
         let worker = thread::Builder::new()
@@ -676,12 +682,20 @@ fn render_block(
     }
     if let Some(plan) = plan {
         fill_physical_input(plan, input.as_mut(), block_frames, observation);
-        let _ = plan.processor.render(
+        let rendered = plan.processor.render(
             &plan.physical_inputs,
             &playback.buffer,
             &mut plan.physical_outputs,
             block_frames,
         );
+        if rendered.is_ok()
+            && let Some(tap) = &mut playback.virtual_output_tap
+        {
+            let queued = output.as_ref().map_or(0, |bridge| {
+                (bridge.capacity - bridge.producer.slots()) / bridge.channels
+            });
+            tap.capture(generation, plan.processor.virtual_output_block(), queued);
+        }
     }
     if let Some(output) = output.as_mut() {
         write_physical_output(plan.as_ref(), output, block_frames, observation);

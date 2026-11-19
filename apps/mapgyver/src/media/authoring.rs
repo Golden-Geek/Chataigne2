@@ -773,11 +773,10 @@ pub fn validate_project(engine: &AppEngine) -> Result<(), String> {
                 }
             }
             AppNode::NdiAudioRoute(node) => {
-                if !matches!(
-                    node.node_data().parent.and_then(|parent| engine.nodes.get(parent)),
-                    Some(AppNode::MediaChannel(channel)) if channel.kind() == MediaKind::Ndi
-                ) {
-                    return Err("additional audio routes belong to an NDI channel".into());
+                match node.node_data().parent.and_then(|parent| engine.nodes.get(parent)) {
+                    Some(AppNode::Screen(_)) => {}
+                    Some(AppNode::MediaChannel(channel)) if channel.kind() == MediaKind::Ndi => {}
+                    _ => return Err("additional audio routes belong to a Screen or NDI channel".into()),
                 }
                 node.validate(engine)?;
             }

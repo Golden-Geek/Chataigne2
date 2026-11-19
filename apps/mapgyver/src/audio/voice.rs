@@ -90,13 +90,11 @@ impl Binding {
     }
 
     #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
-    pub fn visit_ndi_routes(&self, mut visit: impl FnMut(usize, AudioChannelId)) -> Option<GainDb> {
+    pub fn visit_ndi_routes(&self, mut visit: impl FnMut(usize, Option<AudioChannelId>)) -> Option<GainDb> {
         let state = self.0.lock().unwrap();
         let routing = state.routing.filter(|routing| routing.enabled)?;
         for (source, destination) in routing.destinations.into_iter().enumerate() {
-            if let Some(destination) = destination {
-                visit(source, destination);
-            }
+            visit(source, destination);
         }
         for route in state.additional_routes.iter().filter_map(Weak::upgrade) {
             if let Some((source, destination)) = route.route() {

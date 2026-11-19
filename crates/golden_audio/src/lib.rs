@@ -100,6 +100,10 @@ pub use realtime::{
     RenderPlanPublisher, RetiredVoice, VoiceRetirementReason, VoiceSlotController, acknowledged_plan_exchange,
     analysis_frame_pool, assert_not_realtime, is_realtime_thread, ordered_realtime_controls, voice_slot_pool,
 };
+#[cfg(all(feature = "analysis", feature = "playback"))]
+pub use render::virtual_output_tap::{
+    VirtualOutputBlock, VirtualOutputTapReader, VirtualOutputTapWriter, virtual_output_tap,
+};
 pub use render::{
     CompiledAnalysisTap, CompiledRoute, CompiledRouteMatrix, ConversionStats, GainSmoother, InterleavedInput,
     InterleavedOutput, OfflineClock, OfflineRenderer, PlanarBuffer, RenderCompileContext, RenderPlan,

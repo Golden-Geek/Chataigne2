@@ -26,6 +26,8 @@ pub(crate) struct Service {
 pub(crate) fn start(runtime: ProductionRuntime<AppNode>) -> io::Result<Service> {
     static POOL: OnceLock<RetirementPool> = OnceLock::new();
     let pool = POOL.get_or_init(|| RetirementPool::new(NonZeroUsize::new(4).unwrap()));
+    #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
+    let ndi_tap;
     #[cfg(feature = "video-files")]
     let (playback, output, reader) = {
         use super::playback;
@@ -39,7 +41,22 @@ pub(crate) fn start(runtime: ProductionRuntime<AppNode>) -> io::Result<Service> 
         )
         .map_err(io::Error::other)?;
         let output = playback::Output::default();
-        let worker = playback::start(runtime.clone(), output.clone(), writer, &config, &limits, pool)?;
+        #[cfg(all(windows, target_arch = "x86_64"))]
+        let outbound = {
+            let (tap, reader) = playback::ndi_screen::tap(&config, &limits).map_err(io::Error::other)?;
+            ndi_tap = tap;
+            reader
+        };
+        let worker = playback::start(
+            runtime.clone(),
+            output.clone(),
+            writer,
+            &config,
+            &limits,
+            pool,
+            #[cfg(all(windows, target_arch = "x86_64"))]
+            outbound,
+        )?;
         (worker, output, reader)
     };
     let worker = BoundedWorker::spawn(
@@ -53,7 +70,11 @@ pub(crate) fn start(runtime: ProductionRuntime<AppNode>) -> io::Result<Service> 
         },
         move |context| {
             #[cfg(feature = "video-files")]
-            let (engine, backend) = native_engine(reader);
+            let (engine, backend) = native_engine(
+                reader,
+                #[cfg(all(windows, target_arch = "x86_64"))]
+                ndi_tap,
+            );
             #[cfg(not(feature = "video-files"))]
             let (engine, backend) = native_engine();
             let mut engine = engine.map(AudioOwner::new);
@@ -87,6 +108,7 @@ pub(crate) fn start(runtime: ProductionRuntime<AppNode>) -> io::Result<Service> 
 
 fn native_engine(
     #[cfg(feature = "video-files")] reader: golden_audio::PcmPlaybackReader,
+    #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))] ndi_tap: golden_audio::VirtualOutputTapWriter,
 ) -> (Result<AudioEngine, String>, Option<BackendId>) {
     let backend = compiled_cpal_backend_catalog()
         .into_iter()
@@ -98,6 +120,10 @@ fn native_engine(
     #[cfg(feature = "video-files")]
     {
         builder = builder.with_pcm_playback(reader);
+    }
+    #[cfg(all(windows, target_arch = "x86_64", feature = "video-files"))]
+    {
+        builder = builder.with_virtual_output_tap(ndi_tap);
     }
     for device_backend in compiled_cpal_backends() {
         builder = builder.with_boxed_backend(device_backend);
