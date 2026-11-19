@@ -47,7 +47,15 @@ test('resident Q06 requires actual hardware pools and rejects CPU fallback or un
 });
 
 test('Q06 checks codec-specific payloads and rejects absent, expanded or mixed uploads', () => {
-	for (const codec of ['ProRes HQ', 'ProRes 4444', 'WebP VP8 Alpha', 'HAP', 'HAP Alpha', 'HAP Q']) {
+	for (const codec of [
+		'ProRes HQ',
+		'ProRes 4444',
+		'DXV3 Normal DXT1',
+		'WebP VP8 Alpha',
+		'HAP',
+		'HAP Alpha',
+		'HAP Q'
+	]) {
 		const hap = codec.startsWith('HAP');
 		const kind = hap ? 'hap' : 'software';
 		const allocation = hap ? 'hap_producers' : 'software_producers';

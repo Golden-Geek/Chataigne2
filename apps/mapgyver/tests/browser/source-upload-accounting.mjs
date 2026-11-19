@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 const kinds = ['software', 'hap'];
-const softwareCodecs = ['ProRes HQ', 'ProRes 4444', 'WebP VP8 Alpha'];
+const softwareCodecs = ['ProRes HQ', 'ProRes 4444', 'DXV3 Normal DXT1', 'WebP VP8 Alpha'];
 
 export function q06UsesSoftwareDecode(codec) {
 	return softwareCodecs.includes(codec);
