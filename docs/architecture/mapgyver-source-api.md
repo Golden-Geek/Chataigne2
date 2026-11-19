@@ -52,7 +52,10 @@ Enabled Resolution requires whole pixels in 1–16384 per axis. Disabling it ret
 pixel values and projects source-native/procedural sizing. Width/height arguments are still
 finite numbers when disabled. Resolution and Fit Mode apply to all channels; named source
 methods configure only the selected variant. Import queues detached asset/media creation;
-file access and decoding remain on workers.
+file access and decoding remain on workers. Picture Files accept still SDR PNG, JPEG and
+WebP. The Picture worker uses the pinned WebP decoder under the existing asset admission,
+honors EXIF orientation, preserves straight alpha and treats untagged input as sRGB. It rejects
+embedded color profiles and animated WebP in the still-image path.
 Fit Mode applies only at forced Resolution; Auto retains its choice and preserves intrinsic
 source dimensions. The intent and named script method edit the same typed media Parameter.
 Solid Color and authored Composition/Matrix canvases reject this operation without mutation.

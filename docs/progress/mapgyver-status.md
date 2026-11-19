@@ -2,8 +2,8 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `█████████░` **87% — 119/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** Large animated WebP uploads move off the renderer when GPU slots are available. NVIDIA minimized renderer CPU p95 dropped from 6.05 to 0.78 ms, with matching connected pixels. [WebP checks](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)
-- **Working on next:** Recover the remaining HD and disconnected 4K animated WebP cadence.
+- **Latest delivered:** Still WebP imports as Picture. Transparency and orientation passed, including native Picture output on Intel and NVIDIA. [WebP Picture checks](evidence/mapgyver-m10-webp-picture-2026-11-19.json)
+- **Working on next:** Finish extended Video qualification for DXV and MKV.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -44,7 +44,7 @@
 - [x] **Video time cropping:** Start and End bound playback, seeking, stepping and loops. Seeking to End holds the last frame in the crop. NVIDIA numbered output, smooth-loop Reference parity and save/reload passed.
 - [x] **Video subtitles are per channel.** Select the Video in Medias, expand **Inspector → Channels → [channel name] → Subtitles**, enable the folder, and choose that channel’s embedded track or subtitle file. Size, font, and position are also per channel. Editing one preserved the other’s output with two different files and with two channels sharing one MKV. Both MKV selections survived reload. [Two files](evidence/mapgyver-m10-channel-subtitles-2026-11-18.json) · [Shared MKV](evidence/mapgyver-m10-mkv-tracks-2026-11-19.json)
 - [x] **MKV playback with track selection.** Verified H.264 with stereo PCM and embedded SubRip. Choose **Inspector → Channels → [channel name] → Audio → Track** to switch tracks during playback. Automatic follows the file’s default, and a missing explicit track is silent. Selections survived reload. [Checks](evidence/mapgyver-m10-mkv-tracks-2026-11-19.json)
-- [x] **WebP playback.** Open a still or animated WebP as a Video channel File. Lossless and lossy transparency, variable frame durations, seeking and looping passed on native output. [Checks](evidence/mapgyver-m10-webp-2026-11-19.json)
+- [x] **WebP Pictures.** Choose a still `.webp` in **Import Picture** or set a Picture channel's **File**. Lossy and lossless transparency and EXIF rotation passed. [Checks](evidence/mapgyver-m10-webp-picture-2026-11-19.json)
 - [x] **DXV playback.** Open DXV MOV files as a Video channel File. Legacy and DXV3 Normal and High Quality passed native pixel checks. Playback, seeking and translucent compositing passed for Normal and High Quality. [Checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
 - [x] **Moving MKV tracks and loops.** HEVC with two Opus and two SubRip tracks passed live switching and cropped hard and smooth loops. Native picture and caption samples matched the corresponding WASAPI mixer signals. [Checks](evidence/mapgyver-m10-mkv-loop-2026-11-19.json)
 - [x] **Video file recovery.** Missing or malformed input clears stale track options and silences the channel while keeping its selections. Restoring a valid MKV at the same path recovered picture, captions, and audio during playback. Relinking to animated WebP and DXV also passed. [Checks](evidence/mapgyver-m10-file-replacement-2026-11-19.json)
@@ -70,10 +70,8 @@
 
 1. **NOW — Extended Video formats:**
    - **DXV3 Normal:** both GPUs sustained 4K30 and retired all tracked resources. Intel meets visible deadlines and connected image age in one run. Minimized deadlines and full visible frame capture remain open. Minimized GPU p95 was 17.7 ms against the 12 ms target. [DXV checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
-   - **Direct 4K upload timing:** the audit traced every evaluated DXV and WebP batch to its upload. Intel exceeds the GPU budget. NVIDIA timing remains inconclusive. [Timing evidence](evidence/mapgyver-m10-direct-upload-gpu-2026-11-19.json)
+   - **Direct 4K upload timing:** the audit traced every evaluated DXV batch to its upload. Intel exceeds the GPU budget. NVIDIA timing remains inconclusive. [Timing evidence](evidence/mapgyver-m10-direct-upload-gpu-2026-11-19.json)
    - **Full-frame draw experiments parked:** projection removal left Intel render time flat. Combining Screen and Spout draws changed pixel values in native checks.
-   - **Animated WebP:** NVIDIA reached 4K30, showed the final encoded frame in all 29 complete loops, and met the 50 ms image-age target. The 1080p source reached about 48 updates/s against 60. Background CPU p95 still exceeds 4 ms. [WebP comparison](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)
-   - **1080p WebP candidate parked:** reached 57.8 updates/s. Background CPU p95 rose to 5.4–5.5 ms and one 4K loop missed its final frame. Revisit after reducing 4K upload cost.
    - H.264 MKV passed frame identity, output cadence and CPU checks. The 4K latency upper bound exceeds 50 ms. [MKV run](evidence/mapgyver-m10-mkv-sustained-2026-11-19.json)
    - Sustained DXV alpha and High Quality, additional profiles, repeat runs, complete GPU timing and device recovery remain open.
 2. **Shared editor feedback presentation:** built and functionally checked. Native paint packets are accepted, but matching installation/presented-frame proof is missing. Finish native paint/alignment and actual Composition/Matrix presentation checks.

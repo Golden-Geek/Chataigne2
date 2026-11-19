@@ -293,7 +293,9 @@ fn authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_
     for adapter in hardware {
         let root = tempfile::tempdir().unwrap();
         let pattern = [[255, 0, 0, 128], [0, 255, 0, 255], [0, 0, 255, 64], [255, 0, 255, 0]].concat();
-        source_png(&root.path().join("pattern.png"), 2, 2, &pattern, false);
+        image_webp::WebPEncoder::new(std::fs::File::create(root.path().join("pattern.webp")).unwrap())
+            .encode(&pattern, 2, 2, image_webp::ColorType::Rgba8)
+            .unwrap();
         let mut engine = golden_core::app::create_new_project_engine::<AppNode>().unwrap();
         engine.apply_edits().unwrap();
         let MediaEditResult::Created { reference: first } = edit(
@@ -318,7 +320,7 @@ fn authored_picture_pixels_recover_share_relink_replace_reject_color_and_reload_
             &mut engine,
             MediaEdit::ConfigurePictureFile {
                 reference: first,
-                file: "pattern.png".into(),
+                file: "pattern.webp".into(),
             },
         );
         edit(

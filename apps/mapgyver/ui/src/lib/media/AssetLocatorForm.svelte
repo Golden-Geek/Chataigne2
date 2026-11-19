@@ -27,7 +27,7 @@
 		try {
 			const selected = await openDesktopFileDialog({
 				title: 'Choose a Picture',
-				allowedExtensions: ['png', 'jpg', 'jpeg'],
+				allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
 				filterLabel: 'Pictures'
 			});
 			if (selected) {
@@ -53,7 +53,7 @@
 				<option value="absolute">Absolute path on this host</option>
 			</select></label>
 		<label>Picture file path<input required bind:value={path} /></label>
-		<p>PNG or JPEG. Paths refer to files on the MapGyver host.</p>
+		<p>PNG, JPEG, or still WebP. Paths refer to files on the MapGyver host.</p>
 		{#if kind === 'project_relative'}<p>
 				Relative paths resolve from the saved project’s folder.
 			</p>{/if}

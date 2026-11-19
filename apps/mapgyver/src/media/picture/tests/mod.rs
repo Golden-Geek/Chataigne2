@@ -104,6 +104,58 @@ fn untagged_grayscale_and_palette_transparency_expand_to_rgba() {
 }
 
 #[test]
+fn still_webp_keeps_lossless_rgba_and_applies_exif_orientation() {
+    let pixels = [255, 0, 0, 128, 0, 0, 255, 64];
+    let mut bytes = Vec::new();
+    let mut encoder = image_webp::WebPEncoder::new(&mut bytes);
+    encoder.set_exif_metadata(vec![
+        73, 73, 42, 0, 8, 0, 0, 0, 1, 0, 18, 1, 3, 0, 1, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0,
+    ]);
+    encoder.encode(&pixels, 2, 1, image_webp::ColorType::Rgba8).unwrap();
+    let decoded = prepare(&bytes, BUDGET).unwrap();
+    assert_eq!(decoded.pixels, pixels);
+    assert_eq!(decoded.descriptor.extent, golden_video::Extent2D::new(1, 2).unwrap());
+    assert_eq!(decoded.descriptor.alpha_mode, AlphaMode::Straight);
+    assert_eq!(decoded.descriptor.color_encoding, ColorEncoding::Srgb);
+
+    let mut profiled = Vec::new();
+    let mut encoder = image_webp::WebPEncoder::new(&mut profiled);
+    encoder.set_icc_profile(vec![1; 128]);
+    encoder.encode(&pixels, 2, 1, image_webp::ColorType::Rgba8).unwrap();
+    assert!(matches!(prepare(&profiled, BUDGET), Err(PreparationFailure::Decode)));
+}
+
+#[test]
+fn lossy_webp_keeps_alpha_and_checks_canvas_and_budget_before_decode() {
+    // Pillow/libwebp quality-95 encoding of a 2×2 RGBA image.
+    let mut bytes = [
+        0x52, 0x49, 0x46, 0x46, 0x60, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x58, 0x0a, 0x00,
+        0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x41, 0x4c, 0x50, 0x48, 0x05, 0x00,
+        0x00, 0x00, 0x00, 0x7f, 0x7f, 0x7f, 0x7f, 0x00, 0x56, 0x50, 0x38, 0x20, 0x34, 0x00, 0x00, 0x00, 0x10, 0x02,
+        0x00, 0x9d, 0x01, 0x2a, 0x02, 0x00, 0x02, 0x00, 0x00, 0x80, 0x08, 0x25, 0xa0, 0x02, 0x74, 0xba, 0x01, 0xf8,
+        0x01, 0xfa, 0x00, 0x03, 0xc8, 0x00, 0xfe, 0xe7, 0x30, 0xff, 0xfd, 0xf8, 0x82, 0x9c, 0x52, 0x54, 0xff, 0xef,
+        0xf6, 0x3f, 0xff, 0x69, 0x0b, 0xc9, 0x8f, 0xe4, 0x1f, 0xfd, 0xa1, 0x20, 0x00, 0x00,
+    ];
+    assert!(matches!(
+        prepare(&bytes, BUDGET),
+        Err(PreparationFailure::ResourcePressure)
+    ));
+    let budget = 24 * 1024 * 1024;
+    let decoded = prepare(&bytes, budget).unwrap();
+    for pixel in decoded.pixels.chunks_exact(4) {
+        assert_eq!(pixel[3], 127);
+        assert!(
+            pixel[..3]
+                .iter()
+                .zip([24, 214, 39])
+                .all(|(actual, expected)| actual.abs_diff(expected) <= 3)
+        );
+    }
+    bytes[24] = 0; // VP8X canvas width becomes 1 while the coded width stays 2.
+    assert!(matches!(prepare(&bytes, budget), Err(PreparationFailure::Decode)));
+}
+
+#[test]
 fn jpeg_decodes_to_opaque_srgb_rgba() {
     let pixels = [30, 100, 220].repeat(4);
     let mut encoded = Vec::new();

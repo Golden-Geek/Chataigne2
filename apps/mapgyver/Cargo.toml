@@ -21,6 +21,7 @@ native-qualification = ["native-preview-smoke", "golden_video/qualification"]
 [dependencies]
 golden_assets.workspace = true
 image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg"] }
+image-webp = "=0.2.4"
 png = "=0.18.1"
 golden_core = { path = "../../crates/golden_core" }
 golden_audio.workspace = true

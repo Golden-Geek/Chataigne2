@@ -192,7 +192,7 @@ and brings the plan to **137 gates** across **17 phases**.
    current M15/8 Screen-handle links → M15 next color/Group feedback (12 → 13 → 14 → 15) →
    M15/9 geometry alignment → M10/9 Video fade-loop → M15/11 Shared Texture defaults →
    M10/10 Video time cropping → M10/8 subtitles → M16/7–14 SGF Matrix feedback →
-   M16/1–6 earlier SGF feedback → M10/3 extended formats (DXV, WebP and MKV) →
+   M16/1–6 earlier SGF feedback → M10/3 extended formats (DXV and MKV Video, still WebP Picture) →
    M15/10 Golden Gradient → remaining acceptance closure → M09 final qualification**.
    M08's shared configuration/runtime contract precedes dependent Matrix app controls; this
    dependency does not authorize two active gates. Deliver their coherent slices sequentially.
@@ -1169,7 +1169,7 @@ one phase, preserving every older unfinished acceptance requirement and numeric 
 **2026-11-08 priority:** deliver **gates 1 → 2 → 4** as the first pass before M14; defer
 **gate 3 (extended formats)** until after M14. Gate 4 qualifies the complete first-pass codec set
 independently of gate 3. Gate 3 subsequently includes bundled integration/recovery/performance
-for its added formats under the same gate-4 contracts. **2026-11-09 amendment:** add high-priority
+for its added Video formats under the same gate-4 contracts. **2026-11-09 amendment:** add high-priority
 gates **5 → 6 → 7** before gate-4 acceptance; complete low-priority gate **8** after M14 and
 gate 3, before M09. Preserve the current M10/4 checkpoint and sole-active-gate discipline;
 select gate 5 at the next product boundary, retaining gate 4's exact return requirements.
@@ -1207,8 +1207,11 @@ Library capability is not acceptance of any codec/profile in MapGyver.
    Parameters, commands/functions/callbacks/snippets and UI/script/headless/history/project parity.
 2. **Performance playback:** HAP, HAP Alpha, HAP Q, concurrent high-resolution files and shared
    consumers; compressed textures, alpha/color correctness and one decoder/render owner.
-3. **Extended format compatibility.** Support DXV, WebP (including animated WebP), and
-   Matroska (`.mkv`) playback with selectable embedded subtitle and audio tracks.
+3. **Extended format compatibility.** Support DXV and Matroska (`.mkv`) Video playback
+   with selectable embedded subtitle and audio tracks. As clarified on 2026-11-19, the
+   WebP requirement is still-image import as **Picture**, including transparency and the normal
+   File/asset workflow. Verify decode and native Picture pixels. Animated WebP throughput
+   is outside this gate's scope. Existing Video compatibility is retained.
    Golden Video owns MKV demuxing and stream discovery. MapGyver Video exposes per-channel
    track selection through typed Parameters in the generic Inspector. Show embedded track
    names and languages when available, and define defaults and fallback behavior for missing

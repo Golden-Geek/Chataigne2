@@ -5,6 +5,8 @@ use golden_video::image::ImageData;
 use golden_video::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor};
 use image::{ColorType, ImageDecoder, ImageFormat, metadata::Orientation};
 
+mod webp;
+
 const MAX_DIMENSION: u32 = 16_384;
 const FIXED_WORKSPACE: usize = 64 * 1024;
 
@@ -29,6 +31,7 @@ impl AssetDecoder for PictureDecoder {
         let (width, height, pixels, orientation) = match format {
             ImageFormat::Png => decode_png(input, maximum_bytes)?,
             ImageFormat::Jpeg => decode_jpeg(input, maximum_bytes)?,
+            ImageFormat::WebP => webp::decode(input, maximum_bytes)?,
             _ => return Err(PreparationFailure::Decode),
         };
         input.check()?;
