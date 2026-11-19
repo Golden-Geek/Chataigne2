@@ -289,6 +289,32 @@
     },
     "assessment": "Ship the exact conversion path. The output-stage p95 was lower in all three phases, with exact held images and no wrong captured marker. This single comparison does not qualify the remaining Intel GPU or minimized deadline limits. Direct 4K upload GPU-path attribution, 28 visible pixel witnesses, other profiles and repeats remain open."
   },
+  "fusedScreenOutputPreflight": {
+    "baseRevision": "5166002c",
+    "change": "Draw a terminal full-frame Screen directly into the typed Spout conversion texture. Reproduce the intermediate premultiplied UNORM8 encode/decode inside the shader. Preserve an independent raster whenever a later pass, preview or incompatible output consumes it.",
+    "quantizationReference": "https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#FLOATtoUNORM",
+    "softwareChecks": {
+      "goldenVideoPassed": 364,
+      "mapGyverRenderingPassed": 95,
+      "formattingAndStrictClippy": "pass"
+    },
+    "firstPixelTest": {
+      "result": "failed",
+      "observation": "Intel straight-alpha linear sampling from 7x5 into 8x8 differed. One sampled BGRA value was [142,70,186,81] on the fused route and [143,71,188,80] through the two draws."
+    },
+    "matchingSizePixelTest": {
+      "result": "failed",
+      "fixture": "Native projective Screen draw and existing Spout conversion versus the fused draw",
+      "testExecutableSha256": "ad041e97ad8c194b150e3fd8cf3b2f95f50a9bd87b74ad0d98531f3fca74c07d",
+      "observation": "The candidate excluded source and output resizes. Intel matched all cases. NVIDIA's opaque sRGB, linear-filter 8x8 case changed one BGRA sample from [202,13,158,255] to [202,22,158,255]. The existing straight-sRGB shader test passed on both adapters."
+    },
+    "timedComparisons": 0,
+    "assessment": "Keep the shipped two-draw path. Emulated quantization did not preserve exact pixels on both adapters. Next restrict draw demand to outputs due to consume the pixels while retaining the existing color pipeline.",
+    "localCandidateStash": {
+      "name": "rejected/mapgyver-m103-fused-color-quantization-2026-11-19",
+      "commit": "646225bcab0877dfcc9394e6c1f0c8d006bab031"
+    }
+  },
   "remaining": [
     "Reduce Intel output conversion GPU work and close minimized deadline misses. Complete GPU-path attribution, sustained alpha/High Quality DXV and additional MKV profiles, independent repeats, and extended-format recovery."
   ]

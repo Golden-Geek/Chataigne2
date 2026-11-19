@@ -3,7 +3,7 @@
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `█████████░` **87% — 119/137 checks accepted, 8/17 phases complete**.
 - **Latest delivered:** Faster same-size Spout color conversion. Intel output GPU p95 fell from 8.98 to 8.54 ms with exact held pixels. [DXV checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
-- **Working on next:** Combine eligible full-frame Screen and Spout draws to reduce GPU work.
+- **Working on next:** Skip rendering passes that no output is due to use.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -71,7 +71,7 @@
 1. **NOW — Extended Video formats:**
    - **DXV3 Normal:** both GPUs sustained 4K30 and retired all tracked resources. Intel now meets visible deadlines and connected image age in one run. Minimized deadlines, full frame capture and GPU time remain open. [DXV checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
    - **Direct 4K upload timing:** the audit traced every evaluated DXV and WebP batch to its upload. Intel exceeds the GPU budget. NVIDIA timing remains inconclusive. [Timing evidence](evidence/mapgyver-m10-direct-upload-gpu-2026-11-19.json)
-   - **Full-frame draw candidate parked:** held pixels matched and Intel render time stayed flat.
+   - **Full-frame draw experiments parked:** projection removal left Intel render time flat. Combining Screen and Spout draws changed pixel values in native checks.
    - **Animated WebP:** NVIDIA reached 4K30, showed the final encoded frame in all 29 complete loops, and met the 50 ms image-age target. The 1080p source reached about 48 updates/s against 60. Background CPU p95 still exceeds 4 ms. [WebP comparison](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)
    - **1080p WebP candidate parked:** reached 57.8 updates/s. Background CPU p95 rose to 5.4–5.5 ms and one 4K loop missed its final frame. Revisit after reducing 4K upload cost.
    - H.264 MKV passed frame identity, output cadence and CPU checks. The 4K latency upper bound exceeds 50 ms. [MKV run](evidence/mapgyver-m10-mkv-sustained-2026-11-19.json)
