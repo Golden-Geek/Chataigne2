@@ -86,11 +86,13 @@ edits `PlayColumnGroup` and `NavigateGroupChild` and named scripts `playMatrixCo
 `navigateMatrixGroupChild` fire the same Parameters.
 
 The Matrix, each Layer and each Column Group expose a **Previous/Next Wait** setting. **Direct**
-launches immediately. **First Media End** waits for the earliest active finite Video to finish,
-and **All Media End** waits for every active finite Video in scope. The Matrix watches all active
-Layers, a Layer watches its own Cell, and a Column Group watches active Cells in its subtree.
-Outgoing clips, loops and media without a known finite duration do not enter the wait. A paused
-finite Video remains eligible and can finish after it resumes. With no eligible Video, the
+launches immediately. **First Media End** waits for the earliest active Video boundary,
+and **All Media End** waits for every active Video in scope to reach its boundary. A looping
+Video reaches its boundary at its next wrap. Each crossing counts once per navigation request.
+The Matrix watches all active Layers, a Layer watches its own Cell, and a Column Group watches
+active Cells in its subtree.
+Outgoing clips and media without a known duration do not enter the wait. A paused
+Video remains eligible and can reach its boundary after it resumes. With no eligible Video, the
 requested launch happens immediately. Group Play always launches immediately.
 
 A new Previous/Next request replaces the pending request for that Layer or for the shared

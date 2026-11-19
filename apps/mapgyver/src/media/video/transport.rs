@@ -31,14 +31,23 @@ impl TransportSample {
     /// Wall time until the directional endpoint of a finite moving transport. A completed
     /// clock still reports zero, while pause and looping provide no finite end signal.
     pub(crate) fn finite_end_delay(self) -> Option<Duration> {
+        if self.has_finite_end() {
+            self.next_boundary_delay()
+        } else {
+            None
+        }
+    }
+
+    /// Wall time until the current pass reaches its directional endpoint, including a loop seam.
+    pub(crate) fn next_boundary_delay(self) -> Option<Duration> {
         let rate = self.mapping.rate();
-        if !self.has_finite_end() || rate.numerator() == 0 {
+        if self.duration.is_zero() || rate.numerator() == 0 {
             return None;
         }
         let distance = if rate.numerator() < 0 {
-            self.position
+            self.position.saturating_sub(self.cycle_start())
         } else {
-            self.duration.saturating_sub(self.position)
+            self.cycle_end().saturating_sub(self.position)
         };
         let delay = (distance.as_nanos() * u128::from(rate.denominator()))
             .div_ceil(u128::from(rate.numerator().unsigned_abs()));

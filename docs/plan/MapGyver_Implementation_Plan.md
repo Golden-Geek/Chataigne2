@@ -1770,10 +1770,11 @@ cadence and retain full acceptance in the ledger until verified.
     the remaining playback time.
 11. **Previous/Next wait modes.** Apply typed **Direct**, **First Media End** and **All Media End**
     wherever Previous/Next triggers are exposed. Direct launches immediately. First Media End
-    waits for the first active finite medium to finish, and All Media End waits for all active
-    finite media in the trigger's scope to finish. Define behavior for no eligible media and
-    looping sources. Verify single and mixed durations, repeated requests, Stop and interrupted
-    transitions so stale waits cannot launch a new target.
+    waits for the earliest active Video boundary, and All Media End waits for each eligible
+    Video in the trigger's scope to reach one boundary. A non-looping Video reaches its
+    directional endpoint. A looping Video reaches its next wrap. Each crossing counts once
+    per request. With no eligible Video duration, navigation is immediate. Verify mixed
+    durations, looping, repeated requests, Stop and interrupted transitions.
 12. **Matrix transition indicators.** Use the green bottom lines on Cells and Columns to
     show live transition weight. Grow incoming lines from zero to full width with the left
     edge anchored. Shrink outgoing lines from full width to zero with the right edge anchored.

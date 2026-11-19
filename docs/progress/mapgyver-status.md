@@ -2,8 +2,8 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `█████████░` **87% — 119/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** Still WebP imports as Picture. Transparency and orientation passed, including native Picture output on Intel and NVIDIA. [WebP Picture checks](evidence/mapgyver-m10-webp-picture-2026-11-19.json)
-- **Working on next:** Finish extended Video qualification for DXV and MKV.
+- **Latest delivered:** Matrix Previous/Next Wait uses the next wrap for looping Video. [Wait checks](evidence/mapgyver-m16-navigation-waits-2026-11-18.json)
+- **Plan execution:** Paused. Extended Video formats are deferred at the user's request.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -26,7 +26,7 @@
 - [x] **Layer transport:** Previous/Next skips empty and disabled Cells and keeps the Matrix Column and other Layers playing. Row header, Inspector, script and transport checks passed. [Checks](evidence/mapgyver-m16-layer-transport-2026-11-18.json)
 - [x] **Column Group transport:** Play starts the first enabled Column. Previous/Next steps through direct children, counting each nested Group as one step. Reorder, keyboard, Inspector, script and transport checks passed. [Checks](evidence/mapgyver-m16-column-group-transport-2026-11-18.json)
 - [x] **Cell Auto Next:** advances one Layer after a timer or at the cropped Video’s end. Transition lead, Stop cancellation and unchanged Undo history passed. [Checks](evidence/mapgyver-m16-cell-auto-next-2026-11-18.json)
-- [x] **Previous/Next wait modes:** launch immediately or wait for the first or last active finite Video in scope. Loops are skipped. Repeated commands replace the wait, and Stop cancels it. Inspector, toolbar and playback checks passed. [Checks](evidence/mapgyver-m16-navigation-waits-2026-11-18.json)
+- [x] **Previous/Next wait modes:** launch immediately or wait for the first or all active Videos in scope. A looping Video counts at its next wrap. Repeated commands replace the wait, and Stop cancels it. [Checks](evidence/mapgyver-m16-navigation-waits-2026-11-18.json)
 - [x] **Matrix transition indicators:** green Cell and Column lines show the current mix through crossfades, interruptions, Cuts and scrolling. Verified in the Matrix editor and with a live Spout output. [Checks](evidence/mapgyver-m16-transition-lines-2026-11-18.json)
 - [x] **Empty Cells:** clicking an unused Cell keeps the current selection. The `+` button opens Add Media, and crossing onto it keeps the background and outline steady. Mouse and keyboard Add Media access both passed. [Checks](evidence/mapgyver-m16-empty-cell-hover-2026-11-18.json)
 - [x] **Compact Matrix controls:** slim vertical Opacity sliders sit inside the right edge of each Layer header. Opacity and Blend Mode use the Inspector's Parameters. Browser checks verified the slider layout at 100%, 125%, and 150% scaling. [Earlier control checks](evidence/mapgyver-m16-compact-controls-2026-11-18.json)
@@ -68,7 +68,7 @@
 
 ## Pending qualification — in order
 
-1. **NOW — Extended Video formats:**
+1. **Extended Video formats — deferred:**
    - **DXV3 Normal:** both GPUs sustained 4K30 and retired all tracked resources. Intel meets visible deadlines and connected image age in one run. Minimized deadlines and full visible frame capture remain open. Minimized GPU p95 was 17.7 ms against the 12 ms target. [DXV checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
    - **Direct 4K upload timing:** the audit traced every evaluated DXV batch to its upload. Intel exceeds the GPU budget. NVIDIA timing remains inconclusive. [Timing evidence](evidence/mapgyver-m10-direct-upload-gpu-2026-11-19.json)
    - **Full-frame draw experiments parked:** projection removal left Intel render time flat. Combining Screen and Spout draws changed pixel values in native checks.

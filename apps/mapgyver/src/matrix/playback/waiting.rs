@@ -1,4 +1,4 @@
-//! Hold explicit navigation against the active finite clocks in its authored scope.
+//! Hold explicit navigation until the active clocks in scope reach their next boundary.
 use super::*;
 use crate::{
     matrix::{
@@ -7,6 +7,7 @@ use crate::{
     },
     media::video::{TransportSample, VideoControl},
 };
+use golden_time::TimeEpoch;
 use std::{
     collections::BTreeMap,
     time::{Duration, Instant},
@@ -42,6 +43,34 @@ struct Clock {
     column: ColumnId,
     launch: uuid::Uuid,
     control: Arc<VideoControl>,
+    pending: Option<(TimeEpoch, i64)>,
+}
+
+enum BoundaryDelay {
+    Unavailable,
+    Paused,
+    Moving(Duration),
+}
+
+impl Clock {
+    fn boundary_delay(&mut self, sample: TransportSample) -> BoundaryDelay {
+        let Some((epoch, cycle)) = self.pending else {
+            return BoundaryDelay::Moving(Duration::ZERO);
+        };
+        if sample.duration.is_zero() {
+            return BoundaryDelay::Unavailable;
+        }
+        // A timer can wake after the loop has wrapped. Latch that crossing so All Media End
+        // can wait for slower peers. An explicit seek or rate change starts a new epoch.
+        let crossed = sample.looping && sample.epoch == epoch && sample.cycle != cycle;
+        let delay = if crossed {
+            Some(Duration::ZERO)
+        } else {
+            sample.next_boundary_delay()
+        };
+        self.pending = (!delay.is_some_and(|delay| delay.is_zero())).then_some((sample.epoch, sample.cycle));
+        delay.map_or(BoundaryDelay::Paused, BoundaryDelay::Moving)
+    }
 }
 
 struct Request {
@@ -93,8 +122,14 @@ impl Waiting {
         });
         let mut future = None::<Instant>;
         let mut ready = None;
-        for (&key, wait) in &self.0 {
-            let delay = end_delay(wait.mode, wait.clocks.iter().map(|clock| observe(&clock.control)))?;
+        for (&key, wait) in &mut self.0 {
+            let delay = end_delay(
+                wait.mode,
+                wait.clocks.iter_mut().map(|clock| {
+                    let sample = observe(&clock.control)?;
+                    Ok(clock.boundary_delay(sample))
+                }),
+            )?;
             if let Some(delay) = delay {
                 if delay.is_zero() {
                     ready = Some(key);
@@ -112,36 +147,32 @@ impl Waiting {
     }
 }
 
-// No eligible finite clock means no wait. An admitted paused finite clock stays in
-// the cohort, and a clock explicitly switched to Loop stops participating.
+// A paused clock keeps its place in All Media End. First Media End can still be
+// satisfied by a different clock reaching its boundary.
 fn end_delay(
     mode: WaitMode,
-    samples: impl Iterator<Item = Result<TransportSample, String>>,
+    delays: impl Iterator<Item = Result<BoundaryDelay, String>>,
 ) -> Result<Option<Duration>, String> {
     let mut combined = None::<Duration>;
-    let mut has_finite = false;
     let mut paused = false;
-    for sample in samples {
-        let sample = sample?;
-        if !sample.has_finite_end() {
-            continue;
-        }
-        has_finite = true;
-        if let Some(delay) = sample.finite_end_delay() {
-            combined = Some(combined.map_or(delay, |previous| match mode {
-                WaitMode::First => previous.min(delay),
-                _ => previous.max(delay),
-            }));
-        } else {
-            paused = true;
+    for delay in delays {
+        match delay? {
+            BoundaryDelay::Unavailable => {}
+            BoundaryDelay::Paused => paused = true,
+            BoundaryDelay::Moving(delay) => {
+                combined = Some(combined.map_or(delay, |previous| match mode {
+                    WaitMode::First => previous.min(delay),
+                    _ => previous.max(delay),
+                }));
+            }
         }
     }
-    Ok(if !has_finite {
-        Some(Duration::ZERO)
-    } else if mode == WaitMode::All && paused {
+    Ok(if paused && mode == WaitMode::All {
         None
-    } else {
+    } else if paused {
         combined
+    } else {
+        Some(combined.unwrap_or_default())
     })
 }
 
@@ -167,7 +198,7 @@ impl PlaybackControl {
         };
         let mut state = self.0.state.lock().expect("Matrix playback lock poisoned");
         let mut clocks = Vec::new();
-        let mut samples = Vec::new();
+        let mut delays = Vec::new();
         for (layer, column, launch, control) in state.videos.active_clocks() {
             let in_scope = match step.scope {
                 StepScope::Layer(target) => layer == target,
@@ -180,17 +211,19 @@ impl PlaybackControl {
                 continue;
             }
             let sample = control.sample()?;
-            if sample.has_finite_end() {
-                clocks.push(Clock {
+            if !sample.duration.is_zero() {
+                let mut clock = Clock {
                     layer,
                     column,
                     launch,
                     control: control.clone(),
-                });
-                samples.push(Ok(sample));
+                    pending: Some((sample.epoch, sample.cycle)),
+                };
+                delays.push(Ok(clock.boundary_delay(sample)));
+                clocks.push(clock);
             }
         }
-        if end_delay(mode, samples.into_iter())?.is_some_and(|delay| delay.is_zero()) {
+        if end_delay(mode, delays.into_iter())?.is_some_and(|delay| delay.is_zero()) {
             return Ok(false);
         }
         state.navigation_waits.0.insert(

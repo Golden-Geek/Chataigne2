@@ -9,6 +9,12 @@
     "svelteCheck": { "errors": 0, "warnings": 0 },
     "rustFormattingAndPrettier": "pass"
   },
+  "loopBoundaryFollowUp": {
+    "date": "2026-11-19",
+    "softwareTestsPassed": 11,
+    "coverage": "Matrix First and All combine a looping source and a finite source. All retains the first completed loop boundary while waiting for its peer. Group scope waits for its own clip and ignores an unrelated playing peer. Layer replacement and Stop still cancel their queued intent. Transport tests cover forward overlap, reverse tail boundaries, paused clocks, and reverse speed.",
+    "strictClippyAndFormatting": "pass"
+  },
   "bundledApp": {
     "fixture": "apps/mapgyver/tests/browser/matrix-auto-next.mjs",
     "processId": 41208,

@@ -12,6 +12,7 @@ fn shared_transport_repeats_from_the_consumed_head_and_reanchors_on_seek() {
     let half = transport.sample().unwrap();
     assert_eq!(half, transport.sample().unwrap());
     assert_eq!(half.position, seconds(9));
+    assert_eq!(half.next_boundary_delay(), Some(seconds(1)));
     // Both consumers share the same wrap and overlap. The shorter outgoing channel holds.
     assert_eq!(half.channel_position(seconds(3)), seconds(3));
     let blend = half.loop_blend().unwrap();
@@ -22,6 +23,7 @@ fn shared_transport_repeats_from_the_consumed_head_and_reanchors_on_seek() {
     let wrapped = transport.sample().unwrap();
     assert_eq!((wrapped.cycle, wrapped.position), (1, seconds(2)));
     assert_eq!(wrapped.epoch, half.epoch);
+    assert_eq!(wrapped.next_boundary_delay(), Some(seconds(8)));
     assert!(wrapped.loop_blend().is_none());
     assert_eq!(wrapped.frame_position().unwrap().position.as_nanos(), 10_000_000_000);
 

@@ -45,10 +45,17 @@ fn reverse_pause_and_speed_changes_preserve_the_established_tail_pass() {
     clock.set(10_000_000_000);
     let first_repeat = transport.sample().unwrap();
     assert_eq!((first_repeat.cycle, first_repeat.position), (-1, seconds(9)));
+    assert_eq!(first_repeat.next_boundary_delay(), Some(seconds(3)));
+    assert_eq!(first_repeat.finite_end_delay(), None);
     transport.pause().unwrap();
     assert_eq!(transport.sample().unwrap().position, first_repeat.position);
+    assert_eq!(transport.sample().unwrap().next_boundary_delay(), None);
     transport.set_rate(PlaybackRate::new(-2, 1).unwrap()).unwrap();
     transport.play().unwrap();
+    assert_eq!(
+        transport.sample().unwrap().next_boundary_delay(),
+        Some(Duration::from_millis(1500))
+    );
     clock.set(11_500_000_000);
     let second_repeat = transport.sample().unwrap();
     assert_eq!((second_repeat.cycle, second_repeat.position), (-2, seconds(9)));

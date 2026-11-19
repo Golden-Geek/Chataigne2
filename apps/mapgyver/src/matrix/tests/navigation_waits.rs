@@ -48,7 +48,7 @@ fn has_cell(engine: &AppEngine, matrix: MediaId, layer: LayerId, column: ColumnI
 }
 
 #[test]
-fn matrix_wait_modes_use_the_earliest_or_latest_active_end() {
+fn matrix_wait_modes_combine_a_loop_boundary_and_a_finite_end() {
     for (mode, long_still_playing) in [("First Media End", true), ("All Media End", false)] {
         let mut engine = fixture();
         let matrix = create(&mut engine, MediaKind::Matrix).media;
@@ -59,6 +59,7 @@ fn matrix_wait_modes_use_the_earliest_or_latest_active_end() {
         assign(&mut engine, matrix, layer(rows[0]), first, short);
         assign(&mut engine, matrix, layer(rows[1]), first, long);
         clock(&engine, short).prepare(Duration::from_millis(350)).unwrap();
+        policy(&mut engine, short, VideoEdit::Loop { looping: true });
         let long_clock = clock(&engine, long);
         long_clock.prepare(Duration::from_millis(1450)).unwrap();
         wait_mode(&mut engine, matrix.0, mode);
@@ -127,7 +128,7 @@ fn layer_wait_can_be_replaced_and_is_cancelled_by_stop_or_column_launch() {
 }
 
 #[test]
-fn group_wait_uses_its_own_finite_media_and_ignores_looping_clips() {
+fn group_wait_uses_its_own_video_end_or_loop_boundary() {
     let mut engine = fixture();
     let matrix = create(&mut engine, MediaKind::Matrix).media;
     let video = create(&mut engine, MediaKind::Video).media;
@@ -158,10 +159,13 @@ fn group_wait_uses_its_own_finite_media_and_ignores_looping_clips() {
         tick(&mut engine);
         assert!(clock(&engine, peer).sample().unwrap().playing);
         pulse(&mut engine, parent.0, "next_child");
-        let target = if looping { next } else { first };
-        assert_eq!(current(&engine, matrix).desired_column, Some(target));
+        assert_eq!(current(&engine, matrix).desired_column, Some(first));
+        assert!(!observe(&mut engine, Duration::from_millis(120), |engine| {
+            current(engine, matrix).desired_column == Some(next)
+        }));
         assert!(observe(&mut engine, Duration::from_secs(2), |engine| {
             current(engine, matrix).desired_column == Some(next)
         }));
+        assert!(clock(&engine, peer).sample().unwrap().playing);
     }
 }
