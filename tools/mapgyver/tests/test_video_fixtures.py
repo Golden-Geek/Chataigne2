@@ -59,6 +59,21 @@ class VideoFixtureTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "sentinel"):
             MODULE["frame_code"](bytes(320 * 32 * 3))
 
+    def test_matroska_probe_requires_original_millisecond_timeline(self):
+        timestamps = MODULE["matroska_timestamps"]
+        report = {
+            "streams": [{"time_base": "1/1000"}],
+            "format": {"format_name": "matroska,webm", "duration": "4.000000"},
+            "frames": [{"best_effort_timestamp": round(index * 1000 / 60)}
+                       for index in range(240)],
+        }
+        points = timestamps(report, 60, 240)
+        self.assertEqual([points[0], points[1], points[60], points[-1]],
+                         [0, 17_000_000, 1_000_000_000, 3_983_000_000])
+        report["frames"][10]["best_effort_timestamp"] += 2
+        with self.assertRaisesRegex(ValueError, "sequence"):
+            timestamps(report, 60, 240)
+
 
 if __name__ == "__main__":
     unittest.main()

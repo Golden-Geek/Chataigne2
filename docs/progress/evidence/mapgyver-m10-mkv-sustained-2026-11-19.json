@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-19",
+  "gate": "M10/3",
+  "accepted": false,
+  "scope": "One H.264 High YUV420P Matroska sample with separate 1080p60 and 4K30 Files, three independent Spout receivers, and video-only fixtures. Embedded audio and subtitle behavior has separate bundled evidence.",
+  "environment": {
+    "revision": "2e2f27c65b97d7d17d0b370dc9c6e16bee4eae72",
+    "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "adapterKey": "dxgi:00000000:000155d6",
+    "driverVersion": "32.0.15.9201",
+    "acPowerObserved": true,
+    "overlay": "Off per standing user confirmation",
+    "productionBinarySha256": "29d0eb63a0b4a6c46d4cc81ebd01fca268d4942abc080680620d9192d6bdf1cb",
+    "runtime": "Executable-local FFmpeg libraries matched all five pinned hashes.",
+    "localRun": "target/m103-q06-mkv-h264/sample-nvidia-02",
+    "inputsSha256": "b03b957aa22d8ca7984e1bde096555b346de471b6779805d57292c5511a26934",
+    "unchangedInputHashes": 65,
+    "fixturesSha256": "4b1725343675def745cf8b71d62b3db6d9b79e11f85b80511fb064ac929dea41",
+    "sampleSha256": "ef0276695cfa7f70800f801e8a2d98398f0dcc8193991ba79ab0f2a315ed98ee",
+    "auditSha256": "e19c8c4d3d99a10c7540153403037e611f4703fda6063b8624458e813cef4360"
+  },
+  "verification": {
+    "controllerExit": 0,
+    "auditExit": 0,
+    "pythonChecks": 71,
+    "nodeChecks": 22,
+    "phaseSecondsWarmupVisibleMinimizedDisconnected": [30.051, 120.044, 60.048, 60.048],
+    "connectedFrames": 32414,
+    "exactlyMatchedFrameCodes": 32414,
+    "encodedTimestampTimebase": "1/1000",
+    "heldFrameCodesHD_UHD_Reference": [60, 2078, 60],
+    "observedDeadlineMissesVisibleHD_UHD_Reference": [0, 0, 4],
+    "expectedDeadlineSlotsPerOutputVisibleMinimizedDisconnected": [7202, 3603, 3602],
+    "observedDeadlineMissesMinimizedAndDisconnected": 0,
+    "cpuSubmissionWallUpperBoundVisibleP95P99Ms": [0.6259, 0.7126],
+    "gpuPathVisibleP95P99LowerBoundMs": [1.659743, 1.728703],
+    "gpuPathVisibleP95P99UpperBoundMs": [67.2306, 83.4546],
+    "filePublicationToCopyP95UpperMsVisibleHD_UHD_Reference": [33.5022, 53.4088, 33.5211],
+    "filePublicationToCopyP95UpperMsMinimizedHD_UHD_Reference": [19.9709, 50.9028, 20.4555],
+    "residentFrameUses": 32516,
+    "cpuVideoUploadBytes": 0
+  },
+  "resources": {
+    "observations": 277,
+    "dxgiObservations": 271,
+    "sourcePoolsAndPublishersPeakBytes": 529344032,
+    "nativePlanAndOutputTexelPeakBytes": 370400008,
+    "processPrivatePeakBytes": 1563865088,
+    "lifetimePeakWorkingSetBytes": 623738880,
+    "processPeakHandles": 1514,
+    "dxgiLocalPeakBytes": 1404305408,
+    "dxgiLocalMinimumBudgetBytes": 15975055360,
+    "dxgiNonlocalPeakBytes": 338243584,
+    "finalTrackedSourceAndNativeTexelsBytes": [0, 0]
+  },
+  "setupCorrection": "The earlier sample-nvidia-01 stopped before creating outputs. The demand-driven renderer was Idle at adapter observation. The controller now creates native output demand before it checks the selected adapter.",
+  "remaining": [
+    "The 4K30 source-publication-to-copy upper bounds exceed the 50 ms target in both connected phases. The complete GPU-path bounds remain inconclusive against the 12/16.667 ms budget.",
+    "Two additional independent samples, additional MKV profiles, DXV and animated WebP sustained coverage, high-quality translucent DXV, bundled device recovery, and license verification remain open. Disconnect exercises output demand and resource behavior with no receiver images by design."
+  ]
+}

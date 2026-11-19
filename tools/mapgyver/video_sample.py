@@ -162,7 +162,8 @@ def analyze(directory):
         receiver_frames[identity], receiver_clocks[identity] = copied, clock
         receiver_markers[identity] = marker
         spec = report['fixtures']['frame_code']
-        numbered_fixtures[identity] = {**fixture, 'streams': output_streams[identity], 'marker': {
+        numbered_fixtures[identity] = {**fixture, 'container': report['fixtures'].get('container'),
+                                      'streams': output_streams[identity], 'marker': {
             'bits': spec['bits'], 'origin': [spec['x'], spec['y']], 'step': spec['step'],
             'sentinel': [spec['sentinel_x'], spec['y']], 'threshold': spec['threshold']}}
         receiver_summaries.append({"directory": root, "outputs": list(ids), "final": final,

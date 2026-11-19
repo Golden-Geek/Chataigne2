@@ -33,6 +33,18 @@ for (const fixture of fixtures.cases) {
 	const offset = fixture.frame_code_offset ?? 0;
 	assert(Number.isSafeInteger(offset) && offset >= 0 && offset + fixture.frames <= 4096);
 	assert.equal(fixture.frames, fixture.rate * 4);
+	if (fixtures.container === 'matroska') {
+		assert.equal(path.extname(fixture.file).toLowerCase(), '.mkv');
+		assert.equal(fixture.frame_pts_nanos?.length, fixture.frames);
+		assert.equal(fixture.frame_pts_nanos[0], 0);
+		assert(
+			fixture.frame_pts_nanos.every(
+				(pts, index, points) =>
+					Number.isSafeInteger(pts) && (index === 0 || pts > points[index - 1])
+			),
+			'Matroska frame timestamps must be exact and strictly increasing'
+		);
+	}
 }
 if (fixtures.cases[0].width === fixtures.cases[1].width) {
 	const [first, second] = fixtures.cases;
@@ -297,8 +309,6 @@ try {
 		.getByRole('tab')
 		.filter({ hasText: /^Medias$/ })
 		.waitFor();
-	const adapter = await observeNativeAdapter(native.page, hardware);
-	assert.equal(adapter.key, selected);
 	const libraries = await inspectLocalVideoLibraries(
 		native.app.pid,
 		process.env.MAPGYVER_TEST_BINARY
@@ -339,6 +349,9 @@ try {
 	outputs.push(
 		await makeOutput(mirrorHD.reference, fixtures.cases[0], 'Q06 independent shared output')
 	);
+	// The native renderer remains idle until an output creates demand.
+	const adapter = await observeNativeAdapter(native.page, hardware);
+	assert.equal(adapter.key, selected);
 	await transport({ kind: 'Loop', looping: true });
 	for (const output of outputs.slice(0, 2))
 		await wait(

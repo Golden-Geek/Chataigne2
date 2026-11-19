@@ -41,6 +41,18 @@ def decoded_pixels(row, marker):
     return code
 
 
+def frame_ordinals(fixture, count):
+    points = fixture.get('frame_pts_nanos')
+    if points is None and fixture.get('container') != 'matroska':
+        return None
+    if not isinstance(points, list) or len(points) != count:
+        raise ValueError('exact fixture timestamp table has the wrong number of frames')
+    ordinals = {integer(pts, 'fixture PTS'): index for index, pts in enumerate(points)}
+    if len(ordinals) != count or points[0] != 0 or any(left >= right for left, right in zip(points, points[1:])):
+        raise ValueError('exact fixture timestamps must advance from zero')
+    return ordinals
+
+
 def analyze_frame_codes(events, receivers, fixtures, contracts, window, frames):
     uses, routes, published, copied = (defaultdict(list) for _ in range(4))
     for row in events['SourceUse']:
@@ -60,6 +72,7 @@ def analyze_frame_codes(events, receivers, fixtures, contracts, window, frames):
     results = []
     for output, fixture in fixtures.items():
         rate, count = integer(fixture['rate'], 'fixture rate', 1), integer(fixture['frames'], 'fixture count', 1)
+        ordinals = frame_ordinals(fixture, count)
         bits = integer(fixture['marker']['bits'], 'marker bits', 1)
         if bits > 32 or not 0 < integer(fixture['marker']['threshold'], 'threshold') < 255:
             raise ValueError('invalid binary marker count or threshold')
@@ -120,11 +133,15 @@ def analyze_frame_codes(events, receivers, fixtures, contracts, window, frames):
                 missing['invalid_binary_marker'] += 1
                 continue
             pts = integer(selected[0]['frame']['pts_nanos'], 'selected File PTS')
-            # Frame-numbered constant-rate fixtures start at PTS0. Round the nanosecond
-            # quantization; floor would misidentify1/30s as frame0.
-            ordinal = (pts * rate + 500_000_000) // 1_000_000_000
-            if ordinal >= count or abs(pts * rate - ordinal * 1_000_000_000) > rate:
-                raise ValueError('selected PTS is outside the declared numbered fixture')
+            if ordinals is not None:
+                ordinal = ordinals.get(pts)
+                if ordinal is None:
+                    raise ValueError('selected PTS is absent from the exact fixture timestamp table')
+            else:
+                # Round nanosecond quantization of exact constant-rate timestamps.
+                ordinal = (pts * rate + 500_000_000) // 1_000_000_000
+                if ordinal >= count or abs(pts * rate - ordinal * 1_000_000_000) > rate:
+                    raise ValueError('selected PTS is outside the declared numbered fixture')
             expected = ordinal + offset
             if code != expected:
                 mismatched.append({'token': row['token'], 'image': row['spout_image'], 'pts_nanos': pts,

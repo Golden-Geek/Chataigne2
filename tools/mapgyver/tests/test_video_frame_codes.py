@@ -81,6 +81,21 @@ class VideoFrameCodeTests(unittest.TestCase):
         self.assertTrue(value['coverage_complete'])
         self.assertEqual(value['matched_images'], 1)
 
+    def test_matroska_requires_the_exact_independently_observed_timestamp(self):
+        args = fixture()
+        spec = args[2][3]
+        spec['container'] = 'matroska'
+        with self.assertRaisesRegex(ValueError, 'timestamp table'):
+            result(args)
+        spec['frame_pts_nanos'] = [round(index * 1000 / 30) * 1_000_000 for index in range(120)]
+        with self.assertRaisesRegex(ValueError, 'absent'):
+            result(args)
+        args[0]['SourceUse'][0]['frame']['pts_nanos'] = 33_000_000
+        self.assertTrue(result(args)['coverage_complete'])
+        spec['frame_pts_nanos'][2] = spec['frame_pts_nanos'][1]
+        with self.assertRaisesRegex(ValueError, 'advance'):
+            result(args)
+
     def test_unrelated_same_sized_file_is_not_selected_by_dimensions(self):
         args = fixture()
         other = copy.deepcopy(args[0]['SourceUse'][0])

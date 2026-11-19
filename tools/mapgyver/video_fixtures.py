@@ -1,5 +1,6 @@
 """Generate finite, independently checked Q06 files; never used by product playback."""
 import argparse
+from fractions import Fraction
 import hashlib
 import json
 from pathlib import Path
@@ -49,12 +50,42 @@ PROFILES = {
 }
 
 
-def validate_stream(info, expected, width, height, frames):
+def validate_stream(info, expected, width, height, frames, count_field="nb_frames"):
     for key, value in expected.items():
         if info.get(key) != value:
             raise ValueError(f"unexpected {key}: {info.get(key)!r}, expected {value!r}")
-    if (info["width"], info["height"], int(info["nb_frames"])) != (width, height, frames):
+    if (info["width"], info["height"], int(info[count_field])) != (width, height, frames):
         raise ValueError("unexpected fixture dimensions or frame count")
+
+
+def matroska_timestamps(decoded, rate, frames):
+    info = decoded["streams"][0]
+    if ("matroska" not in decoded["format"]["format_name"].split(",")
+            or Fraction(decoded["format"]["duration"]) != 4
+            or Fraction(info["time_base"]) != Fraction(1, 1000)):
+        raise ValueError("expected the four-second Matroska fixture with millisecond timestamps")
+    points = [int(row["best_effort_timestamp"]) * 1_000_000 for row in decoded["frames"]]
+    if (len(points) != frames or points[0] != 0
+            or any(previous >= current for previous, current in zip(points, points[1:]))
+            or any(abs(pts * rate - index * 1_000_000_000) > rate * 1_000_000
+                   for index, pts in enumerate(points))):
+        raise ValueError("timestamps do not represent the expected numbered frame sequence")
+    return points
+
+
+def matroska_marker_oracle(encoder, file, indexes, offset):
+    expression = "+".join(f"eq(n\\,{index})" for index in indexes)
+    pixels = subprocess.check_output([
+        str(encoder), "-hide_banner", "-loglevel", "error", "-threads", "2", "-i", str(file),
+        "-vf", f"crop=320:32:0:0,select={expression}", "-fps_mode", "passthrough",
+        "-frames:v", str(len(indexes)), "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"], timeout=60)
+    frame_size = 320 * 32 * 3
+    if len(pixels) != len(indexes) * frame_size:
+        raise ValueError("Matroska marker oracle returned the wrong number of frames")
+    actual = [frame_code(pixels[start:start + frame_size]) for start in range(0, len(pixels), frame_size)]
+    if actual != [index + offset for index in indexes]:
+        raise ValueError(f"unexpected Matroska frame codes: {actual}")
+    return actual
 
 
 def verify_alpha(rgba, width):
@@ -83,15 +114,25 @@ def marker_filters(offset):
         for bit in range(12)]
 
 
-def generate(encoder, directory, codec="prores", workload="standard"):
+def generate(encoder, directory, codec="prores", workload="standard", container="mov"):
     label, prefix, encoding, expected = PROFILES[codec]
+    matroska = container == "matroska"
+    if matroska:
+        if codec not in {"h264", "hevc"}:
+            raise ValueError("numbered Matroska fixtures require H.264 or HEVC")
+        encoding = encoding.copy()
+        if "-tag:v" in encoding:
+            tag = encoding.index("-tag:v")
+            del encoding[tag:tag + 2]
+        expected = {**expected, "codec_tag_string": "[0][0][0][0]"}
     has_alpha = codec in {"hap_alpha", "prores_alpha"}
     directory.mkdir(parents=True, exist_ok=False)
     cases = []
     for index, (case_id, width, height, rate) in enumerate(WORKLOADS[workload]):
         frames = rate * 4
         offset = index * 2048
-        output = directory / f"{prefix}-{case_id}-{width}x{height}-{rate}.mov"
+        suffix = "mkv" if matroska else "mov"
+        output = directory / f"{prefix}-{case_id}-{width}x{height}-{rate}.{suffix}"
         filters = marker_filters(offset)
         if has_alpha:
             # Keep numbered witnesses opaque; the moving picture below has two alpha levels.
@@ -103,20 +144,30 @@ def generate(encoder, directory, codec="prores", workload="standard"):
                    "-threads", "4", "-color_range", "tv",
                    "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", str(output)]
         subprocess.run(command, check=True, timeout=180)
-        info = json.loads(subprocess.check_output([
-            str(encoder.with_name("ffprobe.exe")), "-v", "error", "-select_streams", "v:0",
-            "-show_streams", "-of", "json", str(output)]))["streams"][0]
-        validate_stream(info, expected, width, height, frames)
-        oracle = []
-        for index in [0, 1, 31, frames - 1]:
-            pixels = subprocess.check_output([
-                str(encoder), "-hide_banner", "-loglevel", "error", "-threads", "2", "-ss", str(index / rate),
-                "-i", str(output), "-vf", "crop=320:32:0:0", "-frames:v", "1", "-f", "rawvideo",
-                "-pix_fmt", "rgb24", "pipe:1"], timeout=30)
-            assert len(pixels) == 320 * 32 * 3
-            actual = frame_code(pixels)
-            assert actual == index + offset, (output.name, index + offset, actual)
-            oracle.append(actual)
+        probe = [str(encoder.with_name("ffprobe.exe")), "-v", "error", "-select_streams", "v:0",
+                 "-show_streams", "-of", "json"]
+        if matroska:
+            probe += ["-count_frames", "-show_frames", "-show_format",
+                      "-show_entries", "stream:format=format_name,duration:frame=best_effort_timestamp"]
+        decoded = json.loads(subprocess.check_output([*probe, str(output)], timeout=120))
+        info = decoded["streams"][0]
+        validate_stream(info, expected, width, height, frames, "nb_read_frames" if matroska else "nb_frames")
+        indexes = [0, 1, 31, frames - 1]
+        timestamps = {}
+        if matroska:
+            timestamps["frame_pts_nanos"] = matroska_timestamps(decoded, rate, frames)
+            oracle = matroska_marker_oracle(encoder, output, indexes, offset)
+        else:
+            oracle = []
+            for index in indexes:
+                pixels = subprocess.check_output([
+                    str(encoder), "-hide_banner", "-loglevel", "error", "-threads", "2", "-ss", str(index / rate),
+                    "-i", str(output), "-vf", "crop=320:32:0:0", "-frames:v", "1", "-f", "rawvideo",
+                    "-pix_fmt", "rgb24", "pipe:1"], timeout=30)
+                assert len(pixels) == 320 * 32 * 3
+                actual = frame_code(pixels)
+                assert actual == index + offset, (output.name, index + offset, actual)
+                oracle.append(actual)
         alpha = []
         if has_alpha:
             pixels = subprocess.check_output([
@@ -128,8 +179,8 @@ def generate(encoder, directory, codec="prores", workload="standard"):
                       "file": str(output.resolve()), "width": width, "height": height, "rate": rate,
                       "frames": frames, "duration_seconds": 4, "bytes": output.stat().st_size,
                       "sha256": digest(output), "stream": info, "verified_frame_codes": oracle,
-                      "verified_alpha_samples": alpha})
-    manifest = {"schema": 2, "workload": workload, "codec": label,
+                      "verified_alpha_samples": alpha, **timestamps})
+    manifest = {"schema": 2, "workload": workload, "codec": label, "container": container,
                 "encoder": str(encoder), "encoder_sha256": digest(encoder),
                 "encoder_version": subprocess.check_output([str(encoder), "-version"], text=True).splitlines()[0],
                 "generator_sha256": digest(__file__), "frame_code": {"bits": 12, "x": 24, "y": 24, "step": 24,
@@ -144,8 +195,10 @@ def main():
     parser.add_argument("--directory", type=Path, required=True)
     parser.add_argument("--codec", choices=PROFILES, default="prores")
     parser.add_argument("--workload", choices=WORKLOADS, default="standard")
+    parser.add_argument("--container", choices=("mov", "matroska"), default="mov")
     args = parser.parse_args()
-    manifest = generate(args.encoder.resolve(strict=True), args.directory.resolve(), args.codec, args.workload)
+    manifest = generate(args.encoder.resolve(strict=True), args.directory.resolve(),
+                        args.codec, args.workload, args.container)
     print(json.dumps({"result": "pass", "cases": len(manifest["cases"]), "directory": str(args.directory)}))
 
 
