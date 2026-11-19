@@ -1,6 +1,7 @@
 //! Timing and rewind for FFmpeg's standalone animated WebP demuxer.
 use super::{DecodeError, ffmpeg, metadata::open_local};
 use std::{
+    collections::VecDeque,
     fs::File,
     io::{BufReader, Read},
     path::{Path, PathBuf},
@@ -34,7 +35,7 @@ pub(super) struct Animation {
     path: PathBuf,
     interrupt: Interrupt,
     pub duration_ms: i64,
-    pub(super) lookahead: Option<ffmpeg::Packet>,
+    pub(super) lookahead: VecDeque<ffmpeg::Packet>,
 }
 
 pub(super) fn open_video(
@@ -52,7 +53,7 @@ pub(super) fn open_video(
             path: path.to_owned(),
             interrupt,
             duration_ms,
-            lookahead: None,
+            lookahead: VecDeque::new(),
         })
     } else {
         None

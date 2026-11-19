@@ -516,7 +516,7 @@ impl Decoder {
                 Ok((input, decoder)) => {
                     self.input = input;
                     self.decoder = Some(decoder);
-                    animation.lookahead = None;
+                    animation.lookahead.clear();
                     self.state = DecodeState::Reading;
                     return Ok(());
                 }
@@ -572,9 +572,11 @@ impl Decoder {
         self.decode_next(Some(due))
     }
 
-    /// Additional maximum compressed payload retained for forward packet lookahead.
+    /// Additional maximum compressed payload retained during forward packet lookahead.
     pub fn packet_lookahead_bytes(&self) -> usize {
-        self.animation.as_ref().map_or(0, |_| self.limits.max_packet_bytes)
+        self.animation
+            .as_ref()
+            .map_or(0, |_| self.limits.max_packet_bytes.saturating_mul(2))
     }
 
     fn decode_next(&mut self, due: Option<i64>) -> Result<Option<DecodedFrame>, DecodeError> {
@@ -606,7 +608,7 @@ impl Decoder {
         if self.state == DecodeState::Ended {
             return Ok(None);
         }
-        let mut packets = 0;
+        let mut packets = 0usize;
         let mut omitted_before = None;
         loop {
             let mut image = ffmpeg::frame::Video::empty();
@@ -648,10 +650,19 @@ impl Decoder {
                 return Err(ffmpeg::Error::InvalidData.into());
             }
             // A standalone animation demux yields one video packet per read.
-            let extra_packets = self.limits.max_packets_per_frame.saturating_sub(packets + 1);
+            let extra_packets = self
+                .limits
+                .max_packets_per_frame
+                .saturating_sub(packets.saturating_add(1));
             let mut read = || read_video_packet(&mut self.input, self.stream, self.limits, &mut packets);
             let next = if let Some(animation) = &mut self.animation {
-                animation.next_packet(due, (self.info.width, self.info.height), extra_packets, read)?
+                animation.next_packet(
+                    due,
+                    (self.info.width, self.info.height),
+                    extra_packets,
+                    self.limits.max_packet_bytes,
+                    read,
+                )?
             } else {
                 read()?.map(|packet| (packet, None))
             };

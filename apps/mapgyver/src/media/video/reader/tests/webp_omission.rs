@@ -100,3 +100,35 @@ fn updates_with_blending_or_disposal_are_always_decoded() {
         assert_eq!(following.omitted_before(), None);
     }
 }
+
+#[test]
+fn one_later_overwrite_can_replace_a_group_with_different_rectangles() {
+    let mut bytes = fixture();
+    // The 95 ms update moves to the right. It does not cover the 40 ms update,
+    // but the full 225 ms update covers both, along with the 185 ms update.
+    bytes[256 + 8] = 1;
+    let fixture = file(&bytes);
+    let ms = Duration::from_millis;
+    let mut exact = open(&fixture);
+    let expected_95 = exact.poll(ms(95), None).unwrap().unwrap();
+    let expected_225 = exact.poll(ms(225), None).unwrap().unwrap();
+
+    let mut playing = open(&fixture);
+    assert!(playing.advance_for_playback(ms(310), Some(ms(0))).unwrap());
+    let following = playing.next.as_ref().unwrap();
+    assert_eq!(following.timestamp(), 225);
+    assert_eq!(following.omitted_before(), Some((40, 185)));
+    assert_eq!(playing.selected_neighbours().unwrap().unwrap().next, Some(ms(40)));
+    playing.mark_published();
+    assert!(playing.advance_for_playback(ms(310), Some(ms(0))).unwrap());
+    let frame = playing.selected_neighbours().unwrap().unwrap();
+    assert_eq!(
+        (frame.previous, frame.position, frame.next),
+        (Some(ms(185)), ms(225), Some(ms(310)))
+    );
+    assert_eq!(playing.software_image().unwrap().pixels(), expected_225.pixels());
+    assert_eq!(
+        playing.poll(ms(95), None).unwrap().unwrap().pixels(),
+        expected_95.pixels()
+    );
+}

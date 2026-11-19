@@ -43,3 +43,42 @@ fn chunk_bounds_and_empty_animations_fail_before_publishing_timing() {
         ));
     }
 }
+
+fn overwrite_packet(x: u8, size: u32, timestamp: i64) -> ffmpeg::Packet {
+    let mut bytes = vec![x, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 40, 0, 0, 2];
+    bytes.extend_from_slice(b"VP8 ");
+    bytes.extend_from_slice(&size.to_le_bytes());
+    bytes.extend_from_slice(&[0, 0, 0, 0x9d, 0x01, 0x2a, 2, 0, 2, 0]);
+    bytes.resize(24 + size as usize, 0);
+    let mut packet = ffmpeg::Packet::copy(&bytes);
+    packet.set_pts(Some(timestamp));
+    packet.set_duration(40);
+    packet
+}
+
+#[test]
+fn packet_lookahead_stays_bounded_and_keeps_non_omitted_updates_in_order() {
+    let mut animation = Animation {
+        path: PathBuf::new(),
+        interrupt: Arc::new(Mutex::new(|| false)),
+        duration_ms: 160,
+        lookahead: VecDeque::new(),
+    };
+    let mut packets = [
+        overwrite_packet(0, 16, 0),
+        overwrite_packet(1, 16, 40),
+        overwrite_packet(2, 76, 80),
+        overwrite_packet(3, 16, 120),
+    ]
+    .into_iter();
+    for (timestamp, remaining) in [(0, 1), (40, 1), (80, 0), (120, 0)] {
+        let (packet, omitted) = animation
+            .next_packet(Some(160), (8, 8), 8, 110, || Ok(packets.next()))
+            .unwrap()
+            .unwrap();
+        assert_eq!(packet.pts(), Some(timestamp));
+        assert_eq!(omitted, None);
+        assert_eq!(packets.len(), remaining);
+        assert!(animation.lookahead.iter().map(ffmpeg::Packet::size).sum::<usize>() <= 220);
+    }
+}

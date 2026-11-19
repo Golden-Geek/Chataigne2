@@ -1,7 +1,7 @@
 //! Skip obsolete VP8 updates only when a due overwrite makes their full canvas effect redundant.
 use super::{Animation, DecodeError, ffmpeg};
 
-const MAX_OMITTED: usize = 4;
+const MAX_OMITTED: usize = 8;
 pub(in crate::decode) type PacketWithOmission = (ffmpeg::Packet, Option<(i64, i64)>);
 
 impl Animation {
@@ -10,44 +10,59 @@ impl Animation {
         due: Option<i64>,
         canvas: (u32, u32),
         extra_packets: usize,
+        max_packet_bytes: usize,
         mut read: impl FnMut() -> Result<Option<ffmpeg::Packet>, DecodeError>,
     ) -> Result<Option<PacketWithOmission>, DecodeError> {
-        let Some(mut packet) = self
-            .lookahead
-            .take()
-            .map_or_else(&mut read, |packet| Ok(Some(packet)))?
-        else {
-            return Ok(None);
-        };
-        let mut omitted = None;
-        for _ in 0..MAX_OMITTED.min(extra_packets) {
-            let Some((due, start, rect)) = due.zip(packet.pts()).and_then(|(due, start)| {
-                if start >= due || packet.is_key() {
-                    return None;
+        if self.lookahead.is_empty() {
+            let Some(packet) = read()? else {
+                return Ok(None);
+            };
+            self.lookahead.push_back(packet);
+        }
+        let mut selected = 0;
+        if let Some(due) = due
+            && let Some((mut end, mut changed)) = expired_overwrite(&self.lookahead[0], due, canvas)
+        {
+            let mut queued_bytes = self
+                .lookahead
+                .iter()
+                .fold(0usize, |total, packet| total.saturating_add(packet.size()));
+            for index in 1..=MAX_OMITTED.min(extra_packets) {
+                if index == self.lookahead.len() {
+                    // One read may add up to max_packet_bytes before we know its size.
+                    // This keeps the whole queue within two packet-limit units.
+                    if queued_bytes > max_packet_bytes {
+                        break;
+                    }
+                    let Some(packet) = read()? else {
+                        break;
+                    };
+                    queued_bytes = queued_bytes.saturating_add(packet.size());
+                    self.lookahead.push_back(packet);
                 }
-                overwrite(&packet, canvas).map(|rect| (due, start, rect))
-            }) else {
-                break;
-            };
-            let Some(next) = read()? else {
-                break;
-            };
-            if next.pts().is_some_and(|pts| {
-                packet.duration() > 0
-                    && start.checked_add(packet.duration()) == Some(pts)
-                    && next.duration() > 0
-                    && pts.checked_add(next.duration()).is_some_and(|end| end <= due)
-            }) && overwrite(&next, canvas).is_some_and(|replacement| replacement.covers(rect))
-            {
-                let (first, _) = omitted.unwrap_or((start, start));
-                omitted = Some((first, start));
-                packet = next;
-            } else {
-                self.lookahead = Some(next);
-                break;
+                let next = &self.lookahead[index];
+                if next.pts() != Some(end) {
+                    break;
+                }
+                let Some((next_end, rect)) = expired_overwrite(next, due, canvas) else {
+                    break;
+                };
+                if rect.covers(changed) {
+                    selected = index;
+                }
+                changed = changed.union(rect);
+                end = next_end;
             }
         }
-        Ok(Some((packet, omitted)))
+        let omitted = if selected == 0 {
+            None
+        } else {
+            let first = self.lookahead[0].pts().unwrap();
+            let last = self.lookahead[selected - 1].pts().unwrap();
+            self.lookahead.drain(..selected);
+            Some((first, last))
+        };
+        Ok(self.lookahead.pop_front().map(|packet| (packet, omitted)))
     }
 }
 
@@ -63,6 +78,24 @@ impl Rect {
     fn covers(self, other: Self) -> bool {
         self.x <= other.x && self.y <= other.y && self.right >= other.right && self.bottom >= other.bottom
     }
+
+    fn union(self, other: Self) -> Self {
+        Self {
+            x: self.x.min(other.x),
+            y: self.y.min(other.y),
+            right: self.right.max(other.right),
+            bottom: self.bottom.max(other.bottom),
+        }
+    }
+}
+
+fn expired_overwrite(packet: &ffmpeg::Packet, due: i64, canvas: (u32, u32)) -> Option<(i64, Rect)> {
+    if packet.is_key() || packet.duration() <= 0 {
+        return None;
+    }
+    let end = packet.pts()?.checked_add(packet.duration())?;
+    (end <= due).then_some(())?;
+    Some((end, overwrite(packet, canvas)?))
 }
 
 fn overwrite(packet: &ffmpeg::Packet, (canvas_width, canvas_height): (u32, u32)) -> Option<Rect> {

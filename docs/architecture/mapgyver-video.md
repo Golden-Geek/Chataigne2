@@ -439,10 +439,11 @@ from that canvas and may publish an earlier completed image during catch-up. Its
 source can sample the latest completed past image within the current epoch during a forward gap,
 preserving the actual PTS and presentation window for diagnostics. Held seeks and reverse
 playback still resolve exact timestamp choices.
-Late VP8 canvas updates can be omitted when a later expired update overwrites their entire
-rectangle. Blending, disposal and lossless updates retain sequential decoding. The decoder reserves
-at most one additional admitted compressed packet for lookahead. Omitted timestamps still define
-source neighbours and presentation windows, and an exact seek into a gap reconstructs the canvas.
+Late VP8 canvas updates can be omitted when a later expired update overwrites the entire combined
+rectangle. Blending, disposal and lossless updates retain sequential decoding. Lookahead checks up
+to eight future packets and holds at most twice the input packet limit in compressed bytes. The
+existing source memory ceiling covers that reservation. Omitted timestamps still define source
+neighbours and presentation windows, and an exact seek into a gap reconstructs the canvas.
 [WebP container specification](https://www.rfc-editor.org/rfc/rfc9649.html#section-2.7.1.2)
 Advancing playback's frame-neighbour inspection samples the same two presentation windows, so
 preparing a future image does not advance Inspector frame-step state. A stationary clock
