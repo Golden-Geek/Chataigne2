@@ -800,5 +800,9 @@
 </script>
 
 <div class="gc-content">
-	<div bind:this={containerElement} class="gc-dockview"></div>
+	<div
+		bind:this={containerElement}
+		class="gc-dockview"
+		style:--gc-dock-gap={`${goldenDockviewTheme.gap}px`}>
+	</div>
 </div>

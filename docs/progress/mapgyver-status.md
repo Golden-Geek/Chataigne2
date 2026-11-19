@@ -2,8 +2,8 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `█████████░` **87% — 119/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** Matrix Previous/Next Wait uses the next wrap for looping Video. [Wait checks](evidence/mapgyver-m16-navigation-waits-2026-11-18.json)
-- **Plan execution:** Paused. Extended Video formats are deferred at the user's request.
+- **Latest delivered:** Themed dock separators with visible Screen Warping previews. Verified horizontal and vertical splits, ColorBars and warp handles in Windows at 125% scaling.
+- **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed

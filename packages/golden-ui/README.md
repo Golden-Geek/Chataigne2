@@ -7,6 +7,8 @@ Programmatically mounted dock panels inherit their Svelte parent's context, incl
 providers. The shell exposes `--gc-workbench-background` and `--gc-dock-panel-background` overrides
 for native-underlay consumers; applications withdraw opaque backgrounds only after their native
 installation acknowledgement. Defaults preserve the ordinary Golden theme.
+Set `--gc-dock-separator-background` to color the gaps between dock views while leaving their
+interiors and the workbench background independent.
 
 ## Ownership
 

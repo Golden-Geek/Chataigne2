@@ -58,6 +58,7 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 			app.style.setProperty('--gc-workbench-background', 'transparent');
 			const theme = document.createElement('div');
 			theme.style.backgroundColor = 'var(--gc-color-panel)';
+			theme.style.color = 'var(--gc-color-background)';
 			app.append(theme);
 			try {
 				const background = (element) => getComputedStyle(element).backgroundColor;
@@ -65,11 +66,18 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 				const editor = document.querySelector('section[aria-label="Screen Warping"]');
 				return {
 					theme: background(theme),
+					workbenchTheme: getComputedStyle(theme).color,
 					root: background(app.querySelector('.gc-main')),
 					manager: background(manager.closest('.dv-groupview')),
 					inspector: background(app.querySelector('.inspector').closest('.dv-groupview')),
 					preview: background(editor.closest('.dv-groupview')),
-					toolbar: background(editor.querySelector('.canvas-toolbar'))
+					toolbar: background(editor.querySelector('.canvas-toolbar')),
+					separators: ['horizontal', 'vertical'].map((direction) => {
+						const view = app.querySelector(
+							`.dv-split-view-container.dv-${direction} > .dv-view-container > .dv-view`
+						);
+						return view && getComputedStyle(view).boxShadow;
+					})
 				};
 			} finally {
 				theme.remove();
@@ -78,6 +86,8 @@ export async function verifyScreenUi({ base, post, media, inspectMedia }) {
 			}
 		});
 		assert.equal(backgrounds.root, 'rgba(0, 0, 0, 0)');
+		for (const separator of backgrounds.separators)
+			assert.equal(separator, `${backgrounds.workbenchTheme} 0px 0px 0px 3px`);
 		assert.equal(
 			backgrounds.preview,
 			'rgba(0, 0, 0, 0)',

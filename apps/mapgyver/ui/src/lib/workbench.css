@@ -1,3 +1,7 @@
+.app {
+	--gc-dock-separator-background: var(--gc-color-background);
+}
+
 .workbench-editor {
 	display: flex;
 	flex-direction: column;

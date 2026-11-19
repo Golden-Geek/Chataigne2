@@ -393,6 +393,11 @@ select {
 		overflow: visible !important;
 	}
 
+	/* Two adjacent views each paint half of the gap outside their bounds. */
+	.dv-split-view-container > .dv-view-container > .dv-view {
+		box-shadow: 0 0 0 calc(var(--gc-dock-gap) / 2) var(--gc-dock-separator-background, transparent);
+	}
+
 	.dv-groupview {
 		box-sizing: border-box;
 		border-radius: 0.4rem;
