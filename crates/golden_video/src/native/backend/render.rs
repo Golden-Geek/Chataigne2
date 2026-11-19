@@ -45,6 +45,7 @@ pub(super) fn execute(
         }
         match &pass.operation {
             RenderOperation::Clear(color) => pipeline.clear(context, output, *color),
+            RenderOperation::Shader(_) => pipeline.draw_shader(context, output, &resources.shaders[&pass.id], time),
             RenderOperation::Retain => pipeline.clear(context, output, LinearColor::TRANSPARENT),
             RenderOperation::Sample { source, filter } => {
                 pipeline.draw(

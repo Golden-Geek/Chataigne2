@@ -77,6 +77,7 @@ pub enum MediaKind {
     Reference,
     Picture,
     Video,
+    Shader,
     SolidColor,
     SharedTexture,
     Ndi,
@@ -96,6 +97,7 @@ impl MediaKind {
             Self::Reference => "Reference",
             Self::Picture => "Picture",
             Self::Video => "Video",
+            Self::Shader => "Shader",
             Self::SolidColor => "Solid Color",
             Self::SharedTexture => "Shared Texture",
             Self::Ndi => "NDI",
@@ -107,7 +109,7 @@ impl MediaKind {
     pub(crate) fn has_authored_channel_variants(self) -> bool {
         matches!(
             self,
-            Self::Picture | Self::Video | Self::SolidColor | Self::SharedTexture | Self::Ndi
+            Self::Picture | Self::Video | Self::Shader | Self::SolidColor | Self::SharedTexture | Self::Ndi
         )
     }
 
@@ -211,6 +213,10 @@ pub enum ChannelSource {
     },
     Video {
         file: Option<AssetLocator>,
+    },
+    Shader {
+        #[ts(type = "string")]
+        code: std::sync::Arc<str>,
     },
     /// Straight linear-light RGBA. Conversion/premultiplication happens in the backend.
     SolidColor {

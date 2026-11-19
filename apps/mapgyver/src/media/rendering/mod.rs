@@ -8,6 +8,8 @@ mod fit;
 pub(crate) mod ndi;
 mod plan;
 mod screen_raster;
+#[cfg(all(windows, feature = "native-video"))]
+mod shaders;
 mod sources;
 use crate::preview::layout::PreviewImages;
 pub use crate::preview::layout::PreviewLayout;
@@ -73,6 +75,8 @@ pub struct ChannelRenderer {
     pending_preview: Option<PreviewImages>,
     presented_preview: PreviewImages,
     pictures: Option<super::picture::Pictures>,
+    #[cfg(all(windows, feature = "native-video"))]
+    shaders: Option<shaders::Shaders>,
     #[cfg(all(windows, target_arch = "x86_64"))]
     ndi: Option<ndi::Receivers>,
     #[cfg(feature = "video-files")]
@@ -108,6 +112,8 @@ impl ChannelRenderer {
             pending_preview: Default::default(),
             presented_preview: Default::default(),
             pictures: None,
+            #[cfg(all(windows, feature = "native-video"))]
+            shaders: None,
             #[cfg(all(windows, target_arch = "x86_64"))]
             ndi: None,
             #[cfg(feature = "video-files")]
@@ -188,6 +194,12 @@ impl ChannelRenderer {
     #[cfg(all(windows, target_arch = "x86_64"))]
     pub fn enable_ndi(&mut self, notifier: Option<golden_io::WorkerNotifier>) {
         self.ndi = Some(ndi::Receivers::new(notifier));
+    }
+    /// Install the shader preparation worker on the native renderer's notification path.
+    #[cfg(all(windows, feature = "native-video"))]
+    pub(crate) fn enable_shaders(&mut self, notifier: golden_io::WorkerNotifier) -> Result<(), String> {
+        self.shaders = Some(shaders::Shaders::new(notifier)?);
+        Ok(())
     }
     pub fn retry_pictures(&mut self) -> Result<(), String> {
         self.pictures
@@ -341,7 +353,11 @@ impl ChannelRenderer {
         let prepares_ndi = self.ndi.is_some();
         #[cfg(not(all(windows, target_arch = "x86_64")))]
         let prepares_ndi = false;
-        if self.pictures.is_some() || prepares_video || prepares_ndi {
+        #[cfg(all(windows, feature = "native-video"))]
+        let prepares_shaders = self.shaders.is_some();
+        #[cfg(not(all(windows, feature = "native-video")))]
+        let prepares_shaders = false;
+        if self.pictures.is_some() || prepares_video || prepares_ndi || prepares_shaders {
             let mut demanded = routes.iter().map(|route| route.channel).collect::<Vec<_>>();
             if let Some(preview) = &preview {
                 demanded.extend(preview.references()?);
@@ -359,6 +375,10 @@ impl ChannelRenderer {
             .0;
             if let Some(pictures) = &mut self.pictures {
                 pictures.sync(&capture, &demanded, self.limits.max_external_textures)?;
+            }
+            #[cfg(all(windows, feature = "native-video"))]
+            if let Some(shaders) = &mut self.shaders {
+                shaders.sync(&capture, &demanded);
             }
             #[cfg(feature = "video-files")]
             if let Some(videos) = &mut self.videos {
@@ -386,6 +406,8 @@ impl ChannelRenderer {
             plan::Sources {
                 observations: &observations,
                 pictures: self.pictures.as_ref(),
+                #[cfg(all(windows, feature = "native-video"))]
+                shaders: self.shaders.as_ref(),
                 #[cfg(feature = "video-files")]
                 videos: self.videos.as_ref(),
                 calibration: &mut self.calibration_assets,
@@ -488,6 +510,10 @@ impl ChannelRenderer {
             .transpose()?
             .unwrap_or(false);
         let observations = self.source_observations();
+        #[cfg(all(windows, feature = "native-video"))]
+        let shaders_changed = self.shaders.as_mut().is_some_and(shaders::Shaders::service);
+        #[cfg(not(all(windows, feature = "native-video")))]
+        let shaders_changed = false;
         #[cfg(feature = "video-files")]
         let videos_changed = self.videos.as_mut().is_some_and(|videos| videos.service());
         #[cfg(not(feature = "video-files"))]
@@ -498,6 +524,7 @@ impl ChannelRenderer {
         let ndi_ready = false;
         if !adapter_changed
             && !pictures_changed
+            && !shaders_changed
             && !videos_changed
             && !ndi_ready
             && !transitions_finished

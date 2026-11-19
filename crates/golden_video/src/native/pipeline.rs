@@ -15,8 +15,10 @@ use windows::core::{Error, HRESULT, Result};
 use crate::plan::{BlendMode, BlitRegion, Layer, LayerSource, Pattern, ProjectiveMapping, SampleFilter, UnitRect};
 mod overlay;
 mod pattern;
+mod shader;
 use crate::{AlphaMode, ColorEncoding, LinearColor, PixelFormat};
 use pattern::PatternParameters;
+pub(super) use shader::ShaderDraw;
 use std::cell::Cell;
 
 use super::texture::Texture;

@@ -17,6 +17,10 @@ The implemented foundations are:
   These data-only descriptors and the sampling filter derive Serde/TypeScript contracts, so app
   authoring DTOs reuse their canonical definitions. Deserializing an empty extent is rejected.
 - `color/` validates finite SDR premultiplied clear colors and unit-range opacity.
+- `shader/` translates authored GLSL with Naga and compiles device-independent D3D11 bytecode
+  on a caller's preparation worker. The render graph admits the compiled program as a pass,
+  creates its native state once per resident program and device, and supplies frame time and
+  target extent. Its premultiplied linear result uses the existing composition and retirement paths.
 - `ndi/` uses the optional Windows x64 NDI 6 runtime for discovery and progressive BGRA/BGRX
   capture. One receiver also captures discrete planar audio and preserves the original timecode
   and SDK submission timestamp for both streams. Samples retain NDI's native float levels.

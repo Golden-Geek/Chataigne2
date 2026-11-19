@@ -172,6 +172,8 @@ fn composed_screen_consumers_share_one_channel_and_one_mapped_pass() {
         super::super::plan::Sources {
             observations: &renderer.source_observations(),
             pictures: None,
+            #[cfg(all(windows, feature = "native-video"))]
+            shaders: None,
             #[cfg(feature = "video-files")]
             videos: None,
             calibration: &mut Default::default(),
@@ -245,6 +247,8 @@ fn equivalent_raw_screens_share_pixels_until_one_screen_changes() {
             super::super::plan::Sources {
                 observations: &observations,
                 pictures: None,
+                #[cfg(all(windows, feature = "native-video"))]
+                shaders: None,
                 #[cfg(feature = "video-files")]
                 videos: None,
                 calibration: &mut Default::default(),
@@ -451,6 +455,8 @@ fn calibration_needs_no_source_and_uses_the_authored_crop_quad_and_opacity() {
             super::super::plan::Sources {
                 observations: &renderer.source_observations(),
                 pictures: None,
+                #[cfg(all(windows, feature = "native-video"))]
+                shaders: None,
                 #[cfg(feature = "video-files")]
                 videos: None,
                 calibration: &mut Default::default(),

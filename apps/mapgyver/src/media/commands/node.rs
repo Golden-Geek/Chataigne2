@@ -63,7 +63,7 @@ use std::sync::Arc;
         label: String = "" (label = "Label", description = "Empty uses the backend default when creating objects.");
         media_kind: Enum = "SolidColor" (
             label = "Media kind",
-            enum_options = crate::parameters::enum_options(&["Picture", "Video", "SolidColor", "SharedTexture", "Composition", "Matrix", "Reference"]),
+            enum_options = crate::parameters::enum_options(&["Picture", "Video", "Shader", "SolidColor", "SharedTexture", "Composition", "Matrix", "Reference"]),
             constraint_policy = "reject"
         );
         resolution_enabled: bool = false (label = "Force resolution");

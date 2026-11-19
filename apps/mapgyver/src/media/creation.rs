@@ -10,10 +10,11 @@ use golden_core::{
     node::{Node, UserCreatableItem, UserItemCreationContext},
 };
 
-const SOURCES: [(&str, MediaKind); 7] = [
+const SOURCES: [(&str, MediaKind); 8] = [
     ("mapgyver.media.solid_color", MediaKind::SolidColor),
     ("mapgyver.media.picture", MediaKind::Picture),
     ("mapgyver.media.video", MediaKind::Video),
+    ("mapgyver.media.shader", MediaKind::Shader),
     ("mapgyver.media.shared_texture", MediaKind::SharedTexture),
     ("mapgyver.media.ndi", MediaKind::Ndi),
     ("mapgyver.media.composition", MediaKind::Composition),

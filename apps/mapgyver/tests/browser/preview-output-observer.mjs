@@ -44,11 +44,13 @@ export async function createPreviewOutputObserver(post, directory, page) {
 		assert(ack.success, JSON.stringify(ack));
 		return ack.result.value;
 	}
-	async function demand(first) {
-		const { screen, surface } = await screens({
-			kind: 'CreateScreen',
-			label: 'Independent preview acceptance'
-		});
+	async function demand(first, existing) {
+		const { screen, surface } =
+			existing ??
+			(await screens({
+				kind: 'CreateScreen',
+				label: 'Independent preview acceptance'
+			}));
 		await screens({
 			kind: 'ConfigureSurface',
 			reference: surface,

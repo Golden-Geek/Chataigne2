@@ -66,6 +66,8 @@ fn ndi_reference_shares_producer_and_old_sender_observations_are_ignored() {
             super::super::plan::Sources {
                 observations,
                 pictures: None,
+                #[cfg(all(windows, feature = "native-video"))]
+                shaders: None,
                 #[cfg(feature = "video-files")]
                 videos: None,
                 calibration: &mut Default::default(),

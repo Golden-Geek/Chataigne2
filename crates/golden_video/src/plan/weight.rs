@@ -7,6 +7,8 @@ impl RenderPlan {
     pub(crate) fn retained_bytes(&self) -> Option<usize> {
         let mut canvases = std::collections::HashSet::new();
         let mut images = std::collections::HashSet::new();
+        #[cfg(all(windows, feature = "d3d11"))]
+        let mut shaders = std::collections::HashSet::new();
         let mut bytes = size_of::<Self>()
             .checked_add(
                 self.external_textures
@@ -24,6 +26,14 @@ impl RenderPlan {
                 }
             }
             match &pass.operation {
+                #[cfg(all(windows, feature = "d3d11"))]
+                RenderOperation::Shader(shader) => {
+                    if shaders.insert(shader.bytecode().as_ptr()) {
+                        bytes = bytes
+                            .checked_add(shader.bytecode().len())?
+                            .checked_add(2 * size_of::<usize>())?;
+                    }
+                }
                 RenderOperation::Composite { layers } => {
                     bytes = bytes.checked_add(layers.capacity().checked_mul(size_of::<Layer>())?)?;
                     for layer in layers {

@@ -45,6 +45,8 @@ pub(super) struct Targets<'a> {
 pub(super) struct Sources<'a> {
     pub observations: &'a SourceObservations,
     pub pictures: Option<&'a crate::media::picture::Pictures>,
+    #[cfg(all(windows, feature = "native-video"))]
+    pub shaders: Option<&'a super::shaders::Shaders>,
     #[cfg(feature = "video-files")]
     pub videos: Option<&'a crate::media::video::files::Files>,
     pub calibration: &'a mut crate::screens::CalibrationAssets,
@@ -61,6 +63,8 @@ pub(super) fn build(
     let Sources {
         observations,
         pictures,
+        #[cfg(all(windows, feature = "native-video"))]
+        shaders,
         #[cfg(feature = "video-files")]
         videos,
         calibration,
@@ -422,6 +426,20 @@ pub(super) fn build(
                         LinearColor::from_straight(rgba[0], rgba[1], rgba[2], rgba[3])
                             .map_err(|error| error.to_string())?,
                     );
+                }
+                Some(ChannelSource::Shader { code: _code }) => {
+                    entry.source = None;
+                    resolution =
+                        resolution::resolve(channel.definition.as_ref().unwrap(), SourceObservation::Unavailable)?;
+                    #[cfg(all(windows, feature = "native-video"))]
+                    match shaders.and_then(|shaders| shaders.get(_code)) {
+                        Some(Ok(program)) => {
+                            resolution.availability = ChannelAvailability::Ready;
+                            operation = RenderOperation::Shader(program.clone());
+                        }
+                        Some(Err(_)) => resolution.availability = ChannelAvailability::Incompatible,
+                        None => {}
+                    }
                 }
                 Some(ChannelSource::Matrix { .. }) => {
                     entry.source = None;

@@ -1,0 +1,12 @@
+{
+	"date": "2026-11-19",
+	"gate": "M18/4",
+	"scope": "First Windows desktop slice for one embedded GLSL fragment pass, authored per channel.",
+	"verified": {
+		"software": "Generated media contracts, MapGyver and Chataigne UI type checks, focused Media creation tests, strict app and Golden Video library Clippy, and the default Windows app build passed.",
+		"hardware": "A D3D11 readback matched all four expected 2x2 pixels at each of two show times, including discarded pixels and exact premultiplied alpha.",
+		"app": "WebView2 created Shader Media and committed literal GLSL braces through the Inspector. An independent Spout receiver captured the expected blue across all 96x64 pixels with alpha 127 for nominal half alpha.",
+		"firstRenderReceipt": "target/m18-shader-native/run-PnoYkU/half-alpha-blue/pixels.png"
+	},
+	"remaining": "The app fixture found that code edits after first render did not invalidate the channel. The correction is built and awaiting the next fixture run with physical output windows suppressed. Verify invalid-source recovery and restoration of saved code, then deliver the Shader Editor, external reload, additional formats, multipass, typed uniforms, texture inputs and library imports."
+}

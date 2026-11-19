@@ -23,6 +23,7 @@ pub mod scheduling;
 
 #[cfg(all(windows, feature = "d3d11"))]
 pub mod native;
+pub mod shader;
 
 pub use color::{ColorError, LinearColor, Opacity};
 pub use identity::{OutputId, PassId, TextureId};

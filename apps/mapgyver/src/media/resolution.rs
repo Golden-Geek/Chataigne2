@@ -61,6 +61,9 @@ impl ChannelDefinition {
             MediaKind::Reference => ChannelSource::Reference { target: None },
             MediaKind::Picture => ChannelSource::Picture { file: None },
             MediaKind::Video => ChannelSource::Video { file: None },
+            MediaKind::Shader => ChannelSource::Shader {
+                code: super::shader::DEFAULT_CODE.into(),
+            },
             MediaKind::Composition => ChannelSource::Composition {
                 canvas: default_canvas(),
             },
@@ -85,6 +88,7 @@ impl ChannelDefinition {
             ChannelSource::Reference { .. } => MediaKind::Reference,
             ChannelSource::Picture { .. } => MediaKind::Picture,
             ChannelSource::Video { .. } => MediaKind::Video,
+            ChannelSource::Shader { .. } => MediaKind::Shader,
             ChannelSource::Composition { .. } => MediaKind::Composition,
             ChannelSource::Matrix { .. } => MediaKind::Matrix,
             ChannelSource::SolidColor { .. } => MediaKind::SolidColor,
@@ -105,6 +109,7 @@ impl ChannelDefinition {
                 }
             }
             ChannelSource::Picture { .. } | ChannelSource::Video { .. } => {}
+            ChannelSource::Shader { code } => super::shader::validate_code(code)?,
             ChannelSource::Composition { canvas } => validate_extent(*canvas)?,
             ChannelSource::SolidColor { rgba } => {
                 LinearColor::from_straight(rgba[0], rgba[1], rgba[2], rgba[3]).map_err(|e| e.to_string())?;
@@ -201,6 +206,14 @@ pub fn resolve(definition: &ChannelDefinition, observed: SourceObservation) -> R
             },
         ),
         ChannelSource::SolidColor { .. } => (Some(default_canvas()), ChannelAvailability::Ready),
+        ChannelSource::Shader { code } => (
+            Some(default_canvas()),
+            if code.trim().is_empty() {
+                ChannelAvailability::Unconfigured
+            } else {
+                ChannelAvailability::Unavailable
+            },
+        ),
         ChannelSource::Picture { file: None } | ChannelSource::Video { file: None } => {
             (None, ChannelAvailability::Unconfigured)
         }

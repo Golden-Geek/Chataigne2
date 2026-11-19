@@ -5,6 +5,7 @@ mod compiled;
 mod mapping;
 mod output;
 mod pattern;
+mod shader;
 use std::num::NonZeroUsize;
 use std::time::{Duration, Instant};
 

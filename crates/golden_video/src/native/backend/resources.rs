@@ -109,6 +109,7 @@ pub(super) fn prepare(
 ) -> Result<D3d11Resources> {
     let mut source_routes = Vec::new();
     native.textures.prune();
+    native.shaders.retain(|_, shader| shader.strong_count() != 0);
     let mut resources = D3d11Resources {
         render_cache: std::cell::RefCell::new(super::cache::Cache::new(plan)),
         presentation: std::cell::RefCell::new(super::presentation::Presentation::new(plan, notify)),
@@ -116,6 +117,7 @@ pub(super) fn prepare(
         generation,
         textures: Default::default(),
         scratch: Default::default(),
+        shaders: Default::default(),
         outputs: Default::default(),
         conversion_slots: (0..plan.outputs().len()).collect(),
         presented_regions: Default::default(),
@@ -211,6 +213,18 @@ pub(super) fn prepare(
                 pass.id,
                 cache.mutable(Role::Scratch(pass.id), pass.descriptor, device, counts)?,
             );
+        }
+        if let RenderOperation::Shader(program) = &pass.operation {
+            let key = program.bytecode().as_ptr() as usize;
+            let shader = match native.shaders.get(&key).and_then(Weak::upgrade) {
+                Some(shader) => shader,
+                None => {
+                    let shader = Rc::new(super::super::pipeline::ShaderDraw::new(device, program)?);
+                    native.shaders.insert(key, Rc::downgrade(&shader));
+                    shader
+                }
+            };
+            resources.shaders.insert(pass.id, shader);
         }
     }
     let mut conversions = HashMap::new();

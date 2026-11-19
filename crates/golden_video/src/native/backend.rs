@@ -39,6 +39,7 @@ struct NativeState {
     #[cfg(all(test, feature = "qualification"))]
     copy_tap: Option<tests::copy_tap::Tap>,
     textures: resources::TextureCache,
+    shaders: std::collections::HashMap<usize, std::rc::Weak<super::pipeline::ShaderDraw>>,
     gpu_uses: Vec<(u64, super::frames::ReadLease)>,
     timing: Option<GpuTiming>,
     inputs: SourcePool,
@@ -84,6 +85,7 @@ pub(crate) struct D3d11Resources {
     generation: GenerationInfo,
     textures: BTreeMap<TextureId, Rc<Texture>>,
     scratch: BTreeMap<PassId, Rc<Texture>>,
+    shaders: BTreeMap<PassId, Rc<super::pipeline::ShaderDraw>>,
     outputs: BTreeMap<OutputId, Rc<Texture>>,
     conversion_slots: Vec<usize>,
     presented_regions: BTreeMap<OutputId, Vec<crate::plan::RegionPlacement>>,
@@ -246,6 +248,7 @@ impl D3d11Backend {
                 #[cfg(all(test, feature = "qualification"))]
                 copy_tap: tests::copy_tap::Tap::new(&device, self.control.copy_tap.clone())?,
                 textures: resources::TextureCache::new(self.control.texture_allocations.clone()),
+                shaders: Default::default(),
                 gpu_uses: Vec::new(),
                 timing,
                 inputs,

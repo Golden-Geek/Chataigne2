@@ -23,6 +23,7 @@ export const mediaIcons = {
 	Composition: composition,
 	Matrix: matrix,
 	Video: video,
+	Shader: media,
 	Media: media
 };
 export const panelIcons = { media, screen, surface, composition, matrix };
@@ -35,6 +36,7 @@ export const treeIcons: NodeIconSet = {
 		'mapgyver.media.solid_color': mediaIcons.SolidColor,
 		'mapgyver.media.picture': mediaIcons.Picture,
 		'mapgyver.media.video': mediaIcons.Video,
+		'mapgyver.media.shader': mediaIcons.Shader,
 		'mapgyver.media.shared_texture': mediaIcons.SharedTexture,
 		'mapgyver.media.ndi': mediaIcons.Ndi,
 		'mapgyver.media.composition': mediaIcons.Composition,

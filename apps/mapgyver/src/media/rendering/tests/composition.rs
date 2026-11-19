@@ -61,6 +61,8 @@ fn prepare(engine: &AppEngine, reference: ChannelReference) -> super::super::pla
         super::super::plan::Sources {
             observations: &owner.source_observations(),
             pictures: None,
+            #[cfg(all(windows, feature = "native-video"))]
+            shaders: None,
             #[cfg(feature = "video-files")]
             videos: None,
             calibration: &mut Default::default(),

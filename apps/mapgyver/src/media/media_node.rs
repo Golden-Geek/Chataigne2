@@ -27,7 +27,7 @@ use std::sync::OnceLock;
 #[children(
     folder(parameters, label = "Parameters") {
         media_kind: Enum = "SolidColor" (label = "Kind", read_only = true, persist_read_only_value = true,
-            enum_options = crate::parameters::enum_options(&["Picture", "Video", "SolidColor", "SharedTexture", "Ndi", "Composition", "Matrix"]));
+            enum_options = crate::parameters::enum_options(&["Picture", "Video", "Shader", "SolidColor", "SharedTexture", "Ndi", "Composition", "Matrix"]));
         resolution: Vec2 = Vec2::new(1920.0, 1080.0) [(1.0, 1.0)..(16384.0, 16384.0)] (
             label = "Resolution", description = "Output width and height in pixels. Disable to use each source's native size.",
             enabled = false, can_be_disabled = true, step = 1.0, constraint_policy = "reject");
@@ -618,6 +618,7 @@ impl Node for MediaNode {
         if ![
             "Picture",
             "Video",
+            "Shader",
             "SolidColor",
             "SharedTexture",
             "Ndi",
@@ -760,6 +761,7 @@ pub(super) fn kind_name(kind: MediaKind) -> &'static str {
         MediaKind::Reference => "Reference",
         MediaKind::Picture => "Picture",
         MediaKind::Video => "Video",
+        MediaKind::Shader => "Shader",
         MediaKind::SolidColor => "SolidColor",
         MediaKind::SharedTexture => "SharedTexture",
         MediaKind::Ndi => "Ndi",
@@ -771,6 +773,7 @@ pub(super) fn parse_kind(kind: &str) -> MediaKind {
     match kind {
         "Picture" => MediaKind::Picture,
         "Video" => MediaKind::Video,
+        "Shader" => MediaKind::Shader,
         "SharedTexture" => MediaKind::SharedTexture,
         "Ndi" => MediaKind::Ndi,
         "Composition" => MediaKind::Composition,

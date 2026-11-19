@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { appState } from '../../../../store/workbench.svelte';
-	import { sendSetTextParamSmartIntent } from '../../../../store/ui-intents';
+	import { sendSetParamIntent, sendSetTextParamSmartIntent } from '../../../../store/ui-intents';
 	import type { UiNodeDto } from '../../../../types';
 
 	let {
@@ -33,7 +33,8 @@
 	let draftValue = $state('');
 	let inlineLabel = $derived(typeof insideLabel === 'string' ? insideLabel.trim() : '');
 	let widgetHint = $derived((param?.ui_hints?.widget ?? '').trim().toLowerCase());
-	let multiline = $derived(widgetHint === 'textarea' || widgetHint === 'multiline');
+	let code = $derived(widgetHint === 'code');
+	let multiline = $derived(code || widgetHint === 'textarea' || widgetHint === 'multiline');
 	let showsInlineLabel = $derived(layoutMode === 'widget' && inlineLabel.length > 0);
 
 	$effect(() => {
@@ -49,7 +50,15 @@
 		}
 
 		draftValue = nextValue;
-		await sendSetTextParamSmartIntent(liveNode.node_id, nextValue, param.event_behaviour);
+		if (code) {
+			await sendSetParamIntent(
+				liveNode.node_id,
+				{ kind: 'str', value: nextValue },
+				param.event_behaviour
+			);
+		} else {
+			await sendSetTextParamSmartIntent(liveNode.node_id, nextValue, param.event_behaviour);
+		}
 	};
 
 	const updateDraftValue = (event: Event): void => {
@@ -72,6 +81,7 @@
 		{#if multiline}
 			<textarea
 				class="string-editor inline-labeled multiline"
+				class:code
 				value={draftValue}
 				disabled={!enabled}
 				rows="5"
@@ -114,6 +124,7 @@
 {:else if multiline}
 	<textarea
 		class="string-editor multiline"
+		class:code
 		class:widget-layout={layoutMode === 'widget'}
 		value={draftValue}
 		disabled={!enabled}
@@ -207,5 +218,10 @@
 		padding: 0.55rem 0.7rem;
 		line-height: 1.45;
 		font: inherit;
+	}
+
+	.string-editor.code {
+		font-family: ui-monospace, monospace;
+		tab-size: 4;
 	}
 </style>

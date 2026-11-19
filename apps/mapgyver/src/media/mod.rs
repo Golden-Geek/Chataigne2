@@ -28,6 +28,7 @@ pub(crate) mod retention;
 mod script_templates;
 mod scripting;
 pub(crate) mod sender_catalog;
+mod shader;
 mod source_api;
 mod source_identity;
 mod source_node;

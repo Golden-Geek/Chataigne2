@@ -25,8 +25,11 @@ mod subtitles;
 #[children(
     folder(parameters, label = "Parameters") {
         source_kind: Enum = "SolidColor" (label = "Source kind", read_only = true, persist_read_only_value = true,
-            enum_options = crate::parameters::enum_options(&["Picture", "Video", "SolidColor", "SharedTexture", "Ndi", "Composition", "Matrix"]));
+            enum_options = crate::parameters::enum_options(&["Picture", "Video", "Shader", "SolidColor", "SharedTexture", "Ndi", "Composition", "Matrix"]));
         rgba: Color = Color::new(1.0, 1.0, 1.0, 1.0) [0.0..1.0] (label = "Color", description = "Straight linear-light RGBA.", constraint_policy = "reject");
+        shader_code: String = String::new() (label = "GLSL", widget = "code",
+            description = "Define void main() and write linear RGBA to fragColor. Use iResolution, iTime and gl_FragCoord for frame inputs.",
+            dependency = |node: &Self| node.kind() == MediaKind::Shader);
         file: File = File::default() (label = "File", description = "This channel's project-relative or native absolute source path.", dependency = |node: &Self| matches!(node.kind(), super::protocol::MediaKind::Picture | super::protocol::MediaKind::Video));
         video_loop_file: File = File::default() (label = "Loop File", description = "Optional video played after this channel's intro when Loop is enabled.", dependency = |node: &Self| node.kind() == MediaKind::Video);
         sender: String = String::new() (label = "Spout sender");
@@ -192,6 +195,9 @@ impl ChannelNode {
                     Color::new(rgba[0].into(), rgba[1].into(), rgba[2].into(), rgba[3].into())
                 );
             }
+            ChannelSource::Shader { code } => {
+                seed!(shader_code, code.to_string());
+            }
             ChannelSource::Picture { file } | ChannelSource::Video { file } => {
                 seed!(
                     file,
@@ -253,6 +259,9 @@ impl ChannelNode {
         };
         let settings = media.matrix_settings();
         let source = match self.source_kind.get_ref().as_str() {
+            "Shader" => ChannelSource::Shader {
+                code: Arc::from(self.shader_code.get_ref().as_str()),
+            },
             "Video" => ChannelSource::Video {
                 file: super::assets::parse_file(self.file.get_ref().as_str()).expect("validated Video File"),
             },
@@ -305,6 +314,7 @@ impl ChannelNode {
     ) -> Result<Vec<Edit>, String> {
         let mut values = Vec::new();
         match source {
+            ChannelSource::Shader { code } => values.push((self.shader_code.id(), ParamValue::Str(code.to_string()))),
             ChannelSource::SolidColor { rgba } => values.push((
                 self.rgba.id(),
                 ParamValue::Color(rgba[0].into(), rgba[1].into(), rgba[2].into(), rgba[3].into()),
@@ -517,6 +527,7 @@ impl Node for ChannelNode {
         if [
             self.source_kind.id(),
             self.rgba.id(),
+            self.shader_code.id(),
             self.file.id(),
             self.video_loop_file.id(),
             self.video_loop_audio.id(),
@@ -647,6 +658,7 @@ impl Node for ChannelNode {
                 &[
                     "Picture",
                     "Video",
+                    "Shader",
                     "SolidColor",
                     "SharedTexture",
                     "Ndi",
@@ -670,6 +682,7 @@ impl Node for ChannelNode {
             )
             .map_err(|error| error.to_string())?;
         }
+        super::shader::validate_code(self.shader_code.get_ref())?;
         if self.sender.get_ref().len() > 255 || self.sender.get_ref().contains('\0') {
             return Err("Spout selector must contain at most 255 UTF-8 bytes without NUL".into());
         }
@@ -688,6 +701,11 @@ impl Node for ChannelNode {
     }
 
     fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
+        if change.parameter == self.shader_code.id()
+            && let ParamValue::Str(code) = change.value
+        {
+            super::shader::validate_code(code)?;
+        }
         if self.is_audio_parameter(change.parameter) {
             return self.validate_audio_parameter(change);
         }

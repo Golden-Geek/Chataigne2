@@ -190,6 +190,10 @@ fn create(
     owner.renderer.enable_ndi(Some(notifier.clone()));
     owner
         .renderer
+        .enable_shaders(notifier.clone())
+        .map_err(io::Error::other)?;
+    owner
+        .renderer
         .enable_pictures(&std::env::current_dir()?, config.pictures, Some(notifier))
         .map_err(io::Error::other)?;
     Ok((owner, native))

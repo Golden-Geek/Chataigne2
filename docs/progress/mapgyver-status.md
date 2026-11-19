@@ -5,7 +5,7 @@
 - **Latest delivered:** The desktop File Explorer offers Tree and Thumbnail Views and reopens its saved project folder or override. A Windows app test dragged a Picture into Medias and undid the import. [Checks](evidence/mapgyver-m18-file-explorer-2026-11-19.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** M18/4 Shader Media. Direct File Explorer testing of OS drops remains pending.
+- **Next:** Correct startup display selection, then finish the Shader Media editor and format workflows.
 
 ## Done — code and normal-use checks passed
 
@@ -79,7 +79,7 @@
 
 [Remaining feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi), in order.
 
-4. **Shader Media.** Play GLSL, ShaderToy and ISF shaders, edit embedded code or reload external files, expose parameters and texture inputs, and browse the Shader Library.
+4. **Shader Media.** A first embedded GLSL render passed. Verify live edits and project reload after isolating tests from physical outputs. Then add ShaderToy and ISF, the Shader Editor, external reload, parameters, Media inputs and the Shader Library. [Checks](evidence/mapgyver-m18-embedded-glsl-2026-11-19.json)
 5. **Inspector selection.** Keep the Media inspected when adding a Channel, and inspect the Matrix Cell when adding Media to it.
 6. **Browser video previews.** Show live editor textures with Disabled, Auto, Forced Low Quality and Forced High Quality options.
 

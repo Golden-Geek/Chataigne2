@@ -18,6 +18,7 @@ export function mediaIconKind(
 	return [
 		'Picture',
 		'Video',
+		'Shader',
 		'SolidColor',
 		'SharedTexture',
 		'Ndi',

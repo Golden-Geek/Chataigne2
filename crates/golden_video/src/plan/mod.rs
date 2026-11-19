@@ -92,6 +92,9 @@ impl Layer {
 pub enum RenderOperation {
     /// Fill the output with a finite linear premultiplied color.
     Clear(LinearColor),
+    /// Draw a compiled fragment program over the entire target on each demanded frame.
+    #[cfg(all(windows, feature = "d3d11"))]
+    Shader(crate::shader::FragmentProgram),
     /// Keep an existing pass target's image in the same project and device. If its exact
     /// ID and descriptor do not still own a written allocation, initialize it to transparent.
     Retain,
@@ -131,6 +134,8 @@ impl RenderOperation {
     }
     fn dependency_count(&self) -> usize {
         match self {
+            #[cfg(all(windows, feature = "d3d11"))]
+            Self::Shader(_) => 1,
             Self::Clear(_) | Self::Retain => 0,
             Self::Sample { .. } => 1,
             Self::Composite { layers } => layers.iter().fold(0_usize, |count, layer| {
@@ -146,6 +151,8 @@ impl RenderOperation {
 
     pub(crate) fn sources(&self) -> impl Iterator<Item = TextureId> + '_ {
         let (sample, layers, regions) = match self {
+            #[cfg(all(windows, feature = "d3d11"))]
+            Self::Shader(_) => (None, &[][..], &[][..]),
             Self::Clear(_) | Self::Retain => (None, &[][..], &[][..]),
             Self::Sample { source, .. } => (Some(*source), &[][..], &[][..]),
             Self::Composite { layers } => (None, layers.as_slice(), &[][..]),

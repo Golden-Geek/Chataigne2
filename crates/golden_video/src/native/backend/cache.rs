@@ -29,7 +29,7 @@ impl Cache {
                 .map(|pass| {
                     let dynamic = match &pass.operation {
                         // Placement and visibility may change independently of a plan install.
-                        RenderOperation::Regions { .. } => true,
+                        RenderOperation::Regions { .. } | RenderOperation::Shader(_) => true,
                         RenderOperation::Composite { layers } => layers.iter().any(|layer| {
                             layer.opacity_envelope.is_some()
                                 || matches!(layer.source, LayerSource::Pattern(Pattern::Canvas(_)))
