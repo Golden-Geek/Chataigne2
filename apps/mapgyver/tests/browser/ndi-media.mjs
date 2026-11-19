@@ -24,7 +24,7 @@ let resumedFeed;
 const pageErrors = [];
 const audioChecks = [];
 let native, token, sender, reference, initialSender, selected, availableOptions, preview, failure;
-let runtimeModule;
+let runtimeModule, workbench;
 let stage = 'start owned NDI sender';
 async function wait(read, accepts, milliseconds = 12000) {
 	const deadline = Date.now() + milliseconds;
@@ -278,7 +278,12 @@ try {
 	sender = await initialFeed.ready();
 
 	stage = 'start MapGyver';
-	native = await openNativeEditor({ development: process.env.MAPGYVER_TEST_DEV === '1' });
+	native = await openNativeEditor({
+		development: process.env.MAPGYVER_TEST_DEV === '1',
+		environment: expectBundledRuntime
+			? { NDI_RUNTIME_DIR_V6: undefined, ProgramFiles: directory }
+			: undefined
+	});
 	const { page } = native;
 	page.on('pageerror', (error) => pageErrors.push(String(error)));
 	token = (await post('/api/ui/session', {})).token;
@@ -398,6 +403,13 @@ try {
 	assert.deepEqual(pageErrors, []);
 } catch (error) {
 	failure = String(error.stack ?? error);
+	workbench = await native?.page
+		.evaluate(() => ({
+			url: location.href,
+			tabs: Array.from(document.querySelectorAll('[role=tab]'), (tab) => tab.textContent),
+			text: document.body.innerText.slice(0, 700)
+		}))
+		.catch(() => undefined);
 } finally {
 	const [senderCleanup, resumedCleanup, nativeCleanup] = await Promise.allSettled([
 		initialFeed.stop(),
@@ -425,6 +437,8 @@ try {
 				selected,
 				preview,
 				runtimeModule,
+				systemRuntimeLookupHidden: expectBundledRuntime,
+				workbench,
 				audioChecks,
 				pageErrors,
 				appLog: failure ? native?.log() : undefined

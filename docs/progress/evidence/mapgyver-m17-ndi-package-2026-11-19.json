@@ -1,0 +1,21 @@
+{
+	"date": "2026-11-19",
+	"gate": "M17/1",
+	"state": "Active",
+	"delivered": "First-launch Windows x64 NDI discovery and reception using the DLL beside the packaged executable in ndi/, with system runtime lookup disabled for the app process.",
+	"checks": {
+		"package": "The normal Windows packaging wrapper produced a debug NSIS installer with the production frontend. The generated install and uninstall sections place and remove the runtime DLL and third-party notices under ndi/.",
+		"packageSha256": "42dc8adb742961651e1c3b2fccb5af851a9fafc9d625239ee3ee436a64e3a208",
+		"runtimeVersion": "NDI 6.3.2.0",
+		"runtimeSha256": "2b6602075868ba4401f82f417d72424805d69b11ca86078023d0d489ff45dd84",
+		"nativeApp": "The executable produced by the installer build ran from an isolated app layout copied from the same bundle inputs. With a fresh app profile and the system NDI paths hidden, Medias Add created NDI in Auto mode, picked the exact fixture sender, installed its 320×240 native Media Preview, and loaded the app-local DLL according to the Windows module list.",
+		"audio": "Independent left and right pulses passed with Media Preview closed and physical audio disabled. Gain, mute, sender loss, same-name recovery and graceful cleanup passed.",
+		"fixture": "apps/mapgyver/tests/browser/ndi-media.mjs --bundled-runtime --audio",
+		"nativeReceipt": "target/m17-ndi-package-native/run-2kgdVx/result.json"
+	},
+	"remaining": [
+		"The private unsigned test installer used local NDI Tools runtime bytes and a test license input. Build with the current standard SDK and approved distribution agreement before publication.",
+		"Run the actual installer and first use on clean Windows. The local smoke used the packaging outputs in a private directory.",
+		"Finish multichannel routes, cross-machine A/V offset and drift, reconnect and retirement qualification, and NDI Screen Output."
+	]
+}

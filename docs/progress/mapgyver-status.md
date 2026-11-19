@@ -2,10 +2,10 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `████████░░` **82% — 119/145 checks accepted, 8/19 phases complete**.
-- **Latest delivered:** NDI stereo routes to named virtual outputs. Volume, mute and reconnect passed on Windows with Media Preview hidden and physical playback disabled. [Checks](evidence/mapgyver-m17-ndi-virtual-audio-2026-11-19.json)
+- **Latest delivered:** The Windows package carries its own NDI runtime. First launch discovered an independent sender and played picture and stereo in an isolated app layout with system NDI lookup disabled. [Checks](evidence/mapgyver-m17-ndi-package-2026-11-19.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Active:** App-local NDI staging and lookup are implemented. The native fixture timed out waiting for the Medias tab. Reconcile the fixture with the exact app and frontend build, then verify runtime loading, discovery and native picture with system NDI hidden.
+- **Next:** Add routes for incoming NDI audio channels beyond stereo.
 
 ## Done — code and normal-use checks passed
 
@@ -71,7 +71,7 @@
 
 [NDI with audio](../plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output) is the next feature while extended Video qualification is deferred.
 
-- **NDI Media.** Discovery, sender selection, native picture and stereo routes passed with an independent local sender. Routing for additional channels, cross-machine A/V checks and clean Windows setup are pending.
+- **NDI Media.** Discovery, sender selection, native picture and stereo routes passed with an independent local sender. App-local runtime loading passed. Additional channel routing, cross-machine A/V and clean Windows installation remain pending.
 - **NDI Screen Output.** Publish a Screen as a named NDI stream with audio from selected virtual outputs.
 
 [Feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi) adds six tasks in order.

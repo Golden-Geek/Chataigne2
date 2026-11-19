@@ -22,6 +22,7 @@ async function listener() {
 
 export async function openNativeEditor({
 	appDataDirectory,
+	environment,
 	windowState,
 	prepareProfile,
 	onLogData,
@@ -64,6 +65,7 @@ export async function openNativeEditor({
 			windowsHide: true,
 			env: {
 				...process.env,
+				...environment,
 				APPDATA: appDataDirectory ?? path.join(directory, 'data'),
 				GC_UI_BIND: `127.0.0.1:${hostPort}`
 			},
