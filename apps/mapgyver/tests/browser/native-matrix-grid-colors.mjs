@@ -159,12 +159,22 @@ try {
 	const body = { x: emptyBounds.width * 0.2, y: emptyBounds.height * 0.75 };
 	const contour = () =>
 		empty.evaluate((element) => [element.dataset.viewportHovered, element.style.borderColor]);
+	const paint = () =>
+		empty.evaluate((element) => {
+			const addButton = element.parentElement.querySelector('button[aria-label^="Add Media"]');
+			const cell = getComputedStyle(element);
+			const button = getComputedStyle(addButton);
+			return [cell.backgroundColor, cell.filter, button.backgroundColor, button.filter];
+		});
 	await empty.hover({ position: body });
 	const hovered = await contour();
+	const hoveredPaint = await paint();
 	assert.equal(hovered[0], 'true');
 	assert.match(hovered[1], /--gc-viewport-contour-hover/);
+	assert.deepEqual(hoveredPaint.slice(1), ['none', 'rgba(0, 0, 0, 0)', 'none']);
 	await add.hover();
 	assert.deepEqual(await contour(), hovered, 'crossing onto Add Media retains the outline');
+	assert.deepEqual(await paint(), hoveredPaint, 'crossing onto Add Media preserves the cell paint');
 	await empty.hover({ position: body });
 	assert.deepEqual(await contour(), hovered, 'crossing back into the Cell retains the outline');
 	await header.hover();

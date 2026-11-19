@@ -52,6 +52,17 @@ export async function gridSelectionChecks(page) {
 		'Cell selection cannot cross-select its headers'
 	);
 	assert.equal(await cell.getAttribute('aria-selected'), 'true');
+	const empty = grid.locator('[role="gridcell"][title="Layer A / Column B"]');
+	assert.equal(await empty.getAttribute('data-cell-id'), null);
+	const emptyBounds = await empty.boundingBox();
+	assert(emptyBounds);
+	const beforeEmpty = await count.textContent();
+	await empty.click({ position: { x: emptyBounds.width * 0.2, y: emptyBounds.height * 0.75 } });
+	assert.equal(await selected.textContent(), 'cell-layer-0-column-0');
+	assert.equal(await count.textContent(), beforeEmpty, 'empty Cell body does not select the Layer');
+	assert.equal(await cell.getAttribute('aria-selected'), 'true');
+	await grid.getByRole('button', { name: 'Add Media to Layer A / Column B', exact: true }).click();
+	assert.equal(await selected.textContent(), 'layer-0');
 	await press(grid.getByRole('button', { name: 'Layer A', exact: true }), 'layer-0');
 	assert.equal(
 		await grid.locator('[aria-selected="true"]').count(),

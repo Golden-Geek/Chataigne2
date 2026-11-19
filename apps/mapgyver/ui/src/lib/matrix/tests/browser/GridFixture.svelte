@@ -6,6 +6,7 @@
 	import { viewportResult } from '../fixture';
 	import type { MatrixSelection } from '../../../media/generated/MatrixSelection';
 	import type { ColumnSnapshot } from '../../../media/generated/ColumnSnapshot';
+	import type { MatrixViewCell } from '../../../media/generated/MatrixViewCell';
 	import type { MatrixViewRow } from '../../../media/generated/MatrixViewRow';
 	import type { MatrixRenderStatus } from '../../../preview/generated/MatrixRenderStatus';
 	let { onselect }: { onselect(id: string): void } = $props();
@@ -78,7 +79,7 @@
 	];
 	snapshot.cells = snapshot.rows
 		.filter((row) => row.item.id.kind === 'Layer')
-		.flatMap((row) =>
+		.flatMap<MatrixViewCell>((row) =>
 			snapshot.columns.map((column) => ({
 				cell: {
 					id: `cell-${row.item.id.id}-${column.id}`,
@@ -96,7 +97,8 @@
 				source_preview: null,
 				source_missing: true
 			}))
-		);
+		)
+		.filter((value) => value.cell.id !== 'cell-layer-0-column-1');
 	const nodes: UiNodeDto[] = [fixtureNode(0, 'Project', [1])];
 	const byUuid = new Map<string, UiNodeDto>();
 	function node(uuid: string, label: string, parent: UiNodeDto) {
@@ -141,6 +143,24 @@
 				reference_visible_nodes: []
 			}
 		};
+		if (snapshot.rows.some((row) => row.item.id.id === item.id && row.item.id.kind === 'Layer')) {
+			const opacity = node(`${item.id}-opacity`, 'Opacity', parameters);
+			opacity.decl_id = 'parameters/opacity';
+			opacity.node_type = 'parameter';
+			const value: ParamValue = { kind: 'float', value: 1 };
+			opacity.data = {
+				kind: 'parameter',
+				param: {
+					...stop.data.param,
+					value,
+					default_value: value,
+					constraints: {
+						...stop.data.param.constraints,
+						range: { kind: 'uniform', min: 0, max: 1 }
+					}
+				}
+			};
+		}
 	}
 	for (const cell of snapshot.cells) node(cell.cell.id, 'Cell', byUuid.get(cell.cell.layer)!);
 	fixture.loadNodes(nodes);
@@ -234,7 +254,7 @@
 		choose(
 			snapshot.cells.find(
 				(value) => value.cell.layer === row.item.id.id && value.cell.definition.column === column.id
-			)!.cell.id,
+			)?.cell.id ?? row.item.id.id,
 			event
 		);
 	}

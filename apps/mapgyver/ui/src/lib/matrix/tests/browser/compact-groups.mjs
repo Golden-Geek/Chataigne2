@@ -27,6 +27,14 @@ export async function compactGroupScaleChecks(browser, url) {
 			assert(Math.abs(box.height / rem - 2.1) < 0.03);
 			assert(child.y >= box.y + box.height - 1);
 			assert.equal(await group.locator('[data-matrix-row-controls]').count(), 0);
+			const slider = layer.getByRole('slider', { name: 'Opacity for Layer A' });
+			const opacity = await slider.boundingBox();
+			assert(opacity);
+			assert(opacity.width <= rem && opacity.height > opacity.width * 2);
+			assert(opacity.x + opacity.width <= child.x + child.width);
+			assert(child.x + child.width - (opacity.x + opacity.width) < rem);
+			assert(opacity.y >= child.y && opacity.y + opacity.height <= child.y + child.height);
+			assert.equal(await slider.getAttribute('aria-orientation'), 'vertical');
 			await group.getByTitle('Select Layer Group', { exact: true }).click();
 			assert.equal(await group.getAttribute('aria-selected'), 'true');
 			assert(

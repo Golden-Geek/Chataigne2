@@ -102,10 +102,12 @@
 			label={`Stop ${row.item.label}`}
 			{disabled} />
 	</div>
-	{#if row.item.id.kind === 'Layer'}<RowParameter
-			uuid={row.item.id.id}
-			label={row.item.label}
-			field="blend" />{/if}
+	{#if row.item.id.kind === 'Layer'}
+		<RowParameter uuid={row.item.id.id} label={row.item.label} field="blend" />
+		<div class="row-opacity">
+			<RowParameter uuid={row.item.id.id} label={row.item.label} field="opacity" />
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -127,6 +129,16 @@
 	.row-label img {
 		width: 1.2em;
 		height: 1.2em;
+	}
+	.row-label:not(.group) {
+		--opacity-width: 0.85rem;
+		padding-inline-end: calc(var(--opacity-width) + 0.85rem);
+	}
+	.row-opacity {
+		position: absolute;
+		inset-block: 0.45rem;
+		inset-inline-end: 0.45rem;
+		inline-size: var(--opacity-width);
 	}
 	.row-title {
 		display: flex;

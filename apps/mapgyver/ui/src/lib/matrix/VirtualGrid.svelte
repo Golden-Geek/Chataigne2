@@ -25,7 +25,6 @@
 	import type { ApplicationRuntimeSnapshot } from '../media/generated/ApplicationRuntimeSnapshot';
 	import GridLabel from './GridLabel.svelte';
 	import GridRowHeader from './GridRowHeader.svelte';
-	import OpacityRail from './OpacityRail.svelte';
 	import GroupRails from './GroupRails.svelte';
 	import ColumnGroupHeaders from './ColumnGroupHeaders.svelte';
 	import type { ColumnGroupSnapshot } from '../media/generated/ColumnGroupSnapshot';
@@ -612,6 +611,7 @@
 							startDrag={(event) => startDrag(event, { kind: 'Item', item: row.item.id })} />
 						{#each snapshot.columns as column, columnIndex (column.id)}
 							{@const cell = cells.get(`${row.item.id.id}:${column.id}`)}
+							{@const emptyCell = row.item.id.kind === 'Layer' && !cell?.cell.media}
 							{@const lines =
 								cell && isEnabled(row.item.id.id)
 									? weights.cell(row.item.id.id, column.id)
@@ -634,6 +634,7 @@
 										if (cell) startCellDrag(event, cell.cell.id);
 									}}
 									class:has-preview={cell?.source_preview != null && !cell?.source_missing}
+									class:empty-cell={emptyCell}
 									class:group-cell={row.item.id.kind === 'Group'}
 									role="gridcell"
 									{disabled}
@@ -641,7 +642,10 @@
 									style:--matrix-item-color={itemColor(cell?.cell.id)}
 									class:custom-color={itemColor(cell?.cell.id) != null}
 									aria-colindex={column.axis_index + 2}
-									use:selectOnPress={{ disabled, select: (event) => select(row, column, event) }}
+									use:selectOnPress={{
+										disabled: disabled || (emptyCell && !cell),
+										select: (event) => select(row, column, event)
+									}}
 									use:viewportContour={{
 										selected: isSelected(cell?.cell.id),
 										hoverWithin: '[data-cell-drop]',
@@ -657,7 +661,7 @@
 										column.id
 									)}
 									title={`${row.item.label} / ${column.label}`}>
-									{#if row.item.id.kind === 'Layer' && !cell?.cell.media}<span
+									{#if emptyCell}<span
 											class="empty-icon"
 											aria-hidden="true"
 											style:mask-image={`url("${emptyIcon}")`}></span
@@ -719,7 +723,6 @@
 		</div>
 		<CellPreviews {snapshot} {metrics} />
 		<GroupRails spans={snapshot.row_groups} {projection} {metrics} />
-		<OpacityRail rows={snapshot.rows} {projection} height={metrics.height / metrics.rem} />
 	</div>
 </div>
 
@@ -738,7 +741,7 @@
 		position: relative;
 		overflow: hidden;
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) 2.15rem;
+		grid-template-columns: minmax(0, 1fr);
 		grid-template-rows: minmax(0, 1fr);
 	}
 	.viewport {
@@ -829,6 +832,10 @@
 		border: 0.05rem solid var(--gc-color-border);
 		padding: 1.25rem 0.5rem;
 	}
+	.cell.empty-cell:hover:not(:disabled),
+	.add :global(button:hover:not(:disabled)) {
+		filter: none;
+	}
 	.group-cell {
 		background: repeating-linear-gradient(
 			135deg,
@@ -912,6 +919,7 @@
 		left: 50%;
 		top: 50%;
 		transform: translate(-50%, -50%);
+		--gc-control-hover-background: transparent;
 	}
 	.remove {
 		right: 0.25rem;

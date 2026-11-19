@@ -82,15 +82,13 @@ try {
 	await tab('Matrix').click();
 	const grid = page.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true });
 	const panel = grid.locator('xpath=ancestor::section[@data-panel-id]');
-	const rail = panel.getByRole('group', { name: 'Layer opacity', exact: true });
 	const ready = () =>
 		wait(
 			() => panel.getAttribute('aria-busy'),
 			(value) => value === 'false'
 		);
 	const row = (id) => grid.locator(`.row-label[data-row-id="${id}"]`);
-	const opacity = (id) =>
-		rail.locator(`[data-opacity-layer="${id}"] [data-matrix-parameter="opacity"]`);
+	const opacity = (id) => row(id).locator('[data-matrix-parameter="opacity"]');
 	const input = (id) => opacity(id).getByRole('slider');
 	const opacityValue = async (id) => Number(await input(id).getAttribute('aria-valuenow'));
 	const blend = (id) => row(id).locator('[data-matrix-parameter="blend"] select');
@@ -249,17 +247,16 @@ try {
 		(value) => value.width < wide.width - 40
 	);
 	const readBounds = () =>
-		input(target.id.id).evaluate((element, id) => {
+		input(target.id.id).evaluate((element) => {
 			const parent = element.closest('.viewport-container');
 			const viewport = parent.querySelector('[role="grid"]');
-			const layer = viewport.querySelector(`.row[data-row-id="${id}"]`);
+			const layer = element.closest('.row-label');
 			const mode = layer.querySelector('[data-matrix-parameter="blend"] select');
 			const bounds = element.getBoundingClientRect();
 			const layerBounds = layer.getBoundingClientRect();
 			const modeBounds = mode.getBoundingClientRect();
-			const gridBounds = viewport.getBoundingClientRect();
 			const dockBounds = parent.getBoundingClientRect();
-			const rail = element.closest('.opacity-rail').getBoundingClientRect();
+			const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
 			const hit = document.elementFromPoint(
 				bounds.x + bounds.width / 2,
 				bounds.y + bounds.height / 2
@@ -272,12 +269,13 @@ try {
 				width: dockBounds.width,
 				left: bounds.left,
 				scroll: viewport.scrollLeft,
-				onRight: Math.abs(rail.right - dockBounds.right) <= 1 && bounds.left >= gridBounds.right,
+				onRight: bounds.right <= layerBounds.right && layerBounds.right - bounds.right < rem,
 				aligned: bounds.top >= layerBounds.top && bounds.bottom <= layerBounds.bottom,
-				fits: bounds.height > bounds.width * 2 && modeBounds.right < bounds.left,
+				fits:
+					bounds.width <= rem && bounds.height > bounds.width * 2 && modeBounds.right < bounds.left,
 				hit: element.contains(hit) && mode.contains(modeHit)
 			};
-		}, target.id.id);
+		});
 	const narrowStart = await wait(
 		readBounds,
 		(value) => value.onRight && value.aligned && value.fits && value.hit
@@ -396,7 +394,10 @@ try {
 		(v) => v === 0,
 		30000
 	);
-	const mounted = await rail.getByRole('slider').count();
+	const mounted = await grid
+		.locator('[data-matrix-parameter="opacity"]')
+		.getByRole('slider')
+		.count();
 	assert(mounted <= 64);
 	await inspector('Opacity').locator('input.number-field').fill('0.25');
 	await inspector('Opacity').locator('input.number-field').press('Enter');
