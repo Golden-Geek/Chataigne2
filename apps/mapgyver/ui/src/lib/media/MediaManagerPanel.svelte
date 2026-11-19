@@ -11,6 +11,7 @@
 	import { isMediaTreeNode, canRenderMediaTreeChildren } from './tree';
 	import MediaTreeActions from './MediaTreeActions.svelte';
 	import { invokeMediaEdit } from './operations';
+	import { mediaFileDrop } from './file-drop';
 	let props: PanelProps = $props();
 	let area: HTMLElement | undefined = $state();
 	export const setPanelState = (_next: PanelState) => {};
@@ -23,37 +24,30 @@
 
 	function fileDestination(element: Element): FileDropDestination | null {
 		const session = appState.session;
-		if (
-			!area ||
-			session?.status !== 'connected' ||
-			session.loading.visible ||
-			session.hasActiveEditSession
-		)
-			return null;
+		if (!area || !session) return null;
 		const row = element.closest<HTMLElement>('.outliner-item-content[data-node-id]');
 		const node = row ? session.getNodeData(Number(row.dataset.nodeId)) : null;
 		const folder = node?.node_type === 'mapgyver.media.folder';
 		const replace = node?.node_type === 'mapgyver.media.v11';
 		if (row && !folder && !replace) return null;
-		const generation = session.snapshotGeneration;
-		return {
-			bounds: row ?? area,
-			label: replace
-				? `Replace file in ${node.meta.label}`
-				: folder
-					? `Import into ${node.meta.label}`
-					: 'Import Media',
-			action: replace ? 'replace' : 'add',
-			drop: async (paths) => {
-				if (paths.length !== 1) throw new Error('Drop one file at a time.');
-				if (appState.session !== session || session.snapshotGeneration !== generation) return;
+		return mediaFileDrop(
+			{
+				bounds: row ?? area,
+				label: replace
+					? `Replace file in ${node.meta.label}`
+					: folder
+						? `Import into ${node.meta.label}`
+						: 'Import Media',
+				action: replace ? 'replace' : 'add'
+			},
+			async (path, session) => {
 				await invokeMediaEdit(session, {
 					kind: 'DropMediaFile',
-					path: paths[0],
+					path,
 					target: node?.uuid ?? null
 				});
 			}
-		};
+		);
 	}
 </script>
 

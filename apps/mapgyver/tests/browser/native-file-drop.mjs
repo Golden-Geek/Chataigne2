@@ -19,6 +19,8 @@ const errors = [];
 let observed;
 page.on('pageerror', (error) => errors.push(String(error)));
 let token, stage, failure, media;
+const editorDrops = process.argv.includes('--editors');
+const editors = {};
 
 async function post(route, body) {
 	const response = await fetch(native.base + route, {
@@ -39,15 +41,14 @@ async function intent(request) {
 	assert(result.success, JSON.stringify(result));
 	return result.result?.value;
 }
-async function inspect() {
-	const result = await intent({
+const edit = (payload, namespace = 'mapgyver.media') =>
+	intent({
 		kind: 'invokeAppOperation',
-		namespace: 'mapgyver.media',
+		namespace,
 		operation: 'edit',
-		payload: { kind: 'InspectManager' }
+		payload
 	});
-	return result.snapshot;
-}
+const inspect = async () => (await edit({ kind: 'InspectManager' })).snapshot;
 async function wait(read, accepts, timeout = 5000) {
 	const deadline = Date.now() + timeout;
 	for (;;) {
@@ -59,18 +60,155 @@ async function wait(read, accepts, timeout = 5000) {
 }
 
 const manager = page.locator('section[data-panel-id="media-manager"]');
-const active = manager.locator('.file-drop-feedback.active');
-const showMedia = () =>
-	page
-		.getByRole('tab')
-		.filter({ hasText: /^Medias$/ })
+const tab = (name) => page.getByRole('tab').filter({ hasText: new RegExp(`^${name}(?::|$)`) });
+const showMedia = () => tab('Medias').click();
+
+async function verifyEditors(drop) {
+	const screenEdit = (payload) => edit(payload, 'mapgyver.screens');
+	const readScreens = async () => (await screenEdit({ kind: 'InspectManager' })).snapshot.screens;
+	const readFile = async (reference) =>
+		(await edit({ kind: 'InspectChannel', reference })).snapshot?.definition.source.file?.path;
+	const readSurface = async (reference) =>
+		(await screenEdit({ kind: 'InspectSurface', reference })).snapshot?.definition;
+
+	stage = 'prepare the Screen and one partial Surface';
+	const [screen] = await readScreens();
+	const [surface] = screen.surfaces;
+	await screenEdit({
+		kind: 'ConfigureScreen',
+		screen: screen.id,
+		definition: {
+			...screen.definition,
+			enabled: false,
+			target: {
+				kind: 'Rectangle',
+				bounds: { left: 0, top: 0, extent: { width: 640, height: 360 } }
+			}
+		}
+	});
+	await screenEdit({
+		kind: 'ConfigureSurface',
+		reference: surface.reference,
+		definition: {
+			...surface.definition,
+			opacity: 0.6,
+			quad: { corners: surface.definition.quad.corners.map(({ x, y }) => ({ x: x * 0.42, y })) }
+		}
+	});
+	const before = await readSurface(surface.reference);
+	assert.equal(before.source, null);
+	await tab('Screens').click();
+	await page
+		.getByRole('region', { name: 'Screens', exact: true })
+		.getByRole('button', { name: screen.label, exact: true })
 		.click();
+	await tab('Screen Warping').click();
+	await page.locator('[data-panel-id="screen-warp"][aria-busy="false"]').waitFor();
+	const warp = page.locator('[data-screen-drop-target]');
+	const mapping = warp.locator('svg[aria-label="Surface mapping controls"]');
+	await mapping.waitFor();
+
+	stage = 'assign the dropped file to the hit Surface';
+	await drop(warp, mapping, original, `Assign file to ${surface.label}`, [0.22, 0.55]);
+	const assigned = await wait(
+		() => readSurface(surface.reference),
+		(value) => !!value?.source
+	);
+	assert.deepEqual(assigned, { ...before, source: assigned.source });
+	assert.equal(await readFile(assigned.source), original);
+	assert.equal((await readScreens())[0].surfaces.length, 1);
+	await intent({ kind: 'undo' });
+	assert.deepEqual(await readSurface(surface.reference), before);
+	assert.equal(await readFile(assigned.source), undefined);
+	await intent({ kind: 'redo' });
+	assert.deepEqual(await readSurface(surface.reference), assigned);
+
+	stage = 'add a Surface and its Media on the Screen background';
+	await drop(warp, mapping, replacement, 'Add Surface from file', [0.77, 0.55]);
+	const newSurface = await wait(async () => (await readScreens())[0].surfaces[1], Boolean);
+	assert.equal(await readFile(newSurface.definition.source), replacement);
+	assert.deepEqual(await readSurface(surface.reference), assigned);
+	await intent({ kind: 'undo' });
+	assert.equal((await readScreens())[0].surfaces.length, 1);
+	assert.equal(await readFile(newSurface.definition.source), undefined);
+	await intent({ kind: 'redo' });
+	assert.deepEqual(await readSurface(newSurface.reference), newSurface.definition);
+	editors.screen = { screen: screen.id, assigned: surface.reference, added: newSurface.reference };
+
+	stage = 'prepare a Composition with an existing child';
+	const { reference: composition } = await edit({
+		kind: 'CreateMedia',
+		media_kind: 'Composition',
+		label: 'File drop Composition'
+	});
+	const compositionEdit = (operation) =>
+		edit({ kind: 'Composition', reference: composition, edit: operation });
+	await compositionEdit({
+		kind: 'CreateMedia',
+		media_kind: 'SolidColor',
+		label: 'Existing child',
+		position: { x: 960, y: 540 }
+	});
+	const readComposition = async () => (await compositionEdit({ kind: 'Inspect' })).snapshot;
+	const originalComposition = await readComposition();
+	await showMedia();
+	await manager.getByRole('button', { name: 'File drop Composition', exact: true }).click();
+	await tab('Composition').click();
+	const spatial = page.locator(
+		`[data-composition-channel="${composition.channel}"][data-composition-busy="false"]`
+	);
+	const compositionArea = spatial.locator('[data-composition-drop-target]');
+	const controls = compositionArea.locator('svg[aria-label="Composition transform controls"]');
+	await controls.waitFor();
+
+	stage = 'drop over the existing child and append an independent Media';
+	await drop(compositionArea, controls, original, 'Add Media to Composition', [0.5, 0.5]);
+	const importedComposition = await wait(readComposition, (value) => value.instances.length === 2);
+	const [existing, created] = importedComposition.instances;
+	assert.deepEqual(existing, originalComposition.instances[0]);
+	assert.equal(created.definition.source.media, created.reference.instance);
+	assert.equal(await readFile(created.definition.source), original);
+	const [x, y] = created.definition.transform.position;
+	assert(Math.abs(x - importedComposition.canvas.width / 2) <= 4, JSON.stringify([x, y]));
+	assert(Math.abs(y - importedComposition.canvas.height / 2) <= 4, JSON.stringify([x, y]));
+	await intent({ kind: 'undo' });
+	assert.deepEqual(await readComposition(), originalComposition);
+	assert.equal(await readFile(created.definition.source), undefined);
+	await intent({ kind: 'redo' });
+	assert.deepEqual(await readComposition(), importedComposition);
+	editors.composition = { composition, added: created.reference, position: [x, y] };
+
+	stage = 'reload the assigned Screen and the owned Composition child';
+	const project = path.join(directory, 'Editor file drops.mapgyver');
+	assert((await post('/api/ui/project-save', { path: project })).ok);
+	assert((await post('/api/ui/project-new', {})).ok);
+	await post('/api/ui/project-load', { path: project });
+	assert.deepEqual(await readSurface(surface.reference), assigned);
+	assert.deepEqual(await readSurface(newSurface.reference), newSurface.definition);
+	assert.deepEqual(await readComposition(), importedComposition);
+	assert.equal(await readFile(created.definition.source), original);
+}
 
 try {
 	token = (await post('/api/ui/session', {})).token;
 	await showMedia();
 	await page.evaluate(() => {
 		window.observedFileDrop = [];
+		document.addEventListener(
+			'dragover',
+			(event) => {
+				const area = event.target.closest(
+					'[data-screen-drop-target], [data-composition-drop-target]'
+				);
+				if (area)
+					window.observedFileDrop.push({
+						editor: event.target.tagName,
+						types: Array.from(event.dataTransfer?.types ?? []),
+						point: [event.clientX, event.clientY]
+					});
+			},
+			{ capture: true }
+		);
 		document.addEventListener(
 			'drop',
 			(event) => {
@@ -87,18 +225,36 @@ try {
 		});
 	});
 	const cdp = await page.context().newCDPSession(page);
-	async function drop(locator, file, label, background = false) {
+	async function drop(area, locator, file, label, [x, y] = [0.5, 0.5]) {
+		const active = area.locator('.file-drop-feedback.active');
 		const box = await locator.boundingBox();
 		assert(box);
 		const target = {
-			x: box.x + box.width / 2,
-			y: box.y + box.height * (background ? 0.85 : 0.5),
+			x: box.x + box.width * x,
+			y: box.y + box.height * y,
 			data: { items: [], files: [file], dragOperationsMask: 1 }
 		};
-		for (const type of ['dragEnter', 'dragOver']) {
-			await cdp.send('Input.dispatchDragEvent', { ...target, type });
-		}
-		assert.equal(await active.innerText(), label);
+		const hit = await area.evaluate(
+			(element, { x, y }) => {
+				const pointer = document.elementFromPoint(x, y);
+				return {
+					inside: element.contains(pointer),
+					tag: pointer?.tagName,
+					class: pointer?.getAttribute('class'),
+					area: element.getBoundingClientRect().toJSON()
+				};
+			},
+			{ x: target.x, y: target.y }
+		);
+		assert(hit.inside, `Drop point misses its editor: ${JSON.stringify({ box, hit })}`);
+		await cdp.send('Input.dispatchDragEvent', { ...target, type: 'dragEnter' });
+		await wait(
+			async () => {
+				await cdp.send('Input.dispatchDragEvent', { ...target, type: 'dragOver' });
+				return (await active.count()) ? active.innerText() : null;
+			},
+			(text) => text === label
+		);
 		await cdp.send('Input.dispatchDragEvent', { ...target, type: 'drop' });
 		await active.waitFor({ state: 'detached' });
 	}
@@ -111,7 +267,7 @@ try {
 
 	stage = 'native path and background import';
 	assert.equal(await authored(), undefined);
-	await drop(manager, original, 'Import Media', true);
+	await drop(manager, manager, original, 'Import Media', [0.5, 0.85]);
 	media = await wait(
 		async () => {
 			const message = await manager
@@ -131,7 +287,7 @@ try {
 
 	stage = 'replace file on the exact Media row with one undo step';
 	await row.waitFor();
-	await drop(row, replacement, `Replace file in ${label}`);
+	await drop(manager, row, replacement, `Replace file in ${label}`);
 	await wait(authored, (entry) => currentFile(entry) === replacement);
 	assert.equal((await authored()).id, media.id);
 	await intent({ kind: 'undo' });
@@ -142,10 +298,11 @@ try {
 	stage = 'reject an unsupported file and preserve history';
 	const readHistory = async () => (await post('/api/ui/snapshot', { scope: 'wholeGraph' })).history;
 	const history = await readHistory();
-	await drop(row, unsupported, `Replace file in ${label}`);
+	await drop(manager, row, unsupported, `Replace file in ${label}`);
 	await manager.getByText(/This file is not a supported picture or video/).waitFor();
 	assert.deepEqual(await readHistory(), history);
 	assert.equal(currentFile(await authored()), replacement);
+	if (editorDrops) await verifyEditors(drop);
 
 	stage = 'save and reload the same path and Media identity';
 	const project = path.join(directory, 'Native files.mapgyver');
@@ -174,6 +331,7 @@ await writeFile(
 			result: failure ? 'fail' : 'pass',
 			stage,
 			media: media?.id,
+			editors: editorDrops ? editors : undefined,
 			errors,
 			observed,
 			failure,

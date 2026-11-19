@@ -255,31 +255,27 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             source,
         } => {
             let source = crate::media::resolve_source_node(engine, source)?;
-            if let Some(surface) = surface {
-                let reference = SurfaceReference { screen, surface };
-                let node = surface_id(engine, reference)?;
-                let Some(AppNode::Surface(current)) = engine.nodes.get(node) else {
-                    unreachable!()
-                };
-                let mut definition = current.definition();
-                definition.source = Some(source);
-                let snapshot = SurfaceSnapshot::new(reference, current.node_data().meta.label.clone(), definition);
-                engine.edits.push(Edit::SetParamsAtomic {
-                    values: current.source_parameter_values(Some(source)).into(),
-                    behaviour: ParameterEventBehaviour::Append,
-                });
-                ScreenEditResult::SurfaceChanged { snapshot }
-            } else {
-                add_surface(
-                    engine,
-                    screen,
-                    None,
-                    SurfaceDefinition {
-                        source: Some(source),
-                        ..Default::default()
-                    },
-                )?
-            }
+            let (edit, result) = prepare_source_drop(engine, screen, surface, source)?;
+            engine.edits.push(edit);
+            result
+        }
+        ScreenEdit::DropMediaFile {
+            screen,
+            point,
+            surface,
+            path,
+        } => {
+            let target = match surface {
+                Some(surface) => Some(surface),
+                None => super::editor::hit_test(engine, screen, point)?,
+            };
+            let parent = crate::media::authoring::manager(engine)?;
+            let (tree, source) = crate::media::importing::FileMedia::new(path)?.tree(engine, parent)?;
+            let (edit, result) = prepare_source_drop(engine, screen, target, source)?;
+            append(engine, parent, tree);
+            engine.edits.push(edit);
+            crate::media::authoring::notify_changed(engine)?;
+            result
         }
         ScreenEdit::ConfigureSurface { reference, definition } => {
             let node = surface_id(engine, reference)?;
@@ -396,14 +392,61 @@ fn add_surface(
     label: Option<String>,
     definition: SurfaceDefinition,
 ) -> Result<ScreenEditResult, String> {
+    let (edit, result) = prepare_surface(engine, screen, label, definition)?;
+    engine.edits.push(edit);
+    Ok(result)
+}
+
+fn prepare_surface(
+    engine: &AppEngine,
+    screen: ScreenId,
+    label: Option<String>,
+    definition: SurfaceDefinition,
+) -> Result<(Edit, ScreenEditResult), String> {
     let parent = screen_id(engine, screen)?;
     let surface = SurfaceNode::from_definition(labels::unique(engine, parent, label, "Surface", &[])?, definition);
     let reference = SurfaceReference {
         screen,
         surface: SurfaceId(surface.node_data().meta.uuid),
     };
-    append(engine, parent, NodeTree::new(surface));
-    Ok(ScreenEditResult::SurfaceCreated { reference })
+    let edit = Edit::AddUserItemTree {
+        parent,
+        prev_sibling: engine.nodes.get(parent).and_then(|node| node.node_data().last_child),
+        tree: NodeTree::new(surface),
+    };
+    Ok((edit, ScreenEditResult::SurfaceCreated { reference }))
+}
+
+fn prepare_source_drop(
+    engine: &AppEngine,
+    screen: ScreenId,
+    surface: Option<SurfaceId>,
+    source: crate::media::protocol::ChannelReference,
+) -> Result<(Edit, ScreenEditResult), String> {
+    let Some(surface) = surface else {
+        return prepare_surface(
+            engine,
+            screen,
+            None,
+            SurfaceDefinition {
+                source: Some(source),
+                ..Default::default()
+            },
+        );
+    };
+    let reference = SurfaceReference { screen, surface };
+    let node = surface_id(engine, reference)?;
+    let Some(AppNode::Surface(current)) = engine.nodes.get(node) else {
+        unreachable!()
+    };
+    let mut definition = current.definition();
+    definition.source = Some(source);
+    let snapshot = SurfaceSnapshot::new(reference, current.node_data().meta.label.clone(), definition);
+    let edit = Edit::SetParamsAtomic {
+        values: current.source_parameter_values(Some(source)).into(),
+        behaviour: ParameterEventBehaviour::Append,
+    };
+    Ok((edit, ScreenEditResult::SurfaceChanged { snapshot }))
 }
 
 fn reorder(engine: &mut AppEngine, node: NodeId, parent: NodeId, previous: Option<NodeId>) -> Result<(), String> {

@@ -494,11 +494,16 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         // Published inside the atomic edit boundary, including script/headless callers.
         // Geometry already publishes typed Parameter deltas and its authoritative reply.
         // Catalog discovery must not run for every pointer sample.
-        let event = golden_core::events::CustomEvent::from_latest_payload(MEDIA_NAMESPACE, None, &())
-            .map_err(|error| error.to_string())?;
-        engine.edits.push(Edit::EmitCustomEvent { event });
+        notify_changed(engine)?;
     }
     serde_json::to_value(result).map_err(|error| error.to_string())
+}
+
+pub(crate) fn notify_changed(engine: &mut AppEngine) -> Result<(), String> {
+    let event = golden_core::events::CustomEvent::from_latest_payload(MEDIA_NAMESPACE, None, &())
+        .map_err(|error| error.to_string())?;
+    engine.edits.push(Edit::EmitCustomEvent { event });
+    Ok(())
 }
 
 pub(super) fn locator_label(locator: &AssetLocator) -> &str {

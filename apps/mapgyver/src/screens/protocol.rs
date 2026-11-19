@@ -345,6 +345,13 @@ pub enum ScreenEdit {
         point: Point,
         source: NodeUuid,
     },
+    /// Import a file in Medias and assign it at a Screen point or an explicit editor handle.
+    DropMediaFile {
+        screen: ScreenId,
+        point: Point,
+        surface: Option<SurfaceId>,
+        path: golden_assets::AbsoluteAssetPath,
+    },
     ConfigureSurface {
         reference: SurfaceReference,
         definition: SurfaceDefinition,

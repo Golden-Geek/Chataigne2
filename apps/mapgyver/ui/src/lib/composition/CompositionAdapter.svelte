@@ -19,6 +19,7 @@
 	import CompositionPreview from './CompositionPreview.svelte';
 	import SourceDropZone from '../media/SourceDropZone.svelte';
 	import { pickCompositionSource } from '../media/source-hit';
+	import { mediaFileDrop } from '../media/file-drop';
 	import { usePreview } from '../preview/context.svelte';
 	import { previewKey } from '../preview/identity';
 	let props: {
@@ -114,16 +115,33 @@
 		}));
 		menuAnchor = { kind: 'point', x: event.clientX, y: event.clientY };
 	}
-	function dropPoint(event: MouseEvent) {
-		const canvas = (event.currentTarget as HTMLElement).querySelector(
-			'svg[aria-label="Composition transform controls"]'
-		);
+	function dropPoint(event: MouseEvent, area = event.currentTarget as HTMLElement) {
+		const canvas = area.querySelector('svg[aria-label="Composition transform controls"]');
 		const rect = canvas?.getBoundingClientRect();
 		if (!composition || !rect || rect.width <= 0 || rect.height <= 0) return null;
 		return {
 			x: ((event.clientX - rect.left) / rect.width) * composition.canvas.width,
 			y: ((event.clientY - rect.top) / rect.height) * composition.canvas.height
 		};
+	}
+	function fileDestination(area: HTMLDivElement, event: DragEvent) {
+		const position = dropPoint(event, area);
+		const reference = channel?.reference;
+		if (!position || !reference) return null;
+		return mediaFileDrop(
+			{ bounds: area, label: 'Add Media to Composition', action: 'add' },
+			async (path) => {
+				if (
+					channel?.reference.media !== reference.media ||
+					channel.reference.channel !== reference.channel
+				)
+					return;
+				const selectCreated = selection.capture();
+				const result = await controller.edit({ kind: 'DropMediaFile', path, position });
+				if (result?.kind === 'InstancesCreated' && result.instances[0])
+					selectCreated(result.instances[0].instance);
+			}
+		);
 	}
 	function pickDropTarget(event: DragEvent) {
 		const point = dropPoint(event);
@@ -222,6 +240,7 @@
 		addLabel="Add instance"
 		oncontextmenu={creationMenu}
 		hitTest={pickDropTarget}
+		{fileDestination}
 		disabled={busy || gestureState.active || !composition}
 		onsource={async (source, target, event) => {
 			const position = dropPoint(event);

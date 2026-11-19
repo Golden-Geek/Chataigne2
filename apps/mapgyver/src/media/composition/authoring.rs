@@ -118,7 +118,25 @@ pub(crate) fn apply(
             media_kind,
             label,
             position,
-        } => super::creation::apply(engine, reference, parent, canvas, media_kind, label, position),
+        } => super::creation::apply(
+            engine,
+            reference,
+            parent,
+            canvas,
+            position,
+            super::creation::Child::Media {
+                kind: media_kind,
+                label,
+            },
+        ),
+        CompositionEdit::DropMediaFile { path, position } => super::creation::apply(
+            engine,
+            reference,
+            parent,
+            canvas,
+            position,
+            super::creation::Child::File(crate::media::importing::FileMedia::new(path)?),
+        ),
         CompositionEdit::Inspect => Ok(MediaEditResult::Composition {
             snapshot: inspect(engine, reference)?,
         }),

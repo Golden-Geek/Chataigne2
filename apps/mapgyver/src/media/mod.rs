@@ -10,7 +10,7 @@ pub mod composition;
 pub(crate) mod creation;
 pub(crate) mod dependencies;
 pub(crate) mod folders;
-mod importing;
+pub(crate) mod importing;
 mod media_node;
 mod nodes;
 mod persistence;

@@ -220,6 +220,11 @@ On Windows, drop a picture or video on the **Medias** background or a media fold
 Media linked to that file. Drop a compatible file on a Picture or Video row to update its
 first channel. Each drop handles one file and has one Undo step.
 
+In **Screen Warping**, a drop on a Surface imports the file into Medias and assigns it to
+that Surface. A background drop imports it and adds a Surface. In **Composition**, a drop
+adds an owned child at the drop position and keeps the other children. One Undo reverses
+each import and its assignment or placement together.
+
 The Picture editor accepts explicit project-relative or absolute host paths; the native
 desktop also offers Golden's file picker. This is source-file linking, not a browser upload.
 Asset path validation, ID/label allocation and all domain changes stay in Rust. Worker

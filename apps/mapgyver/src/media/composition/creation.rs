@@ -2,7 +2,7 @@
 use super::{PlacementNode, authoring, children, protocol::*};
 use crate::{
     app::{AppEngine, labels},
-    media::{creation, protocol::*},
+    media::{creation, importing::FileMedia, protocol::*},
 };
 use golden_core::{
     edit::{Edit, NodeTree},
@@ -10,14 +10,18 @@ use golden_core::{
 };
 use golden_video::Extent2D;
 
+pub(super) enum Child {
+    Media { kind: MediaKind, label: Option<String> },
+    File(FileMedia),
+}
+
 pub(super) fn apply(
     engine: &mut AppEngine,
     reference: ChannelReference,
     channel: NodeId,
     canvas: Extent2D,
-    kind: MediaKind,
-    label: Option<String>,
     position: Point,
+    child: Child,
 ) -> Result<MediaEditResult, String> {
     if !position.x.is_finite() || !position.y.is_finite() {
         return Err("Composition creation requires finite canvas coordinates".into());
@@ -27,10 +31,22 @@ pub(super) fn apply(
         return Err("Composition exceeds 100000 authored instances".into());
     }
     let parent = children::owner(engine, channel)?;
-    let label = labels::unique(engine, parent, label, kind.default_label(), &[])?;
     let mut definition = InstanceDefinition::for_canvas(canvas);
-    definition.transform.position = [position.x, position.y];
-    let tree = creation::owned_tree(engine, kind, label).with_child(NodeTree::new(PlacementNode::from_definition(
+    let (media, position) = match child {
+        Child::Media { kind, label } => {
+            let label = labels::unique(engine, parent, label, kind.default_label(), &[])?;
+            (creation::owned_tree(engine, kind, label), [position.x, position.y])
+        }
+        Child::File(file) => (
+            file.tree(engine, parent)?.0,
+            [
+                position.x.clamp(0.0, canvas.width() as f32),
+                position.y.clamp(0.0, canvas.height() as f32),
+            ],
+        ),
+    };
+    definition.transform.position = position;
+    let tree = media.with_child(NodeTree::new(PlacementNode::from_definition(
         "Placement".into(),
         definition,
     )));

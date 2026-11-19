@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	export interface FileDropDestination {
-		bounds: HTMLElement;
+		bounds: Element;
 		label: string;
 		action: 'add' | 'replace';
 		drop: (paths: string[]) => Promise<void>;

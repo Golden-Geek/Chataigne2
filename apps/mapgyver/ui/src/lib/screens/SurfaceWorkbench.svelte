@@ -24,6 +24,7 @@
 	import SourceDropZone from '../media/SourceDropZone.svelte';
 	import { useDocumentSelection } from '../selection.svelte';
 	import { pickSurfaceSource } from '../media/source-hit';
+	import { mediaFileDrop } from '../media/file-drop';
 	import { followPanelTitle } from '../panel-title.svelte';
 	let {
 		panelId,
@@ -164,15 +165,55 @@
 		() => (editor === 'screen' ? 'Screen Warping' : 'Surface Source'),
 		() => (editor === 'screen' ? screen?.label : surface?.label)
 	);
-	function pickDropTarget(event: DragEvent) {
-		const controls = (event.currentTarget as HTMLElement).querySelector(
-			'svg[aria-label="Surface mapping controls"]'
-		);
+	function screenPoint(area: HTMLElement, event: DragEvent) {
+		const controls = area.querySelector('svg[aria-label="Surface mapping controls"]');
 		const rect = controls?.getBoundingClientRect();
-		if (!screen || !rect || rect.width <= 0 || rect.height <= 0) return null;
-		return pickSurfaceSource(
-			{ x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height },
-			screen.surfaces
+		if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+		return {
+			x: (event.clientX - rect.left) / rect.width,
+			y: (event.clientY - rect.top) / rect.height
+		};
+	}
+	function pickDropTarget(event: DragEvent) {
+		const point = screenPoint(event.currentTarget as HTMLElement, event);
+		return screen && point ? pickSurfaceSource(point, screen.surfaces) : null;
+	}
+	function fileDestination(area: HTMLDivElement, event: DragEvent) {
+		const point = screenPoint(area, event);
+		if (!screen || !point) return null;
+		const screenId = screen.id;
+		const handle =
+			event.target instanceof Element
+				? event.target.closest('button[data-source-drop-object]')
+				: null;
+		const explicit = handle?.getAttribute('data-source-drop-object') ?? null;
+		const target = explicit ?? pickSurfaceSource(point, screen.surfaces);
+		const label = screen.surfaces.find((surface) => surface.reference.surface === target)?.label;
+		const bounds = target
+			? (area.querySelector(`polygon[data-source-drop-object="${CSS.escape(target)}"]`) ??
+				handle ??
+				area)
+			: area;
+		return mediaFileDrop(
+			{
+				bounds,
+				label: target ? `Assign file to ${label ?? 'Surface'}` : 'Add Surface from file',
+				action: target ? 'replace' : 'add'
+			},
+			async (path) => {
+				if (screen?.id !== screenId) return;
+				const selectDropped = selection.capture();
+				const result = await controller.edit({
+					kind: 'DropMediaFile',
+					screen: screenId,
+					point,
+					surface: explicit,
+					path
+				});
+				if (result?.kind === 'SurfaceCreated') selectDropped(result.reference.surface);
+				else if (result?.kind === 'SurfaceChanged')
+					selectDropped(result.snapshot.reference.surface);
+			}
 		);
 	}
 	function selectSurface(uuid: string | null) {
@@ -266,6 +307,7 @@
 		addLabel="Add Surface"
 		replaceOnly={editor === 'source' ? surface?.reference.surface : null}
 		hitTest={editor === 'screen' ? pickDropTarget : undefined}
+		fileDestination={editor === 'screen' ? fileDestination : undefined}
 		disabled={controller.busy ||
 			gestureState.active ||
 			!screen ||
@@ -273,22 +315,16 @@
 		onsource={async (source, target, event) => {
 			if (!screen) return;
 			const selectDropped = selection.capture();
-			const controls =
-				event.currentTarget instanceof HTMLElement
-					? event.currentTarget.querySelector('svg[aria-label="Surface mapping controls"]')
-					: null;
-			const rect = controls?.getBoundingClientRect();
+			const point =
+				event.currentTarget instanceof HTMLElement ? screenPoint(event.currentTarget, event) : null;
 			const explicit =
 				event.target instanceof Element && event.target.closest('button[data-source-drop-object]');
 			const result = await controller.edit(
-				editor === 'screen' && !explicit && rect && rect.width > 0 && rect.height > 0
+				editor === 'screen' && !explicit && point
 					? {
 							kind: 'DropSourceAt',
 							screen: screen.id,
-							point: {
-								x: (event.clientX - rect.left) / rect.width,
-								y: (event.clientY - rect.top) / rect.height
-							},
+							point,
 							source
 						}
 					: { kind: 'DropSource', screen: screen.id, surface: target, source }

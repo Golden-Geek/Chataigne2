@@ -1,12 +1,19 @@
 <script lang="ts">
 	import { onDestroy, type Snippet } from 'svelte';
 	import type { HTMLAttributes } from 'svelte/elements';
-	import { appState, readNodeDragPayload, resolveDragNode } from 'golden_ui';
+	import {
+		appState,
+		FileDropFeedback,
+		readNodeDragPayload,
+		resolveDragNode,
+		type FileDropDestination
+	} from 'golden_ui';
 	let {
 		disabled = false,
 		addLabel,
 		replaceOnly = null,
 		hitTest,
+		fileDestination,
 		onsource,
 		children,
 		...attributes
@@ -15,10 +22,11 @@
 		addLabel: string;
 		replaceOnly?: string | null;
 		hitTest?(event: DragEvent): string | null;
+		fileDestination?(area: HTMLDivElement, event: DragEvent): FileDropDestination | null;
 		onsource(source: string, target: string | null, event: DragEvent): void;
 		children: Snippet;
 	} = $props();
-	let element: HTMLDivElement;
+	let element: HTMLDivElement | undefined = $state();
 	let hovering = $state(false),
 		replacing = $state(false);
 	let highlighted: Element | null = null;
@@ -118,6 +126,12 @@
 		onsource(node.uuid, target, event);
 	}}>
 	{@render children()}
+	{#if fileDestination}
+		<FileDropFeedback
+			area={element}
+			resolve={(_element, event) =>
+				!element || disabled ? null : (fileDestination?.(element, event) ?? null)} />
+	{/if}
 	{#if hovering}<span class="drop-hint" role="status"
 			>{replacing ? 'Replace source' : addLabel}</span
 		>{/if}

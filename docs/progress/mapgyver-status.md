@@ -2,10 +2,10 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `████████░░` **82% — 119/145 checks accepted, 8/19 phases complete**.
-- **Latest delivered:** The Windows Medias panel imports a dropped file or updates a compatible row, with an animated target highlight. Native WebView2 checks covered full paths, replacement, Undo, reload and unsupported files. [Checks](evidence/mapgyver-m18-medias-file-drop-2026-11-19.json)
+- **Latest delivered:** Windows file drops now work in Screen Warping and Composition. A Screen drop assigns the hit Surface or adds one on the background. Composition adds a child at the drop position. Undo and reload passed in the native WebView2 check. [Checks](evidence/mapgyver-m18-editor-file-drop-2026-11-19.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Active:** M18/1 OS file drag-and-drop. Next are Screen Warping and Composition drops, then Matrix and `.exe` drops. File Explorer verification remains pending.
+- **Active:** M18/1 OS file drag-and-drop. Next are Matrix Cell and open-area drops, then `.exe` assignment to App Control. File Explorer verification remains pending.
 
 ## Done — code and normal-use checks passed
 
@@ -76,7 +76,7 @@
 
 [Feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi) adds six tasks in order.
 
-1. **OS file drag-and-drop.** Medias import and replacement work in the Windows WebView2 check. Screen Warping, Composition, Matrix, `.exe` App Control assignment and File Explorer drops remain. [Medias checks](evidence/mapgyver-m18-medias-file-drop-2026-11-19.json)
+1. **OS file drag-and-drop.** Medias, Screen Warping and Composition passed Windows WebView2 checks. Matrix, `.exe` App Control assignment and direct File Explorer checks remain. [Medias checks](evidence/mapgyver-m18-medias-file-drop-2026-11-19.json) · [Editor checks](evidence/mapgyver-m18-editor-file-drop-2026-11-19.json)
 2. **Project Settings.** Save settings per project and open them from the File menu or top bar. Add a separate Preferences icon.
 3. **File Explorer.** Browse the project folder in tree or thumbnail view, choose a custom folder and drag files into Media targets.
 4. **Shader Media.** Play GLSL, ShaderToy and ISF shaders, edit embedded code or reload external files, expose parameters and texture inputs, and browse the Shader Library.

@@ -1,12 +1,103 @@
 use super::*;
 use crate::{
     app::AppNode,
-    media::protocol::{ChannelReference, MEDIA_NAMESPACE, MEDIA_OPERATION, MediaEdit, MediaEditResult, MediaKind},
+    media::protocol::{
+        AssetLocator, ChannelReference, ChannelSource, MEDIA_NAMESPACE, MEDIA_OPERATION, MediaEdit, MediaEditResult,
+        MediaKind,
+    },
 };
+use golden_assets::AbsoluteAssetPath;
 use golden_core::{
     app::{from_sparse_project_json, to_sparse_project_json_pretty},
     model::NodeUuid,
 };
+
+#[test]
+fn file_drop_imports_and_assigns_or_creates_a_surface_in_one_history_entry() {
+    let mut engine = fixture();
+    let (screen, surface) = create(&mut engine);
+    let (_, foreign) = create(&mut engine);
+    let prior_source = source(&mut engine);
+    let mut original = SurfaceDefinition {
+        source: Some(prior_source),
+        opacity: 0.6,
+        ..Default::default()
+    };
+    for corner in &mut original.quad.corners {
+        corner.x *= 0.4;
+    }
+    apply(
+        &mut engine,
+        ScreenEdit::ConfigureSurface {
+            reference: surface,
+            definition: original.clone(),
+        },
+    );
+    let directory = tempfile::tempdir().unwrap();
+    let path =
+        |name: &str| AbsoluteAssetPath::try_from(directory.path().join(name).to_string_lossy().into_owned()).unwrap();
+    let targeted = Point { x: 0.2, y: 0.6 };
+    let background = Point { x: 0.8, y: 0.6 };
+    let picture = path("warp still.png");
+    let drop_file = |point, surface, path| ScreenEdit::DropMediaFile {
+        screen,
+        point,
+        surface,
+        path,
+    };
+    let baseline = to_sparse_project_json_pretty(&engine).unwrap();
+    let history = engine.undo_len();
+    assert!(!invoke(&mut engine, drop_file(targeted, Some(foreign.surface), picture.clone())).success);
+    assert!(!invoke(&mut engine, drop_file(background, None, path("unsupported.txt"))).success);
+    assert_eq!(engine.undo_len(), history);
+    assert_eq!(to_sparse_project_json_pretty(&engine).unwrap(), baseline);
+
+    let ScreenEditResult::SurfaceChanged { snapshot } = apply(&mut engine, drop_file(targeted, None, picture.clone()))
+    else {
+        panic!("the point must target the existing Surface");
+    };
+    let assigned = snapshot.definition.source.unwrap();
+    assert_eq!(snapshot.reference, surface);
+    assert_eq!(
+        definition(&engine, surface),
+        SurfaceDefinition {
+            source: Some(assigned),
+            ..original.clone()
+        }
+    );
+    assert_eq!(
+        crate::media::channel(&engine, assigned).unwrap().definition.source,
+        ChannelSource::Picture {
+            file: Some(AssetLocator::Absolute { path: picture })
+        }
+    );
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(engine.undo().unwrap());
+    assert!(engine.node_id_by_uuid(assigned.media.0).is_none());
+    assert_eq!(definition(&engine, surface), original);
+    assert!(engine.redo().unwrap());
+
+    let ScreenEditResult::SurfaceCreated { reference } =
+        apply(&mut engine, drop_file(background, None, path("background still.webp")))
+    else {
+        panic!("the empty point must add a Surface");
+    };
+    let created = definition(&engine, reference);
+    let next_source = created.source.unwrap();
+    assert_ne!(assigned, next_source);
+    assert_eq!(engine.undo_len(), history + 2);
+    assert!(engine.undo().unwrap());
+    assert!(engine.node_id_by_uuid(next_source.media.0).is_none());
+    assert!(engine.node_id_by_uuid(reference.surface.0).is_none());
+    assert!(engine.redo().unwrap());
+
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let mut reloaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+    reloaded.apply_edits().unwrap();
+    golden_core::app::validate_engine_project_candidate(&reloaded).unwrap();
+    assert_eq!(definition(&reloaded, reference), created);
+    assert_eq!(definition(&reloaded, surface).source, Some(assigned));
+}
 
 pub(super) fn media(engine: &mut AppEngine, edit: MediaEdit) -> MediaEditResult {
     let ack = apply_project_intent(

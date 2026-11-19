@@ -94,6 +94,11 @@ pub enum CompositionEdit {
         /// Canvas texels; defaults and placement Parameters are materialized by the backend.
         position: Point,
     },
+    /// Import a file directly into the Composition alongside its existing children.
+    DropMediaFile {
+        path: golden_assets::AbsoluteAssetPath,
+        position: Point,
+    },
     AddInstances {
         sources: Vec<ChannelReference>,
     },
