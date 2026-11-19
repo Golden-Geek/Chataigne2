@@ -82,5 +82,42 @@ fn float_pass_uses_an_ordered_budgeted_target_and_one_effect_clock() {
         panic!()
     };
     assert_eq!((*clock, *index), (final_id, 1));
-    assert_eq!(inputs[TEXTURE_INPUTS], Some(temporary.output));
+    assert_eq!(inputs[TEXTURE_INPUTS], Some(ShaderTexture::Current(temporary.output)));
+}
+
+#[test]
+fn a_single_named_persistent_pass_reads_its_own_final_target() {
+    let program = FragmentProgram::compile(
+        FragmentFormat::Isf,
+        r#"/*{
+        "PASSES":[{"TARGET":"trail","PERSISTENT":true}]
+    }*/
+    void main() { gl_FragColor = IMG_THIS_NORM_PIXEL(trail); }"#,
+    )
+    .unwrap();
+    let output = TextureDescriptor {
+        extent: Extent2D::new(8, 4).unwrap(),
+        format: PixelFormat::Rgba8Unorm,
+        color_encoding: ColorEncoding::Linear,
+        alpha_mode: AlphaMode::Premultiplied,
+    };
+    let passes = Passes::new(&program, output, 8).unwrap();
+    let mut entry = Entry {
+        target: TextureId::new(1).unwrap(),
+        source: None,
+        #[cfg(feature = "video-files")]
+        subtitles: None,
+        sender_external_only: false,
+        scratch: None,
+        shader_buffers: Vec::new(),
+    };
+    let mut intermediates = Vec::new();
+    let operation = passes
+        .append(&mut intermediates, &mut entry, [None; TEXTURE_INPUTS], &mut 1)
+        .unwrap();
+    assert!(intermediates.is_empty());
+    let RenderOperation::Shader { inputs, .. } = operation else {
+        panic!()
+    };
+    assert_eq!(inputs[TEXTURE_INPUTS], Some(ShaderTexture::PreviousFrame(entry.target)));
 }

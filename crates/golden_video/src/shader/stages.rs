@@ -9,15 +9,24 @@ pub(super) use dimension::Dimension;
 pub struct FragmentStage {
     /// Extent and precision required by this draw.
     pub target: TextureDescriptor,
-    /// For each temporary texture register, the most recent earlier writer in this frame.
-    pub previous: [Option<u8>; TEMPORARY_BUFFERS],
+    /// Current or delayed source for each declared buffer register.
+    pub buffers: [Option<FragmentBuffer>; TEMPORARY_BUFFERS],
+}
+
+/// An effect-owned buffer is read from the latest applicable draw.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FragmentBuffer {
+    /// Index of an earlier stage in the current frame.
+    EarlierPass(u8),
+    /// Index of the buffer's last writer in the previous frame.
+    PreviousFrame(u8),
 }
 
 #[derive(Debug, Default)]
 pub(super) struct Stage {
     pub(super) size: [Option<Dimension>; 2],
     pub(super) float: bool,
-    pub(super) previous: [Option<u8>; TEMPORARY_BUFFERS],
+    pub(super) buffers: [Option<FragmentBuffer>; TEMPORARY_BUFFERS],
 }
 
 impl Stage {
@@ -39,7 +48,7 @@ impl Stage {
                 },
                 ..output
             },
-            previous: self.previous,
+            buffers: self.buffers,
         })
     }
 

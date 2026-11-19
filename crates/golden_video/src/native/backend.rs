@@ -29,6 +29,7 @@ use super::{D3d11Config, D3d11Control, InputLimits, NativeFailure};
 mod input_observation;
 
 mod cache;
+mod history;
 mod presentation;
 mod render;
 mod resources;
@@ -86,6 +87,7 @@ pub(crate) struct D3d11Resources {
     textures: BTreeMap<TextureId, Rc<Texture>>,
     scratch: BTreeMap<PassId, Rc<Texture>>,
     shaders: BTreeMap<PassId, Rc<super::pipeline::ShaderPass>>,
+    history: BTreeMap<TextureId, (usize, Rc<history::History>)>,
     outputs: BTreeMap<OutputId, Rc<Texture>>,
     conversion_slots: Vec<usize>,
     presented_regions: BTreeMap<OutputId, Vec<crate::plan::RegionPlacement>>,

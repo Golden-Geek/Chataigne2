@@ -5,7 +5,7 @@ use golden_time::TimeSnapshot;
 use windows::Win32::Graphics::Direct3D11::ID3D11DeviceContext;
 
 use crate::LinearColor;
-use crate::plan::{BlendMode, CompiledPlan, RenderOperation};
+use crate::plan::{BlendMode, CompiledPlan, RenderOperation, ShaderTexture};
 use crate::runtime::CompletionToken;
 
 use super::D3d11Resources;
@@ -29,6 +29,11 @@ pub(super) fn execute(
 ) -> Work {
     let mut cache = resources.render_cache.borrow_mut();
     let mut work = Work::default();
+    for (index, history) in resources.history.values() {
+        if presentation.pass(*index) {
+            history.begin(context, pipeline, time.monotonic());
+        }
+    }
     for (index, pass) in plan.passes().iter().enumerate() {
         if !presentation.pass(index) {
             continue;
@@ -49,7 +54,12 @@ pub(super) fn execute(
                 context,
                 output,
                 &resources.shaders[&pass.id],
-                inputs.map(|source| source.map(|id| resources.textures[&id].as_ref())),
+                inputs.map(|source| {
+                    source.map(|source| match source {
+                        ShaderTexture::Current(id) => resources.textures[&id].as_ref(),
+                        ShaderTexture::PreviousFrame(id) => resources.history[&id].1.previous.as_ref(),
+                    })
+                }),
                 *index,
                 time,
             ),
@@ -143,6 +153,9 @@ pub(super) fn execute(
         // Same-context ordering protects these queued writes and all subsequent reads;
         // ordinary submission completion still retains the resources and input leases.
         output.last_write.set(Some(token));
+        if let Some((_, history)) = resources.history.get(&pass.output) {
+            history.written();
+        }
         cache.rendered(index, token, written);
         work.rendered += 1;
     }

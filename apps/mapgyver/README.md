@@ -222,14 +222,17 @@ Choose **Format** in the Shader Editor or channel Inspector.
   read earlier named temporary targets with `IMG_*`, with up to eight passes and four named
   targets per shader. Pass sizes can use arithmetic on
   `$WIDTH`, `$HEIGHT` and numeric input defaults. `FLOAT` requests a 32-bit float color target.
+  A named target with `PERSISTENT` can read its last frame before writing this frame. Active
+  history starts transparent, survives compatible plan changes and resets when the program,
+  target size or project changes.
   [ISF pass attributes](https://docs.isf.video/ref_json.html#passes-and-target)
 
 Open **Texture inputs** to choose up to four Media or Channels. A Media target samples its first
 channel, while a Channel target samples the selected variant. Empty or unavailable inputs sample
 transparent black. Use `texture(iChannel0, uv)` through `iChannel3` for GLSL and ShaderToy. ISF
 binds named `image` inputs to slots in declaration order and supports its `IMG_*` sampling functions.
-Shader Media can feed Screens, Compositions, Matrix Cells and previews. Persistent buffers,
-ShaderToy Buffer passes and editable uniform values are pending.
+Shader Media can feed Screens, Compositions, Matrix Cells and previews. ShaderToy Buffer passes
+and editable uniform values are pending.
 
 The Windows x64 package includes the NDI 6 runtime and enables NDI from the first launch.
 Use **Medias → + → NDI** to receive, or choose **Target → NDI** on an enabled Screen to publish.

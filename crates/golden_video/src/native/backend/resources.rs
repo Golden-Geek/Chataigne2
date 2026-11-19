@@ -11,6 +11,7 @@ use crate::{OutputId, PassId, TextureDescriptor, TextureId};
 
 use super::super::pipeline::{ShaderDraw, ShaderPass};
 use super::super::texture::Texture;
+use super::history::History;
 use super::{D3d11Resources, NativeState};
 
 /// Share bytecode resources per device and retain a logical pass clock across plan revisions.
@@ -57,8 +58,18 @@ enum Role {
     Image,
     External(TextureId),
     Pass(crate::runtime::ProjectEpoch, TextureId),
+    History(HistoryKey, bool),
     Scratch(PassId),
     Output(OutputId),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct HistoryKey {
+    project: ProjectEpoch,
+    output: TextureId,
+    clock: PassId,
+    program: usize,
+    descriptor: TextureDescriptor,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -73,6 +84,7 @@ struct Key {
 /// cannot keep GPU allocations or CPU asset leases alive beyond completion-based retirement.
 pub(super) struct TextureCache {
     entries: HashMap<Key, Weak<Texture>>,
+    history: HashMap<HistoryKey, Weak<History>>,
     owner: crate::native::allocations::TextureAllocations,
 }
 
@@ -88,12 +100,14 @@ impl TextureCache {
     pub fn new(owner: crate::native::allocations::TextureAllocations) -> Self {
         Self {
             entries: HashMap::new(),
+            history: HashMap::new(),
             owner,
         }
     }
 
     pub fn prune(&mut self) {
         self.entries.retain(|_, value| value.strong_count() != 0);
+        self.history.retain(|_, value| value.strong_count() != 0);
     }
 
     pub fn len(&self) -> usize {
@@ -139,6 +153,24 @@ impl TextureCache {
             },
         )
     }
+
+    fn history(
+        &mut self,
+        key: HistoryKey,
+        program: &FragmentProgram,
+        device: &ID3D11Device,
+        counts: &mut PreparationCounts,
+    ) -> Result<Rc<History>> {
+        if let Some(entry) = self.history.get(&key).and_then(Weak::upgrade) {
+            counts.reused += 2;
+            return Ok(entry);
+        }
+        let current = self.mutable(Role::History(key, false), key.descriptor, device, counts)?;
+        let previous = self.mutable(Role::History(key, true), key.descriptor, device, counts)?;
+        let entry = Rc::new(History::new(current, previous, program.clone()));
+        self.history.insert(key, Rc::downgrade(&entry));
+        Ok(entry)
+    }
 }
 
 pub(super) fn prepare(
@@ -160,6 +192,7 @@ pub(super) fn prepare(
         textures: Default::default(),
         scratch: Default::default(),
         shaders: Default::default(),
+        history: Default::default(),
         outputs: Default::default(),
         conversion_slots: (0..plan.outputs().len()).collect(),
         presented_regions: Default::default(),
@@ -221,7 +254,7 @@ pub(super) fn prepare(
         };
         resources.textures.insert(external.id, texture);
     }
-    for pass in plan.passes() {
+    for (index, pass) in plan.passes().iter().enumerate() {
         for image in pass.operation.canvas_images() {
             let identity = std::sync::Arc::as_ptr(image) as usize;
             if resources.canvas_images.contains_key(&identity) {
@@ -241,15 +274,34 @@ pub(super) fn prepare(
             }
             resources.canvas_images.insert(identity, texture);
         }
-        resources.textures.insert(
-            pass.output,
+        let target = if plan.history_targets.contains(&pass.output) {
+            let RenderOperation::Shader { program, clock, .. } = &pass.operation else {
+                unreachable!("compiled history target is owned by a shader");
+            };
+            let history = cache.history(
+                HistoryKey {
+                    project: generation.identity.project,
+                    output: pass.output,
+                    clock: *clock,
+                    program: program.bytecode().as_ptr() as usize,
+                    descriptor: pass.descriptor,
+                },
+                program,
+                device,
+                counts,
+            )?;
+            let target = history.current.clone();
+            resources.history.insert(pass.output, (index, history));
+            target
+        } else {
             cache.mutable(
                 Role::Pass(generation.identity.project, pass.output),
                 pass.descriptor,
                 device,
                 counts,
-            )?,
-        );
+            )?
+        };
+        resources.textures.insert(pass.output, target);
         if matches!(&pass.operation, RenderOperation::Composite { layers } if layers.len() > 1) {
             resources.scratch.insert(
                 pass.id,

@@ -2,10 +2,10 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `████████░░` **83% — 121/145 checks accepted, 8/19 phases complete**.
-- **Latest delivered:** ISF multipass with named temporary textures, variable sizes, and float precision. Live Media input, project reopen and file replacement passed in Windows. [Checks](evidence/mapgyver-m18-isf-multipass-2026-11-19.json)
+- **Latest delivered:** Persistent ISF targets sample the previous frame. Windows verified accumulation, retention after Media edits and resets on buffer resize, source change and project reopen. [Checks](evidence/mapgyver-m18-isf-history-2026-11-19.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Add persistent ISF targets and ShaderToy Buffer passes, then editable uniforms (M18/4).
+- **Next:** Add ShaderToy Buffer passes, then editable uniforms (M18/4).
 
 ## Done — code and normal-use checks passed
 
@@ -22,6 +22,7 @@
 - [x] **Shader formats:** procedural ShaderToy Image and single-pass ISF playback. ISF metadata defaults and saved-project reload pass. Embedded shader code stays saved in File mode. [Checks](evidence/mapgyver-m18-shader-formats-2026-11-19.json)
 - [x] **Shader texture inputs:** pick up to four Media or Channels. Live updates, removal, Undo and project reload passed. [Checks](evidence/mapgyver-m18-shader-textures-2026-11-19.json)
 - [x] **ISF multipass:** ordered passes sample earlier named temporary textures. Live Media input, file replacement and reopening passed. [Checks](evidence/mapgyver-m18-isf-multipass-2026-11-19.json)
+- [x] **ISF previous-frame buffers:** verified accumulation, history across compatible edits, and clean resets. [Checks](evidence/mapgyver-m18-isf-history-2026-11-19.json)
 - [x] **Initial document/editors:** startup and New create and immediately show the automatic Screen and Surface. Hidden/reopened panels, saved targets/locks, reload and empty projects pass; no extra Undo steps.
 - [x] **Surface Editor display:** related Surfaces across Screens/References, independent toggles/locks, bounded paging, selection/Inspector and Undo/reload. ColorBars/Grid work without a source and obey its crop in Screen Warping/output mapping. Native patterns/contours, cropped ColorBars/Grid, mixed pattern/channel panels and70-Surface toolbar paging pass.
 - [x] **Surface-handle links:** same-Screen snapping/link/unlink, supplied colored/grey magnet and live updates of all peers. Five native drag/link/Undo cycles, three-member groups, held-pointer GPU images and foreground image/control alignment pass.
@@ -84,7 +85,7 @@
 
 [Remaining feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi), in order.
 
-4. **Shader Media.** Add persistent ISF targets, ShaderToy Buffer passes, typed uniforms and Shader Library browsing and drops.
+4. **Shader Media.** Add ShaderToy Buffer passes, typed uniforms and Shader Library browsing and drops.
 5. **Inspector selection.** Keep the Media inspected when adding a Channel, and inspect the Matrix Cell when adding Media to it.
 6. **Browser video previews.** Show live editor textures with Disabled, Auto, Forced Low Quality and Forced High Quality options.
 

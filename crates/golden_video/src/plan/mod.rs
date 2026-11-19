@@ -87,6 +87,16 @@ impl Layer {
     }
 }
 
+/// A fragment input is sampled either from this frame or from an earlier frame.
+#[cfg(all(windows, feature = "d3d11"))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShaderTexture {
+    /// Sample the current content of a declared texture.
+    Current(TextureId),
+    /// Sample the previous completed draw of an effect-owned shader target.
+    PreviousFrame(TextureId),
+}
+
 /// A generic pass operation; no app node or native handle crosses this boundary.
 #[derive(Clone, Debug)]
 pub enum RenderOperation {
@@ -98,7 +108,7 @@ pub enum RenderOperation {
         /// Validated fragment bytecode and its input layout.
         program: crate::shader::FragmentProgram,
         /// Linear premultiplied 2D textures. Empty slots sample transparent black.
-        inputs: [Option<TextureId>; crate::shader::TEXTURE_BINDINGS],
+        inputs: [Option<ShaderTexture>; crate::shader::TEXTURE_BINDINGS],
         /// Stages of the same effect share their frame index and frame delta.
         clock: PassId,
         /// The logical pass index within this effect, even if earlier unused draws are pruned.
@@ -159,19 +169,47 @@ impl RenderOperation {
     }
 
     pub(crate) fn sources(&self) -> impl Iterator<Item = TextureId> + '_ {
-        let (sample, layers, regions, inputs) = match self {
+        let (sample, layers, regions) = match self {
             #[cfg(all(windows, feature = "d3d11"))]
-            Self::Shader { inputs, .. } => (None, &[][..], &[][..], inputs.as_slice()),
-            Self::Clear(_) | Self::Retain => (None, &[][..], &[][..], &[][..]),
-            Self::Sample { source, .. } => (Some(*source), &[][..], &[][..], &[][..]),
-            Self::Composite { layers } => (None, layers.as_slice(), &[][..], &[][..]),
-            Self::Regions { regions, .. } => (None, &[][..], regions.as_slice(), &[][..]),
+            Self::Shader { .. } => (None, &[][..], &[][..]),
+            Self::Clear(_) | Self::Retain => (None, &[][..], &[][..]),
+            Self::Sample { source, .. } => (Some(*source), &[][..], &[][..]),
+            Self::Composite { layers } => (None, layers.as_slice(), &[][..]),
+            Self::Regions { regions, .. } => (None, &[][..], regions.as_slice()),
         };
+        #[cfg(all(windows, feature = "d3d11"))]
+        let current = self.shader_sources(false);
+        #[cfg(not(all(windows, feature = "d3d11")))]
+        let current = std::iter::empty();
         sample
             .into_iter()
             .chain(layers.iter().filter_map(|layer| layer.source.texture()))
             .chain(regions.iter().map(|region| region.source))
-            .chain(inputs.iter().flatten().copied())
+            .chain(current)
+    }
+
+    pub(crate) fn history_sources(&self) -> impl Iterator<Item = TextureId> + '_ {
+        #[cfg(all(windows, feature = "d3d11"))]
+        return self.shader_sources(true);
+        #[cfg(not(all(windows, feature = "d3d11")))]
+        std::iter::empty()
+    }
+
+    #[cfg(all(windows, feature = "d3d11"))]
+    fn shader_sources(&self, history: bool) -> impl Iterator<Item = TextureId> + '_ {
+        let inputs = match self {
+            Self::Shader { inputs, .. } => inputs.as_slice(),
+            _ => &[],
+        };
+        inputs.iter().flatten().filter_map(move |source| match source {
+            ShaderTexture::Current(id) if !history => Some(*id),
+            ShaderTexture::PreviousFrame(id) if history => Some(*id),
+            _ => None,
+        })
+    }
+
+    pub(crate) fn demand_sources(&self) -> impl Iterator<Item = TextureId> + '_ {
+        self.sources().chain(self.history_sources())
     }
 }
 
@@ -492,6 +530,8 @@ pub struct CompiledPlan {
     passes: Box<[RenderPass]>,
     outputs: Box<[PlanOutput]>,
     footprint: TextureFootprint,
+    #[cfg(all(windows, feature = "d3d11"))]
+    pub(crate) history_targets: std::collections::BTreeSet<TextureId>,
     // Last field: signal final-use release after all immutable plan inputs are dropped too.
     pub(crate) lifetime: Option<crate::runtime::PlanLifetime>,
 }

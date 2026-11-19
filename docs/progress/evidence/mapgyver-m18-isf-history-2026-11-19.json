@@ -1,0 +1,25 @@
+{
+	"date": "2026-11-19",
+	"gate": "M18/4",
+	"result": "pass",
+	"scope": "Previous-frame ISF sampling, active history across compatible plan updates, and reset on incompatible changes.",
+	"software": {
+		"goldenVideoTestsPassed": 13,
+		"mapGyverTestsPassed": 12,
+		"checks": "Previous-only forward dependencies, cross-effect rejection, one charged snapshot per history target, a self-reading final ISF pass, presentation and Composition regressions, generated TypeScript parity, formatting, strict Clippy and default Windows build."
+	},
+	"d3d11": {
+		"testsPassed": 4,
+		"historyCheck": "GPU readback verified a transparent first snapshot, preservation on repeated timestamps, and the latest prior draw after advancing the timestamp."
+	},
+	"windowsApp": {
+		"adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+		"physicalWindowsOpened": 0,
+		"independentSpoutFrames": 36,
+		"historyScenarios": 7,
+		"extent": [96, 64],
+		"checks": "A persistent target accumulated green across frames while preserving its initial red seed after the Media changed to blue. Resizing seeded blue, and a compatible edit back to red preserved it. File replacement seeded red. Reopening the project seeded blue again.",
+		"receipt": "target/m18-isf-history-native/run-ZVZzdm/result.json"
+	},
+	"remaining": "ShaderToy Buffer passes, editable typed uniforms and Shader Library imports. M18/4 remains Active."
+}

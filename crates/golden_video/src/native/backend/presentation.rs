@@ -32,6 +32,8 @@ impl Output {
 
 pub(super) struct Presentation {
     dependencies: Vec<Vec<usize>>,
+    history_dependencies: Vec<Vec<usize>>,
+    pending_passes: Vec<usize>,
     watches: Vec<Watch>,
     outputs: Vec<Output>,
     passes: Vec<bool>,
@@ -49,6 +51,16 @@ impl Presentation {
             .map(|pass| {
                 pass.operation
                     .sources()
+                    .filter_map(|source| producers.get(&source).copied())
+                    .collect()
+            })
+            .collect();
+        let history_dependencies = plan
+            .passes()
+            .iter()
+            .map(|pass| {
+                pass.operation
+                    .history_sources()
                     .filter_map(|source| producers.get(&source).copied())
                     .collect()
             })
@@ -106,6 +118,8 @@ impl Presentation {
         }
         Self {
             dependencies,
+            history_dependencies,
+            pending_passes: Vec::with_capacity(plan.passes().len()),
             watches,
             outputs,
             passes: vec![false; plan.passes().len()],
@@ -149,8 +163,11 @@ impl Presentation {
             if output.demand != OutputDemand::Draw {
                 continue;
             }
-            if let Some(producer) = output.producer {
+            if let Some(producer) = output.producer
+                && !self.passes[producer]
+            {
                 self.passes[producer] = true;
+                self.pending_passes.push(producer);
             }
             if presentation {
                 for (watch, presented) in &output.watches {
@@ -167,13 +184,15 @@ impl Presentation {
                 self.dirty[index] |= changed_dependency;
             }
         }
-        for index in (0..self.passes.len()).rev() {
-            if self.passes[index] {
-                for &dependency in &self.dependencies[index] {
-                    // A skipped branch may still contain pixels from an older content batch.
-                    self.passes[dependency] |= self.dirty[dependency] || !self.current[dependency];
+        while let Some(index) = self.pending_passes.pop() {
+            self.current[index] = true;
+            // Delayed edges can point forward or form cycles. Each producer joins the mask once.
+            for &dependency in self.dependencies[index].iter().chain(&self.history_dependencies[index]) {
+                // A skipped branch may still contain pixels from an older content batch.
+                if !self.passes[dependency] && (self.dirty[dependency] || !self.current[dependency]) {
+                    self.passes[dependency] = true;
+                    self.pending_passes.push(dependency);
                 }
-                self.current[index] = true;
             }
         }
         for watch in &mut self.watches {

@@ -5,7 +5,7 @@ use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::Value;
 
 use super::TEXTURE_NAMES;
-use crate::shader::stages::{Dimension, Stage};
+use crate::shader::stages::{Dimension, FragmentBuffer, Stage};
 use crate::shader::{CompileError, TEMPORARY_BUFFERS, TEXTURE_INPUTS};
 
 const MAX_INPUTS: usize = 64;
@@ -151,21 +151,14 @@ fn stages<'a>(
     declarations: &mut String,
 ) -> Result<Vec<Stage>, CompileError> {
     let mut slots = HashMap::new();
-    let mut previous = [None; TEMPORARY_BUFFERS];
-    let mut result = Vec::with_capacity(passes.len());
+    let mut last_writer = [None; TEMPORARY_BUFFERS];
+    let mut persistent = [false; TEMPORARY_BUFFERS];
     for (index, pass) in passes.iter().enumerate() {
-        if pass.persistent.as_ref().is_some_and(Flag::enabled) {
-            return Err(invalid("ISF persistent buffers require frame history"));
-        }
-        result.push(Stage {
-            size: [
-                pass.width.as_ref().map(|size| size.parse(defaults)).transpose()?,
-                pass.height.as_ref().map(|size| size.parse(defaults)).transpose()?,
-            ],
-            float: pass.float.as_ref().is_some_and(Flag::enabled),
-            previous,
-        });
+        let persists = pass.persistent.as_ref().is_some_and(Flag::enabled);
         let Some(name) = pass.target.as_deref() else {
+            if persists {
+                return Err(invalid("A persistent ISF pass requires a TARGET"));
+            }
             if index + 1 < passes.len() {
                 return Err(invalid("Each intermediate ISF pass requires a TARGET"));
             }
@@ -186,9 +179,32 @@ fn stages<'a>(
                 slot
             }
         };
-        previous[slot] = Some(index as u8);
+        last_writer[slot] = Some(index as u8);
+        persistent[slot] |= persists;
     }
-    Ok(result)
+    let mut previous = std::array::from_fn(|slot| {
+        last_writer[slot]
+            .filter(|_| persistent[slot])
+            .map(FragmentBuffer::PreviousFrame)
+    });
+    passes
+        .iter()
+        .enumerate()
+        .map(|(index, pass)| {
+            let stage = Stage {
+                size: [
+                    pass.width.as_ref().map(|size| size.parse(defaults)).transpose()?,
+                    pass.height.as_ref().map(|size| size.parse(defaults)).transpose()?,
+                ],
+                float: pass.float.as_ref().is_some_and(Flag::enabled),
+                buffers: previous,
+            };
+            if let Some(name) = pass.target.as_deref() {
+                previous[slots[name]] = Some(FragmentBuffer::EarlierPass(index as u8));
+            }
+            Ok(stage)
+        })
+        .collect()
 }
 
 fn valid_name(name: &str) -> bool {

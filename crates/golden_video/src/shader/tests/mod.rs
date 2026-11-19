@@ -1,4 +1,4 @@
-use super::{CompileError, FragmentFormat, FragmentProgram, MAX_SOURCE_BYTES};
+use super::{CompileError, FragmentBuffer, FragmentFormat, FragmentProgram, MAX_SOURCE_BYTES};
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor};
 
 #[test]
@@ -13,10 +13,7 @@ fn translates_glsl_with_pixel_coordinates_and_frame_input_to_d3d11() {
 #[test]
 fn rejects_unsupported_isf_passes_and_resources_explicitly() {
     for (header, diagnostic) in [
-        (
-            r#"{"PASSES":[{"TARGET":"buffer","PERSISTENT":true},{}]}"#,
-            "frame history",
-        ),
+        (r#"{"PASSES":[{"PERSISTENT":true}]}"#, "requires a TARGET"),
         (r#"{"PASSES":[{},{}]}"#, "requires a TARGET"),
         (
             r#"{"PASSES":[{"TARGET":"buffer","WIDTH":"$WIDTH/foo"},{}]}"#,
@@ -66,12 +63,41 @@ fn isf_layout_resolves_dimensions_precision_and_latest_earlier_writer() {
     assert_eq!(passes.len(), 3);
     assert_eq!(passes[0].target.extent, Extent2D::new(48, 20).unwrap());
     assert_eq!(passes[0].target.format, PixelFormat::Rgba32Float);
-    assert_eq!(passes[0].previous, [None; 4]);
+    assert_eq!(passes[0].buffers, [None; 4]);
     assert_eq!(passes[1].target.extent, Extent2D::new(12, 10).unwrap());
-    assert_eq!(passes[1].previous, [Some(0), None, None, None]);
+    assert_eq!(
+        passes[1].buffers,
+        [Some(FragmentBuffer::EarlierPass(0)), None, None, None]
+    );
     assert_eq!(passes[2].target, target);
-    assert_eq!(passes[2].previous, [Some(1), None, None, None]);
+    assert_eq!(
+        passes[2].buffers,
+        [Some(FragmentBuffer::EarlierPass(1)), None, None, None]
+    );
     assert!(program.sampled_bindings()[super::TEXTURE_INPUTS]);
+}
+
+#[test]
+fn isf_persistent_reads_the_last_writer_before_the_first_write_of_each_frame() {
+    let program = FragmentProgram::compile(
+        FragmentFormat::Isf,
+        r#"/*{
+            "PASSES":[{"TARGET":"state","PERSISTENT":true}, {"TARGET":"state"}, {}]
+        }*/
+        void main() { gl_FragColor = IMG_THIS_NORM_PIXEL(state); }"#,
+    )
+    .unwrap();
+    let stages = program
+        .stage_layout(TextureDescriptor {
+            extent: Extent2D::new(16, 16).unwrap(),
+            format: PixelFormat::Rgba8Unorm,
+            color_encoding: ColorEncoding::Linear,
+            alpha_mode: AlphaMode::Premultiplied,
+        })
+        .unwrap();
+    assert_eq!(stages[0].buffers[0], Some(FragmentBuffer::PreviousFrame(1)));
+    assert_eq!(stages[1].buffers[0], Some(FragmentBuffer::EarlierPass(0)));
+    assert_eq!(stages[2].buffers[0], Some(FragmentBuffer::EarlierPass(1)));
 }
 
 #[test]

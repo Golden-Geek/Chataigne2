@@ -1,6 +1,7 @@
 #[cfg(feature = "qualification")]
 pub(in crate::native) mod copy_tap;
 mod envelope;
+mod history;
 mod images;
 mod input_observation;
 mod inputs;

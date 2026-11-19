@@ -461,6 +461,64 @@ try {
 	await rename(`${multipassPath}.new`, multipassPath);
 	await delay(750);
 	await observer.observePixels('isf-multipass-layout-restored', [255, 255, 0, 255]);
+
+	stage = 'accumulate ISF history and preserve it across compatible Media edits';
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Medias$/ })
+		.click();
+	await manager.getByRole('button', { name: 'Shader', exact: true }).click();
+	await shaderTab.click();
+	const persistentName = 'Persistent.isf';
+	const persistentPath = path.join(directory, persistentName);
+	const persistent = `/*{
+		"INPUTS":[{"NAME":"inputImage","TYPE":"image"}],
+		"PASSES":[{"TARGET":"trail","PERSISTENT":true,"WIDTH":"$WIDTH/2","HEIGHT":"$HEIGHT/2"},{}]
+	}*/
+	void main() {
+		vec4 old = IMG_THIS_NORM_PIXEL(trail);
+		if (PASSINDEX == 0) {
+			if (old.a == 0.0) {
+				vec4 initial = IMG_THIS_NORM_PIXEL(inputImage);
+				gl_FragColor = vec4(initial.r, 0.0, initial.b, 1.0);
+			} else {
+				gl_FragColor = vec4(old.r, min(1.0, old.g + 0.25), old.b, 1.0);
+			}
+		} else {
+			gl_FragColor = old;
+		}
+	}`;
+	await writeFile(persistentPath, persistent);
+	await file.fill(persistentName);
+	await file.press('Enter');
+	await delay(750);
+	await observer.observePixels('isf-history-accumulates-across-frames', [255, 255, 0, 255]);
+	await color(firstTexture, [0, 0, 1, 1]);
+	await delay(750);
+	await observer.observePixels('isf-history-survives-compatible-replan', [255, 255, 0, 255]);
+
+	stage = 'reset ISF history on resize, changed code and project reopen';
+	await mediaOperation({
+		kind: 'ConfigureMediaResolution',
+		media: reference.media,
+		size: { kind: 'Fixed', extent: { width: 80, height: 40 } }
+	});
+	await delay(750);
+	await observer.observePixels('isf-resized-history-seeds-from-blue', [0, 255, 255, 255]);
+	await color(firstTexture, [1, 0, 0, 1]);
+	await delay(750);
+	await observer.observePixels('isf-resized-history-survives-replan', [0, 255, 255, 255]);
+	await writeFile(`${persistentPath}.new`, `${persistent}\n// replacement source revision\n`);
+	await rename(`${persistentPath}.new`, persistentPath);
+	await delay(750);
+	await observer.observePixels('isf-history-reseeds-after-code-change', [255, 255, 0, 255]);
+	await color(firstTexture, [0, 0, 1, 1]);
+	await delay(750);
+	await observer.observePixels('isf-history-before-reopen', [255, 255, 0, 255]);
+	assert((await post('/api/ui/project-save', { path: project })).ok);
+	assert.equal(path.resolve((await post('/api/ui/project-load', { path: project })).path), project);
+	await delay(750);
+	await observer.observePixels('isf-history-reseeds-after-reopen', [0, 255, 255, 255]);
 	assert.deepEqual(errors, []);
 	assert(!appLog.includes('[mapgyver-output] window id='));
 	await writeFile(

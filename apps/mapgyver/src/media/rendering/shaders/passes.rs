@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use golden_video::plan::{RenderOperation, RenderPass, SampleFilter};
-use golden_video::shader::{FragmentProgram, FragmentStage, TEXTURE_INPUTS};
+use golden_video::plan::{RenderOperation, RenderPass, SampleFilter, ShaderTexture};
+use golden_video::shader::{FragmentBuffer, FragmentProgram, FragmentStage, TEXTURE_INPUTS};
 use golden_video::{AlphaMode, ColorEncoding, PassId, PixelFormat, TextureDescriptor, TextureId};
 
 use crate::media::capture::CapturedChannels;
@@ -103,7 +103,7 @@ impl<'a> Passes<'a> {
             .iter()
             .map(|stage| {
                 stage
-                    .previous
+                    .buffers
                     .iter()
                     .zip(&sampled[TEXTURE_INPUTS..])
                     .filter(|(source, used)| source.is_some() && **used)
@@ -129,6 +129,8 @@ impl<'a> Passes<'a> {
             temporary.push(plan::allocate(next)?);
         }
         let clock = PassId::new(entry.target.get()).expect("nonzero channel target");
+        let channel_target = entry.target;
+        let target = |stage: u8| temporary.get(usize::from(stage)).copied().unwrap_or(channel_target);
         let used = self.program.sampled_bindings();
         let operation = |index: usize, stage: &FragmentStage| RenderOperation::Shader {
             program: self.program.clone(),
@@ -137,9 +139,12 @@ impl<'a> Passes<'a> {
                     return None;
                 }
                 if slot < TEXTURE_INPUTS {
-                    media[slot]
+                    media[slot].map(ShaderTexture::Current)
                 } else {
-                    stage.previous[slot - TEXTURE_INPUTS].map(|writer| temporary[usize::from(writer)])
+                    stage.buffers[slot - TEXTURE_INPUTS].map(|buffer| match buffer {
+                        FragmentBuffer::EarlierPass(writer) => ShaderTexture::Current(target(writer)),
+                        FragmentBuffer::PreviousFrame(writer) => ShaderTexture::PreviousFrame(target(writer)),
+                    })
                 }
             }),
             clock,

@@ -53,7 +53,7 @@ impl FragmentProgram {
     }
 
     /// Compile fragment source and its pass layout away from render and engine threads.
-    /// ShaderToy supports Image passes. ISF supports ordered temporary buffers and input defaults.
+    /// ShaderToy supports Image passes. ISF supports ordered passes, frame history and input defaults.
     /// Both dialects receive bottom-left coordinates, frame timing and up to four 2D inputs.
     pub fn compile(format: FragmentFormat, source: &str) -> Result<Self, CompileError> {
         if source.trim().is_empty() || source.len() > MAX_SOURCE_BYTES {

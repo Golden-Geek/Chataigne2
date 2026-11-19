@@ -97,6 +97,13 @@ pub enum PlanError {
         /// Input texture requiring conversion.
         source: TextureId,
     },
+    /// A delayed read may only address a shader target in the same effect.
+    InvalidShaderHistory {
+        /// Shader pass using the historical input.
+        pass: PassId,
+        /// Texture that is outside the effect.
+        source: TextureId,
+    },
     /// A replacement blit contains an invalid normalized source or destination rectangle.
     InvalidRegion {
         /// Pass containing the malformed region, even if it is currently undemanded.
@@ -190,6 +197,12 @@ impl fmt::Display for PlanError {
             Self::InvalidShaderInput { pass, source } => write!(
                 formatter,
                 "shader pass {} input {} must be linear and premultiplied",
+                pass.get(),
+                source.get()
+            ),
+            Self::InvalidShaderHistory { pass, source } => write!(
+                formatter,
+                "shader pass {} history input {} must be written by the same effect",
                 pass.get(),
                 source.get()
             ),

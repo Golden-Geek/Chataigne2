@@ -3,6 +3,8 @@ use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat};
 
 mod canvas;
 mod envelope;
+#[cfg(all(windows, feature = "d3d11"))]
+mod history;
 mod mapping;
 mod pattern;
 mod placement;

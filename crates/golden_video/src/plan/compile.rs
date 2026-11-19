@@ -126,9 +126,17 @@ pub(super) fn compile(
         }
     }
     let ordered = topological_order(&plan, &pass_indices, &resources)?;
+    #[cfg(all(windows, feature = "d3d11"))]
+    validate_shader_history(&plan, &resources)?;
     let mut demanded = demanded_textures(&plan, &resources);
     demanded.extend(source_demands.iter().copied());
-    let footprint = footprint(&demanded, &resources, &plan, limits.max_texture_bytes)?;
+    let history_targets = plan
+        .passes
+        .iter()
+        .filter(|pass| demanded.contains(&pass.output))
+        .flat_map(|pass| pass.operation.history_sources())
+        .collect::<BTreeSet<_>>();
+    let footprint = footprint(&demanded, &history_targets, &resources, &plan, limits.max_texture_bytes)?;
     let mut rank = vec![0; plan.passes.len()];
     for (position, index) in ordered.into_iter().enumerate() {
         rank[index] = position;
@@ -155,7 +163,28 @@ pub(super) fn compile(
         passes: plan.passes.into_boxed_slice(),
         outputs: plan.outputs.into_boxed_slice(),
         footprint,
+        #[cfg(all(windows, feature = "d3d11"))]
+        history_targets,
     })
+}
+
+#[cfg(all(windows, feature = "d3d11"))]
+fn validate_shader_history(plan: &RenderPlan, resources: &BTreeMap<TextureId, Resource>) -> Result<(), PlanError> {
+    for pass in &plan.passes {
+        let RenderOperation::Shader { clock, .. } = &pass.operation else {
+            continue;
+        };
+        for source in pass.operation.history_sources() {
+            let owner = resources.get(&source).and_then(|resource| match resource.writer {
+                Writer::Pass(index) => Some(&plan.passes[index].operation),
+                Writer::External => None,
+            });
+            if !matches!(owner, Some(RenderOperation::Shader { clock: owner, .. }) if owner == clock) {
+                return Err(PlanError::InvalidShaderHistory { pass: pass.id, source });
+            }
+        }
+    }
+    Ok(())
 }
 
 fn check_submitted_work(plan: &RenderPlan, limits: &PlanLimits) -> Result<(), PlanError> {
@@ -281,7 +310,7 @@ fn demanded_textures(plan: &RenderPlan, resources: &BTreeMap<TextureId, Resource
     }
     while let Some(id) = pending.pop() {
         if let Writer::Pass(index) = resources[&id].writer {
-            for source in plan.passes[index].operation.sources() {
+            for source in plan.passes[index].operation.demand_sources() {
                 if demanded.insert(source) {
                     pending.push(source);
                 }
@@ -293,6 +322,7 @@ fn demanded_textures(plan: &RenderPlan, resources: &BTreeMap<TextureId, Resource
 
 fn footprint(
     demanded: &BTreeSet<TextureId>,
+    history: &BTreeSet<TextureId>,
     resources: &BTreeMap<TextureId, Resource>,
     plan: &RenderPlan,
     limit: u64,
@@ -306,6 +336,12 @@ fn footprint(
         };
         *bytes = bytes
             .checked_add(resource.bytes)
+            .ok_or(PlanError::TextureFootprintOverflow)?;
+    }
+    for id in history {
+        footprint.target_texture_bytes = footprint
+            .target_texture_bytes
+            .checked_add(resources[id].bytes)
             .ok_or(PlanError::TextureFootprintOverflow)?;
     }
     let mut images = BTreeSet::new();
