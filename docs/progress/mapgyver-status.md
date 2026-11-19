@@ -2,8 +2,8 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `█████████░` **86% — 118/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** Legacy and DXV3 playback in Video channels, including High Quality.
-- **Working on next:** MKV track sync during playback and loops.
+- **Latest delivered:** MKV audio and subtitle track switching and sync through hard and smooth cropped loops.
+- **Working on next:** Extended-format file replacement and recovery during playback.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -46,6 +46,7 @@
 - [x] **MKV playback with track selection.** Verified H.264 with stereo PCM and embedded SubRip. Choose **Inspector → Channels → [channel name] → Audio → Track** to switch tracks during playback. Automatic follows the file’s default, and a missing explicit track is silent. Selections survived reload. [Checks](evidence/mapgyver-m10-mkv-tracks-2026-11-19.json)
 - [x] **WebP playback.** Open a still or animated WebP as a Video channel File. Lossless and lossy transparency, variable frame durations, seeking and looping passed on native output. [Checks](evidence/mapgyver-m10-webp-2026-11-19.json)
 - [x] **DXV playback.** Open DXV MOV files as a Video channel File. Legacy and DXV3 Normal and High Quality passed native pixel checks. Normal Quality playback, seeking and translucent compositing passed. [Checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
+- [x] **Moving MKV tracks and loops.** HEVC with two Opus and two SubRip tracks passed live switching and cropped hard and smooth loops. Native picture and caption samples matched the corresponding WASAPI mixer signals. [Checks](evidence/mapgyver-m10-mkv-loop-2026-11-19.json)
 - [x] **Editor manipulation:** the smoothness improvements you accepted in Screen Warping, Surface Source and Composition.
 - [x] **Editor feedback — functional:** shared120ms hover/selection paint, softer handles, keyboard cues and reduced motion. Geometry/input stay immediate; browser and native Screen/Source input checks pass.
 - [x] **App presentation:** MapGyver identity/icon, official calibration pattern, font/menu/Inspector improvements and thumbnail Fit behavior.
@@ -65,7 +66,7 @@
 
 ## Next features — implementation order
 
-1. **NOW — Extended Video formats.** Verify MKV subtitle and audio sync during moving playback, crop and loops. Complete remaining codec, recovery and performance checks, including translucent DXV3 High Quality on native output.
+1. **NOW — Extended Video formats.** Verify file replacement and recovery during playback. Complete remaining codec and performance checks, including translucent DXV3 High Quality on native output.
 2. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order
