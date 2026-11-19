@@ -47,6 +47,7 @@ pub(crate) fn capture_editor_channels(
             instances: None,
             instance_guards: vec![],
             matrix: None,
+            shader_inputs: Default::default(),
         };
         if let Ok(root) = crate::matrix::playback::root(engine, media)
             && let Some(AppNode::MediaChannel(root)) = engine.nodes.get(root)

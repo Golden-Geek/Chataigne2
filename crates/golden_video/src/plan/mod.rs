@@ -94,7 +94,12 @@ pub enum RenderOperation {
     Clear(LinearColor),
     /// Draw a compiled fragment program over the entire target on each demanded frame.
     #[cfg(all(windows, feature = "d3d11"))]
-    Shader(crate::shader::FragmentProgram),
+    Shader {
+        /// Validated fragment bytecode and its input layout.
+        program: crate::shader::FragmentProgram,
+        /// Linear premultiplied 2D textures. Empty slots sample transparent black.
+        inputs: [Option<TextureId>; crate::shader::TEXTURE_INPUTS],
+    },
     /// Keep an existing pass target's image in the same project and device. If its exact
     /// ID and descriptor do not still own a written allocation, initialize it to transparent.
     Retain,
@@ -135,7 +140,7 @@ impl RenderOperation {
     fn dependency_count(&self) -> usize {
         match self {
             #[cfg(all(windows, feature = "d3d11"))]
-            Self::Shader(_) => 1,
+            Self::Shader { inputs, .. } => 1 + inputs.iter().flatten().count(),
             Self::Clear(_) | Self::Retain => 0,
             Self::Sample { .. } => 1,
             Self::Composite { layers } => layers.iter().fold(0_usize, |count, layer| {
@@ -150,18 +155,19 @@ impl RenderOperation {
     }
 
     pub(crate) fn sources(&self) -> impl Iterator<Item = TextureId> + '_ {
-        let (sample, layers, regions) = match self {
+        let (sample, layers, regions, inputs) = match self {
             #[cfg(all(windows, feature = "d3d11"))]
-            Self::Shader(_) => (None, &[][..], &[][..]),
-            Self::Clear(_) | Self::Retain => (None, &[][..], &[][..]),
-            Self::Sample { source, .. } => (Some(*source), &[][..], &[][..]),
-            Self::Composite { layers } => (None, layers.as_slice(), &[][..]),
-            Self::Regions { regions, .. } => (None, &[][..], regions.as_slice()),
+            Self::Shader { inputs, .. } => (None, &[][..], &[][..], inputs.as_slice()),
+            Self::Clear(_) | Self::Retain => (None, &[][..], &[][..], &[][..]),
+            Self::Sample { source, .. } => (Some(*source), &[][..], &[][..], &[][..]),
+            Self::Composite { layers } => (None, layers.as_slice(), &[][..], &[][..]),
+            Self::Regions { regions, .. } => (None, &[][..], regions.as_slice(), &[][..]),
         };
         sample
             .into_iter()
             .chain(layers.iter().filter_map(|layer| layer.source.texture()))
             .chain(regions.iter().map(|region| region.source))
+            .chain(inputs.iter().flatten().copied())
     }
 }
 

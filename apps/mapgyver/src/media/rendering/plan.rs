@@ -430,18 +430,37 @@ pub(super) fn build(
                 Some(ChannelSource::Shader {
                     format: _format,
                     input: _input,
+                    ..
                 }) => {
                     entry.source = None;
                     resolution =
                         resolution::resolve(channel.definition.as_ref().unwrap(), SourceObservation::Unavailable)?;
                     #[cfg(all(windows, feature = "native-video"))]
-                    match shaders.map_or(Ok(None), |shaders| shaders.program(*_format, _input)) {
-                        Ok(Some(program)) => {
-                            resolution.availability = ChannelAvailability::Ready;
-                            operation = RenderOperation::Shader(program.clone());
+                    if rejected.contains(&reference) {
+                        resolution.availability = ChannelAvailability::Incompatible;
+                    } else {
+                        match shaders.map_or(Ok(None), |shaders| shaders.program(*_format, _input)) {
+                            Ok(Some(program)) => {
+                                let sampled = program.sampled_inputs();
+                                let inputs = std::array::from_fn(|slot| {
+                                    let input = channel.shader_inputs[slot]?;
+                                    if !sampled[slot] {
+                                        return None;
+                                    }
+                                    prepared_channels
+                                        .get(&input)
+                                        .filter(|input| input.resolution.availability == ChannelAvailability::Ready)
+                                        .map(|input| input.target)
+                                });
+                                resolution.availability = ChannelAvailability::Ready;
+                                operation = RenderOperation::Shader {
+                                    program: program.clone(),
+                                    inputs,
+                                };
+                            }
+                            Err(availability) => resolution.availability = availability,
+                            Ok(_) => {}
                         }
-                        Err(availability) => resolution.availability = availability,
-                        Ok(_) => {}
                     }
                 }
                 Some(ChannelSource::Matrix { .. }) => {

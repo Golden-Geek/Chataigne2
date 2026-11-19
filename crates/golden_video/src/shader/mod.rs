@@ -6,6 +6,9 @@ use ts_rs::TS;
 /// Maximum size of one authored fragment program, before translation.
 pub const MAX_SOURCE_BYTES: usize = 128 * 1024;
 
+/// Maximum number of sampled 2D input textures in a fragment pass.
+pub const TEXTURE_INPUTS: usize = 4;
+
 /// Source dialect for a GPU fragment program.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Deserialize, Serialize, TS)]
 pub enum FragmentFormat {

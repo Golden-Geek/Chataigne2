@@ -98,6 +98,7 @@ function visible(child: UiNodeDto) {
 		return (
 			field === 'shader_format' ||
 			field === 'shader_input' ||
+			field?.startsWith('shader_texture_') === true ||
 			field === (choice('shader_input') === 'File' ? 'shader_file' : 'shader_code')
 		);
 	if (source === 'Picture') return field === 'file';

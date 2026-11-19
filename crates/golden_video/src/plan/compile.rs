@@ -15,6 +15,7 @@ enum Writer {
 struct Resource {
     writer: Writer,
     bytes: u64,
+    compositing_contract: bool,
 }
 
 pub(super) fn compile(
@@ -68,7 +69,7 @@ pub(super) fn compile(
                 }
             }
         }
-        insert_resource(&mut resources, texture.id, Writer::External, bytes)?;
+        insert_resource(&mut resources, texture.id, Writer::External, bytes, texture.descriptor)?;
     }
     for (index, pass) in plan.passes.iter().enumerate() {
         let bytes = validate_descriptor(pass.output, &pass.descriptor, limits)?;
@@ -98,7 +99,7 @@ pub(super) fn compile(
                 }
             }
         }
-        insert_resource(&mut resources, pass.output, Writer::Pass(index), bytes)?;
+        insert_resource(&mut resources, pass.output, Writer::Pass(index), bytes, pass.descriptor)?;
     }
 
     let mut output_ids = BTreeSet::new();
@@ -205,8 +206,14 @@ fn insert_resource(
     id: TextureId,
     writer: Writer,
     bytes: u64,
+    descriptor: TextureDescriptor,
 ) -> Result<(), PlanError> {
-    if resources.insert(id, Resource { writer, bytes }).is_some() {
+    let resource = Resource {
+        writer,
+        bytes,
+        compositing_contract: descriptor.is_compositing_target(),
+    };
+    if resources.insert(id, resource).is_some() {
         return Err(PlanError::DuplicateTextureWriter(id));
     }
     Ok(())
@@ -220,10 +227,17 @@ fn topological_order(
     let mut dependents = vec![Vec::new(); plan.passes.len()];
     let mut indegrees = vec![0_usize; plan.passes.len()];
     for (index, pass) in plan.passes.iter().enumerate() {
+        #[cfg(all(windows, feature = "d3d11"))]
+        let shader = matches!(pass.operation, RenderOperation::Shader { .. });
+        #[cfg(not(all(windows, feature = "d3d11")))]
+        let shader = false;
         for source in pass.operation.sources() {
             let resource = resources
                 .get(&source)
                 .ok_or(PlanError::MissingPassInput { pass: pass.id, source })?;
+            if shader && !resource.compositing_contract {
+                return Err(PlanError::InvalidShaderInput { pass: pass.id, source });
+            }
             if let Writer::Pass(producer) = resource.writer {
                 dependents[producer].push(index);
                 indegrees[index] = indegrees[index]

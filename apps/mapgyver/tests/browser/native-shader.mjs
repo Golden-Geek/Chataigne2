@@ -40,6 +40,17 @@ async function graph() {
 	return (await post('/api/ui/snapshot', { scope: 'wholeGraph' })).nodes;
 }
 
+async function mediaOperation(payload) {
+	const ack = await post('/api/ui/intent', {
+		kind: 'invokeAppOperation',
+		namespace: 'mapgyver.media',
+		operation: 'edit',
+		payload
+	});
+	assert(ack.success, JSON.stringify(ack));
+	return ack.result.value;
+}
+
 async function waitFor(check) {
 	const deadline = performance.now() + 6000;
 	while (!(await check())) {
@@ -280,6 +291,119 @@ try {
 	assert.equal(path.resolve((await post('/api/ui/project-load', { path: project })).path), project);
 	await delay(750);
 	await observer.observePixels('reloaded-isf-format-file', [0, 255, 255, 255]);
+
+	stage = 'bind a Media and an exact Channel through the texture pickers';
+	const { reference: firstTexture } = await mediaOperation({
+		kind: 'CreateMedia',
+		media_kind: 'SolidColor',
+		label: 'Shader Texture Source'
+	});
+	const { reference: otherTexture } = await mediaOperation({
+		kind: 'AddChannel',
+		media: firstTexture.media,
+		label: 'Shader Texture Green'
+	});
+	const color = (reference, rgba) =>
+		mediaOperation({ kind: 'ConfigureChannel', reference, source: { kind: 'SolidColor', rgba } });
+	await color(firstTexture, [1, 0, 0, 1]);
+	await color(otherTexture, [0, 1, 0, 1]);
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Medias$/ })
+		.click();
+	await manager.getByRole('button', { name: 'Shader', exact: true }).click();
+	await shaderTab.click();
+	await source.selectOption('Embedded');
+	await format.selectOption('ShaderToy');
+	const sampler = [
+		'void mainImage(out vec4 color, in vec2 p) {',
+		'    vec2 uv = p / iResolution.xy;',
+		'    vec4 first = texture(iChannel0, uv);',
+		'    vec4 second = texture(iChannel3, uv);',
+		'    color = vec4(first.rgb + second.rgb, max(first.a, second.a));',
+		'}'
+	].join('\n');
+	await codeEditor.fill(sampler);
+	await panel.getByRole('button', { name: 'Apply shader', exact: true }).click();
+	await waitFor(
+		async () =>
+			(await graph()).find((node) => node.uuid === code.uuid)?.data.param.value.Str === sampler
+	);
+	await delay(500);
+	await observer.observePixels('unbound-shader-inputs', [0, 0, 0, 0]);
+	await panel.getByText('Texture inputs', { exact: true }).click();
+	const pickTexture = async (slot, label, target) => {
+		const nodes = await graph();
+		const owner = nodes.find((node) => node.uuid === channel.uuid);
+		const folder = nodes.find(
+			(node) => owner.children.includes(node.node_id) && node.decl_id === 'parameters'
+		);
+		const parameter = nodes.find(
+			(node) =>
+				folder.children.includes(node.node_id) &&
+				node.decl_id === `parameters/shader_texture_${slot}`
+		);
+		await panel
+			.locator(`.parameter-inspector[data-node-id="${parameter.node_id}"] .picker-trigger`)
+			.click();
+		const picker = page.getByRole('dialog', { name: 'Select reference target' });
+		await picker.getByRole('searchbox').fill(label);
+		await picker.getByText(label, { exact: true }).click();
+		await picker.getByRole('button', { name: 'Select', exact: true }).click();
+		await waitFor(
+			async () =>
+				(await graph()).find((node) => node.uuid === parameter.uuid)?.data.param.value.Reference
+					?.uuid === target
+		);
+		return parameter;
+	};
+	const texture0 = await pickTexture(0, 'Shader Texture Source', firstTexture.media);
+	await pickTexture(3, 'Shader Texture Green', otherTexture.channel);
+	await delay(500);
+	await observer.observePixels('media-first-plus-explicit-channel', [255, 255, 0, 255]);
+
+	stage = 'verify live texture updates, removed input and Undo';
+	await color(firstTexture, [0, 0, 1, 1]);
+	await delay(500);
+	await observer.observePixels('live-input-update', [0, 255, 255, 255]);
+	await mediaOperation({ kind: 'RemoveChannel', reference: otherTexture });
+	await delay(500);
+	await observer.observePixels('removed-input-clears-only-that-slot', [0, 0, 255, 255]);
+	assert((await post('/api/ui/intent', { kind: 'undo' })).success);
+	await delay(500);
+	await observer.observePixels('undo-restores-shader-input', [0, 255, 255, 255]);
+
+	stage = 'reject a direct feedback reference and reopen both authored bindings';
+	const bad = await post('/api/ui/intent', {
+		kind: 'setParam',
+		node: texture0.node_id,
+		value: { Reference: { uuid: channel.uuid } },
+		behaviour: 'Append'
+	});
+	assert.equal(bad.success, false, JSON.stringify(bad));
+	assert((await post('/api/ui/project-save', { path: project })).ok);
+	assert.equal(path.resolve((await post('/api/ui/project-load', { path: project })).path), project);
+	await delay(750);
+	await observer.observePixels('reloaded-shader-texture-bindings', [0, 255, 255, 255]);
+
+	stage = 'use the first bound texture as a named ISF image input';
+	const isfTextureName = 'TextureSource.isf';
+	await writeFile(
+		path.join(directory, isfTextureName),
+		'/*{"INPUTS":[{"NAME":"inputImage","TYPE":"image"}]}*/\nvoid main() { gl_FragColor = IMG_THIS_NORM_PIXEL(inputImage); }'
+	);
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Medias$/ })
+		.click();
+	await manager.getByRole('button', { name: 'Shader', exact: true }).click();
+	await shaderTab.click();
+	await format.selectOption('ISF');
+	await source.selectOption('File');
+	await file.fill(isfTextureName);
+	await file.press('Enter');
+	await delay(750);
+	await observer.observePixels('isf-named-media-image', [0, 0, 255, 255]);
 	assert.deepEqual(errors, []);
 	assert(!appLog.includes('[mapgyver-output] window id='));
 	await writeFile(

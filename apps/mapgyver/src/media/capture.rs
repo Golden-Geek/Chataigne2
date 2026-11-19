@@ -6,6 +6,7 @@ use super::protocol::{AssetId, AssetRecord, ChannelDefinition, ChannelReference,
 use crate::app::{AppEngine, AppNode};
 use golden_core::node::Node;
 use golden_io::RevisionGuard;
+use golden_video::shader::TEXTURE_INPUTS;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -43,6 +44,7 @@ pub(super) struct CapturedChannel {
     pub instances: Option<Vec<InstanceDefinition>>,
     pub instance_guards: Vec<RevisionGuard>,
     pub matrix: Option<crate::matrix::capture::CapturedMatrix>,
+    pub shader_inputs: [Option<ChannelReference>; TEXTURE_INPUTS],
 }
 
 impl CapturedChannel {
@@ -60,12 +62,16 @@ impl CapturedChannel {
                     .iter()
                     .flat_map(|matrix| matrix.inputs.iter().map(|input| input.source)),
             )
+            .chain(self.shader_inputs.iter().flatten().copied())
     }
     pub fn derived(&self) -> bool {
         self.definition.as_ref().is_some_and(|definition| {
             matches!(
                 definition.source,
-                ChannelSource::Composition { .. } | ChannelSource::Matrix { .. } | ChannelSource::Reference { .. }
+                ChannelSource::Composition { .. }
+                    | ChannelSource::Matrix { .. }
+                    | ChannelSource::Reference { .. }
+                    | ChannelSource::Shader { .. }
             )
         })
     }
@@ -456,6 +462,30 @@ pub(crate) fn capture_channels_with_time(
         {
             pending.push_back(*target);
         }
+        let mut shader_inputs = [None; TEXTURE_INPUTS];
+        if enabled
+            && let Some(ChannelDefinition {
+                source: ChannelSource::Shader { textures, .. },
+                ..
+            }) = &definition
+            && textures.iter().any(Option::is_some)
+        {
+            guards.push(manager.membership_guard());
+            for (slot, target) in shader_inputs.iter_mut().zip(textures) {
+                let Some(selection) = target.and_then(|target| super::source_selection(engine, target).ok()) else {
+                    continue;
+                };
+                let Some(input) = selection.capture(engine, &mut guards)? else {
+                    continue;
+                };
+                if seen.contains(&input) || seen.len() < limit {
+                    if seen.insert(input) {
+                        pending.push_back(input);
+                    }
+                    *slot = Some(input);
+                }
+            }
+        }
         if enabled
             && let Some(ChannelDefinition {
                 source: ChannelSource::Picture { file: Some(file) },
@@ -497,6 +527,7 @@ pub(crate) fn capture_channels_with_time(
             instances,
             instance_guards,
             matrix,
+            shader_inputs,
         });
     }
     for reference in hidden_roots.difference(&seen) {
@@ -512,6 +543,7 @@ pub(crate) fn capture_channels_with_time(
             instances: None,
             instance_guards: vec![],
             matrix: None,
+            shader_inputs: Default::default(),
         });
     }
     sources.update(&channels)?;

@@ -215,13 +215,17 @@ Choose **Format** in the Shader Editor or channel Inspector.
 
 - **GLSL** uses `void main()` and writes straight linear RGBA to `fragColor`. It provides
   `iResolution`, `iTime` in seconds and `gl_FragCoord` in pixels from the top left.
-- **ShaderToy** accepts a procedural Image shader with `mainImage(out vec4 color, in vec2 pixel)`.
+- **ShaderToy** accepts an Image shader with `mainImage(out vec4 color, in vec2 pixel)`.
   It provides bottom-left pixel coordinates, resolution, show time, frame delta, frame rate and index.
-- **ISF** accepts a single-pass generator with a JSON metadata comment and `void main()`. It provides
+- **ISF** accepts a single pass with a JSON metadata comment and `void main()`. It provides
   bottom-left coordinates and uses the metadata defaults for numeric, Boolean, point and color inputs.
 
-Shader Media can feed Screens, Compositions, Matrix Cells and previews. Multipass playback,
-editable inputs and texture bindings are pending.
+Open **Texture inputs** to choose up to four Media or Channels. A Media target samples its first
+channel, while a Channel target samples the selected variant. Empty or unavailable inputs sample
+transparent black. Use `texture(iChannel0, uv)` through `iChannel3` for GLSL and ShaderToy. ISF
+binds named `image` inputs to slots in declaration order and supports its `IMG_*` sampling functions.
+Shader Media can feed Screens, Compositions, Matrix Cells and previews. Multipass playback and
+editable uniform values are pending.
 
 The Windows x64 package includes the NDI 6 runtime and enables NDI from the first launch.
 Use **Medias → + → NDI** to receive, or choose **Target → NDI** on an enabled Screen to publish.

@@ -14,10 +14,7 @@ fn rejects_unsupported_isf_passes_and_resources_explicitly() {
     for (header, diagnostic) in [
         (r#"{"PASSES":[{"TARGET":"buffer"},{}]}"#, "multipass"),
         (r#"{"IMPORTED":{"mask":{"PATH":"mask.png"}}}"#, "imported images"),
-        (
-            r#"{"INPUTS":[{"NAME":"inputImage","TYPE":"image"}]}"#,
-            "texture binding",
-        ),
+        (r#"{"INPUTS":[{"NAME":"levels","TYPE":"audioFFT"}]}"#, "texture binding"),
         (
             r#"{"INPUTS":[{"NAME":"tint","TYPE":"color","DEFAULT":[1,0]}]}"#,
             "Invalid default",
@@ -30,6 +27,32 @@ fn rejects_unsupported_isf_passes_and_resources_explicitly() {
         let source = format!("/*{header}*/\nvoid main() {{ gl_FragColor = vec4(1.0); }}");
         let error = FragmentProgram::compile(FragmentFormat::Isf, &source).unwrap_err();
         assert!(error.to_string().contains(diagnostic), "{error}");
+    }
+}
+
+#[test]
+fn compiles_independent_texture_slots_in_each_dialect() {
+    for (format, source, expected) in [
+        (
+            FragmentFormat::Glsl,
+            "void main() { fragColor = texture(iChannel1, vec2(0.5)); }",
+            [false, true, false, false],
+        ),
+        (
+            FragmentFormat::ShaderToy,
+            "void mainImage(out vec4 color, in vec2 p) { color = texture(iChannel3, p / iResolution.xy); }",
+            [false, false, false, true],
+        ),
+        (
+            FragmentFormat::Isf,
+            r#"/*{"INPUTS":[{"NAME":"source","TYPE":"image"},{"NAME":"overlay","TYPE":"image"}]}*/
+            void main() { gl_FragColor = IMG_THIS_NORM_PIXEL(overlay); }"#,
+            [false, true, false, false],
+        ),
+    ] {
+        let program = FragmentProgram::compile(format, source).unwrap();
+        assert!(program.bytecode().starts_with(b"DXBC"));
+        assert_eq!(program.sampled_inputs(), expected, "{format:?}");
     }
 }
 

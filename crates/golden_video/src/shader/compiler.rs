@@ -6,19 +6,23 @@ use naga::{AddressSpace, Binding, BuiltIn, ResourceBinding, ShaderStage, TypeInn
 use windows::Win32::Graphics::Direct3D::{Fxc::D3DCompile, ID3DBlob};
 use windows::core::{PCSTR, s};
 
-use super::{FragmentFormat, MAX_SOURCE_BYTES, adapter};
+use super::{FragmentFormat, MAX_SOURCE_BYTES, TEXTURE_INPUTS, adapter};
 
 const MAX_BYTECODE_BYTES: usize = 256 * 1024;
 const FRAME_BINDING: ResourceBinding = ResourceBinding { group: 0, binding: 0 };
 
 /// A validated device-independent fragment program. Cloning shares its bytecode.
 #[derive(Clone)]
-pub struct FragmentProgram(Arc<[u8]>);
+pub struct FragmentProgram {
+    bytecode: Arc<[u8]>,
+    sampled_inputs: [bool; TEXTURE_INPUTS],
+}
 
 impl fmt::Debug for FragmentProgram {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FragmentProgram")
-            .field("bytecode_bytes", &self.0.len())
+            .field("bytecode_bytes", &self.bytecode.len())
+            .field("sampled_inputs", &self.sampled_inputs)
             .finish()
     }
 }
@@ -39,15 +43,14 @@ impl FragmentProgram {
     ///
     /// Define `void main()` and write straight linear RGBA to the supplied `fragColor`.
     /// `iResolution` supplies (width, height, 1) and `iTime` is show time in seconds.
-    /// `gl_FragCoord` follows Vulkan's upper-left origin. No other stage inputs or
-    /// resource bindings are furnished by this entry point.
+    /// `gl_FragCoord` and sampled media coordinates follow the upper-left origin.
     pub fn compile_glsl(source: &str) -> Result<Self, CompileError> {
         Self::compile(FragmentFormat::Glsl, source)
     }
 
     /// Compile a single fragment pass in the selected source dialect, away from render and engine threads.
-    /// ShaderToy supports procedural Image passes. ISF supports unbuffered generators with scalar
-    /// and vector defaults. Both dialects receive bottom-left coordinates and frame timing.
+    /// ShaderToy supports Image passes. ISF supports single passes with scalar and vector defaults.
+    /// Both dialects receive bottom-left coordinates, frame timing and up to four 2D inputs.
     pub fn compile(format: FragmentFormat, source: &str) -> Result<Self, CompileError> {
         if source.trim().is_empty() || source.len() > MAX_SOURCE_BYTES {
             return Err(CompileError::Size);
@@ -56,12 +59,6 @@ impl FragmentProgram {
         let module = glsl::Frontend::default()
             .parse(&glsl::Options::from(ShaderStage::Fragment), &glsl)
             .map_err(|error| CompileError::Invalid(error.emit_to_string(&glsl)))?;
-        if module.global_variables.iter().any(|(_, global)| {
-            !(global.space == AddressSpace::Private
-                || (global.space == AddressSpace::Uniform && global.binding == Some(FRAME_BINDING)))
-        }) {
-            return Err(CompileError::Invalid("Unsupported GLSL resource binding".into()));
-        }
         let entry = &module.entry_points[0].function;
         if entry.arguments.iter().any(|argument| {
             !matches!(
@@ -85,6 +82,28 @@ impl FragmentProgram {
             ..Default::default()
         };
         options.binding_map.insert(FRAME_BINDING, hlsl::BindTarget::default());
+        let mut sampled_inputs = [false; TEXTURE_INPUTS];
+        for (handle, global) in module.global_variables.iter() {
+            if global.space == AddressSpace::Private
+                || (global.space == AddressSpace::Uniform
+                    && global.name.as_deref() == Some("goldenFrame")
+                    && global.binding == Some(FRAME_BINDING))
+            {
+                continue;
+            }
+            let Some(slot) = texture_slot(&module, global) else {
+                return Err(CompileError::Invalid("Unsupported GLSL resource binding".into()));
+            };
+            let binding = global.binding.expect("checked texture binding");
+            options.binding_map.insert(
+                binding,
+                hlsl::BindTarget {
+                    register: slot as u32,
+                    ..Default::default()
+                },
+            );
+            sampled_inputs[slot] = !info.get_entry_point(0)[handle].is_empty();
+        }
         let mut hlsl = String::new();
         let reflection = hlsl::Writer::new(&mut hlsl, &options, &Default::default())
             .write(&module, &info, None)
@@ -94,10 +113,13 @@ impl FragmentProgram {
             .first()
             .and_then(|name| name.as_ref().ok())
             .ok_or_else(|| CompileError::Invalid("Missing fragment entry point".into()))?;
-        Self::compile_hlsl(&hlsl, entry)
+        Ok(Self {
+            bytecode: Self::compile_hlsl(&hlsl, entry)?,
+            sampled_inputs,
+        })
     }
 
-    fn compile_hlsl(source: &str, entry: &str) -> Result<Self, CompileError> {
+    fn compile_hlsl(source: &str, entry: &str) -> Result<Arc<[u8]>, CompileError> {
         let entry = CString::new(entry).map_err(|error| CompileError::Invalid(error.to_string()))?;
         let mut code = None;
         let mut diagnostics = None;
@@ -135,12 +157,41 @@ impl FragmentProgram {
         if code.is_empty() || code.len() > MAX_BYTECODE_BYTES {
             return Err(CompileError::Size);
         }
-        Ok(Self(Arc::from(code)))
+        Ok(Arc::from(code))
+    }
+
+    /// Which input bindings are used by the validated fragment entry point.
+    pub fn sampled_inputs(&self) -> [bool; TEXTURE_INPUTS] {
+        self.sampled_inputs
     }
 
     pub(crate) fn bytecode(&self) -> &[u8] {
-        &self.0
+        &self.bytecode
     }
+}
+
+fn texture_slot(module: &naga::Module, global: &naga::GlobalVariable) -> Option<usize> {
+    let ResourceBinding { group: 0, binding } = global.binding? else {
+        return None;
+    };
+    let slot = binding.checked_sub(1)? as usize;
+    if global.space != AddressSpace::Handle
+        || global.name.as_deref()? != *adapter::TEXTURE_NAMES.get(slot)?
+        || !matches!(
+            module.types[global.ty].inner,
+            TypeInner::Image {
+                dim: naga::ImageDimension::D2,
+                arrayed: false,
+                class: naga::ImageClass::Sampled {
+                    kind: naga::ScalarKind::Float,
+                    multi: false
+                },
+            }
+        )
+    {
+        return None;
+    }
+    Some(slot)
 }
 
 fn blob_bytes(blob: &ID3DBlob) -> &[u8] {

@@ -15,12 +15,28 @@ use golden_core::{
     process_ctx::ProcessCtx,
 };
 use golden_io::{RevisionGuard, RevisionSource};
-use golden_video::shader::FragmentFormat;
+use golden_video::shader::{FragmentFormat, TEXTURE_INPUTS};
 
 use std::sync::{Arc, OnceLock};
 
 mod audio;
 mod subtitles;
+
+fn shader_texture_targets() -> Vec<String> {
+    [
+        "mapgyver.media.v11",
+        "mapgyver.media.channel.v2",
+        "mapgyver.media.reference.v4",
+        super::reference::OUTPUT_TYPE,
+    ]
+    .into_iter()
+    .map(str::to_owned)
+    .collect()
+}
+
+fn shader_texture_reference(target: Option<NodeUuid>) -> NodeReference {
+    target.map_or_else(NodeReference::empty, NodeReference::new)
+}
 
 #[node("mapgyver.media.channel.v2", label = "Channel", collapsed = false)]
 #[children(
@@ -39,6 +55,22 @@ mod subtitles;
             dependency = |node: &Self| node.kind() == MediaKind::Shader);
         shader_file: File = File::default() (label = "Shader File", file_allowed_extensions = vec!["glsl".into(), "frag".into(), "fs".into(), "isf".into()],
             description = "Project-relative or absolute fragment source. Changes reload automatically.",
+            dependency = |node: &Self| node.kind() == MediaKind::Shader);
+        shader_texture_0: NodeReference = NodeReference::empty() (label = "Texture 0",
+            description = "iChannel0 in GLSL and ShaderToy, or the first ISF image input.",
+            reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = shader_texture_targets(),
+            dependency = |node: &Self| node.kind() == MediaKind::Shader);
+        shader_texture_1: NodeReference = NodeReference::empty() (label = "Texture 1",
+            description = "iChannel1 in GLSL and ShaderToy, or the second ISF image input.",
+            reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = shader_texture_targets(),
+            dependency = |node: &Self| node.kind() == MediaKind::Shader);
+        shader_texture_2: NodeReference = NodeReference::empty() (label = "Texture 2",
+            description = "iChannel2 in GLSL and ShaderToy, or the third ISF image input.",
+            reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = shader_texture_targets(),
+            dependency = |node: &Self| node.kind() == MediaKind::Shader);
+        shader_texture_3: NodeReference = NodeReference::empty() (label = "Texture 3",
+            description = "iChannel3 in GLSL and ShaderToy, or the fourth ISF image input.",
+            reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = shader_texture_targets(),
             dependency = |node: &Self| node.kind() == MediaKind::Shader);
         file: File = File::default() (label = "File", description = "This channel's project-relative or native absolute source path.", dependency = |node: &Self| matches!(node.kind(), super::protocol::MediaKind::Picture | super::protocol::MediaKind::Video));
         video_loop_file: File = File::default() (label = "Loop File", description = "Optional video played after this channel's intro when Loop is enabled.", dependency = |node: &Self| node.kind() == MediaKind::Video);
@@ -205,8 +237,17 @@ impl ChannelNode {
                     Color::new(rgba[0].into(), rgba[1].into(), rgba[2].into(), rgba[3].into())
                 );
             }
-            ChannelSource::Shader { format, input } => {
+            ChannelSource::Shader {
+                format,
+                input,
+                textures,
+            } => {
                 seed!(shader_format, Enum::new(format.name()));
+                let [first, second, third, fourth] = textures.map(shader_texture_reference);
+                seed!(shader_texture_0, first);
+                seed!(shader_texture_1, second);
+                seed!(shader_texture_2, third);
+                seed!(shader_texture_3, fourth);
                 match input {
                     ShaderInput::Embedded { code } => {
                         seed!(shader_code, code.to_string());
@@ -284,6 +325,10 @@ impl ChannelNode {
             "Shader" => ChannelSource::Shader {
                 format: FragmentFormat::from_name(self.shader_format.get_ref().as_str())
                     .expect("validated Shader Format"),
+                textures: self.shader_textures().map(|parameter| {
+                    let target = parameter.get_ref();
+                    (!target.is_empty()).then_some(target.uuid)
+                }),
                 input: if self.shader_input.get_ref().as_str() == "File" {
                     ShaderInput::File {
                         file: super::assets::parse_file(self.shader_file.get_ref().as_str())
@@ -347,8 +392,20 @@ impl ChannelNode {
     ) -> Result<Vec<Edit>, String> {
         let mut values = Vec::new();
         match source {
-            ChannelSource::Shader { format, input } => {
+            ChannelSource::Shader {
+                format,
+                input,
+                textures,
+            } => {
                 values.push((self.shader_format.id(), ParamValue::Enum(format.name().into())));
+                values.extend(
+                    self.shader_textures()
+                        .into_iter()
+                        .zip(textures)
+                        .map(|(parameter, target)| {
+                            (parameter.id(), ParamValue::Reference(shader_texture_reference(target)))
+                        }),
+                );
                 match input {
                     ShaderInput::Embedded { code } => values.extend([
                         (self.shader_input.id(), ParamValue::Enum("Embedded".into())),
@@ -404,6 +461,15 @@ impl ChannelNode {
             })
             .collect())
     }
+    fn shader_textures(&self) -> [&ParameterHandle<NodeReference>; TEXTURE_INPUTS] {
+        [
+            &self.shader_texture_0,
+            &self.shader_texture_1,
+            &self.shader_texture_2,
+            &self.shader_texture_3,
+        ]
+    }
+
     pub(crate) fn guard(&self) -> RevisionGuard {
         let reader = self.revision.reader();
         reader.guard_at(reader.current())
@@ -593,6 +659,8 @@ impl Node for ChannelNode {
             self.output_item.id(),
         ]
         .contains(&parameter)
+            || (self.kind() == MediaKind::Shader
+                && self.shader_textures().iter().any(|texture| texture.id() == parameter))
             || (self.kind().has_sender_selection()
                 && [self.sender_choice.id(), self.sender_external_only.id()].contains(&parameter))
         {
@@ -764,6 +832,17 @@ impl Node for ChannelNode {
     }
 
     fn validate_parameter_change(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
+        if self.kind() == MediaKind::Shader
+            && self
+                .shader_textures()
+                .iter()
+                .any(|texture| texture.id() == change.parameter)
+            && let ParamValue::Reference(reference) = change.value
+            && let Some(target) = change.resolve(reference.uuid)
+            && (target == self.id() || Some(target) == self.node_data().parent)
+        {
+            return Err("Choose another Media or Channel as the shader texture".into());
+        }
         if change.parameter == self.shader_code.id()
             && let ParamValue::Str(code) = change.value
         {

@@ -18,6 +18,7 @@ mod reference_reload;
 mod references;
 mod retention;
 mod screens;
+mod shader;
 mod solid_color;
 mod transitions;
 mod unavailable;

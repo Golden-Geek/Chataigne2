@@ -45,7 +45,13 @@ pub(super) fn execute(
         }
         match &pass.operation {
             RenderOperation::Clear(color) => pipeline.clear(context, output, *color),
-            RenderOperation::Shader(_) => pipeline.draw_shader(context, output, &resources.shaders[&pass.id], time),
+            RenderOperation::Shader { inputs, .. } => pipeline.draw_shader(
+                context,
+                output,
+                &resources.shaders[&pass.id],
+                inputs.map(|source| source.map(|id| resources.textures[&id].as_ref())),
+                time,
+            ),
             RenderOperation::Retain => pipeline.clear(context, output, LinearColor::TRANSPARENT),
             RenderOperation::Sample { source, filter } => {
                 pipeline.draw(

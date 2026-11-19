@@ -4,6 +4,7 @@ use std::fmt::Write;
 use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::Value;
 
+use super::TEXTURE_NAMES;
 use crate::shader::CompileError;
 
 const MAX_INPUTS: usize = 64;
@@ -68,6 +69,7 @@ pub(super) fn single_pass(source: &str) -> Result<(&str, String), CompileError> 
     }
 
     let mut names = HashSet::new();
+    let mut images = TEXTURE_NAMES.into_iter();
     let mut declarations = String::new();
     for input in header.inputs {
         let name = input.name.as_str();
@@ -81,8 +83,13 @@ pub(super) fn single_pass(source: &str) -> Result<(&str, String), CompileError> 
         {
             return Err(invalid("Invalid or duplicate ISF input name"));
         }
-        let (ty, literal) = input.literal()?;
-        writeln!(&mut declarations, "const {ty} {name} = {literal};").unwrap();
+        if matches!(input.kind, InputType::Image) {
+            let texture = images.next().ok_or_else(|| invalid("Too many ISF image inputs"))?;
+            writeln!(declarations, "#define {name} {texture}").unwrap();
+        } else {
+            let (ty, literal) = input.literal()?;
+            writeln!(declarations, "const {ty} {name} = {literal};").unwrap();
+        }
     }
     Ok((body, declarations))
 }

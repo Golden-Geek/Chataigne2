@@ -84,7 +84,7 @@ impl Shaders {
             .iter()
             .filter(|channel| channel.enabled && references.contains(&channel.reference))
             .filter_map(|channel| match &channel.definition.as_ref()?.source {
-                ChannelSource::Shader { format, input } => Some((*format, input)),
+                ChannelSource::Shader { format, input, .. } => Some((*format, input)),
                 _ => None,
             })
             .collect::<Vec<_>>();

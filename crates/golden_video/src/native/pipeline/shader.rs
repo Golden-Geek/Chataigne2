@@ -6,7 +6,7 @@ use windows::core::Result;
 
 use super::{D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST, Pipeline, RECT, Texture, missing_output};
 use crate::LinearColor;
-use crate::shader::FragmentProgram;
+use crate::shader::{FragmentProgram, TEXTURE_INPUTS};
 
 #[repr(C)]
 struct FrameConstants {
@@ -93,6 +93,7 @@ impl Pipeline {
         context: &ID3D11DeviceContext,
         target: &Texture,
         pass: &ShaderPass,
+        inputs: [Option<&Texture>; TEXTURE_INPUTS],
         time: TimeSnapshot,
     ) {
         let extent = target.descriptor.extent;
@@ -124,6 +125,7 @@ impl Pipeline {
             context.DSSetShader(None, None);
             context.PSSetShader(&shader.pixel, None);
             context.PSSetConstantBuffers(0, Some(&[Some(shader.frame.clone())]));
+            context.PSSetShaderResources(0, Some(&inputs.map(|input| input.map(|texture| texture.srv.clone()))));
             context.OMSetDepthStencilState(None, 0);
             context.OMSetBlendState(None, None, u32::MAX);
             context.OMSetRenderTargets(Some(&[Some(target.rtv.clone())]), None);
@@ -142,6 +144,7 @@ impl Pipeline {
             context.Draw(3, 0);
             context.PSSetShader(None, None);
             context.PSSetConstantBuffers(0, Some(&[None]));
+            context.PSSetShaderResources(0, Some(&[const { None }; TEXTURE_INPUTS]));
             context.OMSetRenderTargets(None, None);
         }
     }

@@ -41,6 +41,14 @@
 	const format = $derived(find('shader_format'));
 	const code = $derived(find('shader_code'));
 	const file = $derived(find('shader_file'));
+	const textures = $derived(
+		(parameters?.children ?? [])
+			.map(read)
+			.filter(
+				(node): node is UiNodeDto =>
+					node?.data.kind === 'parameter' && node.decl_id.startsWith('parameters/shader_texture_')
+			)
+	);
 	const fileMode = $derived(
 		input?.data.kind === 'parameter' &&
 			input.data.param.value.kind === 'enum' &&
@@ -74,6 +82,16 @@
 				<ParameterInspector node={file} level={0} order="solo" density="compact" />
 			{/if}
 		</div>
+		{#if textures.length}
+			<details class="shader-inputs">
+				<summary>Texture inputs</summary>
+				<div class="shader-input-list">
+					{#each textures as texture (texture.uuid)}
+						<ParameterInspector node={texture} level={0} order="solo" density="compact" />
+					{/each}
+				</div>
+			</details>
+		{/if}
 		<div class="shader-workspace" class:embedded={!fileMode}>
 			{#if !fileMode && code}
 				{#key `${session.snapshotGeneration}:${code.uuid}`}
@@ -107,6 +125,19 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+	.shader-inputs {
+		padding: 0.25rem 0.4rem;
+	}
+	.shader-inputs summary {
+		cursor: pointer;
+		font-size: 0.8rem;
+	}
+	.shader-input-list {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+		gap: 0.25rem;
+		padding-block-start: 0.25rem;
 	}
 	.shader-workspace {
 		flex: 1;

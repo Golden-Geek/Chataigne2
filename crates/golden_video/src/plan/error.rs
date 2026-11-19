@@ -90,6 +90,13 @@ pub enum PlanError {
         /// Target texture identity.
         output: TextureId,
     },
+    /// Shader inputs use the same linear premultiplied contract as pass targets.
+    InvalidShaderInput {
+        /// Shader pass using the input.
+        pass: PassId,
+        /// Input texture requiring conversion.
+        source: TextureId,
+    },
     /// A replacement blit contains an invalid normalized source or destination rectangle.
     InvalidRegion {
         /// Pass containing the malformed region, even if it is currently undemanded.
@@ -179,6 +186,12 @@ impl fmt::Display for PlanError {
                 "pass {} target {} must be linear and premultiplied",
                 pass.get(),
                 output.get()
+            ),
+            Self::InvalidShaderInput { pass, source } => write!(
+                formatter,
+                "shader pass {} input {} must be linear and premultiplied",
+                pass.get(),
+                source.get()
             ),
             Self::InvalidRegion { pass, region } => write!(
                 formatter,

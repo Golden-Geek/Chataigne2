@@ -3,7 +3,7 @@
 pub use golden_assets::{AssetId, AssetLocator, AssetRecord};
 use golden_core::model::NodeUuid;
 use golden_video::Extent2D;
-use golden_video::shader::FragmentFormat;
+use golden_video::shader::{FragmentFormat, TEXTURE_INPUTS};
 use serde::{Deserialize, Serialize};
 use ts_rs::{Config, TS};
 
@@ -230,6 +230,8 @@ pub enum ChannelSource {
     Shader {
         format: FragmentFormat,
         input: ShaderInput,
+        #[serde(default)]
+        textures: [Option<NodeUuid>; TEXTURE_INPUTS],
     },
     /// Straight linear-light RGBA. Conversion/premultiplication happens in the backend.
     SolidColor {

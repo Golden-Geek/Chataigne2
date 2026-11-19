@@ -59,7 +59,12 @@ pub(super) fn ordered(
             }
             match states.get(&reference) {
                 Some(2) => continue,
-                Some(1) => return Err("captured channel dependency cycle".into()),
+                Some(1) => {
+                    // Live shader routing can close a loop through another derived channel.
+                    // Clear the repeated output and keep preparing independent branches.
+                    rejected.insert(reference);
+                    continue;
+                }
                 _ => {}
             }
             let channel = channels
@@ -75,7 +80,7 @@ pub(super) fn ordered(
                     || channel.definition.as_ref().is_some_and(|definition| {
                         matches!(
                             definition.source,
-                            crate::media::protocol::ChannelSource::Reference { .. }
+                            ChannelSource::Reference { .. } | ChannelSource::Shader { .. }
                         )
                     }) {
                     true if channel.dependencies().all(|source| channels.contains_key(&source))

@@ -27,7 +27,7 @@ impl RenderPlan {
             }
             match &pass.operation {
                 #[cfg(all(windows, feature = "d3d11"))]
-                RenderOperation::Shader(shader) => {
+                RenderOperation::Shader { program: shader, .. } => {
                     if shaders.insert(shader.bytecode().as_ptr()) {
                         bytes = bytes
                             .checked_add(shader.bytecode().len())?

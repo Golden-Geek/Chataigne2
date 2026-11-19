@@ -63,6 +63,7 @@ impl ChannelDefinition {
             MediaKind::Video => ChannelSource::Video { file: None },
             MediaKind::Shader => ChannelSource::Shader {
                 format: golden_video::shader::FragmentFormat::Glsl,
+                textures: Default::default(),
                 input: super::protocol::ShaderInput::Embedded {
                     code: super::shader::DEFAULT_CODE.into(),
                 },
