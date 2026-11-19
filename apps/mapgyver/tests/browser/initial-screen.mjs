@@ -115,7 +115,10 @@ function expectedTarget(displays) {
 				display.bounds.extent.width <= 8192 &&
 				display.bounds.extent.height <= 8192
 		)
-		.sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0))[0];
+		.sort((left, right) => {
+			const numberOrder = (left.index || Infinity) - (right.index || Infinity);
+			return numberOrder || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+		})[0];
 	return available ? { kind: 'Fullscreen', display: available.id } : null;
 }
 function displayOptions(graph, screen) {

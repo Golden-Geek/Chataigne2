@@ -1442,8 +1442,9 @@ Undo/Redo, copy/reload, bounded offscreen Inspector access and project/connectio
    **external display not already used by MapGyver**. If none is free (including no external
    display), create **FullScreen with no display selected**. Exclude the built-in panel and
    already assigned displays; backend allocation must handle multiple Screens created together
-   without duplicate claims. Keep display identity independent of enumeration order; preserve
-   existing authored choices on load and do not retarget them on hotplug. Use current recovery
+   without duplicate claims. Prefer the lowest available Windows display number for fresh
+   assignments. Keep saved display identity independent of enumeration order; preserve existing
+   authored choices on load and do not retarget them on hotplug. Use current recovery
    behavior when an assigned display disappears/returns. Verify zero/one/multiple externals,
    all occupied, sequential/atomic multi-create, startup/New/menu/script/headless, history and
    reload, actual physical outputs and disappearance/recovery on both GPUs. Record any missing

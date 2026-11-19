@@ -4,8 +4,9 @@ MapGyver owns fresh Screen allocation in `screens/creation.rs`. Golden's desktop
 physical display metadata, including an optional internal-connection classification independent
 of the primary-display flag. Unknown/virtual connections are not automatic destinations.
 
-Fresh creation chooses the unused known external display with the smallest stable device-path
-identity. Disabled fullscreen assignments still reserve their matched physical destination.
+Fresh creation chooses the unused known external display with the lowest Windows display number.
+Stable device paths resolve ties and order external displays whose number is unavailable.
+Disabled fullscreen assignments still reserve their matched physical destination.
 No available external means the typed Target remains Fullscreen and Display remains empty;
 the render projection is unconfigured and creates no output. Explicit Shared Texture and
 Rectangle choices remain ordinary authored settings.
@@ -37,3 +38,7 @@ Intrinsic constructors and sparse decoding defaults remain stable. Loaded, dupli
 reconnected authored targets are not reallocated by this fresh-creation policy. Existing
 runtime display matching and disappearance/recovery remain responsible for output routing.
 Acceptance, including missing physical topologies, is recorded in the MapGyver status ledger.
+
+Debug GPU fixtures that use Spout or NDI can set `MAPGYVER_AUTOMATION_DISABLE_DISPLAY_OUTPUTS=1`.
+The desktop host keeps the authored targets and display catalog available and admits only
+non-window Screen output bindings for that process.

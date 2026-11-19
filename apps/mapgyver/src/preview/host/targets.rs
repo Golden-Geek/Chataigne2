@@ -79,9 +79,17 @@ pub(super) struct Targets {
     project: Option<uuid::Uuid>,
     ids: HashMap<ScreenId, OutputId>,
     next: u64,
+    suppress_display_outputs: bool,
 }
 
 impl Targets {
+    pub fn new(suppress_display_outputs: bool) -> Self {
+        Self {
+            suppress_display_outputs,
+            ..Default::default()
+        }
+    }
+
     pub fn assign(&mut self, capture: &mut CapturedPreview) -> Result<Vec<Target>, String> {
         if self.project != Some(capture.channels.project) {
             self.ids.clear();
@@ -97,6 +105,14 @@ impl Targets {
         }
         let mut targets = Vec::new();
         for output in &capture.outputs {
+            if self.suppress_display_outputs
+                && matches!(
+                    output.target,
+                    ResolvedTarget::Rectangle(_) | ResolvedTarget::Fullscreen { .. }
+                )
+            {
+                continue;
+            }
             let id = *self.ids.get(&output.screen).ok_or("output Screen was not captured")?;
             let route = capture
                 .screens

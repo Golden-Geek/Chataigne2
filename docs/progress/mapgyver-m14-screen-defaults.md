@@ -2,15 +2,26 @@
 
 MapGyver owns fresh Screen allocation; Golden supplies physical connection metadata and the
 read-only detached creation context. See [ownership and lifecycle](../architecture/mapgyver-screen-defaults.md).
-M14/6 is Blocked on missing physical external-display cases and native keyboard input.
-Its common software, headless and no-external desktop scopes are verified; it is not Accepted.
+M14/6 remains open for physical output and native keyboard checks. The common software,
+headless and no-external desktop scopes passed.
+
+## Numbered display feedback
+
+- A fresh Windows app selected **RTK FHD HDR** (GDI display 2) with **Optoma UHD** also active.
+  Debug automation opened zero physical output windows while the app published Spout video.
+  [App result](evidence/mapgyver-m18-embedded-glsl-2026-11-19.json)
+- Eight Screen creation tests and four output-binding tests passed. They cover startup ordering,
+  authored display identity, multiple assignments, and isolated non-window output admission.
+- Physical pixels and output recovery on both GPUs, occupied assignments and the native New
+  shortcut still need their qualification run.
 
 Implemented behavior:
 
 - Fresh startup/New candidates seed their initial Screen and ephemeral display catalog before
   publication, using one metadata worker. Live creation performs no OS IO.
 - Known external connections are eligible even when primary. Internal and unknown/virtual
-  connections are excluded. Stable device-path ordering is independent of enumeration order.
+  connections are excluded. Fresh Screens prefer the lowest available Windows display number.
+  Stable device paths order ties and displays with unavailable numbers.
 - Disabled fullscreen assignments and earlier detached roots reserve their matched displays.
   Ordinary and dependent items in one atomic batch cannot claim the same free display.
 - No free external means typed Fullscreen/empty Display, an unconfigured render projection

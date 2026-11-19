@@ -162,6 +162,15 @@ fn rectangle_and_spout_share_output_admission_without_windows_on_the_actor() {
     assert_eq!(mixed[0], targets[0]);
     assert!(matches!(mixed[1].kind, ResolvedTarget::Spout { .. }));
     assert!(crate::screens::rendering::capture_outputs(&engine, 128, 1, &[]).is_err());
+
+    let mut isolated = capture_presentation(&engine, &[], 8, 128, &[]).unwrap();
+    assert_eq!(Targets::new(true).assign(&mut isolated).unwrap(), [mixed[1].clone()]);
+    let rectangle_route = isolated
+        .screens
+        .iter()
+        .find(|route| route.screen.id() == screen)
+        .unwrap();
+    assert_eq!(rectangle_route.output, None);
 }
 
 #[test]

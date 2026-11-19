@@ -75,7 +75,8 @@ fn available_display<'a>(displays: &'a [DisplayInfo], reserved: &HashSet<usize>)
                 && display.bounds.extent.width() <= 8192
                 && display.bounds.extent.height() <= 8192
         })
-        .min_by(|(_, left), (_, right)| left.id.cmp(&right.id))
+        // The OS number orders new assignments. Device paths still identify saved targets.
+        .min_by_key(|&(_, display)| (display.index == 0, display.index, display.id.as_str()))
         .map(|(_, display)| display)
 }
 

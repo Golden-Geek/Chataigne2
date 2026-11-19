@@ -29,6 +29,8 @@ enum Request {
 }
 
 pub(crate) fn presentation(runtime: ProductionRuntime<AppNode>) -> io::Result<NativePresentation<tauri::Wry>> {
+    let suppress_display_outputs = cfg!(debug_assertions)
+        && std::env::var("MAPGYVER_AUTOMATION_DISABLE_DISPLAY_OUTPUTS").is_ok_and(|value| value == "1");
     let (send, signal) = mpsc::sync_channel(1);
     let notifier = WorkerNotifier::new(move || {
         let _ = send.try_send(());
@@ -71,6 +73,7 @@ pub(crate) fn presentation(runtime: ProductionRuntime<AppNode>) -> io::Result<Na
                 discovery,
                 displays,
                 status,
+                suppress_display_outputs,
             })
         }))
     })

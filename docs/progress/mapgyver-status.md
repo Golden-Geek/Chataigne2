@@ -5,7 +5,7 @@
 - **Latest delivered:** The desktop File Explorer offers Tree and Thumbnail Views and reopens its saved project folder or override. A Windows app test dragged a Picture into Medias and undid the import. [Checks](evidence/mapgyver-m18-file-explorer-2026-11-19.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Correct startup display selection, then finish the Shader Media editor and format workflows.
+- **Next:** Build the Shader Editor and external file reload (M18/4).
 
 ## Done — code and normal-use checks passed
 
@@ -17,6 +17,8 @@
 - [x] **Pictures and Solid Color:** real channel settings/files, independent copies, file reload and color controls.
 - [x] **Shared Texture:** receiving, previews and preview cadence, sender retention across Manual/Auto, and ordinary reconnect. New sources pick the first external sender or None. **(internal)** marks Screen outputs. Native pixel checks passed for deliberate internal selection, same-name takeover and external recovery.
 - [x] **Screens/Surfaces:** creation, warping, crop/source editing, opacity, enable/disable, calibration and native outputs.
+- [x] **Startup display:** fresh Screens prefer the lowest available Windows display number. The isolated Windows app chose RTK FHD HDR with the projector active. [Checks](mapgyver-m14-screen-defaults.md#numbered-display-feedback)
+- [x] **Embedded GLSL:** add Shader Media and edit code in the channel Inspector. Windows Screen output, invalid-code recovery and saved-project reload passed. [Checks](evidence/mapgyver-m18-embedded-glsl-2026-11-19.json)
 - [x] **Initial document/editors:** startup and New create and immediately show the automatic Screen and Surface. Hidden/reopened panels, saved targets/locks, reload and empty projects pass; no extra Undo steps.
 - [x] **Surface Editor display:** related Surfaces across Screens/References, independent toggles/locks, bounded paging, selection/Inspector and Undo/reload. ColorBars/Grid work without a source and obey its crop in Screen Warping/output mapping. Native patterns/contours, cropped ColorBars/Grid, mixed pattern/channel panels and70-Surface toolbar paging pass.
 - [x] **Surface-handle links:** same-Screen snapping/link/unlink, supplied colored/grey magnet and live updates of all peers. Five native drag/link/Undo cycles, three-member groups, held-pointer GPU images and foreground image/control alignment pass.
@@ -79,7 +81,7 @@
 
 [Remaining feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi), in order.
 
-4. **Shader Media.** A first embedded GLSL render passed. Verify live edits and project reload after isolating tests from physical outputs. Then add ShaderToy and ISF, the Shader Editor, external reload, parameters, Media inputs and the Shader Library. [Checks](evidence/mapgyver-m18-embedded-glsl-2026-11-19.json)
+4. **Shader Media.** Build the Shader Editor and external reload, then add ShaderToy, ISF, multipass, typed uniforms, Media inputs and Shader Library browsing and drops.
 5. **Inspector selection.** Keep the Media inspected when adding a Channel, and inspect the Matrix Cell when adding Media to it.
 6. **Browser video previews.** Show live editor textures with Disabled, Auto, Forced Low Quality and Forced High Quality options.
 

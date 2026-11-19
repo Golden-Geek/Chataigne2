@@ -213,6 +213,7 @@ pub(super) struct Input {
     pub discovery: super::discovery::Discovery,
     pub displays: super::displays::Catalog,
     pub status: Arc<crate::preview::runtime_status::StatusView>,
+    pub suppress_display_outputs: bool,
 }
 
 pub(super) fn run(input: Input) -> io::Result<()> {
@@ -239,7 +240,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut sender_catalog = crate::media::sender_catalog::native::Catalog::default();
     #[cfg(target_arch = "x86_64")]
     let mut ndi_catalog = crate::media::sender_catalog::native::NdiCatalog::default();
-    let mut targets = super::targets::Targets::default();
+    let mut targets = super::targets::Targets::new(input.suppress_display_outputs);
     let mut topology = Vec::new();
     let mut output_windows = super::output_windows::OutputWindows::default();
     let mut last_error = None;

@@ -8,5 +8,14 @@
 		"app": "WebView2 created Shader Media and committed literal GLSL braces through the Inspector. An independent Spout receiver captured the expected blue across all 96x64 pixels with alpha 127 for nominal half alpha.",
 		"firstRenderReceipt": "target/m18-shader-native/run-PnoYkU/half-alpha-blue/pixels.png"
 	},
-	"remaining": "The app fixture found that code edits after first render did not invalidate the channel. The correction is built and awaiting the next fixture run with physical output windows suppressed. Verify invalid-source recovery and restoration of saved code, then deliver the Shader Editor, external reload, additional formats, multipass, typed uniforms, texture inputs and library imports."
+	"isolatedApp": {
+		"result": "pass",
+		"adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+		"startupDisplay": "RTK FHD HDR, Windows GDI display 2",
+		"otherEligibleDisplay": "Optoma UHD, Windows GDI display 5",
+		"physicalWindowsOpened": 0,
+		"pixels": "A separate Spout receiver verified five complete 96x64 frames. The first was blue with alpha 127 for nominal half alpha. Invalid code cleared the output, valid code restored green, an unsaved edit produced red, and loading the saved project restored green.",
+		"receipt": "target/m14-display-isolated/run-lJ13WV/result.json"
+	},
+	"remaining": "Deliver the Shader Editor, external reload, additional formats, multipass, typed uniforms, texture inputs and library imports."
 }

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -8,7 +9,12 @@ import { createPreviewOutputObserver } from './preview-output-observer.mjs';
 const outputDir = path.resolve(process.argv[2] ?? 'target/mapgyver-native-shader');
 await mkdir(outputDir, { recursive: true });
 const directory = await mkdtemp(path.join(outputDir, 'run-'));
-const native = await openNativeEditor({ appDataDirectory: path.join(directory, 'profile') });
+let appLog = '';
+const native = await openNativeEditor({
+	appDataDirectory: path.join(directory, 'profile'),
+	suppressDisplayOutputs: true,
+	onLogData: (chunk) => (appLog += chunk)
+});
 const { page } = native;
 const errors = [];
 page.on('pageerror', (error) => errors.push(String(error)));
@@ -96,6 +102,27 @@ try {
 	});
 	assert(screenCatalog.success, JSON.stringify(screenCatalog));
 	const [screen] = screenCatalog.result.value.snapshot.screens;
+	stage = 'verify startup display selection without a physical window';
+	const displays = JSON.parse(
+		execFileSync(path.resolve('target/debug/native_qualification.exe'), ['--role', 'catalog'], {
+			encoding: 'utf8',
+			windowsHide: true,
+			timeout: 10000
+		})
+	);
+	const external = displays.filter(
+		({ internal, bounds }) =>
+			internal === false && bounds.extent.width <= 8192 && bounds.extent.height <= 8192
+	);
+	const selected = external.find(({ id }) => id === screen.definition.target?.display);
+	if (external.length > 0) {
+		assert(selected, JSON.stringify(screen.definition.target));
+		const numbered = external.map(({ index }) => index).filter(Boolean);
+		if (numbered.length > 0) assert.equal(selected.index, Math.min(...numbered));
+	} else {
+		assert.equal(screen.definition.target, null);
+	}
+	assert(!appLog.includes('[mapgyver-output] window id='));
 
 	async function edit(value) {
 		await editor.fill(value);
@@ -139,10 +166,19 @@ try {
 	await delay(500);
 	await observer.observePixels('reloaded-green', [0, 255, 0, 255]);
 	assert.deepEqual(errors, []);
+	assert(!appLog.includes('[mapgyver-output] window id='));
 	await writeFile(
 		path.join(directory, 'result.json'),
 		JSON.stringify(
-			{ result: 'pass', adapter: observer.adapter, pixels: observer.observations, errors },
+			{
+				result: 'pass',
+				startupDisplay: selected ? { name: selected.name, index: selected.index } : null,
+				externalDisplays: external.map(({ name, index }) => ({ name, index })),
+				physicalWindowsOpened: 0,
+				adapter: observer.adapter,
+				pixels: observer.observations,
+				errors
+			},
 			null,
 			2
 		)

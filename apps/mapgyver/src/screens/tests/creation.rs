@@ -2,6 +2,7 @@ use super::*;
 use crate::{
     app::AppNode,
     media::protocol::{MEDIA_NAMESPACE, MEDIA_OPERATION, MediaEdit, MediaEditResult, MediaKind},
+    screens::ScreenNode,
 };
 use golden_core::{
     app::{from_sparse_project_json, to_sparse_project_json_pretty},
@@ -115,6 +116,36 @@ fn creation_uses_physical_external_identity_even_when_primary_and_ignores_unknow
         );
         let (second, _) = create(&mut engine);
         assert_unselected_fullscreen(&engine, second);
+    }
+}
+
+#[test]
+fn fresh_and_live_screens_choose_the_lowest_available_number_before_device_path() {
+    let projector = display("a-projector", 3, false, 3);
+    let rtk = display("z-rtk", 2, false, 2);
+    let mut unnumbered = display("b-unnumbered", 4, false, 4);
+    unnumbered.index = 0;
+    for catalog in [
+        vec![projector.clone(), unnumbered.clone(), rtk.clone()],
+        vec![rtk, unnumbered, projector],
+    ] {
+        let initial = crate::screens::creation::initial_tree(&catalog);
+        let screen = initial.node.as_any().downcast_ref::<ScreenNode>().unwrap();
+        assert_eq!(screen.authored_display_identity(), "z-rtk");
+
+        let mut engine = fixture();
+        displays(&mut engine, catalog);
+        for expected in ["z-rtk", "a-projector", "b-unnumbered"] {
+            let (screen, _) = create(&mut engine);
+            assert_eq!(
+                definition(&engine, screen).target,
+                Some(ScreenTarget::Fullscreen {
+                    display: expected.into()
+                })
+            );
+        }
+        let (screen, _) = create(&mut engine);
+        assert_unselected_fullscreen(&engine, screen);
     }
 }
 
