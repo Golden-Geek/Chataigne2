@@ -2,7 +2,7 @@
   "date": "2026-11-19",
   "gate": "M10/3",
   "accepted": false,
-  "scope": "One NVIDIA baseline and seven corrective comparisons for looping lossy VP8 animated WebP with alpha. The workload uses 1080p60 and 4K30 Files, an HD Reference, three independent Spout receivers and 30/120/60/60 seconds of warmup, visible, minimized and disconnected operation.",
+  "scope": "One NVIDIA baseline and eight corrective comparisons for looping lossy VP8 animated WebP with alpha. The workload uses 1080p60 and 4K30 Files, an HD Reference, three independent Spout receivers and 30/120/60/60 seconds of warmup, visible, minimized and disconnected operation.",
   "environment": {
     "baseRevision": "44fd621b",
     "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
@@ -368,6 +368,45 @@
     "localCandidateStash": {
       "name": "pending/mapgyver-m103-hd-webp-upload-budget-2026-11-19",
       "commit": "936fa0e86f593486fdcd60825587d36f34e1fff2"
+    }
+  },
+  "discardUploadFollowUp": {
+    "baseRevision": "5e94e696",
+    "baseline": "target/m103-q06-webp/sample-nvidia-07",
+    "localRun": "target/m103-q06-webp/sample-nvidia-09",
+    "binarySha256": "0d6af1157aacbb491d0c02b6c105e486b2f8bca9ed770833cbc6ce0ff1464feb",
+    "sampleSha256": "68a4aef09211e4779d918a702481ac1bf78a08475f77548d9532335caf546fcb",
+    "auditSha256": "f840f8b9576bcd8189932a9d042f18ac9f6dd27e29f363a87613a9249fe20f8f",
+    "inputsSha256": "d82698d1f3fccdc17bed8db2db237e55f3da96f9d2bf7733ae439f3c4f8eb8e1",
+    "unchangedInputHashes": 66,
+    "controllerAndStrictAttributionAuditExits": [0, 0],
+    "change": "Request D3D11_COPY_DISCARD when replacing the whole direct ImageStream texture through ID3D11DeviceContext1. The HD GPU bridge stays fixed. The trace measures the app request and its cost. Driver handling of the hint remains unknown.",
+    "apiReference": "https://learn.microsoft.com/en-us/windows/win32/api/d3d11_1/nf-d3d11_1-id3d11devicecontext1-updatesubresource1",
+    "checks": {
+      "goldenVideo": { "passed": 362, "ignored": 71 },
+      "mapGyverVideoTestsPassed": 80,
+      "intelAndNvidiaNativeStreamPixelTestsPassed": 2,
+      "formattingStrictClippyAndBundledBuild": "pass"
+    },
+    "visiblePublicationRatesHD_UHD": [47.6118, 30.0114],
+    "minimizedPublicationRatesHD_UHD": [48.8358, 30.0208],
+    "disconnectedPublicationRatesHD_UHD": [45.7078, 30.0056],
+    "visibleDeadlineMissesOf7203HD_UHD_Reference": [3, 1, 5],
+    "cpuSubmissionP95P99MsVisibleMinimizedDisconnected": [[3.2982, 3.7381], [4.6277, 5.5828], [4.6918, 5.5763]],
+    "renderInputWorkP95MsWithWithoutFresh4KUploadVisibleMinimizedDisconnected": [[2.9592, 0.1382], [4.5177, 0.1422], [4.4586, 0.1452]],
+    "visibleUhdRenderUploadP95MsBeforeAfter": [2.81795, 2.84793],
+    "visibleFilePublicationToCopyP95UpperMsHD_UHD_Reference": [24.7294, 36.0692, 24.8799],
+    "minimizedFilePublicationToCopyP95UpperMsHD_UHD_Reference": [24.4827, 37.3173, 24.8121],
+    "connectedMarkerMatches": 32407,
+    "connectedMissingOrMismatchedMarkers": 0,
+    "heldImagesByteIdenticalToPreviousBuild": [true, true, true],
+    "visibleUhdLoopsWithFinalFrame": [29, 29],
+    "finalTrackedSourceAndNativeTexelsBytes": [0, 0],
+    "finalPlanTextureAllocationsCreatedReleased": [27, 27],
+    "decision": "Retain the shipped upload path. The hint had no material CPU benefit and the shorter HD cadence remained. Proceed to the outstanding sustained DXV workload within M10/3. Revisit WebP with a bounded change that reduces transferred bytes or moves 4K staging off the render worker.",
+    "localCandidateStash": {
+      "name": "rejected/mapgyver-m103-d3d11-discard-upload-2026-11-19",
+      "commit": "3f4b593f51538723107ced8bb4ef82e098bcd80a"
     }
   },
   "softwareChecks": {

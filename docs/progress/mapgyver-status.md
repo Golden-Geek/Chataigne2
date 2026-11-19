@@ -3,7 +3,7 @@
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `█████████░` **87% — 119/137 checks accepted, 8/17 phases complete**.
 - **Latest delivered:** Animated WebP reached 30 updates/s at 4K and showed the final frame in all 29 NVIDIA test loops. [WebP comparison](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)
-- **Working on next:** Reduce the cost of 4K software uploads so mixed 1080p/4K Video can update faster.
+- **Working on next:** Verify sustained 1080p/4K DXV playback and resource retirement.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
