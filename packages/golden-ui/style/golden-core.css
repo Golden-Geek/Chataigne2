@@ -359,14 +359,14 @@ select {
 	--dv-activegroup-visiblepanel-tab-background-color: var(--gc-color-dock-tab-active-background);
 	--dv-activegroup-hiddenpanel-tab-background-color: var(--gc-color-dock-tab-hidden-background);
 	--dv-inactivegroup-visiblepanel-tab-background-color: var(
-		--gc-color-dock-tab-inactive-background
+		--gc-color-dock-tab-inactive-visible-background
 	);
 	--dv-inactivegroup-hiddenpanel-tab-background-color: var(
 		--gc-color-dock-tab-inactive-hidden-background
 	);
 	--dv-activegroup-visiblepanel-tab-color: var(--gc-color-dock-tab-active-text);
 	--dv-activegroup-hiddenpanel-tab-color: var(--gc-color-dock-tab-hidden-text);
-	--dv-inactivegroup-visiblepanel-tab-color: var(--gc-color-dock-tab-inactive-text);
+	--dv-inactivegroup-visiblepanel-tab-color: var(--gc-color-dock-tab-active-text);
 	--dv-inactivegroup-hiddenpanel-tab-color: var(--gc-color-dock-tab-inactive-hidden-text);
 	--dv-tab-divider-color: var(--gc-color-dock-tab-divider);
 	--dv-separator-border: var(--gc-color-dock-separator);
@@ -441,6 +441,7 @@ select {
 		align-items: center;
 		gap: 0.4rem;
 		box-sizing: border-box;
+		padding: 0.15rem 0;
 	}
 
 	.gc-dv-tab-label {
@@ -455,8 +456,8 @@ select {
 
 	.gc-dv-tab-close {
 		border: none;
-		width: 1.2rem;
-		height: 1.2rem;
+		width: 1rem;
+		height: 1rem;
 		background: url('icons/panels/close.svg') center center no-repeat;
 		background-size: contain;
 		color: inherit;
