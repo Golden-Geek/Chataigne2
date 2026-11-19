@@ -39,6 +39,30 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 - This rule applies to existing and future implementation plans. It does not authorize releases
   or deployments, and an explicit user instruction can override it for a particular task.
 
+## Validation Cadence
+
+- Default to one planned validation cycle per coherent, reviewable implementation slice.
+  Complete the related changes across owning layers, including protocol generation and
+  consumers, before running expensive Rust compilation and tests. Do not compile after each
+  small edit by habit. Keep slices within the existing batch limits and milestone boundaries;
+  do not accumulate unrelated features to save a build.
+- Compile earlier when a concrete API, type, ownership, lifetime or integration uncertainty
+  could invalidate the remaining implementation. State what the check will resolve and use
+  the smallest relevant target. Required baselines and explicit plan prerequisites still apply.
+- Choose the required crates, targets, features and checks for the slice before validation.
+  Group related test suites into compatible Cargo invocations where useful. Avoid routinely
+  running `cargo check`, `cargo build` and `cargo test` in sequence when the selected checks
+  already establish the required compilation coverage; retain distinct checks where their
+  targets, features or acceptance purpose differ.
+- Once the slice is ready, review the complete diff, run required formatting, and run the
+  relevant behavioral tests, strict lint, generated-contract and UI checks. Compilation alone
+  does not establish correct behavior. Batching must not reduce acceptance scope or bypass
+  the inspected compile/software prerequisites for native and hardware validation.
+- On failure, make a coherent set of fixes and rerun the affected checks. Repeat or broaden
+  passing checks when subsequent changes, unresolved concerns or a required milestone/final
+  gate justify it. Preserve useful passing evidence for unchanged code and configuration;
+  a single validation cycle is a default cadence, never a limit on necessary verification.
+
 ## Autonomous Progress And Anti-Drift
 
 - At the start of each implementation batch, record one concrete product deliverable, its
@@ -315,10 +339,19 @@ When a task spans multiple architectural areas, prefer this order:
 
 ## Code Exploration Policy
 
-Use native repository and language tools. Prefer `rg` for text search and `rg --files` for file
-discovery, then read only the relevant files or ranges. Use Cargo metadata, compiler output, and
-language-server features when they answer dependency or symbol questions more accurately than text
-search.
+Use jCodeMunch for symbol discovery, bounded source retrieval and indexed relationship queries.
+When its MCP tools are available, read `jcodemunch_guide` once per session, then resolve the current
+checkout with `order(action="resolve_repo", args={path: "."})`. The compact tool surface exposes
+the catalog through `menu`; dispatch actions through `order`. Scope queries to the owning source
+path, retrieve only the relevant symbols, and use local semantic search for unfamiliar concepts.
+Read [code navigation setup](docs/reference/code-navigation.md) for configuration and refresh commands.
+
+Keep native repository and language tools for exact text, file discovery, documentation, generated
+contracts and macro-expanded or compiler-resolved behavior. Prefer `rg` and `rg --files`, then read
+only the relevant files or ranges. Use Cargo metadata, compiler output and language-server features
+when they answer dependency or symbol questions more accurately. The index is navigation evidence,
+not proof of compilation, exhaustive references or absence. After bulk edits or branch changes,
+refresh stale results; use scoped native search if indexing is unavailable or coverage is incomplete.
 
 Choose the owning source path before exploring and scope searches accordingly:
 

@@ -15,6 +15,9 @@
 		"packages/*"
 	],
 	"scripts": {
+		"clean": "powershell -NoProfile -File tools/workspace-hygiene.ps1 -Action Clean -KeepDependencies -KeepSdks",
+		"clean:preview": "npm run clean -- -WhatIf",
+		"clean:check": "powershell -NoProfile -File tools/workspace-hygiene.ps1 -Action Audit",
 		"dev": "npm run dev --workspace chataigne-ui",
 		"dev:mapgyver": "npm run dev --workspace mapgyver-ui",
 		"build": "npm run build --workspace chataigne-ui",

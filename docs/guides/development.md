@@ -56,6 +56,17 @@ build uses the pinned SDK:
 .\tools\dev.ps1
 ```
 
+For direct Cargo commands, configure ASIO once in the same PowerShell session:
+
+```powershell
+.\tools\asio.ps1 -SetupOnly
+cargo run
+```
+
+Repeat setup in each new terminal. Without it, `asio-sys` may use an incomplete temporary SDK
+and fail to find `asiodrivers.h`. Alternatively, run `.\tools\asio.ps1 -- cargo run` to configure
+and launch in one command.
+
 An installed vendor ASIO driver is a runtime requirement for devices, not for compilation. Missing
 drivers remain a recoverable `MissingDriver` backend state. A deliberately constrained Windows
 build can opt out with `cargo run --no-default-features`.
@@ -75,8 +86,8 @@ build can opt out with `cargo run --no-default-features`.
 | Engine benchmarks                                | `cargo bench -p golden_engine`                               |
 | Release binary                                   | `cargo build --release`                                      |
 
-The default debug build uses incremental compilation and moderate optimization
-for short edit/build cycles. `cargo test-fast` uses that same profile and artifact
+The default debug build uses moderate optimization and disables incremental
+compilation to limit disk growth. `cargo test-fast` uses that same profile and artifact
 cache for focused functional tests. Use ordinary `cargo test` for full suites that
 include timing assertions: it stays fully optimized. `dev-perf` keeps the previous
 fully optimized debug behavior when profiling or working with especially large
@@ -168,6 +179,8 @@ pull-request or push events.
 
 - The root `target/` is the only Cargo output tree and also holds disposable local product-gate
   evidence. Alternate `target-*` directories are rejected.
+- `npm run clean` clears compiled output and frontend caches while keeping installed dependencies
+  and the prepared MapGyver video SDK. Stop builds/apps first; use it after large qualification runs.
 - `node_modules/` is reused only while its internal lock is at least as new as `package-lock.json`.
 - CI uses the setup-node npm cache, a stable Cargo registry cache, and sccache's content-addressed
   compiler cache. Cache identity includes the canonical toolchain manifest, target, compiler, and

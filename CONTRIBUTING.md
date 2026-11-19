@@ -31,6 +31,17 @@ dependencies, and then run the app. On Windows, the bootstrap selects the manife
 host. See [docs/guides/development.md](docs/guides/development.md) for prerequisites, diagnostics, root workflows,
 qualification commands, and cache policy.
 
+## Validation Cadence
+
+Complete a coherent, reviewable feature slice across its owning layers before expensive
+compilation and tests. Compile earlier when a concrete API, type, ownership or integration
+uncertainty could invalidate the remaining work. Keep unrelated changes in separate slices.
+
+Review the complete diff, format, and run the relevant tests and required checks at the slice
+boundary. Group compatible test suites where useful and avoid redundant compilation commands.
+Fix failures and rerun affected checks; all milestone and final acceptance requirements still
+apply. See [AGENTS.md](AGENTS.md#validation-cadence) for the repository's validation policy.
+
 ## Formatting
 
 Rust:

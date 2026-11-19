@@ -1,0 +1,37 @@
+{
+	// Local source navigation; app behavior and builds do not depend on this tool.
+	"max_folder_files": 12000,
+	"use_ai_summaries": false,
+	"share_savings": false,
+	"allow_remote_summarizer": false,
+	"cross_repo_default": false,
+	"repo_visibility": "workspace",
+
+	"extra_ignore_patterns": [
+		".git/",
+		".code-index/",
+		".kilo/",
+		".venv/",
+		"node_modules/",
+		"target/",
+		"target-*/",
+		"vendor/",
+		"gen/",
+		"generated/",
+		"build/",
+		"dist/",
+		".svelte-kit/",
+		"coverage/",
+		"artifacts/",
+		"playwright-report/",
+		"test-results/",
+		"docs/archive/",
+		"docs/progress/evidence/",
+		"src-ui/src/lib/golden_alchemist_ui/",
+		"src-ui/src/lib/golden_ui/",
+		"submodules/"
+	],
+
+	// Watcher startup and freshness are explicit in .codex/config.toml.
+	"watch_follow_symlinks": false
+}

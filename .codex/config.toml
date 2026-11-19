@@ -1,0 +1,17 @@
+# Installed with uv; this repository is trusted in the user's Codex config.
+[mcp_servers.jcodemunch]
+command = "jcodemunch-mcp"
+args = ["serve", "--watcher", "--watcher-no-ai-summaries", "--freshness-mode", "strict"]
+startup_timeout_sec = 30
+tool_timeout_sec = 180
+default_tools_approval_mode = "writes"
+
+[mcp_servers.jcodemunch.env]
+JCODEMUNCH_SHARE_SAVINGS = "0"
+
+# These dispatchers also maintain the disposable local index/session state.
+[mcp_servers.jcodemunch.tools.order]
+approval_mode = "approve"
+
+[mcp_servers.jcodemunch.tools.route]
+approval_mode = "approve"

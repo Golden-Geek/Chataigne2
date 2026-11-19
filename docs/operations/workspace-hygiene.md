@@ -25,11 +25,12 @@ call those installers.
 
 ## Generated data policy
 
-Cargo always uses the single root `target` directory. The default development profile keeps an
-incremental cache for workspace crates to speed up edits. The optimized development and test
-profiles disable it, and all development profiles omit dependency debug information. The separate
-profile outputs and incremental cache consume disk space, so the workspace budget for all
-recognized generated data remains 25 GiB.
+Cargo uses the single root `target` directory. Development and test profiles disable incremental
+compilation, retain only line tables for workspace backtraces, and omit dependency debug information.
+This trades some rebuild speed for substantially less disk use. `CARGO_INCREMENTAL=1` can opt in
+for a particular session; clear it afterwards. Separate profiles, feature combinations and old
+executables still accumulate, so the workspace budget for recognized generated data remains 25 GiB.
+The audit is a guard at bootstrap, not a hard filesystem quota on a running Cargo build.
 
 The checked-in rust-analyzer settings also share that target and use a focused `cargo check` during
 editing. Workspace-wide Clippy and all-target checks belong to explicit quality gates; running them
@@ -38,20 +39,39 @@ on every save both duplicates artifacts and performs unnecessary work.
 Run the audit before a long build or qualification:
 
 ```powershell
-powershell -NoProfile -File tools/workspace-hygiene.ps1 -Action Audit
+npm run clean:check
 ```
 
 The audit fails when the budget is exceeded or when it finds another `target-*` tree. The normal
 developer bootstrap runs this audit automatically and pins `CARGO_TARGET_DIR` to the canonical root
 directory.
 
-Remove all reproducible build output, npm installs, Python caches, and local virtual environments:
+For routine cleanup while keeping installed npm dependencies and the prepared MapGyver video SDK:
+
+```powershell
+npm run clean
+# Preview the exact directories without deleting them:
+npm run clean:preview
+```
+
+This removes compiled profiles, duplicate nested Cargo targets, qualification output directories
+and frontend caches. The next build recompiles Rust and regenerates frontend output. It preserves
+`target/ffmpeg-source` (including SDK, tools and corresponding-source kit),
+`target/mapgyver-ffmpeg-runtime`, and loose files directly in `target` such as scratch scripts/logs.
+The command refuses candidate directories containing tracked files or reached through filesystem
+links. Stop project builds and running apps before cleaning. Do not create a new target directory
+for each test or investigation; reuse the root target and remove bulky captures when finished.
+An access-denied directory is reported as a cleanup failure and makes the audit incomplete;
+resolve its permissions separately before relying on the budget check. Cleanup does not change ACLs.
+
+To also remove prepared SDKs, npm installs and local virtual environments, use the full reset:
 
 ```powershell
 powershell -NoProfile -File tools/workspace-hygiene.ps1 -Action Clean
 ```
 
-Use `-KeepDependencies` to retain `node_modules` and `.venv`. Active `.kilo` worktrees are never
+Use `-KeepDependencies` to retain `node_modules` and `.venv`, and `-KeepSdks` to retain the video SDK.
+The full reset requires SDK preparation again before MapGyver builds. Active `.kilo` worktrees are never
 deleted. Their generated folders are reported but are cleaned only with
 `-IncludeAgentWorktrees`; use that option only when no agent is building in those worktrees.
 

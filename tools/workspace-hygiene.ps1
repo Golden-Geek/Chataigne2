@@ -1,10 +1,11 @@
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = "Medium")]
 param(
     [ValidateSet("Audit", "Clean")]
     [string] $Action = "Audit",
     [ValidateRange(1, 4096)]
     [double] $MaximumGiB = 25,
     [switch] $KeepDependencies,
+    [switch] $KeepSdks,
     [switch] $IncludeAgentWorktrees
 )
 
@@ -26,6 +27,7 @@ $rootPrefix = $repositoryRoot.TrimEnd(
     [System.IO.Path]::AltDirectorySeparatorChar
 ) + [System.IO.Path]::DirectorySeparatorChar
 $candidates = @{}
+$inspectionFailures = [System.Collections.Generic.List[string]]::new()
 
 function Get-RelativePath {
     param(
@@ -66,6 +68,13 @@ function Add-Candidate {
     }
     if (-not (Test-IsInsideRepository $fullPath)) {
         throw "Refusing to inspect a path outside the repository: $fullPath"
+    }
+    $ancestor = $fullPath
+    while (Test-IsInsideRepository $ancestor) {
+        if ((Get-Item -LiteralPath $ancestor -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint) {
+            throw "Refusing a generated path through a filesystem link: $ancestor"
+        }
+        $ancestor = Split-Path -Parent $ancestor
     }
     if ($fullPath -eq (Join-Path $repositoryRoot ".git") -or
         $fullPath.StartsWith((Join-Path $repositoryRoot ".git") + [System.IO.Path]::DirectorySeparatorChar, $pathComparison)) {
@@ -116,14 +125,40 @@ function Get-DirectorySize {
     param([string] $Path)
 
     $bytes = [int64]0
-    foreach ($file in Get-ChildItem -LiteralPath $Path -File -Recurse -Force -ErrorAction SilentlyContinue) {
-        $bytes += [int64]$file.Length
+    $pending = [System.Collections.Generic.Stack[System.IO.DirectoryInfo]]::new()
+    $pending.Push([System.IO.DirectoryInfo]::new($Path))
+    while ($pending.Count -gt 0) {
+        $directory = $pending.Pop()
+        try {
+            $entries = @($directory.EnumerateFileSystemInfos())
+        } catch {
+            $inspectionFailures.Add($directory.FullName)
+            Write-Warning "Cannot measure $($directory.FullName): $($_.Exception.Message)"
+            continue
+        }
+        foreach ($entry in $entries) {
+            if ($entry.Attributes -band [System.IO.FileAttributes]::ReparsePoint) { continue }
+            if ($entry -is [System.IO.DirectoryInfo]) {
+                $pending.Push($entry)
+            } else {
+                $bytes += [int64]$entry.Length
+            }
+        }
     }
     return $bytes
 }
 
 $canonicalTarget = Join-Path $repositoryRoot "target"
-Add-Candidate -Path $canonicalTarget -Category "cargo-target" -Cleanable $true -CanonicalCargoTarget $true
+if ($KeepSdks -and (Test-Path -LiteralPath $canonicalTarget -PathType Container)) {
+    # These inputs are consumed directly by normal MapGyver builds, including
+    # corresponding-source/license packaging. Preserve the complete prepared SDK.
+    foreach ($entry in Get-ChildItem -LiteralPath $canonicalTarget -Directory -Force) {
+        $keepSdk = $entry.Name -in @("ffmpeg-source", "mapgyver-ffmpeg-runtime")
+        Add-Candidate -Path $entry.FullName -Category "cargo-target" -Cleanable (-not $keepSdk)
+    }
+} else {
+    Add-Candidate -Path $canonicalTarget -Category "cargo-target" -Cleanable $true -CanonicalCargoTarget $true
+}
 foreach ($directory in Get-ChildItem -LiteralPath $repositoryRoot -Directory -Force -ErrorAction SilentlyContinue) {
     if ($directory.Name -like "target-*") {
         Add-Candidate -Path $directory.FullName -Category "cargo-target-noncanonical" -Cleanable $true
@@ -135,6 +170,10 @@ Add-Candidate -Path (Join-Path $repositoryRoot ".venv") -Category "local-toolcha
 Add-GeneratedChildren -Parent $repositoryRoot -Cleanable $true -DependencyCleanable $dependencyCleanable
 Add-GeneratedChildren -Parent (Join-Path $repositoryRoot "apps\chataigne\ui") -Cleanable $true -DependencyCleanable $dependencyCleanable
 Add-Candidate -Path (Join-Path $repositoryRoot "apps\chataigne\gen") -Category "generated" -Cleanable $true
+Add-GeneratedChildren -Parent (Join-Path $repositoryRoot "apps/mapgyver/ui") -Cleanable $true -DependencyCleanable $dependencyCleanable
+Add-Candidate -Path (Join-Path $repositoryRoot "apps/mapgyver/gen") -Category "generated" -Cleanable $true
+Add-GeneratedChildren -Parent (Join-Path $repositoryRoot "tools/mapgyver/native-probe/ui") -Cleanable $true -DependencyCleanable $dependencyCleanable
+Add-Candidate -Path (Join-Path $repositoryRoot "tools/mapgyver/native-probe/gen") -Category "generated" -Cleanable $true
 
 foreach ($packageRoot in @(
     (Join-Path $repositoryRoot "apps"),
@@ -155,9 +194,19 @@ foreach ($sourceRoot in @(
     (Join-Path $repositoryRoot "xtask")
 )) {
     if (Test-Path -LiteralPath $sourceRoot -PathType Container) {
-        foreach ($cache in Get-ChildItem -LiteralPath $sourceRoot -Directory -Recurse -Force -ErrorAction SilentlyContinue |
-            Where-Object { $_.Name -in @("__pycache__", ".pytest_cache", ".ruff_cache", ".mypy_cache") }) {
-            Add-Candidate -Path $cache.FullName -Category "language-cache" -Cleanable $true
+        $pending = [System.Collections.Generic.Stack[string]]::new()
+        $pending.Push($sourceRoot)
+        while ($pending.Count -gt 0) {
+            foreach ($directory in Get-ChildItem -LiteralPath $pending.Pop() -Directory -Force) {
+                if ($directory.Attributes -band [System.IO.FileAttributes]::ReparsePoint) { continue }
+                if ($directory.Name -eq "target" -or $directory.Name -like "target-*") {
+                    Add-Candidate -Path $directory.FullName -Category "cargo-target-noncanonical" -Cleanable $true
+                } elseif ($directory.Name -in @("__pycache__", ".pytest_cache", ".ruff_cache", ".mypy_cache")) {
+                    Add-Candidate -Path $directory.FullName -Category "language-cache" -Cleanable $true
+                } elseif ($directory.Name -notin @("node_modules", ".git", "build", "dist", ".svelte-kit")) {
+                    $pending.Push($directory.FullName)
+                }
+            }
         }
     }
 }
@@ -198,14 +247,35 @@ $totalGiB = [math]::Round($totalBytes / 1GB, 3)
 Write-Host "Generated workspace data: $totalGiB GiB (budget: $MaximumGiB GiB)."
 
 if ($Action -eq "Clean") {
+    # Validate the entire deletion set before changing anything. An accidentally
+    # tracked build fixture must never be removed by a hygiene command.
+    $trackedDirectories = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+    $trackedFiles = @(git -C $repositoryRoot -c core.quotepath=false ls-files)
+    if ($LASTEXITCODE -ne 0) { throw "Cannot verify tracked files before cleanup." }
+    foreach ($trackedFile in $trackedFiles) {
+        $parent = Split-Path -Parent (Join-Path $repositoryRoot $trackedFile)
+        while (Test-IsInsideRepository $parent) {
+            [void]$trackedDirectories.Add($parent)
+            $parent = Split-Path -Parent $parent
+        }
+    }
+    foreach ($candidate in $candidates.Values | Where-Object { $_.Cleanable }) {
+        if ($trackedDirectories.Contains($candidate.Path)) {
+            throw "Refusing to delete a directory containing tracked files: $($candidate.Path)"
+        }
+    }
     $failures = @()
     foreach ($candidate in $candidates.Values | Where-Object { $_.Cleanable } | Sort-Object { $_.Path.Length } -Descending) {
         if (-not (Test-IsInsideRepository $candidate.Path)) {
             throw "Refusing to clean a path outside the repository: $($candidate.Path)"
         }
         try {
-            Remove-Item -LiteralPath $candidate.Path -Recurse -Force -ErrorAction Stop
-            Write-Host "Removed $($candidate.RelativePath)"
+            if ($PSCmdlet.ShouldProcess($candidate.Path, "Remove reproducible workspace output")) {
+                Remove-Item -LiteralPath $candidate.Path -Recurse -Force -ErrorAction Stop
+                Write-Host "Removed $($candidate.RelativePath)"
+            }
         }
         catch {
             $failures += "$($candidate.RelativePath): $($_.Exception.Message)"
@@ -222,10 +292,13 @@ $policyViolations = @($candidates.Values | Where-Object {
 })
 if ($policyViolations.Count -gt 0) {
     $paths = @($policyViolations | ForEach-Object { $_.RelativePath }) -join ", "
-    throw "Noncanonical generated directories found: $paths. Run tools/workspace-hygiene.ps1 -Action Clean -IncludeAgentWorktrees."
+    throw "Noncanonical generated directories found: $paths. Run npm run clean. For agent worktrees, stop their builds and add -IncludeAgentWorktrees."
+}
+if ($inspectionFailures.Count -gt 0) {
+    throw "Workspace audit is incomplete: $($inspectionFailures.Count) unreadable directories. Reported size is a lower bound."
 }
 if ($totalGiB -gt $MaximumGiB) {
-    throw "Generated workspace data exceeds the $MaximumGiB GiB budget. Run tools/workspace-hygiene.ps1 -Action Clean."
+    throw "Generated workspace data exceeds the $MaximumGiB GiB budget. Run npm run clean to keep installed dependencies and prepared SDKs."
 }
 
 Write-Host "PASS workspace hygiene audit"
