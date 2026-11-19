@@ -9,7 +9,7 @@
 		clearViewportSelection
 	} from 'golden_ui';
 	import SourceDropZone from '../media/SourceDropZone.svelte';
-	import { mediaFileDrop } from '../media/file-drop';
+	import { matrixFileDrop } from './file-drop';
 	import playIcon from 'golden_ui/style/icons/play.svg';
 	import addIcon from 'golden_ui/style/icons/node/add.svg';
 	import deleteIcon from 'golden_ui/style/icons/panels/close.svg';
@@ -20,6 +20,7 @@
 	import type { MatrixViewRow } from '../media/generated/MatrixViewRow';
 	import type { ColumnSnapshot } from '../media/generated/ColumnSnapshot';
 	import type { MatrixEdit } from '../media/generated/MatrixEdit';
+	import type { MatrixFileTarget } from '../media/generated/MatrixFileTarget';
 	import type { MatrixState } from './authoring';
 	import { gridSize, projectGrid, rowOffset } from './viewport';
 	import GridCreationHeaders from './GridCreationHeaders.svelte';
@@ -83,7 +84,7 @@
 		clearSelection(): void;
 		trigger(row: MatrixViewRow, column: ColumnSnapshot): void;
 		drop(row: MatrixViewRow, column: ColumnSnapshot, source: string, copy: boolean): void;
-		dropFile?(layer: string, column: string | null, path: string): Promise<void>;
+		dropFile?(target: MatrixFileTarget, path: string): Promise<void>;
 		cellSource(cell: string): CellDrag | null;
 		cellDrop(source: CellDrag, layer: string, column: string, event: DragEvent): void;
 		cellCopy(cell: string, cut?: boolean): boolean;
@@ -143,24 +144,15 @@
 	);
 	let element: HTMLDivElement;
 	let fileDropArea = $state<HTMLDivElement>();
-	function fileDestination(element: Element) {
-		const submit = dropFile;
-		if (disabled || !submit) return null;
-		const cell = element.closest<HTMLElement>('[data-cell-drop]');
-		const newColumn = element.closest<HTMLElement>('[data-matrix-file-new-column]');
-		const bounds = cell ?? newColumn;
-		const layer = cell?.dataset.cellLayer ?? newColumn?.dataset.matrixFileNewColumn;
-		if (!bounds || !layer) return null;
-		const column = cell?.dataset.cellColumn ?? null;
-		const populated = column !== null && cells.get(`${layer}:${column}`)?.cell.media != null;
-		return mediaFileDrop(
-			{
-				bounds,
-				label: newColumn ? 'Add Column' : populated ? 'Replace Cell media' : 'Import into Cell',
-				action: populated ? 'replace' : 'add'
-			},
-			(path) => submit(layer, column, path)
-		);
+	function fileDestination(element: Element, event: DragEvent) {
+		return disabled || !dropFile
+			? null
+			: matrixFileDrop(
+					element,
+					event,
+					(layer, column) => cells.get(`${layer}:${column}`)?.cell.media != null,
+					dropFile
+				);
 	}
 	let dragging = $state<GridDrag | null>(null);
 	let cellDragging = $state(false);

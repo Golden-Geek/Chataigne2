@@ -22,6 +22,7 @@ mod creation;
 pub(crate) mod defaults;
 pub(crate) mod document;
 mod editor;
+mod file_drop;
 mod geometry;
 pub(crate) mod node;
 pub(crate) mod outputs;

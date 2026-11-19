@@ -3,6 +3,7 @@
 		bounds: Element;
 		label: string;
 		action: 'add' | 'replace';
+		icon?: string;
 		drop: (paths: string[]) => Promise<void>;
 	}
 </script>
@@ -52,7 +53,7 @@
 			const box = destination.bounds.getBoundingClientRect();
 			const parent = root.getBoundingClientRect();
 			frame = {
-				icon: destination.action === 'add' ? addIcon : replaceIcon,
+				icon: destination.icon ?? (destination.action === 'add' ? addIcon : replaceIcon),
 				label: destination.label,
 				left: box.left - parent.left,
 				top: box.top - parent.top,

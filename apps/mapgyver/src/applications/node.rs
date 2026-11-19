@@ -2,10 +2,10 @@
 use super::protocol::*;
 use crate::app::AppEngine;
 use golden_core::{
-    edit::NodeTree,
+    edit::{Edit, NodeTree},
     node,
     node::{Node, NodeId, ParameterHandle, ParameterValidationContext, ParameterValueType, UserCreatableItem},
-    parameter::{Enum, File, ParamValue},
+    parameter::{Enum, File, ParamValue, ParameterEventBehaviour},
     process_ctx::ProcessCtx,
 };
 use golden_io::{RevisionGuard, RevisionSource};
@@ -95,6 +95,13 @@ impl AppControlNode {
     }
     pub(crate) fn configured(&self) -> bool {
         !self.app_file.get_ref().as_str().is_empty()
+    }
+    pub(super) fn set_file_edit(&self, executable: Option<String>) -> Edit {
+        Edit::SetParam {
+            node: self.app_file.id(),
+            value: ParamValue::File(executable.unwrap_or_default()),
+            behaviour: ParameterEventBehaviour::Append,
+        }
     }
     pub(crate) fn enabled(&self, engine: &AppEngine) -> bool {
         crate::media::routing_enabled(engine, self)

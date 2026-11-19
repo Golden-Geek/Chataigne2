@@ -29,6 +29,22 @@ pub enum ColumnItemId {
     Column { id: ColumnId },
     Group { id: ColumnGroupId },
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "kind")]
+pub enum MatrixFileTarget {
+    Cell {
+        layer: LayerId,
+        column: ColumnId,
+    },
+    /// Append a root Column and import into the addressed Layer.
+    NewColumn {
+        layer: LayerId,
+    },
+    ColumnItem {
+        item: ColumnItemId,
+    },
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MatrixItemId {
@@ -553,10 +569,8 @@ pub enum MatrixEdit {
         #[serde(default)]
         copy: bool,
     },
-    /// Without a Column, append a new root Column and import into it at this Layer.
-    DropMediaFile {
-        layer: LayerId,
-        column: Option<ColumnId>,
+    DropFile {
+        target: MatrixFileTarget,
         #[ts(type = "string")]
         path: golden_assets::AbsoluteAssetPath,
     },

@@ -2,10 +2,10 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `████████░░` **82% — 119/145 checks accepted, 8/19 phases complete**.
-- **Latest delivered:** Windows file drops now import or replace Media in a Matrix Cell. Dropping to the right of a Layer's Cells creates a Column and imports into it. Undo and reload passed in native WebView2. [Checks](evidence/mapgyver-m18-matrix-file-drop-2026-11-19.json)
+- **Latest delivered:** Drop an `.exe` onto a Matrix Column, Column Group or Cell to set its App Control file. All three targets passed Windows WebView2 checks, including Undo and reload. [Checks](evidence/mapgyver-m18-matrix-app-drop-2026-11-19.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Active:** M18/1 OS file drag-and-drop. Next are `.exe` drops for Matrix App Control on Columns, Column Groups and Cells. Direct File Explorer checks remain pending.
+- **Next:** M18/2 Project Settings and Preferences. M18/1 file drops are implemented, with direct File Explorer verification still pending.
 
 ## Done — code and normal-use checks passed
 
@@ -66,6 +66,7 @@
 - [x] **Seamless previews:** Surface Editor and Media Preview held the previous image until a delayed Spout sender produced frames. Switching between Surfaces using the same channel, including through a Reference, reused one live receiver. [Checks](evidence/mapgyver-m16-seamless-previews-2026-11-19.json)
 - [x] **Linked outlines:** both Screen Warping outlines follow the latest drag before the engine replies, including with snapping off. Release, Undo/Redo, native hit testing and independent Spout pixels passed. [Checks](evidence/mapgyver-m16-linked-outlines-2026-11-19.json)
 - [x] **Gradient and Color animation:** choose **Animation** on a Color parameter and expand **Gradient** to edit its stops. Standalone Gradients are available in a Golden Context. Native Spout verified the color blend, alpha, reload, and return to Manual. [Checks](evidence/mapgyver-m15-gradient-2026-11-19.json)
+- [x] **File drops:** Medias, Screen Warping, Composition and Matrix imports passed Windows WebView2 checks. Matrix also accepts `.exe` files for App Control. Direct File Explorer verification remains below. [Medias](evidence/mapgyver-m18-medias-file-drop-2026-11-19.json) · [Editors](evidence/mapgyver-m18-editor-file-drop-2026-11-19.json) · [Matrix](evidence/mapgyver-m18-matrix-app-drop-2026-11-19.json)
 
 ## Planned features
 
@@ -74,9 +75,8 @@
 - **NDI Media.** Available on first launch in the Windows x64 package. Adding NDI Media automatically discovered and displayed the external test sender. Clean Windows installation, a Media gain check and cross-machine A/V checks remain pending. [Startup checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
 - **NDI Screen Output.** Choosing NDI on an enabled Screen started publication immediately. Picture and routed audio resumed after an app restart and reopening the saved project. Cross-machine A/V offset and drift, recovery, and final-use qualification remain pending. [Startup checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
 
-[Feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi) adds six tasks in order.
+[Remaining feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi), in order.
 
-1. **OS file drag-and-drop.** Medias, Screen Warping, Composition and Matrix Media imports passed Windows WebView2 checks. `.exe` App Control assignment and direct File Explorer checks remain. [Medias](evidence/mapgyver-m18-medias-file-drop-2026-11-19.json) · [Editors](evidence/mapgyver-m18-editor-file-drop-2026-11-19.json) · [Matrix](evidence/mapgyver-m18-matrix-file-drop-2026-11-19.json)
 2. **Project Settings.** Save settings per project and open them from the File menu or top bar. Add a separate Preferences icon.
 3. **File Explorer.** Browse the project folder in tree or thumbnail view, choose a custom folder and drag files into Media targets.
 4. **Shader Media.** Play GLSL, ShaderToy and ISF shaders, edit embedded code or reload external files, expose parameters and texture inputs, and browse the Shader Library.
@@ -105,7 +105,8 @@
 13. **32-bit App Control retirement:** the 64-bit path works; the WOW64 accounting/retirement case still fails. Requires a correction before release.
 14. **Long-run resources and physical latency:** retained peak-memory growth and GPU/timing limits are not all met. Complete the sustained and mixed-display timing checks; fix remaining failures before release.
 15. **Video audio hardware qualification:** capture the actual routed device signal and verify physical audio endpoint disconnect/reconnect while Video is playing. The native mixer, unavailable-device selection and output reopen checks passed.
-16. **Full regression and Windows qualification:** reconcile the remaining parallel Video and older Matrix/tool-fixture failures, including the exact-record reload comparison after Cell relocation. Then run the complete app/installer checks, including both NDI directions with audio, Windows runtime loading and the six post-NDI workflows.
+16. **File drops:** repeat the drop targets with direct File Explorer input, including rejection, Undo and reload. Desktop automation supports single-window drags. [Cases](evidence/mapgyver-m18-matrix-app-drop-2026-11-19.json)
+17. **Full regression and Windows qualification:** reconcile the remaining parallel Video and older Matrix/tool-fixture failures, including the exact-record reload comparison after Cell relocation. Then run the complete app/installer checks, including both NDI directions with audio, Windows runtime loading and the six post-NDI workflows.
 
 ## Checking cadence from now on
 

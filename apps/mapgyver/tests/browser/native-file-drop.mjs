@@ -21,8 +21,10 @@ page.on('pageerror', (error) => errors.push(String(error)));
 let token, stage, failure, media;
 const editorDrops = process.argv.includes('--editors');
 const matrixDrops = process.argv.includes('--matrix');
+const applicationDrops = process.argv.includes('--matrix-app-control');
 const editors = {};
 let matrixResult;
+let applicationResult;
 
 async function post(route, body) {
 	const response = await fetch(native.base + route, {
@@ -92,7 +94,7 @@ async function verifyMatrix(drop) {
 	await cell.waitFor();
 
 	stage = 'import a disk-backed Picture into an empty Cell';
-	await drop(panel, cell, original, 'Import into Cell');
+	await drop(panel, cell, original, /^(Import into Cell|Import media or set App Control)$/);
 	const first = await wait(async () => (await matrix()).cells[0], Boolean);
 	assert.equal(await filePath(first), original);
 	assert.equal(first.layer, layer);
@@ -103,7 +105,7 @@ async function verifyMatrix(drop) {
 	);
 
 	stage = 'replace Media while keeping the Cell and restore it with one Undo';
-	await drop(panel, cell, replacement, 'Replace Cell media');
+	await drop(panel, cell, replacement, /^(Replace Cell media|Import media or set App Control)$/);
 	const replaced = await wait(
 		async () => (await matrix()).cells[0],
 		(entry) => entry != null && entry.media !== first.media
@@ -165,6 +167,109 @@ async function verifyMatrix(drop) {
 		addedColumn,
 		cells: [first.id, addedCell.id]
 	};
+}
+
+async function verifyMatrixApplications(drop) {
+	stage = 'open the Matrix with a Column Group and three executable fixtures';
+	await showMedia();
+	const label = 'App Control Drop Matrix';
+	const { reference } = await edit({ kind: 'CreateMedia', media_kind: 'Matrix', label });
+	const operation = (command) => edit({ kind: 'Matrix', media: reference.media, edit: command });
+	const matrix = async () => (await operation({ kind: 'Inspect' })).snapshot;
+	const control = (command) => edit({ kind: 'Applications', edit: command });
+	const application = async (owner) =>
+		(await control({ kind: 'Inspect', application: owner })).snapshot.definition;
+	const initial = await matrix();
+	const layer = initial.items[0].id.id;
+	const [column, groupedColumn] = initial.columns.map((entry) => entry.id);
+	const { group } = await operation({
+		kind: 'AddColumnGroup',
+		parent: null,
+		label: 'Show Control'
+	});
+	await operation({
+		kind: 'MoveColumnItem',
+		item: { kind: 'Column', id: groupedColumn },
+		parent: group,
+		after: null
+	});
+	const executablePaths = {};
+	for (const target of ['Column', 'Column Group', 'Cell']) {
+		const file = path.join(directory, `${target} utility.EXE`);
+		await copyFile(path.join(process.env.SystemRoot, 'System32', 'whoami.exe'), file);
+		executablePaths[target] = file;
+	}
+	await control({
+		kind: 'Configure',
+		application: column,
+		definition: { arguments: ['preserve argument'], window: 'Hidden' }
+	});
+	const prior = await application(column);
+	await manager.getByRole('button', { name: label, exact: true }).click();
+	await tab('Matrix').click();
+	const panel = page.locator('section[aria-label="Matrix"]');
+
+	stage = 'assign App Control on the Column and undo only its file';
+	const columnHeader = panel.locator(`[data-matrix-drop="Column"][data-column-id="${column}"]`);
+	await drop(panel, columnHeader, executablePaths.Column, 'Set Column App Control');
+	const expectedColumn = { ...prior, executable: executablePaths.Column };
+	await wait(
+		() => application(column),
+		(value) => value.executable === expectedColumn.executable
+	);
+	assert.deepEqual(await application(column), expectedColumn);
+	await intent({ kind: 'undo' });
+	assert.deepEqual(await application(column), prior);
+	await intent({ kind: 'redo' });
+	assert.deepEqual(await application(column), expectedColumn);
+	assert.equal((await application(group)).executable, null);
+
+	stage = 'assign to the Column Group header without changing its child Column';
+	const groupHeader = panel.locator(`[data-column-group-id="${group}"]`);
+	await drop(panel, groupHeader, executablePaths['Column Group'], 'Set Column Group App Control');
+	await wait(
+		() => application(group),
+		(value) => value.executable === executablePaths['Column Group']
+	);
+	assert.equal((await application(groupedColumn)).executable, null);
+	assert.deepEqual(await application(column), expectedColumn);
+
+	stage = 'assign App Control to an empty Cell and undo the sparse Cell in one step';
+	const cellTarget = panel.locator(`[data-cell-layer="${layer}"][data-cell-column="${column}"]`);
+	await drop(
+		panel,
+		cellTarget,
+		executablePaths.Cell,
+		/^(Set Cell App Control|Import media or set App Control)$/
+	);
+	const cell = await wait(async () => (await matrix()).cells[0], Boolean);
+	assert.equal(cell.media, null);
+	assert.equal((await application(cell.id)).executable, executablePaths.Cell);
+	await intent({ kind: 'undo' });
+	assert.deepEqual((await matrix()).cells, []);
+	await intent({ kind: 'redo' });
+	assert.deepEqual((await matrix()).cells, [cell]);
+	assert.equal((await application(cell.id)).executable, executablePaths.Cell);
+	assert.deepEqual((await control({ kind: 'InspectRuntime' })).snapshot.applications, []);
+
+	stage = 'reject a non-executable file on the Group header';
+	await drop(panel, groupHeader, unsupported, 'Set Column Group App Control');
+	await panel
+		.getByRole('alert')
+		.filter({ hasText: 'Drop an .exe file to set App Control' })
+		.waitFor();
+	assert.equal((await application(group)).executable, executablePaths['Column Group']);
+
+	stage = 'reload all three App Control assignments from the project';
+	const project = path.join(directory, 'Matrix executable drops.mapgyver');
+	assert((await post('/api/ui/project-save', { path: project })).ok);
+	assert((await post('/api/ui/project-new', {})).ok);
+	await post('/api/ui/project-load', { path: project });
+	assert.deepEqual(await application(column), expectedColumn);
+	assert.equal((await application(group)).executable, executablePaths['Column Group']);
+	assert.equal((await application(cell.id)).executable, executablePaths.Cell);
+	assert.deepEqual((await matrix()).cells, [cell]);
+	applicationResult = { column, group, cell: cell.id };
 }
 
 async function verifyEditors(drop) {
@@ -356,13 +461,14 @@ try {
 				await cdp.send('Input.dispatchDragEvent', { ...target, type: 'dragOver' });
 				return (await active.count()) ? active.innerText() : null;
 			},
-			(text) => text === label
+			(text) => (typeof label === 'string' ? text === label : text !== null && label.test(text))
 		);
 		await cdp.send('Input.dispatchDragEvent', { ...target, type: 'drop' });
 		await active.waitFor({ state: 'detached' });
 	}
-	if (matrixDrops) {
-		await verifyMatrix(drop);
+	if (matrixDrops || applicationDrops) {
+		if (matrixDrops) await verifyMatrix(drop);
+		if (applicationDrops) await verifyMatrixApplications(drop);
 	} else {
 		const label = 'Projector café';
 		const authored = async () => (await inspect()).media.find((entry) => entry.label === label);
@@ -441,6 +547,7 @@ await writeFile(
 			media: media?.id,
 			editors: editorDrops ? editors : undefined,
 			matrix: matrixResult,
+			appControl: applicationResult,
 			errors,
 			observed,
 			failure,

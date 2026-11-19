@@ -1,4 +1,4 @@
-//! Owner-based app-control operations. Authored settings always belong to a Column or Cell.
+//! Owner-based app-control operations for Columns, Column Groups and Cells.
 use super::{AppControlNode, protocol::*};
 use crate::{
     app::{AppEngine, AppNode},
@@ -36,18 +36,24 @@ pub fn inspect(engine: &AppEngine, application: ApplicationId) -> Result<Applica
         .ok_or("App-control owner is missing or invalid")?
         .snapshot(engine)
 }
+pub(crate) fn set_file(
+    engine: &mut AppEngine,
+    application: ApplicationId,
+    executable: Option<String>,
+) -> Result<(), String> {
+    let edit = control_node(engine, application)
+        .ok_or("App-control owner is missing or invalid")?
+        .set_file_edit(executable);
+    engine.edits.push(edit);
+    Ok(())
+}
 pub(crate) fn apply(engine: &mut AppEngine, edit: ApplicationEdit) -> Result<MediaEditResult, String> {
     match edit {
         ApplicationEdit::SetFile {
             application,
             executable,
         } => {
-            let node = node_id(engine, application)?;
-            let mut definition = control_node(engine, application)
-                .ok_or("App-control owner is missing or invalid")?
-                .definition(engine)?;
-            definition.executable = executable;
-            super::settings::configure(engine, node, definition)?;
+            set_file(engine, application, executable)?;
             Ok(MediaEditResult::Changed)
         }
         ApplicationEdit::Configure {

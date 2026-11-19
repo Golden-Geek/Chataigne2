@@ -90,6 +90,9 @@ implicit playback. Removing media preserves the Cell and its typed settings/app 
 On Windows, drop a picture or video file on a Cell to import or replace its Media while keeping
 the Cell settings. Drop to the right of that Layer's Cells to create a Column and import there.
 Each drop is one Undo step.
+Drop an `.exe` on a Column header, Column Group header or Cell to set its App Control file.
+The other App Control settings are preserved. A drop on a Cell that shares another Cell's
+App Control gives the target Cell its own assignment.
 Ordinary settings stay in the generic Inspector; the Matrix supplement only presents runtime
 observations. `--matrix-grid-ui`, `--matrix-parameters-ui` and `--matrix-defaults-ui` verify this
 slice. [Grid evidence](../../docs/progress/mapgyver-m07-grid.md) retains the remaining complete

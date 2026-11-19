@@ -84,6 +84,25 @@ pub(super) fn prepare(
     let (cell, _) = ensure(engine, document, layer, column)?;
     result(engine, cell)
 }
+
+pub(super) fn set_file(
+    engine: &mut AppEngine,
+    document: &Document,
+    layer: LayerId,
+    column: ColumnId,
+    executable: String,
+) -> Result<crate::media::protocol::MediaEditResult, String> {
+    let (cell, _) = ensure(engine, document, layer, column)?;
+    let Some(AppNode::MatrixCell(owner)) = engine.nodes.get(cell) else {
+        unreachable!()
+    };
+    // Assign to this Cell's control, leaving any referenced Cell's settings alone.
+    engine.edits.push(owner.independent_application_edit());
+    let application = ApplicationId(owner.node_data().meta.uuid);
+    crate::applications::set_file(engine, application, Some(executable))?;
+    result(engine, cell)
+}
+
 fn result(engine: &AppEngine, cell: NodeId) -> Result<crate::media::protocol::MediaEditResult, String> {
     Ok(crate::media::protocol::MediaEditResult::MatrixCellPrepared {
         cell: CellId(engine.nodes.get(cell).ok_or("Cell is missing")?.node_data().meta.uuid),

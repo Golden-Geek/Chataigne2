@@ -188,8 +188,8 @@ pub(crate) fn apply(engine: &mut AppEngine, media: MediaId, edit: MatrixEdit) ->
             source,
             copy,
         } => return super::cells::drop_source(engine, &document, layer, column, source, copy),
-        MatrixEdit::DropMediaFile { layer, column, path } => {
-            return super::cells::drop_media_file(engine, &document, layer, column, path);
+        MatrixEdit::DropFile { target, path } => {
+            return super::file_drop::apply(engine, &document, target, path);
         }
         MatrixEdit::InspectTargets { .. } => unreachable!(),
         MatrixEdit::DropColumnItem { .. } => unreachable!(),

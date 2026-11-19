@@ -323,11 +323,19 @@
 							selectDocumentNode(result.cell);
 						}
 					}}
-					dropFile={async (layer, column, path) => {
+					dropFile={async (target, path) => {
 						const selectDropped = selection.capture();
-						const result = await owner.edit({ kind: 'DropMediaFile', layer, column, path });
-						if (result?.kind === 'MatrixFileImported' && selectDropped(result.cell))
-							controller.select({ kind: 'Layer', id: layer }, result.column, result.cell);
+						const result = await owner.edit({ kind: 'DropFile', target, path });
+						if (result?.kind === 'MatrixFileImported' && target.kind !== 'ColumnItem') {
+							if (selectDropped(result.cell))
+								controller.select({ kind: 'Layer', id: target.layer }, result.column, result.cell);
+						} else if (result?.kind === 'MatrixCellPrepared' && target.kind === 'Cell') {
+							if (selectDropped(result.cell))
+								controller.select({ kind: 'Layer', id: target.layer }, target.column, result.cell);
+						} else if (result?.kind === 'Changed' && target.kind === 'ColumnItem') {
+							const { id, kind } = target.item;
+							if (selectDropped(id)) controller.select(null, kind === 'Column' ? id : null, id);
+						}
 					}}
 					trigger={(row, column) => {
 						if (row.item.id.kind === 'Layer')
