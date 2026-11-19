@@ -7,6 +7,7 @@ pub(in crate::native) mod completion_gate;
 mod contracts;
 pub(in crate::native) mod initialization_gate;
 pub(in crate::native) mod pixels;
+pub(in crate::native) mod window;
 
 #[test]
 fn embedded_native_shader_compiles_all_real_entrypoints() {

@@ -1,12 +1,22 @@
+use std::num::NonZeroUsize;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use golden_io::PayloadPool;
-use golden_time::RationalRate;
+use golden_time::{Clock, MonotonicTime, PlaybackRate, RationalRate, ShowPosition, TimeAuthority, TimeError};
 
 use crate::OutputId;
-use crate::native::{D3d11Config, D3d11Control, InputLimits, OutputBinding, SpoutProbe, adapters};
+use crate::native::tests::window::OwnedWindow;
+use crate::native::{
+    D3d11Config, D3d11Control, DiagnosticDelivery, DiagnosticEvent, DiagnosticsConfig, InputLimits, OutputBinding,
+    SpoutProbe, adapters,
+};
 use crate::plan::{RegionPlacement, RenderPlan, UnitRect};
-use crate::runtime::{LatePolicy, PlanActivation, VideoRuntime};
+use crate::runtime::backend::Backend;
+use crate::runtime::{CompletionToken, DeviceGeneration, LatePolicy, PlanActivation, VideoRuntime};
+
+use super::super::D3d11Backend;
 
 struct Running(Option<VideoRuntime>);
 impl Drop for Running {
@@ -188,4 +198,132 @@ fn hardware_live_presentation_wakes_between_media_frames_without_resubmitting_an
         assert!(control.output_snapshots().is_empty());
     }
     done.send(()).unwrap();
+}
+
+#[derive(Default)]
+struct FrameClock(AtomicU64);
+
+impl Clock for FrameClock {
+    fn now(&self) -> Result<MonotonicTime, TimeError> {
+        Ok(MonotonicTime::from_nanos(self.0.load(Ordering::Relaxed)))
+    }
+}
+
+#[test]
+#[ignore = "requires Windows hardware D3D11, Spout and an owned native window"]
+fn hardware_output_demand_skips_hidden_and_slower_passes_and_restores_current_pixels() {
+    let hardware: Vec<_> = adapters()
+        .unwrap()
+        .into_iter()
+        .filter(|adapter| !adapter.software)
+        .collect();
+    assert!(!hardware.is_empty());
+    for adapter in hardware {
+        let window = OwnedWindow::new();
+        let placement = RegionPlacement::new(UnitRect::FULL, UnitRect::FULL).unwrap();
+        let plan = super::presentation::scene(&placement);
+        let slow = plan.outputs()[0].id;
+        let fast = plan.outputs()[1].id;
+        let descriptor = plan.passes()[0].descriptor;
+        let control = D3d11Control::default();
+        let generation = DeviceGeneration::new(uuid::Uuid::new_v4(), 1);
+        let mut backend = D3d11Backend::new(
+            D3d11Config {
+                adapter: adapter.id,
+                inputs: InputLimits::default(),
+                diagnostics: Some(DiagnosticsConfig {
+                    capacity: NonZeroUsize::new(128).unwrap(),
+                }),
+                outputs: vec![
+                    OutputBinding::Window {
+                        id: slow,
+                        window: window.target(),
+                        extent: descriptor.extent,
+                    },
+                    OutputBinding::Spout {
+                        id: fast,
+                        name: format!("GoldenDemand-{}", uuid::Uuid::new_v4()),
+                        descriptor,
+                    },
+                ],
+                output_rates: vec![
+                    (slow, RationalRate::new(30, 1).unwrap()),
+                    (fast, RationalRate::new(60, 1).unwrap()),
+                ],
+            },
+            control.clone(),
+            generation,
+        );
+        backend.initialize().unwrap();
+        let resources = backend
+            .prepare(&plan, super::generation(&backend, &plan, generation))
+            .unwrap();
+        let clock = Arc::new(FrameClock::default());
+        let mut authority =
+            TimeAuthority::new(clock.clone(), ShowPosition::from_nanos(0), PlaybackRate::NORMAL).unwrap();
+        let mut frame = |index: u64, presentation: bool, work, expected: &[(OutputId, DiagnosticDelivery)]| {
+            clock.0.store(index * 16_666_667, Ordering::Relaxed);
+            let time = authority.sample().unwrap();
+            let token = CompletionToken {
+                device: generation,
+                serial: index + 1,
+            };
+            if presentation {
+                backend.present(&resources, &plan, token, time).unwrap();
+            } else {
+                backend.submit(&resources, &plan, token, time).unwrap();
+            }
+            wait(|| backend.completion().unwrap().serial >= token.serial);
+            let mut rows = Vec::new();
+            control.drain_diagnostics(&mut rows, NonZeroUsize::new(128).unwrap());
+            let mut delivered = Vec::new();
+            let mut done = None;
+            for row in rows {
+                match row {
+                    DiagnosticEvent::Output(row) if row.token == token => delivered.push((row.output, row.outcome)),
+                    DiagnosticEvent::FrameCpu(row) if row.token == token => {
+                        done = Some((row.rendered_passes, row.reused_passes));
+                    }
+                    _ => {}
+                }
+            }
+            assert_eq!(done, Some(work), "pass demand at frame {index}");
+            assert_eq!(delivered, expected, "output delivery at frame {index}");
+        };
+
+        let fast_only = [(fast, DiagnosticDelivery::Accepted)];
+        let hidden = [
+            (slow, DiagnosticDelivery::Unavailable),
+            (fast, DiagnosticDelivery::Accepted),
+        ];
+        window.set_visible(false);
+        frame(0, false, (1, 0), &hidden);
+        frame(1, false, (0, 1), &fast_only);
+        assert!(placement.update(
+            UnitRect {
+                width: 0.5,
+                ..UnitRect::FULL
+            },
+            UnitRect::FULL
+        ));
+        frame(2, false, (0, 1), &hidden);
+        window.set_visible(true);
+        frame(3, false, (0, 1), &fast_only);
+        frame(4, true, (3, 0), &[(slow, DiagnosticDelivery::Accepted)]);
+        frame(5, false, (0, 1), &fast_only);
+
+        let native = backend.native.as_ref().unwrap();
+        let source = &resources.textures[&plan.outputs()[0].source];
+        let pixels = crate::native::tests::pixels::readback(&native.device, source);
+        assert!(
+            pixels
+                .iter()
+                .enumerate()
+                .all(|(index, pixel)| { *pixel == if index % 4 < 2 { [255, 0, 0, 255] } else { [0; 4] } })
+        );
+        eprintln!(
+            "{}: 30/60 Hz demand, hidden/restore, fresh half-width pixels",
+            adapter.description
+        );
+    }
 }

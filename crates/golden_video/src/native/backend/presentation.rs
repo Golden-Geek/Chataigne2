@@ -3,23 +3,40 @@ use std::collections::BTreeMap;
 
 use golden_io::{RevisionReader, RevisionSubscription, WorkerNotifier};
 
+use crate::OutputId;
 use crate::plan::{CompiledPlan, RenderOperation};
+
+use super::super::outputs::OutputDemand;
 
 struct Watch {
     pass: usize,
-    output: crate::OutputId,
     reader: RevisionReader,
     sampled: u64,
-    presented: Option<u64>,
     subscription: Option<RevisionSubscription>,
+}
+
+struct Output {
+    id: OutputId,
+    producer: Option<usize>,
+    watches: Vec<(usize, Option<u64>)>,
+    demand: OutputDemand,
+}
+
+impl Output {
+    fn pending(&self, watches: &[Watch]) -> bool {
+        self.watches
+            .iter()
+            .any(|(watch, presented)| *presented != Some(watches[*watch].reader.current()))
+    }
 }
 
 pub(super) struct Presentation {
     dependencies: Vec<Vec<usize>>,
     watches: Vec<Watch>,
-    output_passes: Vec<Option<usize>>,
+    outputs: Vec<Output>,
     passes: Vec<bool>,
-    outputs: Vec<bool>,
+    dirty: Vec<bool>,
+    current: Vec<bool>,
     notify: Option<WorkerNotifier>,
 }
 
@@ -36,41 +53,18 @@ impl Presentation {
                     .collect()
             })
             .collect();
-        let output_passes: Vec<_> = plan
+        let mut outputs: Vec<_> = plan
             .outputs()
             .iter()
-            .map(|output| producers.get(&output.source).copied())
-            .collect();
-        let mut reachable = vec![false; plan.passes().len()];
-        for index in output_passes.iter().flatten() {
-            reachable[*index] = true;
-        }
-        for i in (0..reachable.len()).rev() {
-            if reachable[i] {
-                for dependency in &dependencies[i] {
-                    reachable[*dependency] = true;
-                }
-            }
-        }
-        let mut watches = Vec::new();
-        let ancestors: Vec<_> = output_passes
-            .iter()
-            .map(|producer| {
-                let mut required = vec![false; plan.passes().len()];
-                if let Some(producer) = producer {
-                    required[*producer] = true;
-                }
-                for i in (0..required.len()).rev() {
-                    if required[i] {
-                        for dependency in &dependencies[i] {
-                            required[*dependency] = true;
-                        }
-                    }
-                }
-                required
+            .map(|output| Output {
+                id: output.id,
+                producer: producers.get(&output.source).copied(),
+                watches: Vec::new(),
+                demand: OutputDemand::None,
             })
             .collect();
-        for (index, pass) in plan.passes().iter().enumerate().filter(|(i, _)| reachable[*i]) {
+        let mut watches = Vec::new();
+        for (index, pass) in plan.passes().iter().enumerate() {
             if let RenderOperation::Regions { regions, .. } = &pass.operation {
                 for placement in regions.iter().filter_map(|region| region.placement.as_ref()) {
                     let reader = placement.revisions();
@@ -80,25 +74,43 @@ impl Presentation {
                         .map(|notify| reader.guard_at(sampled).subscribe(notify.clone()));
                     watches.push(Watch {
                         pass: index,
-                        output: plan.outputs()[ancestors
-                            .iter()
-                            .position(|required| required[index])
-                            .expect("reachable presentation output")]
-                        .id,
                         reader,
                         sampled,
-                        presented: None,
                         subscription,
                     });
                 }
             }
         }
+        if !watches.is_empty() {
+            let mut required = vec![false; plan.passes().len()];
+            for output in &mut outputs {
+                required.fill(false);
+                if let Some(producer) = output.producer {
+                    required[producer] = true;
+                }
+                for i in (0..required.len()).rev() {
+                    if required[i] {
+                        for dependency in &dependencies[i] {
+                            required[*dependency] = true;
+                        }
+                    }
+                }
+                output.watches.extend(
+                    watches
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, watch)| required[watch.pass])
+                        .map(|(watch, _)| (watch, None)),
+                );
+            }
+        }
         Self {
             dependencies,
             watches,
-            output_passes,
+            outputs,
             passes: vec![false; plan.passes().len()],
-            outputs: vec![false; plan.outputs().len()],
+            dirty: vec![false; plan.passes().len()],
+            current: vec![false; plan.passes().len()],
             notify,
         }
     }
@@ -107,40 +119,62 @@ impl Presentation {
         self.pending_outputs().next().is_some()
     }
 
-    pub(super) fn pending_outputs(&self) -> impl Iterator<Item = crate::OutputId> + '_ {
-        self.watches
+    pub(super) fn pending_outputs(&self) -> impl Iterator<Item = OutputId> + '_ {
+        self.outputs
             .iter()
-            .filter(|watch| watch.presented != Some(watch.reader.current()))
-            .map(|watch| watch.output)
+            .filter(|output| output.pending(&self.watches))
+            .map(|output| output.id)
     }
 
-    pub(super) fn accepted(&mut self, output: crate::OutputId) {
-        for watch in &mut self.watches {
-            if watch.output == output {
-                watch.presented = Some(watch.sampled);
-            }
+    pub(super) fn accepted(&mut self, index: usize) {
+        for (watch, presented) in &mut self.outputs[index].watches {
+            *presented = Some(self.watches[*watch].sampled);
         }
     }
 
     /// Latch before any placement is sampled. An update during this batch invalidates its
     /// rearmed guard and remains pending for another wake, even when sampling saw it already.
-    pub(super) fn begin(&mut self, presentation: bool) {
-        self.passes.fill(!presentation);
-        for watch in &self.watches {
-            if watch.presented != Some(watch.reader.current()) {
-                self.passes[watch.pass] = true;
+    pub(super) fn begin(&mut self, presentation: bool, mut demand: impl FnMut(OutputId) -> OutputDemand) {
+        self.passes.fill(false);
+        self.dirty.fill(false);
+        if !presentation {
+            self.current.fill(false);
+        }
+        for output in &mut self.outputs {
+            output.demand = if !presentation || output.pending(&self.watches) {
+                demand(output.id)
+            } else {
+                OutputDemand::None
+            };
+            if output.demand != OutputDemand::Draw {
+                continue;
+            }
+            if let Some(producer) = output.producer {
+                self.passes[producer] = true;
+            }
+            if presentation {
+                for (watch, presented) in &output.watches {
+                    let watch = &self.watches[*watch];
+                    self.dirty[watch.pass] |= *presented != Some(watch.reader.current());
+                }
             }
         }
         if presentation {
-            for index in 0..self.passes.len() {
+            for index in 0..self.dirty.len() {
                 let changed_dependency = self.dependencies[index]
                     .iter()
-                    .any(|dependency| self.passes[*dependency]);
-                self.passes[index] |= changed_dependency;
+                    .any(|dependency| self.dirty[*dependency]);
+                self.dirty[index] |= changed_dependency;
             }
         }
-        for (index, producer) in self.output_passes.iter().enumerate() {
-            self.outputs[index] = !presentation || producer.is_some_and(|pass| self.passes[pass]);
+        for index in (0..self.passes.len()).rev() {
+            if self.passes[index] {
+                for &dependency in &self.dependencies[index] {
+                    // A skipped branch may still contain pixels from an older content batch.
+                    self.passes[dependency] |= self.dirty[dependency] || !self.current[dependency];
+                }
+                self.current[index] = true;
+            }
         }
         for watch in &mut self.watches {
             if self.passes[watch.pass] {
@@ -156,7 +190,7 @@ impl Presentation {
     pub(super) fn pass(&self, index: usize) -> bool {
         self.passes[index]
     }
-    pub(super) fn output(&self, index: usize) -> bool {
-        self.outputs[index]
+    pub(super) fn output(&self, index: usize) -> OutputDemand {
+        self.outputs[index].demand
     }
 }

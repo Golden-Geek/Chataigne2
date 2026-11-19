@@ -17,8 +17,8 @@ use crate::{OutputId, PassId, TextureDescriptor, TextureId};
 use super::completion::EventCompletion;
 use super::device::Device;
 use super::inputs::{CopyFrame, SourceDemands, SourcePool};
-use super::outputs::OutputPool;
 use super::outputs::scheduling::{Admission, Attempt, OutputSchedule};
+use super::outputs::{OutputDemand, OutputPool};
 use super::pipeline::{FIXED_BUFFER_BYTES, Pipeline};
 use super::texture::Texture;
 use super::timing::{
@@ -571,10 +571,10 @@ impl D3d11Backend {
         if !presentation_only {
             resources.content_time.set(Some(time));
         }
-        let mut presentation = resources.presentation.borrow_mut();
-        presentation.begin(presentation_only);
         let recorder = self.diagnostics.as_ref();
         let cpu = recorder.map(CpuScope::new);
+        let mut presentation = resources.presentation.borrow_mut();
+        presentation.begin(presentation_only, |id| native.outputs.demand(id, output_time));
         let submission = native.completion.begin(&native.device, token);
         let context = &native.device.context;
         let mut gpu = native.timing.as_mut().map(|timing| timing.begin(context, token));
@@ -754,18 +754,18 @@ impl D3d11Backend {
         }
         let render = recorder.and_then(|recorder| recorder.interval(render_begin));
         native.output_schedule.submit(plan.outputs().len(), |index, attempt| {
-            if !presentation.output(index) {
+            let demand = presentation.output(index);
+            if demand == OutputDemand::None {
                 return Attempt::Complete;
             }
             let output = &plan.outputs()[index];
-            if attempt == Admission::Poll && !native.outputs.due(output.id, output_time) {
-                return Attempt::Complete;
-            }
             let converted = resources.outputs.get(&output.id).map(Rc::as_ref);
             let conversion_slot = resources.conversion_slots[index];
             let descriptor = native.outputs.descriptor(output.id).expect("validated native output");
             let admission_begin = recorder.and_then(Recorder::stamp);
-            let admission = native.outputs.admit(output.id, context, descriptor, token, attempt);
+            let admission = native
+                .outputs
+                .admit(output.id, context, descriptor, token, attempt, demand);
             let mut consumer_api = None;
             let mut window_present = None;
             let mut publication_queue = None;
@@ -823,7 +823,7 @@ impl D3d11Backend {
                 }
             };
             if outcome == super::outputs::Delivery::Accepted {
-                presentation.accepted(output.id);
+                presentation.accepted(index);
                 for placement in &resources.presented_regions[&output.id] {
                     placement.mark_presented(output.id, token);
                 }

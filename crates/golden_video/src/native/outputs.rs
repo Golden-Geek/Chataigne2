@@ -37,6 +37,13 @@ pub(crate) enum Delivery {
     DeviceLost(HRESULT),
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum OutputDemand {
+    None,
+    Hidden,
+    Draw,
+}
+
 impl From<Delivery> for DiagnosticDelivery {
     fn from(delivery: Delivery) -> Self {
         match delivery {
@@ -312,13 +319,26 @@ impl OutputPool {
         self.bindings.get(&id).map(|binding| binding.config.descriptor())
     }
 
-    /// Called once per consumer per batch, before conversion or endpoint admission.
+    /// Latch demand once before building the batch's render mask.
     /// Clock replacement and device recovery begin a fresh phase; stalls never catch up.
-    pub(super) fn due(&mut self, id: OutputId, now: golden_time::TimeSnapshot) -> bool {
+    pub(super) fn demand(&mut self, id: OutputId, now: golden_time::TimeSnapshot) -> OutputDemand {
         let Some(binding) = self.bindings.get_mut(&id) else {
-            return false;
+            return OutputDemand::None;
         };
-        binding.pacing.due(now)
+        if !binding.pacing.due(now) {
+            return OutputDemand::None;
+        }
+        match binding.endpoint.value() {
+            Some(Output::Window(window))
+                if matches!(
+                    binding.recovery.state,
+                    OutputState::Ready | OutputState::Busy | OutputState::Unavailable
+                ) && matches!(window.available(), Ok(false)) =>
+            {
+                OutputDemand::Hidden
+            }
+            _ => OutputDemand::Draw,
+        }
     }
     pub(super) fn ready(&self, id: OutputId, now: golden_time::TimeSnapshot) -> bool {
         self.bindings.get(&id).is_some_and(|binding| binding.pacing.ready(now))
@@ -346,7 +366,9 @@ impl OutputPool {
         descriptor: TextureDescriptor,
         token: CompletionToken,
         attempt: scheduling::Admission,
+        demand: OutputDemand,
     ) -> std::result::Result<AdmittedOutput<'_>, Delivery> {
+        debug_assert_ne!(demand, OutputDemand::None);
         let Some(binding) = self.bindings.get_mut(&id) else {
             return Err(Delivery::Unavailable);
         };
@@ -366,6 +388,9 @@ impl OutputPool {
             Err(binding.delivered(&self.device, Delivery::Failed(INVALID_ARGUMENT), now))
         } else if let Some(delivery) = binding.create(&self.device, Some(context), now) {
             Err(delivery)
+        } else if demand == OutputDemand::Hidden {
+            // A window restored during this batch needs a fresh render at its next deadline.
+            Err(binding.delivered(&self.device, Delivery::Unavailable, now))
         } else if let Some(endpoint) = binding.endpoint.begin_use(token.serial) {
             endpoint.admit(attempt.timeout_ms()).map_err(|delivery| {
                 // Only windows can be Busy at admission: Spout admission never waits on

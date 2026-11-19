@@ -1,67 +1,19 @@
 use std::time::{Duration, Instant};
 
 use uuid::Uuid;
-use windows::Win32::UI::WindowsAndMessaging::*;
-use windows::core::w;
 
 use super::*;
 use crate::native::backend::D3d11Backend;
 use crate::native::completion::EventCompletion;
 use crate::native::device::{Device, adapters};
 use crate::native::pipeline::{FIXED_BUFFER_BYTES, Pipeline};
+use crate::native::tests::window::{OwnedWindow, pump};
 use crate::native::texture::Texture;
 use crate::native::{D3d11Config, D3d11Control, InputLimits, OutputBinding};
 use crate::plan::{BlendMode, PlanLimits, PlanOutput, RenderOperation, RenderPass, RenderPlan, SampleFilter};
 use crate::runtime::backend::Backend;
 use crate::runtime::{CompletionToken, DeviceGeneration};
 use crate::{AlphaMode, Extent2D, LinearColor, OutputId, PassId, PixelFormat, TextureId};
-
-struct OwnedWindow(HWND);
-impl OwnedWindow {
-    fn new() -> Self {
-        // SAFETY: built-in window class, no borrowed creation data. This test owns destruction.
-        Self(
-            unsafe {
-                CreateWindowExW(
-                    WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TOPMOST,
-                    w!("STATIC"),
-                    w!("Golden window pixel test"),
-                    WS_POPUP | WS_VISIBLE,
-                    30,
-                    30,
-                    64,
-                    64,
-                    None,
-                    None,
-                    None,
-                    None,
-                )
-            }
-            .unwrap(),
-        )
-    }
-    fn target(&self) -> WindowTarget {
-        // SAFETY: the guard outlives this test's endpoint and its actual GPU retirement.
-        unsafe { WindowTarget::from_raw(self.0.0 as isize) }.unwrap()
-    }
-}
-impl Drop for OwnedWindow {
-    fn drop(&mut self) {
-        // SAFETY: only this guard owns the test HWND, on its creating thread.
-        unsafe { DestroyWindow(self.0) }.unwrap();
-    }
-}
-
-fn pump() {
-    let mut message = MSG::default();
-    // SAFETY: this test thread's message queue and initialized message storage.
-    unsafe {
-        while PeekMessageW(&mut message, None, 0, 0, PM_REMOVE).as_bool() {
-            let _ = TranslateMessage(&message);
-            DispatchMessageW(&message);
-        }
-    }
-}
 
 fn descriptor() -> TextureDescriptor {
     TextureDescriptor {
@@ -297,6 +249,7 @@ fn hardware_window_charge_has_only_two_backbuffers_and_rejects_foreign_context_b
             serial: 1,
         },
         crate::native::outputs::scheduling::Admission::Poll,
+        crate::native::outputs::OutputDemand::Draw,
     );
     assert!(matches!(result, Err(Delivery::Failed(_))));
     drop(result);

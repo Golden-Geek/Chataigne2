@@ -315,6 +315,50 @@
       "commit": "646225bcab0877dfcc9394e6c1f0c8d006bab031"
     }
   },
+  "outputDemandFollowUp": {
+    "baseRevision": "04b1e111",
+    "baseline": "target/m103-q06-dxv3-dxt1/sample-intel-04",
+    "localRun": "target/m103-q06-dxv3-dxt1/sample-intel-05",
+    "binarySha256": "e317ef81f6a115d0ab32a25d15d497b8e5a9d72c018432709d809553997aceba",
+    "sampleSha256": "4325f2a121b33d0e4f31b67b5aec1a1c702b72bbe0909d8b3f24d3d22dd2d2f6",
+    "auditSha256": "c5e3eb5d6ca2853310a68b2d18e9b120e818313131d55c71f8fb153b648aee80",
+    "strictAuditSummarySha256": "bdac3f7cd3e90e4911963ce6eddf12c495b1da14e2235bdfa2640de87a6b520f",
+    "inputsSha256": "8f0de38bd8cc77e749852724ac57af00448d5a3a73be9101441c56d179117c14",
+    "unchangedInputHashesAfterRun": 77,
+    "nativeControllerAndStrictAttributionAuditExits": [0, 0],
+    "softwareChecks": {
+      "goldenVideoPassed": 365,
+      "mapGyverRenderingPassed": 95,
+      "formattingStrictClippyAndBundledBuild": "pass"
+    },
+    "nativePreflight": {
+      "adapters": ["Intel(R) Graphics", "NVIDIA GeForce RTX 5080 Laptop GPU"],
+      "mixedRate": "The 60 Hz Spout output delivered independently on the simulated deadlines while the 30 Hz window was hidden. After restoring it, its next due delivery drew the latest geometry, including a previously skipped dependency. The restored branch's GPU readback matched all 16 expected pixels.",
+      "cachedPresentation": "Each adapter passed 24 cached geometry deliveries with exact Spout pixels and unchanged peer delivery count, media frame counter and allocations."
+    },
+    "minimizedRenderedPassesBeforeAfter": [21556, 10778],
+    "minimizedMeasuredBatchesBeforeAfter": [3597, 3596],
+    "rendererGpuP95MsVisibleMinimizedDisconnectedBeforeAfter": [[17.1293, 17.0319], [17.6146, 17.7013], [19.4311, 19.3808]],
+    "completeDirectGpuAttributionBatchCounts": [7203, 3596, 3603],
+    "definiteGpuPathP95LowerMsVisibleMinimizedDisconnected": [17.0318, 17.7012, 19.3807],
+    "cpuSubmissionP95P99MsVisibleMinimizedDisconnected": [[3.0334, 3.2772], [3.6288, 4.1600], [3.5330, 3.8718]],
+    "visibleDeadlineMissesOf7203HD_UHD_Reference": [4, 1, 1],
+    "minimizedDeadlineMissesOf3603HD_UHD_Reference": [7, 8, 7],
+    "filePublicationToCopyP95UpperMsVisibleHD_UHD_Reference": [48.6169, 47.8287, 49.8615],
+    "filePublicationToCopyP95UpperMsMinimizedHD_UHD_Reference": [36.1327, 43.8522, 40.9559],
+    "heldImagesByteIdenticalToBaseline": [true, true, true],
+    "connectedMismatchedMarkers": 0,
+    "visibleMissingWitnessesHD_UHD_Reference": [9, 23, 11],
+    "minimizedMissingWitnessesHD_UHD_Reference": [0, 0, 0],
+    "visibleUhdLoopsWithFinalFrameOf29": 29,
+    "resources": {
+      "knownNativeTexturePeakBytesBeforeAfter": [353811208, 353811208],
+      "processPrivatePeakBytesVisibleMinimizedDisconnectedBeforeAfter": [[607272960, 605966336], [650395648, 646164480], [764657664, 871714816]],
+      "finalTrackedSourceGpuAndNativeTextureBytes": [0, 0],
+      "finalPlanTextureAllocationsCreatedReleased": [37, 37]
+    },
+    "assessment": "Keep independent draw demand. It halves measured render-pass writes while minimized, preserves exact held images and every connected minimized pixel witness, and passes mixed-rate restoration on both adapters. In this Intel workload, GPU p95 stayed flat, minimized deadlines still failed, and disconnected private peak was higher. Visible deadlines and connected image age passed with 43 missing visible pixel witnesses. No further qualification credit."
+  },
   "remaining": [
     "Reduce Intel output conversion GPU work and close minimized deadline misses. Complete GPU-path attribution, sustained alpha/High Quality DXV and additional MKV profiles, independent repeats, and extended-format recovery."
   ]

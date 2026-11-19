@@ -178,7 +178,7 @@ impl WindowOutput {
         self.readiness.admit(available, timeout_ms)
     }
 
-    fn available(&self) -> Result<bool> {
+    pub(super) fn available(&self) -> Result<bool> {
         let mut rect = RECT::default();
         // SAFETY: this lease's host-owned HWND is retained until the renderer has retired.
         unsafe {

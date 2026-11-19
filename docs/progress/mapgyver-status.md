@@ -2,8 +2,8 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `█████████░` **87% — 119/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** Faster same-size Spout color conversion. Intel output GPU p95 fell from 8.98 to 8.54 ms with exact held pixels. [DXV checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
-- **Working on next:** Skip rendering passes that no output is due to use.
+- **Latest delivered:** Hidden or slower outputs skip unused render passes. Both GPUs passed the 30/60 Hz and restore checks. Minimizing MapGyver halved rendered passes in the Intel DXV run. [DXV checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
+- **Working on next:** Reduce 4K animated WebP upload cost to keep concurrent HD playback smooth.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -69,7 +69,7 @@
 ## Pending qualification — in order
 
 1. **NOW — Extended Video formats:**
-   - **DXV3 Normal:** both GPUs sustained 4K30 and retired all tracked resources. Intel now meets visible deadlines and connected image age in one run. Minimized deadlines, full frame capture and GPU time remain open. [DXV checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
+   - **DXV3 Normal:** both GPUs sustained 4K30 and retired all tracked resources. Intel meets visible deadlines and connected image age in one run. Minimized deadlines and full visible frame capture remain open. Minimized GPU p95 was 17.7 ms against the 12 ms target. [DXV checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
    - **Direct 4K upload timing:** the audit traced every evaluated DXV and WebP batch to its upload. Intel exceeds the GPU budget. NVIDIA timing remains inconclusive. [Timing evidence](evidence/mapgyver-m10-direct-upload-gpu-2026-11-19.json)
    - **Full-frame draw experiments parked:** projection removal left Intel render time flat. Combining Screen and Spout draws changed pixel values in native checks.
    - **Animated WebP:** NVIDIA reached 4K30, showed the final encoded frame in all 29 complete loops, and met the 50 ms image-age target. The 1080p source reached about 48 updates/s against 60. Background CPU p95 still exceeds 4 ms. [WebP comparison](evidence/mapgyver-m10-webp-sustained-2026-11-19.json)

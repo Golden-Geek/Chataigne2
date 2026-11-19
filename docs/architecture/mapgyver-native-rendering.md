@@ -86,6 +86,11 @@ a shader specialized for that layout and transfer. It reads at the exact texel i
 retains the generic shader's alpha and transfer arithmetic. Spout receives the original
 typed texture format. Resizes and other layouts or transfers use general sampling.
 Window back buffers and live editor placements follow their own presentation paths.
+Golden Video latches output pacing and known Windows visibility before selecting the render
+passes for a batch. It renders the union of the due, drawable outputs' dependencies. A
+hidden window reports its delivery state and gets current pixels at its next due draw. Shared
+passes run once, and each output acknowledges live placement revisions only after it delivers.
+Cached placement redraws refresh dependencies skipped by the latest content batch.
 
 Editor decorations belong to the same native presentation as the image. Golden Video owns
 bounded Quad/Circle metadata, host-authenticated physical scale and aperture clipping, checked
