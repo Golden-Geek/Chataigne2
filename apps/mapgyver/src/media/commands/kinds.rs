@@ -71,6 +71,7 @@ command_kinds! {
     Picture => "Set Picture File", "Channels", ["media", "channel", "picture_file"];
     ReloadPicture => "Reload Picture", "Channels", ["media", "channel"];
     SharedTexture => "Set Shared Texture Sender", "Channels", ["media", "channel", "sender"];
+    Ndi => "Set NDI Sender", "Channels", ["media", "channel", "sender"];
     ImportPicture => "Import Picture", "Assets", ["locator_kind", "project_path", "absolute_path", "media", "channel", "label"];
     ImportAsset => "Import Asset", "Assets", ["locator_kind", "project_path", "absolute_path", "label"];
     RelinkAsset => "Relink Asset", "Assets", ["asset", "locator_kind", "project_path", "absolute_path"];

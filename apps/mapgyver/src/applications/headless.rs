@@ -48,6 +48,8 @@ impl HeadlessApplications {
                 let mut gpu_catalog = crate::preferences::native::Catalog::default();
                 #[cfg(all(windows, feature = "native-video"))]
                 let mut sender_catalog = crate::media::sender_catalog::native::Catalog::default();
+                #[cfg(all(windows, target_arch = "x86_64", feature = "native-video"))]
+                let mut ndi_catalog = crate::media::sender_catalog::native::NdiCatalog::default();
                 #[cfg(windows)]
                 let mut display_catalog = crate::screens::host_inventory::headless::Catalog::default();
                 while !context.cancellation().is_cancelled() {
@@ -55,6 +57,8 @@ impl HeadlessApplications {
                     gpu_catalog.service(&runtime);
                     #[cfg(all(windows, feature = "native-video"))]
                     sender_catalog.service(&runtime);
+                    #[cfg(all(windows, target_arch = "x86_64", feature = "native-video"))]
+                    ndi_catalog.service(&runtime);
                     #[cfg(windows)]
                     display_catalog.service(&runtime);
                     let checkpoint = context.wake_checkpoint();

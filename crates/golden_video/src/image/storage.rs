@@ -27,7 +27,7 @@ pub(crate) struct StorageLease {
     bytes: u64,
 }
 impl StorageLease {
-    #[cfg(feature = "ffmpeg")]
+    #[cfg(any(feature = "ffmpeg", all(windows, target_arch = "x86_64", feature = "ndi")))]
     pub(crate) fn bytes(&self) -> usize {
         // Reservations originate from a representable usize allocation request.
         self.bytes as usize
@@ -62,7 +62,7 @@ impl ImageStorageBudget {
         state.limit_bytes = bytes;
         Ok(())
     }
-    #[cfg(feature = "ffmpeg")]
+    #[cfg(any(feature = "ffmpeg", all(windows, target_arch = "x86_64", feature = "ndi")))]
     pub(crate) fn reserve(&self, bytes: usize) -> Option<StorageLease> {
         let bytes = u64::try_from(bytes).ok().filter(|bytes| *bytes > 0)?;
         let mut state = self.0.lock().unwrap_or_else(|error| error.into_inner());

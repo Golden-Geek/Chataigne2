@@ -25,17 +25,19 @@ mod subtitles;
 #[children(
     folder(parameters, label = "Parameters") {
         source_kind: Enum = "SolidColor" (label = "Source kind", read_only = true, persist_read_only_value = true,
-            enum_options = crate::parameters::enum_options(&["Picture", "Video", "SolidColor", "SharedTexture", "Composition", "Matrix"]));
+            enum_options = crate::parameters::enum_options(&["Picture", "Video", "SolidColor", "SharedTexture", "Ndi", "Composition", "Matrix"]));
         rgba: Color = Color::new(1.0, 1.0, 1.0, 1.0) [0.0..1.0] (label = "Color", description = "Straight linear-light RGBA.", constraint_policy = "reject");
         file: File = File::default() (label = "File", description = "This channel's project-relative or native absolute source path.", dependency = |node: &Self| matches!(node.kind(), super::protocol::MediaKind::Picture | super::protocol::MediaKind::Video));
         video_loop_file: File = File::default() (label = "Loop File", description = "Optional video played after this channel's intro when Loop is enabled.", dependency = |node: &Self| node.kind() == MediaKind::Video);
         sender: String = String::new() (label = "Spout sender");
-        sender_choice: Enum = "" (label = "Sender", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::SharedTexture,
+        ndi_sender: String = String::new() (label = "NDI sender",
+            dependency = |node: &Self| node.kind() == MediaKind::Ndi);
+        sender_choice: Enum = "" (label = "Sender", dependency = |node: &Self| node.kind().has_sender_selection(),
             enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
             enum_options = self.sender_options.clone());
         sender_external_only: bool = false (label = "External sender default", read_only = true,
             persist_read_only_value = true, show_in_nested_inspector = false, show_in_inspector_content = false,
-            dependency = |node: &Self| node.kind() == super::protocol::MediaKind::SharedTexture);
+            dependency = |node: &Self| node.kind().has_sender_selection());
         output_kind: Enum = "Final" (label = "Matrix output", read_only = true, persist_read_only_value = true, enum_options = crate::parameters::enum_options(&["Final", "Layer", "Group"]));
         output_item: NodeReference = NodeReference::empty() (label = "Output item", read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v4".into(), "mapgyver.matrix.group.v3".into()]);
         folder(video_audio, label = "Audio", enabled = true, can_be_disabled = true) {
@@ -146,12 +148,16 @@ impl ChannelNode {
     }
     pub(crate) fn sender_parameter(&self, mode: super::protocol::SenderSelectionMode) -> NodeId {
         match mode {
+            super::protocol::SenderSelectionMode::Manual if self.kind() == MediaKind::Ndi => self.ndi_sender.id(),
             super::protocol::SenderSelectionMode::Manual => self.sender.id(),
             super::protocol::SenderSelectionMode::Auto => self.sender_choice.id(),
         }
     }
     pub(crate) fn sender_name(&self, mode: super::protocol::SenderSelectionMode) -> String {
         match mode {
+            super::protocol::SenderSelectionMode::Manual if self.kind() == MediaKind::Ndi => {
+                self.ndi_sender.get_ref().clone()
+            }
             super::protocol::SenderSelectionMode::Manual => self.sender.get_ref().clone(),
             super::protocol::SenderSelectionMode::Auto => self.sender_choice.get_ref().as_str().to_owned(),
         }
@@ -194,6 +200,11 @@ impl ChannelNode {
             ChannelSource::Spout { sender } => {
                 let name = sender.unwrap_or_default();
                 seed!(sender, name.clone());
+                seed!(sender_choice, Enum::new(name));
+            }
+            ChannelSource::Ndi { sender } => {
+                let name = sender.unwrap_or_default();
+                seed!(ndi_sender, name.clone());
                 seed!(sender_choice, Enum::new(name));
             }
             ChannelSource::Matrix { output } => match output {
@@ -247,12 +258,15 @@ impl ChannelNode {
                 file: super::assets::parse_file(self.file.get_ref().as_str()).expect("validated Picture File"),
             },
             "Composition" => ChannelSource::Composition { canvas },
-            "SharedTexture" => ChannelSource::Spout {
-                sender: {
-                    let name = self.sender_name(media.sender_selection().unwrap());
-                    (!name.is_empty()).then_some(name)
-                },
-            },
+            kind @ ("SharedTexture" | "Ndi") => {
+                let name = self.sender_name(media.sender_selection().unwrap());
+                let sender = (!name.is_empty()).then_some(name);
+                if kind == "Ndi" {
+                    ChannelSource::Ndi { sender }
+                } else {
+                    ChannelSource::Spout { sender }
+                }
+            }
             "Matrix" => ChannelSource::Matrix {
                 output: match self.output_kind.get_ref().as_str() {
                     "Layer" => MatrixOutput::Layer {
@@ -305,7 +319,7 @@ impl ChannelNode {
             ChannelSource::Reference { .. } | ChannelSource::Composition { .. } | ChannelSource::Matrix { .. } => {
                 return Err("derived outputs have no authored channel settings".into());
             }
-            ChannelSource::Spout { sender } => {
+            ChannelSource::Spout { sender } | ChannelSource::Ndi { sender } => {
                 let sender = sender.unwrap_or_default();
                 values.push((
                     self.sender_parameter(mode),
@@ -377,6 +391,15 @@ impl Node for ChannelNode {
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
+        #[cfg(not(all(windows, target_arch = "x86_64", feature = "native-video")))]
+        if self.kind() == MediaKind::Ndi {
+            ctx.set_node_warning_with(
+                self.id(),
+                Some("ndi-discovery"),
+                "NDI requires the Windows x64 native video runtime",
+                None,
+            );
+        }
         self.bind_audio_options(ctx);
         self.bind_subtitles(ctx);
         self.register_video(ctx);
@@ -493,11 +516,12 @@ impl Node for ChannelNode {
             self.video_loop_file.id(),
             self.video_loop_audio.id(),
             self.sender.id(),
+            self.ndi_sender.id(),
             self.output_kind.id(),
             self.output_item.id(),
         ]
         .contains(&parameter)
-            || (self.kind() == super::protocol::MediaKind::SharedTexture
+            || (self.kind().has_sender_selection()
                 && [self.sender_choice.id(), self.sender_external_only.id()].contains(&parameter))
         {
             self.revision.advance();
@@ -563,7 +587,13 @@ impl Node for ChannelNode {
         &self,
         change: &ParameterValidationContext<'_>,
     ) -> Result<Vec<(NodeId, ParamValue)>, String> {
-        if !self.sender_external_only() || ![self.sender.id(), self.sender_choice.id()].contains(&change.parameter) {
+        if !self.sender_external_only()
+            || ![
+                self.sender_parameter(SenderSelectionMode::Manual),
+                self.sender_choice.id(),
+            ]
+            .contains(&change.parameter)
+        {
             return Ok(Vec::new());
         }
         let Some(media) = self
@@ -602,6 +632,7 @@ impl Node for ChannelNode {
                     "Video",
                     "SolidColor",
                     "SharedTexture",
+                    "Ndi",
                     "Composition",
                     "Matrix",
                 ][..],
@@ -630,6 +661,11 @@ impl Node for ChannelNode {
             if name.len() > 255 || name.contains('\0') {
                 return Err("Spout selector must contain at most 255 UTF-8 bytes without NUL".into());
             }
+        }
+        if self.kind() == MediaKind::Ndi
+            && (self.ndi_sender.get_ref().contains('\0') || self.sender_choice.get_ref().as_str().contains('\0'))
+        {
+            return Err("NDI selector must not contain NUL".into());
         }
         Ok(())
     }
@@ -664,14 +700,18 @@ impl Node for ChannelNode {
                 return Err("Channel source/output identity is owned by structural operations".into());
             }
         }
-        if change.parameter == self.sender.id()
-            || (self.kind() == super::protocol::MediaKind::SharedTexture && change.parameter == self.sender_choice.id())
+        if [self.sender.id(), self.ndi_sender.id()].contains(&change.parameter)
+            || (self.kind().has_sender_selection() && change.parameter == self.sender_choice.id())
         {
             let value = match change.value {
                 ParamValue::Str(value) | ParamValue::Enum(value) => value,
                 _ => return Err("sender selector must be a String or Enum".into()),
             };
-            if value.len() > 255 || value.contains('\0') {
+            let ndi = change.parameter != self.sender.id() && self.kind() == MediaKind::Ndi;
+            if ndi && value.contains('\0') {
+                return Err("NDI selector must not contain NUL".into());
+            }
+            if !ndi && (value.len() > 255 || value.contains('\0')) {
                 return Err("Spout selector must contain at most 255 UTF-8 bytes without NUL".into());
             }
         }

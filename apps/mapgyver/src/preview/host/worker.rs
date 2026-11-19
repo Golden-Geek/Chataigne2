@@ -186,6 +186,8 @@ fn create(
             file_budget.as_ref().unwrap().1.clone(),
         )
         .map_err(io::Error::other)?;
+    #[cfg(target_arch = "x86_64")]
+    owner.renderer.enable_ndi(Some(notifier.clone()));
     owner
         .renderer
         .enable_pictures(&std::env::current_dir()?, config.pictures, Some(notifier))
@@ -231,6 +233,8 @@ pub(super) fn run(input: Input) -> io::Result<()> {
     let mut retry = Instant::now();
     let mut discovery = None;
     let mut sender_catalog = crate::media::sender_catalog::native::Catalog::default();
+    #[cfg(target_arch = "x86_64")]
+    let mut ndi_catalog = crate::media::sender_catalog::native::NdiCatalog::default();
     let mut targets = super::targets::Targets::default();
     let mut topology = Vec::new();
     let mut output_windows = super::output_windows::OutputWindows::default();
@@ -260,6 +264,8 @@ pub(super) fn run(input: Input) -> io::Result<()> {
         input.receiver.set_host_suspended(input.stop.is_ui_suspended());
         adapter.service(&input.runtime);
         sender_catalog.service(&input.runtime);
+        #[cfg(target_arch = "x86_64")]
+        ndi_catalog.service(&input.runtime);
         if let Some(owner) = &owner {
             owner.process_input(&input.runtime);
         }

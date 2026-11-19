@@ -11,6 +11,8 @@ mod color;
 pub mod decode;
 mod identity;
 pub mod image;
+#[cfg(all(windows, target_arch = "x86_64", feature = "ndi"))]
+pub mod ndi;
 pub mod plan;
 pub mod preview;
 pub mod qualification;

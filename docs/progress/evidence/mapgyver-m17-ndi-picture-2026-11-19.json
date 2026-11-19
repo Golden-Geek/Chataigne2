@@ -1,0 +1,18 @@
+{
+	"date": "2026-11-19",
+	"gate": "M17/1",
+	"state": "Active",
+	"delivered": "NDI Media with automatic discovery, exact per-channel sender selection and live picture on Windows x64. No preference or session activation is required.",
+	"checks": {
+		"nativeApp": "The ordinary Medias Add menu created NDI in Auto mode, seeded the independent sender's exact name and installed its 320×240 channel in native Media Preview. A second SDK sender was present in the Inspector choices. The app and independent sender both shut down normally.",
+		"independentPixels": "Golden Video found the exact independently published sender with NDI Runtime 6.3.2.0. The captured colored marker moved from x=104 to x=110 at 320×240. CPU image byte and allocation counts returned to their starting values after stop.",
+		"software": "The MapGyver test binary passed 59 filtered tests including sender mode, Undo, loss metadata, reload, shared receiver demand and stale-frame withdrawal. Another 13 tests passed for generated contracts, creation, commands and caller parity. MapGyver Svelte check had zero errors and warnings. Strict MapGyver and Golden Video library Clippy passed.",
+		"nativeAppReceipt": "target/m17-ndi-media-native/run-aru3Gj/result.json",
+		"fixture": "apps/mapgyver/tests/browser/ndi-media.mjs"
+	},
+	"remaining": [
+		"Receive NDI audio into the typed virtual audio routes with gain and mute, including video-only and loss recovery.",
+		"Finish multi-machine LAN picture and A/V verification, demand retirement, reconnect and clean Windows installer/runtime checks.",
+		"Deliver M17/2 NDI Screen Output and synchronized routed audio."
+	]
+}

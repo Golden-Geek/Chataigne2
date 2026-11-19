@@ -147,6 +147,7 @@ pub(super) fn build(
                         definition.source,
                         ChannelSource::Picture { file: Some(_) }
                             | ChannelSource::Video { file: Some(_) }
+                            | ChannelSource::Ndi { sender: Some(_) }
                             | ChannelSource::Spout { sender: Some(_), .. }
                     )
                 })
@@ -215,6 +216,55 @@ pub(super) fn build(
                 .filter(|_| channel.enabled)
                 .map(|definition| &definition.source);
             match source {
+                Some(configured @ ChannelSource::Ndi { sender: _sender }) => {
+                    entry.source = None;
+                    let definition = channel.definition.as_ref().unwrap();
+                    #[cfg(all(windows, target_arch = "x86_64"))]
+                    let stream = observations
+                        .ndi
+                        .get(&reference)
+                        .filter(|observed| _sender.as_deref() == Some(observed.sender.as_ref()))
+                        .map(|observed| &observed.stream);
+                    #[cfg(not(all(windows, target_arch = "x86_64")))]
+                    let stream: Option<&golden_video::image::ImageStream> = None;
+                    let actual = stream.map(golden_video::image::ImageStream::descriptor);
+                    resolution = resolution::resolve(
+                        definition,
+                        actual.map_or(SourceObservation::Unavailable, SourceObservation::Available),
+                    )?;
+                    if let Some(descriptor) = actual
+                        && (descriptor.extent.width() > limits.max_texture_dimension
+                            || descriptor.extent.height() > limits.max_texture_dimension)
+                    {
+                        resolution.availability = ChannelAvailability::Incompatible;
+                    }
+                    if resolution.availability == ChannelAvailability::Ready
+                        && let Some(stream) = stream
+                    {
+                        let descriptor = stream.descriptor();
+                        let id = match previous
+                            .channels
+                            .get(&reference)
+                            .and_then(|entry| entry.source.as_ref())
+                        {
+                            Some((id, old)) if old == configured => *id,
+                            _ => allocate(next)?,
+                        };
+                        submission.plan.external_textures.push(ExternalTexture {
+                            id,
+                            descriptor,
+                            source: Some(golden_video::plan::ExternalSource::Frames(stream.clone())),
+                        });
+                        entry.source = Some((id, configured.clone()));
+                        operation = super::fit::operation(
+                            id,
+                            descriptor.extent,
+                            resolution.extent.expect("ready NDI extent"),
+                            definition.fit_mode,
+                            None,
+                        )?;
+                    }
+                }
                 Some(configured @ ChannelSource::Video { .. }) => {
                     entry.source = None;
                     #[cfg(feature = "video-files")]

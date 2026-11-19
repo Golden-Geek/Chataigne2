@@ -14,6 +14,7 @@ fn manager_catalog_and_api_share_defaults_unique_identity_and_atomic_history() {
         (MediaKind::Picture, "Picture"),
         (MediaKind::Video, "Video"),
         (MediaKind::SharedTexture, "Shared Texture"),
+        (MediaKind::Ndi, "NDI"),
         (MediaKind::Composition, "Composition"),
         (MediaKind::Matrix, "Matrix"),
     ] {

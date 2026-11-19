@@ -7,7 +7,7 @@ export function registerSenderAdornment() {
 		component: SenderDetect,
 		matches(node, nodes) {
 			if (
-				node.decl_id !== 'parameters/sender' ||
+				!['parameters/sender', 'parameters/ndi_sender'].includes(node.decl_id) ||
 				node.data.kind !== 'parameter' ||
 				node.data.param.value.kind !== 'str'
 			)

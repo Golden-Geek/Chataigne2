@@ -10,6 +10,7 @@ description = "App-neutral video render plans and worker-owned resource foundati
 [features]
 ffmpeg = ["dep:ffmpeg-next", "dep:snap", "dep:cc", "dep:bindgen"]
 d3d11 = ["dep:windows", "dep:spout2-sys", "dep:concurrent-queue"]
+ndi = ["dep:libloading", "dep:ndi-sdk"]
 qualification = ["d3d11", "windows/Win32_Graphics_Direct3D_Fxc", "spout2-sys/qualification"]
 
 [dependencies]
@@ -35,6 +36,10 @@ font8x8 = "=0.3.1"
 
 [target.'cfg(windows)'.build-dependencies]
 windows = { version = "=0.61.3", features = ["Win32_Graphics_Direct3D_Fxc"] }
+
+[target.'cfg(all(windows, target_arch = "x86_64"))'.dependencies]
+libloading = { version = "=0.8.9", optional = true }
+ndi-sdk = { version = "=0.2.0", optional = true }
 
 [target.'cfg(windows)'.dev-dependencies]
 windows = { version = "=0.61.3", features = ["Win32_Graphics_Direct3D_Fxc"] }

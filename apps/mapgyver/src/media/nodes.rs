@@ -19,6 +19,7 @@ pub struct MediaManagerNode {
     membership: RevisionSource,
     operation_owner: Arc<()>,
     pub(crate) sender_catalog: super::sender_catalog::Inbox,
+    pub(crate) ndi_catalog: super::sender_catalog::Inbox,
     #[cfg(feature = "video-files")]
     pub(crate) videos: Arc<super::video::registry::Registry>,
     #[cfg(feature = "video-files")]
@@ -41,6 +42,7 @@ impl MediaManagerNode {
             membership: RevisionSource::default(),
             operation_owner: Arc::new(()),
             sender_catalog: Default::default(),
+            ndi_catalog: Default::default(),
             #[cfg(feature = "video-files")]
             videos: Default::default(),
             #[cfg(feature = "video-files")]
@@ -54,6 +56,14 @@ impl MediaManagerNode {
     pub(crate) fn membership_guard(&self) -> RevisionGuard {
         let reader = self.membership.reader();
         reader.guard_at(reader.current())
+    }
+
+    pub(crate) fn sender_catalog(&self, kind: super::protocol::MediaKind) -> &super::sender_catalog::Inbox {
+        if kind == super::protocol::MediaKind::Ndi {
+            &self.ndi_catalog
+        } else {
+            &self.sender_catalog
+        }
     }
 }
 
@@ -77,6 +87,7 @@ impl Node for MediaManagerNode {
             self.matrix_audio = Default::default();
         }
         self.sender_catalog = Default::default();
+        self.ndi_catalog = Default::default();
         self.project.advance();
         self.membership.advance();
         self.instance = uuid::Uuid::new_v4();
@@ -110,12 +121,15 @@ impl Node for MediaManagerNode {
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
-        if let Err(error) = self.sender_catalog.register(ctx) {
-            ctx.set_node_warning(self.id(), error);
+        for catalog in [&self.sender_catalog, &self.ndi_catalog] {
+            if let Err(error) = catalog.register(ctx) {
+                ctx.set_node_warning(self.id(), error);
+            }
         }
     }
     fn on_worker_wake(&mut self, ctx: &mut ProcessCtx) {
         self.sender_catalog.apply(ctx);
+        self.ndi_catalog.apply(ctx);
     }
     fn worker_wake_when_disabled(&self) -> bool {
         true

@@ -84,7 +84,7 @@ impl ImageData {
         })
     }
 
-    #[cfg(feature = "ffmpeg")]
+    #[cfg(any(feature = "ffmpeg", all(windows, target_arch = "x86_64", feature = "ndi")))]
     pub(crate) fn with_storage(mut self, storage: StorageLease) -> Result<Self, ImageError> {
         if storage.bytes() != self.pixels.len() {
             drop(self);

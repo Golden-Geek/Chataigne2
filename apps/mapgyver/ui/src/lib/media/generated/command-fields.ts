@@ -150,6 +150,11 @@ export const COMMAND_PARAMETER_FIELDS = {
     "entry",
     "target_folder"
   ],
+  "Ndi": [
+    "media",
+    "channel",
+    "sender"
+  ],
   "Picture": [
     "media",
     "channel",

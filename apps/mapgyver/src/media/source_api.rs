@@ -55,6 +55,7 @@ pub(super) const METHODS: &[&str] = &[
     "reloadPicture",
     "inspectPictureFile",
     "configureSharedTexture",
+    "configureNdi",
     "inspectChannel",
     "inspectChannels",
     "importPicture",
@@ -121,7 +122,7 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         | "reloadPicture" => 2,
         "configureMediaResolution" => 4,
         "configureSolidColor" => 6,
-        "configurePicture" | "configurePictureFile" | "configureSharedTexture" => 3,
+        "configurePicture" | "configurePictureFile" | "configureSharedTexture" | "configureNdi" => 3,
         "importPicture" => 2,
         "executeCommand" => 1,
         "inspectChannels" => 3,
@@ -497,6 +498,12 @@ pub(super) fn operation(method: &str, args: &[ParamValue]) -> Result<Option<Medi
         "configureSharedTexture" => MediaEdit::ConfigureChannel {
             reference: reference(args)?,
             source: ChannelSource::Spout {
+                sender: optional_text(args, 2)?,
+            },
+        },
+        "configureNdi" => MediaEdit::ConfigureChannel {
+            reference: reference(args)?,
+            source: ChannelSource::Ndi {
                 sender: optional_text(args, 2)?,
             },
         },

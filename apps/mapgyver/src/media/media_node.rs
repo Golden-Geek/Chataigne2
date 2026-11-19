@@ -27,13 +27,13 @@ use std::sync::OnceLock;
 #[children(
     folder(parameters, label = "Parameters") {
         media_kind: Enum = "SolidColor" (label = "Kind", read_only = true, persist_read_only_value = true,
-            enum_options = crate::parameters::enum_options(&["Picture", "Video", "SolidColor", "SharedTexture", "Composition", "Matrix"]));
+            enum_options = crate::parameters::enum_options(&["Picture", "Video", "SolidColor", "SharedTexture", "Ndi", "Composition", "Matrix"]));
         resolution: Vec2 = Vec2::new(1920.0, 1080.0) [(1.0, 1.0)..(16384.0, 16384.0)] (
             label = "Resolution", description = "Output width and height in pixels. Disable to use each source's native size.",
             enabled = false, can_be_disabled = true, step = 1.0, constraint_policy = "reject");
         fit_mode: Enum = "Fit" (label = "Fit Mode", dependency = |node: &Self| node.supports_fit_mode(),
             enum_options = crate::parameters::enum_options(&["Fit", "Fill", "Stretch"]), constraint_policy = "reject");
-        sender_selection: Enum = "Manual" (label = "Sender selection", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::SharedTexture,
+        sender_selection: Enum = "Manual" (label = "Sender selection", dependency = |node: &Self| node.kind().has_sender_selection(),
             enum_options = crate::parameters::enum_options(&["Manual", "Auto"]), constraint_policy = "reject");
         empty_cell: Enum = "Transparent" (label = "Empty cell", enum_options = crate::parameters::enum_options(&["Transparent"]));
         stop_all: ParamValue = ParamValue::Trigger() (label = "Stop All", dependency = |node: &Self| node.kind() == super::protocol::MediaKind::Matrix);
@@ -265,13 +265,13 @@ impl MediaNode {
         self.sender_selection = ParameterHandle::new(Enum::new("Auto"));
     }
     pub(crate) fn sender_selection(&self) -> Option<super::protocol::SenderSelectionMode> {
-        (self.kind() == super::protocol::MediaKind::SharedTexture).then(|| {
+        self.kind().has_sender_selection().then(|| {
             super::protocol::SenderSelectionMode::parse(self.sender_selection.get_ref().as_str())
                 .expect("validated sender selection")
         })
     }
     pub(crate) fn sender_selection_parameter(&self) -> Option<golden_core::node::NodeId> {
-        (self.kind() == super::protocol::MediaKind::SharedTexture).then(|| self.sender_selection.id())
+        self.kind().has_sender_selection().then(|| self.sender_selection.id())
     }
     pub(crate) fn from_kind(label: String, kind: MediaKind) -> Self {
         let mut node = Self::new();
@@ -294,7 +294,7 @@ impl MediaNode {
     pub(crate) fn supports_fit_mode(&self) -> bool {
         matches!(
             self.kind(),
-            MediaKind::Picture | MediaKind::Video | MediaKind::SharedTexture
+            MediaKind::Picture | MediaKind::Video | MediaKind::SharedTexture | MediaKind::Ndi
         )
     }
     pub(crate) fn fit_mode_parameter(&self) -> Option<golden_core::node::NodeId> {
@@ -410,12 +410,13 @@ impl Node for MediaNode {
     fn create_user_item_tree_with_context(
         &self,
         node_type: &str,
-        _context: &golden_core::node::UserItemCreationContext<'_>,
+        context: &golden_core::node::UserItemCreationContext<'_>,
     ) -> Option<golden_core::edit::NodeTree> {
         if node_type == "mapgyver.media.channel.v2" && self.kind().has_authored_channel_variants() {
-            Some(golden_core::edit::NodeTree::new(ChannelNode::from_definition(
+            Some(golden_core::edit::NodeTree::new(super::creation::live_channel(
+                context,
+                self.kind(),
                 "Channel".into(),
-                ChannelDefinition::for_media(self.kind()),
             )))
         } else {
             None
@@ -604,7 +605,7 @@ impl Node for MediaNode {
                 return Err("Current Position is runtime state and must start at zero".into());
             }
         }
-        if self.kind() == super::protocol::MediaKind::SharedTexture {
+        if self.kind().has_sender_selection() {
             super::protocol::SenderSelectionMode::parse(self.sender_selection.get_ref().as_str())?;
         }
         validate_resolution(self.resolution.get())?;
@@ -619,6 +620,7 @@ impl Node for MediaNode {
             "Video",
             "SolidColor",
             "SharedTexture",
+            "Ndi",
             "Composition",
             "Matrix",
         ]
@@ -760,6 +762,7 @@ pub(super) fn kind_name(kind: MediaKind) -> &'static str {
         MediaKind::Video => "Video",
         MediaKind::SolidColor => "SolidColor",
         MediaKind::SharedTexture => "SharedTexture",
+        MediaKind::Ndi => "Ndi",
         MediaKind::Composition => "Composition",
         MediaKind::Matrix => "Matrix",
     }
@@ -769,6 +772,7 @@ pub(super) fn parse_kind(kind: &str) -> MediaKind {
         "Picture" => MediaKind::Picture,
         "Video" => MediaKind::Video,
         "SharedTexture" => MediaKind::SharedTexture,
+        "Ndi" => MediaKind::Ndi,
         "Composition" => MediaKind::Composition,
         "Matrix" => MediaKind::Matrix,
         _ => MediaKind::SolidColor,

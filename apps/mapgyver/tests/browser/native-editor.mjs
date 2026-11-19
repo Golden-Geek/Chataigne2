@@ -24,7 +24,8 @@ export async function openNativeEditor({
 	appDataDirectory,
 	windowState,
 	prepareProfile,
-	onLogData
+	onLogData,
+	development = false
 } = {}) {
 	assert(
 		!windowState || !appDataDirectory,
@@ -52,6 +53,7 @@ export async function openNativeEditor({
 	const app = spawn(
 		path.resolve(process.env.MAPGYVER_TEST_BINARY ?? 'target/debug/MapGyver.exe'),
 		[
+			...(development ? ['--dev'] : []),
 			'--no-remote',
 			'--automation-shutdown-file',
 			shutdown,

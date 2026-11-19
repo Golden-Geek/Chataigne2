@@ -4,6 +4,8 @@
 mod derived;
 mod feedback;
 mod fit;
+#[cfg(all(windows, target_arch = "x86_64"))]
+mod ndi;
 mod plan;
 mod screen_raster;
 mod sources;
@@ -71,6 +73,8 @@ pub struct ChannelRenderer {
     pending_preview: Option<PreviewImages>,
     presented_preview: PreviewImages,
     pictures: Option<super::picture::Pictures>,
+    #[cfg(all(windows, target_arch = "x86_64"))]
+    ndi: Option<ndi::Receivers>,
     #[cfg(feature = "video-files")]
     videos: Option<super::video::files::Files>,
     calibration_assets: crate::screens::CalibrationAssets,
@@ -104,6 +108,8 @@ impl ChannelRenderer {
             pending_preview: Default::default(),
             presented_preview: Default::default(),
             pictures: None,
+            #[cfg(all(windows, target_arch = "x86_64"))]
+            ndi: None,
             #[cfg(feature = "video-files")]
             videos: None,
             calibration_assets: Default::default(),
@@ -178,6 +184,11 @@ impl ChannelRenderer {
         self.pictures = Some(super::picture::Pictures::new(root, limits, notifier)?);
         Ok(())
     }
+    /// Connect demanded NDI sources on bounded receiver workers owned by this preparation host.
+    #[cfg(all(windows, target_arch = "x86_64"))]
+    pub fn enable_ndi(&mut self, notifier: Option<golden_io::WorkerNotifier>) {
+        self.ndi = Some(ndi::Receivers::new(notifier));
+    }
     pub fn retry_pictures(&mut self) -> Result<(), String> {
         self.pictures
             .as_mut()
@@ -231,7 +242,13 @@ impl ChannelRenderer {
 
     /// Captures metadata only. Its project/device stamps are rechecked before use.
     pub fn source_observations(&self) -> SourceObservations {
-        sources::capture(&self.runtime)
+        sources::capture(
+            &self.runtime,
+            #[cfg(all(windows, target_arch = "x86_64"))]
+            self.ndi
+                .as_ref()
+                .map_or_else(HashMap::new, ndi::Receivers::observations),
+        )
     }
     /// Read-only observation of the video runtime's shared monotonic authority.
     pub fn read_time(&self) -> Result<golden_time::TimeSnapshot, golden_time::TimeError> {
@@ -267,6 +284,10 @@ impl ChannelRenderer {
         self.validate_screens(&capture, &screens)?;
         if self.project.is_some_and(|project| project != capture.project) {
             self.runtime.replace_project().map_err(|error| error.to_string())?;
+            #[cfg(all(windows, target_arch = "x86_64"))]
+            if let Some(ndi) = &mut self.ndi {
+                ndi.clear();
+            }
             self.entries.clear();
             self.screen_entries.clear();
             self.observations = None;
@@ -316,7 +337,11 @@ impl ChannelRenderer {
         let prepares_video = self.videos.is_some();
         #[cfg(not(feature = "video-files"))]
         let prepares_video = false;
-        if self.pictures.is_some() || prepares_video {
+        #[cfg(all(windows, target_arch = "x86_64"))]
+        let prepares_ndi = self.ndi.is_some();
+        #[cfg(not(all(windows, target_arch = "x86_64")))]
+        let prepares_ndi = false;
+        if self.pictures.is_some() || prepares_video || prepares_ndi {
             let mut demanded = routes.iter().map(|route| route.channel).collect::<Vec<_>>();
             if let Some(preview) = &preview {
                 demanded.extend(preview.references()?);
@@ -338,6 +363,10 @@ impl ChannelRenderer {
             #[cfg(feature = "video-files")]
             if let Some(videos) = &mut self.videos {
                 videos.sync(&capture, &demanded)?;
+            }
+            #[cfg(all(windows, target_arch = "x86_64"))]
+            if let Some(ndi) = &mut self.ndi {
+                ndi.sync(&capture, &demanded)?;
             }
         }
         let mut prepared = plan::build(
@@ -463,9 +492,14 @@ impl ChannelRenderer {
         let videos_changed = self.videos.as_mut().is_some_and(|videos| videos.service());
         #[cfg(not(feature = "video-files"))]
         let videos_changed = false;
+        #[cfg(all(windows, target_arch = "x86_64"))]
+        let ndi_ready = self.ndi.as_ref().is_some_and(ndi::Receivers::ready_to_retry);
+        #[cfg(not(all(windows, target_arch = "x86_64")))]
+        let ndi_ready = false;
         if !adapter_changed
             && !pictures_changed
             && !videos_changed
+            && !ndi_ready
             && !transitions_finished
             && self
                 .observations
@@ -534,6 +568,8 @@ impl ChannelRenderer {
         }
         #[cfg(feature = "video-files")]
         self.videos.take();
+        #[cfg(all(windows, target_arch = "x86_64"))]
+        self.ndi.take();
     }
 
     #[cfg(all(windows, feature = "native-video"))]

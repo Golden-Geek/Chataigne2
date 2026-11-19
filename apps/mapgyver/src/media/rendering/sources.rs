@@ -6,6 +6,8 @@ pub struct SourceObservations {
     pub(super) project: ProjectEpoch,
     pub(super) device: Option<DeviceGeneration>,
     pub(super) sources: Vec<Source>,
+    #[cfg(all(windows, target_arch = "x86_64"))]
+    pub(super) ndi: super::ndi::Observations,
 }
 
 #[derive(Clone, Debug)]
@@ -21,7 +23,7 @@ pub(super) struct Source {
 
 impl SourceObservations {
     pub(super) fn equivalent(&self, other: &Self) -> bool {
-        self.project == other.project
+        let equivalent = self.project == other.project
             && self.device == other.device
             && self.sources.len() == other.sources.len()
             && self.sources.iter().zip(&other.sources).all(|(a, b)| {
@@ -42,11 +44,17 @@ impl SourceObservations {
                         b.descriptor,
                         b.incompatible,
                     )
-            })
+            });
+        #[cfg(all(windows, target_arch = "x86_64"))]
+        let equivalent = equivalent && self.ndi == other.ndi;
+        equivalent
     }
 }
 
-pub(super) fn capture(runtime: &VideoRuntime) -> SourceObservations {
+pub(super) fn capture(
+    runtime: &VideoRuntime,
+    #[cfg(all(windows, target_arch = "x86_64"))] ndi: super::ndi::Observations,
+) -> SourceObservations {
     let snapshot = runtime.snapshot();
     let device = snapshot.resources.map(|resources| resources.last_submitted.device);
     #[cfg(not(all(windows, feature = "native-video")))]
@@ -81,5 +89,7 @@ pub(super) fn capture(runtime: &VideoRuntime) -> SourceObservations {
         project: snapshot.project,
         device,
         sources,
+        #[cfg(all(windows, target_arch = "x86_64"))]
+        ndi,
     }
 }

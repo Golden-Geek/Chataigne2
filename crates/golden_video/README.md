@@ -17,6 +17,11 @@ The implemented foundations are:
   These data-only descriptors and the sampling filter derive Serde/TypeScript contracts, so app
   authoring DTOs reuse their canonical definitions. Deserializing an empty extent is rejected.
 - `color/` validates finite SDR premultiplied clear colors and unit-range opacity.
+- `ndi/` uses the optional Windows x64 NDI 6 runtime for discovery and progressive BGRA/BGRX
+  capture. It loads the SDK function table from an installed runtime and uses [`ndi-sdk`'s generated
+  ABI types](https://docs.rs/ndi-sdk/0.2.0/ndi_sdk/sys/). Capture handles and buffers stay on the
+  calling worker. Copied frames use the existing CPU image budget and stay charged while any
+  renderer generation holds them. A missing runtime returns an endpoint error.
 - `decode/` (optional `ffmpeg` feature) demuxes local files and owns software decoder/frame
   lifetimes on a caller's worker. Original timestamps, planes and colour metadata survive;
   exact stream-timestamp seeking flushes and reuses a reading codec/pool; drain/EOF seeks

@@ -265,6 +265,10 @@ fn named_invocation(operation: &MediaEdit) -> String {
                 "configureSharedTexture",
                 serde_json::json!([reference.media, reference.channel, sender.as_deref().unwrap_or("")]),
             ),
+            ChannelSource::Ndi { sender } => (
+                "configureNdi",
+                serde_json::json!([reference.media, reference.channel, sender.as_deref().unwrap_or("")]),
+            ),
             _ => {
                 return format!(
                     "local.editMedia('parity', {:?});",
@@ -487,7 +491,7 @@ fn run_measured(
 
 struct Baseline {
     json: String,
-    references: [[ChannelReference; 2]; 3],
+    references: [[ChannelReference; 2]; 4],
     asset: AssetId,
 }
 fn baseline() -> Baseline {
@@ -501,7 +505,13 @@ fn baseline() -> Baseline {
     ) else {
         panic!()
     };
-    let references = [MediaKind::SolidColor, MediaKind::Picture, MediaKind::SharedTexture].map(|kind| {
+    let references = [
+        MediaKind::SolidColor,
+        MediaKind::Picture,
+        MediaKind::SharedTexture,
+        MediaKind::Ndi,
+    ]
+    .map(|kind| {
         let first = create(&mut engine, kind);
         let MediaEditResult::Created { reference: second } = apply(
             &mut engine,
@@ -516,7 +526,7 @@ fn baseline() -> Baseline {
             let mut definition = channel(&engine, reference).unwrap().definition;
             match &mut definition.source {
                 ChannelSource::Picture { file: selected } => *selected = Some(relative("first.png")),
-                ChannelSource::Spout { sender } => {
+                ChannelSource::Spout { sender } | ChannelSource::Ndi { sender } => {
                     *sender = Some(format!("Source {index}"));
                 }
                 _ => {}
@@ -587,7 +597,9 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
         match &mut definition.source {
             ChannelSource::SolidColor { rgba } => *rgba = [0.75, 0.25, 0.5, 0.25],
             ChannelSource::Picture { file } => *file = None,
-            ChannelSource::Spout { sender, .. } => *sender = Some("Exact replacement".into()),
+            ChannelSource::Spout { sender } | ChannelSource::Ndi { sender } => {
+                *sender = Some("Exact replacement".into())
+            }
             _ => unreachable!(),
         }
         cases.extend([
@@ -687,7 +699,12 @@ fn source_mutations_inspection_and_atomic_rejection_match_ui_and_script_callers(
 
 #[test]
 fn source_creation_returns_committed_defaults_and_identity_for_every_caller() {
-    for kind in [MediaKind::SolidColor, MediaKind::Picture, MediaKind::SharedTexture] {
+    for kind in [
+        MediaKind::SolidColor,
+        MediaKind::Picture,
+        MediaKind::SharedTexture,
+        MediaKind::Ndi,
+    ] {
         for caller in CALLERS {
             let mut engine = fixture();
             let value = run(

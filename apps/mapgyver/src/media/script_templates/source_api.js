@@ -53,14 +53,15 @@ function sourceExamples(mediaId, channelId, assetId) {
 	// local.addChannel("variant", mediaId, "");
 	// local.configureMediaResolution("size", mediaId, true, 1920, 1080);
 	// local.configureMediaResolution("native-size", mediaId, false, 1920, 1080);
-	// local.configureMediaFitMode("fit", mediaId, "Fit"); // Picture/Shared Texture/Reference: Fit, Fill, Stretch
-	// local.configureMediaSenderSelection("mode", mediaId, "Auto"); // Shared Texture: Manual or Auto; carries each exact sender
+	// local.configureMediaFitMode("fit", mediaId, "Fit"); // Picture, Video, Shared Texture, NDI or Reference
+	// local.configureMediaSenderSelection("mode", mediaId, "Auto"); // Shared Texture or NDI; retains each exact sender
 	// local.configureSolidColor("color", mediaId, channelId, 1, 0, 0, 1); // straight linear RGBA
 	// local.configurePicture("picture", mediaId, channelId, "images/source.png"); // "" clears the File
 	// local.configurePictureFile("file", mediaId, channelId, "images/source.png"); // edits this Picture channel's own File; "" clears it
 	// local.inspectPictureFile("file-binding", mediaId, channelId); // bounded live File Parameter address
 	// local.reloadPicture("reload", mediaId, channelId); // retry this File without authored history
 	// local.configureSharedTexture("sender", mediaId, channelId, "Exact sender"); // "" clears
+	// local.configureNdi("ndi", mediaId, channelId, "Computer (NDI source)"); // "" clears
 	// local.inspectChannel("channel", mediaId, channelId);
 	// local.inspectChannels("channels", mediaId, 0, 32); // bounded page; also mirrors References
 	// local.inspectMedia("catalog");

@@ -666,6 +666,26 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
 name = "bindgen"
+version = "0.71.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f58bf3d7db68cfbac37cfc485a8d711e87e064c3d0fe0435b92f7a407f9d6b3"
+dependencies = [
+ "bitflags 2.13.0",
+ "cexpr",
+ "clang-sys",
+ "itertools 0.13.0",
+ "log",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash",
+ "shlex 1.3.0",
+ "syn 2.0.118",
+]
+
+[[package]]
+name = "bindgen"
 version = "0.72.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "993776b509cfb49c750f11b8f07a46fa23e0a1386ffc01fb1e7d343efc387895"
@@ -3201,6 +3221,8 @@ dependencies = [
  "golden_assets",
  "golden_io",
  "golden_time",
+ "libloading 0.8.9",
+ "ndi-sdk",
  "serde",
  "serde_json",
  "snap",
@@ -4467,6 +4489,18 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "ndi-sdk"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ae7a32a4a4f993f36476526696e33c867750c0d7cb77c691a72952f85f1e957"
+dependencies = [
+ "bindgen 0.71.1",
+ "libloading 0.8.9",
+ "regex",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

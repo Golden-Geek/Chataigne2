@@ -98,7 +98,7 @@ function visible(child: UiNodeDto) {
 			field === 'video_audio' ||
 			field === 'video_subtitles'
 		);
-	if (source === 'SharedTexture') {
+	if (source === 'SharedTexture' || source === 'Ndi') {
 		const media = parent(owner);
 		const parameters = media?.children
 			.map((id) => session.getNodeData(id))
@@ -110,7 +110,7 @@ function visible(child: UiNodeDto) {
 			mode?.data.kind === 'parameter' &&
 			mode.data.param.value.kind === 'enum' &&
 			mode.data.param.value.value === 'Auto';
-		return field === (auto ? 'sender_choice' : 'sender');
+		return field === (auto ? 'sender_choice' : source === 'Ndi' ? 'ndi_sender' : 'sender');
 	}
 	if (source === 'Composition') return false;
 	if (source === 'Matrix') {

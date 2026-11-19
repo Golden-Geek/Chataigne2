@@ -13,7 +13,7 @@ See the [architecture](../architecture/mapgyver.md) and [current status](../prog
   Video fade-loop (M10/9) → Shared Texture defaults (M15/11) → Video time cropping (M10/10) →
   subtitles (M10/8) → SGF Matrix feedback (M16/7–14) → earlier SGF feedback (M16/1–6) →
   extended Video formats (M10/3) →
-  Golden Gradient (M15/10) → deferred deep verification → M09**.
+  Golden Gradient (M15/10) → NDI Media and Screen Output (M17) → deferred deep verification → M09**.
   This user revision supersedes older per-feedback full-matrix and acceptance-first ordering.
 - For each small feedback slice, finish all owning-layer changes and run one targeted validation
   cycle: formatting, relevant behavior/type/contract checks and a short app smoke when needed.
@@ -173,6 +173,15 @@ Overall acceptance is **104/129 (81%)**, M10 is **5/10 (50%)**, and phase comple
 checkpoint, followed by **M16/1–6**, starting with audio output and routing. This adds eight gates
 and brings the plan to **137 gates** across **17 phases**.
 
+**NDI amendment, 2026-11-19.** Add [M17](#m17--deliver-ndi-media-and-screen-output) for NDI
+Media and NDI Screen Output, both with audio. Queue it after the current extended Video work and
+before remaining acceptance closure and M09. M17 added two pending gates, bringing the plan to
+**139 gates across 18 phases** at that checkpoint.
+
+**Resume order, 2026-11-19.** Start M17/1 while M10/3 extended Video qualification is deferred.
+M17 builds on the delivered Shared Texture and virtual audio routing paths. M10/3 remains in the
+qualification queue for M09.
+
 ## Entry, order and delivery
 
 1. Read AGENTS.md, this plan and the compact status page. Reconcile the checkout, current
@@ -193,7 +202,8 @@ and brings the plan to **137 gates** across **17 phases**.
    M15/9 geometry alignment → M10/9 Video fade-loop → M15/11 Shared Texture defaults →
    M10/10 Video time cropping → M10/8 subtitles → M16/7–14 SGF Matrix feedback →
    M16/1–6 earlier SGF feedback → M10/3 extended formats (DXV and MKV Video, still WebP Picture) →
-   M15/10 Golden Gradient → remaining acceptance closure → M09 final qualification**.
+   M15/10 Golden Gradient → M17 NDI Media and Screen Output → remaining acceptance closure →
+   M09 final qualification**.
    M08's shared configuration/runtime contract precedes dependent Matrix app controls; this
    dependency does not authorize two active gates. Deliver their coherent slices sequentially.
    M10/1,2,5,6,7 are accepted for their tested scopes. The 2026-11-14 user revision selects
@@ -208,7 +218,7 @@ and brings the plan to **137 gates** across **17 phases**.
    are verified; independent M11 stability/editor work does not depend on unverified external-target
    cleanup. This 2026-11-04 ordering change uses rule 6 below and accepts or waives no gate.
    A reproduced defect blocking the selected product path still takes precedence. Do not start
-   M09 while M08/4 or any M11/M12/M13/M14/M15 gate remains unaccepted. The 2026-11-08 Video priority
+   M09 while M08/4 or any M11–M17 gate remains unaccepted. The 2026-11-08 Video priority
    supersedes the former M10 prerequisite here. The 2026-11-05 user priority
    moves unfinished M05/8 qualification to Pending with its existing evidence and exact return
    action; it does not waive that gate or restart its investigation allowance. That historical
@@ -355,7 +365,8 @@ Counts refer to the numbered acceptance gates below, not commits or elapsed work
 | M14 | Shared 2D interaction, Composition, Screen and Matrix feedback    | Accepted M10 functional gates 1,2,5–7; retained qualification stays queued | 10    |
 | M15 | Latest feedback: controls, colors/Groups, presets, editors, Gradient | Public Golden contracts; 12–15, then 9; 11 and 10 interleave with Video as ordered above | 15    |
 | M16 | SGF Feedback: Matrix transport and UI, audio, OSCQuery and editor fixes | M10/8 subtitles → M16/7–14 → M16/1–6                                | 14    |
-| M09 | Actual-app qualification and Windows artifact                     | All retained feature/qualification gates, including M10–M16                | 1     |
+| M17 | NDI Media and Screen Output with audio                            | M04/M05 Shared Texture contracts and M16/1 functional audio routing         | 2     |
+| M09 | Actual-app qualification and Windows artifact                     | All retained feature/qualification gates, including M10–M17                | 1     |
 
 ### M00 — Reconcile and define evidence
 
@@ -1840,6 +1851,45 @@ M16/1 acceptance remains required before M09.
 6. **Stable linked outlines in Screen Warping.** Reproduce the supplied linked-handle issue and
    keep both Surface outlines on the current drag geometry throughout the gesture. Verify
    native drags across linked Surfaces, including rapid movement, release and Undo/Redo.
+
+### M17 — Deliver NDI Media and Screen Output
+
+MapGyver owns the Media and Screen target types, typed Inspector settings, source defaults and
+audio route policy. NDI is available by default in the normal Media and Screen target choices.
+Discovery and streams start automatically as needed for authored endpoints, without a preference
+or session activation step. Golden owns reusable NDI discovery and stream lifecycles, video frame
+transfer and live audio buffers, clocks and mixing through public runtime APIs. Evaluate a
+maintained Rust binding against the official SDK before choosing the adapter. Keep SDK calls,
+network waits, frame transfers and A/V synchronization on runtime workers with bounded queues
+and completion-safe buffer ownership. A missing or incompatible runtime reports an actionable
+status on the affected NDI endpoints and the rest of the app stays usable.
+[NDI SDK receive](https://docs.ndi.video/all/developing-with-ndi/sdk/ndi-recv) ·
+[NDI SDK send](https://docs.ndi.video/all/developing-with-ndi/sdk/ndi-send)
+
+1. **NDI Media (receive).** Add NDI as a Media type with typed per-channel sender selection and
+   audio routing in the generic Inspector. Follow Shared Texture for Manual/Auto discovery,
+   internal sender labeling, stable selection through loss and automatic reconnect. A new
+   source selects the first external sender or None. Use the normal Resolution/Fit settings,
+   Media Preview and shared source demand across Surfaces and References. Route incoming audio
+   channels to named virtual outputs through Golden Audio, with gain and mute. Silence a missing
+   or disconnected audio stream and resume with fresh synchronized samples on recovery. Verify
+   with an independent LAN sender using moving picture and audio pulses aligned to visible markers,
+   with distinct signals per channel. Cover source changes, shared receiver demand, video-only
+   sources, sender and network loss/recovery, final-use retirement, and typed history and reload.
+2. **NDI Screen Output (send).** Add NDI as a Screen target alongside Shared Texture. Reuse
+   the rendered Screen image, resolution, frame rate and optional sender-name convention
+   (**MapGyver - <Screen name>** when unset). Add typed routes from named virtual audio outputs
+   to the NDI stream's audio channels, independent of local audio device selection. Unassigned
+   routes are silent. Publish synchronized picture and audio while the editor is closed or
+   minimized. Verify A/V offset, drift and channel mapping at an independent LAN receiver using
+   visible markers and matching audio pulses. Cover concurrent Screen targets, route and format
+   changes, unavailable local audio output, receiver and network reconnect, typed history and
+   reload, and disable/delete/project replacement with sender withdrawal and final-use retirement.
+
+Check Windows x64 runtime loading and redistribution terms for the selected SDK version. Verify
+the supported installer path on a clean Windows system and first use on launch.
+Include NDI receive and send alongside the existing source and Screen target regressions in the
+bundled app. [NDI SDK distribution](https://docs.ndi.video/all/developing-with-ndi/sdk/software-distribution)
 
 ### M09 — Qualify the actual app and Windows artifact
 

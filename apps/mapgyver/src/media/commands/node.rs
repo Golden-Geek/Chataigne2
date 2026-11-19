@@ -464,6 +464,12 @@ impl MediaCommandNode {
                     sender: (!self.sender.get_ref().is_empty()).then(|| self.sender.get_ref().clone()),
                 },
             },
+            MediaCommandKind::Ndi => MediaEdit::ConfigureChannel {
+                reference,
+                source: ChannelSource::Ndi {
+                    sender: (!self.sender.get_ref().is_empty()).then(|| self.sender.get_ref().clone()),
+                },
+            },
             MediaCommandKind::ImportPicture => MediaEdit::ImportPicture {
                 locator: self.locator()?,
                 target: if optional(self.media.get_ref()).is_some() || optional(self.channel.get_ref()).is_some() {

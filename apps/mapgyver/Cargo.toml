@@ -27,7 +27,7 @@ golden_core = { path = "../../crates/golden_core" }
 golden_audio.workspace = true
 golden_io.workspace = true
 uuid.workspace = true
-golden_video = { path = "../../crates/golden_video" }
+golden_video = { path = "../../crates/golden_video", features = ["ndi"] }
 golden_time.workspace = true
 serde_json.workspace = true
 serde.workspace = true

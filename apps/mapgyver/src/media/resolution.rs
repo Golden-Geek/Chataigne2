@@ -71,6 +71,7 @@ impl ChannelDefinition {
             },
             MediaKind::SolidColor => ChannelSource::SolidColor { rgba: [1.0; 4] },
             MediaKind::SharedTexture => ChannelSource::Spout { sender: None },
+            MediaKind::Ndi => ChannelSource::Ndi { sender: None },
         };
         Self {
             source,
@@ -88,6 +89,7 @@ impl ChannelDefinition {
             ChannelSource::Matrix { .. } => MediaKind::Matrix,
             ChannelSource::SolidColor { .. } => MediaKind::SolidColor,
             ChannelSource::Spout { .. } => MediaKind::SharedTexture,
+            ChannelSource::Ndi { .. } => MediaKind::Ndi,
         }
     }
 
@@ -113,6 +115,14 @@ impl ChannelDefinition {
                     .is_some_and(|s| s.is_empty() || s.len() > 255 || s.contains('\0'))
                 {
                     return Err("Spout selector must contain 1..255 UTF-8 bytes without NUL".into());
+                }
+            }
+            ChannelSource::Ndi { sender } => {
+                if sender
+                    .as_ref()
+                    .is_some_and(|name| name.is_empty() || name.contains('\0'))
+                {
+                    return Err("NDI selector must contain an exact nonempty source name without NUL".into());
                 }
             }
         }
@@ -198,8 +208,10 @@ pub fn resolve(definition: &ChannelDefinition, observed: SourceObservation) -> R
             SourceObservation::Unavailable => (None, ChannelAvailability::Unavailable),
             SourceObservation::Available(actual) => (Some(actual.extent), ChannelAvailability::Ready),
         },
-        ChannelSource::Spout { sender: None, .. } => (None, ChannelAvailability::Unconfigured),
-        ChannelSource::Spout { .. } => match observed {
+        ChannelSource::Spout { sender: None } | ChannelSource::Ndi { sender: None } => {
+            (None, ChannelAvailability::Unconfigured)
+        }
+        ChannelSource::Spout { .. } | ChannelSource::Ndi { .. } => match observed {
             SourceObservation::Unavailable => (None, ChannelAvailability::Unavailable),
             SourceObservation::Available(actual)
                 if actual.extent.width() <= MAX_CHANNEL_DIMENSION

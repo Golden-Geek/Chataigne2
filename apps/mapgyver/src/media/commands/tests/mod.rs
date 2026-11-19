@@ -125,6 +125,7 @@ fn all_command_kinds_are_typed_passive_and_execute_source_intents_with_atomic_hi
             | MediaCommandKind::ArrangeCompositionMedia => create(&mut engine, MediaKind::Composition),
             MediaCommandKind::Picture | MediaCommandKind::ReloadPicture | MediaCommandKind::ConfigureFitMode => picture,
             MediaCommandKind::SharedTexture | MediaCommandKind::ConfigureSenderSelection => shared,
+            MediaCommandKind::Ndi => create(&mut engine, MediaKind::Ndi),
             _ => solid,
         };
         if matches!(

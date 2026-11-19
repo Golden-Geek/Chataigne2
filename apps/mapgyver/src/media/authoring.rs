@@ -378,10 +378,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             if !kind.has_authored_channel_variants() {
                 return Err("this media derives its output channels; only source media can add variants".into());
             }
-            let channel = ChannelNode::from_definition(
-                label(engine, parent, requested, "Channel")?,
-                ChannelDefinition::for_media(kind),
-            );
+            let channel = super::creation::channel(engine, kind, label(engine, parent, requested, "Channel")?);
             let reference = ChannelReference {
                 media: owner,
                 channel: ChannelId(channel.node_data().meta.uuid),
@@ -414,7 +411,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
                 Some(AppNode::Media(media)) => media.sender_selection_parameter(),
                 _ => None,
             }
-            .ok_or("sender selection requires Shared Texture media")?;
+            .ok_or("sender selection requires Shared Texture or NDI media")?;
             engine.edits.push(Edit::SetParam {
                 node: parameter,
                 value: golden_core::parameter::ParamValue::Enum(mode.name().into()),

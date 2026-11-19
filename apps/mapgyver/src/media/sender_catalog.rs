@@ -1,4 +1,5 @@
 //! Live availability metadata; authored choices and recovery remain independent.
+use super::protocol::MediaKind;
 use crate::app::{AppEngine, AppNode};
 use golden_core::{
     edit::Edit,
@@ -42,6 +43,13 @@ impl Inbox {
                     selected_value: None,
                     options: update.options,
                 });
+                if update.kind == MediaKind::Ndi {
+                    if let Some(message) = update.warning.as_deref() {
+                        ctx.set_node_warning_with(update.channel, Some("ndi-discovery"), message, None);
+                    } else {
+                        ctx.clear_node_warning(update.channel, Some("ndi-discovery"));
+                    }
+                }
             }
         }
     }
@@ -91,16 +99,22 @@ struct Selection {
     guard: RevisionGuard,
 }
 struct SelectionUpdate {
+    kind: MediaKind,
+    channel: NodeId,
     node: NodeId,
     uuid: NodeUuid,
     value: ParamValue,
     options: ParameterEnumOptions,
     guard: RevisionGuard,
+    warning: Option<Arc<str>>,
 }
 pub(crate) struct Source {
+    kind: MediaKind,
     publisher: Publisher,
     membership: (uuid::Uuid, u64),
     selections: Vec<Selection>,
+    warning: Option<Arc<str>>,
+    processed_warning: bool,
 }
 impl Source {
     fn dirty(&self) -> bool {
@@ -126,45 +140,65 @@ impl Source {
         })
     }
     pub(crate) fn capture(engine: &AppEngine) -> Result<Self, String> {
+        Self::capture_for(engine, MediaKind::SharedTexture)
+    }
+
+    pub(crate) fn capture_for(engine: &AppEngine, kind: MediaKind) -> Result<Self, String> {
         let manager = super::authoring::manager(engine)?;
         let Some(AppNode::MediaManager(manager)) = engine.nodes.get(manager) else {
             unreachable!()
         };
         let mut selections = Vec::new();
         for (id, node) in engine.nodes.iter() {
-            if matches!(node, AppNode::MediaChannel(channel) if channel.kind() == super::protocol::MediaKind::SharedTexture)
-            {
+            if matches!(node, AppNode::MediaChannel(channel) if channel.kind() == kind) {
                 selections.push(Self::selection(engine, id)?);
             }
         }
         Ok(Self {
-            publisher: manager.sender_catalog.publisher()?,
+            kind,
+            publisher: manager.sender_catalog(kind).publisher()?,
             membership: engine.nodes.membership_revision(),
             selections,
+            warning: None,
+            processed_warning: false,
         })
     }
     fn refresh(&mut self, engine: &AppEngine) -> Result<(), String> {
         for selection in &mut self.selections {
             if !selection.guard.is_current() {
                 *selection = Self::selection(engine, selection.channel)?;
+                self.processed_warning = false;
             }
         }
         Ok(())
     }
     pub(crate) fn publish(&mut self, names: &[String], internal_names: &[String]) -> Result<(), String> {
-        let catalog = Snapshot::new(names, internal_names);
+        self.publish_discovery(names, internal_names, None)
+    }
+
+    fn publish_discovery(
+        &mut self,
+        names: &[String],
+        internal_names: &[String],
+        error: Option<Arc<str>>,
+    ) -> Result<(), String> {
+        let catalog = Snapshot::from_names(self.kind, names, internal_names);
         let options = catalog.options.clone();
         let mut updates = Vec::new();
         // A replacement inbox batch must include every channel: an earlier batch may still
         // be pending while one changed binding is refreshed against the older installed options.
-        if self.selections.iter().any(|selection| selection.options != options) {
+        let warning_changed = self.kind == MediaKind::Ndi && (!self.processed_warning || self.warning != error);
+        if warning_changed || self.selections.iter().any(|selection| selection.options != options) {
             for selection in &self.selections {
                 updates.push(SelectionUpdate {
+                    kind: self.kind,
+                    channel: selection.channel,
                     node: selection.node,
                     uuid: selection.uuid,
                     value: ParamValue::Enum(selection.value.clone()),
                     options: options.clone(),
                     guard: selection.guard.clone(),
+                    warning: error.clone(),
                 });
             }
         }
@@ -172,6 +206,8 @@ impl Source {
         for selection in &mut self.selections {
             selection.options = options.clone();
         }
+        self.warning = error;
+        self.processed_warning = true;
         Ok(())
     }
 }
@@ -190,6 +226,10 @@ impl Default for Snapshot {
 
 impl Snapshot {
     fn new(names: &[String], internal_names: &[String]) -> Self {
+        Self::from_names(MediaKind::SharedTexture, names, internal_names)
+    }
+
+    fn from_names(kind: MediaKind, names: &[String], internal_names: &[String]) -> Self {
         let mut entries = vec![option("", "None".into())];
         let mut seen = HashSet::from([""]);
         let internal = internal_names.iter().map(String::as_str).collect::<HashSet<_>>();
@@ -197,7 +237,7 @@ impl Snapshot {
         for name in names
             .iter()
             .take(64)
-            .filter(|name| name.len() <= 255 && !name.contains('\0'))
+            .filter(|name| !name.contains('\0') && (kind != MediaKind::SharedTexture || name.len() <= 255))
         {
             if !seen.insert(name.as_str()) {
                 continue;

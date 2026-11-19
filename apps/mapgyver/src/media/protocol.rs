@@ -79,6 +79,7 @@ pub enum MediaKind {
     Video,
     SolidColor,
     SharedTexture,
+    Ndi,
     Composition,
     Matrix,
 }
@@ -97,6 +98,7 @@ impl MediaKind {
             Self::Video => "Video",
             Self::SolidColor => "Solid Color",
             Self::SharedTexture => "Shared Texture",
+            Self::Ndi => "NDI",
             Self::Composition => "Composition",
             Self::Matrix => "Matrix",
         }
@@ -105,8 +107,12 @@ impl MediaKind {
     pub(crate) fn has_authored_channel_variants(self) -> bool {
         matches!(
             self,
-            Self::Picture | Self::Video | Self::SolidColor | Self::SharedTexture
+            Self::Picture | Self::Video | Self::SolidColor | Self::SharedTexture | Self::Ndi
         )
+    }
+
+    pub(crate) fn has_sender_selection(self) -> bool {
+        matches!(self, Self::SharedTexture | Self::Ndi)
     }
 }
 
@@ -212,6 +218,10 @@ pub enum ChannelSource {
     },
     /// A missing selector is authored as unconfigured, never the global active sender.
     Spout {
+        sender: Option<String>,
+    },
+    /// An exact NDI source name. Discovery addresses are runtime data.
+    Ndi {
         sender: Option<String>,
     },
 }

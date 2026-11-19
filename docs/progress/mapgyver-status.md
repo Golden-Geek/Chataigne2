@@ -1,10 +1,11 @@
 # MapGyver — simple status
 
 - **Updated:** 19 November 2026.
-- **Overall plan acceptance:** `█████████░` **87% — 119/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** Themed dock separators with visible Screen Warping previews. Verified horizontal and vertical splits, ColorBars and warp handles in Windows at 125% scaling.
+- **Overall plan acceptance:** `█████████░` **86% — 119/139 checks accepted, 8/18 phases complete**.
+- **Latest delivered:** NDI Media opens directly from **Medias → + → NDI** on Windows. Sender discovery and native Media Preview passed. [Checks](evidence/mapgyver-m17-ndi-picture-2026-11-19.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
+- **Next:** Route received NDI audio to named virtual outputs.
 
 ## Done — code and normal-use checks passed
 
@@ -65,6 +66,13 @@
 - [x] **Seamless previews:** Surface Editor and Media Preview held the previous image until a delayed Spout sender produced frames. Switching between Surfaces using the same channel, including through a Reference, reused one live receiver. [Checks](evidence/mapgyver-m16-seamless-previews-2026-11-19.json)
 - [x] **Linked outlines:** both Screen Warping outlines follow the latest drag before the engine replies, including with snapping off. Release, Undo/Redo, native hit testing and independent Spout pixels passed. [Checks](evidence/mapgyver-m16-linked-outlines-2026-11-19.json)
 - [x] **Gradient and Color animation:** choose **Animation** on a Color parameter and expand **Gradient** to edit its stops. Standalone Gradients are available in a Golden Context. Native Spout verified the color blend, alpha, reload, and return to Manual. [Checks](evidence/mapgyver-m15-gradient-2026-11-19.json)
+
+## Planned features
+
+[NDI with audio](../plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output) is the next feature while extended Video qualification is deferred.
+
+- **NDI Media.** Discovery, sender selection and native picture are verified with an independent local sender. Audio routing, cross-machine LAN checks and clean Windows setup are pending.
+- **NDI Screen Output.** Publish a Screen as a named NDI stream with audio from selected virtual outputs.
 
 ## Pending qualification — in order
 

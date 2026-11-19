@@ -7,6 +7,8 @@ mod cell_placement;
 mod composition;
 mod exposure;
 mod matrix;
+#[cfg(all(windows, target_arch = "x86_64"))]
+mod ndi;
 mod outputs;
 mod pictures;
 mod preview;
