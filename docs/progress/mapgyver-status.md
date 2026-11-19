@@ -74,8 +74,8 @@
 
 [NDI with audio](../plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output) is implemented and verified locally.
 
-- **NDI Media.** Available on first launch in the Windows x64 package. Adding NDI Media automatically discovered and displayed the external test sender. Clean Windows installation, a Media gain check and cross-machine A/V checks remain pending. [Startup checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
-- **NDI Screen Output.** Choosing NDI on an enabled Screen started publication immediately. Picture and routed audio resumed after an app restart and reopening the saved project. Cross-machine A/V offset and drift, recovery, and final-use qualification remain pending. [Startup checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
+- **NDI Media.** The Windows x64 package includes the NDI runtime. A fresh profile discovered and displayed an external test sender without activation. Clean Windows installation, a Media gain check and cross-machine A/V checks remain pending. [Startup checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
+- **NDI Screen Output.** Choosing NDI on an enabled Screen started picture and routed audio without activation. Both resumed after restart and reopening the saved project. Cross-machine A/V offset and drift, recovery, and final-use qualification remain pending. [Startup checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
 
 [Remaining feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi), in order.
 

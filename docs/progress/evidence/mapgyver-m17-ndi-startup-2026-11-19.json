@@ -19,5 +19,13 @@
 			"receipt": "target/m17-ndi-startup-media/run-QxVlJm/result.json"
 		}
 	},
+	"startupRecheck": {
+		"scope": "Latest local developer binary in the Windows bundle layout. Each fixture used a fresh profile with system NDI discovery paths hidden from the app process.",
+		"media": "Automatically selected the fixture sender and displayed the native preview. Windows reported that MapGyver loaded the app-local DLL.",
+		"mediaReceipt": "target/m17-ndi-default-media/run-RK52Tf/result.json",
+		"screen": "Published picture and audio from an enabled NDI Screen. Reopening the saved project in a fresh process resumed the output.",
+		"screenReceipt": "target/m17-ndi-default-screen/run-CpMev8/result.json",
+		"exitCodes": [0, 0]
+	},
 	"qualification": "M17/1 and M17/2 remain pending. The startup test used an isolated bundle layout on this Windows machine. Clean installation, the Media gain failure and the remaining independent LAN and lifecycle cases still need qualification."
 }
