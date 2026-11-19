@@ -8,6 +8,7 @@ mod desktop_window;
 mod displays;
 #[cfg(target_os = "windows")]
 mod file_drop;
+mod file_explorer;
 mod headless_shutdown;
 mod host_config;
 mod host_services;
@@ -27,6 +28,7 @@ pub use desktop::{
     run_default_with_ui_assets, run_default_with_ui_assets_and_dev_server,
 };
 pub use displays::{NativeDisplay, native_displays};
+pub use file_explorer::export_file_explorer_typescript;
 pub use host_config::{DesktopHostConfig, FrontendDevServerConfig};
 pub use host_services::HostServices;
 pub use native_presentation::{

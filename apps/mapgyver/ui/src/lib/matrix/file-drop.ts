@@ -1,4 +1,5 @@
 import fileIcon from 'golden_ui/style/icons/parameter/file.svg';
+import { explorerFileDragPath } from 'golden_ui/host/file-drop';
 import { mediaFileDrop } from '../media/file-drop';
 import type { ColumnItemId } from '../media/generated/ColumnItemId';
 import type { MatrixFileTarget } from '../media/generated/MatrixFileTarget';
@@ -51,8 +52,9 @@ export function matrixFileDrop(
 	const file = event.dataTransfer?.files[0];
 	const type = file?.type || event.dataTransfer?.items[0]?.type || '';
 	// File names are only exposed on drop. A MIME type can supply a hover hint.
-	const executable = file ? /\.exe$/i.test(file.name) : executableTypes.has(type);
-	const unknown = !file && (!type || type === 'application/octet-stream');
+	const name = file?.name ?? explorerFileDragPath(event);
+	const executable = name ? /\.exe$/i.test(name) : executableTypes.has(type);
+	const unknown = !name && (!type || type === 'application/octet-stream');
 	const replaces = populated(layer, cellColumn);
 	const label = executable
 		? 'Set Cell App Control'

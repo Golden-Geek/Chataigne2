@@ -2,12 +2,15 @@
 	import { onMount } from 'svelte';
 	import {
 		MainWindow,
+		FileExplorerPanel,
 		useApplicationHost,
 		registerNodeInspector,
 		registerActionIcon,
 		type PanelSpawnRequest,
 		type UserPanelDefinitionMap
 	} from 'golden_ui';
+	import { hasDesktopHost } from 'golden_ui/host/desktop';
+	import explorerIcon from 'golden_ui/style/icons/node/folder.svg';
 	import { providePreview } from '../lib/preview/context.svelte';
 	import { provideApplicationRuntime } from '../lib/applications/runtime-context.svelte';
 	import MediaManagerPanel from '../lib/media/MediaManagerPanel.svelte';
@@ -76,7 +79,12 @@
 			icon: panelIcons.composition,
 			component: CompositionPanel
 		},
-		matrix: { title: 'Matrix', icon: panelIcons.matrix, component: MatrixPanel }
+		matrix: { title: 'Matrix', icon: panelIcons.matrix, component: MatrixPanel },
+		...(hasDesktopHost()
+			? {
+					fileExplorer: { title: 'File Explorer', icon: explorerIcon, component: FileExplorerPanel }
+				}
+			: {})
 	};
 	const initialPanels: PanelSpawnRequest[] = [
 		{
@@ -126,7 +134,16 @@
 			panelId: 'media-preview',
 			panelType: 'mediaPreview',
 			position: { referencePanelId: 'screen-warp', direction: 'within' }
-		}
+		},
+		...(hasDesktopHost()
+			? [
+					{
+						panelId: 'file-explorer',
+						panelType: 'fileExplorer',
+						position: { referencePanelId: 'media-manager', direction: 'below' as const }
+					}
+				]
+			: [])
 	];
 </script>
 

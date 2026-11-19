@@ -158,6 +158,7 @@ export { default as ReferenceEditor } from './components/panels/inspector/parame
 export { default as LoggerPanel } from './components/panels/logger/LoggerPanel.svelte';
 export { default as WarningsPanel } from './components/panels/warnings/WarningsPanel.svelte';
 export { default as DashboardPanel } from './components/panels/dashboard/DashboardPanel.svelte';
+export { default as FileExplorerPanel } from './components/panels/file-explorer/FileExplorerPanel.svelte';
 export { default as DashboardViewer } from './components/panels/dashboard/DashboardViewer.svelte';
 export {
 	registerNodeInspector,

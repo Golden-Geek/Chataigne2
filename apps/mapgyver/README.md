@@ -43,6 +43,11 @@ The default layout reserves most space for the editor. Existing saved docking la
 retained; **Clear UI** clears persisted UI state and reloads the default arrangement.
 Open **File → Project Settings** or use the document icon in the top bar. Project Folder is
 saved with each project. The separate gear button opens app-wide **Preferences**.
+The desktop **File Explorer** opens the saved project's folder. Set **Project Folder** in
+Project Settings or use the Explorer's folder button to override it. Browse nested folders in
+**Tree View** or **Thumbnail View**, then drag files onto the same targets as desktop drops.
+Thumbnail View previews PNG, JPEG and WebP files and shows icons for other files. Use the tab
+group's **+** menu to add File Explorer to an existing layout.
 Run `node apps/mapgyver/tests/headless/media.mjs --workbench-ui` for the ordinary bundled-browser
 tree/Inspector/canvas/Matrix/Application/New flow and source HTTP/history/Save/New/Load checks.
 Browser previews correctly report unavailable; this check does not qualify native display output.

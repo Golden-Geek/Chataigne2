@@ -1,5 +1,46 @@
 import { hasDesktopHost } from './desktop';
 
+const EXPLORER_FILE = 'application/x-golden-explorer-file';
+let explorerDrag: { path: string; token: string; current: () => boolean } | null = null;
+
+export function beginExplorerFileDrag(
+	event: DragEvent,
+	path: string,
+	current: () => boolean
+): void {
+	if (!event.dataTransfer) return;
+	const token = crypto.randomUUID();
+	explorerDrag = { path, token, current };
+	event.dataTransfer.effectAllowed = 'copy';
+	event.dataTransfer.setData(EXPLORER_FILE, token);
+}
+
+export function endExplorerFileDrag(): void {
+	explorerDrag = null;
+}
+
+export function explorerFileDragPath(event: DragEvent): string | null {
+	return explorerDrag?.current() && event.dataTransfer?.types.includes(EXPLORER_FILE)
+		? explorerDrag.path
+		: null;
+}
+
+export function isWorkbenchFileDrag(event: DragEvent): boolean {
+	return (
+		explorerFileDragPath(event) !== null ||
+		(hasDesktopFileDrop() && (event.dataTransfer?.types.includes('Files') ?? false))
+	);
+}
+
+export function readWorkbenchFileDrop(event: DragEvent, signal: AbortSignal): Promise<string[]> {
+	const transfer = event.dataTransfer;
+	if (explorerDrag?.current() && transfer?.getData(EXPLORER_FILE) === explorerDrag.token)
+		return Promise.resolve([explorerDrag.path]);
+	if (transfer?.files.length && hasDesktopFileDrop())
+		return readDroppedFilePaths(transfer.files, signal);
+	return Promise.resolve([]);
+}
+
 interface WebViewFileBridge extends EventTarget {
 	postMessageWithAdditionalObjects(message: unknown, files: File[]): void;
 }

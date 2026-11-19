@@ -3069,10 +3069,13 @@ dependencies = [
  "dirs",
  "golden_engine",
  "golden_transport_server",
+ "image",
  "rfd",
  "serde",
  "serde_json",
  "tauri",
+ "tempfile",
+ "ts-rs",
  "webview2-com",
  "windows 0.61.3",
 ]

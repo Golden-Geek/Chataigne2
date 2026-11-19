@@ -114,6 +114,8 @@ pub(super) fn run_tauri<R: Runtime>(
             crate::desktop_commands::window_is_maximized,
             crate::desktop_commands::start_drag,
             crate::desktop_commands::open_file_dialog,
+            crate::file_explorer::file_explorer_browse,
+            crate::file_explorer::file_explorer_thumbnail,
             crate::desktop_commands::save_file_dialog,
             crate::desktop_commands::write_app_data_file,
             crate::desktop_commands::write_file_in_directory

@@ -9,7 +9,7 @@
 </script>
 
 <script lang="ts">
-	import { hasDesktopFileDrop, readDroppedFilePaths } from '../../host/file-drop';
+	import { isWorkbenchFileDrag, readWorkbenchFileDrop } from '../../host/file-drop';
 	import addIcon from '../../style/icons/node/add.svg';
 	import replaceIcon from '../../style/icons/reset.svg';
 
@@ -32,19 +32,15 @@
 		height: number;
 	} | null>(null);
 
-	function isFileDrag(event: DragEvent): boolean {
-		return event.dataTransfer?.types.includes('Files') ?? false;
-	}
-
 	$effect(() => {
 		const root = area;
-		if (!root || !hasDesktopFileDrop()) return;
+		if (!root) return;
 		const owner = new AbortController();
 		let clearError: ReturnType<typeof setTimeout> | undefined;
 		const target = (event: DragEvent) =>
 			event.target instanceof Element ? resolve(event.target, event) : null;
 		const move = (event: DragEvent) => {
-			if (!isFileDrag(event)) return;
+			if (!isWorkbenchFileDrag(event)) return;
 			event.preventDefault();
 			const destination = target(event);
 			if (event.dataTransfer) event.dataTransfer.dropEffect = destination ? 'copy' : 'none';
@@ -67,19 +63,18 @@
 			}
 		};
 		const drop = async (event: DragEvent) => {
-			if (!isFileDrag(event)) return;
+			if (!isWorkbenchFileDrag(event)) return;
 			event.preventDefault();
 			event.stopPropagation();
 			active = false;
 			const destination = target(event);
-			const files = event.dataTransfer?.files;
-			if (!destination || !files?.length) return;
+			if (!destination) return;
 			clearTimeout(clearError);
 			error = '';
 			try {
-				const paths = await readDroppedFilePaths(files, owner.signal);
+				const paths = await readWorkbenchFileDrop(event, owner.signal);
 				owner.signal.throwIfAborted();
-				await destination.drop(paths);
+				if (paths.length) await destination.drop(paths);
 			} catch (cause) {
 				if (owner.signal.aborted) return;
 				error = cause instanceof Error ? cause.message : String(cause);

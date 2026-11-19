@@ -27,6 +27,10 @@ Apps that use document-wide settings return a typed tree from
 the settings with the project graph. The File menu and top bar open that tree in the Inspector.
 MapGyver opts into the standard tree with its Project Folder override.
 
+Golden's File Explorer uses desktop IPC for paged directory listings and bounded image
+thumbnails. Browsing stays within the selected project root. The shared file drop helper resolves
+both desktop files and workbench drags before handing paths to the app's target-specific intent.
+
 The transport host owns cancellation through `golden_transport_server::UiServerShutdown` and
 `UiServerConfig::shutdown`. A request wakes idle listener waits, closes tracked connections and
 ends runtime, WebSocket hub and snapshot-encoder work. The host drains its bounded thread set

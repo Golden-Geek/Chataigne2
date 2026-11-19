@@ -34,6 +34,9 @@ export const workbenchSettingsNode = (
 	return rootId === null ? null : childByDeclId(graph, graph.state.nodesById.get(rootId), scope);
 };
 
+export const projectFolderParameter = (graph: GraphStore) =>
+	childByDeclId(graph, workbenchSettingsNode(graph, 'project_settings'), 'project_folder');
+
 const frequencyValue = (value: ParamValue, fallback: number): number => {
 	let frequency: number | null = null;
 	if (value.kind === 'int' || value.kind === 'float') {

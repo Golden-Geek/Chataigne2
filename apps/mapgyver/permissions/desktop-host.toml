@@ -10,6 +10,8 @@ commands.allow = [
   "window_is_maximized",
   "start_drag",
   "open_file_dialog",
+  "file_explorer_browse",
+  "file_explorer_thumbnail",
   "save_file_dialog",
   "write_app_data_file",
   "write_file_in_directory",

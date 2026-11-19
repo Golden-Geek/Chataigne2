@@ -1,17 +1,18 @@
 # MapGyver — simple status
 
 - **Updated:** 19 November 2026.
-- **Overall plan acceptance:** `████████░░` **83% — 120/145 checks accepted, 8/19 phases complete**.
-- **Latest delivered:** Project Settings opens from the File menu or top bar. Two projects kept independent Project Folder settings and the app-wide Preference survived project switches and restart. [Checks](evidence/mapgyver-m18-project-settings-2026-11-19.json)
+- **Overall plan acceptance:** `████████░░` **83% — 121/145 checks accepted, 8/19 phases complete**.
+- **Latest delivered:** The desktop File Explorer offers Tree and Thumbnail Views and reopens its saved project folder or override. A Windows app test dragged a Picture into Medias and undid the import. [Checks](evidence/mapgyver-m18-file-explorer-2026-11-19.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** M18/3 File Explorer. Direct File Explorer testing of OS drops remains pending.
+- **Next:** M18/4 Shader Media. Direct File Explorer testing of OS drops remains pending.
 
 ## Done — code and normal-use checks passed
 
 - [x] **Parameter controls:** out-of-range values clamp safely; Opacity/Video Speed animation works; bindings/scripts update correctly; Undo and reload work, including missing range/step metadata.
 - [x] **Projects:** save/load, normal Undo/Redo and copy/duplicate workflows.
 - [x] **Project Settings:** Project Folder persists in each project. Preferences are app-wide and have a separate toolbar icon. [Checks](evidence/mapgyver-m18-project-settings-2026-11-19.json)
+- [x] **File Explorer:** open the project folder or its override, browse Tree and Thumbnail Views and drag files onto the import targets. [Checks](evidence/mapgyver-m18-file-explorer-2026-11-19.json)
 - [x] **Workbench:** media/screen managers, folders, shared selection, generic Inspector, contextual menus and panel targeting/locking.
 - [x] **Pictures and Solid Color:** real channel settings/files, independent copies, file reload and color controls.
 - [x] **Shared Texture:** receiving, previews and preview cadence, sender retention across Manual/Auto, and ordinary reconnect. New sources pick the first external sender or None. **(internal)** marks Screen outputs. Native pixel checks passed for deliberate internal selection, same-name takeover and external recovery.
@@ -78,7 +79,6 @@
 
 [Remaining feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi), in order.
 
-3. **File Explorer.** Browse the project folder in tree or thumbnail view, choose a custom folder and drag files into Media targets.
 4. **Shader Media.** Play GLSL, ShaderToy and ISF shaders, edit embedded code or reload external files, expose parameters and texture inputs, and browse the Shader Library.
 5. **Inspector selection.** Keep the Media inspected when adding a Channel, and inspect the Matrix Cell when adding Media to it.
 6. **Browser video previews.** Show live editor textures with Disabled, Auto, Forced Low Quality and Forced High Quality options.

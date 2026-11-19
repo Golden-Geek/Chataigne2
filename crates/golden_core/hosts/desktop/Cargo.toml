@@ -10,11 +10,16 @@ repository.workspace = true
 dirs = "6"
 golden_engine = { path = "../../engine" }
 golden_transport_server = { path = "../transport" }
+image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "webp"] }
 rfd = "0.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # Native platform types are validated against this Tauri minor.
 tauri = "~2.11.5"
+ts-rs.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 webview2-com = "=0.38.2"
