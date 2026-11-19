@@ -154,7 +154,7 @@ impl Take {
             let Some(position) = instant.checked_duration_since(self.start).filter(|_| weight > 0.0) else {
                 continue;
             };
-            let pcm = self.head.sample(&self.path, position, rate, || {
+            let pcm = self.head.sample(&self.path, None, position, rate, || {
                 let guard = guard.clone();
                 let cancel = cancel.clone();
                 move || !guard.is_current() || cancel.is_cancelled()

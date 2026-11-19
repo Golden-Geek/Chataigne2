@@ -39,6 +39,10 @@ mod subtitles;
         output_kind: Enum = "Final" (label = "Matrix output", read_only = true, persist_read_only_value = true, enum_options = crate::parameters::enum_options(&["Final", "Layer", "Group"]));
         output_item: NodeReference = NodeReference::empty() (label = "Output item", read_only = true, persist_read_only_value = true, reference_target_kind = ReferenceTargetKind::AnyNode, reference_allowed_node_types = vec!["mapgyver.matrix.layer.v4".into(), "mapgyver.matrix.group.v3".into()]);
         folder(video_audio, label = "Audio", enabled = true, can_be_disabled = true) {
+            video_audio_track: Enum = super::video::audio_tracks::AUTOMATIC (
+                label = "Track", description = "Embedded audio from this channel's Video File. Automatic follows the file's default. A missing selected track is silent. Separate loop files use Automatic.",
+                enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
+                enum_options = super::video::audio_tracks::default_options(), dependency = |node: &Self| node.kind() == MediaKind::Video);
             audio_left: Enum = crate::audio::voice::LEFT (label = "Left output", enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
                 enum_options = crate::audio::voice::default_options(), dependency = |node: &Self| node.kind() == MediaKind::Video);
             audio_right: Enum = crate::audio::voice::RIGHT (label = "Right output", enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
@@ -47,9 +51,9 @@ mod subtitles;
                 dependency = |node: &Self| node.kind() == MediaKind::Video);
             video_loop_audio: File = File::default() (label = "Loop Audio File", description = "Optional audio played from the start of the repeat section through this channel's outputs.", dependency = |node: &Self| node.kind() == MediaKind::Video);
         }
-        folder(video_subtitles, label = "Subtitles", enabled = false, can_be_disabled = true) {
+        folder(video_subtitles, label = "Subtitles", description = "Subtitle settings for this Video channel.", enabled = false, can_be_disabled = true) {
             video_subtitle_track: Enum = "None" (
-                label = "Track", description = "Use no subtitles, a local File, or an exact embedded subtitle stream.",
+                label = "Track", description = "Choose None, a separate subtitle File, or a track embedded in this channel's Video File.",
                 enum_domain = golden_core::parameter::ParameterEnumDomainPolicy::Open,
                 enum_options = super::video::protocol::subtitle_track_options(&[]),
                 dependency = |node: &Self| node.kind() == MediaKind::Video);
@@ -82,6 +86,8 @@ pub struct ChannelNode {
     matrix_playback: OnceLock<crate::matrix::playback::PlaybackControl>,
     #[state(default = None)]
     video_binding: Option<Arc<super::video::bindings::Registration>>,
+    #[state(default = Default::default())]
+    video_audio_option_ids: [Option<NodeUuid>; 3],
     #[state(default = None)]
     video_subtitle_binding: Option<(NodeId, NodeUuid)>,
     #[state(default = Default::default())]
@@ -113,6 +119,7 @@ impl ChannelNode {
             self.attach_video_audio(ctx);
             self.publish_video_subtitles(ctx);
             self.refresh_subtitle_tracks(ctx);
+            self.refresh_audio_options(ctx);
         }
     }
 
@@ -370,6 +377,7 @@ impl Node for ChannelNode {
     }
 
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
+        self.bind_audio_options(ctx);
         self.bind_subtitles(ctx);
         self.register_video(ctx);
         if let Some(control) = self.matrix_playback() {
@@ -450,7 +458,9 @@ impl Node for ChannelNode {
     fn on_param_change(&mut self, ctx: &mut ProcessCtx, parameter: NodeId, _: ParamValue) {
         if self.is_audio_parameter(parameter) {
             self.publish_video_audio(ctx);
-            self.refresh_audio_options(ctx);
+            if parameter != self.audio_gain.id() {
+                self.refresh_audio_options(ctx);
+            }
             return;
         }
         if self.is_subtitle_parameter(parameter) {

@@ -1,15 +1,29 @@
 //! Authoring adapter for independent Video audio settings and virtual-output choices.
 use super::ChannelNode;
 use crate::audio::voice::{self, Routing};
+use crate::media::video::audio_tracks::AudioTrack;
 use golden_audio::GainDb;
 use golden_core::{
     edit::Edit,
-    node::{Node, NodeId, ParameterValidationContext},
+    node::{Node, NodeId, ParameterHandle, ParameterValidationContext},
     parameter::ParamValue,
     process_ctx::ProcessCtx,
 };
 
 impl ChannelNode {
+    fn audio_option_parameters(&self) -> [&ParameterHandle<golden_core::parameter::Enum>; 3] {
+        [&self.video_audio_track, &self.audio_left, &self.audio_right]
+    }
+
+    pub(super) fn bind_audio_options(&mut self, ctx: &ProcessCtx) {
+        // Keep the identities of the declared leaves so a catalog wake never needs a tree snapshot.
+        self.video_audio_option_ids = self.audio_option_parameters().map(|parameter| {
+            ctx.tree_snapshot()
+                .and_then(|tree| tree.node(parameter.id()))
+                .map(|node| node.uuid)
+        });
+    }
+
     fn audio_routing(&self) -> Result<Routing, String> {
         Ok(Routing {
             enabled: false,
@@ -33,6 +47,9 @@ impl ChannelNode {
         let Some(binding) = self.video_binding.clone() else {
             return;
         };
+        if let Ok(track) = AudioTrack::parse(self.video_audio_track.get_ref().as_str()) {
+            binding.audio().set_selection(track);
+        }
         let Ok(mut routing) = self.audio_routing() else {
             return;
         };
@@ -42,7 +59,7 @@ impl ChannelNode {
                 return Ok(false);
             }
             routing.enabled = folder.node_data().effective_enabled;
-            binding.audio().update_routing(routing);
+            binding.audio().voice.update_routing(routing);
             Ok(true)
         });
     }
@@ -51,22 +68,22 @@ impl ChannelNode {
         let Some(binding) = &self.video_binding else {
             return;
         };
-        let options = binding.audio().options().unwrap_or_else(voice::default_options);
-        for route in [&self.audio_left, &self.audio_right] {
-            let id = route.id();
-            let Some(parameter) = ctx.tree_snapshot().and_then(|tree| tree.node(id)) else {
+        let voice_options = binding.audio().voice.options().unwrap_or_else(voice::default_options);
+        for (value, expected_uuid) in self
+            .audio_option_parameters()
+            .into_iter()
+            .zip(self.video_audio_option_ids)
+        {
+            let id = value.id();
+            let Some(expected_uuid) = expected_uuid else {
                 continue;
             };
-            let expected_uuid = parameter.uuid;
-            let choice = route.get_ref().as_str();
-            let options = voice::option_set(&options, choice);
-            if parameter
-                .param_constraints
-                .as_ref()
-                .is_some_and(|constraints| constraints.enum_options == options)
-            {
-                continue;
-            }
+            let choice = value.get_ref().as_str();
+            let options = if id == self.video_audio_track.id() {
+                binding.audio().track_options(choice)
+            } else {
+                voice::option_set(&voice_options, choice)
+            };
             ctx.edits.push_from(
                 self.id(),
                 Edit::SetParamEnumOptions {
@@ -81,11 +98,20 @@ impl ChannelNode {
     }
 
     pub(super) fn is_audio_parameter(&self, id: NodeId) -> bool {
-        [self.audio_left.id(), self.audio_right.id(), self.audio_gain.id()].contains(&id)
+        [
+            self.video_audio_track.id(),
+            self.audio_left.id(),
+            self.audio_right.id(),
+            self.audio_gain.id(),
+        ]
+        .contains(&id)
     }
 
     pub(super) fn validate_audio_parameter(&self, change: &ParameterValidationContext<'_>) -> Result<(), String> {
         match change.value {
+            ParamValue::Enum(choice) if change.parameter == self.video_audio_track.id() => {
+                AudioTrack::parse(choice).map(|_| ())
+            }
             ParamValue::Float(value) if change.parameter == self.audio_gain.id() => GainDb::new(*value as f32)
                 .map(|_| ())
                 .map_err(|error| error.to_string()),

@@ -1,5 +1,6 @@
 //! Authored File membership outlives render demand, but not the owning channel incarnation.
 use super::VideoControl;
+use super::audio_tracks::ChannelAudio;
 use super::protocol::{VideoSubtitleSettings, VideoSubtitleTrackInfo};
 use crate::media::protocol::{AssetLocator, ChannelId};
 use golden_core::{engine::NodeWaker, node::NodeId, process_ctx::ProcessCtx};
@@ -22,7 +23,7 @@ pub(crate) struct Registration {
     pub owner: uuid::Uuid,
     state: Mutex<State>,
     subtitles: Arc<ChannelSubtitles>,
-    audio: Arc<crate::audio::voice::Binding>,
+    audio: Arc<ChannelAudio>,
 }
 impl Registration {
     pub fn new(channel: ChannelId, file: Option<AssetLocator>, loop_files: LoopFiles) -> Arc<Self> {
@@ -89,7 +90,7 @@ impl Registration {
             state.loop_files.clone(),
         )
     }
-    pub fn audio(&self) -> &crate::audio::voice::Binding {
+    pub fn audio(&self) -> &ChannelAudio {
         &self.audio
     }
     pub(crate) fn set_subtitle_settings(&self, settings: VideoSubtitleSettings) -> Result<(), String> {
@@ -199,7 +200,7 @@ pub(super) struct File {
     pub duration: Option<std::time::Duration>,
     pub subtitles: Arc<ChannelSubtitles>,
     #[cfg(feature = "video-files")]
-    pub audio: Arc<crate::audio::voice::Binding>,
+    pub audio: Arc<ChannelAudio>,
     pub metadata_error: Option<super::protocol::VideoSourceError>,
     pub loop_files: LoopFiles,
     pub repeat: Option<RepeatFile>,

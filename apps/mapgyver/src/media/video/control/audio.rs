@@ -34,6 +34,7 @@ impl VideoControl {
                 file: file.locator.clone(),
                 duration: file.duration,
                 binding: file.audio.clone(),
+                track: file.audio.selection(),
                 repeat: file
                     .loop_files
                     .audio

@@ -1,0 +1,48 @@
+{
+  "date": "2026-11-19",
+  "gate": "M10/3",
+  "result": "Verified MKV playback and per-channel track selection for the tested combination. Full extended-format qualification remains open.",
+  "fixture": "apps/mapgyver/tests/browser/native-video-mkv-tracks.mjs",
+  "combination": {
+    "container": "Matroska",
+    "video": "H.264 / YUV420P, 160×120 at 20 FPS",
+    "audio": "Two distinguishable stereo PCM s16le streams at 48 kHz",
+    "subtitles": "Two distinguishable UTF-8 SubRip streams"
+  },
+  "baseline": {
+    "revision": "56ddb035",
+    "receipt": "target/m103-mkv-baseline/run-zm6Sjt/result.json",
+    "observed": "Video stream duration unavailable with an 8-second video and a 12-second container"
+  },
+  "bundle": {
+    "receipt": "target/m103-mkv-corrected/run-nsvd0l/result.json",
+    "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "audioEndpoint": "WASAPI",
+    "videoDurationMs": 8000,
+    "containerDurationMs": 12000,
+    "audioChecks": [
+      "Automatic follows the default-tagged right track.",
+      "The Inspector lists both stream titles and languages. A live change moved PCM to the left output while Video position advanced from 2011 ms to 2433 ms.",
+      "An unavailable exact selection silences the channel. Selecting a valid track restores audio while playback continues.",
+      "Both channel choices persisted after reload, and the selected track was audible."
+    ],
+    "subtitleChecks": [
+      "Both embedded tracks were discovered with title and language.",
+      "Two channels using the same MKV showed English and French simultaneously on two independently sampled Spout outputs.",
+      "Changing the second channel preserved the first output pixel for pixel.",
+      "Held crop/seek respects source cue bounds, and both channel selections preserved their exact pixels after reload."
+    ],
+    "differentFileSubtitleInspectorRecheck": "target/m108-per-channel-recheck/run-J58Yeg/result.json"
+  },
+  "software": {
+    "goldenVideoDecodeTestsPassed": 48,
+    "mapgyverVideoTestsPassed": 23,
+    "strictClippy": "pass",
+    "mapgyverSvelteCheck": "0 errors and 0 warnings",
+    "bundledBuild": "pass"
+  },
+  "remaining": [
+    "DXV, still and animated WebP.",
+    "Further MKV codec and profile combinations. Moving captions, audio/video sync across loops, and bundled recovery and performance qualification."
+  ]
+}

@@ -1,7 +1,9 @@
 //! Worker-owned FFmpeg demux and bounded, immutable plain-text subtitle timelines.
-use super::{DecodeError, StreamTiming, TimeBase, ffmpeg, timing::stream_timing};
+use super::{
+    TimeBase, ffmpeg,
+    metadata::{open_local as open_media, tag},
+};
 use std::{
-    ffi::CStr,
     fs::File,
     io::{Cursor, Read},
     path::Path,
@@ -13,7 +15,6 @@ mod timeline;
 pub use timeline::{SubtitleCue, SubtitleTimeline};
 
 const MAX_TRACKS: usize = 64;
-const MAX_TAG_CHARS: usize = 80;
 const MAX_LOCAL_BYTES: u64 = 8 * 1024 * 1024;
 const MAX_PACKET_BYTES: usize = 64 * 1024;
 const MAX_SCAN_PACKETS: usize = 2_000_000;
@@ -106,15 +107,6 @@ pub fn probe_tracks(
     Ok(tracks(&input))
 }
 
-/// Read video duration and supported subtitle streams from a single container probe.
-pub fn probe_timing_and_tracks(
-    path: &Path,
-    cancelled: impl FnMut() -> bool + Send + 'static,
-) -> Result<(StreamTiming, Vec<SubtitleTrack>), DecodeError> {
-    let input = open_media(path, cancelled)?;
-    Ok((stream_timing(&input)?, tracks(&input)))
-}
-
 /// Decode one exact embedded text stream on a file worker. Cue times are relative to the
 /// video stream's origin in `video_time_base`, before any playback cropping or looping.
 pub fn load_embedded(
@@ -168,22 +160,7 @@ pub fn load_local(
     read_cues(input, index, ScaledTime::ZERO)
 }
 
-fn open_media(
-    path: &Path,
-    cancelled: impl FnMut() -> bool + Send + 'static,
-) -> Result<ffmpeg::format::context::Input, DecodeError> {
-    if !path.is_file() {
-        return Err(DecodeError::NotAFile);
-    }
-    ffmpeg::init()?;
-    let mut options = ffmpeg::Dictionary::new();
-    options.set("protocol_whitelist", "file");
-    Ok(ffmpeg::format::input_with_interrupt_and_dictionary(
-        path, cancelled, options,
-    )?)
-}
-
-fn tracks(input: &ffmpeg::format::context::Input) -> Vec<SubtitleTrack> {
+pub(super) fn tracks(input: &ffmpeg::format::context::Input) -> Vec<SubtitleTrack> {
     input
         .streams()
         .filter_map(|stream| {
@@ -198,23 +175,6 @@ fn tracks(input: &ffmpeg::format::context::Input) -> Vec<SubtitleTrack> {
         })
         .take(MAX_TRACKS)
         .collect()
-}
-
-fn tag(metadata: &ffmpeg::dictionary::Ref<'_>, key: &CStr) -> Option<String> {
-    // SAFETY: the entry and its NUL-terminated value borrow FFmpeg's live stream dictionary.
-    // Check UTF-8 before creating a Rust str and copy only bounded display text.
-    let entry = unsafe { ffmpeg::ffi::av_dict_get(metadata.as_ptr(), key.as_ptr(), std::ptr::null(), 0).as_ref()? };
-    if entry.value.is_null() {
-        return None;
-    }
-    let raw = unsafe { CStr::from_ptr(entry.value) }.to_str().ok()?;
-    let clean = raw
-        .trim()
-        .chars()
-        .filter(|ch| !ch.is_control())
-        .take(MAX_TAG_CHARS)
-        .collect::<String>();
-    (!clean.is_empty()).then_some(clean)
 }
 
 fn read_cues(

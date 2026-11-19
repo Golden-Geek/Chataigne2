@@ -245,15 +245,17 @@ impl VideoControl {
         })
     }
     #[cfg(feature = "video-files")]
-    pub(super) fn metadata_subtitle_tracks(
+    pub(super) fn metadata_tracks(
         &self,
         channel: super::super::protocol::ChannelId,
         generation: uuid::Uuid,
         tracks: Vec<VideoSubtitleTrackInfo>,
+        audio_options: golden_core::parameter::ParameterEnumOptions,
     ) -> Result<(), String> {
         let state = self.0.lock().map_err(|_| "Video control poisoned")?;
         if let Some(file) = state.files.get(&channel).filter(|file| file.generation == generation) {
             file.subtitles.set_tracks(tracks)?;
+            file.audio.set_options(audio_options);
         }
         Ok(())
     }
@@ -336,7 +338,7 @@ impl VideoControl {
         owner: uuid::Uuid,
         locator: Option<super::super::protocol::AssetLocator>,
         subtitles: Arc<super::bindings::ChannelSubtitles>,
-        #[allow(unused_variables)] audio: Arc<crate::audio::voice::Binding>,
+        audio: Arc<super::audio_tracks::ChannelAudio>,
         loop_files: super::bindings::LoopFiles,
     ) -> Result<(), String> {
         let mut state = self.0.lock().map_err(|_| "Video control poisoned")?;
@@ -359,6 +361,7 @@ impl VideoControl {
             return Err("Video metadata exceeds 4096 authored channels".into());
         }
         subtitles.set_tracks(Vec::new())?;
+        audio.set_options(super::audio_tracks::default_options());
         state.frames.remove(channel);
         let old = state.files.insert(
             channel,

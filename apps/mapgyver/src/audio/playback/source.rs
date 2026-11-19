@@ -1,7 +1,12 @@
 use super::{Layout, decoder::Decoder, frame_nanos, matrix::Files};
 use crate::media::{
     protocol::ChannelId,
-    video::{VideoControl, audio::Source, registry},
+    video::{
+        VideoControl,
+        audio::Source,
+        audio_tracks::{AudioTrack, ChannelAudio},
+        registry,
+    },
 };
 use golden_audio::{GainDb, GainSmoother};
 use golden_core::parameter::ParameterEnumOptions;
@@ -41,7 +46,7 @@ impl Sources {
         let mut old = std::mem::take(&mut self.voices);
         for control in project.registry.controls() {
             for source in control.audio_sources() {
-                source.binding.update_options(options);
+                source.binding.voice.update_options(options);
                 let (Some(locator), Some(duration)) = (&source.file, source.duration) else {
                     continue;
                 };
@@ -52,7 +57,10 @@ impl Sources {
                     .map(|(file, duration)| (file.resolve(root), duration.unwrap_or(Duration::MAX)));
                 let next = match old.remove(&source.channel.0.0) {
                     Some(mut voice)
-                        if voice.generation == source.generation && voice.path == path && voice.repeat == repeat =>
+                        if voice.generation == source.generation
+                            && voice.path == path
+                            && voice.repeat == repeat
+                            && voice.track == source.track =>
                     {
                         voice.duration = duration;
                         self.membership_changed |= voice.refresh_file(now);
@@ -167,7 +175,8 @@ struct Voice {
     control: Arc<VideoControl>,
     channel: ChannelId,
     generation: uuid::Uuid,
-    binding: Arc<crate::audio::voice::Binding>,
+    binding: Arc<ChannelAudio>,
+    track: AudioTrack,
     path: PathBuf,
     duration: Duration,
     repeat: Option<(PathBuf, Duration)>,
@@ -192,6 +201,7 @@ impl Voice {
             channel: source.channel,
             generation: source.generation,
             binding: source.binding,
+            track: source.track,
             path,
             duration,
             repeat,
@@ -233,7 +243,7 @@ impl Voice {
     }
 
     fn next_voice(&self, layout: &Layout, now: Instant) -> Option<Active> {
-        let routing = self.binding.routing().filter(|route| route.enabled)?;
+        let routing = self.binding.voice.routing().filter(|route| route.enabled)?;
         let lanes = routing
             .destinations
             .map(|id| id.and_then(|id| layout.lanes.get(&id).copied()));
@@ -268,7 +278,7 @@ impl Voice {
         else {
             return;
         };
-        let Some(routing) = self.binding.routing().filter(|routing| routing.enabled) else {
+        let Some(routing) = self.binding.voice.routing().filter(|routing| routing.enabled) else {
             return;
         };
         if routing.gain != self.target_gain {
@@ -322,7 +332,8 @@ impl Voice {
         } else {
             &self.path
         };
-        self.heads[head].sample(path, position, rate, || {
+        let track = if head >= 2 { None } else { self.track.index() };
+        self.heads[head].sample(path, track, position, rate, || {
             let (channel, generation) = (self.channel, self.generation);
             let control = Arc::downgrade(&self.control);
             let guard = guard.clone();
@@ -342,11 +353,12 @@ impl Head {
     pub(super) fn sample<C: FnMut() -> bool + Send + 'static>(
         &mut self,
         path: &Path,
+        track: Option<usize>,
         position: Duration,
         rate: u32,
         interrupt: impl FnOnce() -> C,
     ) -> Result<Option<(f32, f32)>, DecodeError> {
-        let result = self.read(path, position, rate, interrupt);
+        let result = self.read(path, track, position, rate, interrupt);
         if result.is_err() {
             self.decoder = None;
             self.retry_at = Some(Instant::now() + Duration::from_millis(500));
@@ -357,6 +369,7 @@ impl Head {
     fn read<C: FnMut() -> bool + Send + 'static>(
         &mut self,
         path: &Path,
+        track: Option<usize>,
         position: Duration,
         rate: u32,
         interrupt: impl FnOnce() -> C,
@@ -366,7 +379,7 @@ impl Head {
             return Ok(None);
         }
         if head.decoder.is_none() {
-            head.decoder = AudioReader::open(path, rate, interrupt())?.map(Decoder::new);
+            head.decoder = AudioReader::open_stream(path, rate, track, interrupt())?.map(Decoder::new);
             head.no_audio = head.decoder.is_none();
             head.retry_at = None;
         }

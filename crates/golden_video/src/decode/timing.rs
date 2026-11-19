@@ -1,10 +1,10 @@
-use super::{DecodeError, TimeBase, ffmpeg};
+use super::{DecodeError, TimeBase, ffmpeg, metadata::raw_tag};
 use std::path::Path;
 
 /// Container timing for its selected video stream, without retaining a frame decoder.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct StreamTiming {
-    /// Declared duration in original stream ticks, if present.
+    /// Duration in original stream ticks, from stream or supported container metadata.
     pub duration: Option<i64>,
     /// Seconds per stream tick.
     pub time_base: TimeBase,
@@ -33,10 +33,51 @@ pub(super) fn stream_timing(input: &ffmpeg::format::context::Input) -> Result<St
         return Err(ffmpeg::Error::InvalidData.into());
     }
     Ok(StreamTiming {
-        duration: (stream.duration() != ffmpeg::ffi::AV_NOPTS_VALUE).then_some(stream.duration()),
+        duration: stream_duration(input, &stream),
         time_base: TimeBase {
             numerator: base.numerator() as u32,
             denominator: base.denominator() as u32,
         },
     })
+}
+
+pub(super) fn stream_duration(input: &ffmpeg::format::context::Input, stream: &ffmpeg::Stream<'_>) -> Option<i64> {
+    let declared = stream.duration();
+    if declared > 0 {
+        return Some(declared);
+    }
+    if !input.format().name().split(',').any(|format| format == "matroska") {
+        return None;
+    }
+    let base = stream.time_base();
+    let to_ticks = |micros: i64| {
+        let divisor = i128::from(ffmpeg::ffi::AV_TIME_BASE) * i128::from(base.numerator());
+        i64::try_from((i128::from(micros) * i128::from(base.denominator())).checked_div(divisor)?).ok()
+    };
+    let origin = (stream.start_time() != ffmpeg::ffi::AV_NOPTS_VALUE).then(|| stream.start_time());
+    let metadata = stream.metadata();
+    if let Some(tag) = raw_tag(&metadata, c"DURATION").filter(|tag| tag.to_bytes().len() <= 32) {
+        let mut micros = 0;
+        // SAFETY: a bounded NUL-terminated tag is live for the call, with a writable result.
+        if unsafe { ffmpeg::ffi::av_parse_time(&mut micros, tag.as_ptr(), 1) } == 0
+            && let Some(duration) = to_ticks(micros).and_then(|end| end.checked_sub(origin.unwrap_or(0)))
+            && duration > 0
+        {
+            return Some(duration);
+        }
+    }
+    // Matroska's container duration covers all tracks. Prefer the muxed stream end above
+    // so a longer audio or subtitle track cannot extend a tagged video stream.
+    let duration = to_ticks(input.duration()).filter(|duration| *duration > 0)?;
+    // SAFETY: the borrowed, initialized format context lives for this read.
+    let container_start = unsafe { (*input.as_ptr()).start_time };
+    let offset = if container_start != ffmpeg::ffi::AV_NOPTS_VALUE {
+        origin
+            .and_then(|start| start.checked_sub(to_ticks(container_start)?))
+            .unwrap_or(0)
+            .max(0)
+    } else {
+        0
+    };
+    duration.checked_sub(offset).filter(|duration| *duration > 0)
 }

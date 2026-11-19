@@ -1,8 +1,6 @@
 //! Audio observes the same crop, loop and authority epoch as video frames.
-use crate::{
-    audio::voice::Binding,
-    media::protocol::{AssetLocator, ChannelId},
-};
+use super::audio_tracks::{AudioTrack, ChannelAudio};
+use crate::media::protocol::{AssetLocator, ChannelId};
 use golden_time::{ShowPosition, TimeEpoch};
 use std::{sync::Arc, time::Duration};
 
@@ -13,7 +11,8 @@ pub(crate) struct Source {
     pub generation: uuid::Uuid,
     pub file: Option<AssetLocator>,
     pub duration: Option<Duration>,
-    pub binding: Arc<Binding>,
+    pub binding: Arc<ChannelAudio>,
+    pub track: AudioTrack,
     pub repeat: Option<(AssetLocator, Option<Duration>)>,
 }
 

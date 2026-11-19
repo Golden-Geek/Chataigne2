@@ -102,19 +102,21 @@ async function subtitles(settings, reference = video) {
 	assert.deepEqual(authored.settings, settings);
 }
 async function subtitleInspector(reference) {
-	const { snapshot } = await edit({ kind: 'InspectChannel', reference });
-	const row = page
-		.locator(
-			'.channels-section > .node-inspector-children > .node-inspector-children-wrapper > .node-inspector'
-		)
-		.filter({ has: page.getByText(snapshot.label, { exact: true }) });
+	const { nodes } = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
+	const channel = nodes.find((node) => node.uuid === reference.channel);
+	const parameters = nodes.find(
+		(node) => channel.children.includes(node.node_id) && node.decl_id === 'parameters'
+	);
+	const subtitles = nodes.find(
+		(node) =>
+			parameters.children.includes(node.node_id) && node.decl_id === 'parameters/video_subtitles'
+	);
+	const row = page.locator(`.channels-section .node-inspector[data-node-id="${channel.node_id}"]`);
 	const channelHeader = row.locator(':scope > .node-header > .node-title');
 	if ((await channelHeader.getAttribute('aria-checked')) === 'false') {
 		await channelHeader.press('Enter');
 	}
-	return row.locator('.node-inspector.container').filter({
-		has: page.getByText('Subtitles', { exact: true })
-	});
+	return row.locator(`.node-inspector[data-node-id="${subtitles.node_id}"]`);
 }
 async function wait(read, accept, label) {
 	const deadline = performance.now() + 10000;

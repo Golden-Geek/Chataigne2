@@ -17,7 +17,7 @@ fn video_audio_binding_uses_live_effective_enablement_after_folder_and_parent_to
     };
     let control = media.video_control().unwrap();
     let source = control.audio_sources().pop().unwrap();
-    assert!(source.binding.routing().unwrap().enabled);
+    assert!(source.binding.voice.routing().unwrap().enabled);
 
     for (node, enabled, expected) in [
         (folder, false, false),
@@ -40,7 +40,7 @@ fn video_audio_binding_uses_live_effective_enablement_after_folder_and_parent_to
         );
         assert!(ack.success, "{ack:?}");
         assert_eq!(
-            source.binding.routing().unwrap().enabled,
+            source.binding.voice.routing().unwrap().enabled,
             expected,
             "node {node:?} set to {enabled}"
         );

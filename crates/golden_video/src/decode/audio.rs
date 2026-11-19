@@ -40,6 +40,17 @@ impl AudioReader {
         sample_rate: u32,
         interrupt: impl FnMut() -> bool + Send + 'static,
     ) -> Result<Option<Self>, DecodeError> {
+        Self::open_stream(path, sample_rate, None, interrupt)
+    }
+
+    /// Open an explicit audio stream by container index, or choose the best stream.
+    /// Missing or unsupported explicit indices return silence through `Ok(None)`.
+    pub fn open_stream(
+        path: &Path,
+        sample_rate: u32,
+        index: Option<usize>,
+        interrupt: impl FnMut() -> bool + Send + 'static,
+    ) -> Result<Option<Self>, DecodeError> {
         if !path.is_file() {
             return Err(DecodeError::NotAFile);
         }
@@ -48,7 +59,11 @@ impl AudioReader {
         }
         ffmpeg::init()?;
         let input = format::input_with_interrupt(&path, interrupt)?;
-        let Some(stream) = input.streams().best(ffmpeg::media::Type::Audio) else {
+        let stream = match index {
+            Some(index) => input.stream(index).filter(super::metadata::supported_audio),
+            None => input.streams().best(ffmpeg::media::Type::Audio),
+        };
+        let Some(stream) = stream else {
             return Ok(None);
         };
         let (index, time_base) = (stream.index(), stream.time_base());

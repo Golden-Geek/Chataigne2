@@ -27,8 +27,15 @@ fn stereo_audio_resamples_to_a_contiguous_clock_and_seeks_without_stale_samples(
         wave.extend((-value).to_le_bytes());
     }
     std::fs::write(&path, wave).unwrap();
+    assert!(
+        AudioReader::open_stream(&path, OUTPUT_RATE, Some(1), || false)
+            .unwrap()
+            .is_none()
+    );
 
-    let mut reader = AudioReader::open(&path, OUTPUT_RATE, || false).unwrap().unwrap();
+    let mut reader = AudioReader::open_stream(&path, OUTPUT_RATE, Some(0), || false)
+        .unwrap()
+        .unwrap();
     let mut rendered = Vec::new();
     while let Some(chunk) = reader.next_chunk().unwrap() {
         assert_eq!(chunk.start_frame, rendered.len() as i64);
@@ -54,6 +61,11 @@ fn stereo_audio_resamples_to_a_contiguous_clock_and_seeks_without_stale_samples(
 fn a_video_without_an_embedded_audio_stream_is_silent() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/decode/tests/fixtures/h264.mp4");
     assert!(AudioReader::open(&path, 48_000, || false).unwrap().is_none());
+    assert!(
+        AudioReader::open_stream(&path, 48_000, Some(0), || false)
+            .unwrap()
+            .is_none()
+    );
 }
 
 fn assert_stereo((left, right): (f32, f32), expected: f32) {

@@ -2,8 +2,8 @@
 
 - **Updated:** 19 November 2026.
 - **Overall plan acceptance:** `█████████░` **86% — 118/137 checks accepted, 8/17 phases complete**.
-- **Latest delivered:** Linked Screen Warping outlines move together through drag, release, Undo and Redo.
-- **Working on next:** Extended Video formats.
+- **Latest delivered:** MKV playback with per-channel audio and subtitle track selection.
+- **Working on next:** Still and animated WebP playback.
 - **Manual action needed from you now: none.**
 
 ## Done — code and normal-use checks passed
@@ -42,7 +42,8 @@
 - [x] **Video:** common H.264/HEVC/ProRes profiles and HAP; playback, loop, seek/frame stepping, transport Inspector and Matrix activation/deactivation policies.
 - [x] **Video fade-loop:** enable Loop and set **Auto-Smooth Loop** in the Video Inspector. Zero gives a hard loop. Direct and Reference output show the same held blend, and playback resumes from the part of the beginning already shown.
 - [x] **Video time cropping:** Start and End bound playback, seeking, stepping and loops. Seeking to End holds the last frame in the crop. NVIDIA numbered output, smooth-loop Reference parity and save/reload passed.
-- [x] **Video subtitles:** open **Inspector → Channels → [channel name] → Subtitles** for each Video file. Each channel has its own enable toggle, embedded tracks, subtitle file and style. Selecting the second channel’s embedded track in the Inspector preserved the first channel’s SRT output. Disabling the first channel preserved the second channel’s caption. Native Reference pixels, held seek/crop timing, missing-file recovery and saved settings passed. [Checks](evidence/mapgyver-m10-channel-subtitles-2026-11-18.json)
+- [x] **Video subtitles are per channel.** Select the Video in Medias, expand **Inspector → Channels → [channel name] → Subtitles**, enable the folder, and choose that channel’s embedded track or subtitle file. Size, font, and position are also per channel. Editing one preserved the other’s output with two different files and with two channels sharing one MKV. Both MKV selections survived reload. [Two files](evidence/mapgyver-m10-channel-subtitles-2026-11-18.json) · [Shared MKV](evidence/mapgyver-m10-mkv-tracks-2026-11-19.json)
+- [x] **MKV playback with track selection.** Verified H.264 with stereo PCM and embedded SubRip. Choose **Inspector → Channels → [channel name] → Audio → Track** to switch tracks during playback. Automatic follows the file’s default, and a missing explicit track is silent. Selections survived reload. [Checks](evidence/mapgyver-m10-mkv-tracks-2026-11-19.json)
 - [x] **Editor manipulation:** the smoothness improvements you accepted in Screen Warping, Surface Source and Composition.
 - [x] **Editor feedback — functional:** shared120ms hover/selection paint, softer handles, keyboard cues and reduced motion. Geometry/input stay immediate; browser and native Screen/Source input checks pass.
 - [x] **App presentation:** MapGyver identity/icon, official calibration pattern, font/menu/Inspector improvements and thumbnail Fit behavior.
@@ -62,8 +63,7 @@
 
 ## Next features — implementation order
 
-1. **NOW — Extended Video formats.** Add DXV, WebP (including animated WebP), and MKV playback
-    with selectable embedded subtitles and audio tracks.
+1. **NOW — Extended Video formats.** Deliver still and animated WebP, then DXV. Complete MKV codec coverage, moving subtitle/audio sync through loops, and bundled recovery and performance checks.
 2. **Golden Gradient:** reusable Gradient node and Color-parameter animation using that model.
 
 ## Built or partly built — deeper checks/fixes after those features, in this order

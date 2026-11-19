@@ -37,7 +37,11 @@ fn ffmpeg_reads_webvtt_text_and_ignores_presentation_metadata() {
 #[test]
 fn discovery_preserves_video_timing_when_there_are_no_subtitle_tracks() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/decode/tests/fixtures/h264.mp4");
-    let (video, tracks) = probe_timing_and_tracks(&path, || false).unwrap();
+    let super::super::MediaMetadata {
+        video,
+        subtitles: tracks,
+        ..
+    } = super::super::probe_media(&path, || false).unwrap();
     assert!(video.duration.is_some_and(|duration| duration > 0));
     assert!(tracks.is_empty());
     assert!(matches!(

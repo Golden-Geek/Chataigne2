@@ -1,6 +1,7 @@
 //! One bounded IO owner probes authored variants independently of renderer demand.
 use super::{VideoControl, registry::Source};
 use super::{
+    audio_tracks::{default_options, track_option},
     failure::Failure,
     protocol::{VideoSourceError, VideoSourceErrorKind, VideoSubtitleTrackInfo},
 };
@@ -111,27 +112,26 @@ impl Probe {
             let control = job.control.clone();
             let channel_id = *channel;
             let generation_id = *generation;
-            let timing = golden_video::decode::subtitles::probe_timing_and_tracks(&job.path, move || {
+            let metadata = golden_video::decode::probe_media(&job.path, move || {
                 cancel()
                     || !guard.is_current()
                     || control
                         .upgrade()
                         .is_none_or(|control| !control.metadata_is_current(channel_id, generation_id))
             });
-            let probed = timing
-                .map_err(|error| Failure::from(error).0)
-                .and_then(|(timing, tracks)| {
-                    let ticks = timing.duration.filter(|duration| *duration > 0).ok_or_else(|| {
-                        VideoSourceError::new(
-                            VideoSourceErrorKind::Unsupported,
-                            "Video stream duration is unavailable",
-                        )
-                    })?;
-                    super::reader::duration(ticks, timing.time_base)
-                        .map(|duration| (duration, tracks))
-                        .map_err(|error| VideoSourceError::new(VideoSourceErrorKind::Unsupported, error))
-                });
-            let (duration, tracks) = match probed {
+            let probed = metadata.map_err(|error| Failure::from(error).0).and_then(|metadata| {
+                let timing = metadata.video;
+                let ticks = timing.duration.filter(|duration| *duration > 0).ok_or_else(|| {
+                    VideoSourceError::new(
+                        VideoSourceErrorKind::Unsupported,
+                        "Video stream duration is unavailable",
+                    )
+                })?;
+                super::reader::duration(ticks, timing.time_base)
+                    .map(|duration| (duration, metadata))
+                    .map_err(|error| VideoSourceError::new(VideoSourceErrorKind::Unsupported, error))
+            });
+            let (duration, metadata) = match probed {
                 Ok(probed) => probed,
                 Err(error) => {
                     job.fingerprint = None;
@@ -149,25 +149,36 @@ impl Probe {
                 && let Some(control) = job.control.upgrade()
                 && control.metadata_duration(*channel, *generation, duration)?
             {
-                let tracks = tracks
+                let subtitles = metadata
+                    .subtitles
                     .into_iter()
                     .filter_map(|track| {
                         let index = u32::try_from(track.stream_index).ok()?;
-                        let name = track
-                            .title
-                            .or(track.language)
-                            .unwrap_or_else(|| track.codec.name().to_owned());
                         Some(VideoSubtitleTrackInfo {
                             index,
-                            label: format!("{name} · Track {index}"),
+                            label: label(track.title, track.language, track.codec.name(), track.stream_index),
                         })
                     })
                     .collect();
-                control.metadata_subtitle_tracks(*channel, *generation, tracks)?;
+                let mut audio = default_options().as_slice().to_vec();
+                audio.extend(metadata.audio.into_iter().map(|track| {
+                    let index = track.stream_index;
+                    track_option(index, label(track.title, track.language, &track.codec, index))
+                }));
+                control.metadata_tracks(*channel, *generation, subtitles, audio.into())?;
                 job.fingerprint = Some(fingerprint);
             }
         }
         Ok(())
+    }
+}
+
+fn label(title: Option<String>, language: Option<String>, codec: &str, index: usize) -> String {
+    let language = language.filter(|language| language != "und");
+    match (title, language) {
+        (Some(title), Some(language)) => format!("{title} · {language} · Track {index}"),
+        (Some(name), None) | (None, Some(name)) => format!("{name} · Track {index}"),
+        (None, None) => format!("{codec} · Track {index}"),
     }
 }
 

@@ -11,6 +11,7 @@ mod buffer;
 mod hap;
 mod image;
 mod layout;
+mod metadata;
 mod parallelism;
 mod software_pool;
 pub mod subtitles;
@@ -18,6 +19,7 @@ pub use audio::{AudioChunk, AudioReader};
 pub use hap::{HapFormat, HapFrame};
 pub use image::{ConversionError, SoftwareImageConverter};
 pub use layout::{SoftwareFrameLayout, SoftwarePlaneLayout};
+pub use metadata::{AudioTrack, MediaMetadata, probe_media};
 pub use parallelism::SoftwareDecodeThreads;
 mod timing;
 pub use timing::{StreamTiming, probe_timing_with_interrupt};
@@ -64,7 +66,7 @@ pub struct StreamInfo {
     pub time_base: TimeBase,
     /// Declared first presentation timestamp, if the container provides one.
     pub start: Option<i64>,
-    /// Declared stream duration in ticks, if the container provides one.
+    /// Duration in stream ticks, if the input provides usable timing metadata.
     pub duration: Option<i64>,
 }
 
@@ -373,7 +375,7 @@ impl Decoder {
                 denominator: base.denominator() as u32,
             },
             start: timestamp(stream.start_time()),
-            duration: timestamp(stream.duration()),
+            duration: timing::stream_duration(&input, &stream),
         };
         Ok(Self {
             input,

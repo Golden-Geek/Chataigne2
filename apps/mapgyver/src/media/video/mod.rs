@@ -7,6 +7,7 @@
 
 #[cfg(feature = "video-files")]
 pub(crate) mod audio;
+pub(crate) mod audio_tracks;
 pub(crate) mod authoring;
 pub(crate) mod bindings;
 mod control;
