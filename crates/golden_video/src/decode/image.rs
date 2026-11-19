@@ -3,6 +3,7 @@ use super::{DecodedFrame, ffmpeg};
 use crate::image::ImageStorageBudget;
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor, image::ImageData};
 mod scratch;
+mod ycgco;
 use ffmpeg::{
     software::scaling::{Context, Flags},
     util::color::{Range, Space, TransferCharacteristic as Transfer},
@@ -38,9 +39,16 @@ pub struct SoftwareImageConverter {
     extent: Option<Extent2D>,
 }
 struct Conversion {
-    scaler: Context,
+    input: (ffmpeg::format::Pixel, u32, u32, bool),
+    scaler: Scaler,
     output: ffmpeg::frame::Video,
 }
+
+enum Scaler {
+    Legacy(Context),
+    Ycgco(ycgco::Scaler),
+}
+
 impl SoftwareImageConverter {
     /// Explicit bound shared by scratch and every separately retained output image.
     /// Codec/scaler-private allocations and heap overhead are separate.
@@ -77,8 +85,9 @@ impl SoftwareImageConverter {
         let input = frame.software_image().ok_or(ConversionError::HardwareStorage)?;
         let space = input.color_space();
         let matrix = match space {
-            Space::RGB | Space::BT709 | Space::Unspecified => ffmpeg::ffi::SWS_CS_ITU709,
-            Space::SMPTE170M => ffmpeg::ffi::SWS_CS_ITU601,
+            Space::RGB | Space::BT709 | Space::Unspecified => Some(ffmpeg::ffi::SWS_CS_ITU709),
+            Space::SMPTE170M => Some(ffmpeg::ffi::SWS_CS_ITU601),
+            Space::YCGCO => None,
             _ => return Err(ConversionError::UnsupportedMatrix),
         };
         let transfer = input.color_transfer_characteristic();
@@ -98,52 +107,46 @@ impl SoftwareImageConverter {
         }
         let row = width as usize * 4;
         let bytes = row.checked_mul(height as usize).ok_or(ConversionError::Capacity)?;
-        if self.conversion.as_ref().is_none_or(|conversion| {
-            let d = conversion.scaler.input();
-            d.format != input.format() || d.width != input.width() || d.height != input.height()
-        }) {
+        let ycgco = space == Space::YCGCO;
+        let signature = (input.format(), input.width(), input.height(), ycgco);
+        if self
+            .conversion
+            .as_ref()
+            .is_some_and(|conversion| conversion.input != signature)
+        {
             // Free obsolete scratch before replacement admission. Output readers retain
             // their independent bytes and must compete with the replacement's storage.
             self.conversion = None;
         }
         let image_lease = self.budget.reserve(bytes).ok_or(ConversionError::Capacity)?;
         if self.conversion.is_none() {
-            self.conversion = Some(Conversion {
-                scaler: Context::get(
-                    input.format(),
-                    input.width(),
-                    input.height(),
-                    ffmpeg::format::Pixel::RGBA,
-                    width,
-                    height,
-                    Flags::BILINEAR,
+            let scaler = if ycgco {
+                Scaler::Ycgco(ycgco::Scaler::new(input, width, height, &self.budget)?)
+            } else {
+                Scaler::Legacy(
+                    Context::get(
+                        input.format(),
+                        input.width(),
+                        input.height(),
+                        ffmpeg::format::Pixel::RGBA,
+                        width,
+                        height,
+                        Flags::BILINEAR,
+                    )
+                    .map_err(|e| failed(e.to_string()))?,
                 )
-                .map_err(|e| failed(e.to_string()))?,
+            };
+            self.conversion = Some(Conversion {
+                input: signature,
+                scaler,
                 output: scratch::create(width, height, &self.budget)?,
             });
         }
-        let Conversion { scaler, output } = self.conversion.as_mut().unwrap();
-        // SAFETY: live uniquely owned SwsContext and FFmpeg's static coefficient table.
-        // RGB output is full range; input full/limited range is read from the actual frame.
-        let color = unsafe {
-            let coefficients = ffmpeg::ffi::sws_getCoefficients(matrix);
-            ffmpeg::ffi::sws_setColorspaceDetails(
-                scaler.as_mut_ptr(),
-                coefficients,
-                i32::from(input.color_range() == Range::JPEG),
-                coefficients,
-                1,
-                0,
-                1 << 16,
-                1 << 16,
-            )
-        };
-        if color < 0 {
-            return Err(failed("software Video colorspace setup failed".into()));
+        let Conversion { scaler, output, .. } = self.conversion.as_mut().unwrap();
+        match scaler {
+            Scaler::Ycgco(scaler) => scaler.run(input, output)?,
+            Scaler::Legacy(scaler) => legacy_scale(scaler, matrix.unwrap(), input, output)?,
         }
-        // A populated output prevents FFmpeg's wrapper from implicitly allocating scratch.
-        // Only separately owned, already admitted tight pixels escape this worker.
-        scaler.run(input, output).map_err(|e| failed(e.to_string()))?;
         let mut pixels = Vec::with_capacity(bytes);
         let table = match transfer {
             Transfer::IEC61966_2_1 => None,
@@ -174,6 +177,36 @@ impl SoftwareImageConverter {
         .map_err(|e| failed(e.to_string()))
     }
 }
+
+fn legacy_scale(
+    scaler: &mut Context,
+    matrix: i32,
+    input: &ffmpeg::frame::Video,
+    output: &mut ffmpeg::frame::Video,
+) -> Result<(), ConversionError> {
+    // SAFETY: live uniquely owned SwsContext and FFmpeg's static coefficient table.
+    // RGB output is full range; input full/limited range is read from the actual frame.
+    let color = unsafe {
+        let coefficients = ffmpeg::ffi::sws_getCoefficients(matrix);
+        ffmpeg::ffi::sws_setColorspaceDetails(
+            scaler.as_mut_ptr(),
+            coefficients,
+            i32::from(input.color_range() == Range::JPEG),
+            coefficients,
+            1,
+            0,
+            1 << 16,
+            1 << 16,
+        )
+    };
+    if color < 0 {
+        return Err(ConversionError::Failed("software Video colorspace setup failed".into()));
+    }
+    scaler
+        .run(input, output)
+        .map_err(|error| ConversionError::Failed(error.to_string()))
+}
+
 fn encoded(linear: f64) -> u8 {
     let encoded = if linear <= 0.0031308 {
         linear * 12.92

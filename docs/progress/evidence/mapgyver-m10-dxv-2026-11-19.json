@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-19",
+  "gate": "M10/3",
+  "result": "Verified legacy and version 3 DXV playback in the bundled app. Full extended-format qualification remains open.",
+  "fixture": "apps/mapgyver/tests/browser/native-video-dxv.mjs",
+  "publicSamples": "https://fate-suite.ffmpeg.org/dxv/",
+  "baseline": {
+    "revision": "eaf9f4ff",
+    "receipt": "target/m103-dxv-baseline/run-Kgzkg0/result.json",
+    "observed": "The four DXT samples played, but their 99th-percentile color error was 17 code values. Both high-quality profiles returned an unsupported color matrix error."
+  },
+  "bundle": {
+    "receipt": "target/m103-dxv-corrected/run-w5he6t/result.json",
+    "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+    "decoder": "Pinned FFmpeg software decode with MapGyver's native upload and output path",
+    "comparison": "Independent FFmpeg reference decode. The high-quality reference uses zimg's full-range YCgCo conversion. Alpha samples are composited over the same solid yellow test surface.",
+    "profiles": [
+      { "sample": "dxv-na.mov", "profile": "legacy DXT1", "extent": [1920, 1080], "p99": 3 },
+      { "sample": "dxv-wa.mov", "profile": "legacy DXT4", "extent": [1920, 1080], "p99": 3 },
+      { "sample": "dxv3-nqna.mov", "profile": "DXV3 normal DXT1", "extent": [1920, 1080], "p99": 3 },
+      { "sample": "dxv3-nqwa.mov", "profile": "DXV3 normal DXT4", "extent": [1920, 1080], "p99": 3 },
+      { "sample": "dxv3-hqna.mov", "profile": "DXV3 high YCG6", "extent": [256, 256], "p99": 4 },
+      { "sample": "dxv3-hqwa.mov", "profile": "DXV3 high YG10", "extent": [256, 256], "p99": 4 }
+    ],
+    "movingFixture": {
+      "profile": "DXV3 normal DXT1",
+      "durationMs": 3000,
+      "heldSeekMs": [0, 1250, 0],
+      "maximumSampleError": 5,
+      "transportAdvancedWhilePlaying": true
+    },
+    "alphaFixture": {
+      "sample": "Bundled Resolume Arena media Shop74/BattleWeapon_Tank_09.mov",
+      "profile": "DXV3 normal DXT4",
+      "transparentSamples": 62976,
+      "translucentSamples": 866,
+      "translucentP99": 5,
+      "maximumSampleError": 6
+    }
+  },
+  "software": {
+    "goldenVideoDecodeTestsPassed": 51,
+    "highQualityColorAndPartialAlpha": "Full-range YUVA420P conversion preserves alpha and RGB through resizing.",
+    "strictClippy": "pass",
+    "bundledBuild": "pass"
+  },
+  "remaining": [
+    "Native high-quality samples were opaque. Verify translucent DXV3 High Quality from an encoded clip when available. The Alley desktop connection was unavailable during this batch.",
+    "Remaining MKV profile and moving sync coverage, and extended-format recovery, sustained performance and resource qualification."
+  ]
+}

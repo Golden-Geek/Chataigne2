@@ -587,8 +587,20 @@ impl Decoder {
                 Ok(()) => {
                     admit_extent(image.width(), image.height(), self.limits.max_pixels)?;
                     let timestamp = image.timestamp().ok_or(DecodeError::MissingTimestamp)?;
-                    if matches!(decoder.id(), ffmpeg::codec::Id::WEBP | ffmpeg::codec::Id::WEBP_ANIM) {
-                        webp::set_color_metadata(&mut image);
+                    match decoder.id() {
+                        ffmpeg::codec::Id::WEBP | ffmpeg::codec::Id::WEBP_ANIM => webp::set_color_metadata(&mut image),
+                        ffmpeg::codec::Id::DXV => {
+                            use ffmpeg::util::color::{Range, TransferCharacteristic};
+                            // Normal Quality stores RGB texture values. High Quality carries
+                            // full-range Y, Cg and Co. The demuxer may leave both tags unset.
+                            if image.color_range() == Range::Unspecified {
+                                image.set_color_range(Range::JPEG);
+                            }
+                            if image.color_transfer_characteristic() == TransferCharacteristic::Unspecified {
+                                image.set_color_transfer_characteristic(TransferCharacteristic::IEC61966_2_1);
+                            }
+                        }
+                        _ => {}
                     }
                     let storage = self.kind.frame(image)?;
                     return Ok(Some(DecodedFrame { timestamp, storage }));

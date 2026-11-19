@@ -45,6 +45,31 @@ fn check(image: &ImageData, width: u32, height: u32, value: u8) {
 }
 
 #[test]
+fn full_range_ycgco_converts_color_and_preserves_straight_alpha() {
+    let mut frame = ffmpeg::frame::Video::new(ffmpeg::format::Pixel::YUVA420P, 16, 16);
+    for (plane, value) in [100, 148, 158, 73].into_iter().enumerate() {
+        frame.data_mut(plane).fill(value);
+    }
+    frame.set_color_space(Space::YCGCO);
+    frame.set_color_range(Range::JPEG);
+    frame.set_color_transfer_characteristic(Transfer::IEC61966_2_1);
+    let mut converter = SoftwareImageConverter::with_extent(1024 * 1024, Extent2D::new(8, 8).unwrap()).unwrap();
+    let image = converter
+        .convert(&DecodedFrame {
+            timestamp: 0,
+            storage: FrameStorage::Software(frame),
+        })
+        .unwrap();
+    assert_eq!(image.descriptor().alpha_mode, AlphaMode::Straight);
+    for pixel in image.pixels().chunks_exact(4) {
+        for (channel, expected) in pixel[..3].iter().zip([110, 120, 50]) {
+            assert!(channel.abs_diff(expected) <= 1, "{pixel:?}");
+        }
+        assert_eq!(pixel[3], 73);
+    }
+}
+
+#[test]
 fn scratch_reuses_actual_storage_and_retained_images_survive_format_and_extent_changes() {
     use ffmpeg::format::Pixel;
     let mut converter = SoftwareImageConverter::new(128 * 1024 * 1024).unwrap();
