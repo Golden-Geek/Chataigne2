@@ -30,7 +30,8 @@ const pageErrors = [];
 const observations = [];
 const checks = [];
 const receivers = [];
-const exerciseAudio = process.argv.includes('--audio');
+const exerciseLifecycle = process.argv.includes('--lifecycle');
+const exerciseAudio = exerciseLifecycle || process.argv.includes('--audio');
 const exerciseConcurrent = process.argv.includes('--concurrent');
 page.on('pageerror', (error) => pageErrors.push(String(error)));
 let token, receiver, sender, stage, failure, reopenedPid;
@@ -65,6 +66,25 @@ async function intent(request) {
 	assert(result.success, JSON.stringify(result));
 	return result;
 }
+
+async function inspectAudio() {
+	const result = await intent({
+		kind: 'invokeAppOperation',
+		namespace: 'mapgyver.audio',
+		operation: 'inspect-output',
+		payload: null
+	});
+	return result.result.value;
+}
+
+const videoStatus = () =>
+	page.evaluate(async () =>
+		JSON.parse(
+			await window.__TAURI_INTERNALS__.invoke('native_presentation_control', {
+				request: JSON.stringify({ kind: 'mapgyverRuntimeStatus' })
+			})
+		)
+	);
 
 async function wait(read, accepts, milliseconds) {
 	const deadline = Date.now() + milliseconds;
@@ -190,13 +210,7 @@ async function attachAudioSource(reference, label) {
 		reference,
 		source: { kind: 'Ndi', sender: source.name }
 	});
-	const audio = await intent({
-		kind: 'invokeAppOperation',
-		namespace: 'mapgyver.audio',
-		operation: 'inspect-output',
-		payload: null
-	});
-	assert.equal(audio.result.value.enabled, false, 'the physical output must remain disabled');
+	assert.equal((await inspectAudio()).enabled, false, 'the physical output starts disabled');
 }
 
 async function configureAudio(reference, screen, label, selectScreen) {
@@ -243,6 +257,16 @@ function checkPicture(picture, extent, rate) {
 	assert.equal(picture.height, extent.height);
 	assert.deepEqual(picture.rate, [rate, 1]);
 	assert.equal(picture.pixels.length, 9);
+}
+
+function checkRoutedAudio(audio) {
+	assert.equal(audio.kind, 'audio');
+	assert.equal(audio.channels, 3);
+	assert.deepEqual(
+		audio.tones.map(({ hz }) => hz),
+		[880, 440]
+	);
+	assert.equal(audio.silent_peak, 0);
 }
 
 async function qualifyConcurrent() {
@@ -404,6 +428,130 @@ async function qualifyConcurrent() {
 	await sample('second-after-withdrawal', second, '0,255,255', [880, 440]);
 }
 
+async function qualifyLifecycle({ name, screen, source, color, extent }) {
+	stage = 'enable physical audio on a known absent WASAPI device';
+	const { nodes } = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
+	const preferences = nodes.find((node) => node.node_type === 'mapgyver.preferences.audio');
+	assert(preferences);
+	const parameter = (declId) => {
+		const node = nodes.find(
+			(entry) => preferences.children.includes(entry.node_id) && entry.decl_id === declId
+		);
+		assert(node, `Audio Preferences missing ${declId}`);
+		return node.node_id;
+	};
+	const missing = `wasapi/mapgyver-owned-absent-${randomUUID()}`;
+	await intent({
+		kind: 'setParam',
+		node: parameter('device'),
+		value: { Enum: missing },
+		behaviour: 'Append'
+	});
+	await wait(
+		inspectAudio,
+		(state) => state.selected === missing && !state.enabled && state.active_device === null,
+		8000
+	);
+	await intent({
+		kind: 'setParam',
+		node: parameter('output_enabled'),
+		value: { Bool: true },
+		behaviour: 'Append'
+	});
+	const unavailable = (state) =>
+		state.enabled &&
+		state.selected === missing &&
+		state.readiness === 'missing' &&
+		state.active_device === null &&
+		state.routes.length === 0 &&
+		state.physical_channels.length === 0;
+	checks.push({ stage, audio: await wait(inspectAudio, unavailable, 8000) });
+
+	stage = 'stream fresh NDI picture and audio with the local device unavailable';
+	await color([0, 0, 1, 1]);
+	const sample = observe('missing-physical-device', name, ['0,0,255'], '880,0,440', {
+		sampleOnly: true
+	});
+	checkPicture(await sample.at(0), extent, 30);
+	checkRoutedAudio(await sample.at(1));
+	await sample.done();
+	assert(unavailable(await inspectAudio()));
+
+	stage = 'hold both NDI receivers through project replacement';
+	const label = `NDI peer ${randomUUID().slice(0, 8)}`;
+	const peer = await edit('screens', { kind: 'CreateScreen', label });
+	const peerName = `MapGyver - ${label}`;
+	const { snapshot } = await edit('screens', { kind: 'InspectSurface', reference: peer.surface });
+	await edit('screens', {
+		kind: 'ConfigureSurface',
+		reference: peer.surface,
+		definition: { ...snapshot.definition, source }
+	});
+	await edit('screens', {
+		kind: 'ConfigureScreen',
+		screen: peer.screen,
+		definition: {
+			enabled: true,
+			target: { kind: 'Ndi', sender: null, extent },
+			frame_rate: { kind: 'Explicit', fps: 24 }
+		}
+	});
+	const project = path.join(directory, 'NDI lifecycle.mapgyver');
+	assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);
+	const firstReader = observe('first-before-new', name, ['0,0,255']);
+	const peerReader = observe('peer-before-new', peerName, ['0,0,255']);
+	const [beforeFirst, beforePeer] = await Promise.all([firstReader.at(0), peerReader.at(0)]);
+	checkPicture(beforeFirst, extent, 30);
+	checkPicture(beforePeer, extent, 24);
+	const status = await wait(
+		videoStatus,
+		(value) =>
+			value.screens.some((row) => row.screen === screen) &&
+			value.screens.some((row) => row.screen === peer.screen),
+		8000
+	);
+	const beforeNew = retirements;
+	assert.equal((await post('/api/ui/project-new', {})).ok, true);
+	const [firstWithdrawn, peerWithdrawn] = await Promise.all([firstReader.at(1), peerReader.at(1)]);
+	assert.equal(firstWithdrawn.kind, 'withdrawn');
+	assert.equal(peerWithdrawn.kind, 'withdrawn');
+	await Promise.all([firstReader.done(), peerReader.done()]);
+	const idle = await wait(
+		videoStatus,
+		(value) =>
+			value.sequence > status.sequence &&
+			retirements > beforeNew &&
+			value.state === 'Idle' &&
+			value.screens.length === 0 &&
+			value.resources === null &&
+			value.gpu_adapter === null &&
+			!value.error,
+		12000
+	);
+	checks.push({ stage, rendererRetirements: retirements - beforeNew, idle });
+
+	stage = 'reopen the project and reuse both sender names in the same process';
+	assert.equal(path.resolve((await post('/api/ui/project-load', { path: project })).path), project);
+	await wait(inspectAudio, unavailable, 8000);
+	const restored = observe('first-reopened', name, ['0,0,255'], '880,0,440', { sampleOnly: true });
+	const restoredPeer = observe('peer-reopened', peerName, ['0,0,255'], undefined, {
+		sampleOnly: true
+	});
+	await Promise.all([
+		(async () => {
+			checkPicture(await restored.at(0), extent, 30);
+			checkRoutedAudio(await restored.at(1));
+			await restored.done();
+		})(),
+		(async () => {
+			checkPicture(await restoredPeer.at(0), extent, 24);
+			await restoredPeer.done();
+		})()
+	]);
+	assert(unavailable(await inspectAudio()));
+	checks.push({ stage, sameProcess: native.app.pid === firstPid, audio: await inspectAudio() });
+}
+
 async function qualifySingle() {
 	const label = `NDI Screen ${randomUUID().slice(0, 8)}`;
 	const { screen, surface } = await edit('screens', { kind: 'CreateScreen', label });
@@ -468,7 +616,8 @@ async function qualifySingle() {
 		'automatic',
 		defaultName,
 		['255,0,0', '0,255,0'],
-		exerciseAudio ? '880,0,440' : null
+		exerciseAudio ? '880,0,440' : null,
+		{ sampleOnly: exerciseLifecycle }
 	);
 	const red = await receiver.at(0);
 	checkPicture(red, extent, 30);
@@ -517,14 +666,12 @@ async function qualifySingle() {
 	assert(BigInt(green.timecode) > BigInt(red.timecode));
 	if (exerciseAudio) {
 		stage = 'receive swapped named routes and unassigned silence on the picture timeline';
-		const audio = await receiver.at(2);
-		assert.equal(audio.kind, 'audio');
-		assert.equal(audio.channels, 3);
-		assert.deepEqual(
-			audio.tones.map(({ hz }) => hz),
-			[880, 440]
-		);
-		assert.equal(audio.silent_peak, 0);
+		checkRoutedAudio(await receiver.at(2));
+	}
+	if (exerciseLifecycle) {
+		await receiver.done();
+		await qualifyLifecycle({ name: defaultName, screen, source, color, extent });
+		return;
 	}
 	const project = path.join(directory, 'NDI Screen on startup.mapgyver');
 	assert.equal((await post('/api/ui/project-save', { path: project })).ok, true);

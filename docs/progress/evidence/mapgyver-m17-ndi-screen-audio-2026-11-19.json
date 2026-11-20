@@ -26,9 +26,18 @@
 		"singleScreenRegression": "target/mapgyver-ndi-concurrent-biased-poll-202931-single/run-hddipC/result.json",
 		"software": "JavaScript and Python syntax, Prettier, both workspace formatters and checked diff passed. The rebuilt app from the preceding runtime-guidance batch supplied the tested binary."
 	},
+	"lifecycleRecheck": {
+		"date": "2026-11-20",
+		"fixture": "node apps/mapgyver/tests/browser/ndi-screen.mjs <output-directory> --lifecycle",
+		"unavailableDevice": "The private profile selected a unique absent WASAPI device before enabling physical playback. MapGyver reported missing, with no active device, no physical channels and no hardware routes. An independent NDI receiver captured the new blue picture, 880 Hz and 440 Hz on the configured virtual routes, and silence on the unassigned channel.",
+		"projectReplacement": "Two SDK receivers saw both old sender names withdraw after New. One renderer retirement completed and the newer runtime sample reported Idle, an empty Screen output list and no attached GPU. The independent input sender stayed active.",
+		"reopen": "The same MapGyver process reopened the saved project and republished both exact sender names with their original formats. The routed NDI audio resumed while the same WASAPI device remained missing.",
+		"receipt": "target/mapgyver-ndi-lifecycle-203523/run-BqPj7b/result.json",
+		"singleScreenRegression": "target/mapgyver-ndi-lifecycle-regression-203523/run-8TqVDe/result.json"
+	},
 	"remaining": [
 		"Measure actual A/V offset and drift with synchronized markers at an independent LAN receiver.",
-		"Verify publication with the selected physical audio device unavailable, network reconnect, project replacement and final-use retirement. Retain the observed renderer replacement during live format changes.",
+		"Verify independent LAN reconnect and retirement in the wider hardware cohort. Retain the observed renderer replacement during live format changes and the limited post-withdrawal cadence sample.",
 		"Run the supported installer on clean Windows with the approved distribution inputs. The separate isolated Windows fixture verified missing and incompatible runtime guidance."
 	]
 }
