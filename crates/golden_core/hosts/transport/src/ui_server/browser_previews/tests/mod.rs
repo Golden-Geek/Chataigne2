@@ -1,12 +1,19 @@
 use super::*;
 
+const EXTENT: UiBrowserPreviewExtent = UiBrowserPreviewExtent {
+    width: 1080,
+    height: 1920,
+};
+
 #[test]
 fn preview_demands_share_latest_frame_and_rotate_on_expiry_or_project_change() {
     let previews = BrowserPreviews::default();
     assert!(previews.request(1, "channel", High).unwrap().is_none());
     let original = previews.active(1).pop().unwrap();
-    original.publish_frame(|_| Ok::<_, ()>(vec![2])).unwrap();
-    assert_eq!(&*previews.request(1, "channel", High).unwrap().unwrap().jpeg, &[2]);
+    original.publish_frame(EXTENT, |_| Ok::<_, ()>(vec![2])).unwrap();
+    let image = previews.request(1, "channel", High).unwrap().unwrap();
+    assert_eq!(&*image.jpeg, &[2]);
+    assert_eq!(image.extent, EXTENT);
     assert_eq!(previews.active(1).len(), 1);
 
     let late = Instant::now() + DEMAND_LEASE;
@@ -40,7 +47,7 @@ fn two_browser_qualities_share_one_source_and_only_encode_due_active_variants() 
     let mut encoded_widths = Vec::new();
     let mut publish = || {
         stream
-            .publish_frame_at(now, |variant| {
+            .publish_frame_at(now, EXTENT, |variant| {
                 encoded_widths.push(variant.width);
                 Ok::<_, ()>(vec![variant.jpeg_quality])
             })

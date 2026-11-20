@@ -21,3 +21,12 @@ pub struct UiBrowserPreviewRequest {
     /// ETag of the frame already displayed, if any.
     pub after: Option<String>,
 }
+
+/// Intrinsic content size associated with a frame, before browser quality downsampling.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiBrowserPreviewExtent {
+    /// Source width in pixels.
+    pub width: u32,
+    /// Source height in pixels.
+    pub height: u32,
+}

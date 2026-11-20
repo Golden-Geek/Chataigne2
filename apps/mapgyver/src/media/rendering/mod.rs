@@ -11,8 +11,8 @@ mod screen_raster;
 #[cfg(all(windows, feature = "native-video"))]
 mod shaders;
 mod sources;
-use crate::preview::layout::PreviewImages;
 pub use crate::preview::layout::PreviewLayout;
+use crate::preview::layout::{PreviewImages, PreviewOutputs};
 
 use super::capture::CapturedChannels;
 use super::protocol::{ChannelReference, ChannelSource};
@@ -90,7 +90,7 @@ pub struct ChannelRenderer {
 struct Desired {
     capture: CapturedChannels,
     routes: Vec<ChannelRoute>,
-    preview: Option<PreviewLayout>,
+    preview: Option<PreviewOutputs>,
     screens: Vec<ScreenRoute>,
 }
 
@@ -304,6 +304,32 @@ impl ChannelRenderer {
         screens: Vec<ScreenRoute>,
         preview: Option<PreviewLayout>,
     ) -> Result<RequestId, String> {
+        self.publish_scene(capture, routes, screens, preview.map(PreviewOutputs::from))
+    }
+
+    #[cfg(all(windows, feature = "native-video"))]
+    pub(crate) fn publish_preview_frames(
+        &mut self,
+        capture: crate::preview::capture::CapturedPreview,
+        routes: Vec<crate::preview::layout::PreviewFrameRoute>,
+        descriptor: golden_video::TextureDescriptor,
+    ) -> Result<RequestId, String> {
+        let (channels, screens) = capture.into_preview_scene();
+        self.publish_scene(
+            channels,
+            Vec::new(),
+            screens,
+            Some(PreviewOutputs::Frames { routes, descriptor }),
+        )
+    }
+
+    fn publish_scene(
+        &mut self,
+        capture: CapturedChannels,
+        routes: Vec<ChannelRoute>,
+        screens: Vec<ScreenRoute>,
+        preview: Option<PreviewOutputs>,
+    ) -> Result<RequestId, String> {
         if !capture.is_current() {
             return Err("captured channels are stale".into());
         }
@@ -344,7 +370,7 @@ impl ChannelRenderer {
         capture: CapturedChannels,
         routes: Vec<ChannelRoute>,
         observations: SourceObservations,
-        preview: Option<PreviewLayout>,
+        preview: Option<PreviewOutputs>,
         screens: Vec<ScreenRoute>,
     ) -> Result<RequestId, String> {
         if !capture.is_current() || self.project.is_some_and(|project| project != capture.project) {
@@ -375,7 +401,7 @@ impl ChannelRenderer {
             let mut demanded = routes.iter().map(|route| route.channel).collect::<Vec<_>>();
             let inspected = preview
                 .as_ref()
-                .map(PreviewLayout::references)
+                .map(PreviewOutputs::references)
                 .transpose()?
                 .unwrap_or_default();
             demanded.extend(inspected.iter().copied());

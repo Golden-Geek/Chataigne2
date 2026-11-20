@@ -28,6 +28,189 @@ pub struct PreviewLayout {
     pub layout: PreviewSnapshot,
 }
 
+#[cfg(all(windows, feature = "native-video"))]
+#[derive(Clone, Copy)]
+pub(crate) struct PreviewFrameRoute {
+    pub output: OutputId,
+    pub source: PreviewSource,
+}
+
+/// A window composites its measured regions together. Independent preview frames expose the
+/// same source textures to consumers that position and clip images in their own viewports.
+#[derive(Clone)]
+pub(crate) enum PreviewOutputs {
+    Window(Box<PreviewLayout>),
+    #[cfg(all(windows, feature = "native-video"))]
+    Frames {
+        routes: Vec<PreviewFrameRoute>,
+        descriptor: TextureDescriptor,
+    },
+}
+
+impl From<PreviewLayout> for PreviewOutputs {
+    fn from(layout: PreviewLayout) -> Self {
+        Self::Window(Box::new(layout))
+    }
+}
+
+impl PreviewOutputs {
+    pub(crate) fn routing_guard(&self) -> Option<golden_io::RevisionGuard> {
+        match self {
+            Self::Window(layout) => Some(layout.layout.routing_guard.clone()),
+            #[cfg(all(windows, feature = "native-video"))]
+            Self::Frames { .. } => None,
+        }
+    }
+
+    pub(crate) fn register_outputs(&self, outputs: &mut std::collections::HashSet<OutputId>) -> Result<(), String> {
+        let unique = match self {
+            Self::Window(layout) => outputs.insert(layout.output),
+            #[cfg(all(windows, feature = "native-video"))]
+            Self::Frames { routes, .. } => routes.iter().all(|route| outputs.insert(route.output)),
+        };
+        unique
+            .then_some(())
+            .ok_or_else(|| "preview output duplicates an output route".into())
+    }
+
+    pub(crate) fn references(&self) -> Result<Vec<ChannelReference>, String> {
+        match self {
+            Self::Window(layout) => layout.references(),
+            #[cfg(all(windows, feature = "native-video"))]
+            Self::Frames { routes, .. } => Ok(routes.iter().filter_map(|route| route.source.reference()).collect()),
+        }
+    }
+
+    pub(crate) fn count(&self) -> usize {
+        match self {
+            Self::Window(_) => 1,
+            #[cfg(all(windows, feature = "native-video"))]
+            Self::Frames { routes, .. } => routes.len(),
+        }
+    }
+
+    pub(crate) fn pass_count(&self) -> Result<usize, String> {
+        match self {
+            Self::Window(layout) => layout.pass_count(),
+            #[cfg(all(windows, feature = "native-video"))]
+            Self::Frames { routes, .. } => Ok(calibrations(routes.iter().map(|route| route.source))?.len()),
+        }
+    }
+
+    pub(crate) fn maximum_dependencies(&self) -> Result<usize, String> {
+        match self {
+            Self::Window(layout) => layout.maximum_dependencies(),
+            #[cfg(all(windows, feature = "native-video"))]
+            Self::Frames { routes, .. } => Ok(calibration_work(calibrations(routes.iter().map(|route| route.source))?)),
+        }
+    }
+
+    pub(crate) fn append(
+        &self,
+        submission: &mut PlanSubmission,
+        channels: &HashMap<ChannelReference, TextureId>,
+        screens: &HashMap<ScreenId, TextureId>,
+        assets: &mut crate::screens::CalibrationAssets,
+        handoff: Handoff<'_>,
+    ) -> Result<PreviewImages, String> {
+        match self {
+            Self::Window(layout) => layout.append(submission, channels, screens, assets, Some(handoff)),
+            #[cfg(all(windows, feature = "native-video"))]
+            Self::Frames { routes, descriptor } => {
+                let patterns = append_patterns(
+                    submission,
+                    calibrations(routes.iter().map(|route| route.source))?,
+                    *descriptor,
+                    assets,
+                )?;
+                for route in routes {
+                    if let Some(source) = resolve_texture(route.source, channels, screens, &patterns) {
+                        submission.plan.outputs.push(PlanOutput {
+                            id: route.output,
+                            source,
+                        });
+                    }
+                }
+                Ok(PreviewImages::new())
+            }
+        }
+    }
+}
+
+fn calibrations(sources: impl IntoIterator<Item = PreviewSource>) -> Result<Vec<(Calibration, Extent2D)>, String> {
+    let mut patterns = std::collections::HashSet::new();
+    for source in sources {
+        if let PreviewSource::Calibration { mode, extent } = source {
+            validate_calibration(mode, extent)?;
+            patterns.insert((mode, extent));
+        }
+    }
+    if patterns.len() > super::config::MAX_NATIVE_PRODUCERS {
+        return Err("calibration previews exceed admitted source count".into());
+    }
+    let mut patterns = patterns.into_iter().collect::<Vec<_>>();
+    patterns.sort_by_key(|(mode, extent)| (*mode as u8, extent.width(), extent.height()));
+    Ok(patterns)
+}
+
+fn calibration_work(patterns: Vec<(Calibration, Extent2D)>) -> usize {
+    patterns
+        .into_iter()
+        .map(|(mode, extent)| crate::screens::calibration::work_count(mode, extent))
+        .sum()
+}
+
+fn append_patterns(
+    submission: &mut PlanSubmission,
+    calibrations: Vec<(Calibration, Extent2D)>,
+    descriptor: TextureDescriptor,
+    assets: &mut crate::screens::CalibrationAssets,
+) -> Result<HashMap<PreviewSource, TextureId>, String> {
+    let mut patterns = HashMap::new();
+    for (mode, extent) in calibrations {
+        let texture = TextureId::new(
+            PreviewLayout::CALIBRATION_TEXTURE_BASE
+                | ((mode as u64) << 32)
+                | (u64::from(extent.width()) << 16)
+                | u64::from(extent.height()),
+        )
+        .unwrap();
+        let pattern = crate::screens::calibration::pattern(mode, extent, assets)?
+            .ok_or("calibration preview requires an active pattern")?;
+        submission.plan.passes.push(RenderPass {
+            id: PassId::new(texture.get()).unwrap(),
+            output: texture,
+            descriptor: TextureDescriptor { extent, ..descriptor },
+            operation: RenderOperation::Composite {
+                layers: vec![Layer {
+                    source: LayerSource::Pattern(pattern),
+                    opacity: Opacity::OPAQUE,
+                    opacity_envelope: None,
+                    blend: BlendMode::Normal,
+                    filter: SampleFilter::Linear,
+                    mapping: None,
+                }],
+            },
+        });
+        patterns.insert(PreviewSource::Calibration { mode, extent }, texture);
+    }
+    Ok(patterns)
+}
+
+fn resolve_texture(
+    source: PreviewSource,
+    channels: &HashMap<ChannelReference, TextureId>,
+    screens: &HashMap<ScreenId, TextureId>,
+    patterns: &HashMap<PreviewSource, TextureId>,
+) -> Option<TextureId> {
+    match source {
+        PreviewSource::Channel { .. } | PreviewSource::MatrixCell { .. } => channels.get(&source.reference()?).copied(),
+        PreviewSource::Screen { screen } => screens.get(&screen).copied(),
+        PreviewSource::Calibration { .. } => patterns.get(&source).copied(),
+        PreviewSource::MatrixPlayback { .. } => None,
+    }
+}
+
 impl PreviewLayout {
     /// The fixed window-compositor passes precede ordinary channel allocations.
     pub(crate) const RESERVED_TEXTURES: u64 = 5;
@@ -36,32 +219,11 @@ impl PreviewLayout {
     pub(crate) const CALIBRATION_TEXTURE_BASE: u64 = 1 << 63;
 
     pub(crate) fn maximum_dependencies(&self) -> Result<usize, String> {
-        Ok(self.layout.maximum_dependencies()
-            + self
-                .calibrations()?
-                .iter()
-                .map(|(mode, extent)| crate::screens::calibration::work_count(*mode, *extent))
-                .sum::<usize>())
+        Ok(self.layout.maximum_dependencies() + calibration_work(calibrations(self.sources()?)?))
     }
 
     pub(crate) fn pass_count(&self) -> Result<usize, String> {
-        Ok(Self::PASS_COUNT + self.calibrations()?.len())
-    }
-
-    fn calibrations(&self) -> Result<Vec<(Calibration, Extent2D)>, String> {
-        let mut patterns = std::collections::HashSet::new();
-        for source in self.sources()? {
-            if let PreviewSource::Calibration { mode, extent } = source {
-                validate_calibration(mode, extent)?;
-                patterns.insert((mode, extent));
-            }
-        }
-        if patterns.len() > super::config::MAX_NATIVE_PRODUCERS {
-            return Err("calibration previews exceed admitted source count".into());
-        }
-        let mut patterns = patterns.into_iter().collect::<Vec<_>>();
-        patterns.sort_by_key(|(mode, extent)| (*mode as u8, extent.width(), extent.height()));
-        Ok(patterns)
+        Ok(Self::PASS_COUNT + calibrations(self.sources()?)?.len())
     }
 
     pub fn sources(&self) -> Result<Vec<PreviewSource>, String> {
@@ -95,38 +257,7 @@ impl PreviewLayout {
         assets: &mut crate::screens::CalibrationAssets,
         handoff: Option<Handoff<'_>>,
     ) -> Result<PreviewImages, String> {
-        self.references()?;
-        let mut patterns = HashMap::new();
-        for (mode, extent) in self.calibrations()? {
-            let texture = TextureId::new(
-                Self::CALIBRATION_TEXTURE_BASE
-                    | ((mode as u64) << 32)
-                    | (u64::from(extent.width()) << 16)
-                    | u64::from(extent.height()),
-            )
-            .unwrap();
-            let pattern = crate::screens::calibration::pattern(mode, extent, assets)?
-                .ok_or("calibration preview requires an active pattern")?;
-            submission.plan.passes.push(RenderPass {
-                id: PassId::new(texture.get()).unwrap(),
-                output: texture,
-                descriptor: TextureDescriptor {
-                    extent,
-                    ..self.descriptor
-                },
-                operation: RenderOperation::Composite {
-                    layers: vec![Layer {
-                        source: LayerSource::Pattern(pattern),
-                        opacity: Opacity::OPAQUE,
-                        opacity_envelope: None,
-                        blend: BlendMode::Normal,
-                        filter: SampleFilter::Linear,
-                        mapping: None,
-                    }],
-                },
-            });
-            patterns.insert(PreviewSource::Calibration { mode, extent }, texture);
-        }
+        let patterns = append_patterns(submission, calibrations(self.sources()?)?, self.descriptor, assets)?;
         let images = handoff
             .map(|handoff| handoff.images(&self.layout, &mut submission.plan, channels, &patterns))
             .unwrap_or_default();
@@ -141,13 +272,7 @@ impl PreviewLayout {
                     if let Some(image) = images.get(&view.id) {
                         return Some(image.texture());
                     }
-                    match serde_json::from_str::<PreviewSource>(source).ok()? {
-                        PreviewSource::Channel { reference } => channels.get(&reference).copied(),
-                        PreviewSource::MatrixPlayback { .. } => None,
-                        source @ PreviewSource::MatrixCell { .. } => channels.get(&source.reference()?).copied(),
-                        PreviewSource::Screen { screen } => screens.get(&screen).copied(),
-                        source @ PreviewSource::Calibration { .. } => patterns.get(&source).copied(),
-                    }
+                    resolve_texture(serde_json::from_str(source).ok()?, channels, screens, &patterns)
                 }),
             },
         });

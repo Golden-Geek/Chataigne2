@@ -17,13 +17,19 @@ project and serves the latest JPEG. An unchanged image keeps its ETag. Small per
 with no ETag let Auto recheck a low-quality connection even when the underlying image is static.
 Leases expire 2.4 seconds after the last request, including when a tab closes or loses its link.
 
-MapGyver's browser worker resolves the same Channel identities and runs the same Channel
-render plans on the configured Windows GPU. Golden Video hands the worker tightly packed
+MapGyver's browser worker resolves the same preview source identities as the native window.
+It runs the shared Channel, Screen and calibration render plans on the configured Windows GPU.
+Golden Video hands the worker tightly packed
 BGRA from a nonblocking staging texture. Each output has a one-frame CPU mailbox and stamps
 frames with the producing plan identity so a rebound output cannot publish the previous
 source. The worker encodes profiles on demand, up to 640×360 at the 15 FPS render rate for High
 and 320×180 every 120 ms at most for Low. Both preserve the source aspect ratio. The worker
 retires the renderer once no browser demand remains. The desktop uses the native compositor.
+
+Golden's `VideoPreview` mounts browser imagery or the native underlay inside the same editor
+viewport. Browser frames carry the original content size alongside the JPEG. Screen Warping
+and Surface Source use that size for framing and keep their existing DOM handles aligned to
+the same image aperture through pan, zoom and quality changes.
 
 ## Native presentation
 

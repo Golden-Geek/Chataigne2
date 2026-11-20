@@ -12,6 +12,7 @@ import type { UiParamControlInfoDto as RustUiParamControlInfoResponse } from '..
 import type { UiParamControlInfoRequest as RustParamControlInfoRequest } from '../generated/rust_protocol/UiParamControlInfoRequest';
 import type { UiOscAddressDto } from '../generated/rust_protocol/UiOscAddressDto';
 import type { UiOscAddressRequest } from '../generated/rust_protocol/UiOscAddressRequest';
+import type { UiBrowserPreviewExtent } from '../generated/rust_protocol/UiBrowserPreviewExtent';
 import type { UiProjectPathDto as RustProjectPathResponse } from '../generated/rust_protocol/UiProjectPathDto';
 import type { UiProjectPathRequest as RustProjectPathRequest } from '../generated/rust_protocol/UiProjectPathRequest';
 import type { UiProjectUploadRequest as RustProjectUploadRequest } from '../generated/rust_protocol/UiProjectUploadRequest';
@@ -159,8 +160,25 @@ export const createHttpAuxiliaryClient = (
 			if (!response.ok)
 				throw formatHttpError('POST browser preview', response, await response.text());
 			const tag = response.headers.get('etag');
-			if (!tag) throw new Error('Browser preview response has no image tag');
-			return { tag, image: await response.blob() };
+			const extentHeader = response.headers.get('x-gc-preview-extent');
+			if (!tag || !extentHeader)
+				throw new Error('Browser preview response has incomplete metadata');
+			const extent = JSON.parse(extentHeader) as Partial<UiBrowserPreviewExtent> | null;
+			if (
+				!extent?.width ||
+				!extent.height ||
+				!Number.isSafeInteger(extent.width) ||
+				!Number.isSafeInteger(extent.height) ||
+				extent.width < 0 ||
+				extent.height < 0
+			) {
+				throw new Error('Browser preview response has an invalid extent');
+			}
+			return {
+				tag,
+				image: await response.blob(),
+				extent: { width: extent.width, height: extent.height }
+			};
 		},
 		oscAddress(request, signal) {
 			return postJson<UiOscAddressDto>('/osc-address', request, { signal });

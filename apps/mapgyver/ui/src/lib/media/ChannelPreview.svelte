@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { BrowserPreview, NativePreview } from 'golden_video_ui';
-	import { hasDesktopHost } from 'golden_ui/host/desktop';
+	import { VideoPreview } from 'golden_video_ui';
+	import { appState } from 'golden_ui';
 	import type { ChannelSnapshot } from './generated/ChannelSnapshot';
 	import { usePreview } from '../preview/context.svelte';
-	import { previewKey } from '../preview/identity';
+	import { useViewSource } from '../preview/view-source.svelte';
 	import PreviewMessage from '../preview/PreviewMessage.svelte';
 	import type { PreviewSource } from '../preview/generated/PreviewSource';
 	let {
@@ -23,10 +23,10 @@
 	const identity = $derived<PreviewSource>(
 		preview ?? { kind: 'Channel', reference: channel.reference }
 	);
-	const source = $derived(JSON.stringify(identity));
-	const status = $derived(owner.statuses.get(previewKey(identity)));
+	const view = useViewSource(() => identity);
+	const status = $derived(view.status);
 	const message = $derived(status?.error ?? status?.message);
-	const extent = $derived(explicitExtent ?? status?.extent);
+	const extent = $derived(explicitExtent ?? view.extent);
 </script>
 
 <section aria-label="Channel preview" class:fill>
@@ -34,16 +34,14 @@
 		class="surface"
 		style:--preview-aspect={extent ? extent.width / extent.height : 16 / 9}
 		style:aspect-ratio={extent ? `${extent.width} / ${extent.height}` : '16 / 9'}>
-		{#if hasDesktopHost()}
-			<NativePreview
-				session={owner.session}
-				{source}
-				label={`Preview of ${label ?? channel.label}`}>
-				{#if message}<PreviewMessage {message} />{/if}
-			</NativePreview>
-		{:else}
-			<BrowserPreview {source} label={`Preview of ${label ?? channel.label}`} />
-		{/if}
+		<VideoPreview
+			session={owner.session}
+			source={view.wire}
+			lifetime={appState.session?.projectGeneration ?? 0}
+			onextent={view.onextent}
+			label={`Preview of ${label ?? channel.label}`}>
+			{#if message}<PreviewMessage {message} />{/if}
+		</VideoPreview>
 	</div>
 </section>
 

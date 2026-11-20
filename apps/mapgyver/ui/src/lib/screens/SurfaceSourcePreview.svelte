@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { NativePreview, type OverlayPrimitive } from 'golden_video_ui';
+	import { VideoPreview, type OverlayPrimitive } from 'golden_video_ui';
 	import { appState, Viewport2D, pointBounds } from 'golden_ui';
+	import { hasDesktopHost } from 'golden_ui/host/desktop';
 	import type { Snippet } from 'svelte';
 	import type { RelatedSurface } from './generated/RelatedSurface';
 	import RelatedContours from './RelatedContours.svelte';
@@ -10,7 +11,7 @@
 	import type { PreviewSource } from '../preview/generated/PreviewSource';
 	import type { SurfaceHandle, SurfacePresentation } from './surface-gesture';
 	import { usePreview } from '../preview/context.svelte';
-	import { previewKey } from '../preview/identity';
+	import { useViewSource } from '../preview/view-source.svelte';
 	import PreviewMessage from '../preview/PreviewMessage.svelte';
 	import CropHandles from './CropHandles.svelte';
 	import AlignmentToggle from '../spatial/AlignmentToggle.svelte';
@@ -60,11 +61,12 @@
 		overlays = next;
 	}
 	const identity = $derived(preview);
+	const view = useViewSource(() => identity);
 	const project = $derived(appState.session?.projectGeneration ?? 0);
-	const source = $derived(JSON.stringify(identity));
-	const status = $derived(identity ? owner.statuses.get(previewKey(identity)) : undefined);
+	const source = $derived(view.wire);
+	const status = $derived(view.status);
 	const message = $derived(status?.error ?? status?.message);
-	const extent = $derived(status?.extent);
+	const extent = $derived(identity?.kind === 'Calibration' ? identity.extent : view.extent);
 </script>
 
 {#snippet controls()}
@@ -112,9 +114,9 @@
 		}}
 		onkeydown={(event) => cropControls?.keydown(event)}
 		label="Surface source view"
-		native={identity !== null}>
+		native={identity !== null && hasDesktopHost()}>
 		{#if identity}
-			<NativePreview
+			<VideoPreview
 				nativeInput={inputAvailable}
 				nativeBackdrop
 				lifetime={project}
@@ -122,11 +124,13 @@
 				overlayCapacity={80}
 				session={owner.session}
 				{source}
+				onextent={view.onextent}
+				browserFill
 				overlays={message ? [] : [...relatedOverlays, ...overlays]}
 				label={`Full source for ${surface.label}`}>
 				{#if message}<PreviewMessage {message} />{/if}
 				{@render controls()}
-			</NativePreview>
+			</VideoPreview>
 		{:else}
 			<div class="message">No source assigned. Choose a channel in Surface settings.</div>
 			{@render controls()}

@@ -4,6 +4,7 @@ export { createWorkbenchSession } from './store/workbench.svelte';
 export { appState } from './store/app-state.svelte';
 export type { UiBrowserPreview } from './types';
 export type { UiBrowserPreviewQuality } from './generated/rust_protocol/UiBrowserPreviewQuality';
+export type { UiBrowserPreviewExtent } from './generated/rust_protocol/UiBrowserPreviewExtent';
 export { registerCommandHandler } from './store/commands.svelte';
 export type { CommandId, CommandExecuteContext } from './store/commands.svelte';
 export {

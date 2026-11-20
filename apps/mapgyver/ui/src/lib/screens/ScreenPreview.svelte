@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { onDestroy, type Snippet } from 'svelte';
-	import { NativePreview, MAX_VIEW_OVERLAYS, type OverlayPrimitive } from 'golden_video_ui';
+	import { VideoPreview, MAX_VIEW_OVERLAYS, type OverlayPrimitive } from 'golden_video_ui';
 	import { appState, Viewport2D, pointBounds } from 'golden_ui';
+	import { hasDesktopHost } from 'golden_ui/host/desktop';
 	import type { ScreenSnapshot } from './generated/ScreenSnapshot';
 	import type { PreviewSource } from '../preview/generated/PreviewSource';
 	import { usePreview } from '../preview/context.svelte';
-	import { previewKey } from '../preview/identity';
+	import { useViewSource } from '../preview/view-source.svelte';
 	import SurfaceHandles from './SurfaceHandles.svelte';
 	import type { SurfaceId } from './generated/SurfaceId';
 	import type { SurfaceReference } from './generated/SurfaceReference';
@@ -105,15 +106,15 @@
 			corner = null;
 	});
 	const identity = $derived<PreviewSource>({ kind: 'Screen', screen: screen.id });
-	const source = $derived(JSON.stringify(identity));
-	const status = $derived(owner.statuses.get(previewKey(identity)));
+	const view = useViewSource(() => identity);
+	const status = $derived(view.status);
 	const target = $derived(screen.definition.target);
 	const extent = $derived(
 		target?.kind === 'Rectangle'
 			? target.bounds.extent
 			: target?.kind === 'Spout' || target?.kind === 'AutomaticSpout' || target?.kind === 'Ndi'
 				? target.extent
-				: status?.extent
+				: view.extent
 	);
 	const selectedSurface = $derived(
 		screen.surfaces.find((surface) => surface.reference.surface === selected)
@@ -158,15 +159,17 @@
 		onfocusout={() => keyboard.finish()}
 		{selection}
 		label="Screen view"
-		native>
-		<NativePreview
+		native={hasDesktopHost()}>
+		<VideoPreview
 			nativeInput={inputAvailable}
 			nativeBackdrop
 			lifetime={documentIdentity}
 			onpresentationchange={presentationChanged}
 			overlayCapacity={MAX_VIEW_OVERLAYS}
 			session={owner.session}
-			{source}
+			source={view.wire}
+			onextent={view.onextent}
+			browserFill
 			overlays={status?.error ? [] : overlays}
 			label={`Preview of ${screen.label}`}>
 			{#if status?.error}<div class="error" role="alert">{status.error}</div>{/if}
@@ -199,7 +202,7 @@
 						corner = { document: documentIdentity, surface, index };
 					}} />
 			{/key}
-		</NativePreview>
+		</VideoPreview>
 	</Viewport2D>
 </section>
 

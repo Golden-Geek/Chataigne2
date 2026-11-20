@@ -14,7 +14,7 @@ pub(super) struct HttpResponse<'a> {
     pub(super) cors_origin: Option<String>,
     sensitive: bool,
     content_security_policy: Option<String>,
-    etag: Option<String>,
+    preview: Option<(String, golden_protocol::UiBrowserPreviewExtent)>,
 }
 
 impl<'a> HttpResponse<'a> {
@@ -24,7 +24,7 @@ impl<'a> HttpResponse<'a> {
             cors_origin: None,
             sensitive: false,
             content_security_policy: None,
-            etag: None,
+            preview: None,
         }
     }
 
@@ -187,7 +187,7 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
                     if pull.after.as_deref() == Some(frame.tag.as_str()) {
                         write_response(stream, "204 No Content", "text/plain", &[])?;
                     } else {
-                        stream.etag = Some(frame.tag);
+                        stream.preview = Some((frame.tag, frame.extent));
                         write_response(stream, "200 OK", "image/jpeg", &frame.jpeg)?;
                     }
                 }
@@ -669,7 +669,7 @@ pub(super) fn write_response(
             "Access-Control-Allow-Origin: {origin}\r\n\
          Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
          Access-Control-Allow-Headers: Content-Type, X-GC-UI-Client-Instance, Authorization\r\n\
-         Access-Control-Expose-Headers: ETag\r\n"
+         Access-Control-Expose-Headers: ETag, X-GC-Preview-Extent\r\n"
         )
     });
     let headers = format!(
@@ -696,10 +696,10 @@ pub(super) fn write_response(
             .content_security_policy
             .as_ref()
             .map_or_else(String::new, |policy| format!("Content-Security-Policy: {policy}\r\n")),
-        stream
-            .etag
-            .as_ref()
-            .map_or_else(String::new, |tag| format!("ETag: {tag}\r\n")),
+        stream.preview.as_ref().map_or_else(String::new, |(tag, extent)| {
+            let extent = serde_json::to_string(extent).expect("serializable preview extent");
+            format!("ETag: {tag}\r\nX-GC-Preview-Extent: {extent}\r\n")
+        }),
     );
 
     stream.stream.write_all(headers.as_bytes())?;

@@ -1,20 +1,22 @@
-//! MapGyver routes browser Channel demand through the same render plans as local preview.
+//! Browser demand selects the same editor sources and render plans as local preview.
 use crate::{
     app::AppNode,
-    media::{
-        CapturedChannels, capture_channels_at,
-        protocol::ChannelReference,
-        rendering::{ChannelRenderer, ChannelRoute},
+    media::rendering::ChannelRenderer,
+    preview::{
+        capture::{CapturedPreview, capture_preview_with_time},
+        config,
+        layout::{PreviewFrameRoute, validate_calibration},
+        protocol::PreviewSource,
     },
-    preview::{config, protocol::PreviewSource},
 };
 use golden_core::{
     application::ProductionRuntime,
     transport::{BrowserPreviewStream, BrowserPreviews},
+    ui_sync::UiBrowserPreviewExtent,
 };
 use golden_io::{BoundedWorker, RetirementPool, WorkerLimits, WorkerNotifier};
 use golden_video::{
-    Extent2D, OutputId,
+    AlphaMode, ColorEncoding, Extent2D, OutputId, PixelFormat, TextureDescriptor,
     browser::encode_preview_jpeg,
     native::{
         AdapterId, AdapterPreference, D3d11Config, InputLimits, OutputBinding, PhysicalAdapterId, ReadbackFrame,
@@ -35,7 +37,7 @@ const MAX_BUDGET: u64 = 768 * 1024 * 1024;
 
 struct Route {
     stream: BrowserPreviewStream,
-    reference: ChannelReference,
+    source: PreviewSource,
 }
 
 fn routes(previews: &BrowserPreviews, generation: u64) -> Vec<Route> {
@@ -43,10 +45,13 @@ fn routes(previews: &BrowserPreviews, generation: u64) -> Vec<Route> {
         .active(generation)
         .into_iter()
         .filter_map(|stream| {
-            let PreviewSource::Channel { reference } = serde_json::from_str(stream.source()).ok()? else {
-                return None;
-            };
-            Some(Route { stream, reference })
+            let source = serde_json::from_str(stream.source()).ok()?;
+            match source {
+                PreviewSource::MatrixPlayback { .. } => return None,
+                PreviewSource::Calibration { mode, extent } => validate_calibration(mode, extent).ok()?,
+                _ => {}
+            }
+            Some(Route { stream, source })
         })
         .take(OUTPUT_SLOTS)
         .collect()
@@ -132,9 +137,14 @@ struct Owner {
     extent: Extent2D,
     frames: Vec<Receiver<ReadbackFrame>>,
     routes: Vec<Route>,
-    captured: Option<CapturedChannels>,
+    captured: Option<CapturedPreview>,
     project_generation: u64,
-    installed: Option<PlanIdentity>,
+    installed: Option<Installed>,
+}
+
+struct Installed {
+    plan: PlanIdentity,
+    extents: Vec<Extent2D>,
 }
 
 impl Owner {
@@ -213,7 +223,12 @@ impl Owner {
         for outcome in outcomes {
             if Some(outcome.request) == self.renderer.latest_request() {
                 match outcome.result {
-                    OutcomeKind::Installed { generation, .. } => self.installed = Some(generation.identity),
+                    OutcomeKind::Installed { generation, .. } => {
+                        self.installed = Some(Installed {
+                            plan: generation.identity,
+                            extents: self.source_extents(),
+                        });
+                    }
                     OutcomeKind::Rejected(error) => {
                         self.captured = None;
                         return Err(error.to_string());
@@ -238,11 +253,13 @@ impl Owner {
                 .iter()
                 .map(|route| route.stream.id())
                 .eq(routes.iter().map(|route| route.stream.id()));
-        if routes_changed || root_changed || !self.captured.as_ref().is_some_and(CapturedChannels::is_current) {
-            let references = routes.iter().map(|route| route.reference).collect::<Vec<_>>();
+        if routes_changed || root_changed || !self.captured.as_ref().is_some_and(CapturedPreview::is_current) {
+            let sources = routes.iter().map(|route| route.source).collect::<Vec<_>>();
             let time = self.renderer.read_time().map_err(|error| error.to_string())?;
             let capture = runtime
-                .capture_app(move |engine| capture_channels_at(engine, &references, config::MAX_CAPTURE_CHANNELS, time))
+                .capture_app(move |engine| {
+                    capture_preview_with_time(engine, &sources, config::MAX_CAPTURE_CHANNELS, 128, Some(time))
+                })
                 .map_err(|error| error.to_string())??;
             if runtime.current_project_generation().get() != generation {
                 return Ok(());
@@ -250,12 +267,21 @@ impl Owner {
             let outputs = routes
                 .iter()
                 .enumerate()
-                .map(|(slot, route)| ChannelRoute {
+                .map(|(slot, route)| PreviewFrameRoute {
                     output: output(slot),
-                    channel: route.reference,
+                    source: route.source,
                 })
                 .collect();
-            self.renderer.publish(capture.clone(), outputs)?;
+            self.renderer.publish_preview_frames(
+                capture.clone(),
+                outputs,
+                TextureDescriptor {
+                    extent: self.extent,
+                    format: PixelFormat::Rgba16Float,
+                    color_encoding: ColorEncoding::Linear,
+                    alpha_mode: AlphaMode::Premultiplied,
+                },
+            )?;
             self.captured = Some(capture);
             self.routes = routes;
             self.project_generation = generation;
@@ -268,25 +294,54 @@ impl Owner {
 
         for (slot, frames) in self.frames.iter().enumerate() {
             let Ok(frame) = frames.try_recv() else { continue };
-            let Some(route) = self.routes.get(slot).filter(|_| self.installed == Some(frame.plan)) else {
+            let Some(installed) = self.installed.as_ref().filter(|state| state.plan == frame.plan) else {
                 continue;
             };
-            let content = self
-                .renderer
-                .channels()
-                .iter()
-                .find(|channel| channel.reference == route.reference)
-                .and_then(|channel| channel.resolution.extent)
-                .unwrap_or(self.extent);
+            let Some((route, content)) = self.routes.get(slot).zip(installed.extents.get(slot).copied()) else {
+                continue;
+            };
             route
                 .stream
-                .publish_frame(|encoding| {
-                    let limit = Extent2D::new(encoding.width, encoding.height).expect("valid browser preview preset");
-                    encode_preview_jpeg(&frame.pixels, self.extent, content, limit, encoding.jpeg_quality)
-                })
+                .publish_frame(
+                    UiBrowserPreviewExtent {
+                        width: content.width(),
+                        height: content.height(),
+                    },
+                    |encoding| {
+                        let limit =
+                            Extent2D::new(encoding.width, encoding.height).expect("valid browser preview preset");
+                        encode_preview_jpeg(&frame.pixels, self.extent, content, limit, encoding.jpeg_quality)
+                    },
+                )
                 .map_err(|error| error.to_string())?;
         }
         Ok(())
+    }
+
+    fn source_extents(&self) -> Vec<Extent2D> {
+        self.routes
+            .iter()
+            .map(|route| {
+                match route.source {
+                    PreviewSource::Calibration { extent, .. } => Some(extent),
+                    PreviewSource::Screen { screen } => self.captured.as_ref().and_then(|capture| {
+                        capture
+                            .screens
+                            .iter()
+                            .find(|route| route.screen.id() == screen)
+                            .map(|route| route.extent)
+                    }),
+                    source => source.reference().and_then(|reference| {
+                        self.renderer
+                            .channels()
+                            .iter()
+                            .find(|channel| channel.reference == reference)
+                            .and_then(|channel| channel.resolution.extent)
+                    }),
+                }
+                .unwrap_or(self.extent)
+            })
+            .collect()
     }
 }
 

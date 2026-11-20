@@ -44,15 +44,152 @@ async function post(route, payload) {
 	return result;
 }
 
-async function edit(payload) {
+async function edit(payload, domain = 'media') {
 	const ack = await post('/api/ui/intent', {
 		kind: 'invokeAppOperation',
-		namespace: 'mapgyver.media',
+		namespace: `mapgyver.${domain}`,
 		operation: 'edit',
 		payload
 	});
 	assert(ack.success, JSON.stringify(ack));
 	return ack.result.value;
+}
+
+const tab = (name) => page.getByRole('tab').filter({ hasText: new RegExp(`^${name}(?::|$)`) });
+const canvasIn = (view) => view.locator('canvas[data-preview-state="available"]');
+const pixel = (canvas, x, y) =>
+	canvas.evaluate(
+		(image, [u, v]) => {
+			const context = image.getContext('2d');
+			return Array.from(
+				context.getImageData(Math.floor(image.width * u), Math.floor(image.height * v), 1, 1).data
+			).slice(0, 3);
+		},
+		[x, y]
+	);
+const rgbNear = (pixel, expected) =>
+	pixel.every((value, index) => Math.abs(value - expected[index]) < 18);
+const color = (pixel) => (pixel[0] > 240 ? 'red' : pixel[2] > 240 ? 'blue' : null);
+
+async function verifyScreenEditors(reference) {
+	const updateScreen = (payload) => edit(payload, 'screens');
+	const {
+		snapshot: {
+			screens: [screen]
+		}
+	} = await updateScreen({ kind: 'InspectManager' });
+	const [surface] = screen.surfaces;
+	const quad = [
+		{ x: 0.2, y: 0.2 },
+		{ x: 0.8, y: 0.2 },
+		{ x: 0.8, y: 0.8 },
+		{ x: 0.2, y: 0.8 }
+	];
+	const crop = { x: 0.25, y: 0.2, width: 0.5, height: 0.6 };
+	await updateScreen({
+		kind: 'ConfigureScreen',
+		screen: screen.id,
+		definition: {
+			...screen.definition,
+			enabled: true,
+			target: {
+				kind: 'Spout',
+				sender: 'Browser Fixture Screen',
+				extent: { width: 800, height: 500 }
+			}
+		}
+	});
+	const configure = (calibration) =>
+		updateScreen({
+			kind: 'ConfigureSurface',
+			reference: surface.reference,
+			definition: {
+				...surface.definition,
+				source: reference,
+				crop,
+				quad: { corners: quad },
+				calibration
+			}
+		});
+	await configure('Off');
+	await tab('Screens').click();
+	await page
+		.getByRole('region', { name: 'Screens', exact: true })
+		.getByRole('button', { name: surface.label, exact: true })
+		.click();
+	await tab('Screen Warping').click();
+	const warp = page.getByRole('application', { name: 'Screen view', exact: true });
+	const output = canvasIn(warp);
+	const mappings = warp.getByRole('group', { name: 'Surface mapping controls', exact: true });
+	await output.waitFor();
+	const seen = new Set();
+	await waitFor(async () => {
+		const sample = color(await pixel(output, 0.5, 0.5));
+		if (sample) seen.add(sample);
+		return seen.size === 2;
+	}, 'Screen Warping did not display both moving colors');
+	await waitFor(
+		async () => color(await pixel(output, 0.27, 0.28)) !== null,
+		'warp witness must start inside the image'
+	);
+	assert(rgbNear(await pixel(output, 0.06, 0.06), [0, 0, 0]));
+	const handle = warp.getByRole('button', { name: 'Warp corner 1', exact: true });
+	const hit = await handle.boundingBox();
+	const controls = await mappings.boundingBox();
+	const image = await output.boundingBox();
+	assert(hit && controls && image);
+	assert(Math.abs(image.width / image.height - 8 / 5) < 0.01);
+	for (const dimension of ['x', 'y', 'width', 'height'])
+		assert(Math.abs(controls[dimension] - image[dimension]) < 1);
+	await page.mouse.move(hit.x + hit.width / 2, hit.y + hit.height / 2);
+	await page.mouse.down();
+	try {
+		await page.mouse.move(controls.x + controls.width * 0.45, controls.y + controls.height * 0.47, {
+			steps: 8
+		});
+		await waitFor(
+			async () => rgbNear(await pixel(output, 0.27, 0.28), [0, 0, 0]),
+			'held warp drag did not update the rendered image'
+		);
+		assert(color(await pixel(output, 0.6, 0.62)));
+	} finally {
+		await page.mouse.up();
+	}
+	checks.push('Screen Warping showed moving content and updated while a DOM corner was held');
+
+	await tab('Surface Source').click();
+	const sourceView = page.getByRole('application', { name: 'Surface source view', exact: true });
+	const source = canvasIn(sourceView);
+	const cropControls = sourceView.getByRole('group', { name: 'Source crop controls', exact: true });
+	await source.waitFor();
+	await waitFor(
+		async () => color(await pixel(source, 0.06, 0.06)) !== null,
+		'Surface Source must show the full source outside the crop'
+	);
+	assert.equal(await cropControls.locator('rect').getAttribute('x'), '0.25');
+	const sourceRect = await source.boundingBox();
+	const cropRect = await cropControls.boundingBox();
+	assert(sourceRect && cropRect);
+	assert(Math.abs(sourceRect.width / sourceRect.height - 4 / 3) < 0.01);
+	for (const dimension of ['x', 'y', 'width', 'height'])
+		assert(Math.abs(cropRect[dimension] - sourceRect[dimension]) < 1);
+	checks.push('Surface Source showed the full 4:3 source with aligned crop controls');
+
+	await configure('ColorBars');
+	await waitFor(
+		async () =>
+			(await source.isVisible()) && rgbNear(await pixel(source, 0.06, 0.5), [255, 255, 255]),
+		'Surface Source did not render the full calibration pattern'
+	);
+	await tab('Screen Warping').click();
+	await waitFor(
+		async () =>
+			(await output.isVisible()) && rgbNear(await pixel(output, 0.24, 0.5), [0, 255, 255]),
+		'Screen Warping did not render the cropped calibration pattern'
+	);
+	checks.push(
+		'Surface Source showed full calibration bars and Screen Warping showed the authored crop'
+	);
 }
 
 try {
@@ -114,7 +251,6 @@ try {
 		'Forced Low Quality',
 		'Forced High Quality'
 	]);
-	const tab = (name) => page.getByRole('tab').filter({ hasText: new RegExp(`^${name}(?::|$)`) });
 	await tab('Medias').click();
 	await page
 		.getByRole('region', { name: 'Medias', exact: true })
@@ -189,9 +325,11 @@ try {
 
 	await mode.selectOption('auto');
 	await waitForQuality('high', 480);
-	await tab('Screen Warping').click();
+	await verifyScreenEditors(reference);
+	const beforeHide = retirements();
+	await tab('Composition').click();
 	await waitFor(
-		() => retirements() === 2,
+		() => retirements() === beforeHide + 1,
 		'preview renderer should retire after the panel is hidden'
 	);
 	checks.push('hidden preview stopped demand and the native renderer retired');

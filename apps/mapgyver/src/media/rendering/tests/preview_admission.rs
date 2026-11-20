@@ -113,7 +113,7 @@ fn nine_procedural_preview_sources_keep_every_clear_and_texture_binding() {
         super::super::plan::Targets {
             routes: &[],
             screens: &[],
-            preview: Some(&preview),
+            preview: Some(&crate::preview::layout::PreviewOutputs::from(preview.clone())),
         },
         super::super::plan::Previous {
             channels: &HashMap::new(),
@@ -237,7 +237,7 @@ fn source_swap_rejects_pending_preview_install_without_revoking_retained_view_pi
         super::super::plan::Targets {
             screens: &[],
             routes: &[],
-            preview: Some(&preview),
+            preview: Some(&crate::preview::layout::PreviewOutputs::from(preview.clone())),
         },
         super::super::plan::Previous {
             channels: &HashMap::new(),

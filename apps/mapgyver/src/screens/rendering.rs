@@ -345,6 +345,9 @@ pub fn capture_screen(engine: &AppEngine, screen: ScreenId, maximum_surfaces: us
                 | ScreenTarget::AutomaticSpout { extent }
                 | ScreenTarget::Ndi { extent, .. },
             ) => Some(*extent),
+            Some(ScreenTarget::Fullscreen { .. }) => super::target::fullscreen_display(node, owner, &owner.displays())
+                .map(|display| display.bounds.extent)
+                .filter(|extent| extent.width() <= 8192 && extent.height() <= 8192),
             _ => None,
         },
     })

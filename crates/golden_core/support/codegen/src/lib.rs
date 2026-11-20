@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use golden_graph::{GraphChangeSet, GraphDelta, GraphRevision};
 use golden_protocol::{
-    UI_PROTOCOL_VERSION, UiAck, UiApplicationInfoDto, UiBrowserPreviewRequest, UiClientMessage,
+    UI_PROTOCOL_VERSION, UiAck, UiApplicationInfoDto, UiBrowserPreviewExtent, UiBrowserPreviewRequest, UiClientMessage,
     UiContextCandidatesRequest, UiDiscoveryDto, UiEditIntent, UiErrorResponse, UiEventBatch, UiOscAddressDto,
     UiOscAddressRequest, UiParamControlInfoDto, UiParamControlInfoRequest, UiProjectLoadProblemDto,
     UiProjectLoadRecoveryDto, UiProjectPathDto, UiProjectPathRequest, UiProjectUploadRequest, UiReferenceTargetsDto,
@@ -183,6 +183,7 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     export_binding::<UiSnapshotRequest>(&config, "UiSnapshotRequest");
     export_binding::<UiSessionRequest>(&config, "UiSessionRequest");
     export_binding::<UiBrowserPreviewRequest>(&config, "UiBrowserPreviewRequest");
+    export_binding::<UiBrowserPreviewExtent>(&config, "UiBrowserPreviewExtent");
     export_binding::<UiSessionResponse>(&config, "UiSessionResponse");
     export_binding::<UiSessionCapabilities>(&config, "UiSessionCapabilities");
     export_binding::<UiReplayRequest>(&config, "UiReplayRequest");

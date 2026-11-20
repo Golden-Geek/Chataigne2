@@ -25,6 +25,15 @@ pub struct CapturedPreview {
 }
 
 impl CapturedPreview {
+    #[cfg(all(windows, feature = "native-video"))]
+    pub(crate) fn into_preview_scene(self) -> (CapturedChannels, Vec<ScreenRoute>) {
+        let mut channels = self.channels;
+        let mut guards = channels.guards.to_vec();
+        guards.extend(self.guards);
+        channels.guards = guards.into();
+        (channels, self.screens)
+    }
+
     /// Wake preparation when any authored dependency changes; source frames remain GPU-local.
     pub fn subscribe(&self, notifier: WorkerNotifier) -> Vec<RevisionSubscription> {
         self.channels
@@ -119,7 +128,7 @@ pub fn capture_preview(
 ) -> Result<CapturedPreview, String> {
     capture_preview_with_time(engine, sources, maximum_sources, maximum_surfaces, None)
 }
-fn capture_preview_with_time(
+pub(super) fn capture_preview_with_time(
     engine: &AppEngine,
     sources: &[PreviewSource],
     maximum_sources: usize,

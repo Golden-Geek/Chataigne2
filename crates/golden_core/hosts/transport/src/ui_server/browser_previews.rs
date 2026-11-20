@@ -1,4 +1,5 @@
 //! Bounded, authenticated preview pulls. A host worker owns rendering and JPEG encoding.
+use golden_protocol::UiBrowserPreviewExtent;
 use golden_protocol::UiBrowserPreviewQuality::{self, High, Low};
 use std::{
     collections::HashMap,
@@ -84,6 +85,7 @@ pub struct BrowserPreviewStream {
 pub(super) struct Frame {
     pub tag: String,
     pub jpeg: Arc<[u8]>,
+    pub extent: UiBrowserPreviewExtent,
 }
 
 impl BrowserPreviewStream {
@@ -99,13 +101,18 @@ impl BrowserPreviewStream {
 
     /// Encodes the current image for each due representation with a live lease. The caller
     /// owns one publishing worker per stream. Encoding happens outside the request lock.
-    pub fn publish_frame<E>(&self, encode: impl FnMut(&BrowserPreviewEncoding) -> Result<Vec<u8>, E>) -> Result<(), E> {
-        self.publish_frame_at(Instant::now(), encode)
+    pub fn publish_frame<E>(
+        &self,
+        extent: UiBrowserPreviewExtent,
+        encode: impl FnMut(&BrowserPreviewEncoding) -> Result<Vec<u8>, E>,
+    ) -> Result<(), E> {
+        self.publish_frame_at(Instant::now(), extent, encode)
     }
 
     fn publish_frame_at<E>(
         &self,
         now: Instant,
+        extent: UiBrowserPreviewExtent,
         mut encode: impl FnMut(&BrowserPreviewEncoding) -> Result<Vec<u8>, E>,
     ) -> Result<(), E> {
         for (index, (encoding, interval)) in PROFILES.iter().enumerate() {
@@ -128,7 +135,7 @@ impl BrowserPreviewStream {
                 || variant
                     .latest
                     .as_ref()
-                    .is_some_and(|frame| frame.jpeg.as_ref() == jpeg.as_slice())
+                    .is_some_and(|frame| frame.extent == extent && frame.jpeg.as_ref() == jpeg.as_slice())
             {
                 continue;
             }
@@ -136,6 +143,7 @@ impl BrowserPreviewStream {
             variant.latest = Some(Frame {
                 tag: format!("\"{}-{index}-{}\"", self.id, variant.sequence),
                 jpeg: jpeg.into(),
+                extent,
             });
         }
         Ok(())

@@ -2,7 +2,7 @@ use super::{ChannelRoute, Entry, PreparedChannel, ScreenEntry, ScreenRoute, Sour
 use crate::media::capture::CapturedChannels;
 use crate::media::protocol::{ChannelReference, ChannelSource};
 use crate::media::resolution::{self, ChannelAvailability, ChannelResolution, SourceObservation};
-use crate::preview::layout::{Handoff, PreviewImages};
+use crate::preview::layout::{Handoff, PreviewImages, PreviewOutputs};
 use crate::screens::protocol::ScreenId;
 use golden_video::plan::{
     ExternalTexture, PlanLimits, PlanOutput, RenderOperation, RenderPass, RenderPlan, SampleFilter, SpoutSource,
@@ -38,7 +38,7 @@ pub(super) fn allocate(next: &mut u64) -> Result<TextureId, String> {
 
 pub(super) struct Targets<'a> {
     pub routes: &'a [ChannelRoute],
-    pub preview: Option<&'a super::PreviewLayout>,
+    pub preview: Option<&'a PreviewOutputs>,
     pub screens: &'a [ScreenRoute],
 }
 
@@ -101,10 +101,11 @@ pub(super) fn build(
             .is_some_and(|channel| !channel.public_output)
     });
     let channel_passes = super::derived::base_passes(capture) + usize::from(hidden_route);
-    let preview_passes = preview.map(super::PreviewLayout::pass_count).transpose()?.unwrap_or(0);
+    let preview_passes = preview.map(PreviewOutputs::pass_count).transpose()?.unwrap_or(0);
     if routes
         .len()
         .saturating_add(screens.iter().filter(|route| route.output.is_some()).count())
+        .saturating_add(preview.map_or(0, PreviewOutputs::count))
         > limits.max_outputs
         || channel_passes
             .saturating_add(screen_count)
@@ -130,7 +131,7 @@ pub(super) fn build(
         references.extend(preview.references()?);
         // Source/view routing fences pending installation. Camera placement is sampled live
         // by the installed plan and must never supersede its resource preparation.
-        guards.push(preview.layout.routing_guard.clone());
+        guards.extend(preview.routing_guard());
     }
     for route in screens {
         if route.screen.project != capture.project || !route.screen.is_current() {
@@ -166,7 +167,7 @@ pub(super) fn build(
             })
             .sum::<usize>()
         + preview
-            .map(super::PreviewLayout::maximum_dependencies)
+            .map(PreviewOutputs::maximum_dependencies)
             .transpose()?
             .unwrap_or(0);
     let mut images = HashSet::new();
@@ -799,9 +800,7 @@ pub(super) fn build(
         }
     }
     let preview_images = if let Some(preview) = preview {
-        if !seen_outputs.insert(preview.output) {
-            return Err("preview output duplicates an output route".into());
-        }
+        preview.register_outputs(&mut seen_outputs)?;
         let screen_targets = screen_targets.iter().map(|(id, (_, target))| (*id, *target)).collect();
         let availability = channels
             .iter()
@@ -813,11 +812,11 @@ pub(super) fn build(
             &source_targets,
             &screen_targets,
             calibration,
-            Some(Handoff {
+            Handoff {
                 previous: previous.preview_images,
                 availability: &availability,
                 max_passes: limits.max_passes,
-            }),
+            },
         )?
     } else {
         PreviewImages::new()

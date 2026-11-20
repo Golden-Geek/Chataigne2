@@ -1,4 +1,5 @@
 export { default as NativePreview } from './NativePreview.svelte';
+export { default as VideoPreview } from './VideoPreview.svelte';
 export { default as BrowserPreview } from './BrowserPreview.svelte';
 export { default as BrowserPreviewQuality } from './BrowserPreviewQuality.svelte';
 export { provideBrowserPreviews } from './browser-preview.svelte';

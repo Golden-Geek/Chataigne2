@@ -1,0 +1,15 @@
+{
+	"date": "2026-11-20",
+	"gate": "M18/6",
+	"status": "Screen Warping and Surface Source verified; Composition and Matrix remain active",
+	"software": "Ordinary Windows build, 40 MapGyver preview tests, three transport preview tests, generated extent contract, strict MapGyver and transport Clippy, both cargo fmt invocations, MapGyver Svelte check, 407 Golden UI tests and 71 Golden Video UI tests passed. The existing physical display catalog test remained ignored.",
+	"browser": {
+		"fixture": "apps/mapgyver/tests/browser/browser-preview.mjs",
+		"screen": "Chromium saw alternating red and blue GPU pixels in an 8:5 Screen. A held DOM corner drag moved the image off a sampled pixel before button release. A point inside the changed quad stayed colored and the image aperture matched the controls.",
+		"source": "The 4:3 source drew outside its authored crop while the crop controls matched the image aperture. The Source panel showed white in the first calibration bar and Screen Warping showed cyan at the matching cropped output position.",
+		"transport": "Media Preview still passed all four modes, adaptation at 8 KiB/s and recovery. Disabled and hiding the final viewport retired the renderer. No page errors or physical output windows were observed.",
+		"receipt": "target/mapgyver-browser-editors-151043/result.json"
+	},
+	"supplemental": "The broader --screen-ui authoring fixture stopped at startup. Its original generic Add selector matched both the seeded Screen and the manager. A trial using the seeded Screen reached a stale expected Inspector field count. The fixture stayed intact for maintenance in its own scope.",
+	"remaining": "Composition source geometry and visible Matrix grid and Cell previews, followed by combined browser editor validation."
+}

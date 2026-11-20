@@ -1,5 +1,5 @@
 import { getContext, setContext } from 'svelte';
-import type { UiBrowserPreview, UiBrowserPreviewQuality } from 'golden_ui';
+import type { UiBrowserPreview, UiBrowserPreviewExtent, UiBrowserPreviewQuality } from 'golden_ui';
 
 export type BrowserPreviewMode = 'disabled' | 'auto' | UiBrowserPreviewQuality;
 
@@ -12,7 +12,7 @@ const UPGRADE_COOLDOWN_MS = 2000;
 const UPGRADE_SAMPLES = 8;
 const REQUEST_TIMEOUT_MS = 1200;
 
-type RenderFrame = (image: ImageBitmap) => void;
+type RenderFrame = (image: ImageBitmap, extent: UiBrowserPreviewExtent) => void;
 
 type Demand = {
 	source: string;
@@ -93,7 +93,7 @@ function browserPreviewSession() {
 			const image = await createImageBitmap(frame.image);
 			try {
 				if (!abort.signal.aborted) {
-					for (const show of demand.listeners) show(image);
+					for (const show of demand.listeners) show(image, frame.extent);
 					demand.after = frame.tag;
 				}
 			} finally {
