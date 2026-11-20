@@ -24,6 +24,7 @@ fn each_output_uses_its_own_counter_and_replacement_or_removal_discards_baseline
         generation: 1,
         attempts: 1,
         hresult: None,
+        error: None,
         allocation: None,
     };
     let mut outputs = [make(routes[0].1), make(routes[1].1)];
@@ -37,9 +38,12 @@ fn each_output_uses_its_own_counter_and_replacement_or_removal_discards_baseline
     );
     outputs[0].accepted_frames = 60;
     outputs[1].accepted_frames = 24;
+    outputs[1].error = Some("NDI runtime unavailable".into());
     let next = sampler.sample(start + Duration::from_secs(1), &routes, &outputs);
     assert_eq!(next[0].accepted_fps, Some(60.0));
     assert_eq!(next[1].accepted_fps, Some(24.0));
+    assert_eq!(next[0].error, None);
+    assert_eq!(next[1].error.as_deref(), Some("NDI runtime unavailable"));
     outputs[0].generation += 1;
     outputs[0].accepted_frames = 1;
     let next = sampler.sample(start + Duration::from_secs(2), &routes, &outputs);

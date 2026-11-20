@@ -447,6 +447,9 @@ impl Node for MediaNode {
     }
     fn on_node_ready(&mut self, ctx: &mut ProcessCtx, _: golden_core::node::NodeCreationContext) {
         self.pulses.ready();
+        if self.kind() == MediaKind::Ndi {
+            self.set_child_warning_depth(ctx, 1);
+        }
         self.video_ready = true;
         self.sync_video_loop_parameter(ctx);
         if let Some(control) = self.video_control() {

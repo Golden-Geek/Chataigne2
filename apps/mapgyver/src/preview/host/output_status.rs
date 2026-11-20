@@ -51,6 +51,7 @@ impl OutputSampler {
                     extent: *extent,
                     accepted_fps,
                     state: format!("{:?}", output.state),
+                    error: output.error.as_deref().map(str::to_owned),
                 })
             })
             .collect();

@@ -39,6 +39,7 @@
 			extent ? `${extent.width} × ${extent.height}` : '',
 			row?.enabled === false ? 'Disabled' : '',
 			runtime ? `${runtime.state}; API-accepted output FPS, not display scanout` : '',
+			runtime?.error,
 			state.error
 		]
 			.filter(Boolean)

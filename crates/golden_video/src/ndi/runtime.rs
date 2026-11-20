@@ -104,7 +104,14 @@ fn runtime_paths() -> impl Iterator<Item = PathBuf> {
         .ok()
         .and_then(|path| path.parent().map(|directory| directory.join("ndi")));
     let configured = std::env::var_os("NDI_RUNTIME_DIR_V6").map(PathBuf::from);
-    let installed = std::env::var_os("ProgramFiles").map(PathBuf::from);
+    // Windows can restore ProgramFiles in a child process. Debug fixtures can isolate the
+    // bundled and configured candidates without changing the machine's installation.
+    let skip_installed = cfg!(debug_assertions)
+        && std::env::var("GOLDEN_NDI_AUTOMATION_SKIP_SYSTEM_RUNTIME").is_ok_and(|value| value == "1");
+    let installed = (!skip_installed)
+        .then(|| std::env::var_os("ProgramFiles"))
+        .flatten()
+        .map(PathBuf::from);
     [
         bundled,
         configured,

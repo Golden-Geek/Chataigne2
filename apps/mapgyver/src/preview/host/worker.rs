@@ -761,9 +761,11 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                             && !matches!(output.state, golden_video::native::OutputState::Ready)
                         {
                             status.message = Some(format!("Screen output {:?}", output.state));
-                            if let Some(hresult) = output.hresult {
-                                status.error = Some(format!("Screen output error 0x{:08X}", hresult as u32));
-                            }
+                            status.error = output.error.as_deref().map(str::to_owned).or_else(|| {
+                                output
+                                    .hresult
+                                    .map(|hresult| format!("Screen output error 0x{:08X}", hresult as u32))
+                            });
                         }
                     }
                 }

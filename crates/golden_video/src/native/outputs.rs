@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 use std::time::Instant;
 
 use windows::Win32::Graphics::Direct3D11::{ID3D11Device, ID3D11DeviceContext};
@@ -68,6 +69,14 @@ enum Output {
 }
 
 impl Output {
+    fn startup_error(&self) -> Option<Arc<str>> {
+        match self {
+            #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
+            Self::Ndi(output) => output.startup_error(),
+            _ => None,
+        }
+    }
+
     fn allocation(&self) -> super::OutputTextureAllocation {
         match self {
             Self::Window(output) => output.allocation(),
@@ -280,6 +289,7 @@ impl Binding {
                 generation: self.recovery.generation,
                 attempts: self.recovery.attempts,
                 hresult: self.recovery.error.map(|error| error.0),
+                error: self.endpoint.value().and_then(Output::startup_error),
                 allocation: self.endpoint.value().map(Output::allocation),
             },
         );

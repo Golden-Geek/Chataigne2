@@ -388,7 +388,7 @@ try {
 	native = await openNativeEditor({
 		development: process.env.MAPGYVER_TEST_DEV === '1',
 		environment: runtimeDirectory
-			? { NDI_RUNTIME_DIR_V6: fallbackRuntimeDir, ProgramFiles: directory }
+			? { NDI_RUNTIME_DIR_V6: fallbackRuntimeDir, GOLDEN_NDI_AUTOMATION_SKIP_SYSTEM_RUNTIME: '1' }
 			: undefined
 	});
 	const { page } = native;

@@ -17,7 +17,7 @@ fn output_notifications_coalesce_backpressure_and_frame_serials_but_wake_first_r
         assert!(registry.try_lock().is_ok());
         observed.fetch_add(1, Ordering::SeqCst);
     }));
-    let publish = |state, generation, attempts, hresult| {
+    let publish = |state, generation, attempts, hresult, error: Option<&str>| {
         control.output_state(
             output(1),
             device,
@@ -27,10 +27,11 @@ fn output_notifications_coalesce_backpressure_and_frame_serials_but_wake_first_r
                 generation,
                 attempts,
                 hresult,
+                error: error.map(Arc::from),
             },
         )
     };
-    publish(OutputState::Ready, 1, 1, None);
+    publish(OutputState::Ready, 1, 1, None, None);
     assert_eq!(wakes.load(Ordering::SeqCst), 1);
     control.observe_output(output(1), token(device, 1), Delivery::Accepted);
     assert_eq!(
@@ -39,22 +40,29 @@ fn output_notifications_coalesce_backpressure_and_frame_serials_but_wake_first_r
         "first actual readiness wakes consumers"
     );
     for serial in 2..20 {
-        publish(OutputState::Busy, 1, 1, None);
-        publish(OutputState::Ready, 1, 1, None);
+        publish(OutputState::Busy, 1, 1, None, None);
+        publish(OutputState::Ready, 1, 1, None, None);
         control.observe_output(output(1), token(device, serial), Delivery::Accepted);
     }
-    publish(OutputState::Ready, 1, 2, None);
+    publish(OutputState::Ready, 1, 2, None, None);
     assert_eq!(wakes.load(Ordering::SeqCst), 2);
-    publish(OutputState::Unavailable, 1, 2, None);
+    publish(OutputState::Unavailable, 1, 2, None, None);
     assert_eq!(wakes.load(Ordering::SeqCst), 3);
-    publish(OutputState::Recovering, 1, 2, Some(-1));
+    let message = Some("Install or update the NDI runtime");
+    publish(OutputState::Unavailable, 1, 2, None, message);
     assert_eq!(wakes.load(Ordering::SeqCst), 4);
+    assert_eq!(control.output_snapshots()[0].error.as_deref(), message);
+    publish(OutputState::Unavailable, 1, 3, None, message);
+    assert_eq!(wakes.load(Ordering::SeqCst), 4);
+    publish(OutputState::Recovering, 1, 3, Some(-1), message);
+    assert_eq!(wakes.load(Ordering::SeqCst), 5);
     assert_eq!(control.output_snapshots()[0].last_accepted, None);
     assert_eq!(control.output_snapshots()[0].accepted_frames, 0);
-    publish(OutputState::Ready, 2, 3, None);
+    publish(OutputState::Ready, 2, 4, None, None);
+    assert!(control.output_snapshots()[0].error.is_none());
     control.observe_output(output(1), token(device, 20), Delivery::Accepted);
-    assert_eq!(wakes.load(Ordering::SeqCst), 6);
-    control.clear_outputs();
-    control.clear_outputs();
     assert_eq!(wakes.load(Ordering::SeqCst), 7);
+    control.clear_outputs();
+    control.clear_outputs();
+    assert_eq!(wakes.load(Ordering::SeqCst), 8);
 }

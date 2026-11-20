@@ -4,7 +4,7 @@
 	"state": "Pending qualification",
 	"delivered": "Windows x64 Screen Target NDI publishes picture and named virtual audio with physical playback disabled. NDI is available from the normal Media and Screen controls at first launch.",
 	"checks": {
-		"runtime": "Fresh app profile in a private bundle layout with NDI_RUNTIME_DIR_V6 removed and ProgramFiles redirected for the app process.",
+		"runtime": "Fresh app profile in a private bundle layout with NDI_RUNTIME_DIR_V6 removed. The fixture attempted to redirect ProgramFiles, but a later child-process check showed Windows restored the system path.",
 		"fixture": "node apps/mapgyver/tests/browser/ndi-screen.mjs target/m17-ndi-screen-audio-native --audio",
 		"nativeReceipt": "target/m17-ndi-screen-audio-native/run-gf0sbm/result.json",
 		"picture": "Independent SDK receiver sampled red then green at 320x240/30 after closing the editor panels, and green at 240x160/24 on a custom sender. Disable and delete withdrew their senders.",

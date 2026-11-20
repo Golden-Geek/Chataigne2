@@ -12,7 +12,7 @@ await mkdir(output, { recursive: true });
 const directory = await mkdtemp(path.join(output, 'run-'));
 const nativeOptions = {
 	appDataDirectory: path.join(directory, 'profile'),
-	environment: { NDI_RUNTIME_DIR_V6: undefined, ProgramFiles: directory }
+	environment: { NDI_RUNTIME_DIR_V6: undefined, GOLDEN_NDI_AUTOMATION_SKIP_SYSTEM_RUNTIME: '1' }
 };
 let native = await openNativeEditor(nativeOptions);
 const firstPid = native.app.pid;

@@ -6,4 +6,4 @@ export type ScreenRuntimeStatus = { screen: ScreenId, extent: Extent2D,
 /**
  * Successful deliveries accepted by this specific output's API, not scanout.
  */
-accepted_fps: number | null, state: string, };
+accepted_fps: number | null, state: string, error: string | null, };

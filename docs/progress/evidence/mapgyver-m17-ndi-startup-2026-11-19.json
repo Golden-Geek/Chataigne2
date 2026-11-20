@@ -1,6 +1,6 @@
 {
 	"date": "2026-11-19",
-	"scope": "Automatic NDI startup in the Windows x64 app layout, using a fresh profile and only the app-local NDI runtime.",
+	"scope": "Automatic NDI startup in the Windows x64 app layout using a fresh profile. The Media fixture verified the app-local runtime module path.",
 	"appRevision": "c18653622",
 	"checks": {
 		"media": {
@@ -20,7 +20,7 @@
 		}
 	},
 	"startupRecheck": {
-		"scope": "Latest local developer binary in the Windows bundle layout. Each fixture used a fresh profile with system NDI discovery paths hidden from the app process.",
+		"scope": "Latest local developer binary in the Windows bundle layout with a fresh profile. The fixture removed the configured runtime variable and attempted to redirect ProgramFiles. A later child-process check showed Windows restored ProgramFiles, so the installed search path remained available.",
 		"media": "Automatically selected the fixture sender and displayed the native preview. Windows reported that MapGyver loaded the app-local DLL.",
 		"mediaReceipt": "target/m17-ndi-default-media/run-RK52Tf/result.json",
 		"screen": "Published picture and audio from an enabled NDI Screen. Reopening the saved project in a fresh process resumed the output.",
@@ -39,5 +39,18 @@
 		"screenReceipt": "target/mapgyver-ndi-sender-after-runtime/run-69eTP1/result.json",
 		"software": "Strict Golden Video and MapGyver Clippy, formatting, fixture syntax and Windows build passed."
 	},
-	"qualification": "M17/1 and M17/2 remain pending. Clean installation, endpoint guidance when all runtime candidates fail, independent LAN timing and wider lifecycle cases still need qualification."
+	"runtimeUnavailableRecheck": {
+		"date": "2026-11-20",
+		"scope": "Fresh Windows profiles in private debug-app layouts. The test left the configured runtime directory empty and used debug-only isolation of the system search paths. Earlier attempts to override ProgramFiles did not isolate the installed SDK.",
+		"fixture": "apps/mapgyver/tests/browser/ndi-unavailable.mjs",
+		"incompatible": "Both Inspectors showed the install or update message and the invalid bundled DLL diagnostic.",
+		"incompatibleReceipt": "target/mapgyver-ndi-isolated-guidance-201900-fallback/run-mHAEiU/result.json",
+		"missing": "Both Inspectors showed the install or update message and the missing DLL diagnostic.",
+		"missingReceipt": "target/mapgyver-ndi-isolated-guidance-201900-missing/run-K4JC0z/result.json",
+		"isolation": "An independent Spout receiver captured exact red then green images on the ordinary output while NDI was unavailable. Switching the affected Screen to Shared Texture cleared its warning and delivered an exact green image. Both failure cases passed with no WebView errors.",
+		"healthy": "An app-local runtime with the system lookup disabled published NDI Screen picture and audio, then restored both after a restart and reopening the saved project.",
+		"healthyReceipt": "target/mapgyver-ndi-isolated-guidance-201900-healthy/run-lFPygD/result.json",
+		"software": "Two Golden Video observation tests and 31 MapGyver preview tests passed. Generated contracts matched Rust. Svelte reported zero errors and warnings. Strict Clippy and the Windows build passed."
+	},
+	"qualification": "M17/1 and M17/2 remain open. Clean installation, independent LAN timing and wider lifecycle cases still need qualification."
 }

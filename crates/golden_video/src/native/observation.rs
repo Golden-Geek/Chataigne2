@@ -58,7 +58,7 @@ pub struct D3d11Snapshot {
 
 /// One fixed native consumer's last API-accepted submission. This is neither scanout nor a GPU
 /// completion certificate; consumers must check the exact device and required frame serial.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct OutputSnapshot {
     /// Logical consumer from the immutable native output configuration.
     pub id: OutputId,
@@ -74,6 +74,8 @@ pub struct OutputSnapshot {
     pub attempts: u64,
     /// Latest endpoint HRESULT; cleared by successful creation or delivery.
     pub hresult: Option<i32>,
+    /// Latest endpoint startup diagnostic supplied by its publication worker.
+    pub error: Option<Arc<str>>,
     /// Native object storage retained by this endpoint, including recovery/retirement.
     pub allocation: Option<super::OutputTextureAllocation>,
 }
@@ -88,6 +90,7 @@ impl OutputSnapshot {
             generation: 0,
             attempts: 0,
             hresult: None,
+            error: None,
             allocation: None,
         }
     }
@@ -98,6 +101,7 @@ pub(super) struct OutputStatus {
     pub generation: u64,
     pub attempts: u64,
     pub hresult: Option<i32>,
+    pub error: Option<Arc<str>>,
     pub allocation: Option<super::OutputTextureAllocation>,
 }
 
@@ -342,6 +346,7 @@ impl D3d11Control {
             generation,
             attempts,
             hresult,
+            error,
             allocation,
         } = status;
         let mut changed = false;
@@ -354,6 +359,7 @@ impl D3d11Control {
             changed = (!backpressure && output.state != state)
                 || output.generation != generation
                 || output.hresult != hresult
+                || output.error != error
                 || output.allocation != allocation;
             if generation != output.generation
                 || matches!(
@@ -368,6 +374,7 @@ impl D3d11Control {
             output.generation = generation;
             output.attempts = attempts;
             output.hresult = hresult;
+            output.error = error;
             output.allocation = allocation;
         }
         drop(outputs);

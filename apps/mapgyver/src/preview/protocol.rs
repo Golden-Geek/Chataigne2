@@ -59,6 +59,7 @@ pub struct ScreenRuntimeStatus {
     /// Successful deliveries accepted by this specific output's API, not scanout.
     pub accepted_fps: Option<f64>,
     pub state: String,
+    pub error: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]

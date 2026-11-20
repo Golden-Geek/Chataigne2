@@ -77,6 +77,7 @@ fn aggregate_inventory_retains_unknown_sdk_storage_until_its_endpoint_retires() 
             generation: 1,
             attempts: 1,
             hresult: Some(-1),
+            error: None,
             allocation: Some(OutputTextureAllocation::UnknownSdk),
         },
     );
@@ -89,6 +90,7 @@ fn aggregate_inventory_retains_unknown_sdk_storage_until_its_endpoint_retires() 
             generation: 1,
             attempts: 1,
             hresult: None,
+            error: None,
             allocation: None,
         },
     );

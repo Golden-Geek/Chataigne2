@@ -27,13 +27,16 @@ The implemented foundations are:
   It tries the executable's private `ndi/` directory first, then `NDI_RUNTIME_DIR_V6` and standard
   Windows installation paths. Incompatible candidates are skipped. The first runtime with complete
   discovery, receive and send APIs that initializes successfully stays loaded for the process.
+  Debug fixtures can set `GOLDEN_NDI_AUTOMATION_SKIP_SYSTEM_RUNTIME=1` to isolate the bundled and
+  configured candidates from the machine's installed runtime.
   It uses [`ndi-sdk`'s generated
   ABI types](https://docs.rs/ndi-sdk/0.2.0/ndi_sdk/sys/). Capture handles and buffers stay on the
   calling worker. Copied frames use the existing CPU image budget and stay charged while any
   renderer generation holds them. On send, D3D11 uses two nonblocking staging slots and a
   separate bounded SDK worker. The rendered image is converted to progressive sRGB BGRA,
   with exact sender naming and an explicit rate and timecode. SDK calls and destruction stay
-  on that worker. [NDI sender API](https://docs.ndi.video/all/developing-with-ndi/sdk/ndi-send)
+  on that worker. Sender startup retries publish their latest error on the owning output's
+  observation and clear it when the endpoint becomes available. [NDI sender API](https://docs.ndi.video/all/developing-with-ndi/sdk/ndi-send)
 - `decode/` (optional `ffmpeg` feature) demuxes local files and owns software decoder/frame
   lifetimes on a caller's worker. Original timestamps, planes and colour metadata survive;
   exact stream-timestamp seeking flushes and reuses a reading codec/pool; drain/EOF seeks

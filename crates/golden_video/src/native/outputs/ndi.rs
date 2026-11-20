@@ -1,5 +1,5 @@
 //! D3D11 staging stays on the renderer. Only owned CPU rows reach the publisher.
-use std::{collections::VecDeque, time::Instant};
+use std::{collections::VecDeque, sync::Arc, time::Instant};
 
 use windows::Win32::Graphics::Direct3D11::{ID3D11Device, ID3D11DeviceContext, ID3D11Texture2D};
 use windows::core::{HRESULT, Result};
@@ -55,6 +55,10 @@ impl NdiOutput {
 
     pub fn stop(&self) {
         self.publisher.stop();
+    }
+
+    pub fn startup_error(&self) -> Option<Arc<str>> {
+        self.publisher.startup_error()
     }
 
     pub fn deliver(&mut self, context: &ID3D11DeviceContext, texture: &Texture) -> Delivery {

@@ -1,7 +1,7 @@
 //! The NDI SDK can compress or wait inside a send. Keep it off the GPU worker.
 use std::num::NonZeroUsize;
 use std::sync::{
-    Arc, OnceLock,
+    Arc, Mutex, OnceLock,
     atomic::{AtomicBool, Ordering},
 };
 use std::time::{Duration, Instant};
@@ -27,6 +27,7 @@ pub(super) struct Publisher {
     worker: BoundedWorker<Frame, Vec<u8>>,
     free: Vec<Vec<u8>>,
     ready: Arc<AtomicBool>,
+    startup_error: Arc<Mutex<Option<Arc<str>>>>,
     _reservation: Arc<PayloadReservation>,
 }
 
@@ -58,6 +59,8 @@ impl Publisher {
         }
         let ready = Arc::new(AtomicBool::new(false));
         let worker_ready = ready.clone();
+        let startup_error = Arc::new(Mutex::new(None::<Arc<str>>));
+        let worker_error = startup_error.clone();
         let worker_reservation = reservation.clone();
         let worker = BoundedWorker::<Frame, Vec<u8>>::spawn(
             "golden-ndi-publish",
@@ -72,7 +75,6 @@ impl Publisher {
                 let _reservation = worker_reservation;
                 let cancellation = context.cancellation();
                 let mut retry = ReconnectBackoff::new(Duration::from_millis(250), Duration::from_secs(2));
-                let mut previous_error = None;
                 let mut sender = loop {
                     if cancellation.is_cancelled() {
                         return;
@@ -81,9 +83,14 @@ impl Publisher {
                         Ok(sender) => break sender,
                         Err(error) => {
                             let message = error.to_string();
-                            if previous_error.as_ref() != Some(&message) {
-                                eprintln!("[golden-ndi-publish] {name}: {message}");
-                                previous_error = Some(message);
+                            {
+                                let mut current = worker_error.lock().unwrap_or_else(|error| error.into_inner());
+                                if current.as_deref() != Some(message.as_str()) {
+                                    let message: Arc<str> = message.into();
+                                    *current = Some(message.clone());
+                                    drop(current);
+                                    eprintln!("[golden-ndi-publish] {name}: {message}");
+                                }
                             }
                             let now = Instant::now();
                             if cancellation.wait(retry.schedule(now).saturating_duration_since(now)) {
@@ -93,6 +100,7 @@ impl Publisher {
                     }
                 };
                 let audio = audio.map(|audio| audio.attach(context.wake_notifier()));
+                worker_error.lock().unwrap_or_else(|error| error.into_inner()).take();
                 worker_ready.store(true, Ordering::Release);
                 while !cancellation.is_cancelled() {
                     let checkpoint = context.wake_checkpoint();
@@ -136,6 +144,7 @@ impl Publisher {
             worker,
             free,
             ready,
+            startup_error,
             _reservation: reservation,
         })
     }
@@ -150,6 +159,16 @@ impl Publisher {
 
     pub fn ready(&self) -> bool {
         self.ready.load(Ordering::Acquire)
+    }
+
+    pub fn startup_error(&self) -> Option<Arc<str>> {
+        if self.ready() {
+            return None;
+        }
+        self.startup_error
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .clone()
     }
 
     pub fn take_buffer(&mut self) -> Option<Vec<u8>> {
