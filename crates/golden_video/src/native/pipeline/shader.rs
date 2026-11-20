@@ -24,11 +24,16 @@ struct FrameSample {
 pub(in crate::native) struct ShaderPass {
     draw: Rc<ShaderDraw>,
     clock: Rc<ShaderClock>,
+    program: FragmentProgram,
 }
 
 impl ShaderPass {
-    pub(in crate::native) fn new(draw: Rc<ShaderDraw>, clock: Rc<ShaderClock>) -> Self {
-        Self { draw, clock }
+    pub(in crate::native) fn new(draw: Rc<ShaderDraw>, clock: Rc<ShaderClock>, program: &FragmentProgram) -> Self {
+        Self {
+            draw,
+            clock,
+            program: program.clone(),
+        }
     }
 }
 
@@ -60,6 +65,7 @@ impl ShaderClock {
 pub(in crate::native) struct ShaderDraw {
     pixel: ID3D11PixelShader,
     frame: ID3D11Buffer,
+    uniforms: Option<ID3D11Buffer>,
     // Keep the bytecode identity unique while this draw is reusable across plans.
     _program: FragmentProgram,
 }
@@ -67,27 +73,38 @@ pub(in crate::native) struct ShaderDraw {
 impl ShaderDraw {
     pub(in crate::native) fn new(device: &ID3D11Device, program: &FragmentProgram) -> Result<Self> {
         let mut pixel = None;
-        let mut frame = None;
-        // SAFETY: the compiler produced a validated pixel shader and the descriptor matches b0.
+        // SAFETY: the compiler produced a validated pixel shader.
         unsafe {
             device.CreatePixelShader(program.bytecode(), None, Some(&mut pixel))?;
-            device.CreateBuffer(
-                &D3D11_BUFFER_DESC {
-                    ByteWidth: size_of::<FrameConstants>() as u32,
-                    Usage: D3D11_USAGE_DEFAULT,
-                    BindFlags: D3D11_BIND_CONSTANT_BUFFER.0 as u32,
-                    ..Default::default()
-                },
-                None,
-                Some(&mut frame),
-            )?;
         }
+        let uniform_bytes = size_of_val(program.uniform_values());
         Ok(Self {
             pixel: pixel.ok_or_else(missing_output)?,
-            frame: frame.ok_or_else(missing_output)?,
+            frame: constant_buffer(device, size_of::<FrameConstants>())?,
+            uniforms: (uniform_bytes != 0)
+                .then(|| constant_buffer(device, uniform_bytes))
+                .transpose()?,
             _program: program.clone(),
         })
     }
+}
+
+fn constant_buffer(device: &ID3D11Device, bytes: usize) -> Result<ID3D11Buffer> {
+    let mut buffer = None;
+    // SAFETY: the descriptor uses a nonzero multiple of 16 bytes within D3D11's constant buffer limit.
+    unsafe {
+        device.CreateBuffer(
+            &D3D11_BUFFER_DESC {
+                ByteWidth: bytes as u32,
+                Usage: D3D11_USAGE_DEFAULT,
+                BindFlags: D3D11_BIND_CONSTANT_BUFFER.0 as u32,
+                ..Default::default()
+            },
+            None,
+            Some(&mut buffer),
+        )?;
+    }
+    buffer.ok_or_else(missing_output)
 }
 
 impl Pipeline {
@@ -121,6 +138,10 @@ impl Pipeline {
         // SAFETY: the shader, constant buffer, context and target belong to the same device.
         unsafe {
             context.UpdateSubresource(&shader.frame, 0, None, std::ptr::from_ref(&frame).cast(), 0, 0);
+            if let Some(buffer) = &shader.uniforms {
+                let values = pass.program.uniform_values();
+                context.UpdateSubresource(buffer, 0, None, values.as_ptr().cast(), 0, 0);
+            }
             context.IASetInputLayout(None);
             context.IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             context.VSSetShader(&self.vertex, None);
@@ -128,7 +149,7 @@ impl Pipeline {
             context.HSSetShader(None, None);
             context.DSSetShader(None, None);
             context.PSSetShader(&shader.pixel, None);
-            context.PSSetConstantBuffers(0, Some(&[Some(shader.frame.clone())]));
+            context.PSSetConstantBuffers(0, Some(&[Some(shader.frame.clone()), shader.uniforms.clone()]));
             context.PSSetShaderResources(0, Some(&inputs.map(|input| input.map(|texture| texture.srv.clone()))));
             context.OMSetDepthStencilState(None, 0);
             context.OMSetBlendState(None, None, u32::MAX);
@@ -147,7 +168,7 @@ impl Pipeline {
             }]));
             context.Draw(3, 0);
             context.PSSetShader(None, None);
-            context.PSSetConstantBuffers(0, Some(&[None]));
+            context.PSSetConstantBuffers(0, Some(&[None, None]));
             context.PSSetShaderResources(0, Some(&[const { None }; TEXTURE_BINDINGS]));
             context.OMSetRenderTargets(None, None);
         }

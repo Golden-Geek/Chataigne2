@@ -33,6 +33,7 @@ import type { MediaManagerSnapshot } from "./MediaManagerSnapshot";
 import type { MediaPreviewPage } from "./MediaPreviewPage";
 import type { NodeUuid } from "./NodeUuid";
 import type { PictureFileBinding } from "./PictureFileBinding";
+import type { ShaderUniformRow } from "./ShaderUniformRow";
 import type { SpatialEditorBinding } from "./SpatialEditorBinding";
 import type { TargetPickerPage } from "./TargetPickerPage";
 import type { VideoFrameState } from "./VideoFrameState";
@@ -41,7 +42,7 @@ import type { VideoSubtitleSettings } from "./VideoSubtitleSettings";
 import type { VideoSubtitleTrackInfo } from "./VideoSubtitleTrackInfo";
 import type { VideoTransportSnapshot } from "./VideoTransportSnapshot";
 
-export type MediaEditResult = { "kind": "MatrixPresetMembers", page: MatrixPresetMembers, } | { "kind": "MatrixPresetCreated", preset: string, } | { "kind": "Video", snapshot: VideoTransportSnapshot, } | { "kind": "VideoFrame", frame: VideoFrameState | null, } | { "kind": "VideoSource",
+export type MediaEditResult = { "kind": "ShaderUniforms", rows: Array<ShaderUniformRow>, } | { "kind": "MatrixPresetMembers", page: MatrixPresetMembers, } | { "kind": "MatrixPresetCreated", preset: string, } | { "kind": "Video", snapshot: VideoTransportSnapshot, } | { "kind": "VideoFrame", frame: VideoFrameState | null, } | { "kind": "VideoSource",
 /**
  * None when the authored media/channel has retired before this bounded read.
  */

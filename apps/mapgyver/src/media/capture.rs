@@ -45,6 +45,8 @@ pub(super) struct CapturedChannel {
     pub instance_guards: Vec<RevisionGuard>,
     pub matrix: Option<crate::matrix::capture::CapturedMatrix>,
     pub shader_inputs: [Option<ChannelReference>; TEXTURE_INPUTS],
+    #[cfg(all(windows, feature = "native-video"))]
+    pub shader_uniforms: super::shader::uniforms::Values,
 }
 
 impl CapturedChannel {
@@ -235,6 +237,8 @@ pub(crate) fn capture_channels_with_time(
             })
             .unwrap_or_else(|| frozen.map_or(0, |channel| channel.picture_reload));
         let mut sender_external_only = frozen.is_some_and(|channel| channel.sender_external_only);
+        #[cfg(all(windows, feature = "native-video"))]
+        let mut shader_uniforms = frozen.map_or_else(Default::default, |channel| channel.shader_uniforms.clone());
         let definition = match media {
             Some(AppNode::ReferenceMedia(node))
                 if super::folders::contains_parent(engine, node.node_data().parent, manager_id)
@@ -269,6 +273,10 @@ pub(crate) fn capture_channels_with_time(
                             return Err("channel kind differs from owner".into());
                         }
                         sender_external_only = channel.sender_external_only();
+                        #[cfg(all(windows, feature = "native-video"))]
+                        if channel.kind() == super::protocol::MediaKind::Shader {
+                            shader_uniforms = super::shader::uniforms::capture(engine, channel.node_data().id);
+                        }
                         guards.push(channel.guard());
                         Some((
                             super::authoring::effective_definition(engine, channel.as_ref())?,
@@ -528,6 +536,8 @@ pub(crate) fn capture_channels_with_time(
             instance_guards,
             matrix,
             shader_inputs,
+            #[cfg(all(windows, feature = "native-video"))]
+            shader_uniforms,
         });
     }
     for reference in hidden_roots.difference(&seen) {
@@ -544,6 +554,8 @@ pub(crate) fn capture_channels_with_time(
             instance_guards: vec![],
             matrix: None,
             shader_inputs: Default::default(),
+            #[cfg(all(windows, feature = "native-video"))]
+            shader_uniforms: Default::default(),
         });
     }
     sources.update(&channels)?;

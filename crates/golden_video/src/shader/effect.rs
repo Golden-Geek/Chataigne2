@@ -1,5 +1,8 @@
 use super::stages::Stage;
-use super::{CompileError, FragmentFormat, FragmentInput, FragmentProgram, FragmentStage, MAX_SOURCE_BYTES, adapter};
+use super::{
+    CompileError, FragmentFormat, FragmentInput, FragmentProgram, FragmentStage, FragmentUniform, MAX_SOURCE_BYTES,
+    UniformValue, adapter,
+};
 use crate::TextureDescriptor;
 
 /// A compiled sequence of fragment draws with same-frame and previous-frame texture bindings.
@@ -29,14 +32,21 @@ impl FragmentEffect {
                             )
                         }),
                     };
-                    let (glsl, _) = adapter::fragment_source_with_buffers(format, &code, buffers)?;
-                    Ok((FragmentProgram::compile_source(&glsl, effect, buffers)?, layout))
+                    let adapted = adapter::fragment_source_with_buffers(format, &code, buffers)?;
+                    Ok((
+                        FragmentProgram::compile_source(&adapted.glsl, effect, buffers, adapted.uniforms)?,
+                        layout,
+                    ))
                 })
                 .collect::<Result<_, CompileError>>()?
         } else {
-            let (glsl, stages) = adapter::fragment_source(format, source)?;
-            let program = FragmentProgram::compile_source(&glsl, effect, Default::default())?;
-            stages.into_iter().map(|layout| (program.clone(), layout)).collect()
+            let adapted = adapter::fragment_source(format, source)?;
+            let program = FragmentProgram::compile_source(&adapted.glsl, effect, Default::default(), adapted.uniforms)?;
+            adapted
+                .stages
+                .into_iter()
+                .map(|layout| (program.clone(), layout))
+                .collect()
         };
         Ok(Self { stages })
     }
@@ -47,5 +57,25 @@ impl FragmentEffect {
             .iter()
             .map(|(program, layout)| layout.resolve(output, program.clone()))
             .collect()
+    }
+
+    /// Resolve draws and pass dimensions using live authored values.
+    pub fn stage_layout_with_uniforms(
+        &self,
+        output: TextureDescriptor,
+        mut read: impl FnMut(&FragmentUniform) -> Option<UniformValue>,
+    ) -> Result<Vec<FragmentStage>, CompileError> {
+        self.stages
+            .iter()
+            .map(|(program, layout)| layout.resolve(output, program.with_uniform_values(&mut read)))
+            .collect()
+    }
+
+    /// Inspect source input metadata without a device or native shader compilation.
+    pub fn inspect_uniforms(format: FragmentFormat, source: &str) -> Result<Vec<FragmentUniform>, CompileError> {
+        if source.trim().is_empty() || source.len() > MAX_SOURCE_BYTES {
+            return Err(CompileError::Size);
+        }
+        adapter::inspect_uniforms(format, source)
     }
 }

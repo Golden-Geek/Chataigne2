@@ -18,14 +18,12 @@ use super::{D3d11Resources, NativeState};
 #[derive(Default)]
 pub(super) struct ShaderCache {
     programs: HashMap<usize, Weak<ShaderDraw>>,
-    passes: HashMap<(ProjectEpoch, PassId, usize), Weak<ShaderPass>>,
     clocks: HashMap<(ProjectEpoch, PassId, uuid::Uuid), Weak<ShaderClock>>,
 }
 
 impl ShaderCache {
     fn prune(&mut self) {
         self.programs.retain(|_, value| value.strong_count() != 0);
-        self.passes.retain(|_, value| value.strong_count() != 0);
         self.clocks.retain(|_, value| value.strong_count() != 0);
     }
 
@@ -37,10 +35,6 @@ impl ShaderCache {
         device: &ID3D11Device,
     ) -> Result<Rc<ShaderPass>> {
         let program_key = program.bytecode().as_ptr() as usize;
-        let pass_key = (project, pass, program_key);
-        if let Some(shader) = self.passes.get(&pass_key).and_then(Weak::upgrade) {
-            return Ok(shader);
-        }
         let draw = match self.programs.get(&program_key).and_then(Weak::upgrade) {
             Some(draw) => draw,
             None => {
@@ -55,9 +49,7 @@ impl ShaderCache {
             self.clocks.insert(clock_key, Rc::downgrade(&clock));
             clock
         });
-        let shader = Rc::new(ShaderPass::new(draw, clock));
-        self.passes.insert(pass_key, Rc::downgrade(&shader));
-        Ok(shader)
+        Ok(Rc::new(ShaderPass::new(draw, clock, program)))
     }
 }
 

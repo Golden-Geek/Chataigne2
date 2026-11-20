@@ -21,7 +21,7 @@ fn float_pass_uses_an_ordered_budgeted_target_and_one_effect_clock() {
         color_encoding: ColorEncoding::Linear,
         alpha_mode: AlphaMode::Premultiplied,
     };
-    let passes = Passes::new(&program, output, 8).unwrap();
+    let passes = Passes::new(&program, output, 8, &Default::default()).unwrap();
     assert_eq!(passes.work(&[None; TEXTURE_INPUTS]), (1, 3));
     let mut entry = Entry {
         target: TextureId::new(1).unwrap(),
@@ -101,7 +101,7 @@ fn a_single_named_persistent_pass_reads_its_own_final_target() {
         color_encoding: ColorEncoding::Linear,
         alpha_mode: AlphaMode::Premultiplied,
     };
-    let passes = Passes::new(&program, output, 8).unwrap();
+    let passes = Passes::new(&program, output, 8, &Default::default()).unwrap();
     let mut entry = Entry {
         target: TextureId::new(1).unwrap(),
         source: None,

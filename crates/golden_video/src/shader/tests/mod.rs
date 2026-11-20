@@ -77,6 +77,18 @@ fn isf_layout_resolves_dimensions_precision_and_latest_earlier_writer() {
         [Some(FragmentInput::EarlierPass(1)), None, None, None]
     );
     assert!(passes[2].program.sampled_bindings()[TEXTURE_INPUTS]);
+    let tuned = program
+        .stage_layout_with_uniforms(target, |field| {
+            assert_eq!(field.name, "divisor");
+            assert_eq!(field.default, super::UniformValue::Float(2.0));
+            Some(super::UniformValue::Float(4.0))
+        })
+        .unwrap();
+    assert_eq!(tuned[0].target.extent, Extent2D::new(24, 20).unwrap());
+    assert_eq!(
+        tuned[0].program.bytecode().as_ptr(),
+        passes[0].program.bytecode().as_ptr()
+    );
 }
 
 #[test]

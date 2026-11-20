@@ -2,7 +2,7 @@ use super::{CompileError, FragmentProgram, TEXTURE_BINDINGS, TEXTURE_INPUTS};
 use crate::{AlphaMode, Extent2D, PixelFormat, TextureDescriptor};
 
 mod dimension;
-pub(super) use dimension::Dimension;
+pub(super) use dimension::{Dimension, ScalarInput};
 
 /// One ordered draw in a fragment effect resolved for the requested output size.
 #[derive(Clone, Debug)]
@@ -52,7 +52,7 @@ impl Stage {
         let axis = |index: usize, fallback| {
             self.size[index]
                 .as_ref()
-                .map_or(Ok(fallback), |value| value.evaluate(output.extent))
+                .map_or(Ok(fallback), |value| value.evaluate(output.extent, &program))
         };
         let width = axis(0, output.extent.width())?;
         let height = axis(1, output.extent.height())?;

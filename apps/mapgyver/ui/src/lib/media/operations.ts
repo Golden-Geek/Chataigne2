@@ -22,6 +22,7 @@ export function mediaOperationActivity(edit: MediaEdit): 'background' | 'user' {
 	if (edit.kind === 'Composition') return edit.edit.kind === 'Inspect' ? 'background' : 'user';
 	return [
 		'InspectVideo',
+		'InspectShaderUniforms',
 		'InspectVideoFrame',
 		'InspectVideoSource',
 		'InspectTargetPicker',

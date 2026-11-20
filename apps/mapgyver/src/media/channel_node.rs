@@ -507,7 +507,7 @@ impl ChannelNode {
 #[node("mapgyver.media.channel.v2", from_struct)]
 impl Node for ChannelNode {
     fn init(&mut self, ctx: &mut ProcessCtx) {
-        if matches!(self.kind(), MediaKind::Video | MediaKind::Ndi) {
+        if matches!(self.kind(), MediaKind::Video | MediaKind::Ndi | MediaKind::Shader) {
             ctx.add_event_listener_subtree(self.id(), self.id(), 3);
         }
     }
@@ -660,7 +660,11 @@ impl Node for ChannelNode {
         ]
         .contains(&parameter)
             || (self.kind() == MediaKind::Shader
-                && self.shader_textures().iter().any(|texture| texture.id() == parameter))
+                && (self.shader_textures().iter().any(|texture| texture.id() == parameter)
+                    || ctx
+                        .tree_snapshot()
+                        .and_then(|tree| tree.node(parameter))
+                        .is_some_and(|node| super::shader::uniforms::is_uniform(&node.decl_id))))
             || (self.kind().has_sender_selection()
                 && [self.sender_choice.id(), self.sender_external_only.id()].contains(&parameter))
         {

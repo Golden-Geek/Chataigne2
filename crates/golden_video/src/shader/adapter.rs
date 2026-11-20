@@ -3,7 +3,7 @@
 use std::fmt::Write;
 
 use super::stages::Stage;
-use super::{CompileError, FragmentFormat, TEXTURE_BINDINGS, TEXTURE_INPUTS};
+use super::{CompileError, FragmentFormat, FragmentUniform, TEXTURE_BINDINGS, TEXTURE_INPUTS, uniforms};
 
 mod isf;
 pub(super) mod shadertoy;
@@ -166,7 +166,13 @@ fn textures(format: FragmentFormat, shadertoy: &ShaderToyBuffers) -> String {
     source
 }
 
-pub(super) fn fragment_source(format: FragmentFormat, source: &str) -> Result<(String, Vec<Stage>), CompileError> {
+pub(super) struct Adapted {
+    pub glsl: String,
+    pub stages: Vec<Stage>,
+    pub uniforms: Vec<FragmentUniform>,
+}
+
+pub(super) fn fragment_source(format: FragmentFormat, source: &str) -> Result<Adapted, CompileError> {
     fragment_source_with_buffers(format, source, ShaderToyBuffers::default())
 }
 
@@ -174,20 +180,33 @@ pub(super) fn fragment_source_with_buffers(
     format: FragmentFormat,
     source: &str,
     shadertoy: ShaderToyBuffers,
-) -> Result<(String, Vec<Stage>), CompileError> {
+) -> Result<Adapted, CompileError> {
     let source = source.trim_start_matches('\u{feff}').trim_start();
-    let (source, prelude, declarations, stages, call) = match format {
-        FragmentFormat::Glsl => (source, GLSL, String::new(), vec![Stage::default()], "goldenUserMain();"),
+    let (source, prelude, mut declarations, stages, uniforms, call) = match format {
+        FragmentFormat::Glsl => (
+            source,
+            GLSL,
+            String::new(),
+            vec![Stage::default()],
+            vec![],
+            "goldenUserMain();",
+        ),
         FragmentFormat::ShaderToy => (
             source,
             SHADERTOY,
             String::new(),
             vec![Stage::default()],
+            vec![],
             "mainImage(goldenOutput, gl_FragCoord.xy);",
         ),
         FragmentFormat::Isf => {
-            let (body, declarations, stages) = isf::source(source)?;
-            (body, ISF, declarations, stages, "goldenUserMain();")
+            let isf::IsfSource {
+                body,
+                aliases: declarations,
+                stages,
+                uniforms,
+            } = isf::source(source)?;
+            (body, ISF, declarations, stages, uniforms, "goldenUserMain();")
         }
     };
     let coordinates = match format {
@@ -215,9 +234,18 @@ pub(super) fn fragment_source_with_buffers(
     } else {
         "    goldenOutput.a = clamp(goldenOutput.a, 0.0, 1.0);\n    goldenOutput.rgb *= goldenOutput.a;\n"
     };
-    let text = format!(
+    let mut uniform_setup = String::new();
+    uniforms::glsl(&uniforms, &mut declarations, &mut uniform_setup);
+    let glsl = format!(
         "#version 450 core\n{FRAME}\n{coordinates}\n{prelude}\n{textures}\n{declarations}\n{channel_resolution}\n{source}\n\
-         #undef main\nvoid main() {{\n    goldenOutput = vec4(0.0);\n{channel_setup}    {call}\n{color_output}}}\n"
+         #undef main\nvoid main() {{\n    goldenOutput = vec4(0.0);\n{uniform_setup}{channel_setup}    {call}\n{color_output}}}\n"
     );
-    Ok((text, stages))
+    Ok(Adapted { glsl, stages, uniforms })
+}
+
+pub(super) fn inspect_uniforms(format: FragmentFormat, source: &str) -> Result<Vec<FragmentUniform>, CompileError> {
+    match format {
+        FragmentFormat::Isf => Ok(isf::source(source.trim_start_matches('\u{feff}').trim_start())?.uniforms),
+        FragmentFormat::Glsl | FragmentFormat::ShaderToy => Ok(Vec::new()),
+    }
 }

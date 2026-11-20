@@ -6,10 +6,16 @@ use naga::{AddressSpace, Binding, BuiltIn, ResourceBinding, ShaderStage, TypeInn
 use windows::Win32::Graphics::Direct3D::{Fxc::D3DCompile, ID3DBlob};
 use windows::core::{PCSTR, s};
 
-use super::{FragmentFormat, MAX_SOURCE_BYTES, TEXTURE_BINDINGS, TEXTURE_INPUTS, adapter};
+use super::{
+    FragmentFormat, FragmentUniform, MAX_SOURCE_BYTES, TEXTURE_BINDINGS, TEXTURE_INPUTS, UniformValue, adapter,
+};
 
 const MAX_BYTECODE_BYTES: usize = 256 * 1024;
 const FRAME_BINDING: ResourceBinding = ResourceBinding { group: 0, binding: 0 };
+const UNIFORM_BINDING: ResourceBinding = ResourceBinding {
+    group: 0,
+    binding: super::uniforms::BUFFER_BINDING,
+};
 
 /// A validated device-independent fragment program. Cloning shares its bytecode.
 #[derive(Clone)]
@@ -18,6 +24,8 @@ pub struct FragmentProgram {
     sampled_bindings: [bool; TEXTURE_BINDINGS],
     effect: uuid::Uuid,
     buffers: adapter::ShaderToyBuffers,
+    uniforms: Arc<[FragmentUniform]>,
+    values: Arc<[[u32; 4]]>,
 }
 
 impl fmt::Debug for FragmentProgram {
@@ -55,19 +63,25 @@ impl FragmentProgram {
         if source.trim().is_empty() || source.len() > MAX_SOURCE_BYTES {
             return Err(CompileError::Size);
         }
-        let (glsl, stages) = adapter::fragment_source(format, source)?;
-        if stages.len() != 1 || stages[0].inputs[TEXTURE_INPUTS..].iter().any(Option::is_some) {
+        let adapted = adapter::fragment_source(format, source)?;
+        if adapted.stages.len() != 1 || adapted.stages[0].inputs[TEXTURE_INPUTS..].iter().any(Option::is_some) {
             return Err(CompileError::Invalid(
                 "Use a FragmentEffect for a multi-pass or feedback shader".into(),
             ));
         }
-        Self::compile_source(&glsl, uuid::Uuid::new_v4(), Default::default())
+        Self::compile_source(
+            &adapted.glsl,
+            uuid::Uuid::new_v4(),
+            Default::default(),
+            adapted.uniforms,
+        )
     }
 
     pub(super) fn compile_source(
         glsl: &str,
         effect: uuid::Uuid,
         buffers: adapter::ShaderToyBuffers,
+        uniforms: Vec<FragmentUniform>,
     ) -> Result<Self, CompileError> {
         let module = glsl::Frontend::default()
             .parse(&glsl::Options::from(ShaderStage::Fragment), glsl)
@@ -95,12 +109,23 @@ impl FragmentProgram {
             ..Default::default()
         };
         options.binding_map.insert(FRAME_BINDING, hlsl::BindTarget::default());
+        if !uniforms.is_empty() {
+            options.binding_map.insert(
+                UNIFORM_BINDING,
+                hlsl::BindTarget {
+                    register: 1,
+                    ..Default::default()
+                },
+            );
+        }
         let mut sampled_bindings = [false; TEXTURE_BINDINGS];
         for (handle, global) in module.global_variables.iter() {
             if global.space == AddressSpace::Private
                 || (global.space == AddressSpace::Uniform
-                    && global.name.as_deref() == Some("goldenFrame")
-                    && global.binding == Some(FRAME_BINDING))
+                    && (global.name.as_deref() == Some("goldenFrame") && global.binding == Some(FRAME_BINDING)
+                        || !uniforms.is_empty()
+                            && global.name.as_deref() == Some("goldenInputs")
+                            && global.binding == Some(UNIFORM_BINDING)))
             {
                 continue;
             }
@@ -131,6 +156,8 @@ impl FragmentProgram {
             sampled_bindings,
             effect,
             buffers,
+            values: uniforms.iter().map(|uniform| uniform.default.pack()).collect(),
+            uniforms: uniforms.into(),
         })
     }
 
@@ -185,6 +212,41 @@ impl FragmentProgram {
         self.sampled_bindings
     }
 
+    /// Inputs exposed by the source, in the order of its native constant slots.
+    pub fn uniforms(&self) -> &[FragmentUniform] {
+        &self.uniforms
+    }
+
+    /// Bind values to this draw while sharing the shader bytecode and effect identity.
+    /// Unknown names should return `None`; invalid and mismatched values use the source default.
+    pub fn with_uniform_values(&self, mut read: impl FnMut(&FragmentUniform) -> Option<UniformValue>) -> Self {
+        let mut program = self.clone();
+        if !self.uniforms.is_empty() {
+            program.values = self
+                .uniforms
+                .iter()
+                .map(|uniform| {
+                    read(uniform)
+                        .filter(|value| {
+                            std::mem::discriminant(value) == std::mem::discriminant(&uniform.default) && value.finite()
+                        })
+                        .unwrap_or(uniform.default)
+                        .pack()
+                })
+                .collect();
+        }
+        program
+    }
+
+    pub(super) fn uniform_scalar(&self, slot: usize) -> Option<f64> {
+        let uniform = self.uniforms.get(slot)?;
+        uniform.default.unpack(self.values[slot]).scalar()
+    }
+
+    pub(crate) fn uniform_values(&self) -> &[[u32; 4]] {
+        &self.values
+    }
+
     pub(crate) fn effect(&self) -> uuid::Uuid {
         self.effect
     }
@@ -198,7 +260,15 @@ impl FragmentProgram {
     }
 
     pub(crate) fn retained_bytes(&self) -> usize {
-        self.bytecode.len() + 2 * size_of::<usize>()
+        self.bytecode.len()
+            + size_of_val(self.uniform_values())
+            + size_of_val(self.uniforms())
+            + self
+                .uniforms
+                .iter()
+                .map(|uniform| uniform.name.len() + uniform.label.as_ref().map_or(0, String::len))
+                .sum::<usize>()
+            + 2 * size_of::<usize>()
     }
 
     pub(crate) fn bytecode(&self) -> &[u8] {

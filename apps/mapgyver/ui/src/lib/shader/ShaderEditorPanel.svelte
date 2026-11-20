@@ -5,6 +5,7 @@
 	import { mediaIconKind } from '../icons/media-kind';
 	import ChannelPreview from '../media/ChannelPreview.svelte';
 	import EmbeddedShaderEditor from './EmbeddedShaderEditor.svelte';
+	import ShaderUniforms from './ShaderUniforms.svelte';
 
 	let props: PanelProps = $props();
 	let title = $state(untrack(() => props.title));
@@ -40,6 +41,9 @@
 	const input = $derived(find('shader_input'));
 	const format = $derived(find('shader_format'));
 	const code = $derived(find('shader_code'));
+	const uniforms = $derived(
+		parameters?.children.map(read).find((node) => node?.decl_id === 'parameters/shader_uniforms')
+	);
 	const file = $derived(find('shader_file'));
 	const textures = $derived(
 		(parameters?.children ?? [])
@@ -91,6 +95,16 @@
 					{/each}
 				</div>
 			</details>
+		{/if}
+		{#if !fileMode}
+			{#key `${session.snapshotGeneration}:${channel.uuid}`}
+				<ShaderUniforms
+					{session}
+					reference={{ media: media.uuid, channel: channel.uuid }}
+					{code}
+					{format}
+					folder={uniforms} />
+			{/key}
 		{/if}
 		<div class="shader-workspace" class:embedded={!fileMode}>
 			{#if !fileMode && code}

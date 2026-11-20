@@ -489,6 +489,13 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         MediaEdit::InspectChannel { reference } => MediaEditResult::Channel {
             snapshot: super::queries::inspect_channel(engine, reference)?,
         },
+        MediaEdit::InspectShaderUniforms { reference } => MediaEditResult::ShaderUniforms {
+            rows: super::shader::uniforms::inspect(engine, reference)?,
+        },
+        MediaEdit::AddShaderUniforms { reference, name } => {
+            super::shader::uniforms::add(engine, reference, name.as_deref())?;
+            MediaEditResult::Changed
+        }
     };
     if !live_geometry && engine.edits.pending.len() != pending_before {
         // Published inside the atomic edit boundary, including script/headless callers.

@@ -53,6 +53,7 @@ pub(in crate::media::rendering) fn prepare(
                                 alpha_mode: AlphaMode::Premultiplied,
                             },
                             dimension_limit,
+                            &channel.shader_uniforms,
                         )
                     }),
             };
@@ -66,9 +67,14 @@ impl Passes {
         effect: &FragmentEffect,
         output: TextureDescriptor,
         dimension_limit: u32,
+        values: &crate::media::shader::uniforms::Values,
     ) -> Result<Self, ChannelAvailability> {
         let stages = effect
-            .stage_layout(output)
+            .stage_layout_with_uniforms(output, |uniform| {
+                values
+                    .get(&uniform.name)
+                    .and_then(crate::media::shader::uniforms::value)
+            })
             .map_err(|_| ChannelAvailability::Incompatible)?;
         if stages.iter().any(|stage| {
             stage.target.extent.width() > dimension_limit || stage.target.extent.height() > dimension_limit

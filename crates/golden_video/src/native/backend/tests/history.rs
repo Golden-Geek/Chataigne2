@@ -143,7 +143,11 @@ fn hardware_shader_history_clears_raw_float_targets_and_preserves_data_with_zero
     let clock = Rc::new(ShaderClock::default());
     let draw = |index: usize| {
         let program = &passes[index].program;
-        ShaderPass::new(Rc::new(ShaderDraw::new(&gpu.device, program).unwrap()), clock.clone())
+        ShaderPass::new(
+            Rc::new(ShaderDraw::new(&gpu.device, program).unwrap()),
+            clock.clone(),
+            program,
+        )
     };
     let first = draw(0);
     let last = draw(1);

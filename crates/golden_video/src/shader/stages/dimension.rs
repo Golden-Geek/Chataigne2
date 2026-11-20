@@ -1,5 +1,5 @@
 use crate::Extent2D;
-use crate::shader::CompileError;
+use crate::shader::{CompileError, FragmentProgram};
 use std::collections::BTreeMap;
 
 const MAX_FORMULA_BYTES: usize = 128;
@@ -7,6 +7,7 @@ const MAX_FORMULA_BYTES: usize = 128;
 #[derive(Clone, Copy, Debug)]
 enum Term {
     Constant(f64),
+    Uniform(usize),
     Width,
     Height,
     Add,
@@ -19,8 +20,14 @@ enum Term {
 #[derive(Debug)]
 pub(in crate::shader) struct Dimension(Box<[Term]>);
 
+#[derive(Clone, Copy)]
+pub(in crate::shader) enum ScalarInput {
+    Constant(f64),
+    Uniform(usize),
+}
+
 impl Dimension {
-    pub(in crate::shader) fn parse(formula: &str, defaults: &BTreeMap<&str, f64>) -> Result<Self, CompileError> {
+    pub(in crate::shader) fn parse(formula: &str, inputs: &BTreeMap<&str, ScalarInput>) -> Result<Self, CompileError> {
         let error = || CompileError::Invalid(format!("Invalid ISF pass dimension '{formula}'"));
         if formula.len() > MAX_FORMULA_BYTES || !formula.is_ascii() {
             return Err(error());
@@ -28,7 +35,7 @@ impl Dimension {
         let mut parser = Parser {
             remaining: formula,
             terms: Vec::new(),
-            defaults,
+            inputs,
         };
         parser.expression(0).ok_or_else(error)?;
         if !parser.remaining.trim().is_empty() {
@@ -37,12 +44,13 @@ impl Dimension {
         Ok(Self(parser.terms.into_boxed_slice()))
     }
 
-    pub(super) fn evaluate(&self, canvas: Extent2D) -> Result<u32, CompileError> {
+    pub(super) fn evaluate(&self, canvas: Extent2D, program: &FragmentProgram) -> Result<u32, CompileError> {
         let mut stack = [0.0; MAX_FORMULA_BYTES];
         let mut depth = 0;
         for term in &self.0 {
             let value = match *term {
                 Term::Constant(value) => value,
+                Term::Uniform(slot) => program.uniform_scalar(slot).expect("validated scalar shader input"),
                 Term::Width => f64::from(canvas.width()),
                 Term::Height => f64::from(canvas.height()),
                 Term::Negate => {
@@ -79,7 +87,7 @@ impl Dimension {
 struct Parser<'a> {
     remaining: &'a str,
     terms: Vec<Term>,
-    defaults: &'a BTreeMap<&'a str, f64>,
+    inputs: &'a BTreeMap<&'a str, ScalarInput>,
 }
 
 impl<'a> Parser<'a> {
@@ -127,7 +135,10 @@ impl<'a> Parser<'a> {
                 match self.take(|byte| byte.is_ascii_alphanumeric() || byte == b'_') {
                     "WIDTH" => Term::Width,
                     "HEIGHT" => Term::Height,
-                    name => Term::Constant(*self.defaults.get(name)?),
+                    name => match *self.inputs.get(name)? {
+                        ScalarInput::Constant(value) => Term::Constant(value),
+                        ScalarInput::Uniform(slot) => Term::Uniform(slot),
+                    },
                 }
             }
             b'0'..=b'9' | b'.' => {

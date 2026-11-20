@@ -5,8 +5,8 @@ use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::Value;
 
 use super::TEXTURE_NAMES;
-use crate::shader::stages::{Dimension, FragmentInput, Stage};
-use crate::shader::{CompileError, TEMPORARY_BUFFERS, TEXTURE_INPUTS};
+use crate::shader::stages::{Dimension, FragmentInput, ScalarInput, Stage};
+use crate::shader::{CompileError, FragmentUniform, TEMPORARY_BUFFERS, TEXTURE_INPUTS, UniformValue};
 
 const MAX_INPUTS: usize = 64;
 const MAX_PASSES: usize = 8;
@@ -43,10 +43,10 @@ enum Size {
 }
 
 impl Size {
-    fn parse(&self, defaults: &BTreeMap<&str, f64>) -> Result<Dimension, CompileError> {
+    fn parse(&self, inputs: &BTreeMap<&str, ScalarInput>) -> Result<Dimension, CompileError> {
         match self {
-            Self::Equation(equation) => Dimension::parse(equation, defaults),
-            Self::Pixels(value) => Dimension::parse(&value.to_string(), defaults),
+            Self::Equation(equation) => Dimension::parse(equation, inputs),
+            Self::Pixels(value) => Dimension::parse(&value.to_string(), inputs),
         }
     }
 }
@@ -75,6 +75,12 @@ struct Input {
     kind: InputType,
     #[serde(rename = "DEFAULT")]
     default: Option<Value>,
+    #[serde(rename = "LABEL")]
+    label: Option<String>,
+    #[serde(rename = "MIN")]
+    min: Option<Value>,
+    #[serde(rename = "MAX")]
+    max: Option<Value>,
 }
 
 #[derive(Deserialize)]
@@ -99,7 +105,14 @@ enum InputType {
     AudioFft,
 }
 
-pub(super) fn source(source: &str) -> Result<(&str, String, Vec<Stage>), CompileError> {
+pub(super) struct IsfSource<'a> {
+    pub body: &'a str,
+    pub aliases: String,
+    pub stages: Vec<Stage>,
+    pub uniforms: Vec<FragmentUniform>,
+}
+
+pub(super) fn source(source: &str) -> Result<IsfSource<'_>, CompileError> {
     let (json, body) = source
         .strip_prefix("/*")
         .and_then(|comment| comment.split_once("*/"))
@@ -119,35 +132,51 @@ pub(super) fn source(source: &str) -> Result<(&str, String, Vec<Stage>), Compile
     let mut names = HashSet::new();
     let mut images = TEXTURE_NAMES[..TEXTURE_INPUTS].iter();
     let mut declarations = String::new();
-    let mut defaults = BTreeMap::new();
+    let mut scalar_inputs = BTreeMap::new();
+    let mut uniforms = Vec::new();
     for input in &header.inputs {
         let name = input.name.as_str();
         if !valid_name(name) || !names.insert(name) {
             return Err(invalid("Invalid or duplicate ISF input name"));
         }
-        if matches!(input.kind, InputType::Image) {
-            let texture = images.next().ok_or_else(|| invalid("Too many ISF image inputs"))?;
-            writeln!(declarations, "#define {name} {texture}").unwrap();
-        } else {
-            let (ty, literal) = input.literal()?;
-            writeln!(declarations, "const {ty} {name} = {literal};").unwrap();
-            if let Some(default) = input.scalar_default() {
-                defaults.insert(name, default);
+        match input.kind {
+            InputType::Image => {
+                let texture = images.next().ok_or_else(|| invalid("Too many ISF image inputs"))?;
+                writeln!(declarations, "#define {name} {texture}").unwrap();
+            }
+            InputType::Event => {
+                writeln!(declarations, "const bool {name} = false;").unwrap();
+                scalar_inputs.insert(name, ScalarInput::Constant(0.0));
+            }
+            InputType::Audio | InputType::AudioFft => {
+                return Err(invalid(format!("ISF input '{name}' requires a texture binding")));
+            }
+            _ => {
+                let uniform = input.uniform()?;
+                if uniform.default.scalar().is_some() {
+                    scalar_inputs.insert(name, ScalarInput::Uniform(uniforms.len()));
+                }
+                uniforms.push(uniform);
             }
         }
     }
     let stages = if header.passes.is_empty() {
         vec![Stage::default()]
     } else {
-        stages(&header.passes, &mut names, &defaults, &mut declarations)?
+        stages(&header.passes, &mut names, &scalar_inputs, &mut declarations)?
     };
-    Ok((body, declarations, stages))
+    Ok(IsfSource {
+        body,
+        aliases: declarations,
+        stages,
+        uniforms,
+    })
 }
 
 fn stages<'a>(
     passes: &'a [Pass],
     names: &mut HashSet<&'a str>,
-    defaults: &BTreeMap<&str, f64>,
+    scalar_inputs: &BTreeMap<&str, ScalarInput>,
     declarations: &mut String,
 ) -> Result<Vec<Stage>, CompileError> {
     let mut slots = HashMap::new();
@@ -193,8 +222,8 @@ fn stages<'a>(
         .map(|(index, pass)| {
             let mut stage = Stage {
                 size: [
-                    pass.width.as_ref().map(|size| size.parse(defaults)).transpose()?,
-                    pass.height.as_ref().map(|size| size.parse(defaults)).transpose()?,
+                    pass.width.as_ref().map(|size| size.parse(scalar_inputs)).transpose()?,
+                    pass.height.as_ref().map(|size| size.parse(scalar_inputs)).transpose()?,
                 ],
                 float: pass.float.as_ref().is_some_and(Flag::enabled),
                 ..Stage::default()
@@ -210,88 +239,61 @@ fn stages<'a>(
 
 fn valid_name(name: &str) -> bool {
     let mut bytes = name.bytes();
-    bytes
-        .next()
-        .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_')
+    name.len() <= 128
+        && bytes
+            .next()
+            .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_')
         && bytes.all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
         && !name.starts_with("gl_")
 }
 
 impl Input {
-    fn scalar_default(&self) -> Option<f64> {
-        match self.kind {
-            InputType::Event => Some(0.0),
-            InputType::Bool => Some(self.default.as_ref().map_or(0.0, |value| match value {
-                Value::Bool(value) => f64::from(u8::from(*value)),
-                _ => value.as_f64().unwrap_or(0.0),
-            })),
-            InputType::Long | InputType::Float => Some(self.default.as_ref().and_then(Value::as_f64).unwrap_or(0.0)),
-            _ => None,
-        }
+    fn uniform(&self) -> Result<FragmentUniform, CompileError> {
+        let default = self
+            .value(self.default.as_ref())
+            .map_err(|_| invalid(format!("Invalid default for ISF input '{}'", self.name)))?;
+        let minimum = self.min.as_ref().map(|value| self.value(Some(value))).transpose()?;
+        let maximum = self.max.as_ref().map(|value| self.value(Some(value))).transpose()?;
+        Ok(FragmentUniform {
+            name: self.name.clone(),
+            label: self.label.as_ref().filter(|label| label.len() <= 128).cloned(),
+            default,
+            min: minimum,
+            max: maximum,
+        })
     }
 
-    fn literal(&self) -> Result<(&'static str, String), CompileError> {
-        Ok(match self.kind {
-            InputType::Event => ("bool", "false".into()),
+    fn value(&self, raw: Option<&Value>) -> Result<UniformValue, CompileError> {
+        let value = match self.kind {
             InputType::Bool => {
-                let default = match &self.default {
+                let boolean = match raw {
                     None => false,
                     Some(Value::Bool(boolean)) => *boolean,
                     Some(Value::Number(number)) if number.as_i64() == Some(0) => false,
                     Some(Value::Number(number)) if number.as_i64() == Some(1) => true,
-                    _ => return Err(self.invalid_default()),
+                    _ => return Err(self.invalid_value()),
                 };
-                ("bool", default.to_string())
+                UniformValue::Bool(boolean)
             }
-            InputType::Long => {
-                let value = self.default_value(0_i32)?;
-                let literal = if value == i32::MIN {
-                    "(-2147483647 - 1)".into()
-                } else {
-                    value.to_string()
-                };
-                ("int", literal)
+            InputType::Long => UniformValue::Int(self.decode(raw, 0_i32)?),
+            InputType::Float => UniformValue::Float(self.decode(raw, 0.0_f32)?),
+            InputType::Point => UniformValue::Point(self.decode(raw, [0.0_f32; 2])?),
+            InputType::Color => UniformValue::Color(self.decode(raw, [0.0_f32, 0.0, 0.0, 1.0])?),
+            InputType::Image | InputType::Audio | InputType::AudioFft | InputType::Event => {
+                unreachable!("non-value inputs have their own bindings")
             }
-            InputType::Float => ("float", self.float(self.default_value(0.0_f32)?)?),
-            InputType::Point => {
-                let [x, y] = self.default_value([0.0_f32; 2])?;
-                ("vec2", format!("vec2({}, {})", self.float(x)?, self.float(y)?))
-            }
-            InputType::Color => {
-                let [r, g, b, a] = self.default_value([0.0_f32, 0.0, 0.0, 1.0])?;
-                (
-                    "vec4",
-                    format!(
-                        "vec4({}, {}, {}, {})",
-                        self.float(r)?,
-                        self.float(g)?,
-                        self.float(b)?,
-                        self.float(a)?
-                    ),
-                )
-            }
-            InputType::Image | InputType::Audio | InputType::AudioFft => {
-                return Err(invalid(format!("ISF input '{}' requires a texture binding", self.name)));
-            }
+        };
+        value.finite().then_some(value).ok_or_else(|| self.invalid_value())
+    }
+
+    fn decode<T: DeserializeOwned>(&self, raw: Option<&Value>, fallback: T) -> Result<T, CompileError> {
+        raw.map_or(Ok(fallback), |value| {
+            T::deserialize(value).map_err(|_| self.invalid_value())
         })
     }
 
-    fn default_value<T: DeserializeOwned>(&self, fallback: T) -> Result<T, CompileError> {
-        self.default.as_ref().map_or(Ok(fallback), |value| {
-            T::deserialize(value).map_err(|_| self.invalid_default())
-        })
-    }
-
-    fn float(&self, value: f32) -> Result<String, CompileError> {
-        if value.is_finite() {
-            Ok(format!("{value:e}"))
-        } else {
-            Err(self.invalid_default())
-        }
-    }
-
-    fn invalid_default(&self) -> CompileError {
-        invalid(format!("Invalid default for ISF input '{}'", self.name))
+    fn invalid_value(&self) -> CompileError {
+        invalid(format!("Invalid value for ISF input '{}'", self.name))
     }
 }
 

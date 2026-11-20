@@ -286,6 +286,13 @@ impl MediaFitMode {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEdit {
+    InspectShaderUniforms {
+        reference: ChannelReference,
+    },
+    AddShaderUniforms {
+        reference: ChannelReference,
+        name: Option<String>,
+    },
     Video {
         media: MediaId,
         edit: super::video::protocol::VideoEdit,
@@ -543,6 +550,9 @@ pub struct PictureFileBinding {
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 pub enum MediaEditResult {
+    ShaderUniforms {
+        rows: Vec<super::shader::uniforms::ShaderUniformRow>,
+    },
     MatrixPresetMembers {
         page: crate::matrix::protocol::MatrixPresetMembers,
     },

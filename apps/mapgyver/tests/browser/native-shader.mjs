@@ -606,6 +606,88 @@ try {
 	await rename(`${toyPath}.new`, toyPath);
 	await delay(900);
 	await observer.observePixels('shadertoy-restored-buffer-layout', [255, 255, 0, 255]);
+
+	stage = 'add typed ISF uniforms through the Shader Editor';
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Medias$/ })
+		.click();
+	await manager.getByRole('button', { name: 'Shader', exact: true }).click();
+	await shaderTab.click();
+	await source.selectOption('Embedded');
+	await format.selectOption('ISF');
+	const editableIsf = `/*{"INPUTS":[
+        {"NAME":"amount","LABEL":"Mix amount","TYPE":"float","DEFAULT":0.25,"MIN":0.0,"MAX":1.0},
+        {"NAME":"inputEnabled","TYPE":"bool","DEFAULT":true},
+        {"NAME":"mode","TYPE":"long","DEFAULT":-3},
+        {"NAME":"pivot","TYPE":"point2D","DEFAULT":[1.0,0.0]},
+        {"NAME":"tint","TYPE":"color","DEFAULT":[0.0,0.0,1.0,1.0]}
+    ]}*/
+    void main() {
+        gl_FragColor = vec4(inputEnabled && mode == -3 ? amount : 0.0, pivot.x, tint.b, tint.a);
+    }`;
+	await codeEditor.fill(editableIsf);
+	await panel.getByRole('button', { name: 'Apply shader', exact: true }).click();
+	await panel.getByText('Uniforms', { exact: true }).click();
+	await delay(500);
+	// Spout presents the shader's linear values as sRGB.
+	const defaultInputs = [137, 255, 255, 255];
+	const editedInputs = [225, 255, 255, 255];
+	await observer.observePixels('isf-inputs-use-metadata-defaults', defaultInputs, 1);
+	await panel.getByRole('button', { name: 'Add uniform amount', exact: true }).click();
+	const inspectUniforms = () => mediaOperation({ kind: 'InspectShaderUniforms', reference });
+	await waitFor(async () =>
+		(await inspectUniforms()).rows.some(
+			({ name, parameter }) => name === 'amount' && parameter !== null
+		)
+	);
+	await panel.getByRole('button', { name: 'Add All', exact: true }).click();
+	await waitFor(async () => {
+		const { rows } = await inspectUniforms();
+		return rows.length === 5 && rows.every(({ parameter }) => parameter !== null);
+	});
+	const { rows } = await inspectUniforms();
+	const fields = Object.fromEntries(rows.map(({ name, parameter }) => [name, parameter]));
+	const snapshot = await graph();
+	const effective = (name) => snapshot.find((node) => node.node_id === fields[name]).data.param;
+	assert.equal(effective('amount').value.Float, 0.25);
+	assert.deepEqual(effective('amount').constraints.range, { kind: 'uniform', min: 0, max: 1 });
+	assert.equal(effective('inputEnabled').value.Bool, true);
+	assert.equal(effective('mode').value.Int, -3);
+	assert.deepEqual(effective('pivot').value.Vec2, [1, 0]);
+	assert.deepEqual(effective('tint').value.Color, [0, 0, 1, 1]);
+
+	stage = 'edit, undo, and reopen the authored ISF uniform';
+	const amount = panel.locator(
+		`.parameter-inspector[data-node-id="${fields.amount}"] input.number-field`
+	);
+	await amount.fill('0.75');
+	await amount.press('Enter');
+	await waitFor(
+		async () =>
+			(await graph()).find((node) => node.node_id === fields.amount)?.data.param.value.Float ===
+			0.75
+	);
+	await delay(500);
+	await observer.observePixels('isf-uniform-live-edit', editedInputs, 1);
+	assert((await post('/api/ui/intent', { kind: 'undo' })).success);
+	await delay(500);
+	await observer.observePixels('isf-uniform-undo', defaultInputs, 1);
+	assert((await post('/api/ui/intent', { kind: 'redo' })).success);
+	await delay(500);
+	await observer.observePixels('isf-uniform-redo', editedInputs, 1);
+	assert((await post('/api/ui/project-save', { path: project })).ok);
+	assert.equal(path.resolve((await post('/api/ui/project-load', { path: project })).path), project);
+	await delay(750);
+	await observer.observePixels('isf-uniform-saved-value', editedInputs, 1);
+	const reopened = await graph();
+	for (const id of Object.values(fields)) {
+		const original = snapshot.find((node) => node.node_id === id);
+		assert(
+			reopened.some((node) => node.uuid === original.uuid),
+			original.decl_id
+		);
+	}
 	assert.deepEqual(errors, []);
 	assert(!appLog.includes('[mapgyver-output] window id='));
 	await writeFile(

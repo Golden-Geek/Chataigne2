@@ -62,6 +62,10 @@ pub use effect::FragmentEffect;
 mod stages;
 #[cfg(all(windows, feature = "d3d11"))]
 pub use stages::{FragmentInput, FragmentStage};
+#[cfg(all(windows, feature = "d3d11"))]
+mod uniforms;
+#[cfg(all(windows, feature = "d3d11"))]
+pub use uniforms::{FragmentUniform, UniformValue};
 
 #[cfg(all(test, windows, feature = "d3d11"))]
 mod tests;
