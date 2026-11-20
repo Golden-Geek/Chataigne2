@@ -1,11 +1,11 @@
 # MapGyver — simple status
 
 - **Updated:** 20 November 2026.
-- **Overall plan acceptance:** `█████████░` **87% — 126/145 checks accepted, 8/19 phases complete**.
-- **Latest verified:** Auto-Smooth Loop passed moving forward and reverse playback, mixed durations, live file recovery and retirement on Intel and NVIDIA. Device-loss qualification remains open. [Checks](evidence/mapgyver-m10-fade-loop-2026-11-18.json)
+- **Overall plan acceptance:** `█████████░` **88% — 127/145 checks accepted, 8/19 phases complete**.
+- **Latest verified:** Video time crop passed frame-accurate forward and reverse playback in Media Preview and output on Intel and NVIDIA. Short-channel hold and live relink passed. [Checks](evidence/mapgyver-m10-time-crop-2026-11-18.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Qualify moving Video time crop (M10/10). Auto-Smooth Loop device loss needs an elevated Windows test session. Direct File Explorer drops need desktop input.
+- **Next:** Qualify Matrix Frame/Home and native editor alignment (M14/2). Auto-Smooth Loop device loss needs an elevated Windows test session. Direct File Explorer drops need desktop input.
 
 ## Done — code and normal-use checks passed
 
