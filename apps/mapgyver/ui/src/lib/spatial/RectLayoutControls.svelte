@@ -16,6 +16,7 @@
 	import type { CellPresentation } from './cell-gesture';
 	import { createViewportPointer } from 'golden_ui';
 	import { SPATIAL_RESIZE_HANDLES } from './handles';
+	import { spatialOverlays, useSpatialPaint } from './native-paint';
 	let {
 		objects,
 		snapping = false,
@@ -52,6 +53,9 @@
 		enter?(id: string): void;
 	} = $props();
 	let svg: SVGSVGElement;
+	const paint = useSpatialPaint();
+	let hovered = $state<string | null>(null);
+	let focused = $state<string | null>(null);
 	let ghost = $state<Point | null>(null);
 	let guides = $state<AlignmentGuide[]>([]);
 	const alignment = createGeometryAlignment(
@@ -95,6 +99,38 @@
 			? [...displayed.filter((object) => object.id !== item.id), item]
 			: displayed
 	);
+	$effect(() => {
+		if (!paint) return;
+		const contours = paintOrder.flatMap((object) => {
+			if (!object.size) return [];
+			const [x, y] = object.position;
+			const right = x + object.size.width,
+				bottom = y + object.size.height;
+			return [
+				{
+					points: [
+						{ x, y },
+						{ x: right, y },
+						{ x: right, y: bottom },
+						{ x, y: bottom }
+					],
+					selected: selected === object.id,
+					enabled: object.enabled,
+					hovered: hovered === object.id || focused === object.id
+				}
+			];
+		});
+		const size = item?.size;
+		const handles = item
+			? size
+				? SPATIAL_RESIZE_HANDLES.map((handle) => ({
+						x: item.position[0] + handle.x * size.width,
+						y: item.position[1] + handle.y * size.height
+					}))
+				: [{ x: item.position[0], y: item.position[1] }]
+			: [];
+		paint(spatialOverlays(canvas, contours, handles, ghost, guides));
+	});
 	function down(event: PointerEvent, object: LayoutRect, mode: RectGeometryMode) {
 		pointer.start(event, {
 			selectable: selectionAvailable && !active,
@@ -148,8 +184,15 @@
 				use:viewportContour={{
 					selected: selected === object.id,
 					enabled: object.enabled,
-					identity
+					identity,
+					onhover: (value) => {
+						if (value || hovered === object.id) hovered = value ? object.id : null;
+					},
+					onfocus: (value) => {
+						if (value || focused === object.id) focused = value ? object.id : null;
+					}
 				}}
+				data-native-overlay-control
 				data-layer-id={kind === 'Layer' ? object.id : undefined}
 				data-layout-cell={kind === 'Cell' ? object.id : undefined}
 				x={object.position[0]}
@@ -180,7 +223,7 @@
 		{/if}
 	{/each}
 </svg>
-<ViewportGuides {guides} width={canvas.width} height={canvas.height} />
+<ViewportGuides {guides} width={canvas.width} height={canvas.height} native={!!paint} />
 
 {#each displayed as object (object.id)}
 	{#if !object.size && object.id !== selected}<ViewportTarget
@@ -202,6 +245,7 @@
 		x={item.position[0] / canvas.width}
 		y={item.position[1] / canvas.height}
 		data-layout-cell={kind === 'Cell' ? item.id : undefined}
+		data-native-overlay-control
 		label={`Move ${item.label}`}
 		aria-disabled={disabled && !active}
 		onpointerdown={(event) => down(event, item!, 'Translate')} />
@@ -217,6 +261,7 @@
 			data-matrix-layer-handle={kind === 'Layer' ? 'Resize' : undefined}
 			data-matrix-layer-resize={kind === 'Layer' ? handle.name : undefined}
 			data-matrix-cell-resize={kind === 'Cell' ? handle.name : undefined}
+			data-native-overlay-control
 			style={`border-radius: 0.1rem; cursor: ${handle.cursor}`}
 			aria-disabled={disabled && !active}
 			onpointerdown={(event) => {
@@ -228,6 +273,7 @@
 		x={ghost.x / canvas.width}
 		y={ghost.y / canvas.height}
 		label="Transform pointer"
+		data-native-overlay-control
 		ghost />{/if}
 
 <style>

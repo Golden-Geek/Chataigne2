@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import { observeRejectedRequests } from './intent-observer.mjs';
+import { ownedWindowHandle } from './capture-alignment.mjs';
+import { verifyNavigationPixels } from './navigation-pixels.mjs';
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
 export async function verifyViewportNavigation({
@@ -9,8 +13,11 @@ export async function verifyViewportNavigation({
 	post,
 	edit,
 	directory,
-	page: nativePage = null
+	page: nativePage = null,
+	nativePid,
+	nativePixels = false
 }) {
+	assert(!nativePixels || (nativePage && nativePid));
 	async function screens(payload) {
 		const ack = await post('/api/ui/intent', {
 			kind: 'invokeAppOperation',
@@ -31,6 +38,36 @@ export async function verifyViewportNavigation({
 		media: source.media,
 		size: { kind: 'Fixed', extent: { width: 320, height: 180 } }
 	});
+	let surfaceSource = source;
+	const inset = nativePixels ? 0.25 : 0.1;
+	if (nativePixels) {
+		await edit({
+			kind: 'ConfigureChannel',
+			reference: source,
+			source: { kind: 'SolidColor', rgba: [1, 0, 0, 1] }
+		});
+		const picture = path.join(directory, 'navigation-landmark.png');
+		await promisify(execFile)(
+			'python',
+			[
+				'-c',
+				'from PIL import Image; import sys; im=Image.new("RGB",(320,180),"black"); im.paste("red",(80,45,240,135)); im.save(sys.argv[1])',
+				picture
+			],
+			{ windowsHide: true, timeout: 8000 }
+		);
+		({ reference: surfaceSource } = await edit({
+			kind: 'CreateMedia',
+			media_kind: 'Picture',
+			label: 'Navigation landmark'
+		}));
+		await edit({
+			kind: 'ImportPicture',
+			target: surfaceSource,
+			locator: { kind: 'absolute', path: picture },
+			label: null
+		});
+	}
 	const { screen, surface } = await screens({ kind: 'CreateScreen', label: 'Navigation screen' });
 	await screens({
 		kind: 'ConfigureScreen',
@@ -44,14 +81,14 @@ export async function verifyViewportNavigation({
 		kind: 'ConfigureSurface',
 		reference: surface,
 		definition: {
-			source,
-			crop: { x: 0.1, y: 0.1, width: 0.8, height: 0.8 },
+			source: surfaceSource,
+			crop: { x: inset, y: inset, width: 1 - 2 * inset, height: 1 - 2 * inset },
 			quad: {
 				corners: [
-					{ x: 0.1, y: 0.1 },
-					{ x: 0.9, y: 0.1 },
-					{ x: 0.9, y: 0.9 },
-					{ x: 0.1, y: 0.9 }
+					{ x: inset, y: inset },
+					{ x: 1 - inset, y: inset },
+					{ x: 1 - inset, y: 1 - inset },
+					{ x: inset, y: 1 - inset }
 				]
 			},
 			opacity: 1,
@@ -79,6 +116,32 @@ export async function verifyViewportNavigation({
 		reference: compositionReference,
 		edit: { kind: 'AddInstances', sources: [source] }
 	});
+	if (nativePixels) {
+		const current = (
+			await edit({
+				kind: 'Composition',
+				reference: compositionReference,
+				edit: { kind: 'Inspect' }
+			})
+		).snapshot;
+		await edit({
+			kind: 'Composition',
+			reference: compositionReference,
+			edit: {
+				kind: 'ConfigureInstance',
+				instance: instances[0].instance,
+				definition: {
+					...current.instances[0].definition,
+					transform: {
+						position: [208, 90],
+						scale: [1, 1],
+						rotation_degrees: 0,
+						pivot: [0, 0]
+					}
+				}
+			}
+		});
+	}
 	await edit({
 		kind: 'Composition',
 		reference: compositionReference,
@@ -96,6 +159,7 @@ export async function verifyViewportNavigation({
 	const rejected = observeRejectedRequests(page, () => 'shared smooth navigation');
 	const tab = (name) => page.getByRole('tab').filter({ hasText: new RegExp(`^${name}$`) });
 	const reports = [];
+	const hwnd = nativePixels ? Number(ownedWindowHandle(nativePid)) : null;
 	async function transition(view, action) {
 		await view.evaluate((element) => {
 			window.__frameHomeSamples = [];
@@ -254,11 +318,26 @@ export async function verifyViewportNavigation({
 					);
 			}
 			// Domain pointer input freezes any unfinished camera before hit testing.
-			const frameFrames = await transition(view, () =>
-				view.getByRole('button', { name: 'Frame selection', exact: true }).click()
-			);
+			const frame = () =>
+				transition(view, () =>
+					view.getByRole('button', { name: 'Frame selection', exact: true }).click()
+				);
+			const framePixels = nativePixels
+				? await verifyNavigationPixels({
+						page,
+						view,
+						hwnd,
+						label: `${label} Frame`,
+						navigate: frame
+					})
+				: null;
+			const frameFrames = framePixels?.navigation ?? (await frame());
 			await view.focus();
-			const homeFrames = await transition(view, () => view.press('h'));
+			const home = () => transition(view, () => view.press('h'));
+			const homePixels = nativePixels
+				? await verifyNavigationPixels({ page, view, hwnd, label: `${label} Home`, navigate: home })
+				: null;
+			const homeFrames = homePixels?.navigation ?? (await home());
 			assert.equal(
 				await view.locator('output[data-zoom]').getAttribute('data-zoom'),
 				'1',
@@ -281,6 +360,7 @@ export async function verifyViewportNavigation({
 				intermediateFrames: intermediate.length,
 				frameFrames,
 				homeFrames,
+				...(nativePixels ? { framePixels, homePixels } : {}),
 				pointerAnchor: true,
 				domImageOverlayGeometry: true,
 				editCancelsMotion: true

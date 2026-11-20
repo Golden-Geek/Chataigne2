@@ -1,11 +1,11 @@
 # MapGyver — simple status
 
 - **Updated:** 20 November 2026.
-- **Overall plan acceptance:** `█████████░` **88% — 127/145 checks accepted, 8/19 phases complete**.
-- **Latest verified:** Video time crop passed frame-accurate forward and reverse playback in Media Preview and output on Intel and NVIDIA. Short-channel hold and live relink passed. [Checks](evidence/mapgyver-m10-time-crop-2026-11-18.json)
+- **Overall plan acceptance:** `█████████░` **88% — 128/145 checks accepted, 8/19 phases complete**.
+- **Latest verified:** Screen Warping, Surface Source, Composition and both Matrix layout views kept the image and outline aligned during Frame/Home on Intel and NVIDIA. [Checks](mapgyver-m14-navigation.md#second-pass-verification--2026-11-20)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Qualify Matrix Frame/Home and native editor alignment (M14/2). Auto-Smooth Loop device loss needs an elevated Windows test session. Direct File Explorer drops need desktop input.
+- **Next:** Verify installed native editor feedback during interaction (M15/5). Auto-Smooth Loop device loss needs an elevated Windows test session. Direct File Explorer drops need desktop input.
 
 ## Done — code and normal-use checks passed
 
@@ -17,7 +17,8 @@
 - [x] **Pictures and Solid Color:** real channel settings/files, independent copies, file reload and color controls.
 - [x] **Shared Texture:** receiving, previews and preview cadence, sender retention across Manual/Auto, and ordinary reconnect. New sources pick the first external sender or None. **(internal)** marks Screen outputs. Native pixel checks passed for deliberate internal selection, same-name takeover and external recovery.
 - [x] **Screens/Surfaces:** creation, warping, crop/source editing, opacity, enable/disable, calibration and native outputs.
-- [x] **Startup display:** Fresh projects prefer the lowest available external Windows display number. The current build chose RTK FHD HDR with the Optoma also active. Saved projects retain their Screen targets. Automated browser tests leave physical outputs off by default. [Checks](mapgyver-m14-screen-defaults.md#numbered-display-feedback)
+- [x] **Startup display:** Fresh projects prefer the lowest available external Windows display number. The current build chose RTK FHD HDR with the Optoma also active. The installed Start menu beta `1.0.0b7` predates this fix. Saved projects retain their Screen targets. Automated browser tests leave physical outputs off by default. [Checks](mapgyver-m14-screen-defaults.md#numbered-display-feedback)
+- [x] **Smooth Frame/Home:** shared native image and control alignment, Matrix selection beyond page one, and dock resize during animation passed on Intel and NVIDIA. [Checks](mapgyver-m14-navigation.md#second-pass-verification--2026-11-20)
 - [x] **Shader Editor:** edit embedded GLSL beside its preview or choose a file that reloads on change. Windows Screen output passed for applied edits, file replacement, recovery and saved-project reload. [Checks](evidence/mapgyver-m18-embedded-glsl-2026-11-19.json)
 - [x] **Shader formats:** procedural ShaderToy Image and single-pass ISF playback. ISF metadata defaults and saved-project reload pass. Embedded shader code stays saved in File mode. [Checks](evidence/mapgyver-m18-shader-formats-2026-11-19.json)
 - [x] **Shader texture inputs:** pick up to four Media or Channels. Live updates, removal, Undo and project reload passed. [Checks](evidence/mapgyver-m18-shader-textures-2026-11-19.json)
@@ -107,7 +108,6 @@
 3. **Shared editor selection/hover:** ordinary behavior exists. Reconnect can split a Source drag into multiple Undo steps; an old Screen request after New can be rejected. Fix and finish interruption checks. Wider Matrix stress/interruption coverage is part of the final regression batch.
 4. **External-display defaults:** allocation code and no-external checks pass. **Manual later:** one/two external monitors, occupied destinations and native New shortcut; the two-external case may need another monitor.
 5. **Matrix enabled state and fading Layer Stop:** implemented and functionally checked. Complete interrupted fades, shared-consumer and final-resource retirement combinations.
-6. **Smooth Frame/Home navigation:** implemented and functionally checked. Finish Matrix-specific, resize/large-document and independent image/control-alignment checks.
 7. **4× anti-aliasing:** implemented; normal/tiled output checks pass. Finish sustained 1080p/4K cost, memory/overload and recovery checks.
 8. **Video fade-loop:** finish moving-seam pixels in preview and output, reverse and multichannel cases, and file/device recovery during the overlap.
 9. **Video time cropping:** native output and Reference pixel checks passed. Verify moving Media Preview and the native mixed-duration and replacement cases.

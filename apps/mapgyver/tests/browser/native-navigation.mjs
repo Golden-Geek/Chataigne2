@@ -30,6 +30,7 @@ import { verifyPictureFiles } from './picture-files.mjs';
 import { verifyNativePreviewCadence } from './native-preview-cadence.mjs';
 import { verifyNativeSenderSelection } from './native-sender-selection.mjs';
 import { verifyMatrixViewportUi } from './matrix-viewport.mjs';
+import { verifyMatrixNavigation } from './matrix-navigation.mjs';
 import { verifyMatrixParametersUi } from './matrix-parameters.mjs';
 import { verifyCompositionCreation } from './composition-creation.mjs';
 import { verifyMatrixCellPreviews } from './matrix-cell-previews.mjs';
@@ -141,6 +142,7 @@ try {
 			['--matrix-preview-admission', verifyMatrixPreviewAdmission],
 			['--matrix-cell-previews', verifyMatrixCellPreviews],
 			['--matrix-viewport', verifyMatrixViewportUi],
+			['--matrix-navigation', verifyMatrixNavigation],
 			['--matrix-parameters', verifyMatrixParametersUi],
 			['--composition-creation', verifyCompositionCreation],
 			[
@@ -207,6 +209,7 @@ try {
 		].find(([flag]) => process.argv.includes(flag))?.[1] ?? verifyViewportNavigation;
 	await flow({
 		nativePid: native.app.pid,
+		nativePixels: process.argv.includes('--navigation-pixels'),
 		nativeLog: native.log,
 		base: native.base,
 		page: native.page,

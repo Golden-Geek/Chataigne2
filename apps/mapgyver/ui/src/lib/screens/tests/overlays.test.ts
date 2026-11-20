@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { quadOverlay } from '../overlays.ts';
+import { quadOverlay } from '../../preview/overlays.ts';
 
 const quad = [
 	{ x: 0, y: 0 },

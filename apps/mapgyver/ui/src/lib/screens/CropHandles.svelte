@@ -4,7 +4,7 @@
 	import { createGeometryAlignment } from '../spatial/alignment';
 	import type { RelatedSurface } from './generated/RelatedSurface';
 	import { capturePreviewPointer, type OverlayPrimitive } from 'golden_video_ui';
-	import { overlayRem, quadOverlay } from './overlays';
+	import { overlayRem, quadOverlay } from '../preview/overlays';
 	import { cropOverlays } from './crop-overlays';
 	import type { UnitRect } from './generated/UnitRect';
 	import type { Point } from './generated/Point';

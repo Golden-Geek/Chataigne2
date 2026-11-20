@@ -368,9 +368,12 @@ Finishing retains the hint through the final acknowledgement and history close; 
 lost ownership and disposal clear it. Presentation never becomes an authored edit basis.
 
 MapGyver projects this hint into control vertices for Screen warp, Surface Source crop,
-Composition transforms and Matrix Layer/Cell rectangles. Screen/Source native overlays and
-DOM hit controls use the same projected vertices. Domain limits, rounding, validity, persisted
-settings and history remain backend-owned; provisional outlines are not authoritative output.
+Composition transforms and Matrix Layer/Cell rectangles. Each editor derives its native paint
+and DOM hit controls from the same projected vertices. Composition and Matrix publish their
+outlines, handles and snap guides through the shared spatial viewport. The desktop preview
+draws that paint with the image using one submitted camera placement. The DOM provides
+interaction targets, keyboard focus and browser or unavailable-preview fallback. Domain limits,
+rounding, validity, persisted settings and history remain backend-owned.
 The [functional receipt](../progress/evidence/mapgyver-m13-gesture-presentation-2026-11-07.json)
 verifies real held-request input and history. Presented-frame timing and native/DOM pixel
 alignment remain separate M13/4 qualification requirements.

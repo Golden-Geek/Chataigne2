@@ -44,14 +44,36 @@ accepted evidence; the successful cohorts run all three editor cases without ski
 Bundled app SHA-256:
 `F7ED398449F6BC7CB53F87DED500FCEE36AA977700FC0A5C3855AF2950F69266`.
 
-## Second-pass return action
+## Second-pass verification — 2026-11-20
 
-M14/2 is **functionally delivered, Pending qualification**. No fixed acceptance gate closes.
-Before M09, complete independent native pixel/control alignment during Frame/Home on both
-GPUs using the existing `native-alignment.mjs` fixture; complete Matrix-specific actual-editor,
-in-progress resize and sparse/large-document navigation cases. Retained M05/8 latency and
-M13/4 synchronization requirements remain separate. Do not add capture/profiling variants
-during feature delivery unless a reproduced ordinary-use blocker requires them.
+M14/2 is **Accepted**. Next, qualify visible shared editor feedback and matching installed
+paint frames under M15/5.
 
-Next product deliverable: M15/1 safe authoritative Parameter control/range admission and the
-reported Surface Opacity/Video Speed animation crashes, then the remaining M15 features.
+- The original Matrix Layer Frame capture found up to 32 physical pixels of separation
+  between the image and outline. Composition and Matrix now submit their outlines, handles
+  and guides through the same native overlay path as Screen Warping and Surface Source.
+  The image and guides use the same presented camera. DOM hit regions, keyboard focus and
+  the browser fallback remain available.
+- The bundled app passed Frame and Home on NVIDIA RTX 5080 Laptop and Intel Graphics in
+  Screen Warping, Surface Source, Composition, Matrix Layer layout and Matrix Cell content.
+  Window capture measured intermediate image sizes and a maximum 2.5 physical pixels of
+  separation at 125% Windows scale across those views.
+- Both GPUs framed the selected Layer beyond the first 128-item page in a sparse 132-Layer,
+  64-Column Matrix with one Cell. Moving the real dock divider during Frame cancelled the
+  animation at its displayed camera. Navigation left the authored Matrix unchanged.
+- The shared viewport checks preserved pointer-anchored zoom, edit interruption, reduced
+  motion and same-UUID project replacement. The bundled Cargo build, MapGyver UI check,
+  32 shared viewport tests and three overlay tests passed. Existing NVIDIA app checks also
+  passed Composition rotation, keyboard and pointer geometry, Matrix Layer and Cell resize,
+  grouped Undo/Redo and Escape.
+- The browser fixtures suppressed fullscreen and rectangle windows. Separate latency,
+  high-refresh synchronization and physical-output qualification remain in their own gates.
+
+Receipts in `target/`: `mapgyver-m142-matrix-nvidia-175737.log` (original failure),
+`mapgyver-m142-fixed-navigation-pixels-nvidia-181154.log`,
+`mapgyver-m142-fixed-navigation-pixels-intel-181228.log`,
+`mapgyver-m142-fixed-matrix-navigation-nvidia-181256.log`, and
+`mapgyver-m142-fixed-matrix-navigation-intel-181213.log`.
+Gesture receipts: `mapgyver-m142-fixed-composition-nvidia-181453.log`,
+`mapgyver-m142-fixed-matrix-layer-geometry-nvidia-181310.log` and
+`mapgyver-m142-fixed-matrix-cell-geometry-nvidia-181542.log`.

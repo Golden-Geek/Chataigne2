@@ -1,7 +1,7 @@
 import type { OverlayPrimitive } from 'golden_video_ui';
 import { viewportContourAppearance } from 'golden_ui/components/viewport/contour.ts';
 import { viewportHandleAppearance } from 'golden_ui/components/viewport/feedback.ts';
-import type { Point } from './generated/Point';
+import type { Point } from '../media/generated/Point';
 
 const color = (hex: string): [number, number, number, number] => [
 	Number.parseInt(hex.slice(0, 2), 16) / 255,

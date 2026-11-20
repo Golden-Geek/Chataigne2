@@ -36,6 +36,11 @@ headless and no-external desktop scopes passed.
 - Several fixtures explicitly open physical outputs and choose targets from Windows catalog
   order, independently of the application's startup ranking. Keep those cases in the physical
   qualification queue on this topology. Saved projects retain the display authored on each Screen.
+- Rechecked the November 20 18:06 development build with both RTK and Optoma active. All 16
+  checks passed. Startup and three New operations targeted RTK and opened zero physical
+  windows. The Windows Start menu shortcut still points to the October 19 installed beta
+  `1.0.0b7`, which predates the numbered-display fix. Receipt:
+  `target/mapgyver-startup-displays-180922/result.json`.
 
 ## Automated test isolation
 

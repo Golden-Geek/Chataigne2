@@ -1,6 +1,6 @@
 import type { OverlayPrimitive } from 'golden_video_ui';
 import type { Point } from './generated/Point';
-import { handleOverlays, imageFrameOverlay, quadOverlay } from './overlays.ts';
+import { handleOverlays, imageFrameOverlay, quadOverlay } from '../preview/overlays.ts';
 
 /** Native paint and hit admission follow the same crop selection as the DOM controls. */
 export function cropOverlays(

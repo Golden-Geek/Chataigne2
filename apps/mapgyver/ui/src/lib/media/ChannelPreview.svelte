@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { VideoPreview } from 'golden_video_ui';
+	import { VideoPreview, type OverlayPrimitive } from 'golden_video_ui';
 	import { appState, type UiBrowserPreviewDependency } from 'golden_ui';
 	import type { ChannelSnapshot } from './generated/ChannelSnapshot';
 	import { usePreview } from '../preview/context.svelte';
@@ -12,6 +12,9 @@
 		preview,
 		label,
 		ondependencies,
+		overlays,
+		overlayCapacity = 0,
+		onpresentationchange,
 		extent: explicitExtent
 	}: {
 		channel: Pick<ChannelSnapshot, 'label' | 'reference'>;
@@ -19,6 +22,9 @@
 		preview?: PreviewSource;
 		label?: string;
 		ondependencies?(dependencies: readonly UiBrowserPreviewDependency[]): void;
+		overlays?: OverlayPrimitive[];
+		overlayCapacity?: number;
+		onpresentationchange?(nativeOverlays: boolean): void;
 		extent?: { width: number; height: number };
 	} = $props();
 	const owner = usePreview();
@@ -42,6 +48,10 @@
 			lifetime={appState.session?.projectGeneration ?? 0}
 			onextent={view.onextent}
 			{ondependencies}
+			overlays={status?.error ? [] : overlays}
+			{overlayCapacity}
+			nativeBackdrop={overlayCapacity > 0}
+			{onpresentationchange}
 			label={`Preview of ${label ?? channel.label}`}>
 			{#if message}<PreviewMessage {message} />{/if}
 		</VideoPreview>

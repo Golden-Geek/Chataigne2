@@ -301,7 +301,7 @@ export async function verifyCompositionHandles({ page, edit }) {
 	assert.deepEqual(await inspect(), stopped, 'Escape discards later held samples');
 	await history(baseline, stopped);
 	await tab('Screens').click();
-	await tab('Screen Warping').click();
+	await page.locator('.gc-dv-tab[data-content-panel-id="screen-warp"]').click();
 	await page.locator('.gc-dv-tab[data-content-panel-id="composition"]').click();
 	await ready();
 	assert.deepEqual(await inspect(), baseline);

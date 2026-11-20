@@ -75,7 +75,7 @@ export async function verifyMatrixCellGeometry({ page, edit, nativePid }) {
 	await page
 		.getByRole('grid', { name: 'Scrollable Matrix grid', exact: true })
 		.getByTitle(`${row.label} / ${snapshot.columns[0].label}`, { exact: true })
-		.click({ position: { x: 5, y: 5 } });
+		.press('Enter');
 	await page.locator('.gc-dv-tab[data-content-panel-id="composition"]').click();
 	const panel = page.locator('.workbench-editor[data-panel-id="composition"]');
 	await panel.getByRole('button', { name: 'Edit Layer Cells', exact: true }).click();
@@ -117,6 +117,7 @@ export async function verifyMatrixCellGeometry({ page, edit, nativePid }) {
 					value[2] === (expected.size?.width ?? 120) &&
 					value[3] === (expected.size?.height ?? 90)
 			);
+		await locator.hover();
 		const box = await svg.boundingBox(),
 			handle = await locator.boundingBox();
 		assert(box && handle);

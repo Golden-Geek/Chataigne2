@@ -2,7 +2,7 @@
 	import { onDestroy } from 'svelte';
 	import { ViewportHandle, viewportContour } from 'golden_ui';
 	import { capturePreviewPointer, type OverlayPrimitive } from 'golden_video_ui';
-	import { handleOverlays, imageFrameOverlay, overlayRem, quadOverlay } from './overlays';
+	import { handleOverlays, imageFrameOverlay, overlayRem, quadOverlay } from '../preview/overlays';
 	import type { ScreenSnapshot } from './generated/ScreenSnapshot';
 	import type { SurfaceId } from './generated/SurfaceId';
 	import type { SurfaceReference } from './generated/SurfaceReference';

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { cropOverlays } from '../crop-overlays.ts';
-import { quadOverlay } from '../overlays.ts';
+import { quadOverlay } from '../../preview/overlays.ts';
 const corners = [
 	{ x: 0.2, y: 0.2 },
 	{ x: 0.8, y: 0.2 },

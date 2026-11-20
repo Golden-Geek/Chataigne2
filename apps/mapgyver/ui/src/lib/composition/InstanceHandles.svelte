@@ -22,6 +22,7 @@
 	import rotateCursor from './rotate-cursor.svg';
 	import { createViewportPointer } from 'golden_ui';
 	import { customNodeColor } from '../node-color.svelte';
+	import { spatialOverlays, useSpatialPaint } from '../spatial/native-paint';
 	let {
 		composition,
 		sourceExtent: readExtent,
@@ -56,13 +57,40 @@
 	);
 	// The bounded page plus its independent selection contains at most 129 items.
 	const visible = $derived(composition.instances.toReversed());
+	const displayed = $derived(
+		visible.map((item) => {
+			const extent = readExtent(item.definition.source);
+			return { item, points: extent ? instanceDisplay(item, extent, presentation).points : null };
+		})
+	);
 	const selectedExtent = $derived(readExtent(instance?.definition.source ?? null));
 	const handles = $derived(
 		instance ? instanceDisplay(instance, selectedExtent, presentation).handles : null
 	);
 	let canvas: SVGSVGElement;
+	const paint = useSpatialPaint();
+	let hovered = $state<string | null>(null);
+	let focused = $state<string | null>(null);
 	let ghost = $state<Point | null>(null);
 	let guides = $state<AlignmentGuide[]>([]);
+	$effect(() => {
+		if (!paint) return;
+		const contours = displayed.flatMap(({ item, points }) => {
+			if (!points) return [];
+			const id = item.reference.instance;
+			return [
+				{
+					points,
+					color: customNodeColor(id),
+					selected: id === selected,
+					enabled: item.definition.enabled,
+					hovered: hovered === id || focused === id
+				}
+			];
+		});
+		const points = handles ? [handles.pivot, ...handles.resize.map((handle) => handle.point)] : [];
+		paint(spatialOverlays(composition.canvas, contours, points, ghost, guides));
+	});
 	const alignment = createGeometryAlignment(
 		() => canvas,
 		() => snapping,
@@ -152,21 +180,27 @@
 	onpointerup={(event) => pointer.release(event)}
 	onpointercancel={(event) => pointer.release(event, true)}
 	onlostpointercapture={pointer.cancel}>
-	{#each visible as item (item.reference.instance)}
-		{@const extent = sourceExtent(item)}
-		{#if extent}
+	{#each displayed as { item, points } (item.reference.instance)}
+		{#if points}
 			<polygon
 				use:viewportContour={{
 					color: customNodeColor(item.reference.instance),
 					selected: item.reference.instance === selected,
 					enabled: item.definition.enabled,
-					identity: composition.reference.channel
+					identity: composition.reference.channel,
+					onhover: (value) => {
+						if (value || hovered === item.reference.instance)
+							hovered = value ? item.reference.instance : null;
+					},
+					onfocus: (value) => {
+						if (value || focused === item.reference.instance)
+							focused = value ? item.reference.instance : null;
+					}
 				}}
+				data-native-overlay-control
 				data-instance-drop-target={item.reference.instance}
 				data-source-drop-object={item.reference.instance}
-				points={instanceDisplay(item, extent, presentation)
-					.points.map((point) => `${point.x},${point.y}`)
-					.join(' ')}
+				points={points.map((point) => `${point.x},${point.y}`).join(' ')}
 				class:selected={item.reference.instance === selected}
 				class:inactive={!item.definition.enabled}
 				role="button"
@@ -186,7 +220,11 @@
 		{/if}
 	{/each}
 </svg>
-<ViewportGuides {guides} width={composition.canvas.width} height={composition.canvas.height} />
+<ViewportGuides
+	{guides}
+	width={composition.canvas.width}
+	height={composition.canvas.height}
+	native={!!paint} />
 
 {#each visible as item (item.reference.instance)}
 	{@const extent = sourceExtent(item)}
@@ -214,6 +252,7 @@
 		data-instance-drop-target={instance.reference.instance}
 		data-source-drop-object={instance.reference.instance}
 		data-instance-handle="Translate"
+		data-native-overlay-control
 		aria-disabled={disabled && !active}
 		onpointerdown={(event) => down(event, instance!, 'Translate')} />
 	{#each handles.resize as handle (handle.name)}
@@ -224,6 +263,7 @@
 			tabindex={disabled ? -1 : 0}
 			data-instance-handle="Resize"
 			data-instance-resize={handle.name}
+			data-native-overlay-control
 			style={`border-radius: 0.1rem; cursor: ${handle.cursor}`}
 			aria-disabled={disabled && !active}
 			onpointerdown={(event) => {
@@ -249,6 +289,7 @@
 		x={ghost.x / composition.canvas.width}
 		y={ghost.y / composition.canvas.height}
 		label="Transform pointer"
+		data-native-overlay-control
 		ghost />{/if}
 
 <style>

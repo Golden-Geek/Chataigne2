@@ -2,7 +2,7 @@
 	import { viewportContour } from 'golden_ui';
 	import type { OverlayPrimitive } from 'golden_video_ui';
 	import type { RelatedSurface } from './generated/RelatedSurface';
-	import { overlayRem, quadOverlay } from './overlays';
+	import { overlayRem, quadOverlay } from '../preview/overlays';
 	import { cropCorners } from './gesture-presentation';
 	import { customNodeColor } from '../node-color.svelte';
 	let {
