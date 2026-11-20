@@ -68,6 +68,7 @@ impl CapturedPreview {
                 extent: channel.resolution.extent,
                 error: None,
                 matrix: None,
+                shader_file_revision: self.channels.shader_file_revision(channel.reference),
                 message: if video_message.is_some() {
                     video_message
                 } else if availability != ChannelAvailability::Ready {
@@ -148,6 +149,7 @@ fn capture_preview_with_time(
                     error: None,
                     message: None,
                     matrix: None,
+                    shader_file_revision: None,
                 });
             }
             PreviewSource::Channel { reference } => channels.push(reference),
@@ -176,6 +178,7 @@ fn capture_preview_with_time(
                 };
                 statuses.push(PreviewStatus {
                     matrix: None,
+                    shader_file_revision: None,
                     source,
                     extent,
                     error,
@@ -197,6 +200,7 @@ fn capture_preview_with_time(
                 error: None,
                 message: None,
                 matrix: Some(matrix),
+                shader_file_revision: None,
             });
         }
     }
@@ -290,6 +294,7 @@ pub(crate) fn capture_presentation_with_time(
         }
         let screen = capture_screen(engine, output.screen, maximum_surfaces)?;
         result.statuses.push(PreviewStatus {
+            shader_file_revision: None,
             matrix: None,
             source: PreviewSource::Screen { screen: output.screen },
             extent: Some(output.extent()),
@@ -315,6 +320,7 @@ pub(crate) fn capture_presentation_with_time(
             status.message = message;
         } else {
             result.statuses.push(PreviewStatus {
+                shader_file_revision: None,
                 matrix: None,
                 source,
                 extent: None,

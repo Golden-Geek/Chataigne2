@@ -14,13 +14,18 @@ use {
 mod authoring;
 #[cfg(all(windows, feature = "native-video"))]
 pub(crate) use authoring::{add, inspect};
+#[cfg(all(windows, feature = "native-video"))]
+pub(in crate::media) mod files;
 
 #[cfg(not(all(windows, feature = "native-video")))]
 pub(crate) fn inspect(
     _: &AppEngine,
     _: super::super::protocol::ChannelReference,
-) -> Result<Vec<ShaderUniformRow>, String> {
-    Ok(Vec::new())
+) -> Result<super::super::protocol::MediaEditResult, String> {
+    Ok(super::super::protocol::MediaEditResult::ShaderUniforms {
+        rows: Vec::new(),
+        revision: None,
+    })
 }
 
 #[cfg(not(all(windows, feature = "native-video")))]
@@ -28,6 +33,7 @@ pub(crate) fn add(
     _: &mut AppEngine,
     _: super::super::protocol::ChannelReference,
     _: Option<&str>,
+    _: Option<uuid::Uuid>,
 ) -> Result<(), String> {
     Err("Shader uniforms require the Windows native video runtime".into())
 }

@@ -373,9 +373,12 @@ impl ChannelRenderer {
         let prepares_shaders = false;
         if self.pictures.is_some() || prepares_video || prepares_ndi || prepares_shaders {
             let mut demanded = routes.iter().map(|route| route.channel).collect::<Vec<_>>();
-            if let Some(preview) = &preview {
-                demanded.extend(preview.references()?);
-            }
+            let inspected = preview
+                .as_ref()
+                .map(PreviewLayout::references)
+                .transpose()?
+                .unwrap_or_default();
+            demanded.extend(inspected.iter().copied());
             for screen in &screens {
                 demanded.extend(screen.screen.references());
             }
@@ -393,7 +396,7 @@ impl ChannelRenderer {
             }
             #[cfg(all(windows, feature = "native-video"))]
             if let Some(shaders) = &mut self.shaders {
-                shaders.sync(&capture, &demanded)?;
+                shaders.sync(&capture, &demanded, &inspected)?;
             }
             #[cfg(feature = "video-files")]
             if let Some(videos) = &mut self.videos {

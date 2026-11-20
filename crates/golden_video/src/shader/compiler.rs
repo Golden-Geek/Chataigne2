@@ -217,6 +217,10 @@ impl FragmentProgram {
         &self.uniforms
     }
 
+    pub(super) fn uniform_layout(&self) -> Arc<[FragmentUniform]> {
+        self.uniforms.clone()
+    }
+
     /// Bind values to this draw while sharing the shader bytecode and effect identity.
     /// Unknown names should return `None`; invalid and mismatched values use the source default.
     pub fn with_uniform_values(&self, mut read: impl FnMut(&FragmentUniform) -> Option<UniformValue>) -> Self {

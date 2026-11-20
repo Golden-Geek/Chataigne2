@@ -106,6 +106,8 @@ pub struct PreviewStatus {
     pub error: Option<String>,
     pub message: Option<String>,
     pub matrix: Option<crate::matrix::protocol::MatrixRenderStatus>,
+    #[ts(type = "string | null")]
+    pub shader_file_revision: Option<uuid::Uuid>,
 }
 
 pub fn export_typescript(directory: impl AsRef<std::path::Path>) -> Result<(), Box<dyn std::error::Error>> {

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::stages::Stage;
 use super::{
     CompileError, FragmentFormat, FragmentInput, FragmentProgram, FragmentStage, FragmentUniform, MAX_SOURCE_BYTES,
@@ -9,6 +11,7 @@ use crate::TextureDescriptor;
 #[derive(Debug)]
 pub struct FragmentEffect {
     stages: Box<[(FragmentProgram, Stage)]>,
+    uniforms: Arc<[FragmentUniform]>,
 }
 
 impl FragmentEffect {
@@ -48,10 +51,12 @@ impl FragmentEffect {
                 .map(|layout| (program.clone(), layout))
                 .collect()
         };
-        if format == FragmentFormat::ShaderToy && stages.len() > 1 {
-            adapter::validate_shared_uniforms(stages.iter().flat_map(|(program, _)| program.uniforms()))?;
-        }
-        Ok(Self { stages })
+        let uniforms = if format == FragmentFormat::ShaderToy && stages.len() > 1 {
+            adapter::merge_uniforms(stages.iter().flat_map(|(program, _)| program.uniforms()))?.into()
+        } else {
+            stages[0].0.uniform_layout()
+        };
+        Ok(Self { stages, uniforms })
     }
 
     /// Resolve ordered draws using the requested output dimensions.
@@ -60,6 +65,11 @@ impl FragmentEffect {
             .iter()
             .map(|(program, layout)| layout.resolve(output, program.clone()))
             .collect()
+    }
+
+    /// Validated metadata from the same source revision as the compiled draws.
+    pub fn uniform_layout(&self) -> Arc<[FragmentUniform]> {
+        self.uniforms.clone()
     }
 
     /// Resolve draws and pass dimensions using live authored values.

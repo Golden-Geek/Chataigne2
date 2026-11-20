@@ -263,10 +263,10 @@ pub(super) fn inspect_uniforms(format: FragmentFormat, source: &str) -> Result<V
     }
 }
 
-pub(super) fn validate_shared_uniforms<'a>(
+pub(super) fn merge_uniforms<'a>(
     fields: impl IntoIterator<Item = &'a FragmentUniform>,
-) -> Result<(), CompileError> {
-    declarations::merge_uniforms(fields).map(drop)
+) -> Result<Vec<FragmentUniform>, CompileError> {
+    declarations::merge_uniforms(fields)
 }
 
 fn without_version(source: &str) -> &str {

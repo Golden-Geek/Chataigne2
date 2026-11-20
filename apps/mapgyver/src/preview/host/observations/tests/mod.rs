@@ -19,6 +19,7 @@ fn submitted() -> PreviewStatus {
         layers: [].into(),
     };
     PreviewStatus {
+        shader_file_revision: None,
         source: PreviewSource::Channel {
             reference: ChannelReference {
                 media: MediaId(NodeUuid(uuid::Uuid::new_v4())),

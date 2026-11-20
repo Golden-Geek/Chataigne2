@@ -292,6 +292,8 @@ pub enum MediaEdit {
     AddShaderUniforms {
         reference: ChannelReference,
         name: Option<String>,
+        #[ts(type = "string | null")]
+        revision: Option<uuid::Uuid>,
     },
     Video {
         media: MediaId,
@@ -552,6 +554,8 @@ pub struct PictureFileBinding {
 pub enum MediaEditResult {
     ShaderUniforms {
         rows: Vec<super::shader::uniforms::ShaderUniformRow>,
+        #[ts(type = "string | null")]
+        revision: Option<uuid::Uuid>,
     },
     MatrixPresetMembers {
         page: crate::matrix::protocol::MatrixPresetMembers,

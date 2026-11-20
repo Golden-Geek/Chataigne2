@@ -27,6 +27,7 @@ const stamp = (column: string, launch: string): MatrixPlanStamp => ({
 	}
 });
 const status = (): PreviewStatus => ({
+	shader_file_revision: null,
 	source: { kind: 'Channel', reference },
 	extent: null,
 	error: null,

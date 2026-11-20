@@ -12,6 +12,8 @@ pub struct MediaManagerNode {
     pub(crate) instance: uuid::Uuid,
     pub(crate) sources: Arc<super::retention::RuntimeSources>,
     pub(crate) resolutions: Arc<super::resolution::RuntimeResolutions>,
+    #[cfg(all(windows, feature = "native-video"))]
+    pub(crate) shader_files: Arc<super::shader::uniforms::files::Catalog>,
     pub(crate) applications: crate::applications::runtime::RuntimeView,
     pub(crate) application_revision: Arc<RevisionSource>,
     pub(crate) application_definition_revision: Arc<RevisionSource>,
@@ -37,6 +39,8 @@ impl MediaManagerNode {
             instance: uuid::Uuid::new_v4(),
             sources: Default::default(),
             resolutions: Default::default(),
+            #[cfg(all(windows, feature = "native-video"))]
+            shader_files: Default::default(),
             applications: Default::default(),
             application_revision: Default::default(),
             application_definition_revision: Default::default(),

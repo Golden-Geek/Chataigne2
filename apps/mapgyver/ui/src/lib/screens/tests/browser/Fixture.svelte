@@ -135,7 +135,8 @@
 		extent: { width: 80, height: 60 },
 		error: null,
 		message: null,
-		matrix: null
+		matrix: null,
+		shader_file_revision: null
 	});
 	const shownComposition = $derived({
 		...composition,

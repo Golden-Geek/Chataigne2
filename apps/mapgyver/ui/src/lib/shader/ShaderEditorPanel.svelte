@@ -96,16 +96,15 @@
 				</div>
 			</details>
 		{/if}
-		{#if !fileMode}
-			{#key `${session.snapshotGeneration}:${channel.uuid}`}
-				<ShaderUniforms
-					{session}
-					reference={{ media: media.uuid, channel: channel.uuid }}
-					{code}
-					{format}
-					folder={uniforms} />
-			{/key}
-		{/if}
+		{#key `${session.snapshotGeneration}:${channel.uuid}:${fileMode}`}
+			<ShaderUniforms
+				{session}
+				reference={{ media: media.uuid, channel: channel.uuid }}
+				sourceNode={fileMode ? file : code}
+				{fileMode}
+				{format}
+				folder={uniforms} />
+		{/key}
 		<div class="shader-workspace" class:embedded={!fileMode}>
 			{#if !fileMode && code}
 				{#key `${session.snapshotGeneration}:${code.uuid}`}

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use golden_core::{
     edit::{Edit, NodeTree},
     node::{DeclId, Folder, Node, NodeId},
@@ -9,13 +11,20 @@ use crate::{
     app::{AppEngine, AppNode},
     media::{
         authoring,
-        protocol::{ChannelReference, ChannelSource, ShaderInput},
+        protocol::{ChannelReference, ChannelSource, MediaEditResult, ShaderInput},
     },
 };
 
 use super::{FOLDER, LIMIT, PREFIX, ShaderUniformRow, children, folder, parameters, value};
 
-fn definitions(engine: &AppEngine, reference: ChannelReference) -> Result<(NodeId, Vec<FragmentUniform>), String> {
+struct Definitions {
+    parent: NodeId,
+    uniforms: Arc<[FragmentUniform]>,
+    file: bool,
+    revision: Option<uuid::Uuid>,
+}
+
+fn definitions(engine: &AppEngine, reference: ChannelReference) -> Result<Definitions, String> {
     let node = authoring::channel_id(engine, reference)?;
     let parent = parameters(engine, node).ok_or("Shader Parameters are missing")?;
     let definition =
@@ -23,15 +32,32 @@ fn definitions(engine: &AppEngine, reference: ChannelReference) -> Result<(NodeI
     let ChannelSource::Shader { input, format, .. } = definition.source else {
         return Err("Expected a Shader channel".into());
     };
-    let ShaderInput::Embedded { code } = input else {
-        return Ok((parent, Vec::new()));
+    let file = matches!(input, ShaderInput::File { .. });
+    let (uniforms, revision) = match input {
+        ShaderInput::Embedded { code } if !code.trim().is_empty() => (
+            FragmentEffect::inspect_uniforms(format, &code)
+                .map_err(|error| error.to_string())?
+                .into(),
+            None,
+        ),
+        ShaderInput::File { file: Some(file) } => {
+            let manager = authoring::manager(engine)?;
+            let Some(AppNode::MediaManager(manager)) = engine.nodes.get(manager) else {
+                return Err("Medias is missing".into());
+            };
+            manager.shader_files.get(reference, format, &file).map_or_else(
+                || (Arc::default(), None),
+                |(revision, uniforms)| (uniforms, Some(revision)),
+            )
+        }
+        _ => (Arc::default(), None),
     };
-    let uniforms = if code.trim().is_empty() {
-        Vec::new()
-    } else {
-        FragmentEffect::inspect_uniforms(format, &code).map_err(|error| error.to_string())?
-    };
-    Ok((parent, uniforms))
+    Ok(Definitions {
+        parent,
+        uniforms,
+        file,
+        revision,
+    })
 }
 
 fn existing(engine: &AppEngine, parent: Option<NodeId>) -> impl Iterator<Item = (&str, &Parameter)> {
@@ -54,26 +80,47 @@ fn compatible(parameter: &Parameter, uniform: &FragmentUniform) -> bool {
         .is_some_and(|value| std::mem::discriminant(&value) == std::mem::discriminant(&uniform.default))
 }
 
-pub(crate) fn inspect(engine: &AppEngine, reference: ChannelReference) -> Result<Vec<ShaderUniformRow>, String> {
-    let (parent, definitions) = definitions(engine, reference)?;
-    let folder = folder(engine, parent);
-    Ok(definitions
-        .into_iter()
+pub(crate) fn inspect(engine: &AppEngine, reference: ChannelReference) -> Result<MediaEditResult, String> {
+    let definitions = definitions(engine, reference)?;
+    let folder = folder(engine, definitions.parent);
+    let rows = definitions
+        .uniforms
+        .iter()
         .map(|uniform| {
             let parameter = existing(engine, folder)
-                .find(|(name, parameter)| *name == uniform.name && compatible(parameter, &uniform))
+                .find(|(name, parameter)| *name == uniform.name && compatible(parameter, uniform))
                 .map(|(_, parameter)| parameter.node_data().id);
             ShaderUniformRow {
-                label: label(&uniform).to_owned(),
-                name: uniform.name,
+                label: label(uniform).to_owned(),
+                name: uniform.name.clone(),
                 parameter,
             }
         })
-        .collect())
+        .collect();
+    Ok(MediaEditResult::ShaderUniforms {
+        rows,
+        revision: definitions.revision,
+    })
 }
 
-pub(crate) fn add(engine: &mut AppEngine, reference: ChannelReference, name: Option<&str>) -> Result<(), String> {
-    let (parent, definitions) = definitions(engine, reference)?;
+pub(crate) fn add(
+    engine: &mut AppEngine,
+    reference: ChannelReference,
+    name: Option<&str>,
+    revision: Option<uuid::Uuid>,
+) -> Result<(), String> {
+    let Definitions {
+        parent,
+        uniforms: definitions,
+        file,
+        revision: prepared,
+    } = definitions(engine, reference)?;
+    if file && prepared.is_none() {
+        return Err("Shader file inputs are unavailable until the current file is prepared".into());
+    }
+    if revision != prepared {
+        return Err("Shader inputs changed. Choose uniforms from the current list.".into());
+    }
     if name.is_some_and(|requested| !definitions.iter().any(|uniform| uniform.name == requested)) {
         return Err("The requested uniform is absent from the current shader".into());
     }

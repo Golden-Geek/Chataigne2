@@ -3,4 +3,4 @@ import type { Extent2D } from "./Extent2D";
 import type { MatrixRenderStatus } from "./MatrixRenderStatus";
 import type { PreviewSource } from "./PreviewSource";
 
-export type PreviewStatus = { source: PreviewSource, extent: Extent2D | null, error: string | null, message: string | null, matrix: MatrixRenderStatus | null, };
+export type PreviewStatus = { source: PreviewSource, extent: Extent2D | null, error: string | null, message: string | null, matrix: MatrixRenderStatus | null, shader_file_revision: string | null, };

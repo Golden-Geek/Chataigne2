@@ -18,6 +18,8 @@ pub struct CapturedChannels {
     pub(super) assets: Vec<CapturedAsset>,
     sources: Arc<super::retention::RuntimeSources>,
     pub(super) resolutions: Arc<super::resolution::RuntimeResolutions>,
+    #[cfg(all(windows, feature = "native-video"))]
+    pub(super) shader_files: Arc<super::shader::uniforms::files::Catalog>,
     #[cfg(all(windows, target_arch = "x86_64"))]
     pub(super) ndi_inputs: Arc<super::rendering::ndi::Inputs>,
     source_guard: RevisionGuard,
@@ -80,6 +82,18 @@ impl CapturedChannel {
 }
 
 impl CapturedChannels {
+    pub(crate) fn shader_file_revision(&self, reference: ChannelReference) -> Option<uuid::Uuid> {
+        #[cfg(all(windows, feature = "native-video"))]
+        {
+            self.shader_files.revision(reference)
+        }
+        #[cfg(not(all(windows, feature = "native-video")))]
+        {
+            let _ = reference;
+            None
+        }
+    }
+
     /// Bounded source diagnostics follow canonical References and editor dependencies.
     pub(crate) fn video_source_status(
         &self,
@@ -563,6 +577,8 @@ pub(crate) fn capture_channels_with_time(
         source_guard: sources.guard(),
         sources: sources.clone(),
         resolutions: manager.resolutions.clone(),
+        #[cfg(all(windows, feature = "native-video"))]
+        shader_files: manager.shader_files.clone(),
         #[cfg(all(windows, target_arch = "x86_64"))]
         ndi_inputs: manager.ndi_inputs.clone(),
         project: manager.instance,

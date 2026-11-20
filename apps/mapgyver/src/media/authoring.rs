@@ -489,11 +489,13 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
         MediaEdit::InspectChannel { reference } => MediaEditResult::Channel {
             snapshot: super::queries::inspect_channel(engine, reference)?,
         },
-        MediaEdit::InspectShaderUniforms { reference } => MediaEditResult::ShaderUniforms {
-            rows: super::shader::uniforms::inspect(engine, reference)?,
-        },
-        MediaEdit::AddShaderUniforms { reference, name } => {
-            super::shader::uniforms::add(engine, reference, name.as_deref())?;
+        MediaEdit::InspectShaderUniforms { reference } => super::shader::uniforms::inspect(engine, reference)?,
+        MediaEdit::AddShaderUniforms {
+            reference,
+            name,
+            revision,
+        } => {
+            super::shader::uniforms::add(engine, reference, name.as_deref(), revision)?;
             MediaEditResult::Changed
         }
     };

@@ -820,6 +820,7 @@ pub(super) fn run(input: Input) -> io::Result<()> {
                     .filter_map(|view| serde_json::from_str::<PreviewSource>(&view.source).ok())
                     .map(|source| PreviewStatus {
                         matrix: None,
+                        shader_file_revision: None,
                         source,
                         extent: None,
                         error: Some(error.clone()),

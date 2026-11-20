@@ -5,45 +5,65 @@
 	import { invokeMediaEdit } from '../media/operations';
 	import type { ChannelReference } from '../media/generated/ChannelReference';
 	import type { ShaderUniformRow } from '../media/generated/ShaderUniformRow';
+	import { usePreview } from '../preview/context.svelte';
+	import { previewKey } from '../preview/identity';
 
 	let {
 		session,
 		reference,
-		code,
+		sourceNode,
+		fileMode,
 		format,
 		folder
 	}: {
 		session: WorkbenchSession;
 		reference: ChannelReference;
-		code: UiNodeDto | undefined;
+		sourceNode: UiNodeDto | undefined;
+		fileMode: boolean;
 		format: UiNodeDto | undefined;
 		folder: UiNodeDto | null | undefined;
 	} = $props();
 
-	const source = $derived(code?.data.kind === 'parameter' ? code.data.param.value : null);
+	const source = $derived(
+		sourceNode?.data.kind === 'parameter' ? sourceNode.data.param.value : null
+	);
+	const preview = usePreview();
+	const fileRevision = $derived(
+		fileMode
+			? (preview.statuses.get(previewKey({ kind: 'Channel', reference }))?.shader_file_revision ??
+					null)
+			: null
+	);
 	const dialect = $derived(format?.data.kind === 'parameter' ? format.data.param.value : null);
 	const membership = $derived(folder?.children.join(',') ?? '');
 	let rows = $state<ShaderUniformRow[]>([]);
 	let error = $state('');
 	let busy = $state(false);
+	let expanded = $state(false);
+	let revision = $state<string | null>(null);
 
 	$effect(() => {
 		const generation = session.snapshotGeneration;
 		const current = reference;
-		// Refresh after code changes, additions and Undo. Parameter value changes need no query.
+		// Refresh after source changes, file preparation, Add and Undo.
 		void source;
 		void dialect;
 		void membership;
+		void fileRevision;
 		let stale = false;
 		void invokeMediaEdit(session, { kind: 'InspectShaderUniforms', reference: current }).then(
 			(result) => {
 				if (stale || session.snapshotGeneration !== generation) return;
-				if (result.kind === 'ShaderUniforms') rows = result.rows;
+				if (result.kind === 'ShaderUniforms') {
+					rows = result.rows;
+					revision = result.revision;
+				}
 				error = '';
 			},
 			(problem: unknown) => {
 				if (stale || session.snapshotGeneration !== generation) return;
 				rows = [];
+				revision = null;
 				error = problem instanceof Error ? problem.message : String(problem);
 			}
 		);
@@ -57,7 +77,7 @@
 		busy = true;
 		error = '';
 		try {
-			await invokeMediaEdit(session, { kind: 'AddShaderUniforms', reference, name });
+			await invokeMediaEdit(session, { kind: 'AddShaderUniforms', reference, name, revision });
 		} catch (problem) {
 			error = problem instanceof Error ? problem.message : String(problem);
 		} finally {
@@ -67,7 +87,7 @@
 </script>
 
 {#if rows.length || error}
-	<details class="uniforms">
+	<details class="uniforms" bind:open={expanded}>
 		<summary>Uniforms</summary>
 		<div class="rows">
 			{#if rows.some((row) => row.parameter === null)}

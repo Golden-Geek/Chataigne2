@@ -33,9 +33,7 @@ pub(crate) fn query_operation(engine: &AppEngine, operation: &str, payload: &Val
         edit => edit,
     };
     let result = match edit {
-        MediaEdit::InspectShaderUniforms { reference } => {
-            super::shader::uniforms::inspect(engine, reference).map(|rows| MediaEditResult::ShaderUniforms { rows })
-        }
+        MediaEdit::InspectShaderUniforms { reference } => super::shader::uniforms::inspect(engine, reference),
         MediaEdit::Matrix {
             media,
             edit:

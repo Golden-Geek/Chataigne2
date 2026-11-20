@@ -232,7 +232,7 @@ Choose **Format** in the Shader Editor or channel Inspector.
   target size or project changes.
   [ISF pass attributes](https://docs.isf.video/ref_json.html#passes-and-target)
 
-For embedded shaders, open **Uniforms** in the Shader Editor. Add individual inputs or choose
+Open **Uniforms** in the Shader Editor. Add individual inputs or choose
 **Add All** to expose them as channel parameters. Changes take effect while the shader runs
 and save with the channel. ISF uses the input type, label, default and bounds from its JSON.
 [ISF input metadata](https://docs.isf.video/ref_json.html#inputs)
@@ -247,8 +247,10 @@ Open **Texture inputs** to choose up to four Media or Channels. A Media target s
 channel, while a Channel target samples the selected variant. Empty or unavailable inputs sample
 transparent black. Use `texture(iChannel0, uv)` through `iChannel3` for GLSL and ShaderToy. ISF
 binds named `image` inputs to slots in declaration order and supports its `IMG_*` sampling functions.
-Shader Media can feed Screens, Compositions, Matrix Cells and previews. File-mode uniform
-discovery is pending.
+Shader Media can feed Screens, Compositions, Matrix Cells and previews. In File mode the
+Uniforms list follows the prepared file. Replacing the file refreshes the list. Controls
+whose name and type still match keep their saved values, and a removed declaration can
+reuse its saved control if it returns.
 
 The Windows x64 package includes the NDI 6 runtime and enables NDI from the first launch.
 Use **Medias → + → NDI** to receive, or choose **Target → NDI** on an enabled Screen to publish.

@@ -791,6 +791,88 @@ try {
 	assert.equal(path.resolve((await post('/api/ui/project-load', { path: project })).path), project);
 	await delay(750);
 	await observer.observePixels('shadertoy-common-uniform-reopen', [255, 255, 255, 255]);
+
+	stage = 'discover and edit uniforms from the rendered external file';
+	const uniformFile = 'Uniforms.glsl';
+	const uniformPath = path.join(directory, uniformFile);
+	await writeFile(
+		uniformPath,
+		`uniform float fileGain; //0 [0, 1]
+        uniform float fileGreen; //1 [0, 1]
+        void main() { fragColor = vec4(fileGain, fileGreen, 0.0, 1.0); }`
+	);
+	await activateShader();
+	await format.selectOption('GLSL');
+	await source.selectOption('File');
+	await file.fill(uniformFile);
+	await file.press('Enter');
+	const controls = panel.locator('details.uniforms');
+	await controls.locator('summary').click();
+	await controls.getByRole('button', { name: 'Add All', exact: true }).click();
+	await waitFor(async () => {
+		const { rows, revision } = await inspectUniforms();
+		return revision && rows.length === 2 && rows.every(({ parameter }) => parameter !== null);
+	});
+	const originalFileInputs = await inspectUniforms();
+	const previousField = originalFileInputs.rows.find(({ name }) => name === 'fileGain').parameter;
+	const removedField = originalFileInputs.rows.find(({ name }) => name === 'fileGreen').parameter;
+	const previousUuid = (await graph()).find(({ node_id }) => node_id === previousField).uuid;
+	await delay(500);
+	await observer.observePixels('file-uniform-defaults', [0, 255, 0, 255]);
+	await setUniform('fileGain', 1);
+	await observer.observePixels('file-uniform-live-edit', [255, 255, 0, 255]);
+
+	stage = 'replace the file and refresh shader controls without reselection';
+	await writeFile(
+		`${uniformPath}.new`,
+		`uniform float fileGain; //0 [0, 1]
+        uniform float fileBlue; //1 [0, 1]
+        void main() { fragColor = vec4(fileGain, 0.0, fileBlue, 1.0); }`
+	);
+	await rename(`${uniformPath}.new`, uniformPath);
+	const addBlue = controls.getByRole('button', { name: 'Add uniform fileBlue', exact: true });
+	await addBlue.waitFor();
+	assert.equal(await controls.locator(`[data-node-id="${removedField}"]`).count(), 0);
+	const latestFileInputs = await inspectUniforms();
+	assert.notEqual(latestFileInputs.revision, originalFileInputs.revision);
+	assert.equal(
+		latestFileInputs.rows.find(({ name }) => name === 'fileGain').parameter,
+		previousField
+	);
+	const staleAdd = await post('/api/ui/intent', {
+		kind: 'invokeAppOperation',
+		namespace: 'mapgyver.media',
+		operation: 'edit',
+		payload: {
+			kind: 'AddShaderUniforms',
+			reference,
+			name: null,
+			revision: originalFileInputs.revision
+		}
+	});
+	assert.equal(staleAdd.success, false);
+	assert.match(JSON.stringify(staleAdd), /Shader inputs changed/);
+	assert.equal(
+		(await inspectUniforms()).rows.find(({ name }) => name === 'fileBlue').parameter,
+		null
+	);
+	await delay(500);
+	await observer.observePixels('file-uniform-reload-preserves-edit', [255, 0, 255, 255]);
+	await addBlue.click();
+	await waitFor(async () =>
+		Number.isInteger(
+			(await inspectUniforms()).rows.find(({ name }) => name === 'fileBlue')?.parameter
+		)
+	);
+	await setUniform('fileBlue', 0);
+	await observer.observePixels('file-uniform-reloaded-input-live-edit', [255, 0, 0, 255]);
+	assert((await post('/api/ui/project-save', { path: project })).ok);
+	assert.equal(path.resolve((await post('/api/ui/project-load', { path: project })).path), project);
+	await waitFor(async () => (await inspectUniforms()).rows.length === 2);
+	await delay(750);
+	await observer.observePixels('file-uniform-reopen', [255, 0, 0, 255]);
+	const persistedGain = (await graph()).find(({ uuid }) => uuid === previousUuid);
+	assert.equal(persistedGain?.data.param.value.Float, 1);
 	assert.deepEqual(errors, []);
 	assert(!appLog.includes('[mapgyver-output] window id='));
 	await writeFile(

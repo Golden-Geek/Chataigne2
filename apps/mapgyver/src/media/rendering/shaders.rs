@@ -11,6 +11,7 @@ use golden_video::shader::{CompileError, FragmentEffect, FragmentFormat};
 use crate::media::capture::CapturedChannels;
 use crate::media::protocol::{ChannelReference, ChannelSource, ShaderInput};
 use crate::media::resolution::ChannelAvailability;
+use crate::media::shader::uniforms::files::{Catalog, PreparedFile};
 
 mod files;
 pub(super) mod passes;
@@ -31,6 +32,8 @@ pub(super) struct Shaders {
     root: PathBuf,
     notify: WorkerNotifier,
     files: Option<files::Files>,
+    catalog: Option<Arc<Catalog>>,
+    catalog_owner: Arc<()>,
 }
 
 impl Shaders {
@@ -64,6 +67,8 @@ impl Shaders {
             root: root.to_path_buf(),
             notify,
             files: None,
+            catalog: None,
+            catalog_owner: Arc::new(()),
         })
     }
 
@@ -74,24 +79,35 @@ impl Shaders {
         if let Some(files) = &mut self.files {
             files.set_root(root)?;
         }
+        if let Some(catalog) = &self.catalog {
+            catalog.clear(&self.catalog_owner);
+        }
         self.root = root.to_path_buf();
         Ok(true)
     }
 
-    pub(super) fn sync(&mut self, capture: &CapturedChannels, references: &[ChannelReference]) -> Result<(), String> {
+    pub(super) fn sync(
+        &mut self,
+        capture: &CapturedChannels,
+        references: &[ChannelReference],
+        inspected: &[ChannelReference],
+    ) -> Result<(), String> {
         let references = references.iter().copied().collect::<HashSet<_>>();
+        let inspected = inspected.iter().copied().collect::<HashSet<_>>();
         let inputs = capture
             .channels
             .iter()
-            .filter(|channel| channel.enabled && references.contains(&channel.reference))
+            .filter(|channel| {
+                (channel.enabled && references.contains(&channel.reference)) || inspected.contains(&channel.reference)
+            })
             .filter_map(|channel| match &channel.definition.as_ref()?.source {
-                ChannelSource::Shader { format, input, .. } => Some((*format, input)),
+                ChannelSource::Shader { format, input, .. } => Some((channel.reference, *format, input)),
                 _ => None,
             })
             .collect::<Vec<_>>();
         let external = inputs
             .iter()
-            .filter_map(|(_, input)| match input {
+            .filter_map(|(_, _, input)| match input {
                 ShaderInput::File { file: Some(file) } => Some(file.clone()),
                 _ => None,
             })
@@ -104,13 +120,13 @@ impl Shaders {
             files.service()?;
         }
         let wanted = inputs
-            .into_iter()
-            .filter_map(|(format, input)| {
+            .iter()
+            .filter_map(|(_, format, input)| {
                 self.code(input)
                     .ok()
                     .flatten()
                     .cloned()
-                    .map(|code| ProgramSource { format, code })
+                    .map(|code| ProgramSource { format: *format, code })
             })
             .filter(|source| !source.code.trim().is_empty())
             .collect::<HashSet<_>>();
@@ -119,6 +135,27 @@ impl Shaders {
             self.entries.entry(source).or_insert(None);
         }
         self.service_programs();
+        if let Some(old) = self.catalog.replace(capture.shader_files.clone())
+            && !Arc::ptr_eq(&old, &capture.shader_files)
+        {
+            old.clear(&self.catalog_owner);
+        }
+        let layouts = inputs
+            .into_iter()
+            .filter_map(|(reference, format, input)| {
+                let ShaderInput::File { file: Some(file) } = input else {
+                    return None;
+                };
+                let program = self.program(format, input).ok().flatten()?;
+                Some(PreparedFile {
+                    reference,
+                    format,
+                    file: file.clone(),
+                    uniforms: program.uniform_layout(),
+                })
+            })
+            .collect();
+        capture.shader_files.publish(&self.catalog_owner, layouts);
         Ok(())
     }
 
