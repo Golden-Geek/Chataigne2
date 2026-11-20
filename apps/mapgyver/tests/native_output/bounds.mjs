@@ -18,6 +18,7 @@ const hardware = gpu
 		)
 	: undefined;
 const native = await openNativeEditor({
+	allowPhysicalOutputs: true,
 	prepareProfile: gpu
 		? async (root) => {
 				const preferences = path.join(root, 'MapGyver');

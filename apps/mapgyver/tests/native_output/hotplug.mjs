@@ -24,6 +24,7 @@ const hardware = () =>
 const before = hardware();
 await writeFile(path.join(directory, 'hardware-before.json'), JSON.stringify(before, null, 2));
 const native = await openNativeEditor({
+	allowPhysicalOutputs: true,
 	prepareProfile: async (root) => {
 		const profile = path.join(root, 'MapGyver');
 		await mkdir(profile, { recursive: true });

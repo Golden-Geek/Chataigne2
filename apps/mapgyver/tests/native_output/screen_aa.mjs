@@ -35,7 +35,7 @@ await execute(
 	],
 	{ windowsHide: true }
 );
-const native = await openNativeEditor({ appDataDirectory });
+const native = await openNativeEditor({ appDataDirectory, allowPhysicalOutputs: true });
 const results = [],
 	errors = [];
 let token,

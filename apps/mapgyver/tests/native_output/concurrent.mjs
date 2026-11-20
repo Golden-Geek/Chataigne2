@@ -11,7 +11,7 @@ const directory = path.resolve(
 	process.argv[2] ?? `target/mapgyver-concurrent-output-${Date.now()}`
 );
 await mkdir(directory, { recursive: true });
-const native = await openNativeEditor();
+const native = await openNativeEditor({ allowPhysicalOutputs: true });
 const errors = [];
 native.page.on('pageerror', (error) => errors.push(String(error)));
 let token, observer;

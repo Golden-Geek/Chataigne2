@@ -15,6 +15,17 @@ headless and no-external desktop scopes passed.
 - Physical pixels and output recovery on both GPUs, occupied assignments and the native New
   shortcut still need their qualification run.
 
+## Automated test isolation
+
+- The shared Windows browser launcher now suppresses fullscreen and rectangle outputs by
+  default. Fixtures that measure physical output explicitly opt in. Screen previews and Spout
+  delivery use the same test host.
+- The owned NVIDIA WebView2 run passed 16 checks with RTK FHD HDR (display 2) selected on
+  startup and after New, zero physical output windows, and two complete red Spout images
+  before and after reopening the saved project. Windows listed the laptop and RTK for this
+  run. The projector was absent from that catalog.
+- Receipt: `target/mapgyver-test-display-isolation-125611/result.json`.
+
 Implemented behavior:
 
 - Fresh startup/New candidates seed their initial Screen and ephemeral display catalog before

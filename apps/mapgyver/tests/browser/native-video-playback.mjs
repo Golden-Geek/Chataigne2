@@ -16,6 +16,7 @@ await mkdir(directory, { recursive: true });
 const selectedAdapter = process.env.MAPGYVER_VIDEO_ADAPTER;
 if (selectedAdapter) assert(/^dxgi:[0-9a-f]{8}:[0-9a-f]{8}$/.test(selectedAdapter));
 const native = await openNativeEditor({
+	allowPhysicalOutputs: true,
 	prepareProfile: selectedAdapter
 		? async (root) => {
 				const preferences = path.join(root, 'MapGyver');

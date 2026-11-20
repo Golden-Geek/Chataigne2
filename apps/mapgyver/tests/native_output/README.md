@@ -3,6 +3,8 @@
 This fixture uses the ordinary MapGyver app and public media/Screen operations. Golden owns
 the native windows, display catalog and Spout probe; MapGyver owns calibration and editor policy.
 Finite probe readbacks run in a separate test process, never in the production frame path.
+The shared browser launcher suppresses fullscreen and rectangle outputs by default.
+Fixtures that measure physical outputs explicitly opt in with `allowPhysicalOutputs`.
 
 For current unattended concurrent-output acceptance (M05/4):
 

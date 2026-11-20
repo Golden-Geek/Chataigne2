@@ -26,7 +26,7 @@ export async function openNativeEditor({
 	windowState,
 	prepareProfile,
 	onLogData,
-	suppressDisplayOutputs = false,
+	allowPhysicalOutputs = false,
 	development = false
 } = {}) {
 	assert(
@@ -66,8 +66,8 @@ export async function openNativeEditor({
 			windowsHide: true,
 			env: {
 				...process.env,
-				...(suppressDisplayOutputs ? { MAPGYVER_AUTOMATION_DISABLE_DISPLAY_OUTPUTS: '1' } : {}),
 				...environment,
+				MAPGYVER_AUTOMATION_DISABLE_DISPLAY_OUTPUTS: allowPhysicalOutputs ? '0' : '1',
 				APPDATA: appDataDirectory ?? path.join(directory, 'data'),
 				GC_UI_BIND: `127.0.0.1:${hostPort}`
 			},

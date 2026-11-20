@@ -12,7 +12,6 @@ const directory = await mkdtemp(path.join(outputDir, 'run-'));
 let appLog = '';
 const native = await openNativeEditor({
 	appDataDirectory: path.join(directory, 'profile'),
-	suppressDisplayOutputs: true,
 	onLogData: (chunk) => (appLog += chunk)
 });
 const { page } = native;

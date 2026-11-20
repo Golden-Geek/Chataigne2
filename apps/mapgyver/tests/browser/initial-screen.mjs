@@ -17,12 +17,15 @@ const headless = process.argv[3] === 'headless';
 const nativeShortcut = !headless && !process.argv.includes('--defer-native-shortcut');
 const gpuIndex = headless ? null : Number(process.argv[3]);
 let completedNativeSessions = 0;
+let openedPhysicalWindows = 0;
 const logTails = { stdout: '', stderr: '' };
-function observeNativeRetirement(data, stream) {
+function observeNativeOutputs(data, stream) {
 	const lines = (logTails[stream] + data).split('\n');
 	logTails[stream] = lines.pop().slice(-4096);
-	for (const line of lines)
+	for (const line of lines) {
 		if (line.trim() === '[mapgyver-output] native session retired') completedNativeSessions++;
+		if (line.startsWith('[mapgyver-output] window id=')) openedPhysicalWindows++;
+	}
 }
 const probe = path.resolve('target/debug/native_qualification.exe');
 const hardware = headless
@@ -39,7 +42,7 @@ if (!headless)
 const native = headless
 	? await openInitialScreenHeadless(directory)
 	: await openNativeEditor({
-			onLogData: observeNativeRetirement,
+			onLogData: observeNativeOutputs,
 			prepareProfile: async (root) => {
 				const folder = path.join(root, 'MapGyver');
 				await mkdir(folder, { recursive: true });
@@ -155,6 +158,7 @@ async function fresh() {
 	checks.push({
 		stage,
 		screen: screen.id,
+		target: screen.definition.target,
 		surface: screen.surfaces[0].reference,
 		generation: graph.project_generation,
 		history: graph.history
@@ -373,21 +377,17 @@ try {
 		const previousStatus = await control({ kind: 'mapgyverRuntimeStatus' });
 		const completedBeforeNew = completedNativeSessions;
 		assert.equal((await post('/api/ui/project-new', {})).ok, true);
-		const replacement = await fresh();
+		await fresh();
 		await senderPresent(sender, false);
 		const retired = await wait(
 			() => control({ kind: 'mapgyverRuntimeStatus' }),
 			(value) =>
 				value.sequence > previousStatus.sequence &&
 				completedNativeSessions > completedBeforeNew &&
-				(replacement.definition.target === null
-					? value.state === 'Idle' &&
-						value.gpu_adapter === null &&
-						value.resources === null &&
-						value.screens.length === 0
-					: value.state === 'Running' &&
-						value.screens.every((row) => row.screen === replacement.id) &&
-						value.resources?.retiring === 0) &&
+				value.state === 'Idle' &&
+				value.gpu_adapter === null &&
+				value.resources === null &&
+				value.screens.length === 0 &&
 				!value.error
 		);
 		checks.push({
@@ -406,6 +406,8 @@ try {
 		assert.equal((await post('/api/ui/project-new', {})).ok, true);
 		await fresh();
 		await senderPresent(sender, false);
+		assert.equal(openedPhysicalWindows, 0, 'the browser launcher must suppress physical outputs');
+		checks.push({ stage: 'physical outputs suppressed', openedPhysicalWindows });
 	}
 	assert.deepEqual(errors, []);
 	await writeFile(

@@ -62,7 +62,6 @@ await Promise.all([
 
 let appLog = '';
 const native = await openNativeEditor({
-	suppressDisplayOutputs: true,
 	onLogData: (chunk) => (appLog += chunk)
 });
 const { page } = native;

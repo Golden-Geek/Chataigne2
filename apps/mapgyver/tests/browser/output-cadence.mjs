@@ -17,8 +17,10 @@ const hardware = JSON.parse(
 	execFileSync(probe, ['--role', 'hardware'], { encoding: 'utf8', windowsHide: true })
 );
 const results = [];
+const physicalRouting = process.argv.includes('--routing');
 for (const adapter of hardware.adapters.filter((adapter) => !adapter.software)) {
 	const native = await openNativeEditor({
+		allowPhysicalOutputs: physicalRouting,
 		prepareProfile: async (root) => {
 			const folder = path.join(root, 'MapGyver');
 			await mkdir(folder, { recursive: true });
@@ -121,7 +123,7 @@ for (const adapter of hardware.adapters.filter((adapter) => !adapter.software)) 
 				(display) => display.refresh_rate?.numerator > 0 && display.refresh_rate?.denominator > 0
 			)
 		);
-		if (process.argv.includes('--routing')) {
+		if (physicalRouting) {
 			stage = 'physical cadence routing and recovery';
 			const report = await verifyOutputCadenceRouting({
 				native,
