@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { NativePreview } from 'golden_video_ui';
+	import { VideoPreview } from 'golden_video_ui';
 	import { usePreview } from '../preview/context.svelte';
 	import type { MatrixViewportSnapshot } from '../media/generated/MatrixViewportSnapshot';
 	import { cellPreviewGroups } from './cell-previews';
@@ -23,7 +23,7 @@
 		class="data-area"
 		style:inset={`${gridSize.header + groupHeaderHeight(metrics, snapshot.axis_depth)}rem 0 0 ${gridSize.label}rem`}>
 		<div class="source-group">
-			<NativePreview
+			<VideoPreview
 				session={owner.session}
 				{source}
 				tileGroups={groups}

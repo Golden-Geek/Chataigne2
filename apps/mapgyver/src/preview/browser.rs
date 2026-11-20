@@ -12,7 +12,7 @@ use crate::{
 use golden_core::{
     application::ProductionRuntime,
     transport::{BrowserPreviewStream, BrowserPreviews},
-    ui_sync::UiBrowserPreviewExtent,
+    ui_sync::{UiBrowserPreviewDependency, UiBrowserPreviewExtent},
 };
 use golden_io::{BoundedWorker, RetirementPool, WorkerLimits, WorkerNotifier};
 use golden_video::{
@@ -28,7 +28,7 @@ use std::{
     io,
     num::NonZeroUsize,
     path::Path,
-    sync::{OnceLock, mpsc::Receiver},
+    sync::{Arc, OnceLock, mpsc::Receiver},
     time::{Duration, Instant},
 };
 
@@ -145,6 +145,7 @@ struct Owner {
 struct Installed {
     plan: PlanIdentity,
     extents: Vec<Extent2D>,
+    dependencies: Arc<[UiBrowserPreviewDependency]>,
 }
 
 impl Owner {
@@ -227,6 +228,7 @@ impl Owner {
                         self.installed = Some(Installed {
                             plan: generation.identity,
                             extents: self.source_extents(),
+                            dependencies: self.source_dependencies(),
                         });
                     }
                     OutcomeKind::Rejected(error) => {
@@ -302,17 +304,10 @@ impl Owner {
             };
             route
                 .stream
-                .publish_frame(
-                    UiBrowserPreviewExtent {
-                        width: content.width(),
-                        height: content.height(),
-                    },
-                    |encoding| {
-                        let limit =
-                            Extent2D::new(encoding.width, encoding.height).expect("valid browser preview preset");
-                        encode_preview_jpeg(&frame.pixels, self.extent, content, limit, encoding.jpeg_quality)
-                    },
-                )
+                .publish_frame(browser_extent(content), &installed.dependencies, |encoding| {
+                    let limit = Extent2D::new(encoding.width, encoding.height).expect("valid browser preview preset");
+                    encode_preview_jpeg(&frame.pixels, self.extent, content, limit, encoding.jpeg_quality)
+                })
                 .map_err(|error| error.to_string())?;
         }
         Ok(())
@@ -342,6 +337,31 @@ impl Owner {
                 .unwrap_or(self.extent)
             })
             .collect()
+    }
+
+    fn source_dependencies(&self) -> Arc<[UiBrowserPreviewDependency]> {
+        let mut dependencies = self
+            .renderer
+            .channels()
+            .iter()
+            .filter_map(|channel| {
+                let extent = browser_extent(channel.resolution.extent?);
+                let source = serde_json::to_string(&PreviewSource::Channel {
+                    reference: channel.reference,
+                })
+                .ok()?;
+                Some(UiBrowserPreviewDependency { source, extent })
+            })
+            .collect::<Vec<_>>();
+        dependencies.sort_unstable_by(|left, right| left.source.cmp(&right.source));
+        dependencies.into()
+    }
+}
+
+fn browser_extent(extent: Extent2D) -> UiBrowserPreviewExtent {
+    UiBrowserPreviewExtent {
+        width: extent.width(),
+        height: extent.height(),
     }
 }
 

@@ -13,17 +13,18 @@
 	import type { InstanceId } from '../media/generated/InstanceId';
 	import type { InstanceReference } from '../media/generated/InstanceReference';
 	import type { InstanceSnapshot } from '../media/generated/InstanceSnapshot';
+	import type { ChannelReference } from '../media/generated/ChannelReference';
+	import type { Extent2D } from '../media/generated/Extent2D';
 	import type { InstanceGeometryMode } from '../media/generated/InstanceGeometryMode';
 	import type { Point } from '../media/generated/Point';
 	import type { InstanceHandle, InstancePresentation } from './instance-gesture';
-	import { usePreview } from '../preview/context.svelte';
-	import { previewKey } from '../preview/identity';
 	import { instanceDisplay } from './presentation';
 	import rotateCursor from './rotate-cursor.svg';
 	import { createViewportPointer } from 'golden_ui';
 	import { customNodeColor } from '../node-color.svelte';
 	let {
 		composition,
+		sourceExtent: readExtent,
 		snapping = false,
 		presentation = null,
 		selected,
@@ -37,6 +38,7 @@
 		stop
 	}: {
 		composition: CompositionSnapshot;
+		sourceExtent(reference: ChannelReference | null): Extent2D | null;
 		snapping?: boolean;
 		presentation?: InstancePresentation | null;
 		selected: InstanceId | null;
@@ -49,18 +51,12 @@
 		finish(): void;
 		stop(): void;
 	} = $props();
-	const owner = usePreview();
 	const instance = $derived(
 		composition.instances.find((item) => item.reference.instance === selected)
 	);
 	// The bounded page plus its independent selection contains at most 129 items.
 	const visible = $derived(composition.instances.toReversed());
-	const selectedExtent = $derived(
-		instance?.definition.source
-			? owner.statuses.get(previewKey({ kind: 'Channel', reference: instance.definition.source }))
-					?.extent
-			: null
-	);
+	const selectedExtent = $derived(readExtent(instance?.definition.source ?? null));
 	const handles = $derived(
 		instance ? instanceDisplay(instance, selectedExtent, presentation).handles : null
 	);
@@ -75,10 +71,7 @@
 		}
 	);
 	function sourceExtent(item: InstanceSnapshot) {
-		return item.definition.source
-			? (owner.statuses.get(previewKey({ kind: 'Channel', reference: item.definition.source }))
-					?.extent ?? null)
-			: null;
+		return readExtent(item.definition.source);
 	}
 	const pointer = createViewportPointer({
 		canvas: () => canvas,
@@ -160,10 +153,7 @@
 	onpointercancel={(event) => pointer.release(event, true)}
 	onlostpointercapture={pointer.cancel}>
 	{#each visible as item (item.reference.instance)}
-		{@const extent = item.definition.source
-			? owner.statuses.get(previewKey({ kind: 'Channel', reference: item.definition.source }))
-					?.extent
-			: null}
+		{@const extent = sourceExtent(item)}
 		{#if extent}
 			<polygon
 				use:viewportContour={{
@@ -199,9 +189,7 @@
 <ViewportGuides {guides} width={composition.canvas.width} height={composition.canvas.height} />
 
 {#each visible as item (item.reference.instance)}
-	{@const extent = item.definition.source
-		? owner.statuses.get(previewKey({ kind: 'Channel', reference: item.definition.source }))?.extent
-		: null}
+	{@const extent = sourceExtent(item)}
 	{#if item.reference.instance !== selected && !extent}
 		<ViewportTarget
 			identity={composition.reference.channel}

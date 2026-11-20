@@ -1,11 +1,11 @@
 # MapGyver — simple status
 
 - **Updated:** 20 November 2026.
-- **Overall plan acceptance:** `████████░░` **84% — 122/145 checks accepted, 8/19 phases complete**.
-- **Latest delivered:** Browser Screen Warping and Surface Source passed live warp, crop alignment and calibration pixel checks. [Checks](evidence/mapgyver-m18-browser-screen-editors-2026-11-20.json)
+- **Overall plan acceptance:** `█████████░` **85% — 123/145 checks accepted, 8/19 phases complete**.
+- **Latest delivered:** Browser Composition follows a held drag. Matrix shows moving thumbnails for visible Cells and previews the selected Cell. Closing the tab releases the renderer. [Checks](evidence/mapgyver-m18-browser-spatial-2026-11-20.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Browser video previews in Composition and Matrix (M18/6).
+- **Next:** Verify direct Windows File Explorer drops (M18/1).
 
 ## Done — code and normal-use checks passed
 
@@ -91,9 +91,7 @@
 - **NDI Media.** The Windows x64 package includes the NDI runtime. A fresh profile discovered and displayed an external test sender without activation. Clean Windows installation, a Media gain check and cross-machine A/V checks remain pending. [Startup checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
 - **NDI Screen Output.** Choosing NDI on an enabled Screen started picture and routed audio without activation. Both resumed after restart and reopening the saved project. Cross-machine A/V offset and drift, recovery, and final-use qualification remain pending. [Startup checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
 
-[Remaining feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi), in order.
-
-6. **Browser video previews.** Show live editor textures with Disabled, Auto, Forced Low Quality and Forced High Quality options.
+[Browser video previews (M18/6)](evidence/mapgyver-m18-browser-spatial-2026-11-20.json) passed in standalone Chromium across Media Preview, Screen Warping, Surface Source, Composition, the Matrix grid and the Cell editor.
 
 ## Pending qualification — in order
 

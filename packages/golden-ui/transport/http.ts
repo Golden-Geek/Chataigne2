@@ -13,6 +13,7 @@ import type { UiParamControlInfoRequest as RustParamControlInfoRequest } from '.
 import type { UiOscAddressDto } from '../generated/rust_protocol/UiOscAddressDto';
 import type { UiOscAddressRequest } from '../generated/rust_protocol/UiOscAddressRequest';
 import type { UiBrowserPreviewExtent } from '../generated/rust_protocol/UiBrowserPreviewExtent';
+import type { UiBrowserPreviewDependency } from '../generated/rust_protocol/UiBrowserPreviewDependency';
 import type { UiProjectPathDto as RustProjectPathResponse } from '../generated/rust_protocol/UiProjectPathDto';
 import type { UiProjectPathRequest as RustProjectPathRequest } from '../generated/rust_protocol/UiProjectPathRequest';
 import type { UiProjectUploadRequest as RustProjectUploadRequest } from '../generated/rust_protocol/UiProjectUploadRequest';
@@ -35,6 +36,34 @@ import {
 const DEFAULT_BASE_URL = 'http://localhost:7010/api/ui';
 const DEFAULT_POST_TIMEOUT_MS = 15000;
 const PROJECT_LOAD_TIMEOUT_MS = 120000;
+
+function isPreviewExtent(extent: unknown): extent is UiBrowserPreviewExtent {
+	if (!extent || typeof extent !== 'object') return false;
+	const candidate = extent as Partial<UiBrowserPreviewExtent>;
+	return (
+		typeof candidate.width === 'number' &&
+		candidate.width > 0 &&
+		Number.isSafeInteger(candidate.width) &&
+		typeof candidate.height === 'number' &&
+		candidate.height > 0 &&
+		Number.isSafeInteger(candidate.height)
+	);
+}
+
+function previewDependencies(header: string | null): UiBrowserPreviewDependency[] | null {
+	if (header === null) return null;
+	const parsed: unknown = JSON.parse(header);
+	if (
+		!Array.isArray(parsed) ||
+		!parsed.every((value: unknown) => {
+			if (!value || typeof value !== 'object') return false;
+			const dependency = value as Partial<UiBrowserPreviewDependency>;
+			return typeof dependency.source === 'string' && isPreviewExtent(dependency.extent);
+		})
+	)
+		throw new Error('Browser preview response has invalid dependencies');
+	return parsed as UiBrowserPreviewDependency[];
+}
 
 interface HttpClientOptions {
 	applicationId?: string;
@@ -163,21 +192,15 @@ export const createHttpAuxiliaryClient = (
 			const extentHeader = response.headers.get('x-gc-preview-extent');
 			if (!tag || !extentHeader)
 				throw new Error('Browser preview response has incomplete metadata');
-			const extent = JSON.parse(extentHeader) as Partial<UiBrowserPreviewExtent> | null;
-			if (
-				!extent?.width ||
-				!extent.height ||
-				!Number.isSafeInteger(extent.width) ||
-				!Number.isSafeInteger(extent.height) ||
-				extent.width < 0 ||
-				extent.height < 0
-			) {
+			const extent: unknown = JSON.parse(extentHeader);
+			if (!isPreviewExtent(extent)) {
 				throw new Error('Browser preview response has an invalid extent');
 			}
 			return {
 				tag,
 				image: await response.blob(),
-				extent: { width: extent.width, height: extent.height }
+				extent,
+				dependencies: previewDependencies(response.headers.get('x-gc-preview-dependencies'))
 			};
 		},
 		oscAddress(request, signal) {

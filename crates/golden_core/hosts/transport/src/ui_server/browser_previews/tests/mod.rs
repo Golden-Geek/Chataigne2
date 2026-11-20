@@ -10,7 +10,9 @@ fn preview_demands_share_latest_frame_and_rotate_on_expiry_or_project_change() {
     let previews = BrowserPreviews::default();
     assert!(previews.request(1, "channel", High).unwrap().is_none());
     let original = previews.active(1).pop().unwrap();
-    original.publish_frame(EXTENT, |_| Ok::<_, ()>(vec![2])).unwrap();
+    original
+        .publish_frame(EXTENT, &Arc::from([]), |_| Ok::<_, ()>(vec![2]))
+        .unwrap();
     let image = previews.request(1, "channel", High).unwrap().unwrap();
     assert_eq!(&*image.jpeg, &[2]);
     assert_eq!(image.extent, EXTENT);
@@ -47,7 +49,7 @@ fn two_browser_qualities_share_one_source_and_only_encode_due_active_variants() 
     let mut encoded_widths = Vec::new();
     let mut publish = || {
         stream
-            .publish_frame_at(now, EXTENT, |variant| {
+            .publish_frame_at(now, EXTENT, &Arc::from([]), |variant| {
                 encoded_widths.push(variant.width);
                 Ok::<_, ()>(vec![variant.jpeg_quality])
             })
@@ -68,4 +70,31 @@ fn two_browser_qualities_share_one_source_and_only_encode_due_active_variants() 
     assert_ne!(low.jpeg, high.jpeg);
     assert_eq!(encoded_widths, [320, 640, 320]);
     assert_eq!(previews.active(1).len(), 1);
+}
+
+#[test]
+fn dependency_geometry_is_sent_on_change_even_when_image_bytes_are_equal() {
+    let previews = BrowserPreviews::default();
+    let source = "composition";
+    assert!(previews.request(1, source, High).unwrap().is_none());
+    let stream = previews.active(1).pop().unwrap();
+    let now = Instant::now();
+    let first: Arc<[_]> = Arc::from([UiBrowserPreviewDependency {
+        source: "child".into(),
+        extent: EXTENT,
+    }]);
+    let second = Arc::from([]);
+    let publish = |offset, dependencies, byte| {
+        stream
+            .publish_frame_at(now + offset, EXTENT, dependencies, |_| Ok::<_, ()>(vec![byte]))
+            .unwrap();
+        previews.request(1, source, High).unwrap().unwrap()
+    };
+    let initial = publish(Duration::ZERO, &first, 1);
+    assert_eq!(initial.changed_dependencies(None), Some(first.clone()));
+    let newer = publish(Duration::from_millis(100), &first, 2);
+    assert!(newer.changed_dependencies(Some(&initial.tag)).is_none());
+    let cleared = publish(Duration::from_millis(200), &second, 2);
+    assert_ne!(cleared.tag, newer.tag);
+    assert_eq!(cleared.changed_dependencies(Some(&newer.tag)), Some(second));
 }

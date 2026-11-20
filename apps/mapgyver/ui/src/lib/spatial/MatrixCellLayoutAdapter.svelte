@@ -10,8 +10,7 @@
 	import { MEDIA_NAMESPACE } from '../media/generated/constants';
 	import type { MatrixLayoutCell } from '../media/generated/MatrixLayoutCell';
 	import { useDocumentSelection } from '../selection.svelte';
-	import { usePreview } from '../preview/context.svelte';
-	import { previewKey } from '../preview/identity';
+	import { useDependentExtents } from '../preview/view-source.svelte';
 	import { CellLayoutReader, cellLayoutState } from './cell-layout';
 	import { SPATIAL_PAGE_SIZE } from './targets';
 	import SpatialViewport from './SpatialViewport.svelte';
@@ -38,8 +37,7 @@
 	const panel = usePanelVisibility();
 	const reader = new CellLayoutReader(() => appState.session, layoutState, invokeMediaEdit);
 	const geometry = createCellEditor(reader, () => props.present);
-	const selection = useDocumentSelection(),
-		preview = usePreview();
+	const selection = useDocumentSelection();
 	observeEditor({
 		query: () => ({
 			media: props.media,
@@ -81,12 +79,9 @@
 			: []
 	);
 	const pages = $derived(Math.max(1, Math.ceil((page?.total ?? 0) / SPATIAL_PAGE_SIZE)));
+	const sources = useDependentExtents(() => `${props.layer}:${selected?.view.cell.id ?? ''}`);
 	function extent(cell: MatrixLayoutCell) {
-		const reference = cell.view.cell.definition.source;
-		return cellExtent(
-			cell,
-			reference ? preview.statuses.get(previewKey({ kind: 'Channel', reference }))?.extent : null
-		);
+		return cellExtent(cell, sources.extent(cell.view.cell.definition.source));
 	}
 	const objects = $derived(
 		cells.map((cell) => ({
@@ -221,6 +216,7 @@
 				label="Matrix Cell content view"
 				preview={selected?.preview ?? null}
 				previewLabel={selected?.label}
+				ondependencies={sources.update}
 				{actions}>
 				<RectLayoutControls
 					{snapping}

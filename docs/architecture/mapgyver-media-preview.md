@@ -4,7 +4,7 @@ MapGyver owns selected-media resolution and panel presentation choices. Golden o
 transport, native preview geometry and completion-based view retirement. The Inspector keeps
 authored Parameters and Channels; it no longer embeds media images.
 
-## Browser Media Preview
+## Browser previews
 
 Golden's browser components request frames while intersecting a visible document. A single
 request queue per browser tab shares source pulls between views and caps the request rate.
@@ -13,12 +13,12 @@ and returns to high after a cooldown and a series of transfers with headroom. Di
 the canvases and cancels requests. Forced profiles use the selected representation throughout.
 
 The authenticated HTTP transport leases each requested source and quality in the current
-project and serves the latest JPEG. An unchanged image keeps its ETag. Small periodic pulls
-with no ETag let Auto recheck a low-quality connection even when the underlying image is static.
+project and serves the latest JPEG. An unchanged image and its geometry keep their ETag.
+Periodic refresh pulls let Auto recheck a low-quality connection even when the image is static.
 Leases expire 2.4 seconds after the last request, including when a tab closes or loses its link.
 
 MapGyver's browser worker resolves the same preview source identities as the native window.
-It runs the shared Channel, Screen and calibration render plans on the configured Windows GPU.
+It runs the shared Channel, Screen, calibration and Matrix Cell plans on the configured Windows GPU.
 Golden Video hands the worker tightly packed
 BGRA from a nonblocking staging texture. Each output has a one-frame CPU mailbox and stamps
 frames with the producing plan identity so a rebound output cannot publish the previous
@@ -30,6 +30,13 @@ Golden's `VideoPreview` mounts browser imagery or the native underlay inside the
 viewport. Browser frames carry the original content size alongside the JPEG. Screen Warping
 and Surface Source use that size for framing and keep their existing DOM handles aligned to
 the same image aperture through pan, zoom and quality changes.
+
+Composition and Matrix Cell layout use the channel extents from the installed render plan to
+size their controls. The transport sends this metadata when the browser first requests a source
+or the geometry changes. Editors can draw the controls without pulling separate images for
+their inputs. The Matrix grid uses the same visible tile geometry as the native compositor.
+Golden paints those tiles into one bounded canvas and reuses each source frame across its
+visible cells. Scrolling a source out of view releases its grid registration.
 
 ## Native presentation
 

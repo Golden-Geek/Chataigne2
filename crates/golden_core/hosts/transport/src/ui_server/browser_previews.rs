@@ -1,6 +1,6 @@
 //! Bounded, authenticated preview pulls. A host worker owns rendering and JPEG encoding.
-use golden_protocol::UiBrowserPreviewExtent;
 use golden_protocol::UiBrowserPreviewQuality::{self, High, Low};
+use golden_protocol::{UiBrowserPreviewDependency, UiBrowserPreviewExtent};
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -64,6 +64,7 @@ struct Variant {
     until: Option<Instant>,
     encoded_at: Option<Instant>,
     sequence: u64,
+    geometry: u64,
     latest: Option<Frame>,
 }
 
@@ -86,6 +87,20 @@ pub(super) struct Frame {
     pub tag: String,
     pub jpeg: Arc<[u8]>,
     pub extent: UiBrowserPreviewExtent,
+    dependencies: Arc<[UiBrowserPreviewDependency]>,
+}
+
+impl Frame {
+    pub(super) fn changed_dependencies(&self, after: Option<&str>) -> Option<Arc<[UiBrowserPreviewDependency]>> {
+        fn geometry_tag(tag: &str) -> Option<&str> {
+            tag.rsplit_once('-').map(|(geometry, _)| geometry)
+        }
+        if after.and_then(geometry_tag) == geometry_tag(&self.tag) {
+            None
+        } else {
+            Some(self.dependencies.clone())
+        }
+    }
 }
 
 impl BrowserPreviewStream {
@@ -104,15 +119,17 @@ impl BrowserPreviewStream {
     pub fn publish_frame<E>(
         &self,
         extent: UiBrowserPreviewExtent,
+        dependencies: &Arc<[UiBrowserPreviewDependency]>,
         encode: impl FnMut(&BrowserPreviewEncoding) -> Result<Vec<u8>, E>,
     ) -> Result<(), E> {
-        self.publish_frame_at(Instant::now(), extent, encode)
+        self.publish_frame_at(Instant::now(), extent, dependencies, encode)
     }
 
     fn publish_frame_at<E>(
         &self,
         now: Instant,
         extent: UiBrowserPreviewExtent,
+        dependencies: &Arc<[UiBrowserPreviewDependency]>,
         mut encode: impl FnMut(&BrowserPreviewEncoding) -> Result<Vec<u8>, E>,
     ) -> Result<(), E> {
         for (index, (encoding, interval)) in PROFILES.iter().enumerate() {
@@ -130,20 +147,31 @@ impl BrowserPreviewStream {
             }
             let mut variants = self.variants.lock().expect("browser preview frame lock");
             let variant = &mut variants[index];
-            if !variant.active(Instant::now())
-                || variant.encoded_at != Some(now)
-                || variant
+            if !variant.active(Instant::now()) || variant.encoded_at != Some(now) {
+                continue;
+            }
+            let same_geometry = variant.latest.as_ref().is_some_and(|frame| {
+                frame.extent == extent
+                    && (Arc::ptr_eq(&frame.dependencies, dependencies)
+                        || frame.dependencies.as_ref() == dependencies.as_ref())
+            });
+            if same_geometry
+                && variant
                     .latest
                     .as_ref()
-                    .is_some_and(|frame| frame.extent == extent && frame.jpeg.as_ref() == jpeg.as_slice())
+                    .is_some_and(|frame| frame.jpeg.as_ref() == jpeg.as_slice())
             {
                 continue;
             }
+            if !same_geometry {
+                variant.geometry = variant.geometry.wrapping_add(1);
+            }
             variant.sequence = variant.sequence.wrapping_add(1);
             variant.latest = Some(Frame {
-                tag: format!("\"{}-{index}-{}\"", self.id, variant.sequence),
+                tag: format!("\"{}-{index}-{}-{}\"", self.id, variant.geometry, variant.sequence),
                 jpeg: jpeg.into(),
                 extent,
+                dependencies: dependencies.clone(),
             });
         }
         Ok(())

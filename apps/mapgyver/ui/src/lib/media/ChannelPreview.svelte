@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { VideoPreview } from 'golden_video_ui';
-	import { appState } from 'golden_ui';
+	import { appState, type UiBrowserPreviewDependency } from 'golden_ui';
 	import type { ChannelSnapshot } from './generated/ChannelSnapshot';
 	import { usePreview } from '../preview/context.svelte';
 	import { useViewSource } from '../preview/view-source.svelte';
@@ -11,12 +11,14 @@
 		fill = false,
 		preview,
 		label,
+		ondependencies,
 		extent: explicitExtent
 	}: {
 		channel: Pick<ChannelSnapshot, 'label' | 'reference'>;
 		fill?: boolean;
 		preview?: PreviewSource;
 		label?: string;
+		ondependencies?(dependencies: readonly UiBrowserPreviewDependency[]): void;
 		extent?: { width: number; height: number };
 	} = $props();
 	const owner = usePreview();
@@ -39,6 +41,7 @@
 			source={view.wire}
 			lifetime={appState.session?.projectGeneration ?? 0}
 			onextent={view.onextent}
+			{ondependencies}
 			label={`Preview of ${label ?? channel.label}`}>
 			{#if message}<PreviewMessage {message} />{/if}
 		</VideoPreview>

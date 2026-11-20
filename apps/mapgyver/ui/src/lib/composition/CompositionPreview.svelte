@@ -10,8 +10,7 @@
 	import type { InstanceHandle, InstancePresentation } from './instance-gesture';
 	import InstanceHandles from './InstanceHandles.svelte';
 	import AlignmentToggle from '../spatial/AlignmentToggle.svelte';
-	import { usePreview } from '../preview/context.svelte';
-	import { previewKey } from '../preview/identity';
+	import { useDependentExtents } from '../preview/view-source.svelte';
 	import { instanceDisplay, gizmo } from './presentation';
 	import type { SpatialKeyboardMode } from '../spatial/keyboard.svelte';
 	let {
@@ -45,17 +44,12 @@
 		stop(): void;
 		actions?: Snippet;
 	} = $props();
-	const owner = usePreview();
+	const sources = useDependentExtents(() => channel.reference.channel);
 	let snapping = $state(false);
 	const instance = $derived(
 		composition.instances.find((item) => item.reference.instance === selected)
 	);
-	const extent = $derived(
-		instance?.definition.source
-			? owner.statuses.get(previewKey({ kind: 'Channel', reference: instance.definition.source }))
-					?.extent
-			: null
-	);
+	const extent = $derived(sources.extent(instance?.definition.source ?? null));
 	const selection = $derived(
 		instance
 			? extent
@@ -121,6 +115,7 @@
 	identity={channel.reference.channel}
 	{selection}
 	{onselectionclear}
+	ondependencies={sources.update}
 	keyboard={{
 		id: instance?.reference.instance ?? null,
 		disabled,
@@ -135,6 +130,7 @@
 		{snapping}
 		{presentation}
 		{composition}
+		sourceExtent={sources.extent}
 		{selected}
 		{disabled}
 		{selectionAvailable}

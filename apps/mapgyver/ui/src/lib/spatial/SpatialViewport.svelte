@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { appState, Viewport2D } from 'golden_ui';
+	import { appState, Viewport2D, type UiBrowserPreviewDependency } from 'golden_ui';
+	import { hasDesktopHost } from 'golden_ui/host/desktop';
 	import ChannelPreview from '../media/ChannelPreview.svelte';
 	import type { ChannelSnapshot } from '../media/generated/ChannelSnapshot';
 	import type { PreviewSource } from '../preview/generated/PreviewSource';
@@ -15,6 +16,7 @@
 		children,
 		preview,
 		previewLabel,
+		ondependencies,
 		onselectionclear,
 		keyboard: keyboardClient
 	}: {
@@ -27,6 +29,7 @@
 		children?: Snippet;
 		preview?: PreviewSource | null;
 		previewLabel?: string;
+		ondependencies?(dependencies: readonly UiBrowserPreviewDependency[]): void;
 		onselectionclear?(): void;
 		keyboard?: SpatialKeyboardClient;
 	} = $props();
@@ -44,12 +47,13 @@
 	{onselectionclear}
 	onkeydown={keyboard.keydown}
 	onfocusout={keyboard.finish}
-	native>
+	native={hasDesktopHost()}>
 	{#if preview !== null}<ChannelPreview
 			{channel}
 			fill
 			{preview}
+			{ondependencies}
 			label={previewLabel}
-			extent={preview ? canvas : undefined} />{/if}
+			extent={canvas} />{/if}
 	{@render children?.()}
 </Viewport2D>

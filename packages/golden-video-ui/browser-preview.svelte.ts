@@ -1,5 +1,10 @@
 import { getContext, setContext } from 'svelte';
-import type { UiBrowserPreview, UiBrowserPreviewExtent, UiBrowserPreviewQuality } from 'golden_ui';
+import type {
+	UiBrowserPreview,
+	UiBrowserPreviewDependency,
+	UiBrowserPreviewExtent,
+	UiBrowserPreviewQuality
+} from 'golden_ui';
 
 export type BrowserPreviewMode = 'disabled' | 'auto' | UiBrowserPreviewQuality;
 
@@ -12,13 +17,18 @@ const UPGRADE_COOLDOWN_MS = 2000;
 const UPGRADE_SAMPLES = 8;
 const REQUEST_TIMEOUT_MS = 1200;
 
-type RenderFrame = (image: ImageBitmap, extent: UiBrowserPreviewExtent) => void;
+type RenderFrame = (
+	image: ImageBitmap,
+	extent: UiBrowserPreviewExtent,
+	dependencies: readonly UiBrowserPreviewDependency[]
+) => void;
 
 type Demand = {
 	source: string;
 	request: UiBrowserPreview;
 	listeners: Set<RenderFrame>;
 	after: string | null;
+	dependencies: readonly UiBrowserPreviewDependency[];
 	due: number;
 };
 
@@ -85,7 +95,7 @@ function browserPreviewSession() {
 		let minimumWait = FRAME_INTERVAL[requested];
 		try {
 			const frame = await demand.request(
-				{ source: demand.source, quality: requested, after: probing ? null : demand.after },
+				{ source: demand.source, quality: requested, after: demand.after, refresh: probing },
 				signal
 			);
 			if (!frame || signal.aborted) return;
@@ -93,7 +103,8 @@ function browserPreviewSession() {
 			const image = await createImageBitmap(frame.image);
 			try {
 				if (!abort.signal.aborted) {
-					for (const show of demand.listeners) show(image, frame.extent);
+					if (frame.dependencies !== null) demand.dependencies = frame.dependencies;
+					for (const show of demand.listeners) show(image, frame.extent, demand.dependencies);
 					demand.after = frame.tag;
 				}
 			} finally {
@@ -137,6 +148,7 @@ function browserPreviewSession() {
 				request,
 				listeners: new Set(),
 				after: null,
+				dependencies: [],
 				due: 0
 			};
 			demand.listeners.add(show);

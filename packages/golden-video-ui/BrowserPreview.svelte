@@ -1,7 +1,12 @@
 <script lang="ts">
-	import { appState, type UiBrowserPreviewExtent } from 'golden_ui';
+	import {
+		appState,
+		type UiBrowserPreviewDependency,
+		type UiBrowserPreviewExtent
+	} from 'golden_ui';
 	import { untrack, type Snippet } from 'svelte';
 	import { useBrowserPreviews } from './browser-preview.svelte';
+	import { observeBrowserPreview } from './browser-visibility';
 
 	let {
 		source,
@@ -10,6 +15,7 @@
 		lifetime = 0,
 		fill = false,
 		onextent,
+		ondependencies,
 		children
 	}: {
 		source: string;
@@ -18,11 +24,11 @@
 		lifetime?: string | number;
 		fill?: boolean;
 		onextent?(extent: UiBrowserPreviewExtent): void;
+		ondependencies?(dependencies: readonly UiBrowserPreviewDependency[]): void;
 		children?: Snippet;
 	} = $props();
 	let canvas: HTMLCanvasElement | undefined = $state();
-	let intersecting = $state(false);
-	let pageVisible = $state(false);
+	let shown = $state(false);
 	let hasFrame = $state(false);
 	const previews = useBrowserPreviews();
 	const enabled = $derived(previews?.mode !== 'disabled');
@@ -31,17 +37,7 @@
 	$effect(() => {
 		const target = canvas;
 		if (!target) return;
-		const updatePageVisibility = () => (pageVisible = !document.hidden);
-		updatePageVisibility();
-		document.addEventListener('visibilitychange', updatePageVisibility);
-		const observer = new IntersectionObserver(([entry]) => {
-			intersecting = !!entry?.isIntersecting && entry.intersectionRatio > 0;
-		});
-		observer.observe(target);
-		return () => {
-			observer.disconnect();
-			document.removeEventListener('visibilitychange', updatePageVisibility);
-		};
+		return observeBrowserPreview(target, (visible) => (shown = visible));
 	});
 
 	$effect(() => {
@@ -49,13 +45,13 @@
 		const request = appState.session?.client.browserPreview;
 		const key = source;
 		viewLifetime;
-		if (!target || !request || !previews || !enabled || !visible || !intersecting || !pageVisible)
-			return;
+		if (!target || !request || !previews || !enabled || !visible || !shown) return;
 		const context = target.getContext('2d', { alpha: false });
 		if (!context) return;
 		let previous: UiBrowserPreviewExtent | undefined;
+		let previousDependencies: readonly UiBrowserPreviewDependency[] | undefined;
 		const withdraw = untrack(() =>
-			previews.register(key, request, (image, extent) => {
+			previews.register(key, request, (image, extent, dependencies) => {
 				if (target.width !== image.width || target.height !== image.height) {
 					target.width = image.width;
 					target.height = image.height;
@@ -64,6 +60,10 @@
 				if (previous?.width !== extent.width || previous.height !== extent.height) {
 					previous = extent;
 					onextent?.(extent);
+				}
+				if (dependencies !== previousDependencies) {
+					previousDependencies = dependencies;
+					ondependencies?.(dependencies);
 				}
 				hasFrame = true;
 			})

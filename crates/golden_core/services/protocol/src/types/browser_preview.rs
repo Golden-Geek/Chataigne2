@@ -20,6 +20,9 @@ pub struct UiBrowserPreviewRequest {
     pub quality: UiBrowserPreviewQuality,
     /// ETag of the frame already displayed, if any.
     pub after: Option<String>,
+    /// Return the image even if unchanged so the browser can sample transfer time.
+    #[serde(default)]
+    pub refresh: bool,
 }
 
 /// Intrinsic content size associated with a frame, before browser quality downsampling.
@@ -29,4 +32,13 @@ pub struct UiBrowserPreviewExtent {
     pub width: u32,
     /// Source height in pixels.
     pub height: u32,
+}
+
+/// Geometry of a source used by a composited preview, from the same installed render plan.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct UiBrowserPreviewDependency {
+    /// Opaque app-defined identity of the dependent source.
+    pub source: String,
+    /// Intrinsic dependent image size.
+    pub extent: UiBrowserPreviewExtent,
 }

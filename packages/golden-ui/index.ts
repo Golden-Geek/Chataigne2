@@ -5,6 +5,7 @@ export { appState } from './store/app-state.svelte';
 export type { UiBrowserPreview } from './types';
 export type { UiBrowserPreviewQuality } from './generated/rust_protocol/UiBrowserPreviewQuality';
 export type { UiBrowserPreviewExtent } from './generated/rust_protocol/UiBrowserPreviewExtent';
+export type { UiBrowserPreviewDependency } from './generated/rust_protocol/UiBrowserPreviewDependency';
 export { registerCommandHandler } from './store/commands.svelte';
 export type { CommandId, CommandExecuteContext } from './store/commands.svelte';
 export {

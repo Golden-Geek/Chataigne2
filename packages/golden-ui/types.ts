@@ -788,6 +788,9 @@ export type UiBrowserPreview = (
 	tag: string;
 	image: Blob;
 	extent: import('./generated/rust_protocol/UiBrowserPreviewExtent').UiBrowserPreviewExtent;
+	dependencies:
+		| import('./generated/rust_protocol/UiBrowserPreviewDependency').UiBrowserPreviewDependency[]
+		| null;
 } | null>;
 
 export interface UiClient {

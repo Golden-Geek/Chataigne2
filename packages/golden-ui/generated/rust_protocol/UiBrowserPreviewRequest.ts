@@ -16,4 +16,8 @@ quality: UiBrowserPreviewQuality,
 /**
  * ETag of the frame already displayed, if any.
  */
-after: string | null, };
+after: string | null,
+/**
+ * Return the image even if unchanged so the browser can sample transfer time.
+ */
+refresh: boolean, };

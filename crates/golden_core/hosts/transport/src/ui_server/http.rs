@@ -14,7 +14,13 @@ pub(super) struct HttpResponse<'a> {
     pub(super) cors_origin: Option<String>,
     sensitive: bool,
     content_security_policy: Option<String>,
-    preview: Option<(String, golden_protocol::UiBrowserPreviewExtent)>,
+    preview: Option<PreviewHeaders>,
+}
+
+struct PreviewHeaders {
+    tag: String,
+    extent: golden_protocol::UiBrowserPreviewExtent,
+    dependencies: Option<Arc<[golden_protocol::UiBrowserPreviewDependency]>>,
 }
 
 impl<'a> HttpResponse<'a> {
@@ -184,10 +190,14 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
             let generation = state.read_model.current_project_generation().get();
             match previews.request(generation, &pull.source, pull.quality) {
                 Ok(Some(frame)) => {
-                    if pull.after.as_deref() == Some(frame.tag.as_str()) {
+                    if !pull.refresh && pull.after.as_deref() == Some(frame.tag.as_str()) {
                         write_response(stream, "204 No Content", "text/plain", &[])?;
                     } else {
-                        stream.preview = Some((frame.tag, frame.extent));
+                        stream.preview = Some(PreviewHeaders {
+                            dependencies: frame.changed_dependencies(pull.after.as_deref()),
+                            tag: frame.tag,
+                            extent: frame.extent,
+                        });
                         write_response(stream, "200 OK", "image/jpeg", &frame.jpeg)?;
                     }
                 }
@@ -669,7 +679,7 @@ pub(super) fn write_response(
             "Access-Control-Allow-Origin: {origin}\r\n\
          Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
          Access-Control-Allow-Headers: Content-Type, X-GC-UI-Client-Instance, Authorization\r\n\
-         Access-Control-Expose-Headers: ETag, X-GC-Preview-Extent\r\n"
+         Access-Control-Expose-Headers: ETag, X-GC-Preview-Extent, X-GC-Preview-Dependencies\r\n"
         )
     });
     let headers = format!(
@@ -696,9 +706,17 @@ pub(super) fn write_response(
             .content_security_policy
             .as_ref()
             .map_or_else(String::new, |policy| format!("Content-Security-Policy: {policy}\r\n")),
-        stream.preview.as_ref().map_or_else(String::new, |(tag, extent)| {
-            let extent = serde_json::to_string(extent).expect("serializable preview extent");
-            format!("ETag: {tag}\r\nX-GC-Preview-Extent: {extent}\r\n")
+        stream.preview.as_ref().map_or_else(String::new, |preview| {
+            let extent = serde_json::to_string(&preview.extent).expect("serializable preview extent");
+            let mut headers = format!("ETag: {}\r\nX-GC-Preview-Extent: {extent}\r\n", preview.tag);
+            if let Some(dependencies) = &preview.dependencies {
+                let json = serde_json::to_string(dependencies.as_ref()).expect("serializable preview dependencies");
+                let value = if json.len() <= 24 * 1024 { &json } else { "[]" };
+                headers.push_str("X-GC-Preview-Dependencies: ");
+                headers.push_str(value);
+                headers.push_str("\r\n");
+            }
+            headers
         }),
     );
 

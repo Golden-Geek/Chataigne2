@@ -50,11 +50,12 @@ Thumbnail View previews PNG, JPEG and WebP files and shows icons for other files
 group's **+** menu to add File Explorer to an existing layout.
 Run `node apps/mapgyver/tests/headless/media.mjs --workbench-ui` for the ordinary bundled-browser
 tree/Inspector/canvas/Matrix/Application/New flow and source HTTP/history/Save/New/Load checks.
-On Windows, standalone browsers show moving textures in Media Preview, Screen Warping and
-Surface Source. The **Browser Preview Quality** menu defaults to Auto and also offers Disabled, Forced Low
-Quality and Forced High Quality. Auto reduces resolution and cadence on a slow connection.
+On Windows, standalone browsers show moving textures in Media Preview, Screen Warping,
+Surface Source, Composition and the Matrix grid and Cell editor. The **Browser Preview Quality**
+menu defaults to Auto and also offers Disabled, Forced Low Quality and Forced High Quality.
+Auto reduces resolution and cadence on a slow connection.
 The `apps/mapgyver/tests/browser/browser-preview.mjs` fixture exercises the bundled browser UI,
-GPU-rendered frames, live warping, calibrated crops and renderer retirement.
+held warping and Composition edits, calibrated crops, visible Matrix thumbnails and renderer retirement.
 
 `node apps/mapgyver/tests/headless/media.mjs --source-ui` covers the complete M04 source-authoring
 matrix in the tree/Inspector. `--ui-reload` retains the separate Picture reload/history check.
