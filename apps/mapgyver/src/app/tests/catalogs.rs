@@ -20,6 +20,7 @@ fn manager_catalogs_expose_document_objects_and_reject_automation_wrappers() {
                 "Solid Color",
                 "Picture",
                 "Video",
+                "Shader",
                 "Shared Texture",
                 "NDI",
                 "Composition",

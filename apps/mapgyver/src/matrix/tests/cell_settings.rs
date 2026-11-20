@@ -259,7 +259,7 @@ fn cell_settings_materialize_only_the_address_and_preserve_atomic_values_history
 }
 
 #[test]
-fn cell_geometry_opacity_edit_live_while_disabled_destination_holds_and_deleted_outgoing_settings_remain_bound() {
+fn cell_settings_edits_and_enablement_follow_live_and_retained_clips() {
     let mut engine = fixture();
     let media = create(&mut engine, MediaKind::Matrix).media;
     let row = layer(layers(&mut engine, media, None, 1)[0]);
@@ -382,8 +382,36 @@ fn cell_geometry_opacity_edit_live_while_disabled_destination_holds_and_deleted_
     );
     let outgoing = capture(&engine, media, row, now);
     assert_eq!(outgoing.inputs.len(), 2);
+    let midway = at(now, 125);
+    let progress = outgoing.until.unwrap().sample(midway);
+    let committed = serde_json::to_value(super::super::playback::inspect(&engine, media).unwrap()).unwrap();
+    let first_node = engine.node_id_by_uuid(first.0).unwrap();
+    let ack = apply_project_intent(
+        &mut engine,
+        UiEditIntent::PatchMeta {
+            node: first_node,
+            patch: golden_core::ui_sync::NodeMetaPatch {
+                enabled: Some(false),
+                ..Default::default()
+            },
+        },
+    );
+    assert!(ack.success, "{ack:?}");
+    let suppressed = capture(&engine, media, row, midway);
+    assert_eq!(suppressed.inputs.len(), 1);
+    assert_ne!(suppressed.inputs[0].source, held_source);
+    assert_eq!(suppressed.until.unwrap().sample(midway), progress);
+    assert_eq!(
+        serde_json::to_value(super::super::playback::inspect(&engine, media).unwrap()).unwrap(),
+        committed
+    );
+    assert!(engine.undo().unwrap());
+    let restored = capture(&engine, media, row, midway);
+    assert_eq!(restored.inputs.len(), 2);
+    assert_eq!(restored.until.unwrap().sample(midway), progress);
+    assert!(restored.inputs.iter().any(|input| input.source == held_source));
     edit(&mut engine, media, MatrixEdit::RemoveColumn { column: columns[0] });
-    let middle = capture(&engine, media, row, at(now, 125));
+    let middle = capture(&engine, media, row, midway);
     let old = middle.inputs.iter().find(|input| input.source == held_source).unwrap();
     assert_eq!(old.placement.unwrap().position, [6.0, -2.0]);
     assert_eq!(old.opacity, 0.5);

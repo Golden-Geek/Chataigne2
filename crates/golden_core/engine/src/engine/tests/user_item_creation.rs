@@ -100,6 +100,11 @@ fn declared_parameter_folders_close_catalog_inheritance_without_closing_ordinary
         let closed = engine.node_id_by_uuid(closed_uuid).unwrap();
         let descendant = engine.node_id_by_uuid(descendant_uuid).unwrap();
         assert_eq!(engine.catalog_creatable_items(open).len(), 1);
+        let permissions = |engine: &Engine<LiveCreationNode>, id| {
+            engine.nodes.get(id).unwrap().node_data().meta.user_permissions.clone()
+        };
+        assert!(permissions(&engine, open).can_remove_and_duplicate);
+        assert!(!permissions(&engine, closed).can_remove_and_duplicate);
         for parent in [closed, descendant] {
             assert!(engine.catalog_creatable_items(parent).is_empty());
             let before = engine.nodes.len();
@@ -128,6 +133,8 @@ fn declared_parameter_folders_close_catalog_inheritance_without_closing_ordinary
         let restored_open = loaded.node_id_by_uuid(open_uuid).unwrap();
         assert!(loaded.catalog_creatable_items(restored_closed).is_empty());
         assert_eq!(loaded.catalog_creatable_items(restored_open).len(), 1);
+        assert_eq!(permissions(&loaded, restored_closed), permissions(&engine, closed));
+        assert_eq!(permissions(&loaded, restored_open), permissions(&engine, open));
     }
 }
 

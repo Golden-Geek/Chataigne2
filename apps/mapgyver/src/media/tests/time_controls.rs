@@ -58,9 +58,10 @@ fn every_matrix_and_application_duration_declares_a_clock_without_rescaling_stor
     }
     assert_eq!(
         declarations.len(),
-        8,
-        "three Matrix owners and five app-control duration fields"
+        9,
+        "three Matrix transition durations, Cell Auto Next and five app-control duration fields"
     );
+    assert!(declarations.contains(&("mapgyver.matrix.cell.v5".into(), "auto_next_time_ms".into())));
     let parameter = layer_parameter.unwrap();
     let uuid = engine.nodes.get(parameter).unwrap().node_data().meta.uuid;
     let ack = apply_project_intent(

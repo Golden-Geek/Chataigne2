@@ -16,8 +16,11 @@ fn parameters(engine: &AppEngine, root: NodeId) -> HashMap<String, NodeId> {
             let mut parameter = node.node_data().first_child;
             while let Some(id) = parameter {
                 let node = engine.nodes.get(id).unwrap();
-                assert!(node.engine_param_snapshot().is_some());
-                values.insert(node.node_data().meta.decl_id.0.clone(), id);
+                if node.engine_param_snapshot().is_some() {
+                    values.insert(node.node_data().meta.decl_id.0.clone(), id);
+                } else {
+                    assert!(node.get_type() == "folder" || matches!(node, AppNode::MatrixPresets(_)));
+                }
                 parameter = node.node_data().next_sibling;
             }
             return values;
@@ -46,7 +49,9 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
         MediaKind::SolidColor,
         MediaKind::Picture,
         MediaKind::Video,
+        MediaKind::Shader,
         MediaKind::SharedTexture,
+        MediaKind::Ndi,
         MediaKind::Composition,
         MediaKind::Matrix,
     ] {
@@ -57,10 +62,10 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
         assert_eq!(
             media_fields.len(),
             match kind {
-                MediaKind::SharedTexture => 5,
+                MediaKind::SharedTexture | MediaKind::Ndi => 5,
                 MediaKind::Picture => 4,
-                MediaKind::Video => 15,
-                MediaKind::Matrix => 4,
+                MediaKind::Video => 19,
+                MediaKind::Matrix => 9,
                 _ => 3,
             }
         );
@@ -69,7 +74,10 @@ fn media_channel_parameters_are_the_document_and_hidden_settings_keep_stable_ide
         assert_eq!(
             fields.len(),
             match kind {
-                MediaKind::SharedTexture | MediaKind::Picture | MediaKind::Video => 6,
+                MediaKind::Picture => 6,
+                MediaKind::Video | MediaKind::SharedTexture => 7,
+                MediaKind::Ndi => 8,
+                MediaKind::Shader => 13,
                 _ => 5,
             },
             "{fields:?}"

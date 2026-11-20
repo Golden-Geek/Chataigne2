@@ -1,11 +1,11 @@
 # MapGyver — simple status
 
 - **Updated:** 20 November 2026.
-- **Overall plan acceptance:** `█████████░` **85% — 123/145 checks accepted, 8/19 phases complete**.
-- **Latest delivered:** Browser Composition follows a held drag. Matrix shows moving thumbnails for visible Cells and previews the selected Cell. Closing the tab releases the renderer. [Checks](evidence/mapgyver-m18-browser-spatial-2026-11-20.json)
+- **Overall plan acceptance:** `█████████░` **86% — 124/145 checks accepted, 8/19 phases complete**.
+- **Latest verified:** Matrix Layer and Cell visibility, inactive editing and exact reload passed. [Checks](mapgyver-m14-matrix-enabled.md#second-pass-verification-2026-11-20)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Verify direct Windows File Explorer drops (M18/1).
+- **Next:** Qualify fading Layer Stop and final-use retention (M14/10). Direct File Explorer drops need desktop input.
 
 ## Done — code and normal-use checks passed
 

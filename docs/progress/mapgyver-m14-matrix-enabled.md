@@ -56,3 +56,26 @@ M14/9 is Pending qualification and unaccepted until its required checks pass. M1
 fading Layer Stop is the next Active feature under the user's feature-first order. Recovery/stress
 and performance work remain in the separately deferred qualification queue; this
 feature does not close those gates or alter their budgets.
+
+## Second-pass verification, 2026-11-20
+
+- The bundled Inspector check passed for Layers, Groups and Cells, including offscreen editing,
+  absence of duplicate enable controls, per-field Undo/Redo and mixed selection. The ordinary
+  headless host exited normally. UI typechecking and 51 Matrix/media-tree tests also passed.
+- After updating stale catalog, declaration and Reference-output expectations, the isolated
+  software run passed 852 app tests and all 11 Matrix integration tests. Its one app failure
+  exposed a reload defect. Schema-owned Audio and Subtitles folders gained open-folder edit
+  permissions during hydration. The correction keeps their default permissions and preserves
+  the ordinary editable-folder behavior. Strict Golden Engine Clippy passed.
+- The app-wide 4,096-branch Composition case runs separately. A fresh ordinary host confirmed
+  the updated subtree sizes of 15 nodes per leaf and 47 per branch with two References. The
+  corrected large-case result remains unverified and is required for final app qualification.
+- The permission fix passed 18 focused app tests, including exact Cell relocation and reload and
+  metadata changes during an outgoing fade. The rebuilt Matrix fixture passed all 11 software
+  cases. Both native tests passed on Intel and NVIDIA across 96 images and 73,728 texels,
+  covering live visibility, disabled destination launches and editable inactive Cells. Physical
+  outputs stayed closed.
+- **M14/9 Accepted.** Receipts: `target/mapgyver-m14-9-inspector-155335.log`,
+  `target/mapgyver-m14-9-isolated-software-161109.log` (reproduced failure), and
+  `target/mapgyver-m14-9-pixels-162652.log`. The full app regression and large Composition case
+  remain required before release.

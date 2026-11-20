@@ -110,6 +110,7 @@ impl<T: Node> Engine<T> {
         } else {
             let is_managed_item = user_role == UserNodeRole::ItemRoot;
             let is_folder_under_manager = node.get_type() == "folder"
+                && node.user_container_rules().is_none()
                 && self.nearest_container_ancestor(parent).is_some()
                 && !self.has_item_root_ancestor(parent);
 

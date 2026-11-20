@@ -44,23 +44,34 @@ fn transfer_native_scene_preserves_exact_owned_and_shared_identities_and_source_
             copied.definition.source.unwrap().channel,
             transfers.source_output.channel
         );
-        assert_eq!(
-            linked.definition.source.unwrap().channel,
-            transfers.source_output.channel
-        );
+        let linked_output = linked.definition.source.unwrap();
+        assert_ne!(linked_output.channel, transfers.source_output.channel);
+        assert!(matches!(
+            mapgyver::media::channel(&scene.engine, linked_output).unwrap().definition.source,
+            ChannelSource::Reference { target: Some(target) } if target == transfers.source_output
+        ));
         assert_eq!(linked.definition.application.0, transfers.source.0);
         transfers.clear_source(&mut scene);
-        let missing = inspect(&mut scene.engine, scene.root.media);
-        assert!(
-            missing
-                .cells
-                .iter()
-                .find(|cell| cell.id == transfers.reference)
-                .unwrap()
-                .definition
-                .source
-                .is_none()
-        );
+        let MediaEditResult::MatrixViewport { snapshot } = scene.matrix(MatrixEdit::InspectViewport {
+            selection: None,
+            viewport: MatrixViewport {
+                row_layout: None,
+                row_start: 0,
+                row_count: 16,
+                axis_start: 0,
+                axis_count: 8,
+            },
+        }) else {
+            panic!()
+        };
+        let missing = snapshot
+            .cells
+            .iter()
+            .find(|item| item.cell.id == transfers.reference)
+            .unwrap();
+        assert_eq!(missing.cell.definition.source, Some(linked_output));
+        assert!(missing.source_missing);
+        assert!(missing.source_preview.is_none());
         assert!(apply_project_intent(&mut scene.engine, UiEditIntent::Undo).success);
         assert_eq!(inspect(&mut scene.engine, scene.root.media), before);
         transfers.remove_source_owner(&mut scene);

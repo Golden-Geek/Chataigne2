@@ -93,9 +93,9 @@ fn a_deep_authored_composition_forest_rejects_feedback_without_mutation_or_sourc
         tree: forest,
     });
     engine.apply_edits().unwrap();
-    // Non-Picture channels omit the conditional File Parameter; two full instances per branch.
-    // Each Reference owns input Channel and stable Output alongside Fit Mode; canvases omit Fit.
-    assert_eq!(engine.nodes.len(), before_nodes + 12 + DEPTH * 44);
+    // Each leaf or Composition owns 15 nodes, including the declared Presets, Audio and Subtitles containers.
+    // A branch also owns two 16-node instances with stable Reference outputs.
+    assert_eq!(engine.nodes.len(), before_nodes + 15 + DEPTH * 47);
     crate::media::validate_project(&engine).unwrap();
     eprintln!("4096-deep Composition forest and validation: {:?}", started.elapsed());
     let saved = to_sparse_project_json_pretty(&engine).unwrap();
