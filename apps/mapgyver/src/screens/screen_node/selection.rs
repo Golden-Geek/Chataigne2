@@ -21,10 +21,12 @@ impl ScreenNode {
         let identity = values.display.as_str();
         let displays = manager.displays();
         let mut changes = Vec::new();
-        if change.is_proposed(self.display.id())
-            && let Some(display) = manager.known_display(identity)
-        {
-            changes.extend(self.display_hint_values(display));
+        if change.is_proposed(self.display.id()) {
+            if identity.is_empty() {
+                changes.extend(self.clear_display_hint_values());
+            } else if let Some(display) = manager.known_display(identity) {
+                changes.extend(self.display_hint_values(display));
+            }
         }
         if values.kind.as_str() != "Fullscreen" || identity.is_empty() {
             return Ok(changes);
@@ -108,6 +110,9 @@ impl ScreenNode {
             let ParamValue::Enum(previous) = old else { return };
             let current = self.authored_display_identity();
             (previous != &current).then(|| {
+                if current.is_empty() {
+                    return format!("{}: fullscreen display cleared", self.node_data().meta.label);
+                }
                 let hint = self.display_hint();
                 let display = if hint.name.is_empty() {
                     "selected display"

@@ -72,6 +72,18 @@ impl ScreenNode {
         values
     }
 
+    pub(super) fn clear_display_hint_values(&self) -> [(NodeId, ParamValue); 7] {
+        [
+            (self.display_edid.id(), ParamValue::Str(String::new())),
+            (self.display_name.id(), ParamValue::Str(String::new())),
+            (self.display_os_index.id(), ParamValue::Int(0)),
+            (self.display_left.id(), ParamValue::Int(0)),
+            (self.display_top.id(), ParamValue::Int(0)),
+            (self.display_width.id(), ParamValue::Int(0)),
+            (self.display_height.id(), ParamValue::Int(0)),
+        ]
+    }
+
     pub(crate) fn remember_display(&mut self, display: &DisplayInfo) {
         self.display_edid = ParameterHandle::new(display.edid.clone().unwrap_or_default());
         self.display_name = ParameterHandle::new(display.name.clone());

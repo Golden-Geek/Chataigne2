@@ -57,10 +57,17 @@ headless and no-external desktop scopes passed.
 
 - In the November 20 Intel editor fixture, `ConfigureScreen` with `target: null` rejected
   a newly assigned Fullscreen Screen while the display enum offered three connected displays.
-  The runtime reported `value is not in enum options`. The fixture now uses a disabled
-  Spout target for its off-page selection check. Clearing an assigned display and retaining
-  an unconfigured Screen are the next M14/6 correctness checks.
+  The runtime reported `value is not in enum options`.
 - Receipt: `target/mapgyver-m141-corner-screen-0-191440/failure.json`.
+- Fixed the shared display options so **No display selected** stays available. Clearing a
+  display removes its recovery hints in the same undoable edit. Reopening preserves the empty
+  Fullscreen target, and a new Screen can claim the released display.
+- All 120 Screen tests, strict app-library lint and the development build passed. With the
+  laptop, RTK and Optoma connected, the Intel WebView2 run passed 20 checks. It cleared the
+  display through public configuration and the Inspector, verified Undo/Redo and reopening,
+  picked RTK on New, rendered two exact Spout frames, and opened zero physical output windows.
+  Physical routing and the native shortcut remain pending. Receipt:
+  `target/mapgyver-clear-fullscreen-192927/result.json`.
 
 Implemented behavior:
 

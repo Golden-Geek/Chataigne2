@@ -250,6 +250,64 @@ try {
 		});
 		assert.deepEqual(await inspect(), beforeSelection);
 		await fresh();
+		if (intended !== '') {
+			const original = beforeSelection.screens[0];
+			const definition = { ...original.definition, target: null };
+			const currentScreen = async () => (await inspect()).screens[0];
+			const currentTarget = async () => (await currentScreen()).definition.target;
+			const history = async () => (await post('/api/ui/snapshot', { scope: 'wholeGraph' })).history;
+			const restore = async (kind) => {
+				const ack = await post('/api/ui/intent', { kind });
+				assert(ack.success, JSON.stringify(ack));
+			};
+			stage = 'clear Fullscreen through configuration';
+			const connected = displayCatalog();
+			await wait(
+				() => post('/api/ui/snapshot', { scope: 'wholeGraph' }),
+				(graph) => {
+					const options = displayOptions(graph, original.id);
+					return connected.every((display) => options.includes(display.id));
+				}
+			);
+			await screens({ kind: 'ConfigureScreen', screen: original.id, definition });
+			assert.deepEqual(await currentTarget(), null);
+			assert.equal((await history()).undo_len, 1);
+			await restore('undo');
+			assert.deepEqual(await currentScreen(), original);
+			assert.equal((await history()).undo_len, 0);
+			checks.push({ stage, target: null, undo_restored_display: intended });
+
+			stage = 'clear Fullscreen in the Inspector';
+			const display = controls.choice('Display');
+			await wait(
+				() => display.inputValue(),
+				(value) => value === intended
+			);
+			await display.selectOption({ label: 'No display selected' });
+			await wait(currentTarget, (target) => target === null);
+			await wait(history, (value) => value.undo_len === 1 && value.redo_len === 0);
+			assert.equal(await controls.choice('Target').inputValue(), 'Fullscreen');
+			await restore('undo');
+			assert.deepEqual(await currentScreen(), original);
+			await restore('redo');
+			assert.deepEqual((await currentScreen()).definition, definition);
+			checks.push({ stage, target: null, undo_redo: true });
+
+			stage = 'reopen an unconfigured Fullscreen Screen';
+			const clearedFile = path.join(directory, 'unconfigured.mapgyver');
+			assert.equal((await post('/api/ui/project-save', { path: clearedFile })).ok, true);
+			await post('/api/ui/project-load', { path: clearedFile });
+			assert.deepEqual(await currentScreen(), { ...original, definition });
+			const idle = await wait(
+				() => control({ kind: 'mapgyverRuntimeStatus' }),
+				(value) => value.screens.length === 0
+			);
+			checks.push({ stage, target: null, output_count: idle.screens.length });
+
+			stage = 'New after clearing Fullscreen';
+			assert.equal((await post('/api/ui/project-new', {})).ok, true);
+			await fresh();
+		}
 	}
 	stage = 'authored multiple Screens';
 	for (let i = 0; i < 2; i++)

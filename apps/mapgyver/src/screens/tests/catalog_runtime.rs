@@ -202,6 +202,69 @@ fn catalog() -> Arc<[DisplayInfo]> {
 }
 
 #[test]
+fn clearing_a_fresh_fullscreen_releases_the_display_and_round_trips_through_history_and_save() {
+    let mut engine = runtime();
+    let displays = catalog();
+    publish(&mut engine, displays.clone());
+    let (screen, _) = create(&mut engine);
+    publish(&mut engine, displays.clone());
+    let original = screen_node(&engine, screen).definition(&engine);
+    let hint = screen_node(&engine, screen).display_hint();
+    assert_eq!(hint.identity, displays[1].id);
+    assert!(hint.bounds.is_some());
+    assert!(options(&engine, screen).contains_variant(""));
+    let history = engine.undo_len();
+
+    let cleared = ScreenDefinition {
+        target: None,
+        ..original.clone()
+    };
+    apply(
+        &mut engine,
+        ScreenEdit::ConfigureScreen {
+            screen,
+            definition: cleared.clone(),
+        },
+    );
+    assert_eq!(engine.undo_len(), history + 1);
+    assert!(screen_node(&engine, screen).is_fullscreen());
+    assert_eq!(screen_node(&engine, screen).definition(&engine), cleared);
+    assert_eq!(
+        screen_node(&engine, screen).display_hint(),
+        DisplayIdentityHint::default()
+    );
+    publish(&mut engine, displays.clone());
+    let capture = super::super::rendering::capture_outputs(&engine, 128, 7, &displays).unwrap();
+    assert!(!capture.allocation_pending);
+    assert!(capture.outputs.is_empty());
+
+    assert!(engine.undo().unwrap());
+    drain(&mut engine);
+    assert_eq!(screen_node(&engine, screen).definition(&engine), original);
+    assert_eq!(screen_node(&engine, screen).display_hint(), hint);
+    assert!(engine.redo().unwrap());
+    drain(&mut engine);
+    assert_eq!(screen_node(&engine, screen).definition(&engine), cleared);
+    assert_eq!(
+        screen_node(&engine, screen).display_hint(),
+        DisplayIdentityHint::default()
+    );
+
+    let saved = to_sparse_project_json_pretty(&engine).unwrap();
+    let mut loaded = from_sparse_project_json::<AppNode>(&saved).unwrap();
+    prepare_engine_for_runtime(&mut loaded).unwrap();
+    publish(&mut loaded, displays);
+    assert!(screen_node(&loaded, screen).is_fullscreen());
+    assert_eq!(screen_node(&loaded, screen).definition(&loaded), cleared);
+    assert_eq!(
+        screen_node(&loaded, screen).display_hint(),
+        DisplayIdentityHint::default()
+    );
+    let (new_screen, _) = create(&mut loaded);
+    assert_eq!(screen_node(&loaded, new_screen).display_hint(), hint);
+}
+
+#[test]
 fn recovered_display_cadence_tracks_current_refresh_without_changing_authored_policy_or_history() {
     let mut engine = runtime();
     let mut primary = display("primary", 1, true, 1);

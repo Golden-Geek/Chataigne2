@@ -2,10 +2,10 @@
 
 - **Updated:** 20 November 2026.
 - **Overall plan acceptance:** `█████████░` **89% — 129/145 checks accepted, 9/19 phases complete**.
-- **Latest verified:** A Source drag remains one Undo step across reconnect. Old edits cannot change a replacement project. Screen, Source and Matrix recovery passed on Intel and NVIDIA. [Checks](mapgyver-m14-editor-recovery.md)
+- **Latest verified:** Clearing a Fullscreen display in the Inspector preserves the empty selection after reopening. Undo and Redo passed with RTK and Optoma connected. [Checks](mapgyver-m14-screen-defaults.md#clearing-a-fullscreen-target)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Fix clearing a Fullscreen display with monitors connected (M14/6). Physical editor pointer verification and direct Windows File Explorer drops still need a desktop input session.
+- **Next:** Verify physical display routing, reconnect and native New (M14/6). Physical editor pointer verification and direct Windows File Explorer drops still need a desktop input session.
 
 ## Done — code and normal-use checks passed
 
@@ -18,6 +18,7 @@
 - [x] **Shared Texture:** receiving, previews and preview cadence, sender retention across Manual/Auto, and ordinary reconnect. New sources pick the first external sender or None. **(internal)** marks Screen outputs. Native pixel checks passed for deliberate internal selection, same-name takeover and external recovery.
 - [x] **Screens/Surfaces:** creation, warping, crop/source editing, opacity, enable/disable, calibration and native outputs.
 - [x] **Startup display:** Fresh projects prefer the lowest available external Windows display number. The current build chose RTK FHD HDR with the Optoma also active. The installed Start menu beta `1.0.0b7` predates this fix. Saved projects retain their Screen targets. Automated browser tests leave physical outputs off by default. [Checks](mapgyver-m14-screen-defaults.md#numbered-display-feedback)
+- [x] **Clear a Fullscreen display:** Choose **No display selected** in the Screen Inspector. The Screen stays unconfigured after reopening. [Checks](mapgyver-m14-screen-defaults.md#clearing-a-fullscreen-target)
 - [x] **Smooth Frame/Home:** shared native image and control alignment, Matrix selection beyond page one, and dock resize during animation passed on Intel and NVIDIA. [Checks](mapgyver-m14-navigation.md#second-pass-verification--2026-11-20)
 - [x] **Live editor feedback:** native paint and keyboard focus in Screen Warping, Surface Source, Composition and Matrix passed on Intel and NVIDIA. [Checks](mapgyver-m15-editor-feedback.md)
 - [x] **Editor recovery:** exact Source Undo after reconnect, clean New while dragging, and restored locked editor panels. [Checks](mapgyver-m14-editor-recovery.md)

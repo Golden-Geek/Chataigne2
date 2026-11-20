@@ -12,6 +12,8 @@ the render projection is unconfigured and creates no output. Explicit Shared Tex
 Rectangle choices remain ordinary authored settings.
 Configuring an unselected Fullscreen Screen preserves that mode when changing frame rate,
 AA or other settings; a null runtime destination does not imply a Shared Texture mode change.
+Every published Display picker includes **No display selected**. Clearing the display in the
+Inspector or through `ConfigureScreen` also clears the recovery hints in one history entry.
 
 `screens/host_inventory.rs` maps the public host metadata once on a dedicated worker before
 seeding each detached startup/New candidate. It seeds both the initial Screen and the ephemeral

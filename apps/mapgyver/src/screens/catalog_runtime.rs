@@ -185,7 +185,7 @@ impl Source {
                 continue;
             }
             for entry in selection.options.as_slice() {
-                if !entry.variant_id.is_empty() && identities.insert(entry.variant_id.clone()) {
+                if identities.insert(entry.variant_id.clone()) {
                     let mut entry = entry.clone();
                     if !entry.label.ends_with(" (offline)") {
                         entry.label.push_str(" (offline)");
@@ -199,9 +199,6 @@ impl Source {
         } else {
             entries.into()
         };
-        let mut empty_entries = shared.as_slice().to_vec();
-        empty_entries.push(option("", "No display selected".into(), None));
-        let empty_options: ParameterEnumOptions = empty_entries.into();
         let resolved = match_displays(&self.requests, &displays)
             .into_iter()
             .map(|(screen, matched)| {
@@ -226,18 +223,11 @@ impl Source {
         let choices = self
             .selections
             .iter()
-            .map(|selection| {
-                let choices = if selection.hint.identity.is_empty() || selection.options.contains_variant("") {
-                    empty_options.clone()
-                } else {
-                    shared.clone()
-                };
-                Choice {
-                    node: selection.node,
-                    uuid: selection.uuid,
-                    value: selection.value.clone(),
-                    options: choices,
-                }
+            .map(|selection| Choice {
+                node: selection.node,
+                uuid: selection.uuid,
+                value: selection.value.clone(),
+                options: shared.clone(),
             })
             .collect();
         Update {
@@ -312,8 +302,8 @@ pub(crate) fn display_options(displays: &[DisplayInfo]) -> ParameterEnumOptions 
             };
             option(&display.id, label, i32::try_from(display.index).ok())
         })
-        .collect::<Vec<_>>()
-        .into()
+        .chain(std::iter::once(option("", "No display selected".into(), None)))
+        .collect()
 }
 
 fn option(id: &str, label: String, ordering: Option<i32>) -> ParameterEnumOption {
