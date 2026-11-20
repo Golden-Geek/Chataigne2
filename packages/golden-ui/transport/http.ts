@@ -147,14 +147,12 @@ export const createHttpAuxiliaryClient = (
 	};
 
 	const client: UiHttpAuxiliaryClient = {
-		async browserPreview(source, previous, signal) {
-			const path = previous
-				? `/browser-preview?${new URLSearchParams({ after: previous })}`
-				: '/browser-preview';
-			const response = await authenticatedFetch(path, {
+		async browserPreview(pull, signal) {
+			const response = await authenticatedFetch('/browser-preview', {
 				method: 'POST',
 				cache: 'no-store',
-				body: source,
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(pull),
 				signal: AbortSignal.any([signal, AbortSignal.timeout(3000)])
 			});
 			if (response.status === 204) return null;

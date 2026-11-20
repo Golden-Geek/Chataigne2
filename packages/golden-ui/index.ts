@@ -2,6 +2,8 @@ export { createGraphStore } from './store/graph.svelte';
 export type { GraphState, GraphStore } from './store/graph.svelte';
 export { createWorkbenchSession } from './store/workbench.svelte';
 export { appState } from './store/app-state.svelte';
+export type { UiBrowserPreview } from './types';
+export type { UiBrowserPreviewQuality } from './generated/rust_protocol/UiBrowserPreviewQuality';
 export { registerCommandHandler } from './store/commands.svelte';
 export type { CommandId, CommandExecuteContext } from './store/commands.svelte';
 export {

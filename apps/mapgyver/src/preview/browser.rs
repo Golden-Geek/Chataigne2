@@ -30,7 +30,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-const OUTPUT_SLOTS: usize = 8;
+const OUTPUT_SLOTS: usize = BrowserPreviews::SOURCE_LIMIT;
 const MAX_BUDGET: u64 = 768 * 1024 * 1024;
 
 struct Route {
@@ -148,7 +148,8 @@ impl Owner {
             admission - admission / 4,
             golden_video::native::GpuFrameBudget::new(admission / 4),
         );
-        let extent = Extent2D::new(640, 360).unwrap();
+        let (width, height) = BrowserPreviews::CAPTURE_SIZE;
+        let extent = Extent2D::new(width, height).unwrap();
         let rate = golden_time::RationalRate::new(15, 1).unwrap();
         let mut config = config::configuration(admission, None);
         config.video.frame_rate = rate;
@@ -277,9 +278,13 @@ impl Owner {
                 .find(|channel| channel.reference == route.reference)
                 .and_then(|channel| channel.resolution.extent)
                 .unwrap_or(self.extent);
-            let jpeg =
-                encode_preview_jpeg(&frame.pixels, self.extent, content, 75).map_err(|error| error.to_string())?;
-            route.stream.publish_jpeg(jpeg);
+            route
+                .stream
+                .publish_frame(|encoding| {
+                    let limit = Extent2D::new(encoding.width, encoding.height).expect("valid browser preview preset");
+                    encode_preview_jpeg(&frame.pixels, self.extent, content, limit, encoding.jpeg_quality)
+                })
+                .map_err(|error| error.to_string())?;
         }
         Ok(())
     }

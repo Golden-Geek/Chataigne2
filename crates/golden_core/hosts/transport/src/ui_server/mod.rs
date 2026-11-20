@@ -56,7 +56,7 @@ mod startup;
 mod websocket;
 
 use application_error::*;
-pub use browser_previews::{BrowserPreviewStream, BrowserPreviews};
+pub use browser_previews::{BrowserPreviewEncoding, BrowserPreviewStream, BrowserPreviews};
 use content_security::FrontendSecurity;
 use delivery::*;
 use http::*;

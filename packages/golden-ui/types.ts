@@ -782,8 +782,7 @@ export type UiEventBatchHandler = (
 export type UiTransportBatch = UiEventBatch & Pick<UiReplayCursor, 'project_generation'>;
 
 export type UiBrowserPreview = (
-	source: string,
-	previous: string | null,
+	pull: import('./generated/rust_protocol/UiBrowserPreviewRequest').UiBrowserPreviewRequest,
 	signal: AbortSignal
 ) => Promise<{ tag: string; image: Blob } | null>;
 

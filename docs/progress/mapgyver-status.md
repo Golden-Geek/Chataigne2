@@ -2,10 +2,10 @@
 
 - **Updated:** 20 November 2026.
 - **Overall plan acceptance:** `████████░░` **84% — 122/145 checks accepted, 8/19 phases complete**.
-- **Latest delivered:** Standalone Chromium showed moving Media Preview textures and stopped the renderer when the panel was hidden. [Checks](evidence/mapgyver-m18-browser-media-preview-2026-11-20.json)
+- **Latest delivered:** The four browser preview quality modes passed in Media Preview, including Auto under constrained bandwidth and renderer retirement on Disabled. [Checks](evidence/mapgyver-m18-browser-quality-2026-11-20.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Browser preview quality and editor coverage (M18/6).
+- **Next:** Browser video previews in Screen Warping, Surface Source, Composition and Matrix (M18/6).
 
 ## Done — code and normal-use checks passed
 

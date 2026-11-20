@@ -6,16 +6,23 @@ authored Parameters and Channels; it no longer embeds media images.
 
 ## Browser Media Preview
 
-Golden's browser component requests frames while intersecting a visible document. The
-authenticated HTTP transport leases each requested source in the current project and serves
-the latest JPEG. Multiple browser views of a source share the lease and latest image. The
-last request leaves a 1.2-second lease for clients that exit or lose their connection.
+Golden's browser components request frames while intersecting a visible document. A single
+request queue per browser tab shares source pulls between views and caps the request rate.
+Auto starts with the high profile, drops to low when a frame download takes 150 ms or times out,
+and returns to high after a cooldown and a series of transfers with headroom. Disabled clears
+the canvases and cancels requests. Forced profiles use the selected representation throughout.
+
+The authenticated HTTP transport leases each requested source and quality in the current
+project and serves the latest JPEG. An unchanged image keeps its ETag. Small periodic pulls
+with no ETag let Auto recheck a low-quality connection even when the underlying image is static.
+Leases expire 2.4 seconds after the last request, including when a tab closes or loses its link.
 
 MapGyver's browser worker resolves the same Channel identities and runs the same Channel
 render plans on the configured Windows GPU. Golden Video hands the worker tightly packed
 BGRA from a nonblocking staging texture. Each output has a one-frame CPU mailbox and stamps
 frames with the producing plan identity so a rebound output cannot publish the previous
-source. The worker encodes up to 640×360 at 15 FPS, preserving the source aspect ratio, and
+source. The worker encodes profiles on demand, up to 640×360 at the 15 FPS render rate for High
+and 320×180 every 120 ms at most for Low. Both preserve the source aspect ratio. The worker
 retires the renderer once no browser demand remains. The desktop uses the native compositor.
 
 ## Native presentation

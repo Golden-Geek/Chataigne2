@@ -10,12 +10,13 @@ use std::path::{Path, PathBuf};
 
 use golden_graph::{GraphChangeSet, GraphDelta, GraphRevision};
 use golden_protocol::{
-    UI_PROTOCOL_VERSION, UiAck, UiApplicationInfoDto, UiClientMessage, UiContextCandidatesRequest, UiDiscoveryDto,
-    UiEditIntent, UiErrorResponse, UiEventBatch, UiOscAddressDto, UiOscAddressRequest, UiParamControlInfoDto,
-    UiParamControlInfoRequest, UiProjectLoadProblemDto, UiProjectLoadRecoveryDto, UiProjectPathDto,
-    UiProjectPathRequest, UiProjectUploadRequest, UiReferenceTargetsDto, UiReferenceTargetsRequest, UiReplayRequest,
-    UiReplayResponse, UiScriptConfigRequest, UiScriptReloadRequest, UiScriptStateRequest, UiServerMessage,
-    UiSessionCapabilities, UiSessionRequest, UiSessionResponse, UiSnapshot, UiSnapshotRequest,
+    UI_PROTOCOL_VERSION, UiAck, UiApplicationInfoDto, UiBrowserPreviewRequest, UiClientMessage,
+    UiContextCandidatesRequest, UiDiscoveryDto, UiEditIntent, UiErrorResponse, UiEventBatch, UiOscAddressDto,
+    UiOscAddressRequest, UiParamControlInfoDto, UiParamControlInfoRequest, UiProjectLoadProblemDto,
+    UiProjectLoadRecoveryDto, UiProjectPathDto, UiProjectPathRequest, UiProjectUploadRequest, UiReferenceTargetsDto,
+    UiReferenceTargetsRequest, UiReplayRequest, UiReplayResponse, UiScriptConfigRequest, UiScriptReloadRequest,
+    UiScriptStateRequest, UiServerMessage, UiSessionCapabilities, UiSessionRequest, UiSessionResponse, UiSnapshot,
+    UiSnapshotRequest,
 };
 use golden_script_contract::{ScriptAppOperationReply, ScriptUiState};
 use ts_rs::{Config, TS};
@@ -181,6 +182,7 @@ pub fn generate_ui_protocol_bindings(out_dir: &Path) {
     export_binding::<ScriptAppOperationReply>(&config, "ScriptAppOperationReply");
     export_binding::<UiSnapshotRequest>(&config, "UiSnapshotRequest");
     export_binding::<UiSessionRequest>(&config, "UiSessionRequest");
+    export_binding::<UiBrowserPreviewRequest>(&config, "UiBrowserPreviewRequest");
     export_binding::<UiSessionResponse>(&config, "UiSessionResponse");
     export_binding::<UiSessionCapabilities>(&config, "UiSessionCapabilities");
     export_binding::<UiReplayRequest>(&config, "UiReplayRequest");

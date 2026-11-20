@@ -51,7 +51,9 @@ group's **+** menu to add File Explorer to an existing layout.
 Run `node apps/mapgyver/tests/headless/media.mjs --workbench-ui` for the ordinary bundled-browser
 tree/Inspector/canvas/Matrix/Application/New flow and source HTTP/history/Save/New/Load checks.
 On Windows, standalone browsers show moving Channel textures in Media Preview. The
-`apps/mapgyver/tests/browser/browser-preview.mjs` fixture exercises the bundled browser UI,
+**Browser Preview Quality** menu defaults to Auto and also offers Disabled, Forced Low
+Quality and Forced High Quality. Auto reduces resolution and cadence on a slow connection.
+The `apps/mapgyver/tests/browser/browser-preview.mjs` fixture exercises the bundled browser UI,
 GPU-rendered frames and retirement when Media Preview is hidden.
 
 `node apps/mapgyver/tests/headless/media.mjs --source-ui` covers the complete M04 source-authoring

@@ -10,6 +10,7 @@
 		type UserPanelDefinitionMap
 	} from 'golden_ui';
 	import { hasDesktopHost } from 'golden_ui/host/desktop';
+	import { BrowserPreviewQuality, provideBrowserPreviews } from 'golden_video_ui';
 	import explorerIcon from 'golden_ui/style/icons/node/folder.svg';
 	import { providePreview } from '../lib/preview/context.svelte';
 	import { provideApplicationRuntime } from '../lib/applications/runtime-context.svelte';
@@ -39,6 +40,7 @@
 	import { provideDocumentSelection } from '../lib/selection.svelte';
 	const host = useApplicationHost(),
 		preview = providePreview();
+	provideBrowserPreviews();
 	provideDocumentSelection();
 	provideVideoStatus();
 	provideApplicationRuntime();
@@ -183,6 +185,7 @@
 		nodeIcons={treeIcons}
 		httpBaseUrl={host.endpoints.httpBaseUrl}
 		wsUrl={host.endpoints.wsUrl}>
+		{#snippet header()}{#if !hasDesktopHost()}<BrowserPreviewQuality />{/if}{/snippet}
 		{#snippet footer()}<VideoRuntimeFooter />{/snippet}
 	</MainWindow>
 </div>

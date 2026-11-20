@@ -16,6 +16,18 @@ let token;
 const errors = [];
 const checks = [];
 const responses = new Map();
+let requests = 0;
+
+async function waitFor(check, label, timeout = 10000) {
+	const deadline = performance.now() + timeout;
+	while (!(await check())) {
+		assert(performance.now() < deadline, label);
+		await delay(50);
+	}
+}
+
+const retirements = () =>
+	host.log().split('[mapgyver-browser-preview] renderer retired').length - 1;
 
 async function post(route, payload) {
 	const response = await fetch(host.base + route, {
@@ -73,7 +85,11 @@ try {
 	});
 	const response = await fetch(`${host.base}/api/ui/browser-preview`, {
 		method: 'POST',
-		body: JSON.stringify({ kind: 'Channel', reference })
+		body: JSON.stringify({
+			source: JSON.stringify({ kind: 'Channel', reference }),
+			quality: 'high',
+			after: null
+		})
 	});
 	assert.equal(response.status, 401);
 	checks.push('unauthenticated request refused');
@@ -81,12 +97,23 @@ try {
 	browser = await chromium.launch({ headless: true });
 	page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 	page.on('pageerror', (error) => errors.push(String(error)));
+	page.on('request', (request) => {
+		if (request.url().endsWith('/api/ui/browser-preview')) requests++;
+	});
 	page.on('response', (response) => {
 		if (!response.url().includes('/api/ui/browser-preview')) return;
 		const status = response.status();
 		responses.set(status, (responses.get(status) ?? 0) + 1);
 	});
 	await page.goto(host.base);
+	const mode = page.getByRole('combobox', { name: 'Browser Preview Quality' });
+	assert.equal(await mode.inputValue(), 'auto');
+	assert.deepEqual(await mode.getByRole('option').allTextContents(), [
+		'Disabled',
+		'Auto',
+		'Forced Low Quality',
+		'Forced High Quality'
+	]);
 	const tab = (name) => page.getByRole('tab').filter({ hasText: new RegExp(`^${name}(?::|$)`) });
 	await tab('Medias').click();
 	await page
@@ -98,6 +125,15 @@ try {
 		'[data-panel-id="media-preview"] canvas[data-preview-state="available"]'
 	);
 	await preview.waitFor({ timeout: 15000 });
+	const waitForQuality = (expected, width) =>
+		waitFor(async () => {
+			return (
+				(await mode.getAttribute('data-effective-quality')) === expected &&
+				(await preview.count()) === 1 &&
+				(await preview.getAttribute('width')) === String(width)
+			);
+		}, `expected ${expected} preview at width ${width}`);
+	await waitForQuality('high', 480);
 	const seen = new Set();
 	const deadline = performance.now() + 6000;
 	while (seen.size < 2 && performance.now() < deadline) {
@@ -119,15 +155,45 @@ try {
 	assert.deepEqual([...seen].sort(), ['blue', 'red']);
 	checks.push('standalone browser displayed moving 4:3 GPU images');
 
+	await mode.selectOption('low');
+	await waitForQuality('low', 240);
+	await mode.selectOption('high');
+	await waitForQuality('high', 480);
+	checks.push('forced low and high delivered distinct frame resolutions');
+
+	await mode.selectOption('auto');
+	await waitForQuality('high', 480);
+	const cdp = await page.context().newCDPSession(page);
+	const { ruleIds } = await cdp.send('Network.emulateNetworkConditionsByRule', {
+		matchedNetworkConditions: [
+			{ urlPattern: '', latency: 0, downloadThroughput: 8192, uploadThroughput: 8192 }
+		]
+	});
+	assert.equal(ruleIds.length, 1);
+	await waitForQuality('low', 240);
+	assert.equal(await mode.inputValue(), 'auto');
+	await cdp.send('Network.emulateNetworkConditionsByRule', { matchedNetworkConditions: [] });
+	await waitForQuality('high', 480);
+	await cdp.detach();
+	checks.push('Auto switched to low at 8 KiB/s and recovered high after bandwidth returned');
+
+	await mode.selectOption('disabled');
+	const disabled = page.locator(
+		'[data-panel-id="media-preview"] canvas[data-preview-state="disabled"]'
+	);
+	await disabled.waitFor();
+	const disabledRequests = requests;
+	await waitFor(() => retirements() === 1, 'preview renderer should retire on Disabled');
+	assert.equal(requests, disabledRequests, 'Disabled should stop frame pulls');
+	checks.push('Disabled aborted frame pulls and retired the renderer');
+
+	await mode.selectOption('auto');
+	await waitForQuality('high', 480);
 	await tab('Screen Warping').click();
-	const retireDeadline = performance.now() + 6000;
-	while (!host.log().includes('[mapgyver-browser-preview] renderer retired')) {
-		assert(
-			performance.now() < retireDeadline,
-			'preview renderer should retire after the panel is hidden'
-		);
-		await delay(50);
-	}
+	await waitFor(
+		() => retirements() === 2,
+		'preview renderer should retire after the panel is hidden'
+	);
 	checks.push('hidden preview stopped demand and the native renderer retired');
 	assert.deepEqual(errors, []);
 	assert(!host.log().includes('[mapgyver-output] window id='));
@@ -147,7 +213,18 @@ try {
 			};
 		})
 	);
-	const diagnostics = { errors, responses: Object.fromEntries(responses), preview };
+	const quality = await page
+		?.getByRole('combobox', { name: 'Browser Preview Quality' })
+		.getAttribute('data-effective-quality', { timeout: 1000 })
+		.catch(() => null);
+	const diagnostics = {
+		errors,
+		requests,
+		responses: Object.fromEntries(responses),
+		quality,
+		checks,
+		preview
+	};
 	await writeFile(
 		path.join(directory, 'failure.log'),
 		`${error.stack}\n${JSON.stringify(diagnostics)}\n${host.log()}`

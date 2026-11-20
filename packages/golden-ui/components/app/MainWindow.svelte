@@ -21,6 +21,8 @@
 		userPanels?: UserPanelDefinitionMap;
 		initialPanels?: PanelSpawnRequest[];
 		nodeIcons?: NodeIconSet;
+		/** App-owned controls in the shared top bar. */
+		header?: Snippet;
 		/** App-owned runtime presentation; ordinary engine status remains in the shared footer. */
 		footer?: Snippet<[WorkbenchSession]>;
 	}>();
@@ -37,7 +39,11 @@
 			class="gc-main os-{platform.name}"
 			data-graph-node-count={session.graph.state.nodesById.size}
 			data-graph-event-tick={session.graph.state.lastEventTime?.tick ?? 0}>
-			<AppHeader {session} application={props.application} icon={props.appIcon} />
+			<AppHeader
+				{session}
+				application={props.application}
+				icon={props.appIcon}
+				contribution={props.header} />
 			<MainComponent
 				userPanels={props.userPanels}
 				initialPanels={props.initialPanels}

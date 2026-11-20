@@ -8,18 +8,27 @@ pub fn encode_preview_jpeg(
     bgra: &[u8],
     capture: Extent2D,
     content: Extent2D,
+    limit: Extent2D,
     quality: u8,
 ) -> Result<Vec<u8>, ImageError> {
+    let dimension_error = || {
+        ImageError::Parameter(image_codec::error::ParameterError::from_kind(
+            image_codec::error::ParameterErrorKind::DimensionMismatch,
+        ))
+    };
+    let expected = u64::from(capture.width()) * u64::from(capture.height());
+    if expected.checked_mul(4) != u64::try_from(bgra.len()).ok() {
+        return Err(dimension_error());
+    }
     let mut rgb = Vec::with_capacity(bgra.len() / 4 * 3);
     for pixel in bgra.chunks_exact(4) {
         rgb.extend_from_slice(&[pixel[2], pixel[1], pixel[0]]);
     }
-    let image = RgbImage::from_raw(capture.width(), capture.height(), rgb).ok_or_else(|| {
-        ImageError::Parameter(image_codec::error::ParameterError::from_kind(
-            image_codec::error::ParameterErrorKind::DimensionMismatch,
-        ))
-    })?;
-    let (cw, ch) = (u64::from(capture.width()), u64::from(capture.height()));
+    let image = RgbImage::from_raw(capture.width(), capture.height(), rgb).ok_or_else(dimension_error)?;
+    let (cw, ch) = (
+        u64::from(capture.width().min(limit.width())),
+        u64::from(capture.height().min(limit.height())),
+    );
     let (iw, ih) = (u64::from(content.width()), u64::from(content.height()));
     let (width, height) = if cw * ih <= ch * iw {
         (cw, (cw * ih / iw).max(1))

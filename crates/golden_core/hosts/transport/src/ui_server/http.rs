@@ -175,19 +175,16 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
             let Some(previews) = &state.browser_previews else {
                 return write_json_error(stream, "404 Not Found", "browser previews are unavailable");
             };
-            let after = request
-                .query
-                .as_deref()
-                .filter(|query| query.len() <= 256)
-                .and_then(|query| {
-                    url::form_urlencoded::parse(query.as_bytes())
-                        .find(|(key, _)| key == "after")
-                        .map(|(_, tag)| tag)
-                });
+            if request.body.len() > 4096 {
+                return write_json_error(stream, "400 Bad Request", "browser preview request is too large");
+            }
+            let Ok(pull) = serde_json::from_slice::<golden_protocol::UiBrowserPreviewRequest>(&request.body) else {
+                return write_json_error(stream, "400 Bad Request", "invalid browser preview request");
+            };
             let generation = state.read_model.current_project_generation().get();
-            match previews.request(generation, &request.body) {
+            match previews.request(generation, &pull.source, pull.quality) {
                 Ok(Some(frame)) => {
-                    if after.as_deref() == Some(frame.tag.as_str()) {
+                    if pull.after.as_deref() == Some(frame.tag.as_str()) {
                         write_response(stream, "204 No Content", "text/plain", &[])?;
                     } else {
                         stream.etag = Some(frame.tag);

@@ -11,6 +11,7 @@ use golden_script_contract::ScriptUiConfig;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+mod browser_preview;
 mod discovery;
 mod edit;
 mod event;
@@ -19,6 +20,7 @@ mod message;
 mod session;
 mod snapshot;
 
+pub use browser_preview::*;
 pub use discovery::*;
 pub use edit::*;
 pub use event::*;

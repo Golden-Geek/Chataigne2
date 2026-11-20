@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { WorkbenchSession } from '../../store/workbench.svelte';
 	import { hasDesktopHost, invokeDesktopCommand } from '../../host/desktop';
-	import { onMount } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
 	import { clearPersistedUiState } from '../../store/ui-persistence';
 	import { platform } from '../../store/platform.svelte';
 	import { projectFileDisplayName, projectFileState } from '../../store/project-files.svelte';
@@ -21,10 +21,11 @@
 
 	const DRAG_EXCLUDED_SELECTOR = 'button, input, textarea, select, a, [data-no-drag]';
 
-	const { session, application, icon } = $props<{
+	const { session, application, icon, contribution } = $props<{
 		application: UiApplicationInfoDto;
 		icon?: string;
 		session?: WorkbenchSession | null;
+		contribution?: Snippet;
 	}>();
 	const hasProjectSettings = $derived(
 		Boolean(session && workbenchSettingsNode(session.graph, 'project_settings'))
@@ -177,6 +178,7 @@
 		onkeydown={() => {}}>
 	</div>
 	<div class="controls">
+		{@render contribution?.()}
 		{#if hasProjectSettings}
 			<div class="settings-actions" role="group" aria-label="Settings">
 				<IconButton
