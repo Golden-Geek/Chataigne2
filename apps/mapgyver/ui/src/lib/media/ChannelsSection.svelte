@@ -104,7 +104,7 @@
 					page += 1;
 				}} />
 		{/if}
-		<NodeAddButton {node} disabled={busy} />
+		<NodeAddButton {node} disabled={busy} selectionPolicy="catalog" />
 	</header>
 	{#if view.error}<p role="alert">{view.error}</p>
 	{:else if !admitted}<p role="status">

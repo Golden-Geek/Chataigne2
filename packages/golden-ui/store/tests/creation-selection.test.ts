@@ -99,6 +99,15 @@ describe('authoritative manager creation feedback', () => {
 		await pending;
 		expect(f.host.selectNode).toHaveBeenCalledExactlyOnceWith(42, 'REPLACE');
 	});
+	it.each([true, false])('Inspector creation honors catalog selection %s', async (select) => {
+		const f = fixture();
+		const pending = createUserItemAndSelect(1, { ...item, select_when_created: select }, 'catalog');
+		f.finish();
+		await pending;
+		expect(f.host.sendIntent).toHaveBeenCalledTimes(1);
+		if (select) expect(f.host.selectNode).toHaveBeenCalledExactlyOnceWith(42, 'REPLACE');
+		else expect(f.host.requestNodeSelection).not.toHaveBeenCalled();
+	});
 	it('receipt-only callers never acquire menu selection behavior', async () => {
 		const f = fixture();
 		const pending = sendCreateUserItemIntent(1, item);

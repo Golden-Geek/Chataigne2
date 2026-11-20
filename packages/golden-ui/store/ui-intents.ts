@@ -304,10 +304,13 @@ export const sendCreateUserItemByTypeIntent = async (
 	};
 };
 
-/** Menu creation owns selection feedback; the backend owns creation and its exact identity. */
+export type CreationSelectionPolicy = 'created' | 'catalog';
+
+/** Menus own selection feedback. Inspectors can follow the parent's creation catalog. */
 export const createUserItemAndSelect = async (
 	parent: NodeId,
-	item: UiCreatableUserItem
+	item: UiCreatableUserItem,
+	selectionPolicy: CreationSelectionPolicy = 'created'
 ): Promise<void> => {
 	const owner = appState.session;
 	const selection = owner?.selectionRevision;
@@ -315,6 +318,7 @@ export const createUserItemAndSelect = async (
 	const result = await sendCreateUserItemIntent(parent, item);
 	if (
 		owner &&
+		(selectionPolicy === 'created' || result.selectWhenCreated) &&
 		appState.session === owner &&
 		owner.snapshotGeneration === generation &&
 		owner.selectionRevision === selection &&

@@ -311,17 +311,13 @@
 					}}
 					drop={async (row, column, source, copy) => {
 						if (row.item.id.kind !== 'Layer') return;
-						const result = await owner.edit({
+						await owner.edit({
 							kind: 'DropSource',
 							layer: row.item.id.id,
 							column: column.id,
 							source,
 							copy
 						});
-						if (result?.kind === 'MatrixMediaCreated') {
-							controller.select(row.item.id, column.id, result.cell);
-							selectDocumentNode(result.cell);
-						}
 					}}
 					dropFile={async (target, path) => {
 						const selectDropped = selection.capture();

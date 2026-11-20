@@ -31,7 +31,6 @@ export function gridActions(
 		if (!current()) return;
 		const select = selection.capture();
 		const result = await owner.edit(edit);
-		if (result?.kind === 'MatrixMediaCreated') select(result.media);
 		if (result?.kind === 'MatrixColumnGroupCreated') {
 			owner.controller.select(null, null, result.group);
 			select(result.group);

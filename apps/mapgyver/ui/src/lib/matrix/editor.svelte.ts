@@ -65,15 +65,22 @@ export function createMatrixEditor(query: () => MatrixEditorQuery) {
 		controller,
 		projection,
 		async edit(intent: MatrixEdit) {
-			const selectParent = selection.capture(),
+			const select = selection.capture(),
 				parent = window?.final_output.reference.channel;
 			const result = await controller.edit(intent);
+			if (
+				result?.kind === 'MatrixMediaCreated' &&
+				(intent.kind === 'CreateCellMedia' || intent.kind === 'DropSource') &&
+				select(result.cell)
+			) {
+				controller.select({ kind: 'Layer', id: intent.layer }, intent.column, result.cell);
+			}
 			if (
 				result?.kind === 'Changed' &&
 				(intent.kind === 'RemoveItem' || intent.kind === 'RemoveColumn') &&
 				parent
 			) {
-				if (selectParent(parent)) controller.select(null, null, null);
+				if (select(parent)) controller.select(null, null, null);
 			}
 			return result;
 		},

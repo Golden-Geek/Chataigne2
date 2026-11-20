@@ -356,7 +356,9 @@
 					<span class="spacer"></span>
 					{#if showAddButton}
 						<div class="node-add-button-wrapper">
-							<NodeAddButton {node} />
+							<NodeAddButton
+								{node}
+								selectionPolicy={layoutMode === 'dashboard' ? 'created' : 'catalog'} />
 						</div>
 					{/if}
 				</div>

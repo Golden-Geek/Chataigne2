@@ -191,6 +191,9 @@
 		}
 
 		openNodeContextMenu(target.nodeId, nextX, nextY, {
+			creationSelection: target.host.closest('[data-catalog-creation-selection]')
+				? 'catalog'
+				: 'created',
 			showChildCreation:
 				target.host.closest<HTMLElement>('[data-node-context-child-creation]')?.dataset
 					.nodeContextChildCreation !== 'false'
@@ -435,7 +438,7 @@
 		if (!activeNode) {
 			return;
 		}
-		void createUserItemAndSelect(activeNode.node_id, item);
+		void createUserItemAndSelect(activeNode.node_id, item, nodeContextMenuState.creationSelection);
 		closeMenu();
 	};
 

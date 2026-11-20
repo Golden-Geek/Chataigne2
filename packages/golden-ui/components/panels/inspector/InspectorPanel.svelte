@@ -450,7 +450,11 @@
 	});
 </script>
 
-<div class="inspector" data-panel-id={panelId} data-inspected-uuid={node?.uuid ?? ''}>
+<div
+	class="inspector"
+	data-panel-id={panelId}
+	data-inspected-uuid={node?.uuid ?? ''}
+	data-catalog-creation-selection>
 	{#snippet builtInHeader(headerExtra?: Snippet)}
 		<div
 			class="inspector-header"
@@ -534,7 +538,7 @@
 			{/if}
 
 			{#if node}
-				<NodeAddButton {node} />
+				<NodeAddButton {node} selectionPolicy="catalog" />
 			{/if}
 
 			<div class="inspector-nav-tools">

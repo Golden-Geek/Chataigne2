@@ -14,8 +14,9 @@ Golden's menu selection helper sends the receipt to its existing pending-selecti
 store. An acknowledgement may precede the graph delta; selection waits for the
 exact projected identity without polling. Add buttons, single-item creation and
 nested context menus share it.
-Manager menus select every successfully created root; catalog selection hints
-remain available to specialized receipt-only editor callers.
+Manager menus select each successfully created root. Inspector Add buttons and context menus
+follow the parent's `select_when_created` catalog entry. MapGyver Channels opt out of automatic
+selection so their enclosing Media stays inspected. Watch in Inspector opens the child explicitly.
 A changed session, document generation, explicit selection or recycled identity
 rejects late selection feedback. Failure does not select. Receipt-only editor,
 script and headless callers retain their own selection policy.
@@ -31,3 +32,5 @@ and owned media as rows. Its hidden channel nodes bridge the real Matrix hierarc
 Parameter folders and Composition placement metadata stop traversal. Composition
 children are their actual owned media. No parallel authored tree is retained in UI
 state, and specialized editors remain responsible for domain operations.
+When a Matrix edit creates Media inside a Cell, the editor selects the committed Cell UUID
+through Golden and highlights the corresponding grid address. Inspect media opens the child.

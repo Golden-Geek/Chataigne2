@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createUserItemAndSelect } from '../../store/ui-intents';
+	import { createUserItemAndSelect, type CreationSelectionPolicy } from '../../store/ui-intents';
 	import type { UiCreatableUserItem, UiNodeDto } from '../../types';
 	import ContextMenu from './ContextMenu.svelte';
 	import type { ContextMenuAnchor, ContextMenuItem } from './context-menu';
@@ -10,11 +10,13 @@
 		node,
 		items,
 		disabled = false,
+		selectionPolicy = 'created',
 		onCreateItem
 	}: {
 		node: UiNodeDto;
 		items?: readonly UiCreatableUserItem[];
 		disabled?: boolean;
+		selectionPolicy?: CreationSelectionPolicy;
 		onCreateItem?: (item: UiCreatableUserItem) => void | Promise<void>;
 	} = $props();
 
@@ -65,7 +67,7 @@
 			await onCreateItem(item);
 			return;
 		}
-		await createUserItemAndSelect(node.node_id, item);
+		await createUserItemAndSelect(node.node_id, item, selectionPolicy);
 	};
 
 	let menuAnchor = $derived.by((): ContextMenuAnchor | null => {
