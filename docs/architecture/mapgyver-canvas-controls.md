@@ -366,6 +366,11 @@ transport acknowledgement while the existing one-in-flight/one-latest mutation q
 unchanged. Receipts update canonical snapshots without replacing the newer presentation.
 Finishing retains the hint through the final acknowledgement and history close; cancellation,
 lost ownership and disposal clear it. Presentation never becomes an authored edit basis.
+Golden revokes the workbench intent generation when the connection is lost or the runtime
+announces a project replacement. Queued edits and old acknowledgments retire with that
+generation. Transport controls keep their originating socket through dispatch. A workbench
+control also carries the authored project's generation. The runtime checks it before applying
+the edit so external New or Load can win the race without changing the replacement project.
 
 MapGyver projects this hint into control vertices for Screen warp, Surface Source crop,
 Composition transforms and Matrix Layer/Cell rectangles. Each editor derives its native paint

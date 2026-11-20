@@ -474,12 +474,14 @@ enum WsHubCommand {
     Intent {
         client_id: u64,
         request_id: String,
+        project_generation: Option<u64>,
         intent: Box<UiEditIntent>,
         include_self_events: bool,
     },
     IntentBatch {
         client_id: u64,
         request_id: String,
+        project_generation: Option<u64>,
         intents: Vec<UiEditIntent>,
         include_self_events: bool,
     },

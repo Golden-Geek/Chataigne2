@@ -42,7 +42,7 @@ const windowState = windowStateArgument
 	: undefined;
 const gpu = process.argv.find((value) => value.startsWith('--gpu='))?.slice('--gpu='.length);
 assert(!gpu || /^dxgi:[0-9a-f]{8}:[0-9a-f]{8}$/.test(gpu), 'Exact GPU LUID required');
-const observer = path.resolve('target/debug/native_qualification-m1110.exe');
+const observer = path.resolve('target/debug/native_qualification.exe');
 const hardware = gpu
 	? JSON.parse(
 			execFileSync(observer, ['--role', 'hardware'], { encoding: 'utf8', windowsHide: true })

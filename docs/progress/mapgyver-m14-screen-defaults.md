@@ -53,6 +53,15 @@ headless and no-external desktop scopes passed.
   run. The projector was absent from that catalog.
 - Receipt: `target/mapgyver-test-display-isolation-125611/result.json`.
 
+## Clearing a Fullscreen target
+
+- In the November 20 Intel editor fixture, `ConfigureScreen` with `target: null` rejected
+  a newly assigned Fullscreen Screen while the display enum offered three connected displays.
+  The runtime reported `value is not in enum options`. The fixture now uses a disabled
+  Spout target for its off-page selection check. Clearing an assigned display and retaining
+  an unconfigured Screen are the next M14/6 correctness checks.
+- Receipt: `target/mapgyver-m141-corner-screen-0-191440/failure.json`.
+
 Implemented behavior:
 
 - Fresh startup/New candidates seed their initial Screen and ephemeral display catalog before

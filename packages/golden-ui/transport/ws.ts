@@ -551,6 +551,9 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 		) {
 			return openAttempt.promise;
 		}
+		// The closing socket may report onclose after its replacement opens.
+		// Retire its pending controls before replacing the connection.
+		if (socket) rejectAllPendingIntents('websocket connection replaced');
 
 		emitConnectionState('connecting');
 		const credential = await session.credentials(true);
@@ -814,8 +817,10 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 
 		async sendIntent(
 			intent: UiEditIntent,
-			onLifecycle?: (phase: UiControlLifecycle) => void
+			onLifecycle?: (phase: UiControlLifecycle) => void,
+			projectGeneration?: number
 		): Promise<UiAck> {
+			const owner = socket;
 			const requestId = nextId('intent');
 			const includeSelfEvents = includeSelfEventsForIntent(intent);
 			return new Promise<UiAck>(async (resolve, reject) => {
@@ -833,10 +838,15 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 						{
 							kind: 'intent',
 							request_id: requestId,
+							project_generation: projectGeneration,
 							intent: toRustIntent(intent),
 							include_self_events: includeSelfEvents
 						},
-						() => pendingIntents.get(requestId) === pending
+						() => {
+							if (pendingIntents.get(requestId) !== pending) return false;
+							if (owner && owner !== socket) throw new Error('intent connection ownership changed');
+							return true;
+						}
 					);
 					if (!sent) {
 						return;
@@ -854,8 +864,10 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 
 		async sendIntents(
 			intents: UiEditIntent[],
-			onLifecycle?: (phase: UiControlLifecycle) => void
+			onLifecycle?: (phase: UiControlLifecycle) => void,
+			projectGeneration?: number
 		): Promise<UiAck[]> {
+			const owner = socket;
 			if (intents.length === 0) {
 				return [];
 			}
@@ -879,10 +891,16 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 						{
 							kind: 'intentBatch',
 							request_id: requestId,
+							project_generation: projectGeneration,
 							intents: intents.map((intent) => toRustIntent(intent)),
 							include_self_events: includeSelfEvents
 						},
-						() => pendingIntentBatches.get(requestId) === pending
+						() => {
+							if (pendingIntentBatches.get(requestId) !== pending) return false;
+							if (owner && owner !== socket)
+								throw new Error('intent batch connection ownership changed');
+							return true;
+						}
 					);
 					if (!sent) {
 						return;

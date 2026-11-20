@@ -81,39 +81,30 @@ try {
 	});
 	const adapter = await observeNativeAdapter(native.page, hardware);
 	assert.equal(adapter.index, gpuIndex);
-	await native.page.waitForFunction(
+	const installedViews = await native.page.waitForFunction(
 		() => {
 			const views = [
 				...document.querySelectorAll(
 					'.workbench-editor[data-spatial-kind="Matrix"] .native-preview'
 				)
-			].filter((node) => node.getBoundingClientRect().width > 0);
-			return (
-				views.length === 2 &&
-				views.every(
-					(node) =>
-						node.dataset.previewInstalled === 'true' && node.dataset.previewState === 'available'
-				)
-			);
-		},
-		null,
-		{ timeout: 7000 }
-	);
-	const views = await native.page
-		.locator('.workbench-editor[data-spatial-kind="Matrix"] .native-preview')
-		.evaluateAll((nodes) =>
-			nodes
+			]
 				.filter((node) => node.getBoundingClientRect().width > 0)
 				.map((node) => ({
 					installed: node.dataset.previewInstalled,
 					state: node.dataset.previewState
-				}))
-		);
-	assert.equal(views.length, 2);
-	assert(
-		views.every((view) => view.installed === 'true' && view.state === 'available'),
-		JSON.stringify(views)
+				}));
+			if (
+				views.length === 2 &&
+				views.every((view) => view.installed === 'true' && view.state === 'available')
+			)
+				return views;
+			return null;
+		},
+		null,
+		{ timeout: 7000 }
 	);
+	const views = await installedViews.jsonValue();
+	await installedViews.dispose();
 	assert.deepEqual(errors, []);
 	const result = {
 		result: 'pass',

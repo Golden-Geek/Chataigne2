@@ -812,11 +812,13 @@ export interface UiClient {
 	): () => void;
 	sendIntent(
 		intent: UiEditIntent,
-		onLifecycle?: (phase: UiControlLifecycle) => void
+		onLifecycle?: (phase: UiControlLifecycle) => void,
+		projectGeneration?: number
 	): Promise<UiAck>;
 	sendIntents(
 		intents: UiEditIntent[],
-		onLifecycle?: (phase: UiControlLifecycle) => void
+		onLifecycle?: (phase: UiControlLifecycle) => void,
+		projectGeneration?: number
 	): Promise<UiAck[]>;
 	replay(scope: UiSubscriptionScope, from?: UiReplayCursor): Promise<UiTransportBatch>;
 	referenceTargets(paramNodeId: NodeId): Promise<UiReferenceTargets>;

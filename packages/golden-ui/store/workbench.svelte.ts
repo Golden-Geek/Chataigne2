@@ -4,6 +4,7 @@ import { createSessionEditOperations } from './session/edit-operations.svelte';
 import { createIntentSender } from './session/intent-sender';
 import type { WorkbenchSession, WorkbenchSessionOptions } from './workbench/session-types';
 import {
+	ControlRequestError,
 	createDefaultUiClient,
 	type UiTransportConnectionState,
 	type UiTransportOptions
@@ -176,6 +177,13 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 	let intentPipeline: WorkbenchIntentPipeline;
 	let snapshots: WorkbenchSnapshotController;
 	let projectGraphTransitions: ProjectGraphTransitionController;
+	const invalidateIntentContext = (reason: string): void => {
+		// Revoke gesture and intent ownership before the replacement snapshot arrives.
+		snapshotGeneration += 1;
+		editOperations.reset();
+		intentPipeline?.rejectPending(new DOMException(reason, 'AbortError'));
+		userActions.reset();
+	};
 	const getNodeDescription = (node: UiNodeDto | null | undefined): string | null =>
 		descriptions.getNodeDescription(node);
 
@@ -277,12 +285,15 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		wsUrl: options.wsUrl,
 		httpBaseUrl: options.httpBaseUrl,
 		onConnectionStateChange: (state, detail) => {
-			if (state !== 'connected') userActions.reset();
+			if (state !== 'connected' && connectionState === 'connected')
+				invalidateIntentContext('Transport lifetime changed');
 			connectionState = state;
 			syncConnectionStatus();
 			updateLoadingForTransportState(state, detail);
 		},
 		onResyncRequired: async (_scope, plane, reason) => {
+			if (reason === 'project_generation_changed' || reason === 'server_session_changed')
+				invalidateIntentContext('Runtime project changed');
 			const planeDetail = plane ? ` (${plane})` : '';
 			appendUiLogRecord(
 				'warning',
@@ -381,7 +392,10 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		if (batch.project_generation !== projectGeneration) {
 			if (projectGeneration !== null && batch.project_generation < projectGeneration) return;
 			if (subscriptionControl) subscriptionControl.requestResync('project_generation_changed');
-			else void snapshots.resync();
+			else {
+				invalidateIntentContext('Runtime project changed');
+				void snapshots.resync();
+			}
 			return;
 		}
 		if (batch.runtime) {
@@ -436,8 +450,17 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 		progress?: WorkbenchIntentProgressObserver
 	): Promise<void> => {
 		let error_logged = false;
+		const generation = snapshotGeneration;
 		try {
-			const ack = await client.sendIntent(intent, progress?.lifecycle);
+			const ack = await client.sendIntent(
+				intent,
+				(phase) => {
+					if (generation === snapshotGeneration) progress?.lifecycle?.(phase);
+				},
+				projectGeneration ?? undefined
+			);
+			if (generation !== snapshotGeneration)
+				throw new DOMException('Intent owner changed', 'AbortError');
 			history.applyHistoryState(ack.history);
 			if (!ack.success) {
 				progress?.lifecycle?.('rejected');
@@ -475,6 +498,12 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 			}
 			progress?.applied?.([ack]);
 		} catch (error) {
+			if (
+				generation !== snapshotGeneration ||
+				(error instanceof ControlRequestError && error.code === 'cancelled')
+			)
+				throw new DOMException('Intent owner changed', 'AbortError');
+			if (error instanceof Error && error.name === 'AbortError') throw error;
 			const message = error instanceof Error ? error.message : 'unknown error';
 			if (!error_logged) {
 				appendUiLogRecord('error', UI_LOG_TAG_INTENT, `Error: ${message}`);
@@ -495,8 +524,17 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 			return;
 		}
 		let error_logged = false;
+		const generation = snapshotGeneration;
 		try {
-			const acks = await client.sendIntents(intents, progress?.lifecycle);
+			const acks = await client.sendIntents(
+				intents,
+				(phase) => {
+					if (generation === snapshotGeneration) progress?.lifecycle?.(phase);
+				},
+				projectGeneration ?? undefined
+			);
+			if (generation !== snapshotGeneration)
+				throw new DOMException('Intent batch owner changed', 'AbortError');
 			if (acks.length !== intents.length) {
 				throw new Error(
 					`intent batch acknowledgement count mismatch (${acks.length}/${intents.length})`
@@ -521,6 +559,12 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 			}
 			progress?.applied?.(acks);
 		} catch (error) {
+			if (
+				generation !== snapshotGeneration ||
+				(error instanceof ControlRequestError && error.code === 'cancelled')
+			)
+				throw new DOMException('Intent batch owner changed', 'AbortError');
+			if (error instanceof Error && error.name === 'AbortError') throw error;
 			const message = error instanceof Error ? error.message : 'unknown error';
 			if (!error_logged) {
 				appendUiLogRecord('error', UI_LOG_TAG_INTENT, `Error: ${message}`);
@@ -531,6 +575,7 @@ export const createWorkbenchSession = (options: WorkbenchSessionOptions = {}): W
 
 	intentPipeline = createWorkbenchIntentPipeline({
 		getSnapshotGeneration: () => snapshotGeneration,
+		canDispatch: () => status === 'connected',
 		dispatchIntent: runIntent,
 		dispatchIntents: runIntentBatch
 	});

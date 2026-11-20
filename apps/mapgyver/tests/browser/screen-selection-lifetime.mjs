@@ -3,13 +3,20 @@ import assert from 'node:assert/strict';
 import { isDeepStrictEqual } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import path from 'node:path';
-import { contentLock, persistedPanelState } from './content-lock.mjs';
+import {
+	contentLock,
+	persistedPanelState,
+	reopenWorkspace,
+	saveLockedWorkspace,
+	seedProjectReopen
+} from './content-lock.mjs';
 import { screenParameterControls } from './screen-parameters.mjs';
 
 export async function verifyScreenSelectionLifetime({ page, post, scene, directory }) {
 	let stage = 'overlap selection agrees with authored front-to-back order',
 		history;
 	const checks = [];
+	const file = path.join(directory, 'screen-selection.mapgyver');
 	const main = page.locator(`[data-panel-id="${scene.mainId}"]`);
 	const peer = page.locator(`[data-panel-id="${scene.peerId}"]`);
 	async function edit(payload) {
@@ -45,6 +52,22 @@ export async function verifyScreenSelectionLifetime({ page, post, scene, directo
 		const point = value.split(' ')[0].split(',').map(Number);
 		return Math.abs(point[0] - x) < 0.000001 && Math.abs(point[1] - y) < 0.000001;
 	};
+	const nativeHit = (point) =>
+		main.locator('.native-preview').evaluate(
+			async (node, point) =>
+				JSON.parse(
+					await window.__TAURI_INTERNALS__.invoke('native_presentation_control', {
+						request: JSON.stringify({
+							kind: 'Pointer',
+							session: node.dataset.previewSession,
+							view: node.dataset.previewView,
+							source: node.dataset.previewSource,
+							point
+						})
+					})
+				),
+			point
+		);
 	async function clickPoint(x, y, label) {
 		const first = (await surface()).definition.quad.corners[0];
 		await wait(
@@ -59,21 +82,7 @@ export async function verifyScreenSelectionLifetime({ page, post, scene, directo
 		const point = [box.x + box.width * x, box.y + box.height * y];
 		const expected = label === 'Selection A' ? scene.a.surface : scene.b.surface;
 		await wait(
-			() =>
-				main.locator('.native-preview').evaluate(async (node, point) => {
-					const reply = JSON.parse(
-						await window.__TAURI_INTERNALS__.invoke('native_presentation_control', {
-							request: JSON.stringify({
-								kind: 'Pointer',
-								session: node.dataset.previewSession,
-								view: node.dataset.previewView,
-								source: node.dataset.previewSource,
-								point
-							})
-						})
-					);
-					return reply;
-				}, point),
+			() => nativeHit(point),
 			(reply) => reply.kind === 'Pointer' && reply.sample?.hit === expected
 		);
 		await page.mouse.move(...point);
@@ -124,10 +133,13 @@ export async function verifyScreenSelectionLifetime({ page, post, scene, directo
 				return x === expected.x && y === expected.y;
 			}
 		);
-		const box = await corners()
-			.getByRole('button', { name: 'Warp corner 1', exact: true })
-			.boundingBox();
-		assert(box);
+		const handle = corners().getByRole('button', { name: 'Warp corner 1', exact: true });
+		const box = await wait(async () => {
+			const box = await handle.boundingBox();
+			if (!box) return null;
+			const hit = await nativeHit([box.x + box.width / 2, box.y + box.height / 2]);
+			return hit.sample?.hit === `${scene.b.surface}:0` ? box : null;
+		}, Boolean);
 		const before = await inspect();
 		await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
 		await page.mouse.down();
@@ -239,7 +251,14 @@ export async function verifyScreenSelectionLifetime({ page, post, scene, directo
 		await edit({
 			kind: 'ConfigureScreen',
 			screen: paged.screen,
-			definition: { enabled: true, target: null }
+			definition: {
+				enabled: false,
+				target: {
+					kind: 'Spout',
+					sender: `Paged-${paged.screen}`,
+					extent: { width: 640, height: 360 }
+				}
+			}
 		});
 		const emptyPage = await inspect();
 		const configuredHistory = history.undo_len;
@@ -336,6 +355,7 @@ export async function verifyScreenSelectionLifetime({ page, post, scene, directo
 				target: { kind: 'Screen', screen: scene.screen }
 			});
 		}
+		await seedProjectReopen(page, file);
 		await page.addInitScript(() => {
 			window.__screenSockets = [];
 			const Original = window.WebSocket;
@@ -393,15 +413,22 @@ export async function verifyScreenSelectionLifetime({ page, post, scene, directo
 		checks.push({ stage, replacement_socket: true, no_late_writes: true, exact_undo: true });
 		assert.deepEqual(await inspect(), original);
 		stage = 'New during held Surface geometry retires both locked owners';
-		const file = path.join(directory, 'screen-selection.mapgyver');
-		assert.equal((await post('/api/ui/project-save', { path: file })).ok, true);
+		await saveLockedWorkspace(page, post, file, [scene.mainId, scene.peerId]);
 		const outgoing = await begin();
 		assert.equal((await post('/api/ui/project-new', {})).ok, true);
+		const fresh = await inspect();
+		assert.equal(fresh.screens.length, 1);
+		const initialScreen = fresh.screens[0].id;
+		assert.notEqual(initialScreen, scene.screen);
 		for (const current of [main, peer]) {
-			await current
-				.getByRole('application', { name: 'Screen view', exact: true })
-				.waitFor({ state: 'detached' });
-			assert.equal(await current.locator('svg[aria-label="Surface mapping controls"]').count(), 0);
+			await wait(
+				() => current.getAttribute('data-screen-target'),
+				(value) => value === '' || value === initialScreen
+			);
+			assert.equal(
+				await current.locator(`[data-surface-drop-target="${scene.b.surface}"]`).count(),
+				0
+			);
 		}
 		await wait(captureCount, (value) => value === 0);
 		await page.mouse.move(outgoing.box.x + 40, outgoing.box.y + 20);
@@ -415,13 +442,18 @@ export async function verifyScreenSelectionLifetime({ page, post, scene, directo
 		assert.equal(replacement.history.undo_len, 0);
 		assert.equal(replacement.history.redo_len, 0);
 		assert.equal(replacement.history.active_edit_session, false);
+		assert.deepEqual(await inspect(), fresh);
 		checks.push({ stage, no_late_writes: true, replacement_history_clean: true });
 		stage = 'Load restores exact Screen authoring and independent locked owners';
-		const loaded = await post('/api/ui/project-load', { path: file });
-		assert.equal(path.resolve(loaded.path), file);
-		assert.equal(loaded.recovery ?? null, null);
-		for (const current of [main, peer])
+		await reopenWorkspace(page, post, file);
+		for (const current of [main, peer]) {
 			await current.getByRole('application', { name: 'Screen view', exact: true }).waitFor();
+			await wait(
+				() => current.getAttribute('data-screen-target'),
+				(value) => value === scene.screen
+			);
+			assert.equal(await current.getAttribute('data-content-locked'), 'true');
+		}
 		await wait(inspect, (value) => isDeepStrictEqual(value, original));
 		await clickPoint(0.7, 0.7, 'Selection B');
 		assert.deepEqual(await inspect(), original);

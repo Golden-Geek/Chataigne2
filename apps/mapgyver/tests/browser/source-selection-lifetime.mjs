@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 import { isDeepStrictEqual } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 import path from 'node:path';
-import { persistedPanelState } from './content-lock.mjs';
+import {
+	persistedPanelState,
+	reopenWorkspace,
+	saveLockedWorkspace,
+	seedProjectReopen
+} from './content-lock.mjs';
 import { screenParameterControls } from './screen-parameters.mjs';
 
 export async function verifySourceSelectionLifetime({ page, post, scene, directory }) {
@@ -11,6 +16,7 @@ export async function verifySourceSelectionLifetime({ page, post, scene, directo
 		history,
 		focusBeforeEscape;
 	const checks = [];
+	const file = path.join(directory, 'source-selection.mapgyver');
 	const panel = (id) => page.locator(`section[data-panel-id="${id}"]`);
 	const main = panel(scene.mainId),
 		peer = panel(scene.peerId);
@@ -68,6 +74,18 @@ export async function verifySourceSelectionLifetime({ page, post, scene, directo
 	async function begin(current, item, corner = false) {
 		await settled();
 		await current.getByRole('button', { name: 'Home view', exact: true }).click();
+		await wait(
+			() =>
+				current.locator('.active-zone').evaluate((node) => {
+					const canvas = node.getBoundingClientRect();
+					const stage = node.parentElement.getBoundingClientRect();
+					return (
+						Math.abs(canvas.x + canvas.width / 2 - stage.x - stage.width / 2) < 1 &&
+						Math.abs(canvas.y + canvas.height / 2 - stage.y - stage.height / 2) < 1
+					);
+				}),
+			Boolean
+		);
 		const crop = (await surface(item)).definition.crop;
 		const rect = current.getByRole('button', { name: 'Select source crop', exact: true });
 		await wait(
@@ -164,6 +182,7 @@ export async function verifySourceSelectionLifetime({ page, post, scene, directo
 				locked: true,
 				target: { kind: 'Surface', reference: item.reference }
 			});
+		await seedProjectReopen(page, file);
 		await page.addInitScript(() => {
 			window.__sourceSockets = [];
 			const Original = window.WebSocket;
@@ -272,14 +291,19 @@ export async function verifySourceSelectionLifetime({ page, post, scene, directo
 		checks.push({ stage, typed_inspector_edit: true, exact_undo: true });
 		stage = 'New during held native crop retires both locked owners';
 		assert.deepEqual(await inspect(), original);
-		const file = path.join(directory, 'source-selection.mapgyver');
-		assert.equal((await post('/api/ui/project-save', { path: file })).ok, true);
+		await saveLockedWorkspace(page, post, file, [scene.mainId, scene.peerId]);
 		const outgoing = await begin(main, scene.first);
 		assert.equal((await post('/api/ui/project-new', {})).ok, true);
+		const fresh = await inspect();
+		assert.equal(fresh.screens.length, 1);
+		assert.equal(fresh.screens[0].surfaces.length, 1);
+		const initialSurface = fresh.screens[0].surfaces[0].reference.surface;
+		assert(![scene.first.reference.surface, scene.peer.reference.surface].includes(initialSurface));
 		for (const current of [main, peer])
-			await current
-				.getByRole('application', { name: 'Surface source view', exact: true })
-				.waitFor({ state: 'detached' });
+			await wait(
+				() => current.getAttribute('data-surface-target'),
+				(value) => value === '' || value === initialSurface
+			);
 		await wait(captureCount, (value) => value === 0);
 		await page.mouse.move(outgoing.box.x + 40, outgoing.box.y + 20);
 		await page.mouse.up();
@@ -287,11 +311,10 @@ export async function verifySourceSelectionLifetime({ page, post, scene, directo
 		assert.equal(replacement.history.undo_len, 0);
 		assert.equal(replacement.history.redo_len, 0);
 		assert.equal(replacement.history.active_edit_session, false);
+		assert.deepEqual(await inspect(), fresh);
 		checks.push({ stage, no_late_writes: true, clean_replacement_history: true });
 		stage = 'Load restores exact Source owners and typed authoring';
-		const loaded = await post('/api/ui/project-load', { path: file });
-		assert.equal(path.resolve(loaded.path), file);
-		assert.equal(loaded.recovery ?? null, null);
+		await reopenWorkspace(page, post, file);
 		await settled();
 		assert.deepEqual(await inspect(), original);
 		assert.equal(history.undo_len, 0);

@@ -242,11 +242,19 @@ pub(super) fn handle_ws_hub_command<T: ProjectLifecycle>(
         WsHubCommand::Intent {
             client_id,
             request_id,
+            project_generation,
             intent,
             include_self_events,
         } => {
             let kind = ui_intent_kind(&intent);
-            let Some(batch) = apply_ws_transactions(context, clients, client_id, &request_id, vec![*intent]) else {
+            let Some(batch) = apply_ws_transactions(
+                context,
+                clients,
+                client_id,
+                &request_id,
+                project_generation,
+                vec![*intent],
+            ) else {
                 return;
             };
             let result = batch.transactions.into_iter().next().expect("single-intent batch");
@@ -290,11 +298,14 @@ pub(super) fn handle_ws_hub_command<T: ProjectLifecycle>(
         WsHubCommand::IntentBatch {
             client_id,
             request_id,
+            project_generation,
             intents,
             include_self_events,
         } => {
             let total_started = Instant::now();
-            let Some(batch) = apply_ws_transactions(context, clients, client_id, &request_id, intents) else {
+            let Some(batch) =
+                apply_ws_transactions(context, clients, client_id, &request_id, project_generation, intents)
+            else {
                 return;
             };
             save_preferences_after_change(
@@ -367,19 +378,21 @@ fn apply_ws_transactions<T: ProjectLifecycle>(
     clients: &mut HashMap<u64, WsClientState>,
     client_id: u64,
     request_id: &str,
+    project_generation: Option<u64>,
     intents: Vec<UiEditIntent>,
 ) -> Option<golden_engine::application::AppliedUiTransactionBatch> {
     let client = clients.get(&client_id)?;
-    let pending = match context
-        .runtime
-        .submit_ui_client_transaction_batch(intents, &client.connection, true)
-    {
-        Ok(pending) => pending,
-        Err(error) => {
-            send_application_error(clients, client_id, request_id.to_owned(), &error);
-            return None;
-        }
-    };
+    let pending =
+        match context
+            .runtime
+            .submit_ui_client_transaction_batch(intents, &client.connection, project_generation, true)
+        {
+            Ok(pending) => pending,
+            Err(error) => {
+                send_application_error(clients, client_id, request_id.to_owned(), &error);
+                return None;
+            }
+        };
     send_to_client(
         clients,
         client_id,

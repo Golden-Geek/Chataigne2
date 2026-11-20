@@ -296,10 +296,15 @@ export async function verifyScreenSelection({ base, post, page: nativePage = nul
 			'Undo restores the complete authored scene'
 		);
 		const additional = await beforeNew?.({ screen, a, b, mainId: 'screen-warp', peerId: secondId });
-		await post('/api/ui/project-new', {});
-		await main
-			.getByRole('application', { name: 'Screen view', exact: true })
-			.waitFor({ state: 'detached' });
+		assert.equal((await post('/api/ui/project-new', {})).ok, true);
+		const { snapshot: replacement } = await screens({ kind: 'InspectManager' });
+		assert.equal(replacement.screens.length, 1);
+		assert.notEqual(replacement.screens[0].id, screen);
+		await page.waitForFunction((initial) => {
+			const target = document.querySelector('section[data-panel-id="screen-warp"]')?.dataset
+				.screenTarget;
+			return target === '' || target === initial;
+		}, replacement.screens[0].id);
 		assert.deepEqual(errors, []);
 		assert.deepEqual(rejected, []);
 		console.log(

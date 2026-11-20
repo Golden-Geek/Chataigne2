@@ -462,6 +462,7 @@ fn websocket_intent_queues_received_control_after_hub_admission() {
     assert!(handle_ws_client_message(
         WsClientMessage::Intent {
             request_id: "intent-request".to_string(),
+            project_generation: Some(3),
             intent: Box::new(UiEditIntent::Undo),
             include_self_events: true,
         },
@@ -476,6 +477,7 @@ fn websocket_intent_queues_received_control_after_hub_admission() {
     let WsHubCommand::Intent {
         client_id,
         request_id,
+        project_generation,
         intent,
         include_self_events,
     } = command
@@ -484,6 +486,7 @@ fn websocket_intent_queues_received_control_after_hub_admission() {
     };
     assert_eq!(client_id, 7);
     assert_eq!(request_id, "intent-request");
+    assert_eq!(project_generation, Some(3));
     assert_eq!(*intent, UiEditIntent::Undo);
     assert!(include_self_events);
 }
@@ -500,6 +503,7 @@ fn websocket_intent_batch_queues_received_control_after_hub_admission() {
     assert!(handle_ws_client_message(
         WsClientMessage::IntentBatch {
             request_id: "batch-request".to_string(),
+            project_generation: Some(11),
             intents: vec![UiEditIntent::Undo, UiEditIntent::Redo],
             include_self_events: false,
         },
@@ -514,6 +518,7 @@ fn websocket_intent_batch_queues_received_control_after_hub_admission() {
     let WsHubCommand::IntentBatch {
         client_id,
         request_id,
+        project_generation,
         intents,
         include_self_events,
     } = command
@@ -522,6 +527,7 @@ fn websocket_intent_batch_queues_received_control_after_hub_admission() {
     };
     assert_eq!(client_id, 11);
     assert_eq!(request_id, "batch-request");
+    assert_eq!(project_generation, Some(11));
     assert_eq!(intents, vec![UiEditIntent::Undo, UiEditIntent::Redo]);
     assert!(!include_self_events);
 }
@@ -544,6 +550,7 @@ fn websocket_command_overload_is_rejected_without_a_received_control_update() {
     assert!(handle_ws_client_message(
         WsClientMessage::Intent {
             request_id: "overloaded-request".to_string(),
+            project_generation: None,
             intent: Box::new(UiEditIntent::Undo),
             include_self_events: true,
         },
@@ -578,6 +585,7 @@ fn websocket_intent_batch_rejects_excess_operation_weight_before_hub_admission()
     assert!(handle_ws_client_message(
         WsClientMessage::IntentBatch {
             request_id: "oversized-batch".to_string(),
+            project_generation: None,
             intents: vec![UiEditIntent::Undo; MAX_UI_INTENTS_PER_BATCH + 1],
             include_self_events: true,
         },

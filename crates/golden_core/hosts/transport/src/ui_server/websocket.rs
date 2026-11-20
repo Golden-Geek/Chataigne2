@@ -417,6 +417,7 @@ pub(super) fn handle_ws_client_message(
         }
         WsClientMessage::Intent {
             request_id,
+            project_generation,
             intent,
             include_self_events,
         } => {
@@ -435,6 +436,7 @@ pub(super) fn handle_ws_client_message(
                 WsHubCommand::Intent {
                     client_id,
                     request_id: request_id.clone(),
+                    project_generation,
                     intent,
                     include_self_events,
                 },
@@ -444,6 +446,7 @@ pub(super) fn handle_ws_client_message(
         }
         WsClientMessage::IntentBatch {
             request_id,
+            project_generation,
             intents,
             include_self_events,
         } => {
@@ -478,6 +481,7 @@ pub(super) fn handle_ws_client_message(
                 WsHubCommand::IntentBatch {
                     client_id,
                     request_id: request_id.clone(),
+                    project_generation,
                     intents,
                     include_self_events,
                 },

@@ -19,6 +19,7 @@ interface QueuedIntent {
 
 export interface WorkbenchIntentPipelineOptions {
 	getSnapshotGeneration(): number;
+	canDispatch?(): boolean;
 	dispatchIntent(intent: UiEditIntent, progress?: WorkbenchIntentProgressObserver): Promise<void>;
 	dispatchIntents(
 		intents: UiEditIntent[],
@@ -50,6 +51,23 @@ export const createWorkbenchIntentPipeline = (
 	let dispatchSuspensions = 0;
 	let nextDispatchBlockId = 0;
 	let activeDispatches = 0;
+	const admissionError = (generation?: number): Error | null => {
+		if (generation !== undefined && generation !== options.getSnapshotGeneration())
+			return new DOMException(
+				'Intent cancelled because the runtime graph snapshot changed',
+				'AbortError'
+			);
+		if (options.canDispatch?.() === false)
+			return new DOMException(
+				'Intent cancelled because transport admission is unavailable',
+				'AbortError'
+			);
+		return null;
+	};
+	const requireAdmission = (generation?: number): void => {
+		const error = admissionError(generation);
+		if (error) throw error;
+	};
 
 	const notifyIdle = (): void => {
 		if (processing || activeDispatches > 0) {
@@ -214,14 +232,10 @@ export const createWorkbenchIntentPipeline = (
 				}
 
 				const next = peekPending();
-				if (next?.snapshotGeneration !== options.getSnapshotGeneration()) {
+				const invalid = admissionError(next?.snapshotGeneration);
+				if (invalid) {
 					const stale = dequeuePending();
-					if (stale) {
-						rejectQueued(
-							[stale],
-							new Error('intent cancelled because the runtime graph snapshot changed')
-						);
-					}
+					if (stale) rejectQueued([stale], invalid);
 					continue;
 				}
 
@@ -240,6 +254,7 @@ export const createWorkbenchIntentPipeline = (
 								}
 							)
 						);
+						requireAdmission(next.snapshotGeneration);
 						resolveQueued(batch);
 					} catch (error) {
 						rejectQueued(batch, error);
@@ -258,6 +273,7 @@ export const createWorkbenchIntentPipeline = (
 							applied: (acknowledgements) => notifyApplied([queued], acknowledgements)
 						})
 					);
+					requireAdmission(queued.snapshotGeneration);
 					resolveQueued([queued]);
 				} catch (error) {
 					rejectQueued([queued], error);
@@ -318,6 +334,8 @@ export const createWorkbenchIntentPipeline = (
 		if (blockedReason) {
 			return Promise.reject(blockedReason);
 		}
+		const invalid = admissionError();
+		if (invalid) return Promise.reject(invalid);
 		return new Promise<void>((resolve, reject) => {
 			const snapshotGeneration = options.getSnapshotGeneration();
 			if (intent.kind === 'setParamComponent') {
@@ -375,7 +393,10 @@ export const createWorkbenchIntentPipeline = (
 		if (dispatchSuspensions > 0) {
 			throw new Error('intent batch cancelled because the runtime graph is synchronizing');
 		}
+		const generation = options.getSnapshotGeneration();
+		requireAdmission(generation);
 		await dispatch(() => options.dispatchIntents(intents, progress));
+		requireAdmission(generation);
 	};
 
 	const runProjectGraphTransition = async <T>(operation: () => Promise<T>): Promise<T> => {

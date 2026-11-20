@@ -184,6 +184,7 @@ fn underprivileged_websocket_operations_never_reach_the_hub() {
     let _readiness: Arc<UiSessionReadiness> = hub.readiness.clone();
     let message = WsClientMessage::Intent {
         request_id: "denied".into(),
+        project_generation: None,
         intent: Box::new(UiEditIntent::ReevaluateGraph),
         include_self_events: true,
     };

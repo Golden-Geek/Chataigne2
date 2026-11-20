@@ -34,13 +34,13 @@ fn handshake_keeps_physical_lifetime_and_finalizes_an_anonymous_edit() {
     let root = runtime.call_engine(|engine| engine.root).unwrap();
     let physical = UiClientLease::new(None);
     runtime
-        .submit_ui_client_transaction_batch(vec![begin(), label(root, "anonymous")], &physical, true)
+        .submit_ui_client_transaction_batch(vec![begin(), label(root, "anonymous")], &physical, None, true)
         .unwrap()
         .wait()
         .unwrap();
     let named = physical.with_client_instance_id("browser");
     let batch = runtime
-        .submit_ui_client_transaction_batch(vec![begin(), label(root, "named")], &named, true)
+        .submit_ui_client_transaction_batch(vec![begin(), label(root, "named")], &named, None, true)
         .unwrap()
         .wait()
         .unwrap();
@@ -60,7 +60,7 @@ fn closed_connections_finalize_accepted_history_and_publish_the_released_session
         let root = runtime.call_engine(|engine| engine.root).unwrap();
         let client = UiClientLease::new(id);
         let batch = runtime
-            .submit_ui_client_transaction_batch(vec![begin(), label(root, "accepted")], &client, true)
+            .submit_ui_client_transaction_batch(vec![begin(), label(root, "accepted")], &client, None, true)
             .unwrap()
             .wait()
             .unwrap();
@@ -102,7 +102,7 @@ fn closed_queued_requests_cannot_edit_a_replacement_connection_with_reused_ids()
     let root = runtime.call_engine(|engine| engine.root).unwrap();
     let old = UiClientLease::new(Some("browser"));
     runtime
-        .submit_ui_client_transaction_batch(vec![begin(), label(root, "first")], &old, true)
+        .submit_ui_client_transaction_batch(vec![begin(), label(root, "first")], &old, None, true)
         .unwrap()
         .wait()
         .unwrap();
@@ -119,7 +119,7 @@ fn closed_queued_requests_cannot_edit_a_replacement_connection_with_reused_ids()
         .unwrap();
     entered_rx.recv().unwrap();
     let stale = runtime
-        .submit_ui_client_transaction_batch(vec![label(root, "stale")], &old, true)
+        .submit_ui_client_transaction_batch(vec![label(root, "stale")], &old, None, true)
         .unwrap();
     old.close();
     release_tx.send(()).unwrap();
@@ -130,7 +130,7 @@ fn closed_queued_requests_cannot_edit_a_replacement_connection_with_reused_ids()
     );
     let replacement = UiClientLease::new(Some("browser"));
     let batch = runtime
-        .submit_ui_client_transaction_batch(vec![begin(), label(root, "replacement")], &replacement, true)
+        .submit_ui_client_transaction_batch(vec![begin(), label(root, "replacement")], &replacement, None, true)
         .unwrap()
         .wait()
         .unwrap();
@@ -154,7 +154,7 @@ fn a_failed_tick_still_publishes_released_sessions_and_its_accepted_edit_prefix(
     let root = runtime.call_engine(|engine| engine.root).unwrap();
     let client = UiClientLease::new(Some("browser"));
     runtime
-        .submit_ui_client_transaction_batch(vec![begin(), label(root, "accepted")], &client, true)
+        .submit_ui_client_transaction_batch(vec![begin(), label(root, "accepted")], &client, None, true)
         .unwrap()
         .wait()
         .unwrap();
@@ -188,7 +188,7 @@ fn project_replacement_discards_old_lifetime_ownership_even_when_session_ids_are
     let runtime = runtime();
     let old = UiClientLease::new(Some("browser"));
     runtime
-        .submit_ui_client_transaction_batch(vec![begin()], &old, true)
+        .submit_ui_client_transaction_batch(vec![begin()], &old, None, true)
         .unwrap()
         .wait()
         .unwrap();
@@ -203,7 +203,7 @@ fn project_replacement_discards_old_lifetime_ownership_even_when_session_ids_are
     let replacement = UiClientLease::new(Some("browser"));
     assert!(
         runtime
-            .submit_ui_client_transaction_batch(vec![begin()], &replacement, true)
+            .submit_ui_client_transaction_batch(vec![begin()], &replacement, None, true)
             .unwrap()
             .wait()
             .unwrap()
@@ -215,4 +215,50 @@ fn project_replacement_discards_old_lifetime_ownership_even_when_session_ids_are
     assert!(runtime.history_state().unwrap().active_edit_session);
     replacement.close();
     assert!(!runtime.history_state().unwrap().active_edit_session);
+}
+
+#[test]
+fn control_batch_from_an_old_project_cannot_edit_reused_nodes_on_a_live_socket() {
+    let runtime = runtime();
+    let client = UiClientLease::new(Some("browser"));
+    let original_generation = runtime.current_project_generation().get();
+    let root = runtime.call_engine(|engine| engine.root).unwrap();
+    runtime
+        .replace_project(ProjectReplacement {
+            engine: Engine::new(crate::node::Folder::new("replacement").into()),
+            project_file: UiProjectFileSpec::default(),
+            reason: "test replacement".into(),
+            recover: false,
+        })
+        .unwrap();
+    assert_eq!(runtime.call_engine(|engine| engine.root).unwrap(), root);
+    let stale = runtime
+        .submit_ui_client_transaction_batch(
+            vec![begin(), label(root, "stale")],
+            &client,
+            Some(original_generation),
+            true,
+        )
+        .unwrap()
+        .wait()
+        .unwrap_err();
+    assert_eq!(stale.control_error().unwrap().kind(), ControlErrorKind::Cancelled);
+    let history = runtime.history_state().unwrap();
+    assert!(!history.active_edit_session);
+    assert_eq!(history.undo_len, 0);
+    assert_eq!(
+        runtime
+            .call_engine(move |engine| engine.nodes.get(root).unwrap().node_data().meta.label.clone())
+            .unwrap(),
+        "replacement"
+    );
+
+    let current = runtime.current_project_generation().get();
+    let batch = runtime
+        .submit_ui_client_transaction_batch(vec![begin(), label(root, "fresh")], &client, Some(current), true)
+        .unwrap()
+        .wait()
+        .unwrap();
+    assert!(batch.transactions.iter().all(|result| result.acknowledgement.success));
+    assert!(runtime.history_state().unwrap().active_edit_session);
 }

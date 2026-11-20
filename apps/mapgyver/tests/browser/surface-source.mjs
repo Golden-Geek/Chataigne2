@@ -57,9 +57,9 @@ export async function verifySurfaceSourceUi({
 		}
 		if (!nativePage) await page.goto(base);
 		await page.evaluate(() => document.fonts.ready.then(() => undefined));
-		const tab = page.getByRole('tab').filter({ hasText: /^Surface Source(?::|$)/ });
+		const tab = page.locator('.gc-dv-tab[data-content-panel-id="surface-source"]');
 		const screenTab = page.getByRole('tab').filter({ hasText: /^Screens$/ });
-		const panel = page.locator('section[aria-label="Surface Source"]');
+		const panel = page.locator('section[data-panel-id="surface-source"]');
 		const tree = page.locator('section[aria-label="Screens"]');
 		const inspector = page.locator('.inspector');
 		const controls = screenParameterControls(page);

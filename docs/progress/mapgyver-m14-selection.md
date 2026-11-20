@@ -1,5 +1,9 @@
 # M14/1 editor selection and hover
 
+The November 20 [editor recovery checkpoint](mapgyver-m14-editor-recovery.md) verifies
+Source reconnect Undo and guards old project edits at the runtime. The remaining physical
+pointer scope stays open. The dated notes below retain the original acceptance evidence.
+
 Updated 2026-11-17. Golden owns reusable input/capture/selection dispatch; app adapters resolve
 their edited owners and shared Inspector selection. M14/1 is **Pending, user-deferred and unaccepted**.
 Overall acceptance is92/106 (87%), M14 4/10 after accepted gates3–5,7.

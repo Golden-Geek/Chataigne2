@@ -219,6 +219,9 @@ pub enum UiClientMessage {
     Intent {
         /// Client-generated request identifier.
         request_id: String,
+        /// Project generation used to resolve the intent's targets, when known to the caller.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        project_generation: Option<u64>,
         /// Typed edit intent.
         intent: Box<UiEditIntent>,
         /// Whether resulting events are echoed to the sender.
@@ -229,6 +232,9 @@ pub enum UiClientMessage {
     IntentBatch {
         /// Client-generated request identifier.
         request_id: String,
+        /// Project generation used to resolve the batch's targets, when known to the caller.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        project_generation: Option<u64>,
         /// Typed edit intents.
         intents: Vec<UiEditIntent>,
         /// Whether resulting events are echoed to the sender.

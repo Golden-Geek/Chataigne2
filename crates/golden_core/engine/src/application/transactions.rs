@@ -114,18 +114,23 @@ impl<T: ProjectLifecycle> ProductionRuntime<T> {
             .wait()
     }
 
-    /// Admits requests scoped to a live connection. Closed queued requests never execute.
+    /// Admits requests scoped to a live connection and, when supplied, the caller's project.
+    /// Closed connections and superseded project generations cannot execute queued requests.
     pub fn submit_ui_client_transaction_batch(
         &self,
         intents: Vec<UiEditIntent>,
         client: &UiClientLease,
+        project_generation: Option<u64>,
         stop_after_failure: bool,
     ) -> Result<PendingUiTransactionBatch, ApplicationError> {
         self.submit_ui_transactions(
             intents,
             client.client_instance_id(),
             Some(client.clone()),
-            None,
+            project_generation.map(|generation| ProjectIntentTarget {
+                generation: ProjectGeneration::new(generation),
+                node_meta: None,
+            }),
             stop_after_failure,
         )
     }

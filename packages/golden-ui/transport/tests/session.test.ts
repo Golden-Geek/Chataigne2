@@ -280,6 +280,59 @@ describe('authenticated transports', () => {
 		}
 	);
 
+	it.each(['single', 'batch'])(
+		'retires the old %s control before the closing socket reports onclose',
+		async (mode) => {
+			vi.useFakeTimers();
+			class Socket {
+				static OPEN = 1;
+				static instances: Socket[] = [];
+				readyState = 0;
+				onopen: (() => void) | null = null;
+				sent: string[] = [];
+				constructor() {
+					Socket.instances.push(this);
+				}
+				send(message: string) {
+					this.sent.push(message);
+				}
+			}
+			const client = createWebSocketUiClient({
+				webSocketImpl: Socket as unknown as typeof WebSocket,
+				sessionProvider: testSessionProvider
+			});
+			client.subscribe({ kind: 'wholeGraph' }, null, () => {});
+			await vi.advanceTimersByTimeAsync(0);
+			const old = Socket.instances[0];
+			old.readyState = Socket.OPEN;
+			old.onopen?.();
+			await vi.advanceTimersByTimeAsync(0);
+			const control = { kind: 'reevaluateGraph' } as const;
+			const send = () =>
+				mode === 'single'
+					? client.sendIntent(control, undefined, 37)
+					: client.sendIntents([control, control], undefined, 37);
+			const sentOnOld = expect(send()).rejects.toThrow('connection replaced');
+			await vi.advanceTimersByTimeAsync(0);
+			const kind = mode === 'single' ? 'intent' : 'intentBatch';
+			const controlFrame = old.sent
+				.map((frame) => JSON.parse(frame))
+				.find((frame) => frame.kind === kind);
+			expect(controlFrame?.project_generation).toBe(37);
+			old.readyState = 2;
+			const settled = expect(send()).rejects.toThrow('connection replaced');
+			await vi.advanceTimersByTimeAsync(0);
+			const replacement = Socket.instances[1];
+			replacement.readyState = Socket.OPEN;
+			replacement.onopen?.();
+			await vi.advanceTimersByTimeAsync(0);
+			await Promise.all([sentOnOld, settled]);
+			const sent = replacement.sent.map((frame) => JSON.parse(frame).kind);
+			expect(sent).not.toContain('intent');
+			expect(sent).not.toContain('intentBatch');
+		}
+	);
+
 	it('cannot send an expired intent when a delayed bootstrap finally opens the socket', async () => {
 		vi.useFakeTimers();
 		let release!: (value: UiSessionResponse) => void;

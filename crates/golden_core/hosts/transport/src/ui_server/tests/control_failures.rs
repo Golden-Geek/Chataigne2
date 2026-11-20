@@ -135,6 +135,7 @@ fn saturated_actor_rejects_http_and_websocket_without_false_acceptance_then_reco
         WsHubCommand::Intent {
             client_id: 1,
             request_id: "overloaded".into(),
+            project_generation: None,
             intent: Box::new(UiEditIntent::Undo),
             include_self_events: true,
         },
@@ -207,6 +208,7 @@ fn disconnected_client_session_is_released_after_saturation() {
         WsHubCommand::Intent {
             client_id: 1,
             request_id: "begin".into(),
+            project_generation: None,
             intent: Box::new(UiEditIntent::BeginEdit {
                 client_edit_id: "old edit".into(),
                 label: None,
@@ -265,6 +267,7 @@ fn disconnected_client_session_is_released_after_saturation() {
         WsHubCommand::Intent {
             client_id: 2,
             request_id: "replacement".into(),
+            project_generation: None,
             intent: Box::new(UiEditIntent::BeginEdit {
                 client_edit_id: "old edit".into(),
                 label: None,
@@ -289,6 +292,7 @@ fn disconnected_client_session_is_released_after_saturation() {
         WsHubCommand::Intent {
             client_id: 1,
             request_id: "stale".into(),
+            project_generation: None,
             intent: Box::new(UiEditIntent::EndEdit {
                 client_edit_id: "old edit".into(),
             }),

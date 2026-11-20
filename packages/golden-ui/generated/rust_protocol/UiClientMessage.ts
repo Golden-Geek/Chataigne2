@@ -57,6 +57,10 @@ from?: UiReplayCursor | null, } | { "kind": "intent",
  */
 request_id: string,
 /**
+ * Project generation used to resolve the intent's targets, when known to the caller.
+ */
+project_generation?: number | null,
+/**
  * Typed edit intent.
  */
 intent: UiEditIntent,
@@ -68,6 +72,10 @@ include_self_events: boolean, } | { "kind": "intentBatch",
  * Client-generated request identifier.
  */
 request_id: string,
+/**
+ * Project generation used to resolve the batch's targets, when known to the caller.
+ */
+project_generation?: number | null,
 /**
  * Typed edit intents.
  */
