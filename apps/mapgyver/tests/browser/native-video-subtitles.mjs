@@ -8,10 +8,13 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { promisify } from 'node:util';
 import { observeNativeAdapter } from './native-adapter.mjs';
 import { openNativeEditor } from './native-editor.mjs';
+import { windowCaptureSource } from './native-latency.mjs';
 
 const requested = path.resolve(process.argv[2] ?? 'target/mapgyver-video-subtitles');
 await mkdir(requested, { recursive: true });
 const directory = await mkdtemp(path.join(requested, 'run-'));
+const moving = process.argv.includes('--moving');
+const selectedAdapter = process.env.MAPGYVER_VIDEO_ADAPTER;
 const observer = path.resolve(
 	process.env.MAPGYVER_QUALIFICATION_BINARY ?? 'target/debug/native_qualification.exe'
 );
@@ -60,10 +63,26 @@ for (const [file, subtitle, language] of [
 }
 
 const hardware = JSON.parse(await run(observer, ['--role', 'hardware']));
-const native = await openNativeEditor();
+const native = await openNativeEditor({
+	prepareProfile: selectedAdapter
+		? async (root) => {
+				const profile = path.join(root, 'MapGyver');
+				await mkdir(profile, { recursive: true });
+				await run(observer, [
+					'--role',
+					'gpu-preferences',
+					'--file',
+					path.join(profile, 'preferences.json'),
+					'--selected',
+					selectedAdapter
+				]);
+			}
+		: undefined
+});
 const { page } = native;
 const errors = [],
-	captures = [];
+	captures = [],
+	playback = [];
 page.on('pageerror', (error) => errors.push(String(error)));
 let token, adapter, video, failure, embeddedTrack, peerTrack;
 async function post(route, body) {
@@ -95,6 +114,7 @@ const source = async (reference = video) =>
 const inspect = (reference = video) => edit({ kind: 'InspectVideoSubtitles', reference });
 const transport = async (operation) =>
 	(await edit({ kind: 'Video', media: video.media, edit: operation })).snapshot;
+const sample = async () => (await edit({ kind: 'InspectVideo', media: video.media })).snapshot;
 const seek = (position_ms) => transport({ kind: 'Seek', position_ms });
 async function subtitles(settings, reference = video) {
 	const authored = await edit({ kind: 'ConfigureVideoSubtitles', reference, settings });
@@ -165,44 +185,329 @@ bounds = [min(x for x, _ in bright), min(y for _, y in bright),
 print(json.dumps(dict(bright=len(bright), bounds=bounds,
                       maximum=max(max(pixel[:3]) for pixel in pixels),
                       opaque=all(pixel[3] == 255 for pixel in pixels),
+                      marker=im.getpixel((20, 20))[:3],
+                      caption=hashlib.sha256(im.crop((0, 44, width, height)).tobytes()).hexdigest(),
                       sha256=hashlib.sha256(im.tobytes()).hexdigest())))
 `;
-async function image(sender, label, accept) {
-	return wait(
-		async () => {
-			const root = path.join(directory, `capture-${String(captures.length + 1).padStart(3, '0')}`);
-			const shape = JSON.parse(
-				await run(observer, [
-					'--role',
-					'video-pixels',
-					'--adapter',
-					String(adapter.index),
-					'--name',
-					sender,
-					'--directory',
-					root
-				])
-			);
-			assert.deepEqual(shape, { ...extent, retired: true });
-			const file = path.join(root, 'pixels.png');
-			const entry = {
-				label,
-				file,
-				...JSON.parse(await run('python', ['-c', summarize, file]))
-			};
-			captures.push(entry);
-			return entry;
-		},
+async function capture(sender, label) {
+	const root = path.join(directory, `capture-${String(captures.length + 1).padStart(3, '0')}`);
+	const shape = JSON.parse(
+		await run(observer, [
+			'--role',
+			'video-pixels',
+			'--adapter',
+			String(adapter.index),
+			'--name',
+			sender,
+			'--directory',
+			root
+		])
+	);
+	assert.deepEqual(shape, { ...extent, retired: true });
+	const file = path.join(root, 'pixels.png');
+	const entry = { label, file, ...JSON.parse(await run('python', ['-c', summarize, file])) };
+	captures.push(entry);
+	return entry;
+}
+const image = (sender, label, accept) =>
+	wait(
+		() => capture(sender, label),
 		(value) => value.opaque && accept(value),
 		label
 	);
-}
 const dark = (value) => value.maximum <= 4;
 const centeredAt = (x, bottom) => (value) =>
 	value.bright >= 8 &&
 	Math.abs((value.bounds[0] + value.bounds[2]) / 2 - x) <= 12 &&
 	value.bounds[3] <= bottom + 1 &&
 	value.bounds[3] >= bottom - 16;
+
+const markers = {
+	head: ([r, g, b]) => r > 180 && g < 90 && b < 90,
+	gap: ([r, g, b]) => r < 90 && g > 180 && b < 90,
+	tail: ([r, g, b]) => r < 90 && g < 90 && b > 180,
+	blend: ([r, g, b]) => r > 90 && g < 90 && b > 90,
+	replacement: ([r, g, b]) => r > 180 && g > 180 && b < 90
+};
+
+async function movingClip(name, duration, language, headColor, captions) {
+	const file = path.join(directory, `${name}.mp4`);
+	const text = path.join(directory, `${name}.srt`);
+	await writeFile(
+		text,
+		`1\n00:00:00,000 --> 00:00:02,400\n${captions[0]}\n\n` +
+			`2\n00:00:03,400 --> 00:00:0${duration},000\n${captions[1]}\n`
+	);
+	// A picture marker identifies the source interval independently of the caption.
+	const filter = [
+		[headColor, 'lt(t,2.4)'],
+		['lime', 'gte(t,2.4)*lt(t,3.4)'],
+		['blue', 'gte(t,3.4)']
+	]
+		.map(([color, when]) => `drawbox=x=8:y=8:w=24:h=24:color=${color}:t=fill:enable='${when}'`)
+		.join(',');
+	await run('ffmpeg', [
+		'-hide_banner',
+		'-loglevel',
+		'error',
+		'-y',
+		'-f',
+		'lavfi',
+		'-i',
+		`color=black:s=160x120:r=20:d=${duration}`,
+		'-i',
+		text,
+		'-vf',
+		filter,
+		'-map',
+		'0:v:0',
+		'-map',
+		'1:s:0',
+		'-c:v',
+		'libx264',
+		'-g',
+		'10',
+		'-pix_fmt',
+		'yuv420p',
+		'-c:s',
+		'mov_text',
+		'-metadata:s:s:0',
+		`language=${language}`,
+		file
+	]);
+	return file;
+}
+
+async function movingImage(label, [start, end], read, represent, direction = 1) {
+	const result = await wait(
+		async () => {
+			const before = await sample();
+			assert(before.playing, `${label}: Video must be playing`);
+			if (before.position_ms < start || before.position_ms > end) {
+				return { position: before.position_ms };
+			}
+			const frame = await read(label);
+			const after = await sample();
+			return {
+				before: before.position_ms,
+				after: after.position_ms,
+				playing: after.playing,
+				frame
+			};
+		},
+		(value) =>
+			value.playing &&
+			value.after >= start &&
+			value.after <= end &&
+			direction * (value.after - value.before) > 0 &&
+			represent(value.frame),
+		label
+	);
+	playback.push({ label, ...result });
+	return result;
+}
+
+async function nativePreviewReader() {
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Media Preview$/ })
+		.click();
+	await page.getByRole('combobox', { name: 'Preview channel' }).selectOption(video.channel);
+	const viewport = page.locator(
+		'.media-preview-panel .native-preview[data-preview-installed="true"]'
+	);
+	await viewport.waitFor();
+	const [main] = JSON.parse(
+		await run('python', [
+			'apps/mapgyver/tests/native_output/window_state.py',
+			String(native.app.pid),
+			'--main'
+		])
+	);
+	assert(main?.visible && !main.minimized);
+	let views = 0;
+	return async () => {
+		const box = await viewport.boundingBox();
+		assert(
+			box && Math.abs(box.width / box.height - 4 / 3) < 0.02,
+			'native viewport must match the 4:3 Video'
+		);
+		const { width, height, dpr } = await page.evaluate(() => ({
+			width: innerWidth,
+			height: innerHeight,
+			dpr: devicePixelRatio
+		}));
+		const source = windowCaptureSource({
+			hwnd: main.hwnd,
+			left: Math.round(box.x * dpr),
+			top: Math.round(box.y * dpr),
+			width: Math.round(box.width * dpr),
+			height: Math.round(box.height * dpr),
+			viewport: { width, height },
+			dpr
+		});
+		const file = path.join(directory, `preview-${++views}.png`);
+		await run('ffmpeg', [
+			'-hide_banner',
+			'-loglevel',
+			'error',
+			'-filter_complex',
+			`${source},hwdownload,format=bgra,scale=${extent.width}:${extent.height}`,
+			'-frames:v',
+			'1',
+			file
+		]);
+		return { file, ...JSON.parse(await run('python', ['-c', summarize, file])) };
+	};
+}
+
+async function verifyMoving({
+	direct,
+	shared,
+	peer,
+	peerOutput,
+	peerPixels,
+	peerSettings,
+	common
+}) {
+	const clip = await movingClip('moving', 6, 'deu', 'red', ['HEAD', 'TAIL']);
+	const replacement = await movingClip('replacement', 8, 'ita', 'yellow', ['REPLACED', 'NEW TAIL']);
+	await edit({ kind: 'ConfigureVideoFile', reference: video, file: clip });
+	await wait(
+		source,
+		(status) => status?.state === 'Ready' && status.duration_ms === 6000,
+		'moving file'
+	);
+	await subtitles({ ...common, track: { kind: 'Embedded', index: 1 } });
+	await transport({ kind: 'Crop', start_ms: 0, end_ms: null });
+	const expected = {};
+	for (const [phase, position] of [
+		['head', 750],
+		['gap', 2850],
+		['tail', 4150]
+	]) {
+		await seek(position);
+		expected[phase] = await image(
+			direct,
+			`held moving ${phase}`,
+			(frame) =>
+				markers[phase](frame.marker) &&
+				(phase === 'gap' ? frame.bright === 0 : centeredAt(80, 108)(frame))
+		);
+	}
+	assert.equal(new Set(Object.values(expected).map((frame) => frame.caption)).size, 3);
+	const onDirect = (label) => capture(direct, label);
+	const match =
+		(phase, marker = phase) =>
+		(frame) =>
+			frame.opaque && markers[marker](frame.marker) && frame.caption === expected[phase].caption;
+	for (const [range, start, end, length] of [
+		['full', 0, null, 6000],
+		['crop', 600, 5000, 4400]
+	]) {
+		await transport({ kind: 'Pause' });
+		assert.equal(
+			(await transport({ kind: 'Crop', start_ms: start, end_ms: end })).length_ms,
+			length
+		);
+		await transport({ kind: 'Loop', looping: true });
+		for (const overlap of [0, 1000]) {
+			await transport({ kind: 'Pause' });
+			const speed = overlap ? 1 : 1.25;
+			await transport({ kind: 'Speed', speed });
+			await transport({ kind: 'AutoSmoothLoop', duration_ms: overlap });
+			await seek(length - 1600);
+			await transport({ kind: 'Play' });
+			const label = `${range} ${overlap ? 'smooth' : 'hard'} loop`;
+			const tail = await movingImage(
+				`${label} tail before wrap`,
+				[length - (overlap ? 900 : 1350), length - 100],
+				onDirect,
+				match('tail', overlap ? 'blend' : 'tail')
+			);
+			const head = await movingImage(
+				`${label} head after wrap`,
+				[overlap + 100, overlap + 725],
+				onDirect,
+				match('head')
+			);
+			assert(head.after < tail.before, `${label} must cross the loop point`);
+		}
+	}
+	await transport({ kind: 'Pause' });
+	await transport({ kind: 'Crop', start_ms: 0, end_ms: null });
+	await transport({ kind: 'Loop', looping: false });
+	await transport({ kind: 'Speed', speed: -1.25 });
+	await seek(5000);
+	await transport({ kind: 'Play' });
+	for (const [phase, range] of [
+		['tail', [3600, 4900]],
+		['gap', [2450, 3310]],
+		['head', [900, 2280]]
+	]) {
+		await movingImage(`reverse ${phase}`, range, onDirect, match(phase), -1);
+	}
+
+	await transport({ kind: 'Pause' });
+	await transport({ kind: 'Speed', speed: 0.75 });
+	await transport({ kind: 'Loop', looping: true });
+	await transport({ kind: 'AutoSmoothLoop', duration_ms: 0 });
+	await seek(225);
+	await transport({ kind: 'Play' });
+	const before = await movingImage(
+		'moving Reference shows the original cue',
+		[225, 1900],
+		(label) => capture(shared, label),
+		match('head')
+	);
+	const beforeRelink = await sample();
+	await edit({ kind: 'ConfigureVideoFile', reference: video, file: replacement });
+	const afterRelink = await sample();
+	assert(afterRelink.playing && afterRelink.position_ms >= beforeRelink.position_ms);
+	playback.push({
+		label: 'relink transport',
+		before: beforeRelink.position_ms,
+		after: afterRelink.position_ms
+	});
+	const after = await movingImage(
+		'moving replacement uses its own embedded cue',
+		[225, 2220],
+		onDirect,
+		(frame) =>
+			markers.replacement(frame.marker) &&
+			centeredAt(80, 108)(frame) &&
+			frame.caption !== expected.head.caption
+	);
+	assert(after.before >= before.after, 'live file replacement must preserve play position');
+	assert.equal((await source()).duration_ms, 8000);
+	assert.match((await inspect()).tracks[0].label, /^ita\b/);
+	assert.deepEqual((await inspect(peer)).settings, peerSettings);
+	await movingImage(
+		'shorter sibling keeps its own cue after live replacement',
+		[1010, 1580],
+		(label) => capture(peerOutput, label),
+		(frame) => frame.sha256 === peerPixels.sha256
+	);
+	await transport({ kind: 'Pause' });
+	if (process.argv.includes('--native-preview')) {
+		const readPreview = await nativePreviewReader();
+		await seek(600);
+		await transport({ kind: 'Play' });
+		await movingImage(
+			'moving native Media Preview caption',
+			[650, 2100],
+			readPreview,
+			(frame) => markers.replacement(frame.marker) && centeredAt(80, 108)(frame)
+		);
+		await movingImage(
+			'moving native Media Preview cue gap',
+			[2540, 3270],
+			readPreview,
+			(frame) => markers.gap(frame.marker) && frame.bright === 0
+		);
+		await transport({ kind: 'Pause' });
+	}
+}
 
 try {
 	token = (await post('/api/ui/session', {})).token;
@@ -215,6 +520,7 @@ try {
 	await edit({ kind: 'ConfigureVideoFile', reference: video, file: clip });
 	const direct = await output(video, 'Subtitle direct output');
 	adapter = await observeNativeAdapter(page, hardware);
+	if (selectedAdapter) assert.equal(adapter.key, selectedAdapter);
 	await wait(source, (status) => status?.state === 'Ready', 'black Video file is decoded');
 	await image(direct, 'subtitles disabled by default', dark);
 	const initial = await inspect();
@@ -403,6 +709,8 @@ try {
 		(value) => value.sha256 === changed.sha256
 	);
 	assert.deepEqual((await inspect()).settings, positioned);
+	if (moving)
+		await verifyMoving({ direct, shared, peer, peerOutput, peerPixels, peerSettings, common });
 	assert.deepEqual(errors, []);
 } catch (error) {
 	failure = String(error);
@@ -425,6 +733,7 @@ try {
 					embeddedTrack,
 					peerTrack,
 					captures,
+					playback,
 					errors
 				},
 				null,

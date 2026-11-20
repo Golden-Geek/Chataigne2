@@ -1,11 +1,11 @@
 # MapGyver — simple status
 
 - **Updated:** 20 November 2026.
-- **Overall plan acceptance:** `█████████░` **86% — 125/145 checks accepted, 8/19 phases complete**.
-- **Latest verified:** Matrix Layer Stop honors its fade overrides, preserves peer output and retires shared resources after final use. [Checks](mapgyver-m14-layer-stop.md#second-pass-verification-2026-11-20)
+- **Overall plan acceptance:** `█████████░` **87% — 126/145 checks accepted, 8/19 phases complete**.
+- **Latest verified:** Per-channel subtitles stay aligned during play, reverse, loop wraps and live file replacement. Intel and NVIDIA preview/output checks passed. [Checks](evidence/mapgyver-m10-channel-subtitles-2026-11-18.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Qualify per-channel subtitles during moving playback (M10/8). Direct File Explorer drops need desktop input.
+- **Next:** Qualify Auto-Smooth Loop (M10/9), starting with reverse and mixed-duration playback. Direct File Explorer drops need desktop input.
 
 ## Done — code and normal-use checks passed
 

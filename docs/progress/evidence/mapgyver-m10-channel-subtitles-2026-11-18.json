@@ -1,7 +1,7 @@
 {
   "date": "2026-11-18",
   "gate": "M10/8",
-  "result": "functional checkpoint; full qualification pending",
+  "result": "Accepted on 2026-11-20",
   "scope": "Independent typed subtitle settings, track discovery and rendered pixels for two Video channels with different files and a shared playback clock.",
   "software": {
     "subtitleTests": { "mapgyver": 3, "goldenVideo": 10 },
@@ -53,9 +53,44 @@
     "result": "pass",
     "verified": "The second Video channel's Inspector Track menu offered its own embedded stream and excluded the first channel's stream. Choosing the track rendered the second caption and preserved the first channel's local SRT output pixel for pixel. Disabling the first channel in the Inspector preserved the second channel's caption pixel for pixel."
   },
-  "pending": [
-    "Moving native Media Preview and output at multiple speeds, including reverse and hard/smooth loop boundaries on full and cropped ranges",
-    "Broader native consumer, mixed-duration and file replacement coverage during playback",
-    "Retained Video integration, recovery, resource and both-GPU qualification"
-  ]
+  "movingQualification": {
+    "date": "2026-11-20",
+    "fixture": "apps/mapgyver/tests/browser/native-video-subtitles.mjs --moving --native-preview",
+    "heldBaseline": "target/mapgyver-m108-held-170815/run-1I8SHE/result.json",
+    "softwareRecheck": {
+      "mapgyverSubtitleTests": 3,
+      "goldenSubtitleRasterTests": 4,
+      "nodeSyntaxPrettierAndBothRustFormatters": "pass"
+    },
+    "native": [
+      {
+        "adapter": "Intel(R) Graphics",
+        "receipt": "target/mapgyver-m108-moving-intel-171708/run-kRYJrV/result.json"
+      },
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "receipt": "target/mapgyver-m108-moving-nvidia-171758/run-RoWLhP/result.json"
+      }
+    ],
+    "perAdapter": {
+      "independentSpoutPixelCases": 36,
+      "movingObservations": 17,
+      "nativeMediaPreviewPixelCases": 2,
+      "pageErrors": 0,
+      "previewCaptionBoundsAt160x120": [31, 86, 128, 101],
+      "previewGapBrightPixels": 0
+    },
+    "verified": [
+      "Held direct and Reference output, per-channel embedded and local cues, cue bounds, positioning, local file recovery and Inspector controls",
+      "Moving Spout picture markers and caption signatures across full and cropped hard and smooth wraps, including the overlap's outgoing cue and the incoming cue after wrap",
+      "Forward speeds 0.75, 1 and 1.25, and reverse at -1.25 through tail, cue gap and head",
+      "A moving Reference followed the selected channel. Relinking its source from a six-second file to an eight-second file preserved playing position and changed the cue. The three-second sibling retained its own selection and caption pixels.",
+      "Windows Graphics Capture sampled the owned native Media Preview during the replacement cue and the following gap. Physical Screen windows were disabled in the test launcher."
+    ],
+    "priorAttempts": [
+      "target/mapgyver-m108-moving-nvidia-171402/run-3dPwxe/result.json recorded the encoded red marker outside the initial color predicate. The corrected predicate recognizes the dominant color while keeping distinct phases.",
+      "target/mapgyver-m108-moving-nvidia-171452/run-1JVuUV/result.json passed all 36 Spout pixel cases. Foreground desktop capture was unavailable. The final fixture captures the owned window through Windows Graphics Capture."
+    ],
+    "retainedScope": "Separate Video performance, extended formats, fade-loop recovery, wider crop and integration requirements remain in their original gates."
+  }
 }
