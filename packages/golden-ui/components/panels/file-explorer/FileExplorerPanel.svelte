@@ -25,7 +25,8 @@
 	import upIcon from '../../../style/icons/viewport/home.svg';
 
 	type ExplorerView = 'tree' | 'thumbnails';
-	let props: PanelProps = $props();
+	let props: PanelProps & { fileSuffixes?: readonly string[] } = $props();
+	const title = $derived(props.title ?? 'File Explorer');
 	const persistedView = (params: PanelProps['params']): ExplorerView =>
 		readPanelPersistedState<{ view?: ExplorerView }>(params)?.view === 'thumbnails'
 			? 'thumbnails'
@@ -57,6 +58,7 @@
 	$effect(() => {
 		const project = projectFileState.currentPath;
 		const override = folder;
+		const suffixes = props.fileSuffixes;
 		const generation = session?.projectGeneration;
 		const request = ++epoch;
 		untrack(() => {
@@ -69,7 +71,7 @@
 			errors.clear();
 			trail = [];
 			if (!rootPending) return;
-			void browseProjectFiles(project, override)
+			void browseProjectFiles(project, override, undefined, undefined, suffixes)
 				.then((page) => {
 					if (epoch !== request || !page) return;
 					pages.set(page.directory, page);
@@ -94,7 +96,7 @@
 		pending.add(directory);
 		errors.delete(directory);
 		try {
-			const page = await browseProjectFiles(null, base, directory, after);
+			const page = await browseProjectFiles(null, base, directory, after, props.fileSuffixes);
 			if (epoch !== request || !page) return;
 			const earlier = after ? (pages.get(directory)?.entries ?? []) : [];
 			pages.set(directory, { ...page, entries: [...earlier, ...page.entries] });
@@ -217,8 +219,8 @@
 	{@render status(path, page)}
 {/snippet}
 
-<section class="file-explorer" aria-label="File Explorer" data-panel-id={props.panelId}>
-	<div class="toolbar" role="group" aria-label="File Explorer controls">
+<section class="file-explorer" aria-label={title} data-panel-id={props.panelId}>
+	<div class="toolbar" role="group" aria-label={`${title} controls`}>
 		<IconButton
 			icon={folderIcon}
 			label="Choose project folder"

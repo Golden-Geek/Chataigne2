@@ -252,6 +252,12 @@ Uniforms list follows the prepared file. Replacing the file refreshes the list. 
 whose name and type still match keep their saved values, and a removed declaration can
 reuse its saved control if it returns.
 
+Open the **Shader Library** tab beside **File Explorer** to browse shaders in the project
+folder. The library lists GLSL (`.glsl`, `.frag`), ISF (`.isf`, `.fs`), and ShaderToy
+exports named `name.shadertoy.json`. Drag a file into **Medias** or a Media folder to
+create Shader Media in File mode. The Shader Editor can also open a ShaderToy `.json`
+file directly when its Format is set to ShaderToy.
+
 The Windows x64 package includes the NDI 6 runtime and enables NDI from the first launch.
 Use **Medias → + → NDI** to receive, or choose **Target → NDI** on an enabled Screen to publish.
 Opening a project resumes its active NDI streams automatically. Developer builds can use an installed runtime. The channel's typed

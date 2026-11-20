@@ -16,6 +16,7 @@
 	import MediaManagerPanel from '../lib/media/MediaManagerPanel.svelte';
 	import MediaPreviewPanel from '../lib/media/MediaPreviewPanel.svelte';
 	import ShaderEditorPanel from '../lib/shader/ShaderEditorPanel.svelte';
+	import ShaderLibraryPanel from '../lib/shader/ShaderLibraryPanel.svelte';
 	import shaderIcon from 'golden_ui/style/icons/node/script.svg';
 	import ScreenManagerPanel from '../lib/screens/ScreenManagerPanel.svelte';
 	import ScreenWarpPanel from '../lib/screens/ScreenWarpPanel.svelte';
@@ -85,7 +86,16 @@
 		matrix: { title: 'Matrix', icon: panelIcons.matrix, component: MatrixPanel },
 		...(hasDesktopHost()
 			? {
-					fileExplorer: { title: 'File Explorer', icon: explorerIcon, component: FileExplorerPanel }
+					fileExplorer: {
+						title: 'File Explorer',
+						icon: explorerIcon,
+						component: FileExplorerPanel
+					},
+					shaderLibrary: {
+						title: 'Shader Library',
+						icon: shaderIcon,
+						component: ShaderLibraryPanel
+					}
 				}
 			: {})
 	};
@@ -150,6 +160,12 @@
 						panelId: 'file-explorer',
 						panelType: 'fileExplorer',
 						position: { referencePanelId: 'media-manager', direction: 'below' as const }
+					},
+					{
+						panelId: 'shader-library',
+						panelType: 'shaderLibrary',
+						inactive: true,
+						position: { referencePanelId: 'file-explorer', direction: 'within' as const }
 					}
 				]
 			: [])

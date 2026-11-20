@@ -512,7 +512,7 @@ try {
 			(await post('/api/ui/snapshot', { scope: 'wholeGraph' })).history;
 		const history = await readHistory();
 		await drop(manager, row, unsupported, `Replace file in ${label}`);
-		await manager.getByText(/This file is not a supported picture or video/).waitFor();
+		await manager.getByText(/This file is not a supported picture, video, or shader/).waitFor();
 		assert.deepEqual(await readHistory(), history);
 		assert.equal(currentFile(await authored()), replacement);
 		if (editorDrops) await verifyEditors(drop);

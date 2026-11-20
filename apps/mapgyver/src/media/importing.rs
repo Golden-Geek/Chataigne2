@@ -8,6 +8,7 @@ use crate::app::AppNode;
 use golden_assets::AbsoluteAssetPath;
 use golden_core::edit::{Edit, NodeTree};
 use golden_core::node::{Node, NodeId, NodeUuid};
+use golden_video::shader::FragmentFormat;
 use std::path::Path;
 
 /// A native file classified by MapGyver, ready to become a detached, configured Media.
@@ -18,13 +19,19 @@ pub(crate) struct FileMedia {
 
 impl FileMedia {
     pub(crate) fn new(path: AbsoluteAssetPath) -> Result<Self, String> {
-        let label = Path::new(path.as_str())
-            .file_stem()
-            .and_then(|stem| stem.to_str())
+        let native = Path::new(path.as_str());
+        let shader = native
+            .file_name()
+            .and_then(|name| name.to_str())
+            .and_then(super::shader::file_format);
+        let label = shader
+            .map(|(label, _)| label)
+            .or_else(|| native.file_stem().and_then(|stem| stem.to_str()))
             .filter(|stem| !stem.trim().is_empty() && stem.len() <= 240)
             .map(str::to_owned);
+        let format = shader.map(|(_, format)| format);
         Ok(Self {
-            source: file_source(path)?,
+            source: file_source(path, format)?,
             label,
         })
     }
@@ -91,7 +98,16 @@ pub(super) fn drop_file(
     Ok(MediaEditResult::Created { reference })
 }
 
-fn file_source(path: AbsoluteAssetPath) -> Result<ChannelSource, String> {
+fn file_source(path: AbsoluteAssetPath, shader: Option<FragmentFormat>) -> Result<ChannelSource, String> {
+    if let Some(format) = shader {
+        return Ok(ChannelSource::Shader {
+            format,
+            input: ShaderInput::File {
+                file: Some(AssetLocator::Absolute { path }),
+            },
+            textures: Default::default(),
+        });
+    }
     let extension = Path::new(path.as_str())
         .extension()
         .and_then(|extension| extension.to_str())
@@ -105,7 +121,7 @@ fn file_source(path: AbsoluteAssetPath) -> Result<ChannelSource, String> {
         {
             Ok(ChannelSource::Video { file })
         }
-        _ => Err("This file is not a supported picture or video".into()),
+        _ => Err("This file is not a supported picture, video, or shader".into()),
     }
 }
 

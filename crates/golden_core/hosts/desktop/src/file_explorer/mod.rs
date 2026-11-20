@@ -10,6 +10,7 @@ use std::{
 use ts_rs::{Config, TS};
 
 const PAGE_SIZE: usize = 96;
+const MAX_SUFFIXES: usize = 32;
 const THUMBNAIL_SOURCE_BYTES: u64 = 64 * 1024 * 1024;
 static THUMBNAIL_WORKER: Mutex<()> = Mutex::new(());
 
@@ -68,7 +69,12 @@ fn key(name: &str, directory: bool) -> (bool, String, String) {
     (!directory, name.to_lowercase(), name.into())
 }
 
-fn browse(root: &Path, directory: &Path, after: Option<FileExplorerCursor>) -> io::Result<FileExplorerPage> {
+fn browse(
+    root: &Path,
+    directory: &Path,
+    after: Option<FileExplorerCursor>,
+    suffixes: &[String],
+) -> io::Result<FileExplorerPage> {
     within(root, directory)?;
     let after = after.map(|cursor| key(&cursor.name, cursor.directory));
     let mut page = BTreeMap::new();
@@ -82,6 +88,9 @@ fn browse(root: &Path, directory: &Path, after: Option<FileExplorerCursor>) -> i
             continue;
         };
         let order = key(&name, kind.is_dir());
+        if !kind.is_dir() && !suffixes.is_empty() && !suffixes.iter().any(|suffix| order.1.ends_with(suffix)) {
+            continue;
+        }
         if after.as_ref().is_some_and(|after| order <= *after) {
             continue;
         }
@@ -118,6 +127,28 @@ fn browse(root: &Path, directory: &Path, after: Option<FileExplorerCursor>) -> i
     })
 }
 
+fn file_suffixes(mut suffixes: Vec<String>) -> Result<Vec<String>, String> {
+    if suffixes.len() > MAX_SUFFIXES
+        || suffixes.iter().any(|suffix| {
+            suffix.len() > 32
+                || suffix.strip_prefix('.').is_none_or(|rest| {
+                    rest.split('.').any(|part| {
+                        part.is_empty()
+                            || !part
+                                .bytes()
+                                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+                    })
+                })
+        })
+    {
+        return Err("Invalid File Explorer suffix filter".into());
+    }
+    for suffix in &mut suffixes {
+        suffix.make_ascii_lowercase();
+    }
+    Ok(suffixes)
+}
+
 fn thumbnail(root: &Path, path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     within(root, path)?;
     let metadata = path.metadata()?;
@@ -143,13 +174,15 @@ pub(crate) async fn file_explorer_browse(
     project: Option<String>,
     directory: Option<String>,
     after: Option<FileExplorerCursor>,
+    suffixes: Option<Vec<String>>,
 ) -> Result<Option<FileExplorerPage>, String> {
     let Some(root) = root_path(folder.as_deref(), project.as_deref()) else {
         return Ok(None);
     };
     let directory = directory.map_or_else(|| root.clone(), PathBuf::from);
+    let suffixes = file_suffixes(suffixes.unwrap_or_default())?;
     tauri::async_runtime::spawn_blocking(move || {
-        browse(&root, &directory, after)
+        browse(&root, &directory, after, &suffixes)
             .map(Some)
             .map_err(|error| error.to_string())
     })

@@ -66,3 +66,54 @@ fn file_drop_creates_and_replaces_the_primary_source_with_independent_history() 
     assert_eq!(source(&reloaded, reference), picture(replacement));
     assert_eq!(source(&reloaded, peer), ChannelSource::Picture { file: None });
 }
+
+#[test]
+fn shader_file_drop_sets_the_format_and_keeps_plain_json_unclassified() {
+    use golden_video::shader::FragmentFormat;
+
+    let mut engine = fixture();
+    let root = tempfile::tempdir().unwrap();
+    let path = |name: &str| AbsoluteAssetPath::try_from(root.path().join(name).to_string_lossy().into_owned()).unwrap();
+    for (filename, expected) in [
+        ("Rays.GLSL", FragmentFormat::Glsl),
+        ("Grid.fs", FragmentFormat::Isf),
+        ("Orbit.ShaderToy.JSON", FragmentFormat::ShaderToy),
+    ] {
+        let path = path(filename);
+        let MediaEditResult::Created { reference } = apply(
+            &mut engine,
+            MediaEdit::DropMediaFile {
+                path: path.clone(),
+                target: None,
+            },
+        ) else {
+            panic!("expected Shader Media");
+        };
+        assert_eq!(
+            channel(&engine, reference).unwrap().definition.source,
+            ChannelSource::Shader {
+                format: expected,
+                input: ShaderInput::File {
+                    file: Some(AssetLocator::Absolute { path })
+                },
+                textures: Default::default(),
+            }
+        );
+    }
+    let history = engine.undo_len();
+    assert!(
+        !invoke(
+            &mut engine,
+            MediaEdit::DropMediaFile {
+                path: path("configuration.json"),
+                target: None
+            }
+        )
+        .success
+    );
+    assert_eq!(engine.undo_len(), history);
+    let MediaEditResult::Manager { snapshot } = apply(&mut engine, MediaEdit::InspectManager) else {
+        panic!("expected Medias")
+    };
+    assert!(snapshot.media.iter().any(|media| media.label == "Orbit"));
+}

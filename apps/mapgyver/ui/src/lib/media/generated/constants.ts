@@ -5,3 +5,4 @@ export const ASSET_NODE_TYPE = "mapgyver.media.asset.v2";
 export const SENDER_DISCOVERY_EVENT = "mapgyver-sender-discovery";
 export const MATRIX_PLAYBACK_EVENT = "mapgyver.matrix.playback";
 export const APPLICATION_RUNTIME_EVENT = "mapgyver-applications-runtime";
+export const SHADER_LIBRARY_SUFFIXES = [".glsl",".frag",".fs",".isf",".shadertoy.json"] as const;

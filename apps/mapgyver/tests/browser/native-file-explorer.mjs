@@ -3,6 +3,7 @@ import { copyFile, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
+import { createPreviewOutputObserver } from './preview-output-observer.mjs';
 
 const output = path.resolve(process.argv[2] ?? 'target/mapgyver-file-explorer');
 await mkdir(output, { recursive: true });
@@ -14,19 +15,61 @@ const pickedFolder = path.join(directory, 'Chosen folder');
 const project = path.join(projectFolder, 'Explorer project.mapgyver');
 const treeImage = path.join(treeFolder, 'Project still.png');
 const importedImage = path.join(pickedFolder, 'Projector café.png');
+const shaderFolder = path.join(pickedFolder, 'Local shaders');
+const shaders = [
+	{
+		name: 'Local Glow',
+		suffix: '.GLSL',
+		format: 'GLSL',
+		code: 'void main() { fragColor = vec4(1.0, 0.0, 1.0, 1.0); }',
+		rgba: [255, 0, 255, 255]
+	},
+	{
+		name: 'Local Grid',
+		suffix: '.fs',
+		format: 'ISF',
+		code: '/*{"ISFVSN":"2"}*/ void main() { gl_FragColor = vec4(0.0, 1.0, 1.0, 1.0); }',
+		rgba: [0, 255, 255, 255]
+	},
+	{
+		name: 'Local Orbit',
+		suffix: '.shadertoy.json',
+		format: 'ShaderToy',
+		code: JSON.stringify({
+			renderpass: [
+				{
+					type: 'image',
+					code: 'void mainImage(out vec4 c, in vec2 p) { c = vec4(1.0, 1.0, 0.0, 1.0); }'
+				}
+			]
+		}),
+		rgba: [255, 255, 0, 255]
+	}
+];
 await Promise.all(
-	[treeFolder, settingsFolder, pickedFolder].map((folder) => mkdir(folder, { recursive: true }))
+	[treeFolder, settingsFolder, shaderFolder].map((folder) => mkdir(folder, { recursive: true }))
 );
 await Promise.all(
 	[treeImage, importedImage].map((file) => copyFile('apps/mapgyver/icons/icon.png', file))
 );
+await Promise.all([
+	...shaders.map(({ name, suffix, code }) =>
+		writeFile(path.join(shaderFolder, name + suffix), code)
+	),
+	writeFile(path.join(shaderFolder, 'Project notes.txt'), 'notes'),
+	writeFile(path.join(shaderFolder, 'Configuration.json'), '{}')
+]);
 
-const native = await openNativeEditor();
+let appLog = '';
+const native = await openNativeEditor({
+	suppressDisplayOutputs: true,
+	onLogData: (chunk) => (appLog += chunk)
+});
 const { page } = native;
 const errors = [];
 page.on('pageerror', (error) => errors.push(String(error)));
 const observations = [];
-let token, stage, failure, workbench;
+let token, stage, failure, workbench, shaderObserver;
 
 async function post(route, body) {
 	const response = await fetch(native.base + route, {
@@ -189,6 +232,66 @@ try {
 	observations.push(
 		'Dragging an Explorer file created owned Picture Media with the exact native path and one Undo'
 	);
+
+	stage = 'browse only shader formats in the local Shader Library';
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Shader Library$/ })
+		.click();
+	const library = page.getByRole('region', { name: 'Shader Library', exact: true });
+	await library.getByRole('button', { name: 'Tree View', exact: true }).click();
+	await library.getByRole('button', { name: 'Local shaders', exact: true }).click();
+	const shaderRows = library.locator('[data-explorer-file]');
+	await wait(
+		() => shaderRows.count(),
+		(count) => count === shaders.length
+	);
+	assert.equal(await library.getByText('Configuration.json', { exact: true }).count(), 0);
+	assert.equal(await library.getByText('Project notes.txt', { exact: true }).count(), 0);
+	assert.equal(await library.getByText('Projector café.png', { exact: true }).count(), 0);
+	shaderObserver = await createPreviewOutputObserver(
+		post,
+		path.join(directory, 'shader-pixels'),
+		page
+	);
+	let outputBinding;
+	for (const [index, shader] of shaders.entries()) {
+		stage = `drag and render ${shader.format} from the Shader Library`;
+		const nativePath = path.join(shaderFolder, shader.name + shader.suffix);
+		const row = shaderRows.filter({ hasText: shader.name + shader.suffix });
+		assert.equal(await row.getAttribute('data-explorer-file'), nativePath);
+		await row.dragTo(medias, { targetPosition: { x: bounds.width / 2, y: bounds.height * 0.9 } });
+		const readMedia = async () =>
+			(await edit({ kind: 'InspectManager' })).snapshot.media.find(
+				(media) => media.label === shader.name
+			);
+		const media = await wait(readMedia, Boolean);
+		assert.equal(media.media_kind, 'Shader');
+		const channel = media.channels[0];
+		assert.equal(channel.definition.source.format, shader.format);
+		assert.deepEqual(channel.definition.source.input.file, { kind: 'absolute', path: nativePath });
+		if (index === 0) {
+			await intent({ kind: 'undo' });
+			assert.equal(await readMedia(), undefined);
+			await intent({ kind: 'redo' });
+			assert.equal((await readMedia()).channels[0].reference.channel, channel.reference.channel);
+		}
+		outputBinding = await shaderObserver.demand(channel.reference, outputBinding);
+		await delay(750);
+		await shaderObserver.observePixels(shader.format.toLowerCase(), shader.rgba);
+	}
+	observations.push(
+		'The local library filtered non-shaders and rendered imported GLSL, ISF and ShaderToy files'
+	);
+	stage = 'reopen the exact local shader binding';
+	assert((await post('/api/ui/project-save', { path: project })).ok);
+	await loadProject();
+	await delay(750);
+	await shaderObserver.observePixels('reopened-shader', shaders.at(-1).rgba);
+	assert(!appLog.includes('[mapgyver-output] window id='));
+	observations.push(
+		'The imported file remained linked on project reopen. Shader import is one Undo step'
+	);
 	assert.deepEqual(errors, []);
 } catch (error) {
 	failure = String(error.stack ?? error);
@@ -213,6 +316,9 @@ await writeFile(
 			result: failure ? 'fail' : 'pass',
 			stage,
 			observations,
+			shaderPixels: shaderObserver?.observations,
+			shaderAdapter: shaderObserver?.adapter,
+			physicalWindowsOpened: appLog.split('[mapgyver-output] window id=').length - 1,
 			errors,
 			failure,
 			workbench,

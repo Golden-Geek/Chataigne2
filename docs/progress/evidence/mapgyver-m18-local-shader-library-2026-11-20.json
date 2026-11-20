@@ -1,0 +1,28 @@
+{
+	"result": "pass",
+	"scope": "Local Shader Library using the saved project folder or its Project Settings override and the normal Media file-drop workflow.",
+	"formats": {
+		"GLSL": [".glsl", ".frag"],
+		"ISF": [".fs", ".isf"],
+		"ShaderToy": [".shadertoy.json"]
+	},
+	"software": {
+		"goldenDesktopPassed": 3,
+		"mapGyverPassed": 7,
+		"strictClippy": "pass",
+		"generatedTypeScript": "pass",
+		"svelte": "pass",
+		"appBuild": "pass"
+	},
+	"windows": {
+		"adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+		"independentSpoutImages": 4,
+		"result": "The library filtered ordinary text, JSON and images. Dragging each supported shader format into Medias created a File-mode Channel with the exact path. The GLSL import undid and redid in one step. GLSL, ISF, ShaderToy and the reopened ShaderToy binding produced exact pixels.",
+		"fileExplorerRegression": "Project folder, override, Tree View, Thumbnail View, PNG drop and Undo all passed.",
+		"physicalWindowsOpened": 0,
+		"pageErrors": 0,
+		"receipt": "target/m18-local-library-native/run-FAssEQ/result.json"
+	},
+	"fixtureCorrection": "The first run verified the GLSL import but expected the wrong serialized spelling for the absolute path tag. The corrected fixture re-ran against the same app build.",
+	"remaining": "ShaderToy, ISF and FragCoord.XYZ online browsing and import remain in M18/4."
+}
