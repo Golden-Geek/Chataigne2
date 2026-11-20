@@ -1,6 +1,6 @@
-// One ordinary Windows Screen, observed by a separate process using the public NDI SDK.
+// Ordinary Windows Screen outputs, observed by separate processes using the public NDI SDK.
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -10,16 +10,28 @@ import { openNativeEditor } from './native-editor.mjs';
 const output = path.resolve(process.argv[2] ?? 'target/mapgyver-ndi-screen');
 await mkdir(output, { recursive: true });
 const directory = await mkdtemp(path.join(output, 'run-'));
+let retirements = 0;
+const logTails = { stdout: '', stderr: '' };
 const nativeOptions = {
 	appDataDirectory: path.join(directory, 'profile'),
-	environment: { NDI_RUNTIME_DIR_V6: undefined, GOLDEN_NDI_AUTOMATION_SKIP_SYSTEM_RUNTIME: '1' }
+	environment: { NDI_RUNTIME_DIR_V6: undefined, GOLDEN_NDI_AUTOMATION_SKIP_SYSTEM_RUNTIME: '1' },
+	onLogData(data, stream) {
+		const lines = (logTails[stream] + data).split('\n');
+		logTails[stream] = lines.pop().slice(-4096);
+		retirements += lines.filter(
+			(line) => line.trim() === '[mapgyver-output] native session retired'
+		).length;
+	}
 };
 let native = await openNativeEditor(nativeOptions);
 const firstPid = native.app.pid;
 const { page } = native;
 const pageErrors = [];
 const observations = [];
+const checks = [];
+const receivers = [];
 const exerciseAudio = process.argv.includes('--audio');
+const exerciseConcurrent = process.argv.includes('--concurrent');
 page.on('pageerror', (error) => pageErrors.push(String(error)));
 let token, receiver, sender, stage, failure, reopenedPid;
 
@@ -71,7 +83,7 @@ function runtimeDirectory() {
 	return path.join(path.dirname(app), 'ndi');
 }
 
-function observe(label, name, colors, tones) {
+function observe(label, name, colors, tones, { sampleOnly = false } = {}) {
 	const receipt = path.join(directory, `${label}.jsonl`);
 	const child = spawn(
 		'python',
@@ -85,6 +97,7 @@ function observe(label, name, colors, tones) {
 			'--receipt',
 			receipt,
 			...(tones ? ['--tones', tones] : []),
+			...(sampleOnly ? ['--sample-only'] : []),
 			...colors
 		],
 		{ windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] }
@@ -96,7 +109,7 @@ function observe(label, name, colors, tones) {
 		child.once('close', (code, signal) => resolve({ code, signal }));
 		child.once('error', (error) => resolve({ error: String(error) }));
 	}).then((result) => (outcome = result));
-	return {
+	const reader = {
 		async at(index) {
 			const record = await wait(
 				async () => {
@@ -121,9 +134,11 @@ function observe(label, name, colors, tones) {
 			await finished;
 		}
 	};
+	receivers.push(reader);
+	return reader;
 }
 
-async function configureAudio(reference, screen, label, selectScreen) {
+async function attachAudioSource(reference, label) {
 	const ready = path.join(directory, 'audio-sender.json');
 	const stop = path.join(directory, 'audio-sender.stop');
 	const child = spawn(
@@ -182,6 +197,10 @@ async function configureAudio(reference, screen, label, selectScreen) {
 		payload: null
 	});
 	assert.equal(audio.result.value.enabled, false, 'the physical output must remain disabled');
+}
+
+async function configureAudio(reference, screen, label, selectScreen) {
+	await attachAudioSource(reference, label);
 	await selectScreen();
 	const inspector = page.locator('.inspector');
 	const audioChoices = (title) =>
@@ -226,8 +245,166 @@ function checkPicture(picture, extent, rate) {
 	assert.equal(picture.pixels.length, 9);
 }
 
-try {
-	token = (await post('/api/ui/session', {})).token;
+async function qualifyConcurrent() {
+	const fixture = randomUUID().slice(0, 8);
+	const { reference: audio } = await edit('media', {
+		kind: 'CreateMedia',
+		media_kind: 'Ndi',
+		label: 'NDI stereo fixture'
+	});
+	stage = 'start the shared stereo NDI source';
+	await attachAudioSource(audio, fixture);
+
+	const configure = (screen, target, fps, enabled = true) =>
+		edit('screens', {
+			kind: 'ConfigureScreen',
+			screen,
+			definition: { target, enabled, frame_rate: { kind: 'Explicit', fps } }
+		});
+	const paint = (reference, rgba) =>
+		edit('media', { kind: 'ConfigureChannel', reference, source: { kind: 'SolidColor', rgba } });
+	async function makeOutput(prefix, rgba, extent, fps) {
+		const label = `${prefix} ${fixture}`;
+		const { reference } = await edit('media', {
+			kind: 'CreateMedia',
+			media_kind: 'SolidColor',
+			label
+		});
+		await paint(reference, rgba);
+		const { screen, surface } = await edit('screens', { kind: 'CreateScreen', label });
+		const { snapshot } = await edit('screens', { kind: 'InspectSurface', reference: surface });
+		await edit('screens', {
+			kind: 'ConfigureSurface',
+			reference: surface,
+			definition: { ...snapshot.definition, source: reference }
+		});
+		const target = { kind: 'Ndi', sender: null, extent };
+		await configure(screen, target, fps);
+		return { label, screen, reference, target, fps, name: `MapGyver - ${label}` };
+	}
+	async function route(output, [left, right]) {
+		await tab('Screens').click();
+		await page
+			.getByRole('region', { name: 'Screens', exact: true })
+			.getByRole('button', { name: output.label, exact: true })
+			.click();
+		for (const [parameter, source] of [
+			['Left source', left],
+			['Right source', right]
+		]) {
+			await page
+				.locator('.inspector')
+				.locator('.parameter-inspector')
+				.filter({ has: page.getByText(parameter, { exact: true }) })
+				.locator('select.dropdown-editor')
+				.selectOption({ label: source });
+		}
+	}
+	function checkTones(record, expected) {
+		assert.equal(record.kind, 'audio');
+		assert.equal(record.channels, expected.length);
+		assert.deepEqual(
+			record.tones.map(({ hz }) => hz),
+			expected
+		);
+	}
+	async function sample(label, output, rgb, tones) {
+		const reader = observe(label, output.name, [rgb], tones.join(','), { sampleOnly: true });
+		checkPicture(await reader.at(0), output.target.extent, output.fps);
+		checkTones(await reader.at(1), tones);
+		await reader.done();
+	}
+
+	stage = 'receive two differently configured NDI outputs at the same time';
+	const first = await makeOutput('NDI first', [1, 0, 0, 1], { width: 320, height: 240 }, 30);
+	const second = await makeOutput('NDI second', [0, 0, 1, 1], { width: 240, height: 160 }, 24);
+	await route(first, ['Left', 'Right']);
+	await route(second, ['Right', 'Left']);
+	await Promise.all([
+		sample('first-initial', first, '255,0,0', [440, 880]),
+		sample('second-initial', second, '0,0,255', [880, 440])
+	]);
+
+	stage = 'edit the first stereo route while both senders are active';
+	const beforeRoute = retirements;
+	await route(first, ['Right', 'Left']);
+	await Promise.all([
+		sample('first-rerouted', first, '255,0,0', [880, 440]),
+		sample('second-after-route', second, '0,0,255', [880, 440])
+	]);
+	assert.equal(retirements, beforeRoute, 'editing a route must preserve the native renderer');
+	checks.push({ stage, rendererRetirements: retirements - beforeRoute });
+
+	stage = 'change the first output format with the second receiver connected';
+	const peer = observe(
+		'peer-during-format-change',
+		second.name,
+		['0,0,255', '255,255,0'],
+		'880,440',
+		{ sampleOnly: true }
+	);
+	const before = await peer.at(0);
+	checkPicture(before, second.target.extent, second.fps);
+	const beforeFormat = retirements;
+	const updated = {
+		...first,
+		target: { ...first.target, extent: { width: 384, height: 216 } },
+		fps: 25
+	};
+	await configure(updated.screen, updated.target, updated.fps);
+	await paint(first.reference, [0, 1, 0, 1]);
+	await paint(second.reference, [1, 1, 0, 1]);
+	await Promise.all([
+		sample('first-reformatted', updated, '0,255,0', [880, 440]),
+		(async () => {
+			const after = await peer.at(1);
+			checkPicture(after, second.target.extent, second.fps);
+			assert(BigInt(after.timecode) > BigInt(before.timecode));
+			checkTones(await peer.at(2), [880, 440]);
+			await peer.done();
+		})()
+	]);
+	checks.push({
+		stage,
+		rendererRetirements: retirements - beforeFormat,
+		peerReceiverRetained: true
+	});
+
+	stage = 'receive fresh video and audio while the app is minimized';
+	const minimizedWindow = () =>
+		wait(
+			() =>
+				JSON.parse(
+					execFileSync(
+						'python',
+						['apps/mapgyver/tests/native_output/window_state.py', String(native.app.pid), '--main'],
+						{ encoding: 'utf8', windowsHide: true, timeout: 5000 }
+					)
+				),
+			(found) => found.length === 1 && found[0].minimized,
+			8000
+		);
+	await page.getByRole('button', { name: 'Minimize app', exact: true }).click();
+	const [minimized] = await minimizedWindow();
+	await paint(first.reference, [1, 0, 1, 1]);
+	await paint(second.reference, [0, 1, 1, 1]);
+	await Promise.all([
+		sample('first-minimized', updated, '255,0,255', [880, 440]),
+		sample('second-minimized', second, '0,255,255', [880, 440])
+	]);
+	assert.equal((await minimizedWindow())[0].hwnd, minimized.hwnd);
+	checks.push({ stage, minimizedWindow: minimized.hwnd });
+
+	stage = 'withdraw the first sender and verify the second remains usable';
+	const retired = observe('first-withdrawn', first.name, ['255,0,255']);
+	await retired.at(0);
+	await configure(updated.screen, updated.target, updated.fps, false);
+	assert.equal((await retired.at(1)).kind, 'withdrawn');
+	await retired.done();
+	await sample('second-after-withdrawal', second, '0,255,255', [880, 440]);
+}
+
+async function qualifySingle() {
 	const label = `NDI Screen ${randomUUID().slice(0, 8)}`;
 	const { screen, surface } = await edit('screens', { kind: 'CreateScreen', label });
 	const { reference: source } = await edit('media', {
@@ -391,11 +568,21 @@ try {
 	await edit('screens', { kind: 'RemoveScreen', screen });
 	assert.equal((await receiver.at(exerciseAudio ? 2 : 1)).kind, 'withdrawn');
 	await receiver.done();
+}
+
+try {
+	token = (await post('/api/ui/session', {})).token;
+	if (exerciseConcurrent) await qualifyConcurrent();
+	else await qualifySingle();
 	assert.deepEqual(pageErrors, []);
 } catch (error) {
 	failure = String(error.stack ?? error);
 } finally {
-	const cleanup = await Promise.allSettled([receiver?.stop(), sender?.(), native?.close()]);
+	const cleanup = await Promise.allSettled([
+		...receivers.map((reader) => reader.stop()),
+		sender?.(),
+		native?.close()
+	]);
 	const cleanupErrors = cleanup
 		.filter((result) => result.status === 'rejected')
 		.map((result) => String(result.reason));
@@ -409,6 +596,7 @@ try {
 				firstPid,
 				reopenedPid,
 				observations,
+				checks,
 				pageErrors,
 				failure,
 				cleanupErrors,

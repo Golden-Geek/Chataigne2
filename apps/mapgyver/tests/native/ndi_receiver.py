@@ -82,9 +82,9 @@ def video_sample(dll, receiver, frame):
         dll.NDIlib_recv_free_video_v2(receiver, ctypes.byref(frame))
 
 
-def capture(dll, receiver):
+def capture(dll, receiver, timeout_ms=125):
     frame = VideoFrame()
-    if dll.NDIlib_recv_capture_v3(receiver, ctypes.byref(frame), None, None, 125) == 1:
+    if dll.NDIlib_recv_capture_v3(receiver, ctypes.byref(frame), None, None, timeout_ms) == 1:
         return video_sample(dll, receiver, frame)
     return None
 
@@ -103,6 +103,11 @@ def observe_audio(dll, receiver, expected, name, write):
     blocks = 0
     deadline = time.monotonic() + 15
     while time.monotonic() < deadline:
+        # The audio blocks are much more frequent than pictures. Give queued pictures
+        # an explicit opportunity before waiting on either stream.
+        queued_picture = capture(dll, receiver, timeout_ms=0)
+        if queued_picture is not None:
+            video_ticks.append(int(queued_picture["timecode"]))
         picture, sound = VideoFrame(), AudioFrame()
         kind = dll.NDIlib_recv_capture_v3(receiver, ctypes.byref(picture), ctypes.byref(sound), None, 125)
         if kind == 1:
@@ -138,7 +143,8 @@ def observe_audio(dll, receiver, expected, name, write):
         gaps = [min(abs(int(tone["timecode"]) - tick) for tick in video_ticks) / 10000 for tone in measured]
         if max(gaps, default=0) <= 80:
             write(dict(kind="audio", name=name, channels=len(expected), tones=measured,
-                       silent_peak=silent_peak, received_blocks=blocks, nearest_picture_ms=gaps))
+                       silent_peak=silent_peak, received_blocks=blocks, received_pictures=len(video_ticks),
+                       nearest_picture_ms=gaps))
             return
     raise RuntimeError(f"NDI audio did not match {expected}: tones={tones}, blocks={blocks}, picture={video_ticks[-3:]}")
 
@@ -173,6 +179,8 @@ def observe(dll, finder, args, write):
                 raise RuntimeError(f"expected picture {expected} from {name}; last sample: {last}")
         if args.tones is not None:
             observe_audio(dll, receiver, args.tones, name, write)
+        if args.sample_only:
+            return
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
             capture(dll, receiver)
@@ -201,6 +209,7 @@ def main():
     parser.add_argument("--runtime-dir", type=Path)
     parser.add_argument("--tones", type=lambda value: [int(hz) for hz in value.split(",")],
                         help="expected frequencies by stream channel, with zero for silence")
+    parser.add_argument("--sample-only", action="store_true", help="exit after the requested picture and audio samples")
     parser.add_argument("colors", nargs="+", type=color)
     args = parser.parse_args()
     dll, _ = runtime(args.runtime_dir)
