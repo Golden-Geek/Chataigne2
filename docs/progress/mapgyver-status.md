@@ -2,10 +2,10 @@
 
 - **Updated:** 20 November 2026.
 - **Overall plan acceptance:** `█████████░` **89% — 129/145 checks accepted, 9/19 phases complete**.
-- **Latest verified:** 4K 4× anti-aliasing fits the existing 1 GiB Screen cap. Intel and NVIDIA passed pixel, memory pressure and cleanup checks. [Checks](mapgyver-m14-antialiasing.md#4k-scratch-allocation--2026-11-20)
+- **Latest verified:** 4× AA fits the memory cap. Sustained timing passed at 1080p on NVIDIA. NVIDIA 4K and both Intel sizes still exceed the GPU budget. [Checks](mapgyver-m14-antialiasing.md#sustained-shared-texture-timing--2026-11-20)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Measure sustained 1080p and 4K Shared Texture timing on Intel and NVIDIA (M14/8). Independent LAN NDI and clean Windows installation remain open.
+- **Next:** Reduce 4× GPU render cost for NVIDIA 4K and Intel 1080p/4K (M14/8). Independent LAN NDI and clean Windows installation remain open.
 
 ## Done — code and normal-use checks passed
 

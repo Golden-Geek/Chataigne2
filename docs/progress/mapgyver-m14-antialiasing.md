@@ -62,9 +62,31 @@ Tested executable SHA-256:
   reported missed submission deadlines. It establishes startup admission and output, with
   sustained timing still open. [Analysis](../../target/mapgyver-4x-cost-after-205834/analysis.json)
 
+## Sustained Shared Texture timing — 2026-11-20
+
+The optimized fixture completed all four serial cohorts through Spout. Each used the same two
+Surfaces (official calibration grid and translucent Solid Color), a 30-second warmup and three
+120-second samples at 60 FPS. All processes exited 0, with complete CPU and GPU event coverage.
+The table reports the worst percentile and the range of per-sample deadline counts.
+
+| GPU | Output | CPU p95 / p99 (ms) | GPU p95 / p99 (ms) | On time per 7,200 slots | Verdict |
+| --- | --- | ---: | ---: | ---: | --- |
+| NVIDIA RTX 5080 Laptop | 1080p | 0.35 / 0.40 | 4.34 / 4.63 | 7,200 | Pass |
+| NVIDIA RTX 5080 Laptop | 4K | 0.42 / 0.49 | 14.18 / 14.50 | 7,200 | GPU p95 over budget |
+| Intel Graphics | 1080p | 0.53 / 0.84 | 38.67 / 39.86 | 3,308–3,318 | GPU and deadlines over budget |
+| Intel Graphics | 4K | 0.70 / 1.17 | 151.12 / 153.45 | 827–829 | GPU and deadlines over budget |
+
+Limits remain CPU p95/p99 4/8 ms and GPU p95/p99 12/16.667 ms. Deadline counts measure Spout API
+submission. All four stayed within the 512 MiB or 1 GiB resource cap and retired to zero tracked
+textures and endpoints within 368 ms. On Intel 4K the render stage was largest in every sampled
+batch, with up to 147.01 ms p95 measured in that stage. Stage spans include GPU waits and
+scheduling. Physical outputs were disabled. [Local analysis](../../target/mapgyver-4x-sustained-210115/analysis.json)
+
+The fixture executable SHA-256 was `10666BA588489DC8EC795F1A5E51955A0588FFEF62C54C35153D45313549A2F2`.
+
 ## Remaining qualification
 
-M14/8 is **functionally delivered and Active for qualification**. Next run the existing optimized
-`screen_antialiasing_costs` fixture with Smooth4x at 1080p and 4K on both GPUs, using the full
-warmup and three 120-second samples. Retain the supported-hardware rejection and physical
-output/recovery cases. The earlier M12/8 Intel 4K timing result and user acceptance remain recorded.
+M14/8 is **functionally delivered and Active for work on render cost**. Reduce the work of the
+supersampled composite itself and verify the existing independent edge and alpha pixels before
+comparing the changed renderer to this baseline. Supported-hardware rejection and physical
+output/recovery also remain open. The earlier M12/8 Intel 4K result and user acceptance remain recorded.
