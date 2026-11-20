@@ -232,18 +232,23 @@ Choose **Format** in the Shader Editor or channel Inspector.
   target size or project changes.
   [ISF pass attributes](https://docs.isf.video/ref_json.html#passes-and-target)
 
-For embedded ISF, open **Uniforms** in the Shader Editor. Add individual inputs or choose
-**Add All** to expose them as channel parameters. Float, Boolean, integer, point and color
-inputs start at their metadata defaults. Labels and numeric bounds come from the source.
-Changes take effect while the shader runs and save with the channel.
+For embedded shaders, open **Uniforms** in the Shader Editor. Add individual inputs or choose
+**Add All** to expose them as channel parameters. Changes take effect while the shader runs
+and save with the channel. ISF uses the input type, label, default and bounds from its JSON.
 [ISF input metadata](https://docs.isf.video/ref_json.html#inputs)
+
+GLSL and ShaderToy expose direct declarations of `float`, `int`, `bool`, `vec2`, `vec3`
+and `vec4`. They use a literal initializer or a FragCoord-style comment such as
+`uniform float amount; //0.5 [0, 1]`. A declaration without either starts at zero.
+ShaderToy JSON shares matching uniforms across Common, Buffer and Image code.
+[FragCoord tuner controls](https://fragcoord.xyz/llms-full.txt)
 
 Open **Texture inputs** to choose up to four Media or Channels. A Media target samples its first
 channel, while a Channel target samples the selected variant. Empty or unavailable inputs sample
 transparent black. Use `texture(iChannel0, uv)` through `iChannel3` for GLSL and ShaderToy. ISF
 binds named `image` inputs to slots in declaration order and supports its `IMG_*` sampling functions.
-Shader Media can feed Screens, Compositions, Matrix Cells and previews. Uniform discovery for
-GLSL, ShaderToy and File mode is pending.
+Shader Media can feed Screens, Compositions, Matrix Cells and previews. File-mode uniform
+discovery is pending.
 
 The Windows x64 package includes the NDI 6 runtime and enables NDI from the first launch.
 Use **Medias → + → NDI** to receive, or choose **Target → NDI** on an enabled Screen to publish.

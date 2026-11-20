@@ -19,7 +19,7 @@ impl FragmentEffect {
             return Err(CompileError::Size);
         }
         let effect = uuid::Uuid::new_v4();
-        let stages = if format == FragmentFormat::ShaderToy && source.starts_with(['{', '[']) {
+        let stages: Box<[_]> = if format == FragmentFormat::ShaderToy && source.starts_with(['{', '[']) {
             adapter::shadertoy::parse(source)?
                 .into_iter()
                 .map(|(code, layout)| {
@@ -48,6 +48,9 @@ impl FragmentEffect {
                 .map(|layout| (program.clone(), layout))
                 .collect()
         };
+        if format == FragmentFormat::ShaderToy && stages.len() > 1 {
+            adapter::validate_shared_uniforms(stages.iter().flat_map(|(program, _)| program.uniforms()))?;
+        }
         Ok(Self { stages })
     }
 

@@ -1,0 +1,24 @@
+{
+	"result": "pass",
+	"scope": "Direct embedded GLSL and ShaderToy uniform declarations for float, int, bool, vec2, vec3 and vec4. Literal initializers and FragCoord-style scalar or vector defaults and ranges are supported.",
+	"software": {
+		"goldenVideoPassed": 12,
+		"mapGyverPassed": 4,
+		"strictClippy": "pass",
+		"generatedTypeScript": "pass",
+		"svelte": "pass",
+		"appBuild": "pass"
+	},
+	"shaderCoverage": "The compiler and discovery agree on active preprocessor branches, grouped declarations, built-in input exclusion and typed defaults. ShaderToy Common inputs appear once. Conflicting declarations across passes are rejected.",
+	"windows": {
+		"adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+		"independentSpoutSamples": 52,
+		"newUniformSamples": 6,
+		"glsl": "Add All created the typed controls with the expected range, vector and Boolean. The live edit and project reopen rendered the expected pixels.",
+		"shaderToy": "A Common input appeared once. Its typed control changed both the raw Buffer and Image results in the same effect. The result persisted after reopening.",
+		"physicalWindowsOpened": 0,
+		"pageErrors": 0,
+		"receipt": "target/m18-glsl-uniforms-native/run-4TUShl/result.json"
+	},
+	"remaining": "File-mode uniform discovery and Shader Library browsing and imports remain open."
+}

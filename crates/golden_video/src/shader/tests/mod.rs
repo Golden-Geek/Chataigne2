@@ -13,6 +13,88 @@ fn translates_glsl_with_pixel_coordinates_and_frame_input_to_d3d11() {
 }
 
 #[test]
+fn glsl_declarations_use_active_tokens_defaults_and_fragcoord_bounds() {
+    use super::UniformValue;
+
+    let code = r#"#version 300 es
+    // uniform float commented;
+    #define USE_ALT 0
+    #if USE_ALT
+    uniform int u_amount;
+    #else
+    uniform float u_amount; //0.5 [0, 1]
+    #endif
+    uniform highp vec3 u_tint; //0.25, 1.0, 0.0, [0.0, 1.0]
+    uniform vec2 center = vec2(0.25);
+    layout(location = 3) uniform int u_mode = -2;
+    uniform bool enabled = true, trace;
+    uniform vec4 tint = vec4(1.0, 0.0, 0.0, 1.0);
+    uniform vec3 iResolution;
+    uniform sampler2D iChannel0;
+    void main() {
+        fragColor = u_mode == -2 && enabled
+            ? vec4(u_amount, u_tint.y, center.x, tint.a)
+            : texture(iChannel0, gl_FragCoord.xy / iResolution.xy);
+    }"#;
+    let detected = FragmentEffect::inspect_uniforms(FragmentFormat::Glsl, code).unwrap();
+    let program = FragmentProgram::compile_glsl(code).unwrap();
+    assert_eq!(program.uniforms(), detected);
+    assert_eq!(
+        detected
+            .iter()
+            .map(|field| (field.name.as_str(), field.default))
+            .collect::<Vec<_>>(),
+        [
+            ("u_amount", UniformValue::Float(0.5)),
+            ("u_tint", UniformValue::Vector3([0.25, 1.0, 0.0])),
+            ("center", UniformValue::Point([0.25; 2])),
+            ("u_mode", UniformValue::Int(-2)),
+            ("enabled", UniformValue::Bool(true)),
+            ("trace", UniformValue::Bool(false)),
+            ("tint", UniformValue::Color([1.0, 0.0, 0.0, 1.0])),
+        ],
+    );
+    assert_eq!(detected[0].min, Some(UniformValue::Float(0.0)));
+    assert_eq!(detected[0].max, Some(UniformValue::Float(1.0)));
+    assert_eq!(detected[1].max, Some(UniformValue::Vector3([1.0; 3])));
+    assert!(program.sampled_inputs()[0]);
+}
+
+#[test]
+fn shadertoy_json_discovers_common_and_per_pass_uniforms_once() {
+    use serde_json::json;
+    let mut project = json!({"renderpass": [
+        {"type": "common", "code": "uniform float sharedLevel; //0.5 [0, 1]"},
+        {"type": "buffer", "name": "Buffer A", "outputs": [{"id": "A"}],
+            "code": "uniform vec2 offset = vec2(0.0); void mainImage(out vec4 c, in vec2 p) {c = vec4(sharedLevel, offset, 1.0);}"},
+        {"type": "image", "inputs": [{"ctype": "buffer", "channel": 0, "id": "A"}],
+            "code": "uniform bool visible = true; void mainImage(out vec4 c, in vec2 p) {c = visible ? texture(iChannel0, p / iResolution.xy) * sharedLevel : vec4(1.0);}"}
+    ]});
+    let source = project.to_string();
+    let metadata = FragmentEffect::inspect_uniforms(FragmentFormat::ShaderToy, &source).unwrap();
+    assert_eq!(
+        metadata.iter().map(|field| field.name.as_str()).collect::<Vec<_>>(),
+        ["sharedLevel", "offset", "visible"]
+    );
+    assert!(FragmentEffect::compile(FragmentFormat::ShaderToy, &source).is_ok());
+    project["renderpass"][0]["code"] = "".into();
+    project["renderpass"][1]["code"] =
+        "uniform float sharedLevel; void mainImage(out vec4 c, in vec2 p) {c = vec4(sharedLevel);}".into();
+    project["renderpass"][2]["code"] =
+        "uniform int sharedLevel; void mainImage(out vec4 c, in vec2 p) {c = vec4(float(sharedLevel));}".into();
+    let conflict = project.to_string();
+    for error in [
+        FragmentEffect::inspect_uniforms(FragmentFormat::ShaderToy, &conflict).unwrap_err(),
+        FragmentEffect::compile(FragmentFormat::ShaderToy, &conflict).unwrap_err(),
+    ] {
+        assert!(
+            error.to_string().contains("conflicting ShaderToy declarations"),
+            "{error}"
+        );
+    }
+}
+
+#[test]
 fn rejects_unsupported_isf_passes_and_resources_explicitly() {
     for (header, diagnostic) in [
         (r#"{"PASSES":[{"PERSISTENT":true}]}"#, "requires a TARGET"),

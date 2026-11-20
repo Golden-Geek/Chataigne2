@@ -1,10 +1,11 @@
 //! Source dialect adapters for the shared fragment compiler.
 
-use std::fmt::Write;
+use std::{borrow::Cow, fmt::Write};
 
 use super::stages::Stage;
 use super::{CompileError, FragmentFormat, FragmentUniform, TEXTURE_BINDINGS, TEXTURE_INPUTS, uniforms};
 
+mod declarations;
 mod isf;
 pub(super) mod shadertoy;
 
@@ -214,12 +215,7 @@ pub(super) fn fragment_source_with_buffers(
         FragmentFormat::ShaderToy | FragmentFormat::Isf => BOTTOM_LEFT,
     };
     let textures = textures(format, &shadertoy);
-    let source = source.trim_start();
-    let source = if source.starts_with("#version ") {
-        source.split_once('\n').map_or("", |(_, body)| body)
-    } else {
-        source
-    };
+    let source = without_version(source);
     let uses_channel_resolution = format == FragmentFormat::ShaderToy
         && source
             .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_'))
@@ -228,6 +224,13 @@ pub(super) fn fragment_source_with_buffers(
         (CHANNEL_RESOLUTION, SET_CHANNEL_RESOLUTION)
     } else {
         ("", "")
+    };
+    let (source, uniforms) = match format {
+        FragmentFormat::Isf => (Cow::Borrowed(source), uniforms),
+        FragmentFormat::Glsl | FragmentFormat::ShaderToy => {
+            let declared = declarations::parse(format, source)?;
+            (declared.body(source), declared.uniforms)
+        }
     };
     let color_output = if shadertoy.raw_output {
         ""
@@ -244,8 +247,33 @@ pub(super) fn fragment_source_with_buffers(
 }
 
 pub(super) fn inspect_uniforms(format: FragmentFormat, source: &str) -> Result<Vec<FragmentUniform>, CompileError> {
+    let source = source.trim_start_matches('\u{feff}').trim_start();
     match format {
-        FragmentFormat::Isf => Ok(isf::source(source.trim_start_matches('\u{feff}').trim_start())?.uniforms),
-        FragmentFormat::Glsl | FragmentFormat::ShaderToy => Ok(Vec::new()),
+        FragmentFormat::Isf => Ok(isf::source(source)?.uniforms),
+        FragmentFormat::ShaderToy if source.starts_with(['{', '[']) => {
+            let fields = shadertoy::parse(source)?
+                .into_iter()
+                .map(|(code, _)| declarations::parse(format, without_version(&code)).map(|declared| declared.uniforms))
+                .collect::<Result<Vec<_>, _>>()?;
+            declarations::merge_uniforms(fields.iter().flatten())
+        }
+        FragmentFormat::Glsl | FragmentFormat::ShaderToy => {
+            Ok(declarations::parse(format, without_version(source))?.uniforms)
+        }
+    }
+}
+
+pub(super) fn validate_shared_uniforms<'a>(
+    fields: impl IntoIterator<Item = &'a FragmentUniform>,
+) -> Result<(), CompileError> {
+    declarations::merge_uniforms(fields).map(drop)
+}
+
+fn without_version(source: &str) -> &str {
+    let source = source.trim_start();
+    if source.starts_with("#version ") || source.starts_with("#version\t") {
+        source.split_once('\n').map_or("", |(_, body)| body)
+    } else {
+        source
     }
 }

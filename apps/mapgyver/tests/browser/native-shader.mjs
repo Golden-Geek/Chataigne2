@@ -688,6 +688,109 @@ try {
 			original.decl_id
 		);
 	}
+
+	async function activateShader() {
+		await page
+			.getByRole('tab')
+			.filter({ hasText: /^Medias$/ })
+			.click();
+		await manager.getByRole('button', { name: 'Shader', exact: true }).click();
+		await shaderTab.click();
+	}
+
+	async function applyShader(dialect, sourceText) {
+		await format.selectOption(dialect);
+		await codeEditor.fill(sourceText);
+		await panel.getByRole('button', { name: 'Apply shader', exact: true }).click();
+		const uniforms = panel.locator('details.uniforms');
+		await uniforms.waitFor();
+		if ((await uniforms.getAttribute('open')) === null) await uniforms.locator('summary').click();
+	}
+
+	async function setUniform(name, value) {
+		const row = (await inspectUniforms()).rows.find((row) => row.name === name);
+		assert(Number.isInteger(row?.parameter), JSON.stringify(row));
+		const input = panel.locator(
+			`.parameter-inspector[data-node-id="${row.parameter}"] input.number-field`
+		);
+		await input.fill(String(value));
+		await input.press('Enter');
+		await waitFor(
+			async () =>
+				(await graph()).find((node) => node.node_id === row.parameter)?.data.param.value.Float ===
+				value
+		);
+		await delay(500);
+	}
+
+	stage = 'expose GLSL uniforms with FragCoord defaults and bounds';
+	await activateShader();
+	await applyShader(
+		'GLSL',
+		`uniform float u_value1; //0.5 [0, 1]
+        uniform vec3 position; //0.1, 1.0, 0.2, [0, 1]
+        uniform bool showBlue = true;
+        void main() {
+            fragColor = vec4(u_value1, position.y, float(showBlue), 1.0);
+        }`
+	);
+	await delay(500);
+	await observer.observePixels('glsl-uniform-defaults', [188, 255, 255, 255], 1);
+	await panel.getByRole('button', { name: 'Add All', exact: true }).click();
+	await waitFor(async () => {
+		const { rows } = await inspectUniforms();
+		return rows.length === 3 && rows.every(({ parameter }) => parameter !== null);
+	});
+	const glslRows = (await inspectUniforms()).rows;
+	const glslGraph = await graph();
+	const glslParam = (name) =>
+		glslGraph.find((node) => node.node_id === glslRows.find((row) => row.name === name).parameter)
+			.data.param;
+	assert.deepEqual(glslParam('u_value1').constraints.range, { kind: 'uniform', min: 0, max: 1 });
+	assert.equal(glslParam('position').value.Vec3[1], 1);
+	assert.equal(glslParam('showBlue').value.Bool, true);
+	await setUniform('u_value1', 0);
+	await observer.observePixels('glsl-uniform-live-edit', [0, 255, 255, 255]);
+	assert((await post('/api/ui/project-save', { path: project })).ok);
+	assert.equal(path.resolve((await post('/api/ui/project-load', { path: project })).path), project);
+	await delay(750);
+	await observer.observePixels('glsl-uniform-reopen', [0, 255, 255, 255]);
+
+	stage = 'drive a ShaderToy Buffer and Image with the same Common uniform';
+	await activateShader();
+	await applyShader(
+		'ShaderToy',
+		JSON.stringify({
+			renderpass: [
+				{ type: 'common', code: 'uniform float sharedGain; //0.0, [0, 1]' },
+				{
+					type: 'buffer',
+					name: 'Buffer A',
+					outputs: [{ id: 'A' }],
+					code: 'void mainImage(out vec4 c, in vec2 p) { c = vec4(sharedGain, 0.0, 0.0, 1.0); }'
+				},
+				{
+					type: 'image',
+					inputs: [{ ctype: 'buffer', channel: 0, id: 'A' }],
+					code: 'void mainImage(out vec4 c, in vec2 p) { c = vec4(texelFetch(iChannel0, ivec2(0), 0).r, sharedGain, 1.0, 1.0); }'
+				}
+			]
+		})
+	);
+	await delay(500);
+	await observer.observePixels('shadertoy-common-uniform-default', [0, 0, 255, 255]);
+	assert.deepEqual(
+		(await inspectUniforms()).rows.map(({ name }) => name),
+		['sharedGain']
+	);
+	await panel.getByRole('button', { name: 'Add uniform sharedGain', exact: true }).click();
+	await waitFor(async () => Number.isInteger((await inspectUniforms()).rows[0]?.parameter));
+	await setUniform('sharedGain', 1);
+	await observer.observePixels('shadertoy-common-uniform-live-edit', [255, 255, 255, 255]);
+	assert((await post('/api/ui/project-save', { path: project })).ok);
+	assert.equal(path.resolve((await post('/api/ui/project-load', { path: project })).path), project);
+	await delay(750);
+	await observer.observePixels('shadertoy-common-uniform-reopen', [255, 255, 255, 255]);
 	assert.deepEqual(errors, []);
 	assert(!appLog.includes('[mapgyver-output] window id='));
 	await writeFile(

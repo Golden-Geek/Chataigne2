@@ -152,6 +152,7 @@ fn parameter(uniform: &FragmentUniform, label: &str) -> NodeTree {
         UniformValue::Int(value) => ParamValue::Int(value),
         UniformValue::Bool(value) => ParamValue::Bool(value),
         UniformValue::Point([x, y]) => ParamValue::Vec2(f64::from(x), f64::from(y)),
+        UniformValue::Vector3([x, y, z]) => ParamValue::Vec3(f64::from(x), f64::from(y), f64::from(z)),
         UniformValue::Color([r, g, b, a]) => ParamValue::Color(f64::from(r), f64::from(g), f64::from(b), f64::from(a)),
     };
     let mut parameter = Parameter::new(label, value, ParameterChangeCheck::ValueChange);
@@ -165,6 +166,7 @@ fn parameter(uniform: &FragmentUniform, label: &str) -> NodeTree {
     };
     let components = |value| match value {
         Some(UniformValue::Point(value)) => Some(value.into_iter().map(f64::from).collect()),
+        Some(UniformValue::Vector3(value)) => Some(value.into_iter().map(f64::from).collect()),
         Some(UniformValue::Color(value)) => Some(value.into_iter().map(f64::from).collect()),
         _ => None,
     };

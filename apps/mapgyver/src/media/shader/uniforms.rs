@@ -104,6 +104,7 @@ pub(in crate::media) fn value(value: &ParamValue) -> Option<golden_video::shader
         ParamValue::Int(value) => UniformValue::Int(value),
         ParamValue::Bool(value) => UniformValue::Bool(value),
         ParamValue::Vec2(x, y) => UniformValue::Point([x as f32, y as f32]),
+        ParamValue::Vec3(x, y, z) => UniformValue::Vector3([x as f32, y as f32, z as f32]),
         ParamValue::Color(r, g, b, a) => UniformValue::Color([r as f32, g as f32, b as f32, a as f32]),
         _ => return None,
     })

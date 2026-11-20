@@ -3252,6 +3252,7 @@ dependencies = [
  "libloading 0.8.9",
  "naga",
  "ndi-sdk",
+ "pp-rs",
  "serde",
  "serde_json",
  "snap",

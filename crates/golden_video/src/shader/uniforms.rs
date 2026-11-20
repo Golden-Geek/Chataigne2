@@ -11,12 +11,14 @@ pub enum UniformValue {
     Bool(bool),
     /// A two-component vector.
     Point([f32; 2]),
+    /// A three-component vector.
+    Vector3([f32; 3]),
     /// Straight RGBA.
     Color([f32; 4]),
 }
 
 /// A scalar, point or color input declared by the source.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FragmentUniform {
     /// Exact shader identifier.
     pub name: String,
@@ -36,7 +38,7 @@ impl UniformValue {
             Self::Float(value) => Some(f64::from(value)),
             Self::Int(value) => Some(f64::from(value)),
             Self::Bool(value) => Some(f64::from(u8::from(value))),
-            Self::Point(_) | Self::Color(_) => None,
+            Self::Point(_) | Self::Vector3(_) | Self::Color(_) => None,
         }
     }
 
@@ -44,6 +46,7 @@ impl UniformValue {
         match self {
             Self::Float(value) => value.is_finite(),
             Self::Point(values) => values.into_iter().all(f32::is_finite),
+            Self::Vector3(values) => values.into_iter().all(f32::is_finite),
             Self::Color(values) => values.into_iter().all(f32::is_finite),
             Self::Int(_) | Self::Bool(_) => true,
         }
@@ -55,6 +58,7 @@ impl UniformValue {
             Self::Int(value) => [value as u32, 0, 0, 0],
             Self::Bool(value) => [u32::from(value), 0, 0, 0],
             Self::Point([x, y]) => [x.to_bits(), y.to_bits(), 0, 0],
+            Self::Vector3([x, y, z]) => [x.to_bits(), y.to_bits(), z.to_bits(), 0],
             Self::Color(value) => value.map(f32::to_bits),
         }
     }
@@ -65,6 +69,11 @@ impl UniformValue {
             Self::Int(_) => Self::Int(words[0] as i32),
             Self::Bool(_) => Self::Bool(words[0] != 0),
             Self::Point(_) => Self::Point([f32::from_bits(words[0]), f32::from_bits(words[1])]),
+            Self::Vector3(_) => Self::Vector3([
+                f32::from_bits(words[0]),
+                f32::from_bits(words[1]),
+                f32::from_bits(words[2]),
+            ]),
             Self::Color(_) => Self::Color(words.map(f32::from_bits)),
         }
     }
@@ -89,6 +98,7 @@ pub(super) fn glsl(uniforms: &[FragmentUniform], declarations: &mut String, setu
             UniformValue::Int(_) => ("int", format!("int({data}.x)")),
             UniformValue::Bool(_) => ("bool", format!("{data}.x != 0u")),
             UniformValue::Point(_) => ("vec2", format!("uintBitsToFloat({data}.xy)")),
+            UniformValue::Vector3(_) => ("vec3", format!("uintBitsToFloat({data}.xyz)")),
             UniformValue::Color(_) => ("vec4", format!("uintBitsToFloat({data})")),
         };
         writeln!(declarations, "{ty} {};", uniform.name).unwrap();

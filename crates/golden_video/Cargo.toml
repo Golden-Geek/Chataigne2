@@ -9,7 +9,7 @@ description = "App-neutral video render plans and worker-owned resource foundati
 
 [features]
 ffmpeg = ["dep:ffmpeg-next", "dep:snap", "dep:cc", "dep:bindgen"]
-d3d11 = ["dep:windows", "dep:spout2-sys", "dep:concurrent-queue", "dep:naga", "windows/Win32_Graphics_Direct3D_Fxc"]
+d3d11 = ["dep:windows", "dep:spout2-sys", "dep:concurrent-queue", "dep:naga", "dep:pp-rs", "windows/Win32_Graphics_Direct3D_Fxc"]
 ndi = ["dep:libloading", "dep:ndi-sdk"]
 qualification = ["d3d11", "spout2-sys/qualification"]
 
@@ -47,6 +47,7 @@ windows = { version = "=0.61.3", features = ["Win32_Graphics_Direct3D_Fxc"] }
 [target.'cfg(windows)'.dependencies]
 concurrent-queue = { version = "=2.5.0", optional = true }
 naga = { version = "=30.0.2", features = ["glsl-in", "hlsl-out"], optional = true }
+pp-rs = { version = "=0.2.1", optional = true }
 spout2-sys = { version = "=0.1.1", default-features = false, features = ["dx"], optional = true }
 windows = { version = "=0.61.3", optional = true, features = [
     "Win32_Foundation",
