@@ -1,4 +1,5 @@
 export { default as NativePreview } from './NativePreview.svelte';
+export { default as BrowserPreview } from './BrowserPreview.svelte';
 export { createPreviewSession } from './session';
 export type {
 	PreviewSession,

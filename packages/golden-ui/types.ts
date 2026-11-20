@@ -781,7 +781,14 @@ export type UiEventBatchHandler = (
 /** A normalized transport batch retains its canonical project lifetime; graph-local batches do not. */
 export type UiTransportBatch = UiEventBatch & Pick<UiReplayCursor, 'project_generation'>;
 
+export type UiBrowserPreview = (
+	source: string,
+	previous: string | null,
+	signal: AbortSignal
+) => Promise<{ tag: string; image: Blob } | null>;
+
 export interface UiClient {
+	browserPreview?: UiBrowserPreview;
 	snapshot(scope?: UiSubscriptionScope): Promise<UiSnapshot>;
 	subscribe(
 		scope: UiSubscriptionScope,

@@ -918,6 +918,7 @@ export const createWebSocketUiClient = (options: WebSocketUiClientOptions = {}):
 		async referenceTargets(paramNodeId: number) {
 			return httpClient.referenceTargets(paramNodeId);
 		},
+		browserPreview: httpClient.browserPreview,
 		oscAddress(request, signal) {
 			return httpClient.oscAddress(request, signal);
 		},

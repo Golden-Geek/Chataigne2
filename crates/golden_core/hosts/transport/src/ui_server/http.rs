@@ -14,6 +14,7 @@ pub(super) struct HttpResponse<'a> {
     pub(super) cors_origin: Option<String>,
     sensitive: bool,
     content_security_policy: Option<String>,
+    etag: Option<String>,
 }
 
 impl<'a> HttpResponse<'a> {
@@ -23,6 +24,7 @@ impl<'a> HttpResponse<'a> {
             cors_origin: None,
             sensitive: false,
             content_security_policy: None,
+            etag: None,
         }
     }
 
@@ -168,6 +170,33 @@ pub(super) fn handle_connection<T: ProjectLifecycle>(
         }
         HttpRoute::UserContexts => {
             write_json(stream, "200 OK", &state.read_model.current_user_contexts())?;
+        }
+        HttpRoute::BrowserPreview => {
+            let Some(previews) = &state.browser_previews else {
+                return write_json_error(stream, "404 Not Found", "browser previews are unavailable");
+            };
+            let after = request
+                .query
+                .as_deref()
+                .filter(|query| query.len() <= 256)
+                .and_then(|query| {
+                    url::form_urlencoded::parse(query.as_bytes())
+                        .find(|(key, _)| key == "after")
+                        .map(|(_, tag)| tag)
+                });
+            let generation = state.read_model.current_project_generation().get();
+            match previews.request(generation, &request.body) {
+                Ok(Some(frame)) => {
+                    if after.as_deref() == Some(frame.tag.as_str()) {
+                        write_response(stream, "204 No Content", "text/plain", &[])?;
+                    } else {
+                        stream.etag = Some(frame.tag);
+                        write_response(stream, "200 OK", "image/jpeg", &frame.jpeg)?;
+                    }
+                }
+                Ok(None) => write_response(stream, "204 No Content", "text/plain", &[])?,
+                Err(message) => write_json_error(stream, "400 Bad Request", message)?,
+            }
         }
         HttpRoute::Snapshot => {
             let request_started = Instant::now();
@@ -642,7 +671,8 @@ pub(super) fn write_response(
         format!(
             "Access-Control-Allow-Origin: {origin}\r\n\
          Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n\
-         Access-Control-Allow-Headers: Content-Type, X-GC-UI-Client-Instance, Authorization\r\n"
+         Access-Control-Allow-Headers: Content-Type, X-GC-UI-Client-Instance, Authorization\r\n\
+         Access-Control-Expose-Headers: ETag\r\n"
         )
     });
     let headers = format!(
@@ -651,7 +681,7 @@ pub(super) fn write_response(
          Content-Length: {}\r\n\
          Vary: Origin\r\n\
          X-Content-Type-Options: nosniff\r\n\
-         {}{}{}\
+         {}{}{}{}\
          {cors}\
          Connection: close\r\n\r\n",
         body.len(),
@@ -669,6 +699,10 @@ pub(super) fn write_response(
             .content_security_policy
             .as_ref()
             .map_or_else(String::new, |policy| format!("Content-Security-Policy: {policy}\r\n")),
+        stream
+            .etag
+            .as_ref()
+            .map_or_else(String::new, |tag| format!("ETag: {tag}\r\n")),
     );
 
     stream.stream.write_all(headers.as_bytes())?;

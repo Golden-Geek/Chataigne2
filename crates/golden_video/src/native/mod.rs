@@ -53,6 +53,7 @@ pub use memory::{
 pub use observation::{
     D3d11Control, D3d11Snapshot, NativeFailure, OutputSnapshot, OutputState, SourceObservationSnapshot,
 };
+pub use outputs::readback::{ReadbackFrame, ReadbackSink, readback_channel};
 #[cfg(feature = "qualification")]
 pub use probe::ProbePixels;
 pub use probe::{SpoutProbe, SpoutProbeSnapshot};

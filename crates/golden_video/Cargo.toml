@@ -12,6 +12,7 @@ ffmpeg = ["dep:ffmpeg-next", "dep:snap", "dep:cc", "dep:bindgen"]
 d3d11 = ["dep:windows", "dep:spout2-sys", "dep:concurrent-queue", "dep:naga", "dep:pp-rs", "windows/Win32_Graphics_Direct3D_Fxc"]
 ndi = ["dep:libloading", "dep:ndi-sdk"]
 qualification = ["d3d11", "spout2-sys/qualification"]
+browser-preview = ["dep:image_codec"]
 
 [dependencies]
 ffmpeg-next = { version = "=9.0.0", default-features = false, features = ["format", "software-resampling", "software-scaling"], optional = true }
@@ -20,6 +21,7 @@ fontdue = "=0.9.4"
 golden_assets.workspace = true
 golden_io.workspace = true
 golden_time.workspace = true
+image_codec = { package = "image", version = "=0.25.10", default-features = false, features = ["jpeg"], optional = true }
 serde.workspace = true
 serde_json.workspace = true
 ts-rs.workspace = true

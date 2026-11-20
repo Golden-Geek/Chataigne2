@@ -62,6 +62,15 @@ pub enum OutputBinding {
         /// Explicit storage, size, transfer and alpha contract supplied to consumers.
         descriptor: TextureDescriptor,
     },
+    /// Render to opaque sRGB BGRA8 and asynchronously hand the frame to a CPU worker.
+    Readback {
+        /// Consumer identity referenced by a render plan.
+        id: OutputId,
+        /// Fixed, budgeted frame dimensions.
+        extent: Extent2D,
+        /// Single-frame mailbox receiving tightly packed BGRA8 bytes.
+        frames: super::ReadbackSink,
+    },
     /// A named NDI stream fed by the renderer's bounded BGRA staging path.
     #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
     Ndi {
@@ -80,7 +89,7 @@ impl OutputBinding {
     /// Logical consumer identity.
     pub fn id(&self) -> OutputId {
         match self {
-            Self::Window { id, .. } | Self::Spout { id, .. } => *id,
+            Self::Window { id, .. } | Self::Spout { id, .. } | Self::Readback { id, .. } => *id,
             #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
             Self::Ndi { id, .. } => *id,
         }
@@ -89,7 +98,7 @@ impl OutputBinding {
     /// Native output storage/conversion contract. Windows are opaque sRGB over black.
     pub fn descriptor(&self) -> TextureDescriptor {
         match self {
-            Self::Window { extent, .. } => TextureDescriptor {
+            Self::Window { extent, .. } | Self::Readback { extent, .. } => TextureDescriptor {
                 extent: *extent,
                 format: PixelFormat::Bgra8Unorm,
                 color_encoding: ColorEncoding::Srgb,
@@ -105,6 +114,7 @@ impl OutputBinding {
         match self {
             Self::Window { .. } => 2,
             Self::Spout { .. } => 1,
+            Self::Readback { .. } => 3,
             #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
             Self::Ndi { .. } => super::outputs::ndi::PAYLOAD_COPIES,
         }

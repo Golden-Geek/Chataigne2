@@ -222,7 +222,7 @@ actual native texture-owner observations separately deduplicate reused storage a
 Preview regions use native leases, coalesced geometry and matching installed/submitted-frame
 acknowledgements before uncovering imagery. Closing/relocking a panel retires only its lease;
 independent output demand continues. Layout acceptance alone does not prove visible frame
-alignment. Browser-only sessions expose truthful native-preview unavailability.
+alignment. Standalone browser Media Preview uses an [authenticated frame transport](mapgyver-media-preview.md#browser-media-preview).
 
 ## Screens, Surfaces and editor geometry
 

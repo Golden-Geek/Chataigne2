@@ -9,6 +9,7 @@ pub(super) enum HttpRoute {
     Revoke,
     WebSocket,
     UserContexts,
+    BrowserPreview,
     Snapshot,
     Replay,
     ReferenceTargets,
@@ -36,6 +37,7 @@ impl HttpRoute {
             ("POST", "/api/ui/session/revoke") => Self::Revoke,
             ("GET", "/api/ui/ws") => Self::WebSocket,
             ("GET", "/api/ui/user-contexts") => Self::UserContexts,
+            ("POST", "/api/ui/browser-preview") => Self::BrowserPreview,
             ("POST", "/api/ui/snapshot") => Self::Snapshot,
             ("POST", "/api/ui/replay") => Self::Replay,
             ("POST", "/api/ui/reference-targets") => Self::ReferenceTargets,
@@ -60,6 +62,7 @@ impl HttpRoute {
             Self::Discovery | Self::Health | Self::Bootstrap | Self::Unknown => None,
             Self::Revoke => Some(Capability::Session),
             Self::WebSocket
+            | Self::BrowserPreview
             | Self::UserContexts
             | Self::Snapshot
             | Self::Replay

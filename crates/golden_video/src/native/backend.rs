@@ -822,8 +822,8 @@ impl D3d11Backend {
                         converted,
                         recorder,
                         &mut consumer_api,
-                        #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
                         context,
+                        resources.generation.identity,
                     );
                     window_present = delivered.window_present;
                     publication_queue = delivered.publication_queue;

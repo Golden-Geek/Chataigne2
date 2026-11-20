@@ -34,6 +34,7 @@ impl TestHost {
                 snapshot_encoding: SnapshotEncodingService::spawn().unwrap(),
                 frontend_assets: &[],
                 preferences: None,
+                browser_previews: None,
             },
         }
     }

@@ -86,6 +86,7 @@ fn saturated_actor_rejects_http_and_websocket_without_false_acceptance_then_reco
         snapshot_encoding: encoding.clone(),
         frontend_assets: &[],
         preferences: None,
+        browser_previews: None,
     };
     let context = WsHubContext {
         runtime: runtime.clone(),

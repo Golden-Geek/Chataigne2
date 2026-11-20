@@ -3251,6 +3251,7 @@ dependencies = [
  "golden_assets",
  "golden_io",
  "golden_time",
+ "image",
  "libloading 0.8.9",
  "naga",
  "ndi-sdk",

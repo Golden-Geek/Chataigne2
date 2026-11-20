@@ -4,7 +4,7 @@ use std::time::Instant;
 use windows::Win32::Graphics::Direct3D11::{ID3D11Device, ID3D11DeviceContext};
 use windows::core::{Error, HRESULT, Interface, Result};
 
-use crate::runtime::{CompletionToken, DeviceGeneration};
+use crate::runtime::{CompletionToken, DeviceGeneration, PlanIdentity};
 use crate::{OutputId, TextureDescriptor};
 
 use super::config::{D3d11Config, OutputBinding};
@@ -21,6 +21,7 @@ mod lifetime;
 #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
 pub(super) mod ndi;
 mod pacing;
+pub(super) mod readback;
 mod recovery;
 pub(super) mod scheduling;
 pub(crate) mod spout;
@@ -61,6 +62,7 @@ impl From<Delivery> for DiagnosticDelivery {
 enum Output {
     Window(window::WindowOutput),
     Spout(spout::SpoutOutput),
+    Readback(readback::ReadbackOutput),
     #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
     Ndi(ndi::NdiOutput),
 }
@@ -70,6 +72,7 @@ impl Output {
         match self {
             Self::Window(output) => output.allocation(),
             Self::Spout(output) => output.allocation(),
+            Self::Readback(output) => output.allocation(),
             #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
             Self::Ndi(output) => output.allocation(),
         }
@@ -81,6 +84,9 @@ impl Output {
             }
             OutputBinding::Spout { name, .. } => spout::SpoutOutput::new(device, name.clone(), binding.descriptor())
                 .map(|output| Self::Spout(output.track_publication())),
+            OutputBinding::Readback { frames, .. } => {
+                readback::ReadbackOutput::new(device, binding.descriptor(), frames.clone()).map(Self::Readback)
+            }
             #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
             OutputBinding::Ndi {
                 name, format, audio, ..
@@ -90,7 +96,7 @@ impl Output {
     fn admit(&mut self, timeout_ms: u32) -> std::result::Result<(), Delivery> {
         match self {
             Self::Window(output) => output.admit(timeout_ms),
-            Self::Spout(_) => Ok(()),
+            Self::Spout(_) | Self::Readback(_) => Ok(()),
             #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
             Self::Ndi(_) => Ok(()),
         }
@@ -100,7 +106,8 @@ impl Output {
         texture: Option<&Texture>,
         recorder: Option<&Recorder>,
         consumer_api: &mut Option<CpuInterval>,
-        #[cfg(all(target_arch = "x86_64", feature = "ndi"))] context: &ID3D11DeviceContext,
+        context: &ID3D11DeviceContext,
+        plan: PlanIdentity,
     ) -> Delivery {
         match self {
             Self::Window(output) => output.present(recorder, consumer_api),
@@ -110,6 +117,9 @@ impl Output {
                 recorder,
                 consumer_api,
             ),
+            Self::Readback(output) => {
+                output.deliver(context, texture.expect("prepared readback conversion texture"), plan)
+            }
             #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
             Self::Ndi(output) => output.deliver(context, texture.expect("prepared NDI conversion texture")),
         }
@@ -142,7 +152,7 @@ impl AdmittedOutput<'_> {
             .expect("admitted endpoint");
         match endpoint {
             Output::Window(window) => window.render_target(),
-            Output::Spout(_) => converted.expect("prepared Spout conversion texture").into(),
+            Output::Spout(_) | Output::Readback(_) => converted.expect("prepared output conversion texture").into(),
             #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
             Output::Ndi(_) => converted.expect("prepared NDI conversion texture").into(),
         }
@@ -153,7 +163,8 @@ impl AdmittedOutput<'_> {
         texture: Option<&Texture>,
         recorder: Option<&Recorder>,
         consumer_api: &mut Option<CpuInterval>,
-        #[cfg(all(target_arch = "x86_64", feature = "ndi"))] context: &ID3D11DeviceContext,
+        context: &ID3D11DeviceContext,
+        plan: PlanIdentity,
     ) -> Delivered {
         let endpoint = self
             .binding
@@ -164,13 +175,7 @@ impl AdmittedOutput<'_> {
             (Output::Window(window), true) => Some(window.publication_queue()),
             _ => None,
         };
-        let delivered = endpoint.deliver(
-            texture,
-            recorder,
-            consumer_api,
-            #[cfg(all(target_arch = "x86_64", feature = "ndi"))]
-            context,
-        );
+        let delivered = endpoint.deliver(texture, recorder, consumer_api, context, plan);
         let image = match (&endpoint, delivered, recorder.is_some()) {
             (Output::Spout(sender), Delivery::Accepted, true) => sender.copied_image_version(),
             _ => None,

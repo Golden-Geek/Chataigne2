@@ -6,6 +6,8 @@
 
 #![warn(missing_docs)]
 
+#[cfg(feature = "browser-preview")]
+pub mod browser;
 mod color;
 #[cfg(feature = "ffmpeg")]
 pub mod decode;

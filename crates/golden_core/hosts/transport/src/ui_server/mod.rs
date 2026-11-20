@@ -44,6 +44,7 @@ use crate::project_host;
 mod access;
 mod admission;
 mod application_error;
+mod browser_previews;
 mod content_security;
 mod delivery;
 mod http;
@@ -55,6 +56,7 @@ mod startup;
 mod websocket;
 
 use application_error::*;
+pub use browser_previews::{BrowserPreviewStream, BrowserPreviews};
 use content_security::FrontendSecurity;
 use delivery::*;
 use http::*;
@@ -147,6 +149,8 @@ pub struct UiServerConfig {
     pub frontend_assets: &'static [UiAsset],
     /// Optional app-data Preferences persistence.
     pub preferences: Option<UiPreferencesConfig>,
+    /// Optional live browser previews supplied by the application's renderer.
+    pub browser_previews: Option<BrowserPreviews>,
 }
 
 /// Versioned readiness snapshot for the built-in UI host and its active UI sessions.
@@ -196,6 +200,7 @@ impl Default for UiServerConfig {
             value_flush_interval: DEFAULT_WS_VALUE_FLUSH_INTERVAL,
             frontend_assets: &[],
             preferences: None,
+            browser_previews: None,
         }
     }
 }
@@ -210,6 +215,7 @@ struct ServerState<T: ProjectLifecycle> {
     snapshot_encoding: SnapshotEncodingService,
     frontend_assets: &'static [UiAsset],
     preferences: Option<UiPreferencesConfig>,
+    browser_previews: Option<BrowserPreviews>,
 }
 
 impl<T: ProjectLifecycle> Clone for ServerState<T> {
@@ -224,6 +230,7 @@ impl<T: ProjectLifecycle> Clone for ServerState<T> {
             snapshot_encoding: self.snapshot_encoding.clone(),
             frontend_assets: self.frontend_assets,
             preferences: self.preferences.clone(),
+            browser_previews: self.browser_previews.clone(),
         }
     }
 }
@@ -590,6 +597,7 @@ fn run_ui_server_with_ready<T: ProjectLifecycle + 'static, S>(
         snapshot_encoding,
         frontend_assets: config.frontend_assets,
         preferences: config.preferences,
+        browser_previews: config.browser_previews,
     };
 
     let connection_limiter = Arc::new(ConnectionLimiter::new(MAX_CONNECTIONS));

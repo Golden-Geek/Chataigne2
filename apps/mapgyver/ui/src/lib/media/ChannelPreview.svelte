@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { NativePreview } from 'golden_video_ui';
+	import { BrowserPreview, NativePreview } from 'golden_video_ui';
+	import { hasDesktopHost } from 'golden_ui/host/desktop';
 	import type { ChannelSnapshot } from './generated/ChannelSnapshot';
 	import { usePreview } from '../preview/context.svelte';
 	import { previewKey } from '../preview/identity';
@@ -33,9 +34,16 @@
 		class="surface"
 		style:--preview-aspect={extent ? extent.width / extent.height : 16 / 9}
 		style:aspect-ratio={extent ? `${extent.width} / ${extent.height}` : '16 / 9'}>
-		<NativePreview session={owner.session} {source} label={`Preview of ${label ?? channel.label}`}>
-			{#if message}<PreviewMessage {message} />{/if}
-		</NativePreview>
+		{#if hasDesktopHost()}
+			<NativePreview
+				session={owner.session}
+				{source}
+				label={`Preview of ${label ?? channel.label}`}>
+				{#if message}<PreviewMessage {message} />{/if}
+			</NativePreview>
+		{:else}
+			<BrowserPreview {source} label={`Preview of ${label ?? channel.label}`} />
+		{/if}
 	</div>
 </section>
 

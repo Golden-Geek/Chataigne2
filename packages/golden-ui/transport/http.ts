@@ -1,4 +1,5 @@
 import type {
+	UiBrowserPreview,
 	UiParamControlInfo,
 	UiProjectFileLoadResult,
 	UiProjectLoadOptions,
@@ -47,6 +48,7 @@ interface PostJsonOptions {
 }
 
 export interface UiHttpAuxiliaryClient {
+	browserPreview: UiBrowserPreview;
 	referenceTargets(paramNodeId: number): Promise<UiReferenceTargets>;
 	oscAddress(request: UiOscAddressRequest, signal?: AbortSignal): Promise<UiOscAddressDto>;
 	paramControlInfo(paramNodeId: number): Promise<UiParamControlInfo>;
@@ -76,6 +78,20 @@ export const createHttpAuxiliaryClient = (
 			applicationId: options.applicationId
 		});
 	const clientInstanceId = getUiClientInstanceId(options.applicationId);
+	const authenticatedFetch = async (
+		path: string,
+		init: RequestInit,
+		renew = false
+	): Promise<Response> => {
+		const credential = await session.credentials(renew);
+		const headers = new Headers(init.headers);
+		headers.set('x-gc-ui-client-instance', clientInstanceId);
+		headers.set('authorization', `Bearer ${credential.token}`);
+		const response = await fetchImpl(`${baseUrl}${path}`, { ...init, headers });
+		if (response.status !== 401 || renew) return response;
+		session.invalidate(credential.token);
+		return authenticatedFetch(path, init, true);
+	};
 
 	const postJson = async <TResponse>(
 		path: string,
@@ -96,25 +112,12 @@ export const createHttpAuxiliaryClient = (
 				: null;
 
 		try {
-			const send = async (renew = false): Promise<Response> => {
-				const credential = await session.credentials(renew);
-				const response = await fetchImpl(`${baseUrl}${path}`, {
-					method: 'POST',
-					headers: {
-						'content-type': 'application/json',
-						'x-gc-ui-client-instance': clientInstanceId,
-						authorization: `Bearer ${credential.token}`
-					},
-					body: JSON.stringify(payload),
-					signal
-				});
-				if (response.status === 401 && !renew) {
-					session.invalidate(credential.token);
-					return send(true);
-				}
-				return response;
-			};
-			const response = await send();
+			const response = await authenticatedFetch(path, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(payload),
+				signal
+			});
 
 			let body: unknown = undefined;
 			const text = await response.text();
@@ -144,6 +147,23 @@ export const createHttpAuxiliaryClient = (
 	};
 
 	const client: UiHttpAuxiliaryClient = {
+		async browserPreview(source, previous, signal) {
+			const path = previous
+				? `/browser-preview?${new URLSearchParams({ after: previous })}`
+				: '/browser-preview';
+			const response = await authenticatedFetch(path, {
+				method: 'POST',
+				cache: 'no-store',
+				body: source,
+				signal: AbortSignal.any([signal, AbortSignal.timeout(3000)])
+			});
+			if (response.status === 204) return null;
+			if (!response.ok)
+				throw formatHttpError('POST browser preview', response, await response.text());
+			const tag = response.headers.get('etag');
+			if (!tag) throw new Error('Browser preview response has no image tag');
+			return { tag, image: await response.blob() };
+		},
 		oscAddress(request, signal) {
 			return postJson<UiOscAddressDto>('/osc-address', request, { signal });
 		},

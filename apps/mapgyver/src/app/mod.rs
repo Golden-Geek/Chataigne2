@@ -143,10 +143,14 @@ impl ProjectLifecycle for AppNode {
 }
 
 pub fn run() -> std::io::Result<()> {
+    #[cfg(all(windows, feature = "native-video"))]
+    let browser_previews = golden_core::transport::BrowserPreviews::default();
     let config = DesktopHostConfig {
         ui_server: UiServerConfig {
             bind_addr: "127.0.0.1:7011".to_owned(),
             frontend_assets: APP_UI_ASSETS,
+            #[cfg(all(windows, feature = "native-video"))]
+            browser_previews: Some(browser_previews.clone()),
             ..UiServerConfig::default()
         },
         dev_server: Some(FrontendDevServerConfig {
@@ -157,7 +161,6 @@ pub fn run() -> std::io::Result<()> {
     };
     let services = golden_core::app::HostServices::default()
         .with_desktop_plugin(crate::media::shader::library::plugin())
-        .with_background(crate::audio::start)
         .with_headless(|runtime| {
             #[cfg(feature = "video-files")]
             let videos = crate::media::video::metadata::Service::start(runtime.clone())?;
@@ -172,7 +175,15 @@ pub fn run() -> std::io::Result<()> {
             }
         });
     #[cfg(all(windows, feature = "native-video"))]
-    let services = services.with_native_presentation(crate::preview::host::presentation);
+    let services = services
+        .with_background(move |runtime| {
+            let audio = crate::audio::start(runtime.clone())?;
+            let previews = crate::preview::browser::start(runtime, browser_previews)?;
+            Ok((audio, previews))
+        })
+        .with_native_presentation(crate::preview::host::presentation);
+    #[cfg(not(all(windows, feature = "native-video")))]
+    let services = services.with_background(crate::audio::start);
     golden_core::app::run_default_with_services::<AppNode, tauri::Wry>(tauri::generate_context!(), config, services)
 }
 

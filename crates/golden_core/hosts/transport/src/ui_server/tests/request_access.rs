@@ -146,6 +146,7 @@ fn exchange(build: impl FnOnce(std::net::SocketAddr) -> String) -> String {
         snapshot_encoding: SnapshotEncodingService::spawn().unwrap(),
         frontend_assets: &[],
         preferences: None,
+        browser_previews: None,
     };
     let mut wire = build(address);
     if wire.starts_with("GET /api/ui/ws ") {

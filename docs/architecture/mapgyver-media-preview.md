@@ -4,6 +4,22 @@ MapGyver owns selected-media resolution and panel presentation choices. Golden o
 transport, native preview geometry and completion-based view retirement. The Inspector keeps
 authored Parameters and Channels; it no longer embeds media images.
 
+## Browser Media Preview
+
+Golden's browser component requests frames while intersecting a visible document. The
+authenticated HTTP transport leases each requested source in the current project and serves
+the latest JPEG. Multiple browser views of a source share the lease and latest image. The
+last request leaves a 1.2-second lease for clients that exit or lose their connection.
+
+MapGyver's browser worker resolves the same Channel identities and runs the same Channel
+render plans on the configured Windows GPU. Golden Video hands the worker tightly packed
+BGRA from a nonblocking staging texture. Each output has a one-frame CPU mailbox and stamps
+frames with the producing plan identity so a rebound output cannot publish the previous
+source. The worker encodes up to 640×360 at 15 FPS, preserving the source aspect ratio, and
+retires the renderer once no browser demand remains. The desktop uses the native compositor.
+
+## Native presentation
+
 The native window canvas follows Golden's `--gc-color-panel`, matching Composition's grey
 surround. Preview protocol v7 carries one straight-alpha sRGB byte colour per measured Layout
 cohort. Golden UI caches a one-pixel CSS colour sample per window session and resamples only
