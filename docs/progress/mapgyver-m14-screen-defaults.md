@@ -27,6 +27,16 @@ headless and no-external desktop scopes passed.
   windows. The live catalog contained the laptop panel and RTK only. Physical qualification
   remains open. Receipt: `target/mapgyver-startup-display-140610/result.json`.
 
+- Rechecked on November 20 with the laptop, RTK, and Optoma all connected. The Windows
+  catalog returned Optoma before RTK, with GDI indices 5 and 2 respectively. The development
+  build selected RTK on startup and on each of three New operations. All 16 checks passed,
+  including two exact Spout images and zero physical output windows. The installed executable
+  still reports `1.0.0b7`, which predates the fix. Receipt:
+  `target/mapgyver-startup-displays-165302/result.json`.
+- Several fixtures explicitly open physical outputs and choose targets from Windows catalog
+  order, independently of the application's startup ranking. Keep those cases in the physical
+  qualification queue on this topology. Saved projects retain the display authored on each Screen.
+
 ## Automated test isolation
 
 - The shared Windows browser launcher now suppresses fullscreen and rectangle outputs by
