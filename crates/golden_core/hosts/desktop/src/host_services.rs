@@ -14,6 +14,7 @@ pub struct HostServices<T: ProjectLifecycle, R: Runtime> {
     pub(crate) presentation: Option<PresentationFactory<T, R>>,
     pub(crate) headless: Option<HeadlessFactory<T>>,
     pub(crate) background: Option<HeadlessFactory<T>>,
+    pub(crate) desktop_plugins: Vec<tauri::plugin::TauriPlugin<R>>,
 }
 impl<T: ProjectLifecycle, R: Runtime> Default for HostServices<T, R> {
     fn default() -> Self {
@@ -21,10 +22,17 @@ impl<T: ProjectLifecycle, R: Runtime> Default for HostServices<T, R> {
             presentation: None,
             headless: None,
             background: None,
+            desktop_plugins: Vec::new(),
         }
     }
 }
 impl<T: ProjectLifecycle, R: Runtime> HostServices<T, R> {
+    /// Register app-owned desktop commands using Tauri's plugin and capability contracts.
+    pub fn with_desktop_plugin(mut self, plugin: tauri::plugin::TauriPlugin<R>) -> Self {
+        self.desktop_plugins.push(plugin);
+        self
+    }
+
     /// Attach native rendering to the desktop window; headless mode never invokes this factory.
     pub fn with_native_presentation(
         mut self,

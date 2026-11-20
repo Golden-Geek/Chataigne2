@@ -16,14 +16,19 @@ use crate::window_state::{WindowStatePersistence, restore_window_state, save_win
 
 const WINDOW_CLOSE_REQUESTED_SCRIPT: &str = "window.dispatchEvent(new CustomEvent('gc-window-close-requested'));";
 
+pub(super) struct WindowAutomation {
+    pub shutdown_file: Option<PathBuf>,
+    pub webview_debug_port: Option<NonZeroU16>,
+}
+
 pub(super) fn run_tauri<R: Runtime>(
     ui_base_url: &str,
     application_display_name: String,
     tauri_context: tauri::Context<R>,
     window_state_path: PathBuf,
-    automation_shutdown_file: Option<PathBuf>,
-    automation_webview_debug_port: Option<NonZeroU16>,
+    automation: WindowAutomation,
     native_presentation: Option<NativePresentation<R>>,
+    plugins: Vec<tauri::plugin::TauriPlugin<R>>,
 ) -> io::Result<()> {
     let external_url: Url = ui_base_url.parse().map_err(|err| {
         Error::new(
@@ -55,6 +60,9 @@ pub(super) fn run_tauri<R: Runtime>(
     let close_presentation = presentation_host.clone();
     let setup_presentation = presentation_host.clone();
     let mut builder = tauri::Builder::<R>::new().manage(window_state.clone());
+    for plugin in plugins {
+        builder = builder.plugin(plugin);
+    }
     if let Some(host) = presentation_host.as_ref() {
         builder = builder.manage(host.clone());
     }
@@ -84,13 +92,13 @@ pub(super) fn run_tauri<R: Runtime>(
                 application_display_name,
                 &window_state,
                 native_presentation.is_some(),
-                automation_webview_debug_port.zip(automation_shutdown_file.as_deref()),
+                automation.webview_debug_port.zip(automation.shutdown_file.as_deref()),
             )
             .and_then(|window| {
                 if let Some(presentation) = native_presentation {
                     setup_presentation.as_ref().unwrap().attach(presentation, &window)?;
                 }
-                start_automation_shutdown(app.handle(), automation_shutdown_file);
+                start_automation_shutdown(app.handle(), automation.shutdown_file);
                 Ok(())
             });
             if let Err(error) = setup {

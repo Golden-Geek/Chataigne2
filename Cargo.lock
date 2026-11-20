@@ -58,6 +58,7 @@ dependencies = [
 name = "MapGyver"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "golden_assets",
  "golden_audio",
  "golden_codegen_support",
@@ -69,6 +70,7 @@ dependencies = [
  "image-webp",
  "notify",
  "png 0.18.1",
+ "reqwest",
  "serde",
  "serde_json",
  "tauri",

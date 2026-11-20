@@ -3,6 +3,7 @@
 		appState,
 		FileDropFeedback,
 		ManagerListPanel,
+		type CustomDropDestination,
 		type FileDropDestination,
 		type PanelProps,
 		type PanelState,
@@ -12,6 +13,7 @@
 	import MediaTreeActions from './MediaTreeActions.svelte';
 	import { invokeMediaEdit } from './operations';
 	import { mediaFileDrop } from './file-drop';
+	import { loadIsf, matchesIsfDrag, readIsfDrop } from '../shader/library';
 	let props: PanelProps = $props();
 	let area: HTMLElement | undefined = $state();
 	export const setPanelState = (_next: PanelState) => {};
@@ -22,10 +24,13 @@
 		return node?.node_type === 'mapgyver.media.folder' ? node : null;
 	});
 
+	const outlinerRow = (element: Element) =>
+		element.closest<HTMLElement>('.outliner-item-content[data-node-id]');
+
 	function fileDestination(element: Element): FileDropDestination | null {
 		const session = appState.session;
 		if (!area || !session) return null;
-		const row = element.closest<HTMLElement>('.outliner-item-content[data-node-id]');
+		const row = outlinerRow(element);
 		const node = row ? session.getNodeData(Number(row.dataset.nodeId)) : null;
 		const folder = node?.node_type === 'mapgyver.media.folder';
 		const replace = node?.node_type === 'mapgyver.media.v11';
@@ -49,6 +54,46 @@
 			}
 		);
 	}
+
+	function shaderDestination(element: Element): CustomDropDestination | null {
+		const session = appState.session;
+		if (
+			!area ||
+			session?.status !== 'connected' ||
+			session.loading.visible ||
+			session.hasActiveEditSession
+		)
+			return null;
+		const row = outlinerRow(element);
+		const folder = row ? session.getNodeData(Number(row.dataset.nodeId)) : null;
+		if (row && folder?.node_type !== 'mapgyver.media.folder') return null;
+		const generation = session.snapshotGeneration;
+		return {
+			bounds: row ?? area,
+			label: folder ? `Import into ${folder.meta.label}` : 'Import Shader',
+			action: 'add',
+			async drop(event, signal) {
+				const id = readIsfDrop(event);
+				if (!id) return;
+				const shader = await loadIsf(id);
+				if (
+					signal.aborted ||
+					appState.session !== session ||
+					session.snapshotGeneration !== generation ||
+					session.status !== 'connected' ||
+					session.loading.visible ||
+					session.hasActiveEditSession
+				)
+					return;
+				await invokeMediaEdit(session, {
+					kind: 'ImportLibraryShader',
+					shader,
+					folder: folder?.uuid ?? null
+				});
+			}
+		};
+	}
+	const shaderDrop = { matches: matchesIsfDrag, resolve: shaderDestination };
 </script>
 
 <section
@@ -71,7 +116,7 @@
 		canRenderNodeChildren={canRenderMediaTreeChildren}
 		canCreateNodeChildren={(node) => node.node_type === 'mapgyver.media.folder'}
 		rowSupplementComponent={MediaTreeActions} />
-	<FileDropFeedback {area} resolve={fileDestination} />
+	<FileDropFeedback {area} resolve={fileDestination} custom={shaderDrop} />
 </section>
 
 <style>

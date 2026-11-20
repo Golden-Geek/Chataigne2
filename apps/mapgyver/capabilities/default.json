@@ -8,6 +8,8 @@
 	},
 	"permissions": [
 		"desktop-host",
+		"mapgyver-shader-library:allow-browse-isf",
+		"mapgyver-shader-library:allow-load-isf",
 		"core:default",
 		"core:window:allow-start-dragging",
 		"core:window:allow-minimize",

@@ -208,6 +208,21 @@ pub enum ShaderInput {
     },
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+pub struct ShaderLibraryEntry {
+    pub id: String,
+    pub label: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct LibraryShader {
+    pub label: String,
+    pub format: FragmentFormat,
+    #[ts(type = "string")]
+    pub code: std::sync::Arc<str>,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "kind")]
 #[serde(deny_unknown_fields)]
@@ -397,6 +412,11 @@ pub enum MediaEdit {
         path: golden_assets::AbsoluteAssetPath,
         #[ts(type = "string | null")]
         target: Option<NodeUuid>,
+    },
+    ImportLibraryShader {
+        shader: LibraryShader,
+        #[ts(type = "string | null")]
+        folder: Option<NodeUuid>,
     },
     ImportAsset {
         locator: AssetLocator,
@@ -738,6 +758,7 @@ pub fn export_typescript(directory: impl AsRef<std::path::Path>) -> Result<(), B
     let config = Config::default().with_out_dir(directory).with_large_int("number");
     MediaEdit::export_all(&config)?;
     MediaEditResult::export_all(&config)?;
+    ShaderLibraryEntry::export_all(&config)?;
     let fields = super::commands::MediaCommandKind::ALL
         .iter()
         .map(|kind| (kind.key(), kind.fields()))

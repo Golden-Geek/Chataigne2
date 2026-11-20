@@ -312,6 +312,7 @@ pub fn apply_operation(engine: &mut AppEngine, operation: &str, payload: Value) 
             create_media(engine, parent, media_kind, requested)?
         }
         MediaEdit::DropMediaFile { path, target } => super::importing::drop_file(engine, path, target)?,
+        MediaEdit::ImportLibraryShader { shader, folder } => super::importing::library_shader(engine, shader, folder)?,
         MediaEdit::CreateMediaInFolder {
             folder,
             media_kind,

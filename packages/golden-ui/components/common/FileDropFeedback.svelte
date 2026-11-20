@@ -1,10 +1,15 @@
 <script lang="ts" module>
-	export interface FileDropDestination {
+	interface DropFeedback {
 		bounds: Element;
 		label: string;
 		action: 'add' | 'replace';
 		icon?: string;
+	}
+	export interface FileDropDestination extends DropFeedback {
 		drop: (paths: string[]) => Promise<void>;
+	}
+	export interface CustomDropDestination extends DropFeedback {
+		drop: (event: DragEvent, signal: AbortSignal) => Promise<void>;
 	}
 </script>
 
@@ -15,10 +20,15 @@
 
 	let {
 		area,
-		resolve
+		resolve,
+		custom
 	}: {
 		area: HTMLElement | undefined;
 		resolve: (element: Element, event: DragEvent) => FileDropDestination | null;
+		custom?: {
+			matches: (event: DragEvent) => boolean;
+			resolve: (element: Element, event: DragEvent) => CustomDropDestination | null;
+		};
 	} = $props();
 
 	let active = $state(false);
@@ -37,12 +47,16 @@
 		if (!root) return;
 		const owner = new AbortController();
 		let clearError: ReturnType<typeof setTimeout> | undefined;
-		const target = (event: DragEvent) =>
-			event.target instanceof Element ? resolve(event.target, event) : null;
 		const move = (event: DragEvent) => {
-			if (!isWorkbenchFileDrag(event)) return;
+			const isFile = isWorkbenchFileDrag(event);
+			if (!isFile && !custom?.matches(event)) return;
 			event.preventDefault();
-			const destination = target(event);
+			const destination =
+				event.target instanceof Element
+					? isFile
+						? resolve(event.target, event)
+						: (custom?.resolve(event.target, event) ?? null)
+					: null;
 			if (event.dataTransfer) event.dataTransfer.dropEffect = destination ? 'copy' : 'none';
 			active = destination !== null;
 			if (!destination) return;
@@ -63,18 +77,24 @@
 			}
 		};
 		const drop = async (event: DragEvent) => {
-			if (!isWorkbenchFileDrag(event)) return;
+			const isFile = isWorkbenchFileDrag(event);
+			if (!isFile && !custom?.matches(event)) return;
 			event.preventDefault();
 			event.stopPropagation();
 			active = false;
-			const destination = target(event);
-			if (!destination) return;
+			if (!(event.target instanceof Element)) return;
 			clearTimeout(clearError);
 			error = '';
 			try {
-				const paths = await readWorkbenchFileDrop(event, owner.signal);
-				owner.signal.throwIfAborted();
-				if (paths.length) await destination.drop(paths);
+				if (isFile) {
+					const destination = resolve(event.target, event);
+					if (!destination) return;
+					const paths = await readWorkbenchFileDrop(event, owner.signal);
+					owner.signal.throwIfAborted();
+					if (paths.length) await destination.drop(paths);
+				} else {
+					await custom?.resolve(event.target, event)?.drop(event, owner.signal);
+				}
 			} catch (cause) {
 				if (owner.signal.aborted) return;
 				error = cause instanceof Error ? cause.message : String(cause);

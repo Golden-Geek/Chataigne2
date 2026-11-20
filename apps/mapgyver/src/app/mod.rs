@@ -156,6 +156,7 @@ pub fn run() -> std::io::Result<()> {
         }),
     };
     let services = golden_core::app::HostServices::default()
+        .with_desktop_plugin(crate::media::shader::library::plugin())
         .with_background(crate::audio::start)
         .with_headless(|runtime| {
             #[cfg(feature = "video-files")]

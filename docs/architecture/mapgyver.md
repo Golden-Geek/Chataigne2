@@ -95,6 +95,11 @@ committed results as app intents; typed command-node authoring remains in M04/1'
 
 ## Media, channels and Reference ownership
 
+The Shader Library uses Golden's File Explorer for local shader files. Its ISF catalog uses
+an app-owned desktop plugin for browsing VIDVOX's public collection and downloading immutable
+shader blobs. Downloads run outside the engine. Dropping a result on Medias or a folder sends
+one Media edit to create a Shader Channel with embedded source, provenance and license text.
+
 Channels are stable **concurrent output variants** within each media's Channels section.
 They are hidden from the Medias outliner and its creation actions, while remaining real
 typed editable nodes. Persisted media folders organize the actual document. Shared media settings

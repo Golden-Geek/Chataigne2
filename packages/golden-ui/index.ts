@@ -68,7 +68,10 @@ export { default as ConfirmationDialog } from './components/common/ConfirmationD
 export { default as EnableButton } from './components/common/EnableButton.svelte';
 export { default as NodeAddButton } from './components/common/NodeAddButton.svelte';
 export { default as FileDropFeedback } from './components/common/FileDropFeedback.svelte';
-export type { FileDropDestination } from './components/common/FileDropFeedback.svelte';
+export type {
+	CustomDropDestination,
+	FileDropDestination
+} from './components/common/FileDropFeedback.svelte';
 export {
 	normalizeContextMenuItems,
 	type ContextMenuAnchor,

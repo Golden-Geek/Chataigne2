@@ -19,6 +19,7 @@ native-preview-smoke = ["native-video-smoke"]
 native-qualification = ["native-preview-smoke", "golden_video/qualification"]
 
 [dependencies]
+base64 = "0.22"
 golden_assets.workspace = true
 image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg"] }
 image-webp = "=0.2.4"
@@ -31,6 +32,7 @@ golden_video = { path = "../../crates/golden_video", features = ["ndi"] }
 golden_time.workspace = true
 serde_json.workspace = true
 serde.workspace = true
+reqwest = "0.13"
 ts-rs.workspace = true
 tauri = { version = "2", features = [] }
 

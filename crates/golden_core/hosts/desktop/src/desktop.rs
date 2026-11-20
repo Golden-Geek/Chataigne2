@@ -413,6 +413,7 @@ where
         presentation,
         headless,
         background,
+        desktop_plugins,
     } = services;
     args.validate_webview_automation()?;
     validate_platform(presentation.is_some(), args.headless)?;
@@ -536,9 +537,12 @@ where
         T::application_display_name().to_string(),
         tauri_context,
         app_data_dir.join("window-state.json"),
-        args.automation_shutdown_file,
-        args.automation_webview_debug_port,
+        crate::desktop_window::WindowAutomation {
+            shutdown_file: args.automation_shutdown_file,
+            webview_debug_port: args.automation_webview_debug_port,
+        },
         presentation,
+        desktop_plugins,
     );
     drop(background);
     drop(dev_server_process);

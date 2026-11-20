@@ -1,3 +1,4 @@
+pub(crate) mod library;
 pub(super) mod uniforms;
 
 use golden_video::shader::FragmentFormat;

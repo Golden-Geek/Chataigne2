@@ -11,6 +11,9 @@ an app-owned service only after the headless listener binds and retains its guar
 lifetime. Factories return promptly and startup failures propagate. Neither hook runs during
 project candidate validation or Undo. The shared host owns startup and lifetime; app services own
 product policy and use the authoritative runtime's public transaction/capture contracts.
+`with_desktop_plugin` lets an app register asynchronous Tauri commands. The app owns the
+plugin, its capability permissions and its IO. The shared host installs the plugin when building
+the desktop window.
 
 Apps extend ordinary typed Preferences through `ProjectLifecycle::preferences_tree`, starting
 with `default_preferences_tree`. The shared transport host loads app-data Preferences before
@@ -30,6 +33,7 @@ MapGyver opts into the standard tree with its Project Folder override.
 Golden's File Explorer uses desktop IPC for paged directory listings and bounded image
 thumbnails. Browsing stays within the selected project root. The shared file drop helper resolves
 both desktop files and workbench drags before handing paths to the app's target-specific intent.
+The drop feedback component also accepts app-defined drag data with its own resolver and reader.
 
 The transport host owns cancellation through `golden_transport_server::UiServerShutdown` and
 `UiServerConfig::shutdown`. A request wakes idle listener waits, closes tracked connections and

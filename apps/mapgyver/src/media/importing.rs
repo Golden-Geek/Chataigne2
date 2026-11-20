@@ -98,6 +98,25 @@ pub(super) fn drop_file(
     Ok(MediaEditResult::Created { reference })
 }
 
+pub(super) fn library_shader(
+    engine: &mut AppEngine,
+    shader: LibraryShader,
+    folder: Option<NodeUuid>,
+) -> Result<MediaEditResult, String> {
+    super::shader::validate_code(&shader.code)?;
+    if shader.code.trim().is_empty() {
+        return Err("Shader code is empty".into());
+    }
+    let parent = super::folders::parent(engine, folder)?;
+    let source = ChannelSource::Shader {
+        format: shader.format,
+        input: ShaderInput::Embedded { code: shader.code },
+        textures: Default::default(),
+    };
+    let reference = append(engine, parent, source, Some(shader.label))?;
+    Ok(MediaEditResult::Created { reference })
+}
+
 fn file_source(path: AbsoluteAssetPath, shader: Option<FragmentFormat>) -> Result<ChannelSource, String> {
     if let Some(format) = shader {
         return Ok(ChannelSource::Shader {

@@ -6,6 +6,7 @@ import { openNativeEditor } from './native-editor.mjs';
 import { createPreviewOutputObserver } from './preview-output-observer.mjs';
 
 const output = path.resolve(process.argv[2] ?? 'target/mapgyver-file-explorer');
+const onlineIsf = process.argv.includes('--online-isf');
 await mkdir(output, { recursive: true });
 const directory = await mkdtemp(path.join(output, 'run-'));
 const projectFolder = path.join(directory, 'Project');
@@ -68,7 +69,7 @@ const { page } = native;
 const errors = [];
 page.on('pageerror', (error) => errors.push(String(error)));
 const observations = [];
-let token, stage, failure, workbench, shaderObserver;
+let token, stage, failure, workbench, shaderObserver, isfCatalog;
 
 async function post(route, body) {
 	const response = await fetch(native.base + route, {
@@ -95,8 +96,8 @@ function edit(payload, namespace = 'mapgyver.media') {
 	return intent({ kind: 'invokeAppOperation', namespace, operation: 'edit', payload });
 }
 
-async function wait(read, accepts) {
-	const deadline = Date.now() + 6000;
+async function wait(read, accepts, maximum = 6000) {
+	const deadline = Date.now() + maximum;
 	for (;;) {
 		const value = await read();
 		if (accepts(value)) return value;
@@ -291,6 +292,66 @@ try {
 	observations.push(
 		'The imported file remained linked on project reopen. Shader import is one Undo step'
 	);
+	if (onlineIsf) {
+		stage = 'browse and search the live VIDVOX ISF catalog';
+		const { folder } = await edit({ kind: 'CreateFolder', parent: null, label: 'Online shaders' });
+		const librarySource = library.getByRole('combobox', { name: 'Shader library source' });
+		await librarySource.selectOption('isf');
+		const catalog = library.getByRole('list', { name: 'ISF catalog' });
+		const solid = catalog.getByText('Solid Color', { exact: true });
+		await solid.waitFor({ timeout: 30000 });
+		const listed = await catalog.getByRole('listitem').count();
+		assert(listed > 100);
+		const search = library.getByRole('searchbox', { name: 'Search ISF shaders' });
+		await search.fill('no-matching-shader-93');
+		await library.getByText('No shaders found', { exact: true }).waitFor();
+		await search.fill('solid color');
+		await solid.waitFor();
+		assert((await catalog.getByRole('listitem').count()) < listed);
+
+		stage = 'drop a catalog ISF into a Media folder and verify embedded source';
+		const target = medias.getByRole('button', { name: 'Online shaders', exact: true });
+		await solid.dragTo(target);
+		const importedIsf = async () =>
+			(await edit({ kind: 'InspectManager' })).snapshot.media.find(
+				(media) => media.label === 'Solid Color'
+			);
+		const media = await wait(importedIsf, Boolean, 15000);
+		const channel = media.channels[0];
+		const source = channel.definition.source;
+		assert.equal(media.media_kind, 'Shader');
+		assert.equal(source.format, 'ISF');
+		assert.equal(source.input.kind, 'Embedded');
+		assert.match(
+			source.input.code,
+			/https:\/\/github\.com\/Vidvox\/ISF-Files, ISF\/Solid Color\.fs/
+		);
+		assert.match(source.input.code, /Permission is hereby granted/);
+		const graph = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
+		assert(
+			graph.nodes
+				.find(({ uuid }) => uuid === folder)
+				.children.includes(graph.nodes.find(({ uuid }) => uuid === channel.reference.media).node_id)
+		);
+		await intent({ kind: 'undo' });
+		assert.equal(await importedIsf(), undefined);
+		await intent({ kind: 'redo' });
+		assert.deepEqual((await importedIsf()).channels[0], channel);
+
+		stage = 'render the ISF generator and its reopened embedded source';
+		outputBinding = await shaderObserver.demand(channel.reference, outputBinding);
+		await delay(750);
+		await shaderObserver.observePixels('online-isf', [255, 0, 0, 255]);
+		assert((await post('/api/ui/project-save', { path: project })).ok);
+		await loadProject();
+		assert.deepEqual((await importedIsf()).channels[0], channel);
+		await delay(750);
+		await shaderObserver.observePixels('reopened-online-isf', [255, 0, 0, 255]);
+		assert(!appLog.includes('[mapgyver-output] window id='));
+		await librarySource.selectOption('local');
+		await library.getByRole('button', { name: 'Local shaders', exact: true }).waitFor();
+		isfCatalog = { listed, imported: media.label, mode: source.input.kind, folder, undoRedo: true };
+	}
 	assert.deepEqual(errors, []);
 } catch (error) {
 	failure = String(error.stack ?? error);
@@ -317,6 +378,7 @@ await writeFile(
 			observations,
 			shaderPixels: shaderObserver?.observations,
 			shaderAdapter: shaderObserver?.adapter,
+			isfCatalog,
 			physicalWindowsOpened: appLog.split('[mapgyver-output] window id=').length - 1,
 			errors,
 			failure,

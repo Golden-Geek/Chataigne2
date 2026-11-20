@@ -31,6 +31,8 @@ fn main() -> std::io::Result<()> {
             dependency_cache_namespace: "mapgyver-native-preview",
         })?;
     }
-    tauri_build::build();
+    let shader_library = tauri_build::InlinedPlugin::new().commands(&["browse_isf", "load_isf"]);
+    tauri_build::try_build(tauri_build::Attributes::new().plugin("mapgyver-shader-library", shader_library))
+        .map_err(std::io::Error::other)?;
     Ok(())
 }
