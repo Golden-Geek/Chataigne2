@@ -15,6 +15,18 @@ headless and no-external desktop scopes passed.
 - Physical pixels and output recovery on both GPUs, occupied assignments and the native New
   shortcut still need their qualification run.
 
+## Development build refresh
+
+- The previous `target/debug/MapGyver.exe` and the installed `1.0.0b7` beta predated
+  `88be30d71`. The old selection sorted device paths, so Windows display numbers did not
+  determine the initial target. Fresh assignments in the fix prefer the lowest available external number.
+- Rebuilt the ordinary development executable on November 20. The numbered-display regression
+  passed with an RTK display numbered 2 and a projector numbered 3 in either catalog order.
+- The rebuilt Windows app passed all 16 startup, New, Inspector, reload and independent Spout
+  checks. Startup and New picked RTK FHD HDR (2), and the fixture opened zero physical output
+  windows. The live catalog contained the laptop panel and RTK only. Physical qualification
+  remains open. Receipt: `target/mapgyver-startup-display-140610/result.json`.
+
 ## Automated test isolation
 
 - The shared Windows browser launcher now suppresses fullscreen and rectangle outputs by
