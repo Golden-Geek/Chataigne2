@@ -4,10 +4,12 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { openNativeEditor } from './native-editor.mjs';
 import { createPreviewOutputObserver } from './preview-output-observer.mjs';
+import { SHADERTOY_FIXTURE, startShaderToyFixture } from './shadertoy-catalog-fixture.mjs';
 
 const output = path.resolve(process.argv[2] ?? 'target/mapgyver-file-explorer');
 const onlineIsf = process.argv.includes('--online-isf');
 const onlineFragCoord = process.argv.includes('--online-fragcoord');
+const fixtureShaderToy = process.argv.includes('--fixture-shadertoy');
 await mkdir(output, { recursive: true });
 const directory = await mkdtemp(path.join(output, 'run-'));
 const projectFolder = path.join(directory, 'Project');
@@ -63,14 +65,26 @@ await Promise.all([
 ]);
 
 let appLog = '';
+const toyServer = fixtureShaderToy ? await startShaderToyFixture() : null;
 const native = await openNativeEditor({
+	environment: toyServer ? { MAPGYVER_AUTOMATION_SHADERTOY_PORT: String(toyServer.port) } : {},
 	onLogData: (chunk) => (appLog += chunk)
+}).catch(async (error) => {
+	await toyServer?.close();
+	throw error;
 });
 const { page } = native;
 const errors = [];
 page.on('pageerror', (error) => errors.push(String(error)));
 const observations = [];
-let token, stage, failure, workbench, shaderObserver, isfCatalog, fragCoordCatalog;
+let token,
+	stage,
+	failure,
+	workbench,
+	shaderObserver,
+	isfCatalog,
+	fragCoordCatalog,
+	shaderToyCatalog;
 
 async function post(route, body) {
 	const response = await fetch(native.base + route, {
@@ -239,7 +253,7 @@ try {
 		.getByRole('tab')
 		.filter({ hasText: /^Shader Library$/ })
 		.click();
-	const library = page.getByRole('region', { name: 'Shader Library', exact: true });
+	const library = page.locator('section[aria-label="Shader Library"]');
 	await library.getByRole('button', { name: 'Tree View', exact: true }).click();
 	await library.getByRole('button', { name: 'Local shaders', exact: true }).click();
 	const shaderRows = library.locator('[data-explorer-file]');
@@ -432,6 +446,103 @@ try {
 			unlicensedRejected: true
 		};
 	}
+	if (toyServer) {
+		stage = 'enter and replace a masked ShaderToy app key';
+		await librarySource.selectOption('shadertoy');
+		const keyField = library.getByLabel('ShaderToy app key', { exact: true });
+		const connect = library.getByRole('button', { name: 'Connect', exact: true });
+		assert.equal(await keyField.getAttribute('type'), 'password');
+		assert.equal(toyServer.requests.length, 0);
+		await keyField.fill(SHADERTOY_FIXTURE.invalidKey);
+		await connect.click();
+		await library.getByText('ShaderToy rejected the app key', { exact: true }).waitFor();
+		assert(!(await library.innerText()).includes(SHADERTOY_FIXTURE.invalidKey));
+		await library.getByRole('button', { name: 'Change key', exact: true }).click();
+		await keyField.fill(SHADERTOY_FIXTURE.key);
+		await connect.click();
+
+		stage = 'browse, page and search the ShaderToy API fixture';
+		const catalog = library.getByRole('list', { name: 'ShaderToy catalog' });
+		const rows = catalog.locator('li[draggable]');
+		const more = catalog.getByRole('button', { name: 'Load more' });
+		await more.waitFor();
+		assert.equal(await rows.count(), 8);
+		await more.click();
+		await wait(
+			() => rows.count(),
+			(count) => count === 9
+		);
+		const search = library.getByRole('searchbox', { name: 'Search ShaderToy shaders' });
+		await search.fill('no-matching-fixture');
+		await library.getByText('No shaders found', { exact: true }).waitFor();
+		await search.fill(SHADERTOY_FIXTURE.query);
+
+		stage = 'drop the buffered ShaderToy project into Medias';
+		await edit({ kind: 'CreateFolder', parent: null, label: 'ShaderToy imports' });
+		const row = catalog.getByText(SHADERTOY_FIXTURE.title, { exact: true });
+		await row.dragTo(medias.getByRole('button', { name: 'ShaderToy imports', exact: true }));
+		const importedToy = async () =>
+			(await edit({ kind: 'InspectManager' })).snapshot.media.find(
+				(media) => media.label === SHADERTOY_FIXTURE.title
+			);
+		const media = await wait(importedToy, Boolean);
+		const channel = media.channels[0];
+		const source = channel.definition.source;
+		assert.equal(source.format, 'ShaderToy');
+		assert.equal(source.input.kind, 'Embedded');
+		assert(!source.input.code.includes(SHADERTOY_FIXTURE.key));
+		const document = JSON.parse(source.input.code);
+		assert.deepEqual(document.mapgyver_source, {
+			provider: 'Shadertoy.com API',
+			url: `https://www.shadertoy.com/view/${SHADERTOY_FIXTURE.id}`,
+			author: 'MapGyver Fixture',
+			terms: 'https://www.shadertoy.com/terms'
+		});
+		assert.match(document.renderpass[0].code, /SPDX-License-Identifier: CC0-1.0/);
+		assert.deepEqual(
+			document.renderpass.map(({ type }) => type),
+			['common', 'buffer', 'image']
+		);
+		await intent({ kind: 'undo' });
+		assert.equal(await importedToy(), undefined);
+		await intent({ kind: 'redo' });
+		assert.deepEqual((await importedToy()).channels[0], channel);
+
+		stage = 'render and reopen the embedded ShaderToy buffer chain';
+		await shaderObserver.demand(channel.reference, outputBinding);
+		await delay(750);
+		await shaderObserver.observePixels('shadertoy-catalog-import', [0, 255, 0, 255]);
+		assert((await post('/api/ui/project-save', { path: project })).ok);
+		await loadProject();
+		assert.deepEqual((await importedToy()).channels[0], channel);
+		await delay(750);
+		await shaderObserver.observePixels('reopened-shadertoy-catalog-import', [0, 255, 0, 255]);
+		assert(!appLog.includes('[mapgyver-output] window id='));
+		assert(
+			!appLog.includes(SHADERTOY_FIXTURE.key) && !appLog.includes(SHADERTOY_FIXTURE.invalidKey)
+		);
+		assert(
+			toyServer.requests.some(
+				({ route, from, authenticated }) => authenticated && route.endsWith('/query') && from === 8
+			)
+		);
+		assert(
+			toyServer.requests.some(
+				({ route, authenticated }) =>
+					authenticated && route.endsWith(`/query/${SHADERTOY_FIXTURE.query}`)
+			)
+		);
+		assert(
+			toyServer.requests.filter(({ route }) => route.endsWith(`/${SHADERTOY_FIXTURE.id}`)).length >=
+				2
+		);
+		shaderToyCatalog = {
+			entries: 9,
+			wrongKeyRejected: true,
+			undoRedo: true,
+			requests: toyServer.requests.length
+		};
+	}
 	assert.deepEqual(errors, []);
 } catch (error) {
 	failure = String(error.stack ?? error);
@@ -447,6 +558,8 @@ try {
 	await native.close();
 } catch (error) {
 	failure = [failure, String(error.stack ?? error)].filter(Boolean).join('\n');
+} finally {
+	await toyServer?.close();
 }
 const result = path.join(directory, 'result.json');
 await writeFile(
@@ -460,6 +573,7 @@ await writeFile(
 			shaderAdapter: shaderObserver?.adapter,
 			isfCatalog,
 			fragCoordCatalog,
+			shaderToyCatalog,
 			physicalWindowsOpened: appLog.split('[mapgyver-output] window id=').length - 1,
 			errors,
 			failure,

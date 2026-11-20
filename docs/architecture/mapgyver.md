@@ -103,6 +103,12 @@ require published source and a reuse license. Golden Video runs the imported GLS
 Common code with FragCoord's frame uniforms and lower-left coordinates. The gallery endpoint
 supplies pass source without the execution settings needed to import auxiliary passes faithfully.
 
+ShaderToy uses the authenticated Shadertoy.com API. The panel submits the app key to the desktop
+plugin for the current process. The plugin can also read `MAPGYVER_SHADERTOY_API_KEY` at startup.
+Only the provider receives the key. Projects contain the original render passes, shader author,
+source link and applicable terms link. The import uses the existing ShaderToy Image, Common and
+Buffer execution path. Users can bind any required Media textures in the Shader Editor.
+
 Channels are stable **concurrent output variants** within each media's Channels section.
 They are hidden from the Medias outliner and its creation actions, while remaining real
 typed editable nodes. Persisted media folders organize the actual document. Shared media settings

@@ -9,7 +9,10 @@
 		beginShaderDrag,
 		browseFragCoord,
 		browseIsf,
+		browseShaderToy,
 		endShaderDrag,
+		setShaderToyKey,
+		shaderToyKeyConfigured,
 		type OnlineShaderSource
 	} from './library';
 
@@ -23,19 +26,29 @@
 	let isfRequested = false;
 	let isfPending = $state(false);
 	let isfError = $state('');
-	let fragEntries = $state.raw<ShaderLibraryEntry[]>([]);
-	let fragPending = $state(false);
-	let fragError = $state('');
+	let remoteEntries = $state.raw<ShaderLibraryEntry[]>([]);
+	let remotePending = $state(false);
+	let remoteError = $state('');
 	let offset = $state(0);
 	let nextOffset = $state<number | null>(null);
 	let revision = $state(0);
-	const fragcoord = $derived(source === 'fragcoord');
-	const catalogName = $derived(fragcoord ? 'FragCoord' : 'ISF');
-	const pending = $derived(fragcoord ? fragPending : isfPending);
-	const error = $derived(fragcoord ? fragError : isfError);
+	let keyConfigured = $state<boolean | null>(null);
+	let editingKey = $state(false);
+	let storingKey = $state(false);
+	let keyError = $state('');
+	const shaderToy = $derived(source === 'shadertoy');
+	const paged = $derived(source === 'fragcoord' || shaderToy);
+	const libraryReady = $derived(
+		source !== 'local' && (!shaderToy || (keyConfigured && !editingKey))
+	);
+	const catalogName = $derived(
+		shaderToy ? 'ShaderToy' : source === 'fragcoord' ? 'FragCoord' : 'ISF'
+	);
+	const pending = $derived(paged ? remotePending : isfPending);
+	const error = $derived(paged ? remoteError : isfError);
 	const matches = $derived(
-		fragcoord
-			? fragEntries
+		paged
+			? remoteEntries
 			: isfEntries.filter(({ label }) => label.toLowerCase().includes(query.trim().toLowerCase()))
 	);
 
@@ -57,27 +70,46 @@
 	});
 
 	$effect(() => {
-		if (!desktop || !fragcoord) return;
+		if (!desktop || !shaderToy || keyConfigured !== null) return;
+		let current = true;
+		void shaderToyKeyConfigured().then(
+			(configured) => {
+				if (current) keyConfigured = configured;
+			},
+			(cause) => {
+				if (!current) return;
+				keyError = cause instanceof Error ? cause.message : String(cause);
+				keyConfigured = false;
+			}
+		);
+		return () => {
+			current = false;
+		};
+	});
+
+	$effect(() => {
+		if (!desktop || !paged || !libraryReady) return;
+		const browse = shaderToy ? browseShaderToy : browseFragCoord;
 		const search = query.trim();
 		const start = offset;
 		const request = revision;
 		let current = true;
-		if (start === 0) fragEntries = [];
-		fragPending = true;
-		fragError = '';
+		if (start === 0) remoteEntries = [];
+		remotePending = true;
+		remoteError = '';
 		nextOffset = null;
 		const timer = setTimeout(
 			async () => {
 				try {
-					const page = await browseFragCoord(search, start);
+					const page = await browse(search, start);
 					if (!current || revision !== request) return;
-					const seen = new Set(fragEntries.map(({ id }) => id));
-					fragEntries = [...fragEntries, ...page.entries.filter(({ id }) => !seen.has(id))];
+					const seen = new Set(remoteEntries.map(({ id }) => id));
+					remoteEntries = [...remoteEntries, ...page.entries.filter(({ id }) => !seen.has(id))];
 					nextOffset = page.next_offset;
 				} catch (cause) {
-					if (current) fragError = cause instanceof Error ? cause.message : String(cause);
+					if (current) remoteError = cause instanceof Error ? cause.message : String(cause);
 				} finally {
-					if (current) fragPending = false;
+					if (current) remotePending = false;
 				}
 			},
 			start === 0 ? 220 : 0
@@ -92,13 +124,36 @@
 		source = event.currentTarget.value as typeof source;
 		query = '';
 		offset = 0;
+		editingKey = false;
+		if (source === 'shadertoy') keyConfigured = null;
 	}
 
 	function refresh() {
-		if (fragcoord) {
+		if (paged) {
 			offset = 0;
 			revision += 1;
 		} else void loadIsf(true);
+	}
+
+	async function connect(event: SubmitEvent & { currentTarget: HTMLFormElement }) {
+		event.preventDefault();
+		const form = event.currentTarget;
+		const key = new FormData(form).get('key');
+		if (typeof key !== 'string' || !key.trim() || storingKey) return;
+		storingKey = true;
+		keyError = '';
+		try {
+			await setShaderToyKey(key);
+			form.reset();
+			keyConfigured = true;
+			editingKey = false;
+			offset = 0;
+			revision += 1;
+		} catch (cause) {
+			keyError = cause instanceof Error ? cause.message : String(cause);
+		} finally {
+			storingKey = false;
+		}
 	}
 </script>
 
@@ -108,8 +163,9 @@
 			<option value="local">Local</option>
 			<option value="isf" disabled={!desktop}>ISF (VIDVOX)</option>
 			<option value="fragcoord" disabled={!desktop}>FragCoord.XYZ</option>
+			<option value="shadertoy" disabled={!desktop}>ShaderToy</option>
 		</select>
-		{#if source !== 'local'}
+		{#if libraryReady}
 			<input
 				type="search"
 				aria-label="Search {catalogName} shaders"
@@ -122,6 +178,9 @@
 				label="Refresh {catalogName} catalog"
 				onclick={refresh}
 				disabled={pending} />
+			{#if shaderToy}
+				<button type="button" class="more" onclick={() => (editingKey = true)}>Change key</button>
+			{/if}
 		{/if}
 	</div>
 	<div class="local" hidden={source !== 'local'}>
@@ -131,7 +190,26 @@
 			fileSuffixes={SHADER_LIBRARY_SUFFIXES}
 			bind:this={explorer} />
 	</div>
-	{#if source !== 'local'}
+	{#if shaderToy && !libraryReady && keyConfigured !== null}
+		<form class="key-form" autocomplete="off" onsubmit={connect}>
+			<label for="{props.panelId}-shadertoy-key">ShaderToy app key</label>
+			<div class="key-actions">
+				<input
+					id="{props.panelId}-shadertoy-key"
+					name="key"
+					type="password"
+					maxlength="128"
+					required />
+				<button type="submit" class="more" disabled={storingKey}>Connect</button>
+				{#if editingKey}<button type="button" class="more" onclick={() => (editingKey = false)}
+						>Cancel</button
+					>{/if}
+			</div>
+			{#if keyError}<div role="status">{keyError}</div>{/if}
+		</form>
+	{/if}
+	{#if shaderToy}<div class="provider">Shadertoy.com API</div>{/if}
+	{#if libraryReady}
 		{#if pending}<div class="status" role="status">Loading {catalogName} catalog…</div>{/if}
 		{#if error}<div class="status" role="status">{error}</div>{/if}
 		{#if !pending && !error && !matches.length}<div class="status">No shaders found</div>{/if}
@@ -147,7 +225,7 @@
 					{entry.label}
 				</li>
 			{/each}
-			{#if fragcoord && nextOffset !== null}
+			{#if paged && nextOffset !== null}
 				<li class="more-row">
 					<button type="button" class="more" onclick={() => (offset = nextOffset ?? offset)}
 						>Load more</button>
@@ -183,6 +261,19 @@
 	}
 	input {
 		flex: 1;
+	}
+	.key-form {
+		display: grid;
+		gap: 0.3rem;
+		padding: 0.35rem 0.55rem;
+	}
+	.key-actions {
+		display: flex;
+		gap: 0.3rem;
+	}
+	.provider {
+		padding: 0.2rem 0.55rem;
+		font-size: 0.75rem;
 	}
 	.local,
 	.entries {

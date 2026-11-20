@@ -2,10 +2,10 @@
 
 - **Updated:** 20 November 2026.
 - **Overall plan acceptance:** `████████░░` **83% — 121/145 checks accepted, 8/19 phases complete**.
-- **Latest delivered:** Browse and drag licensed FragCoord.XYZ shaders. Windows verified paged search, embedded import, rendered output and reopen. [Checks](evidence/mapgyver-m18-fragcoord-library-2026-11-20.json)
+- **Latest delivered:** ShaderToy app-key browsing and drops passed the Windows API fixture. Live provider verification is pending. [Checks](evidence/mapgyver-m18-shadertoy-library-2026-11-20.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Add ShaderToy online browsing and import (M18/4).
+- **Next:** Inspector selection after creation (M18/5).
 
 ## Done — code and normal-use checks passed
 
@@ -92,11 +92,12 @@
 
 [Remaining feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi), in order.
 
-4. **Shader Media.** Add online Shader Library browsing and drops from ShaderToy.
 5. **Inspector selection.** Keep the Media inspected when adding a Channel, and inspect the Matrix Cell when adding Media to it.
 6. **Browser video previews.** Show live editor textures with Disabled, Auto, Forced Low Quality and Forced High Quality options.
 
 ## Pending qualification — in order
+
+- **ShaderToy Library (M18/4).** Search, buffered import, Undo/Redo and reopened output passed a local API fixture. Verify the live API with a valid app key when it is reachable. [Checks](evidence/mapgyver-m18-shadertoy-library-2026-11-20.json)
 
 1. **Extended Video formats — deferred:**
    - **DXV3 Normal:** both GPUs sustained 4K30 and retired all tracked resources. Intel meets visible deadlines and connected image age in one run. Minimized deadlines and full visible frame capture remain open. Minimized GPU p95 was 17.7 ms against the 12 ms target. [DXV checks](evidence/mapgyver-m10-dxv-2026-11-19.json)

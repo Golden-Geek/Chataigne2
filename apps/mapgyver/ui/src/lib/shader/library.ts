@@ -4,7 +4,7 @@ import type { LibraryShader } from '../media/generated/LibraryShader';
 import type { ShaderLibraryEntry } from '../media/generated/ShaderLibraryEntry';
 import type { ShaderLibraryPage } from '../media/generated/ShaderLibraryPage';
 
-export type OnlineShaderSource = 'isf' | 'fragcoord';
+export type OnlineShaderSource = 'isf' | 'fragcoord' | 'shadertoy';
 interface ShaderSelection {
 	source: OnlineShaderSource;
 	id: string;
@@ -18,6 +18,15 @@ export const browseIsf = (refresh: boolean) =>
 
 export const browseFragCoord = (query: string, offset: number) =>
 	invoke<ShaderLibraryPage>('plugin:mapgyver-shader-library|browse_fragcoord', { query, offset });
+
+export const browseShaderToy = (query: string, offset: number) =>
+	invoke<ShaderLibraryPage>('plugin:mapgyver-shader-library|browse_shadertoy', { query, offset });
+
+export const shaderToyKeyConfigured = () =>
+	invoke<boolean>('plugin:mapgyver-shader-library|shadertoy_key_configured');
+
+export const setShaderToyKey = (key: string) =>
+	invoke<void>('plugin:mapgyver-shader-library|set_shadertoy_key', { key });
 
 export const loadLibraryShader = ({ source, id }: ShaderSelection) =>
 	invoke<LibraryShader>(`plugin:mapgyver-shader-library|load_${source}`, { id });
