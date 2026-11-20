@@ -10,6 +10,8 @@
 		"desktop-host",
 		"mapgyver-shader-library:allow-browse-isf",
 		"mapgyver-shader-library:allow-load-isf",
+		"mapgyver-shader-library:allow-browse-fragcoord",
+		"mapgyver-shader-library:allow-load-fragcoord",
 		"core:default",
 		"core:window:allow-start-dragging",
 		"core:window:allow-minimize",

@@ -5,56 +5,122 @@
 	import refreshIcon from 'golden_ui/style/icons/reset.svg';
 	import { SHADER_LIBRARY_SUFFIXES } from '../media/generated/constants';
 	import type { ShaderLibraryEntry } from '../media/generated/ShaderLibraryEntry';
-	import { beginIsfDrag, browseIsf, endIsfDrag } from './library';
+	import {
+		beginShaderDrag,
+		browseFragCoord,
+		browseIsf,
+		endShaderDrag,
+		type OnlineShaderSource
+	} from './library';
 
 	let props: PanelProps = $props();
 	let explorer = $state<{ setPanelState(state: PanelState): void }>();
 	export const setPanelState = (state: PanelState) => explorer?.setPanelState(state);
 	const desktop = hasDesktopHost();
-	let source = $state<'local' | 'isf'>('local');
+	let source = $state<'local' | OnlineShaderSource>('local');
 	let query = $state('');
-	let entries = $state.raw<ShaderLibraryEntry[]>([]);
-	let requested = false;
-	let pending = $state(false);
-	let error = $state('');
+	let isfEntries = $state.raw<ShaderLibraryEntry[]>([]);
+	let isfRequested = false;
+	let isfPending = $state(false);
+	let isfError = $state('');
+	let fragEntries = $state.raw<ShaderLibraryEntry[]>([]);
+	let fragPending = $state(false);
+	let fragError = $state('');
+	let offset = $state(0);
+	let nextOffset = $state<number | null>(null);
+	let revision = $state(0);
+	const fragcoord = $derived(source === 'fragcoord');
+	const catalogName = $derived(fragcoord ? 'FragCoord' : 'ISF');
+	const pending = $derived(fragcoord ? fragPending : isfPending);
+	const error = $derived(fragcoord ? fragError : isfError);
 	const matches = $derived(
-		entries.filter(({ label }) => label.toLowerCase().includes(query.trim().toLowerCase()))
+		fragcoord
+			? fragEntries
+			: isfEntries.filter(({ label }) => label.toLowerCase().includes(query.trim().toLowerCase()))
 	);
 
-	async function load(refresh: boolean) {
-		requested = true;
-		pending = true;
-		error = '';
+	async function loadIsf(refresh: boolean) {
+		isfRequested = true;
+		isfPending = true;
+		isfError = '';
 		try {
-			entries = await browseIsf(refresh);
+			isfEntries = await browseIsf(refresh);
 		} catch (cause) {
-			error = cause instanceof Error ? cause.message : String(cause);
+			isfError = cause instanceof Error ? cause.message : String(cause);
 		} finally {
-			pending = false;
+			isfPending = false;
 		}
 	}
 
 	$effect(() => {
-		if (desktop && source === 'isf' && !requested) void load(false);
+		if (desktop && source === 'isf' && !isfRequested) void loadIsf(false);
 	});
+
+	$effect(() => {
+		if (!desktop || !fragcoord) return;
+		const search = query.trim();
+		const start = offset;
+		const request = revision;
+		let current = true;
+		if (start === 0) fragEntries = [];
+		fragPending = true;
+		fragError = '';
+		nextOffset = null;
+		const timer = setTimeout(
+			async () => {
+				try {
+					const page = await browseFragCoord(search, start);
+					if (!current || revision !== request) return;
+					const seen = new Set(fragEntries.map(({ id }) => id));
+					fragEntries = [...fragEntries, ...page.entries.filter(({ id }) => !seen.has(id))];
+					nextOffset = page.next_offset;
+				} catch (cause) {
+					if (current) fragError = cause instanceof Error ? cause.message : String(cause);
+				} finally {
+					if (current) fragPending = false;
+				}
+			},
+			start === 0 ? 220 : 0
+		);
+		return () => {
+			current = false;
+			clearTimeout(timer);
+		};
+	});
+
+	function selectSource(event: Event & { currentTarget: HTMLSelectElement }) {
+		source = event.currentTarget.value as typeof source;
+		query = '';
+		offset = 0;
+	}
+
+	function refresh() {
+		if (fragcoord) {
+			offset = 0;
+			revision += 1;
+		} else void loadIsf(true);
+	}
 </script>
 
 <section class="shader-library" aria-label="Shader Library">
 	<div class="toolbar">
-		<select aria-label="Shader library source" bind:value={source}>
+		<select aria-label="Shader library source" value={source} onchange={selectSource}>
 			<option value="local">Local</option>
 			<option value="isf" disabled={!desktop}>ISF (VIDVOX)</option>
+			<option value="fragcoord" disabled={!desktop}>FragCoord.XYZ</option>
 		</select>
-		{#if source === 'isf'}
+		{#if source !== 'local'}
 			<input
 				type="search"
-				aria-label="Search ISF shaders"
+				aria-label="Search {catalogName} shaders"
 				placeholder="Search shaders…"
+				maxlength="100"
+				oninput={() => (offset = 0)}
 				bind:value={query} />
 			<IconButton
 				icon={refreshIcon}
-				label="Refresh ISF catalog"
-				onclick={() => load(true)}
+				label="Refresh {catalogName} catalog"
+				onclick={refresh}
 				disabled={pending} />
 		{/if}
 	</div>
@@ -65,21 +131,28 @@
 			fileSuffixes={SHADER_LIBRARY_SUFFIXES}
 			bind:this={explorer} />
 	</div>
-	{#if source === 'isf'}
-		{#if pending}<div class="status" role="status">Loading ISF catalog…</div>{/if}
+	{#if source !== 'local'}
+		{#if pending}<div class="status" role="status">Loading {catalogName} catalog…</div>{/if}
 		{#if error}<div class="status" role="status">{error}</div>{/if}
 		{#if !pending && !error && !matches.length}<div class="status">No shaders found</div>{/if}
-		<ul class="entries" aria-label="ISF catalog">
+		<ul class="entries" aria-label="{catalogName} catalog">
 			{#each matches as entry (entry.id)}
 				<li
 					draggable="true"
-					ondragstart={(event) => beginIsfDrag(event, entry.id)}
-					ondragend={endIsfDrag}
+					ondragstart={(event) =>
+						source !== 'local' && beginShaderDrag(event, { source, id: entry.id })}
+					ondragend={endShaderDrag}
 					title="Drag into Medias to import {entry.label}">
 					<img src={shaderIcon} alt="" draggable="false" />
 					{entry.label}
 				</li>
 			{/each}
+			{#if fragcoord && nextOffset !== null}
+				<li class="more-row">
+					<button type="button" class="more" onclick={() => (offset = nextOffset ?? offset)}
+						>Load more</button>
+				</li>
+			{/if}
 		</ul>
 	{/if}
 </section>
@@ -132,6 +205,22 @@
 		user-select: none;
 	}
 	.entries li:hover {
+		background: var(--gc-control-hover-background, #ffffff18);
+	}
+	.entries .more-row {
+		cursor: default;
+		background: transparent;
+	}
+	.more {
+		padding: 0.2rem 0.35rem;
+		border: 0;
+		border-radius: 0.25rem;
+		background: transparent;
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+	}
+	.more:hover {
 		background: var(--gc-control-hover-background, #ffffff18);
 	}
 	.entries img {

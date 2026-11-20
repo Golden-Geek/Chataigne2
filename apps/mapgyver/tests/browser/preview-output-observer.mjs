@@ -80,8 +80,7 @@ export async function createPreviewOutputObserver(post, directory, page) {
 		});
 		return { screen, surface };
 	}
-	async function pixels(phase, expected, tolerance = 0, name = sender) {
-		assert(Number.isInteger(tolerance) && tolerance >= 0 && tolerance <= 2);
+	async function outputColors(phase, name) {
 		const actual = await observeNativeAdapter(page, hardware);
 		adapter ??= actual;
 		assert.equal(actual.key, adapter.key, 'shared-texture connection retains its exact GPU');
@@ -99,13 +98,17 @@ export async function createPreviewOutputObserver(post, directory, page) {
 			])
 		);
 		assert.deepEqual(image, { width: 96, height: 64, retired: true });
-		const colors = JSON.parse(
+		return JSON.parse(
 			await run('python', [
 				'-c',
 				'import json,sys; from PIL import Image; im=Image.open(sys.argv[1]).convert("RGBA"); print(json.dumps(sorted(set(im.getdata()))))',
 				path.join(target, 'pixels.png')
 			])
 		);
+	}
+	async function pixels(phase, expected, tolerance = 0, name = sender) {
+		assert(Number.isInteger(tolerance) && tolerance >= 0 && tolerance <= 2);
+		const colors = await outputColors(phase, name);
 		if (tolerance === 0) assert.deepEqual(colors, [expected], `${phase}: complete output pixels`);
 		else
 			assert(
@@ -187,6 +190,11 @@ export async function createPreviewOutputObserver(post, directory, page) {
 		},
 		observations,
 		observePixels: pixels,
+		async observePattern(phase, verify) {
+			const colors = await outputColors(phase, sender);
+			verify(colors);
+			observations.push({ phase, colorCount: colors.length, extent: [96, 64] });
+		},
 		finish,
 		async observe(phase, { first }) {
 			if (phase === 'first-grid') {

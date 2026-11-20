@@ -7,6 +7,7 @@ import { createPreviewOutputObserver } from './preview-output-observer.mjs';
 
 const output = path.resolve(process.argv[2] ?? 'target/mapgyver-file-explorer');
 const onlineIsf = process.argv.includes('--online-isf');
+const onlineFragCoord = process.argv.includes('--online-fragcoord');
 await mkdir(output, { recursive: true });
 const directory = await mkdtemp(path.join(output, 'run-'));
 const projectFolder = path.join(directory, 'Project');
@@ -69,7 +70,7 @@ const { page } = native;
 const errors = [];
 page.on('pageerror', (error) => errors.push(String(error)));
 const observations = [];
-let token, stage, failure, workbench, shaderObserver, isfCatalog;
+let token, stage, failure, workbench, shaderObserver, isfCatalog, fragCoordCatalog;
 
 async function post(route, body) {
 	const response = await fetch(native.base + route, {
@@ -292,10 +293,10 @@ try {
 	observations.push(
 		'The imported file remained linked on project reopen. Shader import is one Undo step'
 	);
+	const librarySource = library.getByRole('combobox', { name: 'Shader library source' });
 	if (onlineIsf) {
 		stage = 'browse and search the live VIDVOX ISF catalog';
 		const { folder } = await edit({ kind: 'CreateFolder', parent: null, label: 'Online shaders' });
-		const librarySource = library.getByRole('combobox', { name: 'Shader library source' });
 		await librarySource.selectOption('isf');
 		const catalog = library.getByRole('list', { name: 'ISF catalog' });
 		const solid = catalog.getByText('Solid Color', { exact: true });
@@ -352,6 +353,85 @@ try {
 		await library.getByRole('button', { name: 'Local shaders', exact: true }).waitFor();
 		isfCatalog = { listed, imported: media.label, mode: source.input.kind, folder, undoRedo: true };
 	}
+	if (onlineFragCoord) {
+		stage = 'browse, page and search the live FragCoord gallery';
+		await librarySource.selectOption('fragcoord');
+		const catalog = library.getByRole('list', { name: 'FragCoord catalog' });
+		const rows = catalog.locator('li[draggable]');
+		const more = catalog.getByRole('button', { name: 'Load more' });
+		await more.waitFor({ timeout: 30000 });
+		const firstPage = await rows.count();
+		assert(firstPage > 1);
+		await more.click();
+		const paged = await wait(
+			() => rows.count(),
+			(count) => count > firstPage,
+			15000
+		);
+		const search = library.getByRole('searchbox', { name: 'Search FragCoord shaders' });
+		await search.fill('q9fx31-no-fragcoord-match');
+		await library.getByText('No shaders found', { exact: true }).waitFor({ timeout: 15000 });
+		assert.equal(await rows.count(), 0);
+		await search.fill('Neon Ghosts');
+		const ghost = catalog.getByText('Neon Ghosts', { exact: true });
+		await ghost.waitFor({ timeout: 15000 });
+
+		stage = 'authorize only reusable source and drop a licensed FragCoord shader';
+		await assert.rejects(
+			page.evaluate(() =>
+				window.__TAURI_INTERNALS__.invoke('plugin:mapgyver-shader-library|load_fragcoord', {
+					id: 'gouyatcw'
+				})
+			),
+			/no reuse license/
+		);
+		await ghost.dragTo(medias, { targetPosition: { x: bounds.width / 2, y: bounds.height * 0.9 } });
+		const importedFragCoord = async () =>
+			(await edit({ kind: 'InspectManager' })).snapshot.media.find(
+				(media) => media.label === 'Neon Ghosts'
+			);
+		const media = await wait(importedFragCoord, Boolean, 15000);
+		const channel = media.channels[0];
+		const source = channel.definition.source;
+		assert.equal(media.media_kind, 'Shader');
+		assert.equal(source.format, 'FragCoord');
+		assert.equal(source.input.kind, 'Embedded');
+		assert.match(source.input.code, /https:\/\/fragcoord\.xyz\/s\/nn4e99ne by berzerkey_jo/);
+		assert.match(
+			source.input.code,
+			/CC-BY-4\.0 \(https:\/\/creativecommons\.org\/licenses\/by\/4\.0\/\)/
+		);
+		await intent({ kind: 'undo' });
+		assert.equal(await importedFragCoord(), undefined);
+		await intent({ kind: 'redo' });
+		assert.deepEqual((await importedFragCoord()).channels[0], channel);
+
+		stage = 'render FragCoord output before and after reopening';
+		await shaderObserver.demand(channel.reference, outputBinding);
+		const verify = (colors) => {
+			assert(colors.length > 16, `Expected a rendered pattern, got ${colors.length} colors`);
+			assert(
+				colors.every((rgba) => rgba[3] === 255),
+				'The shader specifies opaque output'
+			);
+		};
+		await delay(1000);
+		await shaderObserver.observePattern('online-fragcoord', verify);
+		assert((await post('/api/ui/project-save', { path: project })).ok);
+		await loadProject();
+		assert.deepEqual((await importedFragCoord()).channels[0], channel);
+		await delay(1000);
+		await shaderObserver.observePattern('reopened-online-fragcoord', verify);
+		assert(!appLog.includes('[mapgyver-output] window id='));
+		fragCoordCatalog = {
+			firstPage,
+			paged,
+			imported: media.label,
+			mode: source.input.kind,
+			undoRedo: true,
+			unlicensedRejected: true
+		};
+	}
 	assert.deepEqual(errors, []);
 } catch (error) {
 	failure = String(error.stack ?? error);
@@ -379,6 +459,7 @@ await writeFile(
 			shaderPixels: shaderObserver?.observations,
 			shaderAdapter: shaderObserver?.adapter,
 			isfCatalog,
+			fragCoordCatalog,
 			physicalWindowsOpened: appLog.split('[mapgyver-output] window id=').length - 1,
 			errors,
 			failure,

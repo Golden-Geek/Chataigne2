@@ -95,10 +95,13 @@ committed results as app intents; typed command-node authoring remains in M04/1'
 
 ## Media, channels and Reference ownership
 
-The Shader Library uses Golden's File Explorer for local shader files. Its ISF catalog uses
-an app-owned desktop plugin for browsing VIDVOX's public collection and downloading immutable
-shader blobs. Downloads run outside the engine. Dropping a result on Medias or a folder sends
-one Media edit to create a Shader Channel with embedded source, provenance and license text.
+The Shader Library uses Golden's File Explorer for local shader files. An app-owned desktop
+plugin browses VIDVOX's public ISF collection and the FragCoord public gallery. The plugin
+downloads selected source outside the engine. Dropping a result on Medias or a folder creates
+an embedded Shader Channel with its provenance and license in one Media edit. FragCoord imports
+require published source and a reuse license. Golden Video runs the imported GLSL Main and
+Common code with FragCoord's frame uniforms and lower-left coordinates. The gallery endpoint
+supplies pass source without the execution settings needed to import auxiliary passes faithfully.
 
 Channels are stable **concurrent output variants** within each media's Channels section.
 They are hidden from the Medias outliner and its creation actions, while remaining real

@@ -13,7 +13,7 @@
 	import MediaTreeActions from './MediaTreeActions.svelte';
 	import { invokeMediaEdit } from './operations';
 	import { mediaFileDrop } from './file-drop';
-	import { loadIsf, matchesIsfDrag, readIsfDrop } from '../shader/library';
+	import { loadLibraryShader, matchesShaderDrag, readShaderDrop } from '../shader/library';
 	let props: PanelProps = $props();
 	let area: HTMLElement | undefined = $state();
 	export const setPanelState = (_next: PanelState) => {};
@@ -73,9 +73,9 @@
 			label: folder ? `Import into ${folder.meta.label}` : 'Import Shader',
 			action: 'add',
 			async drop(event, signal) {
-				const id = readIsfDrop(event);
-				if (!id) return;
-				const shader = await loadIsf(id);
+				const selection = readShaderDrop(event);
+				if (!selection) return;
+				const shader = await loadLibraryShader(selection);
 				if (
 					signal.aborted ||
 					appState.session !== session ||
@@ -93,7 +93,7 @@
 			}
 		};
 	}
-	const shaderDrop = { matches: matchesIsfDrag, resolve: shaderDestination };
+	const shaderDrop = { matches: matchesShaderDrag, resolve: shaderDestination };
 </script>
 
 <section

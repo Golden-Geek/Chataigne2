@@ -1,0 +1,28 @@
+{
+	"result": "pass",
+	"scope": "FragCoord.XYZ public gallery and licensed Main/Common GLSL import in the bundled Windows app.",
+	"provider": "https://fragcoord.xyz/llms-full.txt",
+	"catalog": {
+		"firstPage": 25,
+		"afterLoadMore": 50,
+		"search": "No-match and exact-title queries passed without an account",
+		"unlicensedSourceRejected": true
+	},
+	"import": {
+		"shader": "Neon Ghosts",
+		"source": "https://fragcoord.xyz/s/nn4e99ne",
+		"license": "CC-BY-4.0",
+		"mode": "Embedded with author, source URL and license",
+		"history": "One Undo removed the import. Redo and reopen restored the same shader channel and source."
+	},
+	"windows": {
+		"adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+		"rendered": "Independent 96x64 Spout frames showed 2,536 and 2,941 unique opaque colors after import and reopen",
+		"localAndIsfRegression": "Six exact local or online ISF Spout checkpoints passed",
+		"physicalWindowsOpened": 0,
+		"pageErrors": 0,
+		"receipt": "target/m18-fragcoord-library-native/run-IAZMFo/result.json"
+	},
+	"software": "Eleven shader tests, generated TypeScript contract, strict app and Golden Video library Clippy, Svelte, Prettier and bundled Windows build passed",
+	"remaining": "ShaderToy online browsing and import remain in M18/4. FragCoord auxiliary passes and other languages are outside the supported import subset."
+}

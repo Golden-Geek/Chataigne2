@@ -13,6 +13,33 @@ fn translates_glsl_with_pixel_coordinates_and_frame_input_to_d3d11() {
 }
 
 #[test]
+fn fragcoord_preserves_both_entrypoints_and_separates_clock_from_custom_controls() {
+    let common = r#"
+uniform vec2 u_resolution;
+uniform float u_time, u_time_delta, u_refresh_rate;
+uniform int u_frame;
+uniform float u_level; //0.5 [0, 1]
+vec4 shade(vec2 pixel) {
+    return vec4(pixel / u_resolution, mod(u_time + u_time_delta + u_refresh_rate + float(u_frame), 1.0), u_level);
+}
+"#;
+    for entry in [
+        "void main() { fragColor = shade(gl_FragCoord.xy); }",
+        "void mainImage(out vec4 fragColor, in vec2 fragCoord) { fragColor = shade(fragCoord); }",
+    ] {
+        let source = format!("{common}\n{entry}");
+        let effect = FragmentEffect::compile(FragmentFormat::FragCoord, &source).unwrap();
+        assert_eq!(effect.uniform_layout().len(), 1);
+        assert_eq!(effect.uniform_layout()[0].name, "u_level");
+        assert_eq!(effect.uniform_layout()[0].default, super::UniformValue::Float(0.5));
+        assert_eq!(
+            FragmentEffect::inspect_uniforms(FragmentFormat::FragCoord, &source).unwrap(),
+            effect.uniform_layout().as_ref()
+        );
+    }
+}
+
+#[test]
 fn glsl_declarations_use_active_tokens_defaults_and_fragcoord_bounds() {
     use super::UniformValue;
 

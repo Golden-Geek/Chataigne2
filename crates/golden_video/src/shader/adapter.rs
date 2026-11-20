@@ -77,6 +77,22 @@ const SHADERTOY: &str = r#"
 #define iFrame (goldenFrame.indices.x)
 "#;
 
+const FRAGCOORD: &str = r#"
+#define iResolution (goldenFrame.sizeAndTime.xyz)
+#define iTime (goldenFrame.sizeAndTime.w)
+#define u_resolution (goldenFrame.sizeAndTime.xy)
+#define u_time (goldenFrame.sizeAndTime.w)
+#define u_time_delta (goldenFrame.timing.x)
+#define u_refresh_rate (goldenFrame.timing.y)
+#define u_frame (goldenFrame.indices.x)
+#define u_mouse vec4(0.0, 0.0, -1.0, -1.0)
+#define u_drag vec2(0.0)
+#define u_scroll 0.0
+#define u_color_gamut 0
+#define fragColor goldenOutput
+#define main goldenUserMain
+"#;
+
 const CHANNEL_RESOLUTION: &str = r#"
 vec3 iChannelResolution[4];
 vec3 goldenChannelResolution(texture2D source) {
@@ -155,13 +171,13 @@ fn textures(format: FragmentFormat, shadertoy: &ShaderToyBuffers) -> String {
     }
     let coords = match format {
         FragmentFormat::Glsl => "uv",
-        FragmentFormat::ShaderToy | FragmentFormat::Isf => "vec2(uv.x, 1.0 - uv.y)",
+        FragmentFormat::ShaderToy | FragmentFormat::Isf | FragmentFormat::FragCoord => "vec2(uv.x, 1.0 - uv.y)",
     };
     writeln!(source, "vec2 goldenTextureCoordinates(vec2 uv) {{ return {coords}; }}").unwrap();
     source.push_str(SAMPLE_TEXTURE);
     if format == FragmentFormat::Isf {
         source.push_str(ISF_IMAGES);
-    } else if format == FragmentFormat::ShaderToy {
+    } else if matches!(format, FragmentFormat::ShaderToy | FragmentFormat::FragCoord) {
         source.push_str(SHADERTOY_TEXELS);
     }
     source
@@ -200,6 +216,18 @@ pub(super) fn fragment_source_with_buffers(
             vec![],
             "mainImage(goldenOutput, gl_FragCoord.xy);",
         ),
+        FragmentFormat::FragCoord => (
+            source,
+            FRAGCOORD,
+            String::new(),
+            vec![Stage::default()],
+            vec![],
+            if declarations::uses_main_image(source) {
+                "mainImage(goldenOutput, gl_FragCoord.xy);"
+            } else {
+                "goldenUserMain();"
+            },
+        ),
         FragmentFormat::Isf => {
             let isf::IsfSource {
                 body,
@@ -212,7 +240,7 @@ pub(super) fn fragment_source_with_buffers(
     };
     let coordinates = match format {
         FragmentFormat::Glsl => "",
-        FragmentFormat::ShaderToy | FragmentFormat::Isf => BOTTOM_LEFT,
+        FragmentFormat::ShaderToy | FragmentFormat::Isf | FragmentFormat::FragCoord => BOTTOM_LEFT,
     };
     let textures = textures(format, &shadertoy);
     let source = without_version(source);
@@ -227,7 +255,7 @@ pub(super) fn fragment_source_with_buffers(
     };
     let (source, uniforms) = match format {
         FragmentFormat::Isf => (Cow::Borrowed(source), uniforms),
-        FragmentFormat::Glsl | FragmentFormat::ShaderToy => {
+        FragmentFormat::Glsl | FragmentFormat::ShaderToy | FragmentFormat::FragCoord => {
             let declared = declarations::parse(format, source)?;
             (declared.body(source), declared.uniforms)
         }
@@ -257,7 +285,7 @@ pub(super) fn inspect_uniforms(format: FragmentFormat, source: &str) -> Result<V
                 .collect::<Result<Vec<_>, _>>()?;
             declarations::merge_uniforms(fields.iter().flatten())
         }
-        FragmentFormat::Glsl | FragmentFormat::ShaderToy => {
+        FragmentFormat::Glsl | FragmentFormat::ShaderToy | FragmentFormat::FragCoord => {
             Ok(declarations::parse(format, without_version(source))?.uniforms)
         }
     }

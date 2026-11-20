@@ -214,6 +214,12 @@ pub struct ShaderLibraryEntry {
     pub label: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, TS)]
+pub struct ShaderLibraryPage {
+    pub entries: Vec<ShaderLibraryEntry>,
+    pub next_offset: Option<u32>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct LibraryShader {
@@ -758,7 +764,7 @@ pub fn export_typescript(directory: impl AsRef<std::path::Path>) -> Result<(), B
     let config = Config::default().with_out_dir(directory).with_large_int("number");
     MediaEdit::export_all(&config)?;
     MediaEditResult::export_all(&config)?;
-    ShaderLibraryEntry::export_all(&config)?;
+    ShaderLibraryPage::export_all(&config)?;
     let fields = super::commands::MediaCommandKind::ALL
         .iter()
         .map(|kind| (kind.key(), kind.fields()))

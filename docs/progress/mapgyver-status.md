@@ -2,10 +2,10 @@
 
 - **Updated:** 20 November 2026.
 - **Overall plan acceptance:** `████████░░` **83% — 121/145 checks accepted, 8/19 phases complete**.
-- **Latest delivered:** Browse and drag ISF shaders from VIDVOX's online catalog. Windows verified the embedded import, rendered output and reopen. [Checks](evidence/mapgyver-m18-online-isf-library-2026-11-20.json)
+- **Latest delivered:** Browse and drag licensed FragCoord.XYZ shaders. Windows verified paged search, embedded import, rendered output and reopen. [Checks](evidence/mapgyver-m18-fragcoord-library-2026-11-20.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Add FragCoord.XYZ and ShaderToy to the Shader Library (M18/4).
+- **Next:** Add ShaderToy online browsing and import (M18/4).
 
 ## Done — code and normal-use checks passed
 
@@ -29,6 +29,7 @@
 - [x] **File-mode uniforms:** The open controls follow external shader replacements. Matching values survive the change and project reopen. [Checks](evidence/mapgyver-m18-file-uniforms-2026-11-20.json)
 - [x] **Local Shader Library:** Browse and drop GLSL, ISF and ShaderToy files. Windows verified rendered output, Undo/Redo and project reopen. [Checks](evidence/mapgyver-m18-local-shader-library-2026-11-20.json)
 - [x] **Online ISF Library:** Search VIDVOX's catalog and drag shaders into Medias or a folder as embedded code. Windows verified Undo/Redo, output and reopen. [Checks](evidence/mapgyver-m18-online-isf-library-2026-11-20.json)
+- [x] **FragCoord.XYZ:** Browse and import licensed GLSL Main and Common source with attribution. Windows verified Undo/Redo, output and reopen. [Checks](evidence/mapgyver-m18-fragcoord-library-2026-11-20.json)
 - [x] **Initial document/editors:** startup and New create and immediately show the automatic Screen and Surface. Hidden/reopened panels, saved targets/locks, reload and empty projects pass; no extra Undo steps.
 - [x] **Surface Editor display:** related Surfaces across Screens/References, independent toggles/locks, bounded paging, selection/Inspector and Undo/reload. ColorBars/Grid work without a source and obey its crop in Screen Warping/output mapping. Native patterns/contours, cropped ColorBars/Grid, mixed pattern/channel panels and70-Surface toolbar paging pass.
 - [x] **Surface-handle links:** same-Screen snapping/link/unlink, supplied colored/grey magnet and live updates of all peers. Five native drag/link/Undo cycles, three-member groups, held-pointer GPU images and foreground image/control alignment pass.
@@ -91,7 +92,7 @@
 
 [Remaining feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi), in order.
 
-4. **Shader Media.** Add online Shader Library browsing and drops from FragCoord.XYZ and ShaderToy.
+4. **Shader Media.** Add online Shader Library browsing and drops from ShaderToy.
 5. **Inspector selection.** Keep the Media inspected when adding a Channel, and inspect the Matrix Cell when adding Media to it.
 6. **Browser video previews.** Show live editor textures with Disabled, Auto, Forced Low Quality and Forced High Quality options.
 

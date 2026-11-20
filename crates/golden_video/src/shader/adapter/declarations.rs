@@ -172,6 +172,10 @@ fn declaration(
 
 fn host_uniform(format: FragmentFormat, name: &str) -> Option<(&'static str, Option<u64>)> {
     match (format, name) {
+        (FragmentFormat::FragCoord, "u_resolution" | "u_drag") => Some(("vec2", None)),
+        (FragmentFormat::FragCoord, "u_time" | "u_time_delta" | "u_refresh_rate" | "u_scroll") => Some(("float", None)),
+        (FragmentFormat::FragCoord, "u_frame" | "u_color_gamut") => Some(("int", None)),
+        (FragmentFormat::FragCoord, "u_mouse") => Some(("vec4", None)),
         (_, "iResolution") => Some(("vec3", None)),
         (_, "iTime") | (FragmentFormat::ShaderToy, "iTimeDelta" | "iFrameRate") => Some(("float", None)),
         (FragmentFormat::ShaderToy, "iFrame") => Some(("int", None)),
@@ -179,6 +183,18 @@ fn host_uniform(format: FragmentFormat, name: &str) -> Option<(&'static str, Opt
         (_, "iChannel0" | "iChannel1" | "iChannel2" | "iChannel3") => Some(("sampler2D", None)),
         _ => None,
     }
+}
+
+pub(super) fn uses_main_image(source: &str) -> bool {
+    let mut previous = false;
+    for token in Preprocessor::new(source).take(MAX_TOKENS).map_while(Result::ok) {
+        let name = ident(&token);
+        if previous && matches!(name, Some("main" | "mainImage")) {
+            return name == Some("mainImage");
+        }
+        previous = name == Some("void");
+    }
+    false
 }
 
 fn has_extent(tokens: &[Token], extent: Option<u64>) -> bool {

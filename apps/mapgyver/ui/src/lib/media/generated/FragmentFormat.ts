@@ -3,4 +3,4 @@
 /**
  * Source dialect for a GPU fragment program.
  */
-export type FragmentFormat = "GLSL" | "ShaderToy" | "ISF";
+export type FragmentFormat = "GLSL" | "ShaderToy" | "ISF" | "FragCoord";

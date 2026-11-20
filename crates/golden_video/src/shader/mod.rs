@@ -27,11 +27,13 @@ pub enum FragmentFormat {
     /// Interactive Shader Format with JSON metadata and a fragment `main`.
     #[serde(rename = "ISF")]
     Isf,
+    /// FragCoord GLSL with its clock and lower-left coordinate system.
+    FragCoord,
 }
 
 impl FragmentFormat {
     /// All supported source dialects in presentation order.
-    pub const ALL: [Self; 3] = [Self::Glsl, Self::ShaderToy, Self::Isf];
+    pub const ALL: [Self; 4] = [Self::Glsl, Self::ShaderToy, Self::Isf, Self::FragCoord];
 
     /// Exact name used by authored format selectors.
     pub const fn name(self) -> &'static str {
@@ -39,6 +41,7 @@ impl FragmentFormat {
             Self::Glsl => "GLSL",
             Self::ShaderToy => "ShaderToy",
             Self::Isf => "ISF",
+            Self::FragCoord => "FragCoord",
         }
     }
 
