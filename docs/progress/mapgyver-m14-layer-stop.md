@@ -42,8 +42,40 @@ loop is introduced. Caller paths use the same typed Stop Parameter.
   [receipt](evidence/mapgyver-m14-layer-stop-2026-11-17.json) records tested scope,
   executable hashes, adapter samples and remaining acceptance.
 
-This is feature delivery, not complete M14/10 qualification. Full timed-alpha envelopes,
-all override/caller native combinations, process and final-GPU-use retirement qualification
-and deletion/project/shared-consumer cases remain required before acceptance. The gate is
-Pending in the second-pass queue; M14/8 is the next feature. Prior recovery/performance
-debt remains parked. No acceptance item is awarded by this milestone.
+The initial feature delivery left timed native envelopes and shared process retirement for
+the second pass. Prior recovery and performance work remains in the plan's return queue.
+
+## Second-pass verification, 2026-11-20
+
+- The current scoped app tests passed all 15 cases. Four current Matrix software
+  integration tests passed, including unchanged request and caller behavior.
+- The native fixture sampled the production compositor at controlled shared-clock times.
+  Transport and script Stop both passed default, dormant override, Column override,
+  Cell override and zero-duration cases. It also verified an interrupted two-source
+  mix, reactivation before the old deadline and unchanged peer pixels.
+- Both adapters passed 222 complete images (170,496 texels) across two independent
+  Shared Texture outputs and the production preview. All samples stayed within the
+  existing conversion bounds. The run completed in 39.58 seconds with physical output
+  windows closed. Receipts: `target/mapgyver-m14-10-envelope-preflight-163616.log` and
+  `target/mapgyver-m14-10-native-envelope-164116.log`.
+- The controlled-completion process fixture and strict lint passed. Holding the submitted
+  plan kept the shared process alive after logical demand ended, and completion released it.
+  Receipts: `target/mapgyver-m14-10-process-preflight-164413.log` and
+  `target/mapgyver-m14-10-strict-164838.log`.
+- The shared-process test initially sampled alpha 171 at a nominal halfway point because
+  the stepped renderer clock and the application deadline's elapsed wall time differed.
+  The corrected lifecycle test uses the advancing renderer clock and waits for outgoing
+  demand to expire. The controlled-time pixel assertions still measure the exact fade curves.
+  Failed attempt: `target/mapgyver-m14-10-native-final-165024.log`.
+- Intel and NVIDIA verified that the owned process stayed alive during the fade and while
+  the peer remained active. Stop All withdrew the last output and retired the process.
+  Both renderers returned to zero live plans, sources and outputs. The combined run passed
+  240 complete images (184,320 texels) with zero samples outside the oracle in 41.69 seconds.
+  It used two independent Spout outputs and the production preview with physical display
+  windows closed. The corrected software preflight, strict Clippy and both formatters passed.
+  Receipts: `target/mapgyver-m14-10-clock-preflight-165853.log`,
+  `target/mapgyver-m14-10-clock-strict-170322.log` and
+  `target/mapgyver-m14-10-native-clock-170433.log`.
+
+M14/10 is Accepted. The bundled app and caller checks, both-GPU timed pixels, and held
+completion/process lifetime checks cover the Layer Stop contract.

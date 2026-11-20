@@ -26,6 +26,8 @@ mod cell_sizing;
 mod cell_transfers;
 mod layer_geometry;
 #[cfg(feature = "application-process-fixture")]
+mod layer_stop;
+#[cfg(feature = "application-process-fixture")]
 mod scoped_stops;
 mod spatial_acceptance;
 mod surface_targeting;

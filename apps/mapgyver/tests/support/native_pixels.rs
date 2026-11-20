@@ -1,5 +1,6 @@
 use super::raster as oracle;
 use golden_io::PayloadPool;
+use golden_time::{Clock, MonotonicTime, PlaybackRate, ShowPosition, TimeError};
 use golden_video::Extent2D;
 use golden_video::native::{AdapterId, D3d11Config, InputLimits, OutputBinding, SpoutProbe};
 use golden_video::plan::PlanLimits;
@@ -14,9 +15,21 @@ use mapgyver::media::{
 use mapgyver::preview::protocol::PreviewSource;
 use mapgyver::{app::AppEngine, media::protocol::ChannelReference};
 use std::num::NonZeroUsize;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering},
+};
 use std::time::{Duration, Instant};
 
 const WAIT: Duration = Duration::from_secs(8);
+
+struct SteppedClock(AtomicU64);
+
+impl Clock for SteppedClock {
+    fn now(&self) -> Result<MonotonicTime, TimeError> {
+        Ok(MonotonicTime::from_nanos(self.0.load(Ordering::Acquire) * 1_000_000))
+    }
+}
 
 pub struct Fixture {
     renderer: Option<ChannelRenderer>,
@@ -28,6 +41,7 @@ pub struct Fixture {
     session: uuid::Uuid,
     revision: u32,
     canvas: Option<(CssRect, [u8; 4])>,
+    clock: Option<Arc<SteppedClock>>,
     pub extent: Extent2D,
 }
 
@@ -36,14 +50,23 @@ impl Fixture {
         Self::with_outputs(adapter, 2)
     }
     pub fn with_outputs(adapter: AdapterId, routes: usize) -> Self {
-        Self::with_dimension(adapter, routes, 4096, 16)
+        Self::with_dimension(adapter, routes, 4096, 16, None)
     }
     pub fn with_raster_dimension(adapter: AdapterId, dimension: u32) -> Self {
         // Tiled 4× plus the complete production preview uses nineteen passes.
         // Match production's existing cap; keep all older fixture limits unchanged.
-        Self::with_dimension(adapter, 2, dimension, 24)
+        Self::with_dimension(adapter, 2, dimension, 24, None)
     }
-    fn with_dimension(adapter: AdapterId, routes: usize, dimension: u32, max_passes: usize) -> Self {
+    pub fn with_stepped_clock(adapter: AdapterId) -> Self {
+        Self::with_dimension(adapter, 2, 4096, 16, Some(Arc::new(SteppedClock(AtomicU64::new(0)))))
+    }
+    fn with_dimension(
+        adapter: AdapterId,
+        routes: usize,
+        dimension: u32,
+        max_passes: usize,
+        clock: Option<Arc<SteppedClock>>,
+    ) -> Self {
         let extent = Extent2D::new(32, 24).unwrap();
         let names = (0..=routes)
             .map(|i| format!("MapGyverRaster-{}-{i}", uuid::Uuid::new_v4()))
@@ -56,7 +79,7 @@ impl Fixture {
             max_texture_dimension: dimension,
             max_texture_bytes: 64 * 1024 * 1024,
         };
-        let runtime = VideoRuntime::spawn_d3d11(
+        let mut runtime = VideoRuntime::spawn_d3d11(
             RuntimeConfig {
                 plan_limits: limits,
                 resource_limits: ResourceLimits {
@@ -93,6 +116,22 @@ impl Fixture {
             },
         )
         .unwrap();
+        if let Some(clock) = &clock {
+            let request = runtime
+                .replace_clock(clock.clone(), ShowPosition::from_nanos(0), PlaybackRate::NORMAL)
+                .unwrap();
+            let deadline = Instant::now() + WAIT;
+            loop {
+                let mut outcomes = Vec::new();
+                runtime.drain_outcomes(&mut outcomes, NonZeroUsize::new(16).unwrap());
+                if let Some(outcome) = outcomes.iter().find(|outcome| outcome.request == request) {
+                    assert!(matches!(outcome.result, OutcomeKind::TimeChanged(_)), "{outcome:?}");
+                    break;
+                }
+                assert!(Instant::now() < deadline, "stepped raster clock installation timeout");
+                std::thread::sleep(Duration::from_millis(5));
+            }
+        }
         let renderer = ChannelRenderer::new(runtime, limits);
         let deadline = Instant::now() + WAIT;
         while renderer.snapshot().resources.is_none() {
@@ -126,6 +165,7 @@ impl Fixture {
             session,
             revision: 0,
             canvas: None,
+            clock,
             extent,
         }
     }
@@ -157,6 +197,37 @@ impl Fixture {
     }
     pub fn sender(&self, index: usize) -> &str {
         &self.names[index]
+    }
+
+    pub fn time_ms(&self) -> u64 {
+        self.clock.as_ref().unwrap().0.load(Ordering::Acquire)
+    }
+
+    /// Hold the production compositor on one observed sample until every output accepts it.
+    pub fn sample_at(&self, millis: u64) {
+        assert!(millis >= self.time_ms());
+        self.clock.as_ref().unwrap().0.store(millis, Ordering::Release);
+        let live = self.renderer.as_ref().unwrap();
+        let deadline = Instant::now() + WAIT;
+        loop {
+            if let Some(frame) = live.snapshot().last_frame
+                && frame.time.monotonic().as_nanos() == millis * 1_000_000
+            {
+                let outputs = live.native_control().unwrap().output_snapshots();
+                if outputs.len() == self.names.len()
+                    && outputs
+                        .iter()
+                        .all(|output| output.last_accepted == Some(frame.completion))
+                {
+                    break;
+                }
+            }
+            assert!(
+                Instant::now() < deadline,
+                "native sample at {millis} ms was not accepted"
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
     }
     pub fn set_canvas(&mut self, content: CssRect, background: [u8; 4]) {
         self.canvas = Some((content, background));
@@ -278,6 +349,7 @@ impl Fixture {
         let deadline = Instant::now() + WAIT;
         let mut installed = None;
         let mut first_frame = None;
+        let mut next_tick = Instant::now() + Duration::from_millis(75);
         loop {
             live.refresh().unwrap();
             let latest = live.latest_request().unwrap();
@@ -324,6 +396,12 @@ impl Fixture {
                 "Composition publication timeout: {:?}",
                 live.channels()
             );
+            if let Some(clock) = &self.clock
+                && Instant::now() >= next_tick
+            {
+                clock.0.fetch_add(17, Ordering::Release);
+                next_tick = Instant::now() + Duration::from_millis(75);
+            }
             std::thread::sleep(Duration::from_millis(5));
         }
         let actual = live.native_control().unwrap().snapshot();

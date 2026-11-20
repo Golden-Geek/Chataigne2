@@ -63,6 +63,23 @@ fn edit(engine: &mut AppEngine, operation: MediaEdit) -> MediaEditResult {
     serde_json::from_value(ack.result.unwrap().value).unwrap()
 }
 impl Scene {
+    pub fn with_owned_process() -> Self {
+        use mapgyver::applications::protocol::{ApplicationRestart, ApplicationStop};
+
+        Self::new(Some(ApplicationDefinition {
+            executable: Some(env!("CARGO_BIN_EXE_application_process_fixture").into()),
+            stop: ApplicationStop {
+                graceful_ms: 30,
+                retirement_ms: 1000,
+            },
+            restart: ApplicationRestart {
+                enabled: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        }))
+    }
+
     pub fn new(application: Option<ApplicationDefinition>) -> Self {
         let mut engine = create_new_project_engine::<AppNode>().unwrap();
         engine.apply_edits().unwrap();
@@ -291,6 +308,10 @@ impl Scene {
         }
     }
     pub fn parameter(&self, scope: Scope) -> NodeId {
+        let field = if scope == Scope::All { "stop_all" } else { "stop" };
+        self.parameter_field(scope, field)
+    }
+    pub fn parameter_field(&self, scope: Scope, field: &str) -> NodeId {
         let owner = self.engine.node_id_by_uuid(self.owner(scope)).unwrap();
         let folder = self
             .engine
@@ -299,11 +320,7 @@ impl Scene {
             .find(|(_, node)| node.node_data().parent == Some(owner) && node.node_data().meta.decl_id.0 == "parameters")
             .unwrap()
             .0;
-        let field = if scope == Scope::All {
-            "parameters/stop_all"
-        } else {
-            "parameters/stop"
-        };
+        let field = format!("parameters/{field}");
         self.engine
             .nodes
             .iter()

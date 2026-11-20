@@ -2,6 +2,7 @@ use super::*;
 mod cell_launch;
 mod cell_transfers;
 mod column_groups;
+mod layer_stop;
 mod scoped_stops;
 mod sharing;
 
