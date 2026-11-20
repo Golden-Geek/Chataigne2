@@ -4,7 +4,7 @@ use std::rc::{Rc, Weak};
 use windows::Win32::Graphics::Direct3D11::ID3D11Device;
 use windows::core::Result;
 
-use crate::plan::{CompiledPlan, ExternalSource, RenderOperation};
+use crate::plan::{CompiledPlan, ExternalSource, RenderOperation, RenderPass};
 use crate::runtime::ProjectEpoch;
 use crate::shader::FragmentProgram;
 use crate::{OutputId, PassId, TextureDescriptor, TextureId};
@@ -59,7 +59,7 @@ enum Role {
     External(TextureId),
     Pass(crate::runtime::ProjectEpoch, TextureId),
     History(HistoryKey, bool),
-    Scratch(PassId),
+    Scratch,
     Output(OutputId),
 }
 
@@ -171,6 +171,10 @@ impl TextureCache {
         self.history.insert(key, Rc::downgrade(&entry));
         Ok(entry)
     }
+}
+
+pub(super) fn composite_scratch(pass: &RenderPass) -> Option<TextureDescriptor> {
+    matches!(&pass.operation, RenderOperation::Composite { layers } if layers.len() > 1).then_some(pass.descriptor)
 }
 
 pub(super) fn prepare(
@@ -302,11 +306,12 @@ pub(super) fn prepare(
             )?
         };
         resources.textures.insert(pass.output, target);
-        if matches!(&pass.operation, RenderOperation::Composite { layers } if layers.len() > 1) {
-            resources.scratch.insert(
-                pass.id,
-                cache.mutable(Role::Scratch(pass.id), pass.descriptor, device, counts)?,
-            );
+        if let Some(descriptor) = composite_scratch(pass) {
+            // Scratch is assigned and consumed within one ordered composite pass. It is
+            // never a graph output, so compatible passes can share its device-local storage.
+            resources
+                .scratch
+                .insert(pass.id, cache.mutable(Role::Scratch, descriptor, device, counts)?);
         }
         if let RenderOperation::Shader { program, clock, .. } = &pass.operation {
             let shader = native

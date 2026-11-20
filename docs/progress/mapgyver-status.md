@@ -2,10 +2,10 @@
 
 - **Updated:** 20 November 2026.
 - **Overall plan acceptance:** `█████████░` **89% — 129/145 checks accepted, 9/19 phases complete**.
-- **Latest verified:** NDI kept publishing with the selected audio device missing. New withdrew both senders and reopening restored them in the same process. [Checks](evidence/mapgyver-m17-ndi-screen-audio-2026-11-19.json)
+- **Latest verified:** 4K 4× anti-aliasing fits the existing 1 GiB Screen cap. Intel and NVIDIA passed pixel, memory pressure and cleanup checks. [Checks](mapgyver-m14-antialiasing.md#4k-scratch-allocation--2026-11-20)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Verify 4× anti-aliasing resource limits and sustained Shared Texture output (M14/8). Independent LAN NDI and clean Windows installation remain open.
+- **Next:** Measure sustained 1080p and 4K Shared Texture timing on Intel and NVIDIA (M14/8). Independent LAN NDI and clean Windows installation remain open.
 
 ## Done — code and normal-use checks passed
 

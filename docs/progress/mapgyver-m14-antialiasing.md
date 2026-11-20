@@ -40,14 +40,31 @@ Tested executable SHA-256:
 - `MapGyver.exe`: `6EB04C124B0ED89548CC01EE6ABB65386F506F38C6CFD064F74BB058ED04AB89`
 - `screen_antialiasing-941f95da43631156.exe`: `733BCF9BE95AF6F2048B41A359347425E0CF82CE229B58DF8C9DBA3B192728E4`
 
-## Second-pass return action
+## 4K scratch allocation — 2026-11-20
 
-M14/8 is **functionally delivered, Pending qualification**. No acceptance gate closes.
-Return before M09 to the existing optimized `screen_antialiasing_costs` fixture, selecting
-Smooth4x for measured sustained1080p/4K costs on both GPUs under unchanged budgets.
-Complete 4× overload/live-retiring/scratch admission, supported-hardware rejection and
-physical-output/recovery qualification. The older M12/8 Intel4K timing failure remains
-recorded; the user's prior AA acceptance is unchanged. A reproduced ordinary-use blocker
-can reopen this earlier. Do not add profiler or benchmark variants during feature delivery.
+- The optimized 4K NVIDIA calibration and Solid Color fixture initially rejected its two-Surface
+  Screen: `1303272032` plan bytes plus `33193872` already reserved exceeded the 1 GiB cap.
+  Sharing one compatible scratch texture across four scheduled composite passes saved
+  `398131200` bytes (379.7 MiB). The same scene then started and sent Spout frames at
+  `938334704` reserved bytes (894.9 MiB). [Local receipt](../../target/mapgyver-4x-cost-after-205834/gpu-1-3840-Smooth4x/renderer.jsonl)
+- The 1080p and 4K memory fixtures passed on Intel and NVIDIA at the original 512 MiB and
+  1 GiB caps. Raw → 4× → Raw delivered each generation. A second full 4× generation exceeded
+  the available headroom, so the renderer rejected it before allocation and kept the active
+  Spout output advancing. All four runs retired to zero live textures and no endpoints within
+  37 ms. The retained Raw/2× resource fixture passed, with eight 1080p Screens now required to
+  exceed the same cap. [4× receipt](../../target/mapgyver-4x-resources-205834/results-4x.json) ·
+  [Raw/2× receipt](../../target/mapgyver-4x-resources-205834/results.json)
+- Five planning tests, strict targeted Clippy and both formatters passed. The optimized native
+  pixel test rechecked 108 images (82,944 texels) on both GPUs through two Spout outputs and
+  the preview, including forced tiles, warped edges, alpha, history and reload. The largest
+  error outside the reference conversion interval was zero. The tests used no physical outputs.
+- The one-second NVIDIA diagnostic measured 12.98 ms GPU p95 against a 12 ms target and
+  reported missed submission deadlines. It establishes startup admission and output, with
+  sustained timing still open. [Analysis](../../target/mapgyver-4x-cost-after-205834/analysis.json)
 
-Next product deliverable: M14/2 smooth shared-editor navigation, then M15 feedback.
+## Remaining qualification
+
+M14/8 is **functionally delivered and Active for qualification**. Next run the existing optimized
+`screen_antialiasing_costs` fixture with Smooth4x at 1080p and 4K on both GPUs, using the full
+warmup and three 120-second samples. Retain the supported-hardware rejection and physical
+output/recovery cases. The earlier M12/8 Intel 4K timing result and user acceptance remain recorded.

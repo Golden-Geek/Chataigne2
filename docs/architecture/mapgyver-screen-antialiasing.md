@@ -29,8 +29,12 @@ can reject this more expensive choice; there is no hidden quality downgrade or b
 
 For one Surface, untiled4× plan textures total21 times the final pixel count (16+4+1).
 Tiled4K adds a separate final assembly target, totaling22 times the final count before producer,
-conversion, scratch and retiring allocations. Sustained cost and retained overload/recovery
-qualification stay in the second pass; implementing this option does not accept those gates.
+conversion, scratch and retiring allocations. Golden reuses native composite scratch across
+ordered passes with identical texture descriptors. Each pass overwrites the scratch before
+sampling it and retains its own final target. The four equal raster tiles of a 4K Screen
+therefore need one tile-sized scratch texture. Native admission counts that descriptor once per
+generation and still charges every live, prepared and retiring generation. Sustained cost and
+retained recovery qualification stay in the second pass.
 
 Calibration layout, stroke widths and resolution readouts use the logical final extent;
 the higher raster density changes sample coverage, not authored dimensions or displayed

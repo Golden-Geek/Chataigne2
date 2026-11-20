@@ -9,7 +9,7 @@ use windows::Win32::Foundation::{E_INVALIDARG, E_NOINTERFACE};
 use windows::Win32::Graphics::Dxgi::{DXGI_ERROR_INVALID_CALL, DXGI_ERROR_UNSUPPORTED};
 use windows::core::HRESULT;
 
-use crate::plan::{BlendMode, CompiledPlan, ExternalSource, RenderOperation, SampleFilter};
+use crate::plan::{BlendMode, CompiledPlan, ExternalSource, SampleFilter};
 use crate::runtime::backend::{Backend, BackendError};
 use crate::runtime::{CompletionToken, DeviceGeneration, GenerationInfo};
 use crate::{OutputId, PassId, TextureDescriptor, TextureId};
@@ -403,10 +403,11 @@ impl Backend for D3d11Backend {
     fn resource_bytes(&self, plan: &CompiledPlan) -> Result<u64, BackendError> {
         self.validate(plan)?;
         let mut total = plan.footprint().total_texture_bytes;
-        for pass in plan.passes() {
-            if matches!(&pass.operation, RenderOperation::Composite { layers } if layers.len() > 1) {
+        let mut scratch = HashSet::new();
+        for descriptor in plan.passes().iter().filter_map(resources::composite_scratch) {
+            if scratch.insert(descriptor) {
                 total = total
-                    .checked_add(bytes(pass.descriptor)?)
+                    .checked_add(bytes(descriptor)?)
                     .ok_or(BackendError::ResourceSizeOverflow)?;
             }
         }

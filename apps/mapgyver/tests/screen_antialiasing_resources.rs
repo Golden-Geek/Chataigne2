@@ -125,14 +125,17 @@ impl Scene {
                 },
             );
         }
+        self.set_second_surface(multi, 0.5);
+    }
+    fn set_second_surface(&mut self, enabled: bool, opacity: f32) {
         screen_edit(
             &mut self.engine,
             ScreenEdit::ConfigureSurface {
                 reference: self.second,
                 definition: SurfaceDefinition {
                     source: Some(self.channel),
-                    enabled: multi,
-                    opacity: 0.5,
+                    enabled,
+                    opacity,
                     ..Default::default()
                 },
             },
@@ -214,6 +217,23 @@ fn settled(renderer: &mut ChannelRenderer, request: RequestId, output_id: Output
     }
 }
 
+fn rejected_for_pressure(renderer: &mut ChannelRenderer, request: RequestId) -> String {
+    let deadline = Instant::now() + WAIT;
+    loop {
+        let mut outcomes = Vec::new();
+        renderer.drain_outcomes(&mut outcomes, NonZeroUsize::new(8).unwrap());
+        if let Some(outcome) = outcomes.into_iter().find(|outcome| outcome.request == request) {
+            let OutcomeKind::Rejected(error) = outcome.result else {
+                panic!("overload must reject atomically: {outcome:?}")
+            };
+            assert_eq!(error.code(), FailureCode::ResourcePressure);
+            return error.to_string();
+        }
+        assert!(Instant::now() < deadline, "Screen resource rejection timed out");
+        std::thread::sleep(Duration::from_millis(2));
+    }
+}
+
 fn qualify(adapter: &AdapterInfo, width: u32, height: u32) -> Value {
     let extent = Extent2D::new(width, height).unwrap();
     let pixels = u64::from(width) * u64::from(height) * 4;
@@ -249,7 +269,7 @@ fn qualify(adapter: &AdapterInfo, width: u32, height: u32) -> Value {
     .unwrap();
     let mut renderer = ChannelRenderer::new(runtime, config.plan_limits);
     let control = renderer.native_control().unwrap();
-    let count = if width == 1920 { 7 } else { 3 };
+    let count = if width == 1920 { 8 } else { 3 };
     let mut scene = Scene::new(count);
     let baseline = 16272 + 8 * pixels;
     // SDK endpoints report UnknownSdk until their first accepted send. Initialize every
@@ -291,20 +311,7 @@ fn qualify(adapter: &AdapterInfo, width: u32, height: u32) -> Value {
     let before = renderer.snapshot().resources.unwrap();
     let before_native = control.allocations_snapshot();
     let request = scene.publish(&mut renderer, count, extent);
-    let deadline = Instant::now() + WAIT;
-    let rejection = loop {
-        let mut outcomes = Vec::new();
-        renderer.drain_outcomes(&mut outcomes, NonZeroUsize::new(8).unwrap());
-        if let Some(outcome) = outcomes.into_iter().find(|o| o.request == request) {
-            let OutcomeKind::Rejected(error) = outcome.result else {
-                panic!("overload must reject atomically: {outcome:?}")
-            };
-            assert_eq!(error.code(), FailureCode::ResourcePressure);
-            break error.to_string();
-        }
-        assert!(Instant::now() < deadline, "Screen resource rejection timed out");
-        std::thread::sleep(Duration::from_millis(2));
-    };
+    let rejection = rejected_for_pressure(&mut renderer, request);
     let rejected = renderer.snapshot().resources.unwrap();
     assert_eq!(
         rejected.active, before.active,
@@ -336,9 +343,104 @@ fn qualify(adapter: &AdapterInfo, width: u32, height: u32) -> Value {
         "timing_qualification":false,"driver_physical_bytes":"unknown; descriptor payload and conservative admission are separate"})
 }
 
-#[test]
-#[ignore = "explicit M12/8 optimized both-GPU 1080p/4K allocation, overload and recovery check"]
-fn screen_supersampling_allocation_admission_and_recovery() {
+fn qualify_four_x(adapter: &AdapterInfo, width: u32, height: u32) -> Value {
+    let extent = Extent2D::new(width, height).unwrap();
+    let pixels = u64::from(width) * u64::from(height) * 4;
+    let memory = query_adapter_memory(adapter.id).unwrap();
+    let ceiling = memory
+        .admission_limit(if width == 1920 { 512 * MIB } else { 1024 * MIB })
+        .unwrap();
+    let config = mapgyver::preview::config::configuration(ceiling, None).video;
+    let output = OutputId::new(1).unwrap();
+    let runtime = VideoRuntime::spawn_d3d11(
+        config.clone(),
+        D3d11Config {
+            output_rates: Vec::new(),
+            adapter: adapter.id,
+            diagnostics: None,
+            inputs: InputLimits {
+                max_sources: 0,
+                max_storage_bytes: 0,
+            },
+            outputs: vec![OutputBinding::Spout {
+                id: output,
+                name: format!("MapGyver-4x-Resources-{}", uuid::Uuid::new_v4()),
+                descriptor: TextureDescriptor {
+                    extent,
+                    format: PixelFormat::Bgra8Unorm,
+                    color_encoding: ColorEncoding::Srgb,
+                    alpha_mode: AlphaMode::Straight,
+                },
+            }],
+        },
+    )
+    .unwrap();
+    let mut renderer = ChannelRenderer::new(runtime, config.plan_limits);
+    let control = renderer.native_control().unwrap();
+    let mut scene = Scene::new(1);
+    scene.configure(ScreenAntiAliasing::Raw, extent, true);
+    let request = scene.publish(&mut renderer, 1, extent);
+    settled(&mut renderer, request, output);
+    let raw = renderer.snapshot().resources.unwrap();
+    let raw_bytes = raw.active.unwrap().bytes;
+    let baseline = raw.bytes_used - raw_bytes;
+
+    scene.configure(ScreenAntiAliasing::Smooth4x, extent, true);
+    let request = scene.publish(&mut renderer, 1, extent);
+    settled(&mut renderer, request, output);
+    let active = renderer.snapshot().resources.unwrap();
+    let allocations = control.allocations_snapshot();
+    // Tiled 4K keeps four outputs but uses one scratch texture at the tile raster extent.
+    // Untiled 1080p uses the same raster-sized scratch and no assembly target.
+    let factor = if width == 1920 { 21 + 16 + 1 } else { 22 + 4 + 1 };
+    let four_x_bytes = factor * pixels + 256;
+    assert_eq!(active.active.unwrap().bytes, four_x_bytes);
+    assert_eq!(active.bytes_used, baseline + four_x_bytes);
+    assert!(active.peak_bytes >= raw.bytes_used + four_x_bytes);
+    assert_eq!(allocations.plan.texel_bytes, four_x_bytes);
+    assert_eq!(allocations.owned_texel_bytes, Some(four_x_bytes + pixels));
+
+    scene.set_second_surface(true, 0.75);
+    let request = scene.publish(&mut renderer, 1, extent);
+    let rejection = rejected_for_pressure(&mut renderer, request);
+    let rejected = renderer.snapshot().resources.unwrap();
+    assert_eq!(rejected.active, active.active);
+    assert_eq!(rejected.bytes_used, active.bytes_used);
+    assert_eq!(control.allocations_snapshot().plan.created, allocations.plan.created);
+    let delivered = control.output_snapshots()[0].accepted_frames;
+    let deadline = Instant::now() + WAIT;
+    while control.output_snapshots()[0].accepted_frames <= delivered {
+        assert!(
+            Instant::now() < deadline,
+            "the active 4× Screen stopped delivering after rejection"
+        );
+        std::thread::sleep(Duration::from_millis(2));
+    }
+
+    scene.configure(ScreenAntiAliasing::Raw, extent, true);
+    let request = scene.publish(&mut renderer, 1, extent);
+    settled(&mut renderer, request, output);
+    assert_eq!(renderer.snapshot().resources.unwrap().bytes_used, raw.bytes_used);
+    assert_eq!(control.allocations_snapshot().plan.texel_bytes, raw_bytes);
+    let retirement = renderer.retirement();
+    let start = Instant::now();
+    renderer.close();
+    drop(renderer);
+    assert!(
+        retirement.wait(Duration::from_secs(2)),
+        "original two-second retirement bound"
+    );
+    let final_inventory = control.allocations_snapshot();
+    assert_eq!(final_inventory.plan.live, 0);
+    assert_eq!(final_inventory.plan.created, final_inventory.plan.released);
+    assert!(final_inventory.outputs.is_empty() && final_inventory.sources.is_empty());
+    json!({"adapter":adapter,"extent":extent,"ceiling":ceiling,"raw_bytes":raw_bytes,
+        "four_x_bytes":four_x_bytes,"baseline_reserved_bytes":baseline,"active_allocations":allocations,
+        "peak_reserved_bytes":active.peak_bytes,"rejection":rejection,"retirement_ms":start.elapsed().as_secs_f64()*1000.0,
+        "final_inventory":final_inventory})
+}
+
+fn run_resource_series(qualify: fn(&AdapterInfo, u32, u32) -> Value, receipt: &str) {
     let (done, wait) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         if matches!(
@@ -361,11 +463,19 @@ fn screen_supersampling_allocation_admission_and_recovery() {
     if let Some(directory) = std::env::var_os("MAPGYVER_SCREEN_RESOURCE_DIRECTORY") {
         let directory = std::path::PathBuf::from(directory);
         std::fs::create_dir_all(&directory).unwrap();
-        std::fs::write(
-            directory.join("results.json"),
-            serde_json::to_vec_pretty(&results).unwrap(),
-        )
-        .unwrap();
+        std::fs::write(directory.join(receipt), serde_json::to_vec_pretty(&results).unwrap()).unwrap();
     }
     done.send(()).unwrap();
+}
+
+#[test]
+#[ignore = "explicit M12/8 optimized both-GPU 1080p/4K allocation, overload and recovery check"]
+fn screen_supersampling_allocation_admission_and_recovery() {
+    run_resource_series(qualify, "results.json");
+}
+
+#[test]
+#[ignore = "explicit M14/8 optimized both-GPU 1080p/4K scratch, pressure and retirement check"]
+fn screen_four_x_scratch_allocation_and_recovery() {
+    run_resource_series(qualify_four_x, "results-4x.json");
 }
