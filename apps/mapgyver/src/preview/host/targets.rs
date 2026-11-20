@@ -74,18 +74,51 @@ pub(super) fn same_bindings(current: &[Target], next: &[Target]) -> bool {
             .all(|(current, next)| current.same_binding(next))
 }
 
+/// Debug fixtures may limit windows without changing authored or recovered display allocation.
+#[derive(Default)]
+pub(super) enum DisplayOutputs {
+    #[default]
+    All,
+    Disabled,
+    FullscreenOnly(String),
+}
+
+impl DisplayOutputs {
+    pub fn from_environment() -> Self {
+        if !cfg!(debug_assertions) {
+            return Self::All;
+        }
+        if std::env::var("MAPGYVER_AUTOMATION_DISABLE_DISPLAY_OUTPUTS").is_ok_and(|value| value == "1") {
+            return Self::Disabled;
+        }
+        match std::env::var("MAPGYVER_AUTOMATION_FULLSCREEN_DISPLAY") {
+            Ok(display) if !display.is_empty() => Self::FullscreenOnly(display),
+            Err(std::env::VarError::NotPresent) => Self::All,
+            _ => Self::Disabled,
+        }
+    }
+
+    fn admits(&self, target: &ResolvedTarget) -> bool {
+        match (self, target) {
+            (Self::All, _) | (_, ResolvedTarget::Spout { .. } | ResolvedTarget::Ndi { .. }) => true,
+            (Self::FullscreenOnly(allowed), ResolvedTarget::Fullscreen { display, .. }) => allowed == display,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Default)]
 pub(super) struct Targets {
     project: Option<uuid::Uuid>,
     ids: HashMap<ScreenId, OutputId>,
     next: u64,
-    suppress_display_outputs: bool,
+    display_outputs: DisplayOutputs,
 }
 
 impl Targets {
-    pub fn new(suppress_display_outputs: bool) -> Self {
+    pub fn new(display_outputs: DisplayOutputs) -> Self {
         Self {
-            suppress_display_outputs,
+            display_outputs,
             ..Default::default()
         }
     }
@@ -105,12 +138,7 @@ impl Targets {
         }
         let mut targets = Vec::new();
         for output in &capture.outputs {
-            if self.suppress_display_outputs
-                && matches!(
-                    output.target,
-                    ResolvedTarget::Rectangle(_) | ResolvedTarget::Fullscreen { .. }
-                )
-            {
+            if !self.display_outputs.admits(&output.target) {
                 continue;
             }
             let id = *self.ids.get(&output.screen).ok_or("output Screen was not captured")?;

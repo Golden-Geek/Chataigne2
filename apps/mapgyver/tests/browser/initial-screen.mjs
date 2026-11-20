@@ -14,7 +14,12 @@ const directory = path.resolve(process.argv[2]);
 await mkdir(directory);
 assert(process.env.MAPGYVER_TEST_BINARY, 'Select the successfully compiled current app');
 const headless = process.argv[3] === 'headless';
-const nativeShortcut = !headless && !process.argv.includes('--defer-native-shortcut');
+const fullscreenFlag = '--physical-fullscreen=';
+const fullscreenName = process.argv
+	.find((value) => value.startsWith(fullscreenFlag))
+	?.slice(fullscreenFlag.length);
+const nativeShortcut =
+	!headless && fullscreenName === undefined && !process.argv.includes('--defer-native-shortcut');
 const gpuIndex = headless ? null : Number(process.argv[3]);
 let completedNativeSessions = 0;
 let openedPhysicalWindows = 0;
@@ -28,6 +33,22 @@ function observeNativeOutputs(data, stream) {
 	}
 }
 const probe = path.resolve('target/debug/native_qualification.exe');
+let physicalDisplay;
+if (fullscreenName !== undefined) {
+	assert(
+		!headless && fullscreenName,
+		'Select an exact display name for the native fullscreen case'
+	);
+	const catalog = displayCatalog();
+	const matches = catalog.filter((display) => display.name === fullscreenName);
+	assert.equal(matches.length, 1, 'Select a unique connected display');
+	physicalDisplay = matches[0];
+	assert.equal(
+		expectedTarget(catalog)?.display,
+		physicalDisplay.id,
+		'This display must be the startup default'
+	);
+}
 const hardware = headless
 	? null
 	: JSON.parse(
@@ -42,6 +63,10 @@ if (!headless)
 const native = headless
 	? await openInitialScreenHeadless(directory)
 	: await openNativeEditor({
+			allowPhysicalOutputs: Boolean(physicalDisplay),
+			environment: physicalDisplay && {
+				MAPGYVER_AUTOMATION_FULLSCREEN_DISPLAY: physicalDisplay.id
+			},
 			onLogData: observeNativeOutputs,
 			prepareProfile: async (root) => {
 				const folder = path.join(root, 'MapGyver');
@@ -215,8 +240,84 @@ async function pixels(name, phase) {
 	assert.deepEqual(colors, [[255, 0, 0, 255]]);
 	checks.push({ stage: phase, full_output: 'red96x64', receiver_retired: true });
 }
-try {
-	token = (await post('/api/ui/session', {})).token;
+async function qualifyPhysicalStartup(display) {
+	const target = { kind: 'Fullscreen', display: display.id };
+	const windows = () =>
+		JSON.parse(
+			execFileSync(
+				'python',
+				['apps/mapgyver/tests/native_output/window_state.py', String(native.app.pid)],
+				{ encoding: 'utf8', windowsHide: true, timeout: 5000 }
+			)
+		);
+	async function paint(screen, rgba) {
+		const { reference } = await media({
+			kind: 'CreateMedia',
+			media_kind: 'SolidColor',
+			label: 'Startup output color'
+		});
+		await media({ kind: 'ConfigureChannel', reference, source: { kind: 'SolidColor', rgba } });
+		const surface = screen.surfaces[0];
+		await screens({
+			kind: 'ConfigureSurface',
+			reference: surface.reference,
+			definition: { ...surface.definition, source: reference }
+		});
+	}
+	async function observe(rgb) {
+		const [window] = await wait(windows, (found) => {
+			assert(found.length <= 1, `${stage}: only the selected test display may have a window`);
+			const current = found[0];
+			if (!current) return false;
+			assert.deepEqual(current.bounds, display.bounds, 'physical window escaped the test display');
+			return (
+				current.visible &&
+				!current.minimized &&
+				current.center_rgb.length === 1 &&
+				current.center_rgb[0].every((value, index) => value === rgb[index])
+			);
+		});
+		const adapter = await observeNativeAdapter(native.page, hardware);
+		assert.equal(adapter.index, gpuIndex);
+		return { stage, adapter, window };
+	}
+
+	const initial = await fresh();
+	assert.deepEqual(initial.definition.target, target);
+	stage = 'startup fullscreen pixels';
+	await paint(initial, [1, 0, 0, 1]);
+	checks.push(await observe([255, 0, 0]));
+	assert.equal(openedPhysicalWindows, 1);
+
+	stage = 'occupied display allocation';
+	const remaining = displayCatalog().filter((entry) => entry.id !== display.id);
+	const other = expectedTarget(remaining);
+	await screens({ kind: 'CreateScreen', label: 'Other Screen' });
+	await screens({ kind: 'CreateScreen', label: 'Third Screen' });
+	const authoredTargets = (await inspect()).screens.map((screen) => screen.definition.target);
+	assert.deepEqual(authoredTargets, [
+		target,
+		other,
+		expectedTarget(remaining.filter((entry) => entry.id !== other?.display))
+	]);
+	checks.push({ ...(await observe([255, 0, 0])), authoredTargets });
+	assert.equal(openedPhysicalWindows, 1);
+
+	stage = 'New fullscreen pixels';
+	await native.page.getByRole('button', { name: 'Open File menu', exact: true }).click();
+	await native.page
+		.getByRole('menuitem')
+		.filter({ has: native.page.getByText('New', { exact: true }) })
+		.click();
+	await wait(inspect, (value) => value.screens.length === 1 && value.screens[0].id !== initial.id);
+	const next = await fresh();
+	assert.deepEqual(next.definition.target, target);
+	await paint(next, [0, 1, 0, 1]);
+	checks.push(await observe([0, 255, 0]));
+	assert.equal(openedPhysicalWindows, 2, 'only startup and New may open a physical window');
+}
+
+async function qualifyOrdinaryStartup() {
 	await fresh();
 	if (!headless) {
 		const beforeSelection = await inspect();
@@ -467,6 +568,12 @@ try {
 		assert.equal(openedPhysicalWindows, 0, 'the browser launcher must suppress physical outputs');
 		checks.push({ stage: 'physical outputs suppressed', openedPhysicalWindows });
 	}
+}
+
+try {
+	token = (await post('/api/ui/session', {})).token;
+	if (physicalDisplay) await qualifyPhysicalStartup(physicalDisplay);
+	else await qualifyOrdinaryStartup();
 	assert.deepEqual(errors, []);
 	await writeFile(
 		path.join(directory, 'result.json'),
@@ -474,6 +581,8 @@ try {
 			{
 				result: 'pass',
 				mode: headless ? 'headless' : 'native',
+				physicalDisplay: physicalDisplay?.name,
+				openedPhysicalWindows,
 				gpuIndex,
 				nativeShortcut,
 				pid: native.app.pid,

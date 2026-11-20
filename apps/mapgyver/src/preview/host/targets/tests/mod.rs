@@ -163,14 +163,19 @@ fn rectangle_and_spout_share_output_admission_without_windows_on_the_actor() {
     assert!(matches!(mixed[1].kind, ResolvedTarget::Spout { .. }));
     assert!(crate::screens::rendering::capture_outputs(&engine, 128, 1, &[]).is_err());
 
-    let mut isolated = capture_presentation(&engine, &[], 8, 128, &[]).unwrap();
-    assert_eq!(Targets::new(true).assign(&mut isolated).unwrap(), [mixed[1].clone()]);
-    let rectangle_route = isolated
-        .screens
-        .iter()
-        .find(|route| route.screen.id() == screen)
-        .unwrap();
-    assert_eq!(rectangle_route.output, None);
+    for scope in [
+        DisplayOutputs::Disabled,
+        DisplayOutputs::FullscreenOnly("wanted".into()),
+    ] {
+        let mut isolated = capture_presentation(&engine, &[], 8, 128, &[]).unwrap();
+        assert_eq!(Targets::new(scope).assign(&mut isolated).unwrap(), [mixed[1].clone()]);
+        let rectangle_route = isolated
+            .screens
+            .iter()
+            .find(|route| route.screen.id() == screen)
+            .unwrap();
+        assert_eq!(rectangle_route.output, None);
+    }
 }
 
 #[test]
@@ -236,7 +241,13 @@ fn fullscreen_resolves_exact_identity_and_recovers_without_primary_or_geometry_f
     .unwrap();
     assert_eq!(active.screens.len(), 1);
     assert_eq!(active.screens[0].extent, bounds.extent);
+    let mut wrong_display = Targets::new(DisplayOutputs::FullscreenOnly(other.id.clone()));
+    assert!(wrong_display.assign(&mut active).unwrap().is_empty());
+    assert_eq!(active.screens[0].output, None);
+    let mut allowed_display = Targets::new(DisplayOutputs::FullscreenOnly(wanted.id.clone()));
+    let isolated = allowed_display.assign(&mut active).unwrap();
     let target = registry.assign(&mut active).unwrap();
+    assert_eq!(isolated, target);
     assert_eq!(
         target[0].kind,
         ResolvedTarget::Fullscreen {

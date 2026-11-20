@@ -69,6 +69,24 @@ headless and no-external desktop scopes passed.
   Physical routing and the native shortcut remain pending. Receipt:
   `target/mapgyver-clear-fullscreen-192927/result.json`.
 
+## Physical RTK startup and New
+
+- The November 20 fixture used `--physical-fullscreen=RTK FHD HDR` with the laptop, RTK and
+  Optoma connected. The debug host admitted only the resolved RTK fullscreen destination.
+- Intel and NVIDIA each showed exact red desktop samples at startup and green samples after
+  File → New. Both runs measured fullscreen RTK bounds `[2560, 0, 4480, 1080]`. Each opened
+  two RTK output windows and zero Optoma windows, and exited normally.
+- Creating two more Screens authored the Optoma target on the second Screen and left the
+  third unconfigured. The RTK window kept displaying the expected red image.
+- Four target tests, strict app-library lint, the development build and the ordinary isolated
+  20-check browser run passed. The isolated run opened zero physical output windows.
+- Receipts: `target/mapgyver-rtk-routing-194133-0/result.json`,
+  `target/mapgyver-rtk-routing-194133-1/result.json` and
+  `target/mapgyver-rtk-routing-194133-isolated/result.json`.
+- Remaining: one-external physical defaults, simultaneous physical output on both externals,
+  hot-plug and native Ctrl+N on both GPUs. The restricted run verified sequential allocation
+  with both externals occupied. The detached atomic case still uses software evidence.
+
 Implemented behavior:
 
 - Fresh startup/New candidates seed their initial Screen and ephemeral display catalog before
@@ -153,10 +171,8 @@ resolved the final correction; no profiler, observer framework or budget change 
 physical Ctrl+N is not. The default invocation still requires that native input. Both supported
 computer-use connections report the native pipe missing; no helper repair chain was attempted.
 
-**Return triggers:** when one external is exposed, test its automatic default and actual physical
-pixels/hotplug recovery on both GPUs; when two are exposed, finish physical multi-display,
-occupied and atomic-allocation cases. Current native and WMI inventories expose only one active
-internal panel. Restore native computer-use input or supply the original Ctrl+N action to finish
-the deferred shortcut. Existing M05 recovery evidence retains its original scope. These missing
-cases keep M14/6 Blocked while M14/7 proceeds; all remain required before M09. Standing Overlay
-Off applies. No fixed gate, timing/private-growth/stress budget or release readiness is accepted.
+**Return triggers** — use a controlled physical session for the remaining topologies, hot-plug
+and simultaneous output on RTK and Optoma. Verify the actual Ctrl+N action through native desktop
+input. The November 16 no-external run had only the internal panel; the November 20 RTK run had
+both externals. M05 recovery evidence applies to its recorded configurations. M14/6 remains open
+before M09. Standing Overlay Off applies.

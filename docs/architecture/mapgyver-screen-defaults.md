@@ -44,3 +44,6 @@ Acceptance, including missing physical topologies, is recorded in the MapGyver s
 Debug GPU fixtures that use Spout or NDI can set `MAPGYVER_AUTOMATION_DISABLE_DISPLAY_OUTPUTS=1`.
 The desktop host keeps the authored targets and display catalog available and admits only
 non-window Screen output bindings for that process.
+Physical startup fixtures can set `MAPGYVER_AUTOMATION_FULLSCREEN_DISPLAY` to one exact Windows
+display identity. The host checks the resolved destination before opening a fullscreen window,
+including after recovery. Rectangle outputs stay suppressed and Spout and NDI remain available.
