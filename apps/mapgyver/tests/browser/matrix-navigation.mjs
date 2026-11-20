@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { ownedWindowHandle } from './capture-alignment.mjs';
 import { verifyNavigationPixels } from './navigation-pixels.mjs';
+import { verifyFeedbackPixels } from './feedback-pixels.mjs';
 import { observeNativeRejectedRequests } from './intent-observer.mjs';
 
 const panel = (page, id) => page.locator(`.gc-dv-tab[data-content-panel-id="${id}"]`);
@@ -69,11 +70,11 @@ async function resizeDuringFrame(page, view, framedZoom) {
 	};
 }
 
-export async function verifyMatrixNavigation({ page, edit, nativePid }) {
+export async function verifyMatrixNavigation({ page, edit, nativePid, feedbackPixels }) {
 	let stage = 'seed sparse Matrix';
 	const errors = [],
 		{ rejected, observed } = await observeNativeRejectedRequests(page, () => stage);
-	page.on('pageerror', (error) => errors.push(String(error)));
+	page.on('pageerror', (error) => errors.push(`${stage}: ${error.stack ?? error}`));
 	const hwnd = Number(ownedWindowHandle(nativePid));
 	const { reference: red } = await edit({
 		kind: 'CreateMedia',
@@ -104,12 +105,28 @@ export async function verifyMatrixNavigation({ page, edit, nativePid }) {
 	assert.equal(initial.columns.length, 64);
 	const row = initial.items.at(-1),
 		layer = row.id.id,
-		column = initial.columns[0];
+		column = initial.columns[0],
+		peerLayer = initial.items.at(-2).id.id;
 	await matrix({
 		kind: 'ConfigureLayer',
 		layer,
 		settings: { position: [160, 120], size: { width: 200, height: 120 }, duration_ms: 0 }
 	});
+	if (feedbackPixels) {
+		stage = 'seed Matrix Layer peer';
+		await matrix({
+			kind: 'ConfigureLayer',
+			layer: peerLayer,
+			settings: { position: [430, 120], size: { width: 120, height: 100 }, duration_ms: 0 }
+		});
+		for (const other of initial.items.slice(128, -2)) {
+			await matrix({
+				kind: 'ConfigureLayer',
+				layer: other.id.id,
+				settings: { position: [0, 0], size: { width: 40, height: 30 }, duration_ms: 0 }
+			});
+		}
+	}
 	await matrix({ kind: 'SetCells', assignments: [{ layer, column: column.id, source: red }] });
 	const cellSettings = {
 		position: [0, 0],
@@ -151,6 +168,69 @@ export async function verifyMatrixNavigation({ page, edit, nativePid }) {
 		1,
 		'the selected past-page Layer is framed from its bounded selected record'
 	);
+	if (feedbackPixels) {
+		stage = 'Matrix Layer feedback';
+		// The off-page selection is removed from the bounded canvas when cleared. Page to
+		// its normal contour first so both selected and unselected paint can be observed.
+		await layers.getByRole('button', { name: 'Next Layers', exact: true }).click();
+		const contour = layers.locator(`rect[data-layer-id="${layer}"]`);
+		const peer = layers.locator(`rect[data-layer-id="${peerLayer}"]`);
+		const layerFeedback = await verifyFeedbackPixels({
+			page,
+			view: layers,
+			hwnd,
+			contour,
+			peer,
+			label: 'Matrix Layer'
+		});
+		assert.deepEqual(await inspect(), authored);
+		stage = 'prepare alternate Matrix Cell';
+		const alternate = initial.columns[1].id;
+		await matrix({ kind: 'SetCells', assignments: [{ layer, column: alternate, source: red }] });
+		await matrix({
+			kind: 'ConfigureCell',
+			layer,
+			column: alternate,
+			settings: { ...cellSettings, position: [136, 28], size: { width: 52, height: 64 } }
+		});
+		await matrix({
+			kind: 'ConfigureCell',
+			layer,
+			column: column.id,
+			settings: { ...cellSettings, position: [32, 28], size: { width: 66, height: 64 } }
+		});
+		const beforeCells = await inspect();
+		await layers.getByRole('button', { name: 'Edit Layer Cells', exact: true }).click();
+		const cellContour = (id) => cells.locator(`rect[data-layout-cell="${id}"]`);
+		const first = cellContour(authored.cells[0].id);
+		const alternateId = beforeCells.cells.find((cell) => cell.definition.column === alternate).id;
+		const alternateContour = cellContour(alternateId);
+		await first.press('Enter');
+		await installed(cells);
+		stage = 'hover the alternate Matrix Cell';
+		const cellFeedback = await verifyFeedbackPixels({
+			page,
+			view: cells,
+			hwnd,
+			contour: alternateContour,
+			label: 'Matrix Cell',
+			hoverOnly: true
+		});
+		stage = 'select the alternate Matrix Cell';
+		await alternateContour.press('Enter');
+		await cells.locator(`rect[data-layout-cell="${alternateId}"].selected`).waitFor();
+		await installed(cells);
+		assert.equal(
+			JSON.parse(await cells.locator('.native-preview').getAttribute('data-preview-source')).cell,
+			alternateId,
+			'keyboard selection installs the alternate Cell preview'
+		);
+		assert.deepEqual(await inspect(), beforeCells);
+		assert.deepEqual(errors, []);
+		assert.deepEqual(rejected, []);
+		console.log(JSON.stringify({ feedbackPixels: [layerFeedback, cellFeedback] }));
+		return;
+	}
 	const report = [];
 	await layers.focus();
 	stage = 'Frame selected Matrix Layer';
@@ -210,6 +290,8 @@ export async function verifyMatrixNavigation({ page, edit, nativePid }) {
 	await contour.press('Enter');
 	await cells.locator(`[data-layout-cell="${cell}"].selected`).waitFor();
 	await installed(cells);
+	// Move keyboard focus to the view so the edge oracle samples only the selection stroke.
+	await cells.focus();
 	stage = 'Frame selected Matrix Cell';
 	report.push(
 		await verifyNavigationPixels({

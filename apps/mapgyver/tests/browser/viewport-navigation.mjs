@@ -6,6 +6,7 @@ import { promisify } from 'node:util';
 import { observeRejectedRequests } from './intent-observer.mjs';
 import { ownedWindowHandle } from './capture-alignment.mjs';
 import { verifyNavigationPixels } from './navigation-pixels.mjs';
+import { verifyFeedbackPixels } from './feedback-pixels.mjs';
 const { chromium } = createRequire(import.meta.url)('playwright-core');
 
 export async function verifyViewportNavigation({
@@ -15,7 +16,8 @@ export async function verifyViewportNavigation({
 	directory,
 	page: nativePage = null,
 	nativePid,
-	nativePixels = false
+	nativePixels = false,
+	feedbackPixels = false
 }) {
 	assert(!nativePixels || (nativePage && nativePid));
 	async function screens(payload) {
@@ -259,6 +261,17 @@ export async function verifyViewportNavigation({
 					.locator('.native-preview[data-preview-state="available"][data-preview-installed="true"]')
 					.waitFor();
 			await view.getByRole('button', { name: 'Home view', exact: true }).click();
+			if (feedbackPixels) {
+				const contour = view.locator(
+					{
+						'screen-warp': `svg [data-native-hit-id="${surface.surface}"]`,
+						'surface-source': '[aria-label="Select source crop"]',
+						composition: `svg [data-instance-drop-target="${instances[0].instance}"]`
+					}[panelId]
+				);
+				reports.push(await verifyFeedbackPixels({ page, view, hwnd, contour, label }));
+				continue;
+			}
 			const before = await active.boundingBox();
 			assert(before);
 			const fraction = { x: 0.4, y: 0.45 },
@@ -378,8 +391,18 @@ export async function verifyViewportNavigation({
 		assert.deepEqual(
 			(await screens({ kind: 'InspectManager' })).snapshot,
 			beforeNavigation,
-			'camera navigation does not author Screen/Surface settings'
+			'viewport interaction does not author Screen/Surface settings'
 		);
+		if (feedbackPixels) {
+			assert.deepEqual(errors, []);
+			assert.deepEqual(rejected, []);
+			assert(
+				reports.every((report) => report.selection.at(-1) === reports[0].selection.at(-1)),
+				`one selection fill over the identical red image in every editor: ${JSON.stringify(reports)}`
+			);
+			console.log(JSON.stringify({ feedbackPixels: reports }));
+			return;
+		}
 		const project = path.join(directory, 'navigation.mapgyver');
 		await post('/api/ui/project-save', { path: project });
 		const composition = page.getByRole('application', { name: 'Composition view', exact: true });

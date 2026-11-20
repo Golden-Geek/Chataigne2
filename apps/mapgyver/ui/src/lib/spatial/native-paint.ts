@@ -15,7 +15,11 @@ export function useSpatialPaint(): Paint | null {
 	return getContext<Paint | null>(spatialPaint) ?? null;
 }
 
-type Contour = NonNullable<Parameters<typeof quadOverlay>[2]> & { points: readonly Point[] };
+// The contour ID also keeps its paint history stable when selection changes stacking order.
+type Contour = NonNullable<Parameters<typeof quadOverlay>[2]> & {
+	points: readonly Point[];
+	hit: string;
+};
 
 export function spatialOverlays(
 	canvas: { width: number; height: number },

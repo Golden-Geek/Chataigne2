@@ -372,7 +372,9 @@ Composition transforms and Matrix Layer/Cell rectangles. Each editor derives its
 and DOM hit controls from the same projected vertices. Composition and Matrix publish their
 outlines, handles and snap guides through the shared spatial viewport. The desktop preview
 draws that paint with the image using one submitted camera placement. The DOM provides
-interaction targets, keyboard focus and browser or unavailable-preview fallback. Domain limits,
+interaction targets, keyboard focus and browser or unavailable-preview fallback. Contour
+paint follows the object's identity when Matrix Cell selection changes drawing order. In the
+native view, the focused SVG contour draws only its keyboard focus ring. Domain limits,
 rounding, validity, persisted settings and history remain backend-owned.
 The [functional receipt](../progress/evidence/mapgyver-m13-gesture-presentation-2026-11-07.json)
 verifies real held-request input and history. Presented-frame timing and native/DOM pixel

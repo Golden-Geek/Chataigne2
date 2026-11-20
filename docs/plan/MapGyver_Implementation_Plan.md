@@ -1578,6 +1578,9 @@ polling, sequential subtree construction or unbounded selection/preset fan-out.
    frames and actual Composition/Matrix presentation remain unproved. Retain full M15/5
    qualification before M09; continue feature delivery with linked handles8 under the user's
    explicit deep-tests-later order. This checkpoint earns no gate credit or budget revision.
+   [Second-pass verification](../progress/mapgyver-m15-editor-feedback.md) confirms native
+   intermediate paint, keyboard focus, drag/cancel alignment and reduced motion. M15/5 is
+   Accepted. Separate M14 selection and recovery and final app qualification stay open.
 6. **Startup and New show the automatic Screen and Surface.** Owners: MapGyver document
    bootstrap/default editor targets through Golden's panel-follow APIs. On fresh startup and
    New session, Screen Warping displays the auto-created Screen and Surface Editor displays its

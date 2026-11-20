@@ -28,21 +28,9 @@ function edges(frame, width, height) {
 	return { image: [red[0], red.at(-1)], control: [center(left), center(right)] };
 }
 
-/** Follow the real red image and selected blue outline in the same composited window frames. */
-export async function verifyNavigationPixels({ page, view, hwnd, label, navigate, interrupted }) {
-	const viewport = await page.evaluate(() => ({
-		width: innerWidth,
-		height: innerHeight,
-		dpr: devicePixelRatio
-	}));
-	const box = await view.boundingBox();
-	assert(box);
+export async function captureOwnedWindow({ hwnd, viewport, bounds, label, read, action }) {
 	const { dpr } = viewport;
-	const width = Math.floor(box.width * dpr) - 8,
-		height = 6;
-	const left = Math.round(box.x * dpr) + 4;
-	// Fixture subjects are vertically centered. Sample beside the side handles.
-	const top = Math.round((box.y + box.height / 2) * dpr) + 17;
+	const { left, top, width, height } = bounds;
 	const source = windowCaptureSource({ hwnd, left, top, width, height, viewport, dpr });
 	const capture = spawn(
 		'ffmpeg',
@@ -77,25 +65,24 @@ export async function verifyNavigationPixels({ page, view, hwnd, label, navigate
 	capture.stdout.on('data', (part) => {
 		buffer = Buffer.concat([buffer, part]);
 		while (buffer.length >= bytes) {
-			latest = edges(buffer, width, height);
+			latest = read(buffer, width, height);
 			if (recording) frames.push(latest);
 			buffer = buffer.subarray(bytes);
 		}
 	});
-	let navigation;
+	let result;
 	try {
 		const until = Date.now() + 5000;
 		while (!latest) {
 			assert(
 				capture.exitCode === null && Date.now() < until,
-				`${label}: no paired red and blue edges. ${failure}`
+				`${label}: no valid window pixels. ${failure}`
 			);
 			await delay(10);
 		}
 		frames.push(latest);
 		recording = true;
-		navigation = await navigate();
-		await delay(50);
+		result = await action(() => frames.length);
 		recording = false;
 	} finally {
 		if (capture.exitCode === null) capture.stdin.end('q\n');
@@ -106,6 +93,37 @@ export async function verifyNavigationPixels({ page, view, hwnd, label, navigate
 			clearTimeout(timer);
 		}
 	}
+	return { frames, result };
+}
+
+/** Follow the real red image and selected blue outline in the same composited window frames. */
+export async function verifyNavigationPixels({ page, view, hwnd, label, navigate, interrupted }) {
+	const viewport = await page.evaluate(() => ({
+		width: innerWidth,
+		height: innerHeight,
+		dpr: devicePixelRatio
+	}));
+	const box = await view.boundingBox();
+	assert(box);
+	const { dpr } = viewport;
+	const { frames, result: navigation } = await captureOwnedWindow({
+		hwnd,
+		viewport,
+		bounds: {
+			left: Math.round(box.x * dpr) + 4,
+			// Fixture subjects are vertically centered. Sample beside the side handles.
+			top: Math.round((box.y + box.height / 2) * dpr) + 17,
+			width: Math.floor(box.width * dpr) - 8,
+			height: 6
+		},
+		label,
+		read: edges,
+		action: async () => {
+			const result = await navigate();
+			await delay(50);
+			return result;
+		}
+	});
 	assert(
 		frames.length >= 4 && frames.every(Boolean),
 		`${label}: missing edges in captured frames ${JSON.stringify(frames)}`

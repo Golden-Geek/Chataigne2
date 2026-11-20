@@ -80,6 +80,7 @@
 			const id = item.reference.instance;
 			return [
 				{
+					hit: id,
 					points,
 					color: customNodeColor(id),
 					selected: id === selected,

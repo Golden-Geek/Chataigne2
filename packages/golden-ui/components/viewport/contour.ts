@@ -1,3 +1,5 @@
+import { untrack } from 'svelte';
+
 export interface ViewportContourState {
 	/** Optional authored RGBA hex without '#'; selection/hover/errors retain their cues. */
 	color?: string | null;
@@ -73,28 +75,29 @@ export function viewportContour(node: SVGElement | HTMLElement, initial: Contour
 		hovered = false;
 		view.removeEventListener('blur', clear);
 		paint();
-		options.onhover?.(false);
+		untrack(() => options.onhover?.(false));
 	}
 	function enter(event: PointerEvent) {
 		if (hovered || event.buttons || event.pointerType === 'touch') return;
 		hovered = true;
 		view.addEventListener('blur', clear);
 		paint();
-		options.onhover?.(true);
+		untrack(() => options.onhover?.(true));
 	}
 	function focus() {
 		if (focused) return;
 		focused = true;
 		view.addEventListener('blur', blur);
 		paint();
-		options.onfocus?.(true);
+		untrack(() => options.onfocus?.(true));
 	}
 	function blur() {
 		if (!focused) return;
 		focused = false;
 		view.removeEventListener('blur', blur);
 		paint();
-		options.onfocus?.(false);
+		// Moving or removing a focused contour can dispatch blur inside a template update.
+		untrack(() => options.onfocus?.(false));
 	}
 	node.addEventListener('focus', focus);
 	node.addEventListener('blur', blur);

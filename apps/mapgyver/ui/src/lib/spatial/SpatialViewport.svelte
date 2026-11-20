@@ -84,4 +84,10 @@
 	:global(.active-zone.native-frame [data-native-overlay-control]:focus-visible) {
 		opacity: 1;
 	}
+	:global([data-spatial-kind] .native-frame svg [data-native-overlay-control]:focus-visible) {
+		fill-opacity: 0;
+		stroke-opacity: 0;
+		outline: 0.1rem solid var(--gc-focus-color, #a3bfff);
+		outline-offset: 0.15rem;
+	}
 </style>

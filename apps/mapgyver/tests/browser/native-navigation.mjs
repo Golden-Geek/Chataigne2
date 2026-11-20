@@ -209,7 +209,9 @@ try {
 		].find(([flag]) => process.argv.includes(flag))?.[1] ?? verifyViewportNavigation;
 	await flow({
 		nativePid: native.app.pid,
-		nativePixels: process.argv.includes('--navigation-pixels'),
+		nativePixels:
+			process.argv.includes('--navigation-pixels') || process.argv.includes('--feedback-pixels'),
+		feedbackPixels: process.argv.includes('--feedback-pixels'),
 		nativeLog: native.log,
 		base: native.base,
 		page: native.page,

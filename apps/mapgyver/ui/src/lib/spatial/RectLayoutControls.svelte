@@ -108,6 +108,7 @@
 				bottom = y + object.size.height;
 			return [
 				{
+					hit: object.id,
 					points: [
 						{ x, y },
 						{ x: right, y },
