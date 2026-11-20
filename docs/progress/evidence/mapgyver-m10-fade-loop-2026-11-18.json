@@ -1,7 +1,7 @@
 {
   "gate": "M10/9",
   "date": "2026-11-18",
-  "state": "functionally verified; full qualification pending",
+  "state": "Moving playback, file relink and project retirement verified. Device-loss qualification remains open.",
   "behavior": [
     "Auto-Smooth Loop defaults to zero and retains its value while disabled by Loop.",
     "One authoritative clock places the overlap and resumes after the consumed head. Active overlap is bounded by half the shortest known channel duration.",
@@ -49,8 +49,40 @@
       "liveScope": "Position sampled across two real playback wraps at 0.75×. Pixel comparisons were held seeks."
     }
   },
+  "movingQualification": {
+    "date": "2026-11-20",
+    "fixture": "apps/mapgyver/tests/browser/native-video-fade-loop.mjs --moving",
+    "baseline": "target/mapgyver-m109-held-172245/result.json",
+    "softwareRecheck": "Ten MapGyver transport, crop, history/copy/reload and hosted script tests passed. Seven Golden loop-timeline tests passed. Both Rust formatters, Node syntax and Prettier passed.",
+    "configuration": "A 2,000 ms red/blue channel, a 1,200 ms green/yellow channel, an unconfigured channel and a Reference. Requested overlap 900 ms. Measured effective overlap 600 ms. Physical Screen outputs disabled.",
+    "verified": [
+      "Three-point pixel samples matched the linear-light smoothstep bounds on the moving direct output, Reference output and native Media Preview in both directions. Preview samples used owned-window Windows Graphics Capture.",
+      "The shorter channel held its final frame as the shared clock advanced, blended into its head, and resumed with the correct image after each wrap. The unconfigured channel did not constrain the known duration.",
+      "Relinking during the overlap to an absent path withdrew the previous pixels to transparent black. The shorter channel kept playing. When the missing file appeared, the long channel resumed its moving blend and restored the original range without another Play command.",
+      "Closing preview consumers and creating a New project during an active overlap logged complete native session retirement. Both GPUs returned to Idle with no active Screen, device or resource snapshot. Independent Spout capture leases retired for every read."
+    ],
+    "adapters": [
+      {
+        "adapter": "NVIDIA GeForce RTX 5080 Laptop GPU",
+        "receipt": "target/mapgyver-m109-mixed-nvidia-173006/result.json",
+        "forwardWrapMs": [1999.83044, 604.15672],
+        "reverseWrapMs": [2.63368, 1398.16148]
+      },
+      {
+        "adapter": "Intel(R) Graphics",
+        "receipt": "target/mapgyver-m109-mixed-intel-173039/result.json",
+        "forwardWrapMs": [1995.80776, 600.13872],
+        "reverseWrapMs": [1.29326, 1396.74574]
+      }
+    ],
+    "perAdapter": { "pixelCases": 25, "movingAndLifecycleObservations": 15, "pageErrors": 0 },
+    "priorAttempts": [
+      "target/mapgyver-m109-mixed-nvidia-172558/result.json passed the moving blend checks and observed transparent black during relink. The first assertion incorrectly required opaque output with no source.",
+      "target/mapgyver-m109-mixed-nvidia-172826/result.json passed relink and recovery. The renderer still served an open native preview surface after output removal. The final case closes those editor consumers before measuring the retirement of the last routes."
+    ]
+  },
   "return": {
-    "trigger": "Retained Video qualification after product features, or an earlier reproduced dependent correctness blocker.",
-    "checks": ["moving native preview and output pixels across repeated seams", "reverse, short, unknown and mixed-duration native channels", "file loss, relink and device recovery during overlap", "full shared-consumer, storage and load matrix with caller and persistence coverage"]
+    "trigger": "Use an elevated Windows test session for the genuine device-loss check during a verified active overlap. The current Windows terminal has DXCap but a non-elevated token. No graphics reset was run.",
+    "checks": ["genuine device recovery during overlap, including new device generation and fresh direct/Reference pixels", "remaining wide shared-consumer, storage and load cases"]
   }
 }

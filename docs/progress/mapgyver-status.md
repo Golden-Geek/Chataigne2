@@ -2,10 +2,10 @@
 
 - **Updated:** 20 November 2026.
 - **Overall plan acceptance:** `█████████░` **87% — 126/145 checks accepted, 8/19 phases complete**.
-- **Latest verified:** Per-channel subtitles stay aligned during play, reverse, loop wraps and live file replacement. Intel and NVIDIA preview/output checks passed. [Checks](evidence/mapgyver-m10-channel-subtitles-2026-11-18.json)
+- **Latest verified:** Auto-Smooth Loop passed moving forward and reverse playback, mixed durations, live file recovery and retirement on Intel and NVIDIA. Device-loss qualification remains open. [Checks](evidence/mapgyver-m10-fade-loop-2026-11-18.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Qualify Auto-Smooth Loop (M10/9), starting with reverse and mixed-duration playback. Direct File Explorer drops need desktop input.
+- **Next:** Qualify moving Video time crop (M10/10). Auto-Smooth Loop device loss needs an elevated Windows test session. Direct File Explorer drops need desktop input.
 
 ## Done — code and normal-use checks passed
 
