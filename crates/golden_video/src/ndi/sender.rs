@@ -111,11 +111,8 @@ impl NdiSender {
         let reservation = SenderName::reserve(local_name)?;
         let runtime = Runtime::get()?;
         let api = &runtime.api;
-        let create = api.send_create.ok_or_else(incomplete_send_api)?;
-        let get_name = api.send_get_source_name.ok_or_else(incomplete_send_api)?;
-        if api.send_destroy.is_none() || api.send_send_video_v2.is_none() || api.send_send_audio_v3.is_none() {
-            return Err(incomplete_send_api());
-        }
+        let create = api.send_create.unwrap();
+        let get_name = api.send_get_source_name.unwrap();
         let name = CString::new(local_name).map_err(|_| NdiError::SenderName)?;
         let settings = sys::NDIlib_send_create_t {
             p_ndi_name: name.as_ptr(),
@@ -236,8 +233,4 @@ impl Drop for NdiSender {
         // SAFETY: this is the sole owner and there are no outstanding SDK frame borrows.
         unsafe { self.runtime.api.send_destroy.unwrap()(self.instance.as_ptr()) };
     }
-}
-
-fn incomplete_send_api() -> NdiError {
-    NdiError::Runtime("the NDI publication APIs are incomplete".into())
 }

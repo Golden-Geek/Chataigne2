@@ -2,10 +2,10 @@
 
 - **Updated:** 20 November 2026.
 - **Overall plan acceptance:** `█████████░` **89% — 129/145 checks accepted, 9/19 phases complete**.
-- **Latest verified:** RTK fullscreen startup and File → New passed on Intel and NVIDIA. The restricted test opened zero Optoma windows. [Checks](mapgyver-m14-screen-defaults.md#physical-rtk-startup-and-new)
+- **Latest verified:** NDI starts automatically with a compatible configured or installed runtime if the bundled DLL fails. Discovery, picture, gain and reconnect passed with the fallback. [Checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
 - **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
 - **Manual action needed from you now: none.**
-- **Next:** Verify simultaneous physical display output, hot-plug and native Ctrl+N (M14/6). Physical editor pointer verification and direct Windows File Explorer drops still need a desktop input session.
+- **Next:** Check first-launch guidance when no compatible NDI runtime can load (M17/1). Physical display, native pointer and direct Windows File Explorer checks need a desktop session.
 
 ## Done — code and normal-use checks passed
 
@@ -93,7 +93,7 @@
 
 [NDI with audio](../plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output) is implemented and verified locally.
 
-- **NDI Media.** The Windows x64 package includes the NDI runtime. A fresh profile discovered and displayed an external test sender without activation. Clean Windows installation, a Media gain check and cross-machine A/V checks remain pending. [Startup checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
+- **NDI Media.** The Windows x64 package includes the NDI runtime and falls back automatically if the bundled DLL fails. A fresh profile verified picture, gain, mute and sender recovery. Clean Windows installation and cross-machine A/V checks remain pending. [Startup checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
 - **NDI Screen Output.** Choosing NDI on an enabled Screen started picture and routed audio without activation. Both resumed after restart and reopening the saved project. Cross-machine A/V offset and drift, recovery, and final-use qualification remain pending. [Startup checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
 
 [Browser video previews (M18/6)](evidence/mapgyver-m18-browser-spatial-2026-11-20.json) passed in standalone Chromium across Media Preview, Screen Warping, Surface Source, Composition, the Matrix grid and the Cell editor.

@@ -24,8 +24,10 @@ The implemented foundations are:
 - `ndi/` uses the optional Windows x64 NDI 6 runtime for discovery and progressive BGRA/BGRX
   capture. One receiver also captures discrete planar audio and preserves the original timecode
   and SDK submission timestamp for both streams. Samples retain NDI's native float levels.
-  It loads the SDK function table from the executable's private `ndi/` directory or an installed
-  runtime and uses [`ndi-sdk`'s generated
+  It tries the executable's private `ndi/` directory first, then `NDI_RUNTIME_DIR_V6` and standard
+  Windows installation paths. Incompatible candidates are skipped. The first runtime with complete
+  discovery, receive and send APIs that initializes successfully stays loaded for the process.
+  It uses [`ndi-sdk`'s generated
   ABI types](https://docs.rs/ndi-sdk/0.2.0/ndi_sdk/sys/). Capture handles and buffers stay on the
   calling worker. Copied frames use the existing CPU image budget and stay charged while any
   renderer generation holds them. On send, D3D11 uses two nonblocking staging slots and a

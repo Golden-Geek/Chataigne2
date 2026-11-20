@@ -19,6 +19,23 @@ const providedName = `MapGyver-NDI-Media-${randomUUID()}`;
 const exerciseMultichannel = process.argv.includes('--multichannel');
 const exerciseAudio = exerciseMultichannel || process.argv.includes('--audio');
 const expectBundledRuntime = process.argv.includes('--bundled-runtime');
+const fallbackFlag = '--fallback-runtime-dir=';
+const fallbackRuntimeDir = process.argv
+	.find((value) => value.startsWith(fallbackFlag))
+	?.slice(fallbackFlag.length);
+assert(
+	!expectBundledRuntime || fallbackRuntimeDir === undefined,
+	'Select only one runtime lookup case'
+);
+assert(
+	fallbackRuntimeDir === undefined || path.isAbsolute(fallbackRuntimeDir),
+	'Provide an absolute fallback runtime directory'
+);
+const runtimeDirectory =
+	fallbackRuntimeDir ??
+	(expectBundledRuntime
+		? path.resolve(path.dirname(process.env.MAPGYVER_TEST_BINARY), 'ndi')
+		: undefined);
 const initialFeed = launchSender('sender');
 let resumedFeed;
 
@@ -76,9 +93,7 @@ function launchSender(label) {
 			stopPath,
 			'--max-seconds',
 			'90',
-			...(expectBundledRuntime
-				? ['--runtime-dir', path.resolve(path.dirname(process.env.MAPGYVER_TEST_BINARY), 'ndi')]
-				: []),
+			...(runtimeDirectory ? ['--runtime-dir', runtimeDirectory] : []),
 			...(exerciseAudio ? ['--pulse-frames', '11'] : []),
 			...(exerciseMultichannel ? ['--channels', '4', '--silent-channel', '3'] : [])
 		],
@@ -372,8 +387,8 @@ try {
 	stage = 'start MapGyver';
 	native = await openNativeEditor({
 		development: process.env.MAPGYVER_TEST_DEV === '1',
-		environment: expectBundledRuntime
-			? { NDI_RUNTIME_DIR_V6: undefined, ProgramFiles: directory }
+		environment: runtimeDirectory
+			? { NDI_RUNTIME_DIR_V6: fallbackRuntimeDir, ProgramFiles: directory }
 			: undefined
 	});
 	const { page } = native;
@@ -473,8 +488,8 @@ try {
 	assert.deepEqual(preview.source, { kind: 'Channel', reference });
 	assert.deepEqual(preview.nativeStatus.source, preview.source);
 	assert.equal(await panel.getAttribute('data-preview-media'), reference.media);
-	if (expectBundledRuntime) {
-		stage = 'verify the Windows loader uses the app-local NDI runtime';
+	if (runtimeDirectory) {
+		stage = 'verify the Windows loader uses the expected NDI runtime';
 		const filename = 'Processing.NDI.Lib.x64.dll';
 		runtimeModule = execFileSync(
 			'powershell.exe',
@@ -488,7 +503,7 @@ try {
 		).trim();
 		assert.equal(
 			path.normalize(runtimeModule).toLowerCase(),
-			path.resolve(path.dirname(process.env.MAPGYVER_TEST_BINARY), 'ndi', filename).toLowerCase()
+			path.join(runtimeDirectory, filename).toLowerCase()
 		);
 	}
 	if (exerciseAudio) {
@@ -532,7 +547,7 @@ try {
 				selected,
 				preview,
 				runtimeModule,
-				systemRuntimeLookupHidden: expectBundledRuntime,
+				systemRuntimeLookupHidden: Boolean(runtimeDirectory),
 				workbench,
 				audioChecks,
 				pageErrors,
