@@ -186,9 +186,16 @@ preserve identity while runtime generations fence stale preparation.
 
 ## Rendering and native lifetime
 
-The retained native route is ordinary Tauri/Wry underlay, D3D11 and the pinned Spout binding.
+The Windows native route is ordinary Tauri/Wry underlay, D3D11 and the pinned Spout binding.
 [Native research](mapgyver-native-rendering.md) explains the functional decision and continuing
 DPI/physical limitations. That decision is not production qualification.
+
+On macOS, Golden Video's wgpu backend runs the same compiled graph and resource lifecycle.
+MapGyver's initial portable preview admits Solid Color channels, publishes bounded GPU readback
+through the shared browser preview transport, and retires its renderer on demand expiry. The
+desktop host advertises whether it owns a native presentation underlay so the workbench can
+use the browser preview transport on the same desktop. GPU-backed file sources and physical
+Screen presentation are separate steps in [M19](../plan/MapGyver_Implementation_Plan.md#m19--cross-platform-delivery).
 
 Golden Video compiles immutable demanded DAGs with explicit storage/color/alpha, normalizing
 internal composition to linear premultiplied alpha. Workers prepare sources/plans, apply

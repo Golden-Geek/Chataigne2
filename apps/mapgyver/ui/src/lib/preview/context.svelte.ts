@@ -1,7 +1,7 @@
 import { getContext, setContext } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { listen } from '@tauri-apps/api/event';
-import { hasDesktopHost } from 'golden_ui/host/desktop';
+import { hasNativePresentation } from 'golden_ui/host/desktop';
 import { createPreviewSession, createDesktopPreviewTransport } from 'golden_video_ui';
 import type { PreviewStatus } from './generated/PreviewStatus';
 import { PREVIEW_STATUS_EVENT } from './generated/constants';
@@ -23,7 +23,7 @@ export function providePreview() {
 			const unsubscribe = session.subscribe((value) => {
 				state.transparent = value.presentedViews.length > 0;
 			});
-			if (hasDesktopHost()) {
+			if (hasNativePresentation()) {
 				void listen<PreviewStatus[]>(PREVIEW_STATUS_EVENT, (event) => {
 					state.statusReceivedAt = performance.now();
 					statuses.clear();

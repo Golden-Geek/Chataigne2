@@ -69,7 +69,7 @@ pub enum OutputBinding {
         /// Fixed, budgeted frame dimensions.
         extent: Extent2D,
         /// Single-frame mailbox receiving tightly packed BGRA8 bytes.
-        frames: super::ReadbackSink,
+        frames: crate::readback::ReadbackSink,
     },
     /// A named NDI stream fed by the renderer's bounded BGRA staging path.
     #[cfg(all(target_arch = "x86_64", feature = "ndi"))]

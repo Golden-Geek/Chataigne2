@@ -307,7 +307,11 @@ impl ChannelRenderer {
         self.publish_scene(capture, routes, screens, preview.map(PreviewOutputs::from))
     }
 
-    #[cfg(all(windows, feature = "native-video"))]
+    #[cfg(any(
+        all(windows, feature = "native-video"),
+        target_os = "macos",
+        feature = "wgpu-preview"
+    ))]
     pub(crate) fn publish_preview_frames(
         &mut self,
         capture: crate::preview::capture::CapturedPreview,
@@ -315,6 +319,20 @@ impl ChannelRenderer {
         descriptor: golden_video::TextureDescriptor,
     ) -> Result<RequestId, String> {
         let (channels, screens) = capture.into_preview_scene();
+        #[cfg(not(all(windows, feature = "native-video")))]
+        let routes = routes
+            .into_iter()
+            .filter(|route| {
+                route.source.reference().is_some_and(|reference| {
+                    channels.channels.iter().any(|channel| {
+                        channel.reference == reference
+                            && channel.definition.as_ref().is_some_and(|definition| {
+                                matches!(definition.source, super::protocol::ChannelSource::SolidColor { .. })
+                            })
+                    })
+                })
+            })
+            .collect();
         self.publish_scene(
             channels,
             Vec::new(),

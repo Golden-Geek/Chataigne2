@@ -1,4 +1,4 @@
-import { hasDesktopHost, invokeDesktopCommand } from 'golden_ui/host/desktop';
+import { hasNativePresentation, invokeDesktopCommand } from 'golden_ui/host/desktop';
 import type { PreviewRequest } from './generated/PreviewRequest';
 import type { PreviewResponse } from './generated/PreviewResponse';
 
@@ -10,7 +10,7 @@ export interface PreviewTransport {
 
 export function createDesktopPreviewTransport(): PreviewTransport {
 	return {
-		available: hasDesktopHost,
+		available: hasNativePresentation,
 		async request(request) {
 			const response = await invokeDesktopCommand<string>(
 				'native_presentation_control',

@@ -14,15 +14,19 @@ use golden_core::{
     transport::{BrowserPreviewStream, BrowserPreviews},
     ui_sync::{UiBrowserPreviewDependency, UiBrowserPreviewExtent},
 };
-use golden_io::{BoundedWorker, RetirementPool, WorkerLimits, WorkerNotifier};
+use golden_io::{BoundedWorker, ReconnectBackoff, RetirementPool, WorkerLimits, WorkerNotifier};
+#[cfg(all(windows, feature = "native-video"))]
+use golden_video::native::{
+    AdapterId, AdapterPreference, D3d11Config, InputLimits, OutputBinding, PhysicalAdapterId, query_adapter_memory,
+    select_adapter,
+};
+#[cfg(not(all(windows, feature = "native-video")))]
+use golden_video::wgpu_backend::{ReadbackOutput, WgpuConfig};
 use golden_video::{
     AlphaMode, ColorEncoding, Extent2D, OutputId, PixelFormat, TextureDescriptor,
     browser::encode_preview_jpeg,
-    native::{
-        AdapterId, AdapterPreference, D3d11Config, InputLimits, OutputBinding, PhysicalAdapterId, ReadbackFrame,
-        query_adapter_memory, readback_channel, select_adapter,
-    },
-    runtime::{OutcomeKind, PlanIdentity, VideoRuntime},
+    readback::{ReadbackFrame, readback_channel},
+    runtime::{OutcomeKind, PlanIdentity, RuntimeState, VideoRuntime},
 };
 use std::{
     io,
@@ -46,6 +50,10 @@ fn routes(previews: &BrowserPreviews, generation: u64) -> Vec<Route> {
         .into_iter()
         .filter_map(|stream| {
             let source = serde_json::from_str(stream.source()).ok()?;
+            #[cfg(not(all(windows, feature = "native-video")))]
+            if !matches!(source, PreviewSource::Channel { .. }) {
+                return None;
+            }
             match source {
                 PreviewSource::MatrixPlayback { .. } => return None,
                 PreviewSource::Calibration { mode, extent } => validate_calibration(mode, extent).ok()?,
@@ -75,21 +83,30 @@ pub(crate) fn start(
         move |context| {
             let notifier = context.wake_notifier();
             previews.set_notifier(notifier.clone());
+            #[cfg(all(windows, feature = "native-video"))]
             let mut adapter = None;
             let mut owner = None;
             let mut last_error = None;
+            let mut reconnect = ReconnectBackoff::new(Duration::from_millis(250), Duration::from_secs(4));
+            let mut retry_at = Instant::now();
             while !context.cancellation().is_cancelled() {
                 let checkpoint = context.wake_checkpoint();
                 let generation = runtime.current_project_generation().get();
                 let routes = routes(&previews, generation);
-                let interval = if routes.is_empty() {
+                let now = Instant::now();
+                let next = if routes.is_empty() {
                     if owner.take().is_some() {
                         eprintln!("[mapgyver-browser-preview] renderer retired");
                     }
-                    Duration::from_secs(10)
+                    reconnect.reset();
+                    retry_at = now;
+                    now + Duration::from_secs(10)
+                } else if owner.is_none() && now < retry_at {
+                    retry_at
                 } else {
                     let result = (|| -> Result<(), String> {
                         if owner.is_none() {
+                            #[cfg(all(windows, feature = "native-video"))]
                             let id = match adapter {
                                 Some(id) => id,
                                 None => {
@@ -98,27 +115,45 @@ pub(crate) fn start(
                                     id
                                 }
                             };
-                            owner = Some(Owner::new(id, notifier.clone())?);
+                            owner = Some(Owner::new(
+                                #[cfg(all(windows, feature = "native-video"))]
+                                id,
+                                notifier.clone(),
+                            )?);
                         }
                         owner.as_mut().unwrap().service(&runtime, generation, routes)
                     })();
                     let error = result.err();
-                    let interval = Duration::from_millis(if error.is_some() { 250 } else { 25 });
+                    let status = owner.as_ref().map(|owner| owner.renderer.snapshot().state);
+                    let next = match status {
+                        None | Some(RuntimeState::Stopped) => {
+                            owner.take();
+                            retry_at = reconnect.schedule(now);
+                            retry_at
+                        }
+                        state => {
+                            if state == Some(RuntimeState::Running) {
+                                reconnect.reset();
+                            }
+                            now + Duration::from_millis(if error.is_some() { 250 } else { 25 })
+                        }
+                    };
                     if error != last_error
                         && let Some(error) = &error
                     {
                         eprintln!("[mapgyver-browser-preview] {error}");
                     }
                     last_error = error;
-                    interval
+                    next
                 };
-                context.wait_until(checkpoint, Instant::now() + interval);
+                context.wait_until(checkpoint, next);
             }
         },
     )
     .map_err(io::Error::other)
 }
 
+#[cfg(all(windows, feature = "native-video"))]
 fn preferred_adapter(runtime: &ProductionRuntime<AppNode>) -> Result<AdapterId, String> {
     let value = runtime
         .capture_app(crate::preferences::Source::capture)
@@ -149,12 +184,18 @@ struct Installed {
 }
 
 impl Owner {
-    fn new(adapter: AdapterId, notifier: WorkerNotifier) -> Result<Self, String> {
+    fn new(
+        #[cfg(all(windows, feature = "native-video"))] adapter: AdapterId,
+        notifier: WorkerNotifier,
+    ) -> Result<Self, String> {
+        #[cfg(all(windows, feature = "native-video"))]
         let admission = query_adapter_memory(adapter)
             .map_err(|error| error.to_string())?
             .admission_limit(MAX_BUDGET)
             .map_err(|error| error.to_string())?;
-        #[cfg(feature = "video-files")]
+        #[cfg(not(all(windows, feature = "native-video")))]
+        let admission = MAX_BUDGET;
+        #[cfg(all(windows, feature = "native-video", feature = "video-files"))]
         let (admission, video_budget) = (
             admission - admission / 4,
             golden_video::native::GpuFrameBudget::new(admission / 4),
@@ -164,19 +205,35 @@ impl Owner {
         let rate = golden_time::RationalRate::new(15, 1).unwrap();
         let mut config = config::configuration(admission, None);
         config.video.frame_rate = rate;
+        #[cfg(not(all(windows, feature = "native-video")))]
+        {
+            config.video.notifier = Some(notifier);
+        }
         let mut frames = Vec::with_capacity(OUTPUT_SLOTS);
         let outputs = (0..OUTPUT_SLOTS)
             .map(|slot| {
                 let (sender, receiver) = readback_channel();
                 frames.push(receiver);
-                OutputBinding::Readback {
-                    id: output(slot),
-                    extent,
-                    frames: sender,
+                #[cfg(all(windows, feature = "native-video"))]
+                {
+                    OutputBinding::Readback {
+                        id: output(slot),
+                        extent,
+                        frames: sender,
+                    }
+                }
+                #[cfg(not(all(windows, feature = "native-video")))]
+                {
+                    ReadbackOutput {
+                        id: output(slot),
+                        extent,
+                        frames: sender,
+                    }
                 }
             })
             .collect();
         let limits = config.video.plan_limits;
+        #[cfg(all(windows, feature = "native-video"))]
         let runtime = VideoRuntime::spawn_d3d11(
             config.video,
             D3d11Config {
@@ -191,7 +248,10 @@ impl Owner {
             },
         )
         .map_err(|error| error.to_string())?;
-        let mut owner = Self {
+        #[cfg(not(all(windows, feature = "native-video")))]
+        let runtime =
+            VideoRuntime::spawn_wgpu(config.video, WgpuConfig { outputs }).map_err(|error| error.to_string())?;
+        let owner = Self {
             renderer: ChannelRenderer::new(runtime, limits),
             extent,
             frames,
@@ -200,15 +260,20 @@ impl Owner {
             project_generation: 0,
             installed: None,
         };
-        let root = std::env::current_dir().map_err(|error| error.to_string())?;
-        #[cfg(feature = "video-files")]
-        owner
-            .renderer
-            .enable_hardware_videos(&root, Some(notifier.clone()), adapter, video_budget)?;
-        #[cfg(target_arch = "x86_64")]
-        owner.renderer.enable_ndi(Some(notifier.clone()));
-        owner.renderer.enable_shaders(&root, notifier.clone())?;
-        owner.renderer.enable_pictures(&root, config.pictures, Some(notifier))?;
+        #[cfg(all(windows, feature = "native-video"))]
+        let owner = {
+            let mut owner = owner;
+            let root = std::env::current_dir().map_err(|error| error.to_string())?;
+            #[cfg(feature = "video-files")]
+            owner
+                .renderer
+                .enable_hardware_videos(&root, Some(notifier.clone()), adapter, video_budget)?;
+            #[cfg(target_arch = "x86_64")]
+            owner.renderer.enable_ndi(Some(notifier.clone()));
+            owner.renderer.enable_shaders(&root, notifier.clone())?;
+            owner.renderer.enable_pictures(&root, config.pictures, Some(notifier))?;
+            owner
+        };
         Ok(owner)
     }
 

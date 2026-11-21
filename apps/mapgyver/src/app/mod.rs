@@ -144,13 +144,21 @@ impl ProjectLifecycle for AppNode {
 }
 
 pub fn run() -> std::io::Result<()> {
-    #[cfg(all(windows, feature = "native-video"))]
+    #[cfg(any(
+        all(windows, feature = "native-video"),
+        target_os = "macos",
+        feature = "wgpu-preview"
+    ))]
     let browser_previews = golden_core::transport::BrowserPreviews::default();
     let config = DesktopHostConfig {
         ui_server: UiServerConfig {
             bind_addr: "127.0.0.1:7011".to_owned(),
             frontend_assets: APP_UI_ASSETS,
-            #[cfg(all(windows, feature = "native-video"))]
+            #[cfg(any(
+                all(windows, feature = "native-video"),
+                target_os = "macos",
+                feature = "wgpu-preview"
+            ))]
             browser_previews: Some(browser_previews.clone()),
             ..UiServerConfig::default()
         },
@@ -175,16 +183,24 @@ pub fn run() -> std::io::Result<()> {
                 Ok(applications)
             }
         });
-    #[cfg(all(windows, feature = "native-video"))]
-    let services = services
-        .with_background(move |runtime| {
-            let audio = crate::audio::start(runtime.clone())?;
-            let previews = crate::preview::browser::start(runtime, browser_previews)?;
-            Ok((audio, previews))
-        })
-        .with_native_presentation(crate::preview::host::presentation);
-    #[cfg(not(all(windows, feature = "native-video")))]
+    #[cfg(any(
+        all(windows, feature = "native-video"),
+        target_os = "macos",
+        feature = "wgpu-preview"
+    ))]
+    let services = services.with_background(move |runtime| {
+        let audio = crate::audio::start(runtime.clone())?;
+        let previews = crate::preview::browser::start(runtime, browser_previews)?;
+        Ok((audio, previews))
+    });
+    #[cfg(not(any(
+        all(windows, feature = "native-video"),
+        target_os = "macos",
+        feature = "wgpu-preview"
+    )))]
     let services = services.with_background(crate::audio::start);
+    #[cfg(all(windows, feature = "native-video"))]
+    let services = services.with_native_presentation(crate::preview::host::presentation);
     golden_core::app::run_default_with_services::<AppNode, tauri::Wry>(tauri::generate_context!(), config, services)
 }
 

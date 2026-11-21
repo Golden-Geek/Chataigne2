@@ -14,6 +14,7 @@ export async function openInitialScreenHeadless(directory, { frontend = false } 
 	await new Promise((resolve) => listener.close(resolve));
 	const base = `http://127.0.0.1:${port}`;
 	const stop = path.join(directory, 'host.stop');
+	const dataDirectoryVariable = process.platform === 'win32' ? 'APPDATA' : 'XDG_DATA_HOME';
 	const app = spawn(
 		path.resolve(process.env.MAPGYVER_TEST_BINARY),
 		[
@@ -28,7 +29,7 @@ export async function openInitialScreenHeadless(directory, { frontend = false } 
 			stdio: ['ignore', 'pipe', 'pipe'],
 			env: {
 				...process.env,
-				APPDATA: path.join(directory, 'data'),
+				[dataDirectoryVariable]: path.join(directory, 'data'),
 				GC_UI_BIND: `127.0.0.1:${port}`
 			}
 		}

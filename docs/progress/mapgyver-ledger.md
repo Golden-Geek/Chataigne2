@@ -13,8 +13,12 @@ startup, workbench connection and shutdown. The initial HTML now declares the ex
 
 **M19/2 batch (21 November, 20:09 CET cutoff).** Show an authored Solid Color in macOS Media
 Preview through Golden Video's portable GPU execution. MapGyver owns route and source selection.
-Verify the actual rendered pixels and retirement through the preview transport before expanding
-the renderer to other sources and physical Screen outputs.
+The portable MapGyver build passed the real GPU Media Preview case on local DX12. Chromium
+read the expected rendered pixels at 4:3 before and after a live color and alpha edit. Closing
+the browser retired the renderer and the host shut down normally. Golden Video strict Clippy,
+the default Windows compile check, both Rust format checks, Svelte, 71 preview UI tests,
+Prettier, and Actions lint passed. The Apple Silicon Metal run remains required. Expand to
+file sources and physical Screen output after the preview check.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -173,7 +177,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
-| Active | M19/2 | Deliver GPU-backed Media Preview, then qualify media, Screen output, recovery and independent bundles on Apple Silicon and Intel. |
+| Active | M19/2 | Solid Color Media Preview through Golden's portable GPU worker passed on local DX12. Verify Metal on Apple Silicon, then extend to file sources, Screen output, recovery and independent bundles on both macOS architectures. |
 | Pending | M19/3–5 | After macOS, qualify desktop Linux, then Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |

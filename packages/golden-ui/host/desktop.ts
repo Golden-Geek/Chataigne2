@@ -25,6 +25,11 @@ const normalizeDialogPath = (value: unknown): string | null => {
 
 export const hasDesktopHost = (): boolean => typeof window !== 'undefined' && isTauri();
 
+export const hasNativePresentation = (): boolean =>
+	hasDesktopHost() &&
+	(window as Window & { __GOLDEN_NATIVE_PRESENTATION__?: boolean })
+		.__GOLDEN_NATIVE_PRESENTATION__ === true;
+
 export const subscribeDesktopWindowCloseRequested = (handler: () => void): (() => void) => {
 	if (typeof window === 'undefined' || !hasDesktopHost()) {
 		return () => {};

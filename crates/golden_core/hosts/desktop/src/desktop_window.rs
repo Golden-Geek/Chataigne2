@@ -50,9 +50,10 @@ pub(super) fn run_tauri<R: Runtime>(
     } else {
         "macos"
     };
+    let native_preview = native_presentation.is_some();
     // Document-start precedes <html>, so defer the platform attribute when necessary.
     let init_script = format!(
-        "window.__PLATFORM__ = '{os}'; (function () {{ var apply = function () {{ document.documentElement.dataset.platform = '{os}'; }}; if (document.documentElement) {{ apply(); }} else {{ document.addEventListener('DOMContentLoaded', apply); }} }})();"
+        "window.__PLATFORM__ = '{os}'; window.__GOLDEN_NATIVE_PRESENTATION__ = {native_preview}; (function () {{ var apply = function () {{ document.documentElement.dataset.platform = '{os}'; }}; if (document.documentElement) {{ apply(); }} else {{ document.addEventListener('DOMContentLoaded', apply); }} }})();"
     );
     let window_state = WindowStatePersistence::new(window_state_path);
     let presentation_host = native_presentation

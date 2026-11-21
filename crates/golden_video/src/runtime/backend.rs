@@ -23,7 +23,7 @@ pub enum BackendError {
     AllocationFailed,
     /// The selected backend lacks a required initialization capability or valid native contract.
     #[error("render backend initialization is unsupported")]
-    #[cfg(all(windows, feature = "d3d11"))]
+    #[cfg(any(all(windows, feature = "d3d11"), feature = "wgpu-backend"))]
     UnsupportedInitialization,
     /// Submission was rejected before the proposed token acquired any GPU use.
     #[error("render submission failed before GPU use")]

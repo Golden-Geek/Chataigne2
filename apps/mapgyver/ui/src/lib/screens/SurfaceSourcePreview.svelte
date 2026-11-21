@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { VideoPreview, type OverlayPrimitive } from 'golden_video_ui';
 	import { appState, Viewport2D, pointBounds } from 'golden_ui';
-	import { hasDesktopHost } from 'golden_ui/host/desktop';
+	import { hasNativePresentation } from 'golden_ui/host/desktop';
 	import type { Snippet } from 'svelte';
 	import type { RelatedSurface } from './generated/RelatedSurface';
 	import RelatedContours from './RelatedContours.svelte';
@@ -114,7 +114,7 @@
 		}}
 		onkeydown={(event) => cropControls?.keydown(event)}
 		label="Surface source view"
-		native={identity !== null && hasDesktopHost()}>
+		native={identity !== null && hasNativePresentation()}>
 		{#if identity}
 			<VideoPreview
 				nativeInput={inputAvailable}

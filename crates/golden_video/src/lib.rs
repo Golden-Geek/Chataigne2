@@ -19,6 +19,7 @@ mod ndi_name;
 pub mod plan;
 pub mod preview;
 pub mod qualification;
+pub mod readback;
 mod resource;
 pub mod runtime;
 pub mod scheduling;
@@ -26,6 +27,8 @@ pub mod scheduling;
 #[cfg(all(windows, feature = "d3d11"))]
 pub mod native;
 pub mod shader;
+#[cfg(feature = "wgpu-backend")]
+pub mod wgpu_backend;
 
 pub use color::{ColorError, LinearColor, Opacity};
 pub use identity::{OutputId, PassId, TextureId};

@@ -36,12 +36,16 @@ pub struct VideoRuntime {
 
 enum BackendControl {
     Null(NullControl),
+    #[cfg(feature = "wgpu-backend")]
+    Wgpu,
     #[cfg(all(windows, feature = "d3d11"))]
     D3d11(crate::native::D3d11Control),
 }
 
 enum BackendStart {
     Null(NullConfig, NullControl),
+    #[cfg(feature = "wgpu-backend")]
+    Wgpu(crate::wgpu_backend::WgpuConfig),
     #[cfg(all(windows, feature = "d3d11"))]
     D3d11(
         crate::native::D3d11Config,
@@ -97,6 +101,13 @@ impl VideoRuntime {
         clock: Arc<dyn Clock>,
     ) -> Result<Self, RuntimeStartError> {
         Self::spawn(config, clock, BackendStart::Null(null_config, NullControl::new()))
+    }
+
+    /// Starts a portable GPU worker with bounded readback outputs.
+    #[cfg(feature = "wgpu-backend")]
+    pub fn spawn_wgpu(config: RuntimeConfig, gpu: crate::wgpu_backend::WgpuConfig) -> Result<Self, RuntimeStartError> {
+        gpu.validate()?;
+        Self::spawn(config, Arc::new(SystemClock::new()), BackendStart::Wgpu(gpu))
     }
 
     /// Starts native execution on an explicitly selected hardware adapter. Native resources
@@ -164,6 +175,8 @@ impl VideoRuntime {
         #[cfg(all(windows, feature = "d3d11"))]
         let diagnostics = match &backend {
             BackendStart::Null(..) => None,
+            #[cfg(feature = "wgpu-backend")]
+            BackendStart::Wgpu(_) => None,
             BackendStart::D3d11(config, ..) => config.diagnostics.map(crate::native::timing::Recorder::new),
         };
         #[cfg(not(all(windows, feature = "d3d11")))]
@@ -198,6 +211,8 @@ impl VideoRuntime {
         let run_config = config.clone();
         let control = match &backend {
             BackendStart::Null(_, control) => BackendControl::Null(control.clone()),
+            #[cfg(feature = "wgpu-backend")]
+            BackendStart::Wgpu(_) => BackendControl::Wgpu,
             #[cfg(all(windows, feature = "d3d11"))]
             BackendStart::D3d11(_, control, _) => {
                 // File producers can start before the render worker initializes its backend.
@@ -226,6 +241,16 @@ impl VideoRuntime {
                     device,
                     authority,
                 ),
+                #[cfg(feature = "wgpu-backend")]
+                BackendStart::Wgpu(gpu) => super::worker::run_wgpu(
+                    context,
+                    run_shared,
+                    run_config,
+                    gpu,
+                    preparation_lifetimes,
+                    device,
+                    authority,
+                ),
                 #[cfg(all(windows, feature = "d3d11"))]
                 BackendStart::D3d11(native_config, native_control, clock_source) => super::worker::run_d3d11(
                     context,
@@ -245,6 +270,8 @@ impl VideoRuntime {
         shared.set_waker(wake.clone());
         match &control {
             BackendControl::Null(null) => null.set_waker(wake),
+            #[cfg(feature = "wgpu-backend")]
+            BackendControl::Wgpu => {}
             #[cfg(all(windows, feature = "d3d11"))]
             BackendControl::D3d11(_) => {}
         }
@@ -471,6 +498,8 @@ impl VideoRuntime {
     pub fn null_control(&self) -> Option<NullControl> {
         match &self.backend {
             BackendControl::Null(control) => Some(control.clone()),
+            #[cfg(feature = "wgpu-backend")]
+            BackendControl::Wgpu => None,
             #[cfg(all(windows, feature = "d3d11"))]
             BackendControl::D3d11(_) => None,
         }
@@ -482,6 +511,8 @@ impl VideoRuntime {
         match &self.backend {
             BackendControl::D3d11(control) => Some(control.clone()),
             BackendControl::Null(_) => None,
+            #[cfg(feature = "wgpu-backend")]
+            BackendControl::Wgpu => None,
         }
     }
     /// Wakes an injected-clock service after the caller advances its fake source.

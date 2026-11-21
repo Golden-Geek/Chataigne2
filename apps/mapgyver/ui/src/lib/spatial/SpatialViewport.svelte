@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { appState, Viewport2D, type UiBrowserPreviewDependency } from 'golden_ui';
-	import { hasDesktopHost } from 'golden_ui/host/desktop';
+	import { hasNativePresentation } from 'golden_ui/host/desktop';
 	import { MAX_VIEW_OVERLAYS, type OverlayPrimitive } from 'golden_video_ui';
 	import ChannelPreview from '../media/ChannelPreview.svelte';
 	import type { ChannelSnapshot } from '../media/generated/ChannelSnapshot';
@@ -36,7 +36,7 @@
 		keyboard?: SpatialKeyboardClient;
 	} = $props();
 	const keyboard = createSpatialKeyboard(() => keyboardClient);
-	const native = hasDesktopHost();
+	const native = hasNativePresentation();
 	let overlays = $state.raw<OverlayPrimitive[]>([]);
 	let painted = $state(false);
 	const nativeFrame = $derived(preview !== null && painted);

@@ -13,6 +13,7 @@ d3d11 = ["dep:windows", "dep:spout2-sys", "dep:concurrent-queue", "dep:naga", "w
 ndi = ["dep:libloading", "dep:ndi-sdk"]
 qualification = ["d3d11", "spout2-sys/qualification"]
 browser-preview = ["dep:image_codec"]
+wgpu-backend = ["dep:pollster", "dep:wgpu"]
 
 [dependencies]
 ffmpeg-next = { version = "=9.0.0", default-features = false, features = ["format", "software-resampling", "software-scaling"], optional = true }
@@ -23,6 +24,8 @@ golden_io.workspace = true
 golden_time.workspace = true
 image_codec = { package = "image", version = "=0.25.10", default-features = false, features = ["jpeg"], optional = true }
 pp-rs = "=0.2.1"
+pollster = { version = "=0.4.0", optional = true }
+wgpu = { version = "=30.0.2", default-features = false, features = ["std", "parking_lot", "wgsl"], optional = true }
 serde.workspace = true
 serde_json.workspace = true
 ts-rs.workspace = true
@@ -48,6 +51,7 @@ ndi-sdk = { version = "=0.2.0", optional = true }
 windows = { version = "=0.61.3", features = ["Win32_Graphics_Direct3D_Fxc"] }
 
 [target.'cfg(windows)'.dependencies]
+wgpu = { version = "=30.0.2", default-features = false, features = ["dx12"], optional = true }
 concurrent-queue = { version = "=2.5.0", optional = true }
 naga = { version = "=30.0.2", features = ["glsl-in", "hlsl-out"], optional = true }
 spout2-sys = { version = "=0.1.1", default-features = false, features = ["dx"], optional = true }
@@ -69,3 +73,9 @@ windows = { version = "=0.61.3", optional = true, features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_UI_HiDpi",
 ] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+wgpu = { version = "=30.0.2", default-features = false, features = ["metal"], optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+wgpu = { version = "=30.0.2", default-features = false, features = ["vulkan", "gles"], optional = true }

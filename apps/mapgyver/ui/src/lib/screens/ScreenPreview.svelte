@@ -2,7 +2,7 @@
 	import { onDestroy, type Snippet } from 'svelte';
 	import { VideoPreview, MAX_VIEW_OVERLAYS, type OverlayPrimitive } from 'golden_video_ui';
 	import { appState, Viewport2D, pointBounds } from 'golden_ui';
-	import { hasDesktopHost } from 'golden_ui/host/desktop';
+	import { hasNativePresentation } from 'golden_ui/host/desktop';
 	import type { ScreenSnapshot } from './generated/ScreenSnapshot';
 	import type { PreviewSource } from '../preview/generated/PreviewSource';
 	import { usePreview } from '../preview/context.svelte';
@@ -159,7 +159,7 @@
 		onfocusout={() => keyboard.finish()}
 		{selection}
 		label="Screen view"
-		native={hasDesktopHost()}>
+		native={hasNativePresentation()}>
 		<VideoPreview
 			nativeInput={inputAvailable}
 			nativeBackdrop

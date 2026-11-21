@@ -2,7 +2,7 @@
 	// The view's owner supplies one source key and the same interaction layer for each host.
 	import type { ComponentProps } from 'svelte';
 	import type { UiBrowserPreviewDependency, UiBrowserPreviewExtent } from 'golden_ui';
-	import { hasDesktopHost } from 'golden_ui/host/desktop';
+	import { hasNativePresentation } from 'golden_ui/host/desktop';
 	import BrowserPreview from './BrowserPreview.svelte';
 	import BrowserPreviewTiles from './BrowserPreviewTiles.svelte';
 	import NativePreview from './NativePreview.svelte';
@@ -18,7 +18,7 @@
 	} = $props();
 </script>
 
-{#if hasDesktopHost()}
+{#if hasNativePresentation()}
 	<NativePreview {...view} />
 {:else if view.tileGroups}
 	<BrowserPreviewTiles

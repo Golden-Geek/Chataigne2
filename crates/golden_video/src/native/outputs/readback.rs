@@ -1,5 +1,5 @@
 //! A bounded, nonblocking handoff from the renderer's texture to a CPU consumer.
-use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
+use std::sync::mpsc::TrySendError;
 
 use windows::{
     Win32::Graphics::{
@@ -13,27 +13,10 @@ use windows::{
 };
 
 use super::{Delivery, INVALID_ARGUMENT};
+use crate::readback::{ReadbackFrame, ReadbackSink};
 use crate::{TextureDescriptor, native::OutputTextureAllocation, native::texture::Texture, runtime::PlanIdentity};
 
 const FAILURE: HRESULT = HRESULT(0x80004005_u32 as i32);
-
-/// A CPU consumer with room for one completed frame awaiting pickup.
-#[derive(Clone, Debug)]
-pub struct ReadbackSink(SyncSender<ReadbackFrame>);
-
-/// CPU-owned image with the publication fence of the GPU pass that produced it.
-pub struct ReadbackFrame {
-    /// Plan that populated staging, which may differ from the current active plan.
-    pub plan: PlanIdentity,
-    /// Tightly packed top-down opaque BGRA8 rows.
-    pub pixels: Vec<u8>,
-}
-
-/// Creates an owned BGRA8 frame handoff. A slow receiver cannot enqueue more frames.
-pub fn readback_channel() -> (ReadbackSink, Receiver<ReadbackFrame>) {
-    let (sender, receiver) = sync_channel(1);
-    (ReadbackSink(sender), receiver)
-}
 
 pub(super) struct ReadbackOutput {
     descriptor: TextureDescriptor,
@@ -79,7 +62,7 @@ impl ReadbackOutput {
                 plan: pending,
                 pixels: std::mem::take(&mut self.pixels),
             };
-            match self.frames.0.try_send(frame) {
+            match self.frames.try_send(frame) {
                 Ok(()) => self.pixels.resize(bytes, 0),
                 Err(TrySendError::Full(frame)) => self.pixels = frame.pixels,
                 Err(TrySendError::Disconnected(frame)) => {

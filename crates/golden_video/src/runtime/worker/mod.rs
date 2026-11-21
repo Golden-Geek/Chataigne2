@@ -115,6 +115,31 @@ pub(super) fn run_d3d11(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(feature = "wgpu-backend")]
+pub(super) fn run_wgpu(
+    context: WorkerContext<(), ()>,
+    shared: Arc<Shared>,
+    config: RuntimeConfig,
+    gpu: crate::wgpu_backend::WgpuConfig,
+    preparation_lifetimes: RetirementPool,
+    device: DeviceGeneration,
+    authority: TimeAuthority<Arc<dyn Clock>>,
+) {
+    let notify = context.wake_notifier();
+    run_backend(
+        context,
+        shared,
+        config,
+        preparation_lifetimes,
+        device,
+        authority,
+        Duration::ZERO,
+        false,
+        move || Ok(crate::wgpu_backend::WgpuBackend::new(gpu, device, notify)),
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
 fn run_backend<B: Backend>(
     context: WorkerContext<(), ()>,
     shared: Arc<Shared>,

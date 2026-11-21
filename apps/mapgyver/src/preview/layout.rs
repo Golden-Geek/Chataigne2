@@ -28,7 +28,11 @@ pub struct PreviewLayout {
     pub layout: PreviewSnapshot,
 }
 
-#[cfg(all(windows, feature = "native-video"))]
+#[cfg(any(
+    all(windows, feature = "native-video"),
+    target_os = "macos",
+    feature = "wgpu-preview"
+))]
 #[derive(Clone, Copy)]
 pub(crate) struct PreviewFrameRoute {
     pub output: OutputId,
@@ -40,7 +44,11 @@ pub(crate) struct PreviewFrameRoute {
 #[derive(Clone)]
 pub(crate) enum PreviewOutputs {
     Window(Box<PreviewLayout>),
-    #[cfg(all(windows, feature = "native-video"))]
+    #[cfg(any(
+        all(windows, feature = "native-video"),
+        target_os = "macos",
+        feature = "wgpu-preview"
+    ))]
     Frames {
         routes: Vec<PreviewFrameRoute>,
         descriptor: TextureDescriptor,
@@ -57,7 +65,11 @@ impl PreviewOutputs {
     pub(crate) fn routing_guard(&self) -> Option<golden_io::RevisionGuard> {
         match self {
             Self::Window(layout) => Some(layout.layout.routing_guard.clone()),
-            #[cfg(all(windows, feature = "native-video"))]
+            #[cfg(any(
+                all(windows, feature = "native-video"),
+                target_os = "macos",
+                feature = "wgpu-preview"
+            ))]
             Self::Frames { .. } => None,
         }
     }
@@ -65,7 +77,11 @@ impl PreviewOutputs {
     pub(crate) fn register_outputs(&self, outputs: &mut std::collections::HashSet<OutputId>) -> Result<(), String> {
         let unique = match self {
             Self::Window(layout) => outputs.insert(layout.output),
-            #[cfg(all(windows, feature = "native-video"))]
+            #[cfg(any(
+                all(windows, feature = "native-video"),
+                target_os = "macos",
+                feature = "wgpu-preview"
+            ))]
             Self::Frames { routes, .. } => routes.iter().all(|route| outputs.insert(route.output)),
         };
         unique
@@ -76,7 +92,11 @@ impl PreviewOutputs {
     pub(crate) fn references(&self) -> Result<Vec<ChannelReference>, String> {
         match self {
             Self::Window(layout) => layout.references(),
-            #[cfg(all(windows, feature = "native-video"))]
+            #[cfg(any(
+                all(windows, feature = "native-video"),
+                target_os = "macos",
+                feature = "wgpu-preview"
+            ))]
             Self::Frames { routes, .. } => Ok(routes.iter().filter_map(|route| route.source.reference()).collect()),
         }
     }
@@ -84,7 +104,11 @@ impl PreviewOutputs {
     pub(crate) fn count(&self) -> usize {
         match self {
             Self::Window(_) => 1,
-            #[cfg(all(windows, feature = "native-video"))]
+            #[cfg(any(
+                all(windows, feature = "native-video"),
+                target_os = "macos",
+                feature = "wgpu-preview"
+            ))]
             Self::Frames { routes, .. } => routes.len(),
         }
     }
@@ -92,7 +116,11 @@ impl PreviewOutputs {
     pub(crate) fn pass_count(&self) -> Result<usize, String> {
         match self {
             Self::Window(layout) => layout.pass_count(),
-            #[cfg(all(windows, feature = "native-video"))]
+            #[cfg(any(
+                all(windows, feature = "native-video"),
+                target_os = "macos",
+                feature = "wgpu-preview"
+            ))]
             Self::Frames { routes, .. } => Ok(calibrations(routes.iter().map(|route| route.source))?.len()),
         }
     }
@@ -100,7 +128,11 @@ impl PreviewOutputs {
     pub(crate) fn maximum_dependencies(&self) -> Result<usize, String> {
         match self {
             Self::Window(layout) => layout.maximum_dependencies(),
-            #[cfg(all(windows, feature = "native-video"))]
+            #[cfg(any(
+                all(windows, feature = "native-video"),
+                target_os = "macos",
+                feature = "wgpu-preview"
+            ))]
             Self::Frames { routes, .. } => Ok(calibration_work(calibrations(routes.iter().map(|route| route.source))?)),
         }
     }
@@ -115,7 +147,11 @@ impl PreviewOutputs {
     ) -> Result<PreviewImages, String> {
         match self {
             Self::Window(layout) => layout.append(submission, channels, screens, assets, Some(handoff)),
-            #[cfg(all(windows, feature = "native-video"))]
+            #[cfg(any(
+                all(windows, feature = "native-video"),
+                target_os = "macos",
+                feature = "wgpu-preview"
+            ))]
             Self::Frames { routes, descriptor } => {
                 let patterns = append_patterns(
                     submission,
