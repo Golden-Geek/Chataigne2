@@ -34,6 +34,7 @@ golden_core::define_node_enum!(
 );
 
 pub type AppEngine = golden_core::engine::Engine<AppNode>;
+pub(crate) const DISPLAY_NAME: &str = "MapGyver 2";
 
 include!(concat!(env!("OUT_DIR"), "/ui_assets.rs"));
 
@@ -60,11 +61,11 @@ impl ProjectLifecycle for AppNode {
     }
 
     fn application_display_name() -> &'static str {
-        "MapGyver"
+        DISPLAY_NAME
     }
 
     fn project_file_spec() -> ProjectFileSpec {
-        ProjectFileSpec::new("MapGyver Project", "mapgyver")
+        ProjectFileSpec::new("MapGyver 2 Project", "mapgyver")
     }
 
     fn app_data_directory_name() -> &'static str {

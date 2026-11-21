@@ -1,5 +1,7 @@
 {
+	"mainBinaryName": "MapGyver2",
 	"bundle": {
+		"targets": ["nsis"],
 		"resources": {
 			"../../target/mapgyver-ffmpeg-runtime/bin/avcodec-63.dll": "avcodec-63.dll",
 			"../../target/mapgyver-ffmpeg-runtime/bin/avformat-63.dll": "avformat-63.dll",

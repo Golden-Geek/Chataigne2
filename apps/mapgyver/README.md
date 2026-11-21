@@ -1,4 +1,4 @@
-# MapGyver app
+# MapGyver 2
 
 This crate owns MapGyver's identity, project policy, frontend composition, and
 desktop packaging configuration. Golden owns the engine, persistence, transport,
@@ -278,7 +278,9 @@ uses a 90 ms playout target for incoming audio and video. [NDI qualification and
 The Windows packaging command `npm run package:mapgyver` stages the DLL and third-party notices
 from the current standard [NDI SDK](https://ndi.video/). For distribution builds, set
 `NDI_SDK_DIR` to the SDK root and `MAPGYVER_NDI_INSTALLER_LICENSE` to the approved installer
-agreement in plain text. The installer places the runtime in MapGyver's own `ndi/` directory.
+agreement in plain text. The installer places the runtime in the app's `ndi/` directory.
+Use `npm run package:mapgyver -- --without-bundled-ndi` for a package that uses a compatible
+NDI runtime installed separately.
 [NDI distribution terms](https://docs.ndi.video/all/developing-with-ndi/sdk/software-distribution)
 
 Choose **NDI** in a Screen's **Target** control to publish its rendered picture on Windows x64.
@@ -508,7 +510,7 @@ Run these commands from the workspace root:
 | `npm run dev:mapgyver`           | Start only the frontend development server.                  |
 | `npm run build:mapgyver`         | Build the frontend.                                          |
 | `npm run check:mapgyver`         | Check frontend types and Svelte components.                  |
-| `npm run package:mapgyver`       | Build the desktop bundles from MapGyver's app directory.     |
+| `npm run package:mapgyver`       | Build the Windows x64 NSIS installer.                        |
 | `npm run package:check:mapgyver` | Compile through the packaging path without creating bundles. |
 
 `cargo run -p MapGyver -- --dev` launches the app with its frontend development
@@ -517,6 +519,33 @@ a window. The packaging commands retain the workspace signing prerequisite.
 MapGyver defaults to backend port `7011` and frontend development port `5174`;
 `GC_UI_BIND` and `GC_UI_FRONTEND_URL` retain the shared host's explicit overrides.
 Unqualified root commands continue to select Chataigne.
+
+### Windows installer
+
+The NSIS installer installs for the current Windows user. With `/S`, it runs unattended and
+leaves the app closed. Run the downloaded installer from PowerShell and check its exit code.
+
+```powershell
+$setup = Start-Process -FilePath .\MapGyver2-1.0.0b1-windows-x64-setup.exe -ArgumentList '/S' -Wait -PassThru
+$setup.ExitCode
+```
+
+Use uppercase `/S`. If WebView2 is missing, setup downloads and installs it silently.
+To install to a custom directory, append `/D=C:\absolute\install path` as the last argument
+without quotes. Windows lists the app as **MapGyver 2**.
+
+Prepare the pinned prerequisites above before building and testing the public beta package.
+
+```powershell
+npm run package:mapgyver -- --without-bundled-ndi -- --locked
+$installer = (Get-ChildItem target/release/bundle/nsis -Filter '*-setup.exe').FullName
+powershell -NoProfile -File apps/mapgyver/tests/package/silent-install.ps1 -Installer $installer
+```
+
+The smoke test needs a Windows account without MapGyver 2 installed. It installs into a
+temporary directory, checks that setup leaves the app closed, launches the packaged build to check
+the embedded workbench and reported version, then silently uninstalls. Distribute the
+[corresponding FFmpeg source kit](../../tools/mapgyver/ffmpeg/SOURCE-KIT.md) with the installer.
 
 `build.rs` selects the `mapgyver-ui` npm workspace through
 `golden_codegen_support::ui_bundle`; it embeds the resulting assets into the

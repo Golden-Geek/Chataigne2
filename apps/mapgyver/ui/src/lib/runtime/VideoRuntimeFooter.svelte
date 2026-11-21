@@ -6,7 +6,7 @@
 	const title = $derived(
 		[
 			status?.gpu ? `Renderer adapter: ${status.gpu}` : 'No renderer adapter observation',
-			status?.gpu_restart_required ? 'GPU preference changed. Restart MapGyver to apply.' : '',
+			status?.gpu_restart_required ? 'GPU preference changed. Restart the app to apply.' : '',
 			'Content FPS excludes preview-only redraws and does not measure display refresh.',
 			'CPU content submission time excludes preview-only redraws, asynchronous GPU work and presentation.',
 			'Tracked bytes are renderer allocation charges, not physical VRAM residency.',

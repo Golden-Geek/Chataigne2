@@ -20,7 +20,7 @@ pub(crate) const AUTOMATIC: &str = "Automatic";
 #[children(
     adapter: Enum = "Automatic" (
         label = "GPU",
-        description = "Automatic prefers the high-performance GPU. Changes apply after restarting MapGyver. A missing explicit GPU never falls back to another adapter.",
+        description = "Automatic prefers the high-performance GPU. Changes apply after restarting the app. A missing explicit GPU never falls back to another adapter.",
         enum_options = crate::parameters::enum_options(&[crate::preferences::AUTOMATIC])
     );
 )]

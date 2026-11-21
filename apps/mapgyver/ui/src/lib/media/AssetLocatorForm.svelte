@@ -53,7 +53,7 @@
 				<option value="absolute">Absolute path on this host</option>
 			</select></label>
 		<label>Picture file path<input required bind:value={path} /></label>
-		<p>PNG, JPEG, or still WebP. Paths refer to files on the MapGyver host.</p>
+		<p>PNG, JPEG, or still WebP. Paths refer to files on the host running the app.</p>
 		{#if kind === 'project_relative'}<p>
 				Relative paths resolve from the saved project’s folder.
 			</p>{/if}

@@ -68,8 +68,10 @@ try {
     if ($CargoArguments[0] -eq '--tauri') {
         Set-Location -LiteralPath (Join-Path $taskRoot 'apps/mapgyver')
         $taskTauriArguments = @($CargoArguments | Select-Object -Skip 1)
-        if ($taskTauriArguments[0] -eq 'bundle' -or
-            ($taskTauriArguments[0] -eq 'build' -and $taskTauriArguments -notcontains '--no-bundle')) {
+        $taskBundleNdi = $taskTauriArguments -notcontains '--without-bundled-ndi'
+        $taskTauriArguments = @($taskTauriArguments | Where-Object { $_ -ne '--without-bundled-ndi' })
+        if ($taskBundleNdi -and ($taskTauriArguments[0] -eq 'bundle' -or
+            ($taskTauriArguments[0] -eq 'build' -and $taskTauriArguments -notcontains '--no-bundle'))) {
             & (Join-Path $taskRoot 'tools/mapgyver/ndi/prepare-runtime.ps1')
             $taskTauriArguments += @('--config', 'tauri.ndi.conf.json')
         }

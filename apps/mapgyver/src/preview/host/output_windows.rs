@@ -1,6 +1,7 @@
 //! Stable physical-window leases outlive renderer sessions. Session leases prevent teardown
 //! until actual GPU retirement, including failed reconstruction and project replacement.
 use super::targets::Target;
+use crate::app::DISPLAY_NAME;
 use crate::screens::{protocol::ScreenId, rendering::ResolvedTarget};
 use golden_core::app::{NativeOutputEvent, NativeOutputWindow};
 use golden_io::WorkerNotifier;
@@ -110,7 +111,7 @@ impl OutputWindows {
                 let pressed = Arc::new(AtomicBool::new(false));
                 let signal = pressed.clone();
                 let window = NativeOutputWindow::with_events(
-                    &format!("MapGyver output {}", target.id.get()),
+                    &format!("{DISPLAY_NAME} output {}", target.id.get()),
                     bounds,
                     move |event| {
                         if event == NativeOutputEvent::EscapePressed && !signal.swap(true, Ordering::AcqRel) {
