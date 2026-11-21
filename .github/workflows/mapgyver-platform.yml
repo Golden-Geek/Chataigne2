@@ -67,7 +67,7 @@ jobs:
             -FrontendUri 'http://127.0.0.1:7010/' `
             -Ports @(7010)
 
-      - name: Check GPU-backed Solid Color, Picture and Video Media Preview
+      - name: Check GPU-backed Media Preview and Screen Warping
         env:
           GC_UI_BROWSER_CHANNEL: chrome
           MAPGYVER_TEST_BINARY: target/debug/MapGyver

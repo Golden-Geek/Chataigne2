@@ -197,9 +197,11 @@ expiry. Picture sources use the existing file preparation worker. Video uses the
 FFmpeg file worker's latest-frame publication. The renderer uploads each admitted Picture
 once per plan and updates plan-owned Video textures when new frames arrive. Both become linear
 premultiplied pixels before filtering. Fit and Fill reuse Golden's projective mapping, and
-Stretch uses the full source. The desktop host advertises native presentation underlay
-availability so the workbench can select its transport. Physical Screen presentation remains open in
-[M19](../plan/MapGyver_Implementation_Plan.md#m19--cross-platform-delivery).
+Stretch uses the full source. Screen Warping with these sources uses the same mapped texture
+layers and linear opacity as the Screen plan. Portable Screen preview currently covers Raw
+and 2× anti-aliasing with calibration off. The desktop host advertises native presentation
+underlay availability so the workbench can select its transport. Physical Screen presentation
+remains open in [M19](../plan/MapGyver_Implementation_Plan.md#m19--cross-platform-delivery).
 
 Golden Video compiles immutable demanded DAGs with explicit storage/color/alpha, normalizing
 internal composition to linear premultiplied alpha. Workers prepare sources/plans, apply

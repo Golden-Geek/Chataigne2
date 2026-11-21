@@ -10,6 +10,7 @@ import { openInitialScreenHeadless } from '../headless/initial-screen-host.mjs';
 
 assert(process.env.MAPGYVER_TEST_BINARY, 'Select a compiled MapGyver with preview enabled');
 const directory = await mkdtemp(join(tmpdir(), 'mapgyver-portable-preview-'));
+process.env.MAPGYVER_AUTOMATION_DISABLE_DISPLAY_OUTPUTS = '1';
 const host = await openInitialScreenHeadless(directory, { frontend: true });
 let browser;
 let token;
@@ -29,10 +30,10 @@ async function post(route, payload) {
 	return result;
 }
 
-async function edit(payload) {
+async function edit(payload, namespace = 'mapgyver.media') {
 	const ack = await post('/api/ui/intent', {
 		kind: 'invokeAppOperation',
-		namespace: 'mapgyver.media',
+		namespace,
 		operation: 'edit',
 		payload
 	});
@@ -133,7 +134,7 @@ try {
 	};
 	await preview(label);
 	await page.getByRole('combobox', { name: 'Browser Preview Quality' }).selectOption('high');
-	const selector = '[data-panel-id="media-preview"] canvas[data-preview-state="available"]';
+	let selector = '[data-panel-id="media-preview"] canvas[data-preview-state="available"]';
 	const waitForPixels = async (...samples) => {
 		await page.waitForFunction(
 			({ selector, samples }) => {
@@ -230,6 +231,62 @@ try {
 	await waitForPixels([240, 180, [0, 0, 255]]);
 	console.log(
 		'Video preview played decoded frames, held a paused seek and followed a live file relink'
+	);
+
+	await setColor([1, 0, 0, 1]);
+	const screens = (payload) => edit(payload, 'mapgyver.screens');
+	const screenLabel = 'Portable Screen';
+	const { screen, surface: background } = await screens({
+		kind: 'CreateScreen',
+		label: screenLabel
+	});
+	await screens({
+		kind: 'ConfigureScreen',
+		screen,
+		definition: {
+			enabled: true,
+			target: {
+				kind: 'Rectangle',
+				bounds: { left: 0, top: 0, extent: { width: 320, height: 240 } }
+			}
+		}
+	});
+	const { reference: foreground } = await screens({
+		kind: 'AddSurface',
+		screen,
+		label: 'Foreground'
+	});
+	const setSurface = (reference, definition) =>
+		screens({ kind: 'ConfigureSurface', reference, definition });
+	await setSurface(background, { source: reference });
+	const quad = {
+		corners: [
+			{ x: 0.45, y: 0.1 },
+			{ x: 0.95, y: 0.15 },
+			{ x: 0.9, y: 0.9 },
+			{ x: 0.35, y: 0.8 }
+		]
+	};
+	await setSurface(foreground, { source: picture, opacity: 0.5, quad });
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Screens$/ })
+		.click();
+	await page
+		.locator('section[aria-label="Screens"]')
+		.getByRole('button', { name: screenLabel, exact: true })
+		.click();
+	await page
+		.getByRole('tab')
+		.filter({ hasText: /^Screen Warping(?::|$)/ })
+		.click();
+	selector = '[data-panel-id="screen-warp"] canvas[data-preview-state="available"]';
+	await waitForPixels([90, 180, red], [350, 180, [188, 188, 0]]);
+	const shifted = { corners: quad.corners.map(({ x, y }) => ({ x: x - 0.3, y })) };
+	await setSurface(foreground, { source: picture, opacity: 1, quad: shifted });
+	await waitForPixels([90, 180, green], [350, 180, red]);
+	console.log(
+		'Screen Warping preview composited overlapping Surfaces and followed a live mapping edit'
 	);
 
 	assert.deepEqual(errors, []);

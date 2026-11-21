@@ -320,24 +320,46 @@ impl ChannelRenderer {
     ) -> Result<RequestId, String> {
         let (channels, screens) = capture.into_preview_scene();
         #[cfg(not(all(windows, feature = "native-video")))]
-        let routes = routes
-            .into_iter()
-            .filter(|route| {
-                route.source.reference().is_some_and(|reference| {
-                    channels.channels.iter().any(|channel| {
-                        channel.reference == reference
-                            && channel.definition.as_ref().is_some_and(|definition| {
-                                matches!(
-                                    definition.source,
-                                    super::protocol::ChannelSource::SolidColor { .. }
-                                        | super::protocol::ChannelSource::Picture { .. }
-                                ) || (cfg!(feature = "video-files")
-                                    && matches!(definition.source, super::protocol::ChannelSource::Video { .. }))
+        let (screens, routes) = {
+            use super::protocol::ChannelSource;
+            use crate::preview::protocol::PreviewSource;
+            let supported: std::collections::HashSet<_> = channels
+                .channels
+                .iter()
+                .filter(|channel| {
+                    !channel.enabled
+                        || channel
+                            .definition
+                            .as_ref()
+                            .is_none_or(|definition| match definition.source {
+                                ChannelSource::SolidColor { .. } | ChannelSource::Picture { .. } => true,
+                                ChannelSource::Video { .. } => cfg!(feature = "video-files"),
+                                _ => false,
                             })
-                    })
                 })
-            })
-            .collect();
+                .map(|channel| channel.reference)
+                .collect();
+            let screens: Vec<_> = screens
+                .into_iter()
+                .filter(|route| {
+                    route.screen.supports_portable_preview()
+                        && route
+                            .screen
+                            .references()
+                            .iter()
+                            .all(|reference| supported.contains(reference))
+                })
+                .collect();
+            let routes = routes
+                .into_iter()
+                .filter(|route| match route.source {
+                    PreviewSource::Channel { reference } => supported.contains(&reference),
+                    PreviewSource::Screen { screen } => screens.iter().any(|route| route.screen.id() == screen),
+                    _ => false,
+                })
+                .collect();
+            (screens, routes)
+        };
         self.publish_scene(
             channels,
             Vec::new(),

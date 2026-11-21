@@ -51,7 +51,7 @@ fn routes(previews: &BrowserPreviews, generation: u64) -> Vec<Route> {
         .filter_map(|stream| {
             let source = serde_json::from_str(stream.source()).ok()?;
             #[cfg(not(all(windows, feature = "native-video")))]
-            if !matches!(source, PreviewSource::Channel { .. }) {
+            if !matches!(source, PreviewSource::Channel { .. } | PreviewSource::Screen { .. }) {
                 return None;
             }
             match source {

@@ -11,26 +11,21 @@ Undo/Redo and Save/New/Load for three sources and six channels, and passed stric
 startup, workbench connection and shutdown. The initial HTML now declares the existing PNG icon.
 [Apple Silicon qualification](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297)
 
-**M19/2 Solid Color verified.** Apple Silicon Metal and local DX12 rendered the expected
-Media Preview pixels at 4:3 before and after a live color and alpha edit. Closing the browser
-retired the renderer and the host shut down normally. Apple Silicon also passed the default
-build, project fixture, and strict desktop readiness check again. Golden Video strict Clippy,
-the default Windows compile check, both Rust format checks, Svelte, 71 preview UI tests,
-Prettier, and Actions lint passed. [Apple Silicon run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44936800486)
+**M19/2 Media Preview verified.** Apple Silicon Metal and local DX12 passed Solid Color live
+edits, Picture Fit, Fill, Stretch and relink, and H.264 playback, paused seek and relink. The
+fixtures checked rendered color and alpha and observed renderer retirement. Apple Silicon also
+passed the default build, project fixture and strict desktop readiness again. All 179 Golden
+Video unit tests, strict Clippy, the default Windows compile check, both formatters, Svelte,
+71 preview UI tests, Prettier and Actions lint passed across the Media Preview batches.
+[Latest Apple Silicon Media Preview run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44940636041)
 
-**M19/2 Picture verified.** Apple Silicon Metal and local DX12 rendered an authored Picture
-in Fit, Fill and Stretch, with the expected color and alpha. The fixture verified live file
-relink and renderer retirement. Apple Silicon also passed the build, project fixture and
-strict desktop readiness checks. [Apple Silicon run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44939067559)
-
-**M19/2 Video batch (21 November, 20:55 CET cutoff).** The portable preview played an authored
-H.264 file on local DX12. The fixture checked both color segments, the paused seek,
-live file relink and renderer retirement. The tagged SDR clips use a known RGB-to-BT.709
-conversion. MapGyver owns FFmpeg playback and publication. Golden Video charges the textures
-and each allowed upload in flight, converts frames before sampling, and retains the last
-frame while the producer is busy. All 179 Golden Video unit tests, strict Clippy, the default
-Windows compile check, both Rust formatters, Prettier and Actions lint passed. Apple Silicon
-Video verification, physical Screen presentation, recovery and packaging remain open.
+**M19/2 Screen Preview batch (21 November, 21:09 CET cutoff).** The portable Screen Warping
+preview on local DX12 rendered two authored Surfaces in the expected order with correct
+linear opacity. The fixture checked pixels inside and outside the projective overlap before
+and after a live geometry and opacity edit. MapGyver owns Screen capture and route eligibility.
+Golden Video executes the same composite used by the Screen plan. Both Rust formatters,
+the default Windows compile check, Prettier and Actions lint passed. Verify this case on
+Apple Silicon Metal. Physical Screen output, recovery and independent macOS bundles follow.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -189,7 +184,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
-| Active | M19/2 | Solid Color and Picture Media Preview passed on Apple Silicon Metal. Video preview passed on local DX12 and awaits Apple Silicon. Physical Screen output, recovery and independent bundles on both macOS architectures remain open. |
+| Active | M19/2 | Solid Color, Picture and Video Media Preview passed on Apple Silicon Metal. Screen Warping passed on local DX12 and awaits Apple Silicon. Physical Screen output, recovery and independent bundles on both macOS architectures remain open. |
 | Pending | M19/3–5 | After macOS, qualify desktop Linux, then Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
