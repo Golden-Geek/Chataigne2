@@ -61,11 +61,15 @@ jobs:
         run: |
           . ./tools/product-gate/hooks/smoke-common.ps1
           $env:XDG_DATA_HOME = Join-Path $env:RUNNER_TEMP 'mapgyver-desktop-data'
+          $mapgyver = Join-Path (Get-Location) 'target/debug/MapGyver'
+          $shutdown = Join-Path $env:RUNNER_TEMP 'mapgyver-desktop.stop'
           Invoke-RootCommandSmoke `
             -Id 'mapgyver-macos-workbench' `
-            -CargoArguments @('run', '--locked', '--package', 'MapGyver', '--', '--no-remote') `
+            -Command $mapgyver `
+            -CommandArguments @('--no-remote', '--automation-shutdown-file', ('"' + $shutdown + '"')) `
             -FrontendUri 'http://127.0.0.1:7010/' `
-            -Ports @(7010)
+            -Ports @(7010) `
+            -ShutdownFile $shutdown
 
       - name: Check GPU-backed Media Preview and Screen Warping
         env:

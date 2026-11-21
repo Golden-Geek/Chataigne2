@@ -43,8 +43,12 @@ Use the actual desktop, ordinary Screen edits and the WindowServer's owned-proce
 metadata. The shared launcher passed the local DX12 Rectangle and headless preview cases.
 The shared host now validates the actual underlay capability and permits the owned shutdown
 sentinel for desktop fixtures on macOS. The Apple Silicon workflow runs the lifecycle check
-after the build and preview checks. macOS pixel capture and physical display qualification
-remain open.
+after the build and preview checks. The retry passed compilation and authoring. Its desktop
+smoke timed out during a redundant `cargo run` build before the binary launched. The workflow
+now launches the tested binary with the existing readiness timeout and owned shutdown check.
+That strict smoke passed locally and released port 7010. macOS pixel capture and physical
+display qualification remain open.
+[Apple Silicon startup timeout](https://github.com/Golden-Geek/Chataigne2/actions/runs/44945975635)
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 

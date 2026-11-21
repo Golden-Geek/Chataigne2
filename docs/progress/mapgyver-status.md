@@ -5,7 +5,7 @@
 - **Latest verified:** 4× AA fits the memory cap. Sustained timing passed at 1080p on NVIDIA. NVIDIA 4K and both Intel sizes still exceed the GPU budget. [Checks](mapgyver-m14-antialiasing.md#sustained-shared-texture-timing--2026-11-20)
 - **Plan execution:** macOS first, then desktop Linux and Raspberry Pi (armhf and aarch64). Windows ARM64 has a separate gate.
 - **Manual action needed from you now: none.**
-- **Next:** Verify macOS desktop startup and Rectangle window lifecycle (M19/2). The host now checks actual underlay capability. Local DX12 pixels and shutdown passed. [Initial Apple Silicon integration run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44944343028)
+- **Next:** Verify macOS desktop startup and Rectangle window lifecycle (M19/2) from the completed build. Local strict startup and shutdown passed. [Apple Silicon compile and startup-timeout evidence](https://github.com/Golden-Geek/Chataigne2/actions/runs/44945975635)
 
 ## Done — code and normal-use checks passed
 

@@ -382,10 +382,11 @@ function Invoke-StrictUiReadinessProbe {
 function Invoke-RootCommandSmoke {
     param(
         [string]$Id,
-        [string[]]$CargoArguments,
+        [Alias("CargoArguments")][string[]]$CommandArguments,
         [string]$FrontendUri,
         [int[]]$Ports,
-        [string]$ShutdownFile = ""
+        [string]$ShutdownFile = "",
+        [string]$Command = "cargo"
     )
 
     $repositoryRoot = Get-ProductGateRepositoryRoot
@@ -394,7 +395,7 @@ function Invoke-RootCommandSmoke {
     $standardOutputPath = Join-Path $runDirectory "$Id.stdout.log"
     $standardErrorPath = Join-Path $runDirectory "$Id.stderr.log"
     $screenshotPath = Join-Path $runDirectory "$Id.ready.png"
-    $cargo = Get-CommandSource -Name "cargo"
+    $executable = Get-CommandSource -Name $Command
     Get-CommandSource -Name "node" | Out-Null
 
     Assert-LoopbackPortsAvailable -Ports $Ports
@@ -405,8 +406,8 @@ function Invoke-RootCommandSmoke {
     $previousBind = $env:GC_UI_BIND
     $env:GC_UI_BIND = "127.0.0.1:7010"
     $startParameters = @{
-        FilePath               = $cargo
-        ArgumentList           = $CargoArguments
+        FilePath               = $executable
+        ArgumentList           = $CommandArguments
         WorkingDirectory       = $repositoryRoot
         RedirectStandardOutput = $standardOutputPath
         RedirectStandardError  = $standardErrorPath
@@ -448,7 +449,7 @@ function Invoke-RootCommandSmoke {
 
         [pscustomobject]@{
             contract          = "product-gate-root-command-ready-v1"
-            command           = "cargo $($CargoArguments -join ' ')"
+            command           = "$Command $($CommandArguments -join ' ')"
             backend           = "ready"
             frontend          = "ready"
             engine_connection = "ready"
