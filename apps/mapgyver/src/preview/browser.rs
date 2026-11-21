@@ -207,7 +207,7 @@ impl Owner {
         config.video.frame_rate = rate;
         #[cfg(not(all(windows, feature = "native-video")))]
         {
-            config.video.notifier = Some(notifier);
+            config.video.notifier = Some(notifier.clone());
         }
         let mut frames = Vec::with_capacity(OUTPUT_SLOTS);
         let outputs = (0..OUTPUT_SLOTS)
@@ -251,7 +251,7 @@ impl Owner {
         #[cfg(not(all(windows, feature = "native-video")))]
         let runtime =
             VideoRuntime::spawn_wgpu(config.video, WgpuConfig { outputs }).map_err(|error| error.to_string())?;
-        let owner = Self {
+        let mut owner = Self {
             renderer: ChannelRenderer::new(runtime, limits),
             extent,
             frames,
@@ -260,10 +260,9 @@ impl Owner {
             project_generation: 0,
             installed: None,
         };
+        let root = std::env::current_dir().map_err(|error| error.to_string())?;
         #[cfg(all(windows, feature = "native-video"))]
-        let owner = {
-            let mut owner = owner;
-            let root = std::env::current_dir().map_err(|error| error.to_string())?;
+        {
             #[cfg(feature = "video-files")]
             owner
                 .renderer
@@ -271,9 +270,8 @@ impl Owner {
             #[cfg(target_arch = "x86_64")]
             owner.renderer.enable_ndi(Some(notifier.clone()));
             owner.renderer.enable_shaders(&root, notifier.clone())?;
-            owner.renderer.enable_pictures(&root, config.pictures, Some(notifier))?;
-            owner
-        };
+        }
+        owner.renderer.enable_pictures(&root, config.pictures, Some(notifier))?;
         Ok(owner)
     }
 

@@ -67,8 +67,8 @@ jobs:
             -FrontendUri 'http://127.0.0.1:7010/' `
             -Ports @(7010)
 
-      - name: Check GPU-backed Solid Color Media Preview
+      - name: Check GPU-backed Solid Color and Picture Media Preview
         env:
           GC_UI_BROWSER_CHANNEL: chrome
           MAPGYVER_TEST_BINARY: target/debug/MapGyver
-        run: node apps/mapgyver/tests/browser/solid-preview.mjs
+        run: node apps/mapgyver/tests/browser/portable-preview.mjs

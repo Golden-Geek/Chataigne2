@@ -327,7 +327,11 @@ impl ChannelRenderer {
                     channels.channels.iter().any(|channel| {
                         channel.reference == reference
                             && channel.definition.as_ref().is_some_and(|definition| {
-                                matches!(definition.source, super::protocol::ChannelSource::SolidColor { .. })
+                                matches!(
+                                    definition.source,
+                                    super::protocol::ChannelSource::SolidColor { .. }
+                                        | super::protocol::ChannelSource::Picture { .. }
+                                )
                             })
                     })
                 })

@@ -1,5 +1,6 @@
 //! Portable GPU execution of Golden Video's compiled render plans.
 
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -8,17 +9,19 @@ use std::time::Duration;
 use golden_io::WorkerNotifier;
 use golden_time::TimeSnapshot;
 
-use crate::plan::{CompiledPlan, RenderOperation};
+use crate::plan::{BlendMode, CompiledPlan, ExternalSource, RenderOperation};
 use crate::readback::ReadbackSink;
 use crate::runtime::backend::{Backend, BackendError};
 use crate::runtime::{CompletionToken, DeviceGeneration, GenerationInfo, PlanIdentity, RuntimeStartError};
 use crate::{AlphaMode, ColorEncoding, Extent2D, OutputId, PixelFormat, TextureDescriptor};
 
 mod capture;
+mod image;
 mod pipeline;
 
 use capture::Capture;
-use pipeline::{Draw, Pipelines};
+use image::Upload;
+use pipeline::{Draw, LayerDraw, Pipelines};
 
 /// An output sent to a bounded CPU preview consumer.
 pub struct ReadbackOutput {
@@ -65,6 +68,7 @@ struct Device {
 
 pub(crate) struct Resources {
     plan: PlanIdentity,
+    uploads: RefCell<Vec<Upload>>,
     draws: Vec<Draw>,
     outputs: Vec<Capture>,
 }
@@ -122,25 +126,46 @@ impl Backend for WgpuBackend {
     fn resource_bytes(&self, plan: &CompiledPlan) -> Result<u64, BackendError> {
         let device = self.device.as_ref().ok_or(BackendError::DeviceLost)?;
         let limits = device.gpu.limits();
-        if !plan.external_textures().is_empty() {
-            return Err(BackendError::UnsupportedPlan);
-        }
         let mut bytes = 0_u64;
+        for external in plan.external_textures() {
+            let extent = external.descriptor.extent;
+            if !matches!(external.source, Some(ExternalSource::Image(_)))
+                || !Upload::accepts(external.descriptor)
+                || !fits(extent, limits.max_texture_dimension_2d)
+                || Upload::staging_bytes(extent) > limits.max_buffer_size
+            {
+                return Err(BackendError::UnsupportedPlan);
+            }
+            bytes = bytes
+                .checked_add(Upload::resource_bytes(extent))
+                .ok_or(BackendError::ResourceSizeOverflow)?;
+        }
         for pass in plan.passes() {
-            if !matches!(
-                pass.operation,
-                RenderOperation::Clear(_) | RenderOperation::Sample { .. }
-            ) || !fits(pass.descriptor.extent, limits.max_texture_dimension_2d)
+            if !fits(pass.descriptor.extent, limits.max_texture_dimension_2d)
                 || texture_format(pass.descriptor).is_none()
             {
                 return Err(BackendError::UnsupportedPlan);
             }
+            let layer_bytes = match &pass.operation {
+                RenderOperation::Clear(_) | RenderOperation::Sample { .. } => 0,
+                RenderOperation::Composite { layers }
+                    if layers.iter().all(|layer| {
+                        layer.blend == BlendMode::Normal
+                            && layer.source.texture().is_some()
+                            && layer.opacity_envelope.is_none()
+                    }) =>
+                {
+                    layers.len() as u64 * LayerDraw::RESOURCE_BYTES
+                }
+                _ => return Err(BackendError::UnsupportedPlan),
+            };
             bytes = bytes
                 .checked_add(
                     pass.descriptor
                         .byte_len()
                         .map_err(|_| BackendError::ResourceSizeOverflow)?,
                 )
+                .and_then(|bytes| bytes.checked_add(layer_bytes))
                 .ok_or(BackendError::ResourceSizeOverflow)?;
         }
         for output in plan.outputs() {
@@ -159,7 +184,16 @@ impl Backend for WgpuBackend {
 
     fn prepare(&mut self, plan: &CompiledPlan, generation: GenerationInfo) -> Result<Resources, BackendError> {
         let device = self.device.as_ref().ok_or(BackendError::DeviceLost)?;
-        let mut textures = HashMap::with_capacity(plan.passes().len());
+        let mut textures = HashMap::with_capacity(plan.passes().len() + plan.external_textures().len());
+        let mut uploads = Vec::with_capacity(plan.external_textures().len());
+        for external in plan.external_textures() {
+            let Some(ExternalSource::Image(image)) = &external.source else {
+                return Err(BackendError::UnsupportedPlan);
+            };
+            let upload = Upload::new(&device.gpu, &device.pipelines, image.value())?;
+            textures.insert(external.id, upload.view().clone());
+            uploads.push(upload);
+        }
         let mut draws = Vec::with_capacity(plan.passes().len());
         for pass in plan.passes() {
             let format = texture_format(pass.descriptor).ok_or(BackendError::UnsupportedPlan)?;
@@ -170,16 +204,31 @@ impl Backend for WgpuBackend {
                 wgpu::TextureUsages::TEXTURE_BINDING,
             );
             let view = target.create_view(&wgpu::TextureViewDescriptor::default());
-            let draw = match pass.operation {
-                RenderOperation::Clear(color) => Draw::Clear(view.clone(), pipeline::to_wgpu_color(color)),
+            let draw = match &pass.operation {
+                RenderOperation::Clear(color) => Draw::Clear(view.clone(), pipeline::to_wgpu_color(*color)),
                 RenderOperation::Sample { source, filter } => Draw::Sample {
                     target: view.clone(),
                     pipeline: device.pipelines.sample_for(format).clone(),
                     source: device.pipelines.bind(
                         &device.gpu,
-                        textures.get(&source).ok_or(BackendError::UnsupportedPlan)?,
-                        filter,
+                        textures.get(source).ok_or(BackendError::UnsupportedPlan)?,
+                        *filter,
                     ),
+                },
+                RenderOperation::Composite { layers } => Draw::Composite {
+                    target: view.clone(),
+                    pipeline: device.pipelines.composite_for(format).clone(),
+                    layers: layers
+                        .iter()
+                        .map(|layer| {
+                            let source = layer
+                                .source
+                                .texture()
+                                .and_then(|id| textures.get(&id))
+                                .ok_or(BackendError::UnsupportedPlan)?;
+                            LayerDraw::new(&device.gpu, &device.pipelines, layer, source)
+                        })
+                        .collect::<Result<_, BackendError>>()?,
                 },
                 _ => return Err(BackendError::UnsupportedPlan),
             };
@@ -197,6 +246,7 @@ impl Backend for WgpuBackend {
             .collect::<Result<_, BackendError>>()?;
         Ok(Resources {
             plan: generation.identity,
+            uploads: RefCell::new(uploads),
             draws,
             outputs,
         })
@@ -216,6 +266,9 @@ impl Backend for WgpuBackend {
         let mut encoder = device
             .gpu
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
+        for upload in resources.uploads.borrow_mut().drain(..) {
+            upload.encode(&mut encoder, &device.pipelines);
+        }
         for draw in &resources.draws {
             draw.encode(&mut encoder);
         }
