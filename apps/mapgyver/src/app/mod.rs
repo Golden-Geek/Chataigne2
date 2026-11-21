@@ -150,6 +150,11 @@ pub fn run() -> std::io::Result<()> {
         feature = "wgpu-preview"
     ))]
     let browser_previews = golden_core::transport::BrowserPreviews::default();
+    #[cfg(all(
+        not(all(windows, feature = "native-video")),
+        any(target_os = "macos", feature = "wgpu-preview")
+    ))]
+    let headless_previews = browser_previews.clone();
     let config = DesktopHostConfig {
         ui_server: UiServerConfig {
             bind_addr: "127.0.0.1:7011".to_owned(),
@@ -170,37 +175,42 @@ pub fn run() -> std::io::Result<()> {
     };
     let services = golden_core::app::HostServices::default()
         .with_desktop_plugin(crate::media::shader::library::plugin())
-        .with_headless(|runtime| {
+        .with_headless(move |runtime| {
             #[cfg(feature = "video-files")]
             let videos = crate::media::video::metadata::Service::start(runtime.clone())?;
+            #[cfg(all(
+                not(all(windows, feature = "native-video")),
+                any(target_os = "macos", feature = "wgpu-preview")
+            ))]
+            let previews = crate::preview::browser::start(runtime.clone(), headless_previews)?;
             let applications = crate::applications::headless::HeadlessApplications::start(runtime)?;
             #[cfg(feature = "video-files")]
-            {
-                Ok((applications, videos))
-            }
+            let services = (applications, videos);
             #[cfg(not(feature = "video-files"))]
-            {
-                Ok(applications)
-            }
+            let services = applications;
+            #[cfg(all(
+                not(all(windows, feature = "native-video")),
+                any(target_os = "macos", feature = "wgpu-preview")
+            ))]
+            let services = (services, previews);
+            Ok(services)
         });
-    #[cfg(any(
-        all(windows, feature = "native-video"),
-        target_os = "macos",
-        feature = "wgpu-preview"
-    ))]
+    #[cfg(all(windows, feature = "native-video"))]
     let services = services.with_background(move |runtime| {
         let audio = crate::audio::start(runtime.clone())?;
         let previews = crate::preview::browser::start(runtime, browser_previews)?;
         Ok((audio, previews))
     });
-    #[cfg(not(any(
-        all(windows, feature = "native-video"),
-        target_os = "macos",
-        feature = "wgpu-preview"
-    )))]
+    #[cfg(not(all(windows, feature = "native-video")))]
     let services = services.with_background(crate::audio::start);
     #[cfg(all(windows, feature = "native-video"))]
     let services = services.with_native_presentation(crate::preview::host::presentation);
+    #[cfg(all(
+        not(all(windows, feature = "native-video")),
+        any(target_os = "macos", feature = "wgpu-preview")
+    ))]
+    let services = services
+        .with_native_presentation(move |runtime| Ok(crate::preview::browser::presentation(runtime, browser_previews)));
     golden_core::app::run_default_with_services::<AppNode, tauri::Wry>(tauri::generate_context!(), config, services)
 }
 

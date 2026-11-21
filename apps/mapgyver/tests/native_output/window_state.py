@@ -1,13 +1,13 @@
 """Read-only HWND/physical-client/pixel observations for one owned output fixture PID."""
 import ctypes
 from ctypes import wintypes
+import argparse
 import json
-import sys
 
 from PIL import ImageGrab
 
 
-def snapshot(pid, main=False):
+def snapshot(pid, main=False, output_title=None):
     user = ctypes.windll.user32
     user.SetThreadDpiAwarenessContext.argtypes = [ctypes.c_void_p]
     user.SetThreadDpiAwarenessContext(ctypes.c_void_p(-4))
@@ -30,7 +30,7 @@ def snapshot(pid, main=False):
         user.GetClassNameW(hwnd, name, len(name))
         title = ctypes.create_unicode_buffer(512)
         user.GetWindowTextW(hwnd, title, len(title))
-        output = name.value == "GoldenNativeOutputWindow"
+        output = title.value == output_title if output_title else name.value == "GoldenNativeOutputWindow"
         if (not main and not output) or (main and (output or not title.value.startswith("MapGyver"))):
             return True
         rect = wintypes.RECT()
@@ -59,4 +59,9 @@ def snapshot(pid, main=False):
 
 
 if __name__ == "__main__":
-    print(json.dumps(snapshot(int(sys.argv[1]), main="--main" in sys.argv[2:])))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("pid", type=int)
+    parser.add_argument("--main", action="store_true")
+    parser.add_argument("--title")
+    args = parser.parse_args()
+    print(json.dumps(snapshot(args.pid, main=args.main, output_title=args.title)))

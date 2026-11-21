@@ -21,7 +21,7 @@ use golden_video::native::{
     select_adapter,
 };
 #[cfg(not(all(windows, feature = "native-video")))]
-use golden_video::wgpu_backend::{ReadbackOutput, WgpuConfig};
+use golden_video::wgpu_backend::{ReadbackOutput, WgpuConfig, WindowOutputs};
 use golden_video::{
     AlphaMode, ColorEncoding, Extent2D, OutputId, PixelFormat, TextureDescriptor,
     browser::encode_preview_jpeg,
@@ -38,6 +38,13 @@ use std::{
 
 const OUTPUT_SLOTS: usize = BrowserPreviews::SOURCE_LIMIT;
 const MAX_BUDGET: u64 = 768 * 1024 * 1024;
+
+#[cfg(not(all(windows, feature = "native-video")))]
+mod desktop;
+#[cfg(not(all(windows, feature = "native-video")))]
+use desktop::Desktop;
+#[cfg(not(all(windows, feature = "native-video")))]
+pub(crate) use desktop::presentation;
 
 struct Route {
     stream: BrowserPreviewStream,
@@ -71,6 +78,21 @@ pub(crate) fn start(
 ) -> io::Result<BoundedWorker<(), ()>> {
     static POOL: OnceLock<RetirementPool> = OnceLock::new();
     let pool = POOL.get_or_init(|| RetirementPool::new(NonZeroUsize::new(4).unwrap()));
+    start_worker(
+        runtime,
+        previews,
+        pool,
+        #[cfg(not(all(windows, feature = "native-video")))]
+        None,
+    )
+}
+
+fn start_worker(
+    runtime: ProductionRuntime<AppNode>,
+    previews: BrowserPreviews,
+    pool: &RetirementPool,
+    #[cfg(not(all(windows, feature = "native-video")))] mut desktop: Option<Desktop>,
+) -> io::Result<BoundedWorker<(), ()>> {
     BoundedWorker::spawn(
         "mapgyver-browser-preview",
         pool,
@@ -94,7 +116,27 @@ pub(crate) fn start(
                 let generation = runtime.current_project_generation().get();
                 let routes = routes(&previews, generation);
                 let now = Instant::now();
-                let next = if routes.is_empty() {
+                #[cfg(not(all(windows, feature = "native-video")))]
+                let desktop_changed = match desktop
+                    .as_mut()
+                    .map(|desktop| desktop.refresh(&runtime, &notifier))
+                    .transpose()
+                {
+                    Ok(changed) => changed.unwrap_or(false),
+                    Err(error) => {
+                        if last_error.as_ref() != Some(&error) {
+                            eprintln!("[mapgyver-browser-preview] {error}");
+                        }
+                        last_error = Some(error);
+                        context.wait_until(checkpoint, now + Duration::from_millis(250));
+                        continue;
+                    }
+                };
+                #[cfg(not(all(windows, feature = "native-video")))]
+                let has_display_output = desktop.as_ref().is_some_and(Desktop::has_outputs);
+                #[cfg(all(windows, feature = "native-video"))]
+                let has_display_output = false;
+                let next = if routes.is_empty() && !has_display_output {
                     if owner.take().is_some() {
                         eprintln!("[mapgyver-browser-preview] renderer retired");
                     }
@@ -118,10 +160,20 @@ pub(crate) fn start(
                             owner = Some(Owner::new(
                                 #[cfg(all(windows, feature = "native-video"))]
                                 id,
+                                #[cfg(not(all(windows, feature = "native-video")))]
+                                desktop.as_ref().map(Desktop::windows),
                                 notifier.clone(),
                             )?);
                         }
-                        owner.as_mut().unwrap().service(&runtime, generation, routes)
+                        owner.as_mut().unwrap().service(
+                            &runtime,
+                            generation,
+                            routes,
+                            #[cfg(not(all(windows, feature = "native-video")))]
+                            desktop.as_mut(),
+                            #[cfg(not(all(windows, feature = "native-video")))]
+                            desktop_changed,
+                        )
                     })();
                     let error = result.err();
                     let status = owner.as_ref().map(|owner| owner.renderer.snapshot().state);
@@ -186,6 +238,7 @@ struct Installed {
 impl Owner {
     fn new(
         #[cfg(all(windows, feature = "native-video"))] adapter: AdapterId,
+        #[cfg(not(all(windows, feature = "native-video")))] windows: Option<WindowOutputs>,
         notifier: WorkerNotifier,
     ) -> Result<Self, String> {
         #[cfg(all(windows, feature = "native-video"))]
@@ -249,8 +302,8 @@ impl Owner {
         )
         .map_err(|error| error.to_string())?;
         #[cfg(not(all(windows, feature = "native-video")))]
-        let runtime =
-            VideoRuntime::spawn_wgpu(config.video, WgpuConfig { outputs }).map_err(|error| error.to_string())?;
+        let runtime = VideoRuntime::spawn_wgpu(config.video, WgpuConfig { outputs, windows })
+            .map_err(|error| error.to_string())?;
         let mut owner = Self {
             renderer: ChannelRenderer::new(runtime, limits),
             extent,
@@ -282,6 +335,8 @@ impl Owner {
         runtime: &ProductionRuntime<AppNode>,
         generation: u64,
         routes: Vec<Route>,
+        #[cfg(not(all(windows, feature = "native-video")))] desktop: Option<&mut Desktop>,
+        #[cfg(not(all(windows, feature = "native-video")))] desktop_changed: bool,
     ) -> Result<(), String> {
         let mut outcomes = Vec::new();
         self.renderer
@@ -320,8 +375,21 @@ impl Owner {
                 .iter()
                 .map(|route| route.stream.id())
                 .eq(routes.iter().map(|route| route.stream.id()));
+        #[cfg(all(windows, feature = "native-video"))]
+        let desktop_changed = false;
+        if desktop_changed {
+            self.captured = None;
+        }
         if routes_changed || root_changed || !self.captured.as_ref().is_some_and(CapturedPreview::is_current) {
             let sources = routes.iter().map(|route| route.source).collect::<Vec<_>>();
+            #[cfg(not(all(windows, feature = "native-video")))]
+            let sources = {
+                let mut sources = sources;
+                if let Some(desktop) = desktop.as_ref() {
+                    sources.extend(desktop.sources());
+                }
+                sources
+            };
             let time = self.renderer.read_time().map_err(|error| error.to_string())?;
             let capture = runtime
                 .capture_app(move |engine| {
@@ -331,6 +399,14 @@ impl Owner {
             if runtime.current_project_generation().get() != generation {
                 return Ok(());
             }
+            #[cfg(not(all(windows, feature = "native-video")))]
+            let capture = if let Some(desktop) = desktop {
+                let mut capture = capture;
+                desktop.bind(&mut capture)?;
+                capture
+            } else {
+                capture
+            };
             let outputs = routes
                 .iter()
                 .enumerate()

@@ -198,10 +198,16 @@ FFmpeg file worker's latest-frame publication. The renderer uploads each admitte
 once per plan and updates plan-owned Video textures when new frames arrive. Both become linear
 premultiplied pixels before filtering. Fit and Fill reuse Golden's projective mapping, and
 Stretch uses the full source. Screen Warping with these sources uses the same mapped texture
-layers and linear opacity as the Screen plan. Portable Screen preview currently covers Raw
-and 2× anti-aliasing with calibration off. The desktop host advertises native presentation
-underlay availability so the workbench can select its transport. Physical Screen presentation
-remains open in [M19](../plan/MapGyver_Implementation_Plan.md#m19--cross-platform-delivery).
+layers and linear opacity as the Screen plan. Portable Screens currently cover Raw and 2×
+anti-aliasing with calibration off.
+
+The portable desktop also submits enabled Rectangle Screens to the same renderer. Golden's
+desktop host creates the borderless window and keeps the event loop alive during retirement.
+The GPU worker presents each Screen texture through an sRGB window surface. The window
+becomes visible on the first admitted submission and is destroyed after its surface retires.
+The workbench advertises underlay availability independently from the output windows.
+Fullscreen display selection, native macOS pixel and recovery checks, output cadence, and
+independent packaging remain open in [M19](../plan/MapGyver_Implementation_Plan.md#m19--cross-platform-delivery).
 
 Golden Video compiles immutable demanded DAGs with explicit storage/color/alpha, normalizing
 internal composition to linear premultiplied alpha. Workers prepare sources/plans, apply

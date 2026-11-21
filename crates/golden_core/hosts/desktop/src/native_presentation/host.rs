@@ -68,14 +68,21 @@ impl PresentationHost {
         presentation: NativePresentation<R>,
         window: &WebviewWindow<R>,
     ) -> io::Result<()> {
-        configure_underlay(window)?;
+        let underlay = presentation.uses_underlay();
+        if underlay {
+            configure_underlay(window)?;
+        }
         let control = presentation.control.clone();
         let task = presentation.prepare(window)?;
         self.control.lock().unwrap().attach(window.label(), control);
         let state = self.clone();
         let app = window.app_handle().clone();
         #[cfg(windows)]
-        let hwnd = Some(window.hwnd().map_err(io::Error::other)?.0 as isize);
+        let hwnd = if underlay {
+            Some(window.hwnd().map_err(io::Error::other)?.0 as isize)
+        } else {
+            None
+        };
         #[cfg(not(windows))]
         let hwnd = None;
         let worker = PresentationWorker::spawn(hwnd, task, move |succeeded| {

@@ -6,6 +6,7 @@ use crate::{Extent2D, LinearColor};
 
 pub(super) struct Pipelines {
     pub capture: wgpu::RenderPipeline,
+    present_rgba: wgpu::RenderPipeline,
     pub premultiply: wgpu::RenderPipeline,
     sample_u8: wgpu::RenderPipeline,
     sample_f16: wgpu::RenderPipeline,
@@ -103,6 +104,7 @@ impl Pipelines {
         };
         Self {
             capture: create("capture", wgpu::TextureFormat::Bgra8UnormSrgb, &pipeline_layout, None),
+            present_rgba: create("capture", wgpu::TextureFormat::Rgba8UnormSrgb, &pipeline_layout, None),
             premultiply: create("premultiply", wgpu::TextureFormat::Rgba16Float, &pipeline_layout, None),
             sample_u8: create("sample", wgpu::TextureFormat::Rgba8Unorm, &pipeline_layout, None),
             sample_f16: create("sample", wgpu::TextureFormat::Rgba16Float, &pipeline_layout, None),
@@ -130,6 +132,14 @@ impl Pipelines {
             wgpu::TextureFormat::Rgba8Unorm => &self.sample_u8,
             wgpu::TextureFormat::Rgba16Float => &self.sample_f16,
             _ => unreachable!("the plan only admits two sample targets"),
+        }
+    }
+
+    pub fn present_for(&self, format: wgpu::TextureFormat) -> &wgpu::RenderPipeline {
+        match format {
+            wgpu::TextureFormat::Bgra8UnormSrgb => &self.capture,
+            wgpu::TextureFormat::Rgba8UnormSrgb => &self.present_rgba,
+            _ => unreachable!("window output selected an sRGB surface format"),
         }
     }
 

@@ -50,7 +50,9 @@ pub(super) fn run_tauri<R: Runtime>(
     } else {
         "macos"
     };
-    let native_preview = native_presentation.is_some();
+    let native_preview = native_presentation
+        .as_ref()
+        .is_some_and(NativePresentation::uses_underlay);
     // Document-start precedes <html>, so defer the platform attribute when necessary.
     let init_script = format!(
         "window.__PLATFORM__ = '{os}'; window.__GOLDEN_NATIVE_PRESENTATION__ = {native_preview}; (function () {{ var apply = function () {{ document.documentElement.dataset.platform = '{os}'; }}; if (document.documentElement) {{ apply(); }} else {{ document.addEventListener('DOMContentLoaded', apply); }} }})();"
@@ -93,7 +95,7 @@ pub(super) fn run_tauri<R: Runtime>(
                 external_url,
                 application_display_name,
                 &window_state,
-                native_presentation.is_some(),
+                native_preview,
                 automation.webview_debug_port.zip(automation.shutdown_file.as_deref()),
             )
             .and_then(|window| {

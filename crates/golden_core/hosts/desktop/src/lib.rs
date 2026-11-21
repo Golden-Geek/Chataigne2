@@ -34,4 +34,4 @@ pub use host_services::HostServices;
 pub use native_presentation::{
     NativePresentation, NativePresentationStop, NativePresentationTask, NativePresentationViewport,
 };
-pub use output_window::{NativeOutputBounds, NativeOutputEvent, NativeOutputWindow};
+pub use output_window::{NativeOutputBounds, NativeOutputEvent, NativeOutputWindow, open_desktop_output_window};

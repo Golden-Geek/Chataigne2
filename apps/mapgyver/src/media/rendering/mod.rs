@@ -42,6 +42,42 @@ pub struct PreparedChannel {
     pub source: Option<TextureId>,
 }
 
+#[cfg(all(
+    not(all(windows, feature = "native-video")),
+    any(target_os = "macos", feature = "wgpu-preview")
+))]
+pub(crate) fn portable_channels(channels: &CapturedChannels) -> std::collections::HashSet<ChannelReference> {
+    channels
+        .channels
+        .iter()
+        .filter(|channel| {
+            !channel.enabled
+                || channel
+                    .definition
+                    .as_ref()
+                    .is_none_or(|definition| match definition.source {
+                        ChannelSource::SolidColor { .. } | ChannelSource::Picture { .. } => true,
+                        ChannelSource::Video { .. } => cfg!(feature = "video-files"),
+                        _ => false,
+                    })
+        })
+        .map(|channel| channel.reference)
+        .collect()
+}
+
+#[cfg(all(
+    not(all(windows, feature = "native-video")),
+    any(target_os = "macos", feature = "wgpu-preview")
+))]
+pub(crate) fn portable_screen(route: &ScreenRoute, channels: &std::collections::HashSet<ChannelReference>) -> bool {
+    route.screen.supports_portable_preview()
+        && route
+            .screen
+            .references()
+            .iter()
+            .all(|reference| channels.contains(reference))
+}
+
 #[derive(Clone)]
 struct Entry {
     target: TextureId,
@@ -321,34 +357,11 @@ impl ChannelRenderer {
         let (channels, screens) = capture.into_preview_scene();
         #[cfg(not(all(windows, feature = "native-video")))]
         let (screens, routes) = {
-            use super::protocol::ChannelSource;
             use crate::preview::protocol::PreviewSource;
-            let supported: std::collections::HashSet<_> = channels
-                .channels
-                .iter()
-                .filter(|channel| {
-                    !channel.enabled
-                        || channel
-                            .definition
-                            .as_ref()
-                            .is_none_or(|definition| match definition.source {
-                                ChannelSource::SolidColor { .. } | ChannelSource::Picture { .. } => true,
-                                ChannelSource::Video { .. } => cfg!(feature = "video-files"),
-                                _ => false,
-                            })
-                })
-                .map(|channel| channel.reference)
-                .collect();
+            let supported = portable_channels(&channels);
             let screens: Vec<_> = screens
                 .into_iter()
-                .filter(|route| {
-                    route.screen.supports_portable_preview()
-                        && route
-                            .screen
-                            .references()
-                            .iter()
-                            .all(|reference| supported.contains(reference))
-                })
+                .filter(|route| portable_screen(route, &supported))
                 .collect();
             let routes = routes
                 .into_iter()

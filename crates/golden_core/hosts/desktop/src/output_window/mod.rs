@@ -2,6 +2,7 @@
 //! closing the owner. No WebView, engine work or periodic polling belongs on these window threads.
 
 use std::io;
+use tauri::{AppHandle, PhysicalPosition, PhysicalSize, Runtime, Window, WindowBuilder};
 #[cfg(windows)]
 mod platform;
 
@@ -59,6 +60,62 @@ impl NativeOutputBounds {
 pub enum NativeOutputEvent {
     /// A fresh Escape key press; auto-repeat and unfocused input are ignored.
     EscapePressed,
+}
+
+/// Create a dedicated borderless Tauri window for a portable GPU surface. Call from a
+/// presentation worker. The caller owns this window and retires the surface before destroying it.
+pub fn open_desktop_output_window<R: Runtime>(
+    app: &AppHandle<R>,
+    label: &str,
+    title: &str,
+    bounds: NativeOutputBounds,
+) -> io::Result<Window<R>> {
+    let window = WindowBuilder::new(app, label)
+        .title(title)
+        .decorations(false)
+        .focused(false)
+        .resizable(false)
+        .always_on_top(true)
+        .visible(false)
+        .build()
+        .map_err(io::Error::other)?;
+    if let Err(error) = place_desktop_output(&window, bounds) {
+        let _ = window.destroy();
+        return Err(error);
+    }
+    // System close requests may arrive while a GPU submission still owns the drawable.
+    window.on_window_event(|event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+        }
+    });
+    Ok(window)
+}
+
+fn place_desktop_output<R: Runtime>(window: &Window<R>, bounds: NativeOutputBounds) -> io::Result<()> {
+    let position = PhysicalPosition::new(bounds.left(), bounds.top());
+    let size = PhysicalSize::new(bounds.width(), bounds.height());
+    window
+        .set_position(position)
+        .and_then(|()| window.set_size(size))
+        .map_err(io::Error::other)?;
+
+    // Even a borderless window can retain an invisible frame. Place the actual client
+    // origin, using the insets reported after the window reaches its intended monitor.
+    let inner = window.inner_position().map_err(io::Error::other)?;
+    if inner != position {
+        let outer = window.outer_position().map_err(io::Error::other)?;
+        let translate = |requested, inner, outer| {
+            i32::try_from(i64::from(requested) - i64::from(inner) + i64::from(outer))
+                .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "output window frame position overflows"))
+        };
+        let adjusted = PhysicalPosition::new(
+            translate(position.x, inner.x, outer.x)?,
+            translate(position.y, inner.y, outer.y)?,
+        );
+        window.set_position(adjusted).map_err(io::Error::other)?;
+    }
+    Ok(())
 }
 
 /// Host-owned, borderless, topmost output window with no initial focus activation or user resize/close.

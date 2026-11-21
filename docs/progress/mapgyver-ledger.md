@@ -19,13 +19,20 @@ Video unit tests, strict Clippy, the default Windows compile check, both formatt
 71 preview UI tests, Prettier and Actions lint passed across the Media Preview batches.
 [Latest Apple Silicon Media Preview run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44940636041)
 
-**M19/2 Screen Preview batch (21 November, 21:09 CET cutoff).** The portable Screen Warping
-preview on local DX12 rendered two authored Surfaces in the expected order with correct
-linear opacity. The fixture checked pixels inside and outside the projective overlap before
-and after a live geometry and opacity edit. MapGyver owns Screen capture and route eligibility.
-Golden Video executes the same composite used by the Screen plan. Both Rust formatters,
-the default Windows compile check, Prettier and Actions lint passed. Verify this case on
-Apple Silicon Metal. Physical Screen output, recovery and independent macOS bundles follow.
+**M19/2 Screen Warping verified.** Apple Silicon Metal and local DX12 rendered the expected
+pixels inside and outside the projective overlap of two authored Surfaces. A live geometry
+and opacity edit updated the same Screen. Both Rust formatters, the default Windows compile
+check, Prettier and Actions lint passed.
+[Apple Silicon Screen Warping run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44942165608)
+
+**M19/2 Rectangle window batch (21 November, 21:28 CET cutoff).** Present an authored
+Rectangle Screen in a dedicated native output window. The local Windows x64 DX12 portable
+build displayed red and green at the exact authored client bounds in one window, retired on
+disable, reopened on enable, and shut down normally with the reopened output active. The
+headless preview fixture passed again. All 179 Golden Video tests, 43 desktop host tests,
+strict Golden Video Clippy, both formatters and the default Windows compile check passed.
+Verify the native Rectangle on macOS, then add fullscreen display selection and qualify
+display reconnect, cadence and independent bundles on Apple Silicon and Intel.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -184,7 +191,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
-| Active | M19/2 | Solid Color, Picture and Video Media Preview passed on Apple Silicon Metal. Screen Warping passed on local DX12 and awaits Apple Silicon. Physical Screen output, recovery and independent bundles on both macOS architectures remain open. |
+| Active | M19/2 | Media Preview and two-Surface Screen Warping passed on Apple Silicon Metal. Native Rectangle pixels, exact client placement, disable/reopen and shutdown passed on local DX12. macOS native output checks, fullscreen display selection, recovery and independent bundles on both Mac architectures remain open. |
 | Pending | M19/3–5 | After macOS, qualify desktop Linux, then Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |

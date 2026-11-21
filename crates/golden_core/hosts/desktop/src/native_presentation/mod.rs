@@ -29,6 +29,7 @@ type Prepare<R> = Box<dyn FnOnce(&WebviewWindow<R>) -> io::Result<NativePresenta
 pub struct NativePresentation<R: Runtime> {
     prepare: Prepare<R>,
     control: Option<Arc<control::ControlHandler>>,
+    underlay: bool,
 }
 
 impl<R: Runtime> NativePresentation<R> {
@@ -40,7 +41,24 @@ impl<R: Runtime> NativePresentation<R> {
         Self {
             prepare: Box::new(prepare),
             control: None,
+            underlay: true,
         }
+    }
+
+    /// Coordinates independent output windows with the host's GPU retirement and exit path.
+    /// The editor window continues to use the ordinary browser preview transport.
+    pub fn for_output_windows<F>(prepare: F) -> Self
+    where
+        F: FnOnce(&WebviewWindow<R>) -> io::Result<NativePresentationTask> + Send + 'static,
+    {
+        Self {
+            underlay: false,
+            ..Self::new(prepare)
+        }
+    }
+
+    pub(super) fn uses_underlay(&self) -> bool {
+        self.underlay
     }
 
     /// Adds bounded metadata control for the retained presentation window. The callback runs

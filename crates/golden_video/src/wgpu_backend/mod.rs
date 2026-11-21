@@ -18,11 +18,14 @@ use crate::{AlphaMode, ColorEncoding, Extent2D, OutputId, PixelFormat, TextureDe
 
 mod capture;
 mod image;
+mod output_windows;
 mod pipeline;
 mod stream;
 
 use capture::Capture;
 use image::{ImageTexture, Upload};
+use output_windows::WindowDraw;
+pub use output_windows::WindowOutputs;
 use pipeline::{Draw, LayerDraw, Pipelines};
 use stream::Stream;
 
@@ -40,6 +43,8 @@ pub struct ReadbackOutput {
 pub struct WgpuConfig {
     /// Available bindings. Allocations are made only for outputs demanded by the active plan.
     pub outputs: Vec<ReadbackOutput>,
+    /// Optional independent native output windows registered by the desktop host.
+    pub windows: Option<WindowOutputs>,
 }
 
 impl WgpuConfig {
@@ -56,6 +61,7 @@ impl WgpuConfig {
 
 pub(crate) struct WgpuBackend {
     outputs: HashMap<OutputId, ReadbackOutput>,
+    windows: Option<WindowOutputs>,
     device_generation: DeviceGeneration,
     device: Option<Device>,
     notify: WorkerNotifier,
@@ -63,6 +69,7 @@ pub(crate) struct WgpuBackend {
 }
 
 struct Device {
+    adapter: wgpu::Adapter,
     gpu: wgpu::Device,
     queue: wgpu::Queue,
     pipelines: Pipelines,
@@ -76,6 +83,7 @@ pub(crate) struct Resources {
     streams: Vec<Stream>,
     draws: Vec<Draw>,
     outputs: Vec<Capture>,
+    windows: Vec<WindowDraw>,
 }
 
 impl WgpuBackend {
@@ -87,6 +95,7 @@ impl WgpuBackend {
     ) -> Self {
         Self {
             outputs: config.outputs.into_iter().map(|output| (output.id, output)).collect(),
+            windows: config.windows,
             device_generation,
             device: None,
             notify,
@@ -99,7 +108,10 @@ impl Backend for WgpuBackend {
     type Resources = Resources;
 
     fn initialize(&mut self) -> Result<(), BackendError> {
-        let instance = wgpu::Instance::default();
+        let instance = self
+            .windows
+            .as_ref()
+            .map_or_else(wgpu::Instance::default, WindowOutputs::instance);
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
             ..Default::default()
@@ -126,6 +138,7 @@ impl Backend for WgpuBackend {
         });
         self.device = Some(Device {
             pipelines: Pipelines::new(&gpu),
+            adapter,
             gpu,
             queue,
             completed: Arc::new(AtomicU64::new(0)),
@@ -184,15 +197,25 @@ impl Backend for WgpuBackend {
                 .ok_or(BackendError::ResourceSizeOverflow)?;
         }
         for output in plan.outputs() {
-            let binding = self.outputs.get(&output.id).ok_or(BackendError::UnsupportedPlan)?;
-            if !fits(binding.extent, limits.max_texture_dimension_2d)
-                || Capture::staging_bytes(binding.extent) > limits.max_buffer_size
-            {
-                return Err(BackendError::UnsupportedPlan);
-            }
-            bytes = bytes
-                .checked_add(Capture::resource_bytes(binding.extent))
-                .ok_or(BackendError::ResourceSizeOverflow)?;
+            let charge = if let Some(binding) = self.outputs.get(&output.id) {
+                if !fits(binding.extent, limits.max_texture_dimension_2d)
+                    || Capture::staging_bytes(binding.extent) > limits.max_buffer_size
+                {
+                    return Err(BackendError::UnsupportedPlan);
+                }
+                Capture::resource_bytes(binding.extent)
+            } else {
+                let endpoint = self
+                    .windows
+                    .as_ref()
+                    .and_then(|windows| windows.endpoint(output.id))
+                    .ok_or(BackendError::UnsupportedPlan)?;
+                if !fits(endpoint.extent(), limits.max_texture_dimension_2d) {
+                    return Err(BackendError::UnsupportedPlan);
+                }
+                endpoint.resource_bytes()
+            };
+            bytes = bytes.checked_add(charge).ok_or(BackendError::ResourceSizeOverflow)?;
         }
         Ok(bytes)
     }
@@ -261,21 +284,34 @@ impl Backend for WgpuBackend {
             textures.insert(pass.output, view);
             draws.push(draw);
         }
-        let outputs = plan
-            .outputs()
-            .iter()
-            .map(|output| {
-                let binding = self.outputs.get(&output.id).ok_or(BackendError::UnsupportedPlan)?;
-                let source = textures.get(&output.source).ok_or(BackendError::UnsupportedPlan)?;
-                Ok(Capture::new(&device.gpu, &device.pipelines, binding, source))
-            })
-            .collect::<Result<_, BackendError>>()?;
+        let mut outputs = Vec::new();
+        let mut windows = Vec::new();
+        for output in plan.outputs() {
+            let source = textures.get(&output.source).ok_or(BackendError::UnsupportedPlan)?;
+            if let Some(binding) = self.outputs.get(&output.id) {
+                outputs.push(Capture::new(&device.gpu, &device.pipelines, binding, source));
+            } else {
+                let endpoint = self
+                    .windows
+                    .as_ref()
+                    .and_then(|windows| windows.endpoint(output.id))
+                    .ok_or(BackendError::UnsupportedPlan)?;
+                windows.push(WindowDraw::new(
+                    &device.gpu,
+                    &device.adapter,
+                    &device.pipelines,
+                    endpoint,
+                    source,
+                )?);
+            }
+        }
         Ok(Resources {
             plan: generation.identity,
             uploads: RefCell::new(uploads),
             streams,
             draws,
             outputs,
+            windows,
         })
     }
 
@@ -312,6 +348,11 @@ impl Backend for WgpuBackend {
         for output in &resources.outputs {
             output.encode(&mut encoder, &device.pipelines, resources.plan);
         }
+        let window_frames = resources
+            .windows
+            .iter()
+            .filter_map(|window| window.encode(&device.gpu, &mut encoder))
+            .collect::<Vec<_>>();
         let completed = device.completed.clone();
         let wake = self.notify.clone();
         encoder.on_submitted_work_done(move || {
@@ -319,6 +360,9 @@ impl Backend for WgpuBackend {
             wake.notify();
         });
         device.queue.submit(Some(encoder.finish()));
+        for frame in window_frames {
+            device.queue.present(frame);
+        }
         for (stream, update) in resources.streams.iter().zip(updates) {
             if let Some(update) = update {
                 stream.submitted(update);
