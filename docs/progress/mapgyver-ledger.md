@@ -2,16 +2,22 @@
 
 **Updated: 2026-11-21 · Overall: `████████░░` 85% · 9/20 phases complete**
 
-**Accepted: 129/151 gates. Phase completion: 9/20 (45%). M19/1 is Active. Apple Silicon builds and passes project authoring and persistence. Identify and fix the mounted workbench's HTTP 404 to close the gate.**
+**Accepted: 129/151 gates. Phase completion: 9/20 (45%). M19/1 is Active. The Apple Silicon build and project round trip passed. The startup icon fix passed the local bundled workbench check and awaits the strict Apple Silicon desktop smoke.**
 
 Internal execution/evidence ledger. The user-facing checklist is `mapgyver-status.md`.
+
+**M19/1 batch (21 November, 19:47 CET cutoff).** Deliver a clean mounted desktop workbench
+on Apple Silicon. The isolated local build without the native renderer reproduced Chromium's
+404 for `/favicon.ico` while the workbench connected. MapGyver owns the fix in its startup
+HTML. The rebuilt executable served the PNG from the initial document and connected to the
+engine with zero Chromium console or HTTP errors. Svelte checks passed with zero errors and
+warnings, and both Rust format checks passed. The strict Apple Silicon smoke remains required.
 
 **M19 checkpoint (21 November, 18:48 CET cutoff).** The default Apple Silicon build links
 native FFmpeg and passes source authoring, history and Save/New/Load for three sources and
 six channels. The native desktop opened and the mounted workbench connected to the engine.
-The strict readiness probe reported one HTTP 404 in Chromium with no request URL. M19/1
-remains Active. Capture the failing response URL, fix its owning route and rerun the desktop
-readiness step. [Apple Silicon build and smoke](https://github.com/Golden-Geek/Chataigne2/actions/runs/44931889148)
+The strict readiness probe reported one HTTP 404 in Chromium. The favicon fix above addresses
+the reproduced failure. [Apple Silicon build and smoke](https://github.com/Golden-Geek/Chataigne2/actions/runs/44931889148)
 The first Apple Silicon run resolved native FFmpeg, then hit a shared-host compile error
 because Tauri's transparent-window API was referenced on macOS. The Golden host now gates
 the Windows underlay at compile time. The return check is a clean default Apple Silicon build,
@@ -190,7 +196,7 @@ failed readback stress returns with M10/4, without changed budgets.
 
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active | M19/1 | Native FFmpeg discovery, default Apple Silicon build and project authoring/history/Save/New/Load passed. Capture and resolve the remaining HTTP 404 from strict mounted-UI readiness. |
+| Active | M19/1 | Native FFmpeg discovery, default Apple Silicon build and project authoring/history/Save/New/Load passed. The local favicon fix passed. Complete the strict Apple Silicon desktop smoke. |
 | Pending | M19/2 | After M19/1, deliver Golden GPU execution and desktop presentation for macOS, then qualify media, output, recovery and bundle distribution. |
 | Pending | M19/3–5 | After macOS, qualify desktop Linux, then Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
