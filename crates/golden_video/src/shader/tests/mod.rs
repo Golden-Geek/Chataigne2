@@ -1,5 +1,6 @@
 use super::{
     CompileError, FragmentEffect, FragmentFormat, FragmentInput, FragmentProgram, MAX_SOURCE_BYTES, TEXTURE_INPUTS,
+    inspect_uniforms,
 };
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat, TextureDescriptor};
 
@@ -33,7 +34,7 @@ vec4 shade(vec2 pixel) {
         assert_eq!(effect.uniform_layout()[0].name, "u_level");
         assert_eq!(effect.uniform_layout()[0].default, super::UniformValue::Float(0.5));
         assert_eq!(
-            FragmentEffect::inspect_uniforms(FragmentFormat::FragCoord, &source).unwrap(),
+            inspect_uniforms(FragmentFormat::FragCoord, &source).unwrap(),
             effect.uniform_layout().as_ref()
         );
     }
@@ -63,7 +64,7 @@ fn glsl_declarations_use_active_tokens_defaults_and_fragcoord_bounds() {
             ? vec4(u_amount, u_tint.y, center.x, tint.a)
             : texture(iChannel0, gl_FragCoord.xy / iResolution.xy);
     }"#;
-    let detected = FragmentEffect::inspect_uniforms(FragmentFormat::Glsl, code).unwrap();
+    let detected = inspect_uniforms(FragmentFormat::Glsl, code).unwrap();
     let program = FragmentProgram::compile_glsl(code).unwrap();
     assert_eq!(program.uniforms(), detected);
     assert_eq!(
@@ -98,7 +99,7 @@ fn shadertoy_json_discovers_common_and_per_pass_uniforms_once() {
             "code": "uniform bool visible = true; void mainImage(out vec4 c, in vec2 p) {c = visible ? texture(iChannel0, p / iResolution.xy) * sharedLevel : vec4(1.0);}"}
     ]});
     let source = project.to_string();
-    let metadata = FragmentEffect::inspect_uniforms(FragmentFormat::ShaderToy, &source).unwrap();
+    let metadata = inspect_uniforms(FragmentFormat::ShaderToy, &source).unwrap();
     assert_eq!(
         metadata.iter().map(|field| field.name.as_str()).collect::<Vec<_>>(),
         ["sharedLevel", "offset", "visible"]
@@ -111,7 +112,7 @@ fn shadertoy_json_discovers_common_and_per_pass_uniforms_once() {
         "uniform int sharedLevel; void mainImage(out vec4 c, in vec2 p) {c = vec4(float(sharedLevel));}".into();
     let conflict = project.to_string();
     for error in [
-        FragmentEffect::inspect_uniforms(FragmentFormat::ShaderToy, &conflict).unwrap_err(),
+        inspect_uniforms(FragmentFormat::ShaderToy, &conflict).unwrap_err(),
         FragmentEffect::compile(FragmentFormat::ShaderToy, &conflict).unwrap_err(),
     ] {
         assert!(

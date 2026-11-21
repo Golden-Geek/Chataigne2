@@ -1,10 +1,14 @@
+#[cfg(all(windows, feature = "d3d11"))]
 use crate::Extent2D;
-use crate::shader::{CompileError, FragmentProgram};
+use crate::shader::CompileError;
+#[cfg(all(windows, feature = "d3d11"))]
+use crate::shader::FragmentProgram;
 use std::collections::BTreeMap;
 
 const MAX_FORMULA_BYTES: usize = 128;
 
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(not(all(windows, feature = "d3d11")), allow(dead_code))]
 enum Term {
     Constant(f64),
     Uniform(usize),
@@ -18,6 +22,7 @@ enum Term {
 }
 
 #[derive(Debug)]
+#[cfg_attr(not(all(windows, feature = "d3d11")), allow(dead_code))]
 pub(in crate::shader) struct Dimension(Box<[Term]>);
 
 #[derive(Clone, Copy)]
@@ -44,6 +49,7 @@ impl Dimension {
         Ok(Self(parser.terms.into_boxed_slice()))
     }
 
+    #[cfg(all(windows, feature = "d3d11"))]
     pub(super) fn evaluate(&self, canvas: Extent2D, program: &FragmentProgram) -> Result<u32, CompileError> {
         let mut stack = [0.0; MAX_FORMULA_BYTES];
         let mut depth = 0;

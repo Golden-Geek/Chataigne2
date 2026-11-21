@@ -7,7 +7,8 @@ use windows::Win32::Graphics::Direct3D::{Fxc::D3DCompile, ID3DBlob};
 use windows::core::{PCSTR, s};
 
 use super::{
-    FragmentFormat, FragmentUniform, MAX_SOURCE_BYTES, TEXTURE_BINDINGS, TEXTURE_INPUTS, UniformValue, adapter,
+    CompileError, FragmentFormat, FragmentUniform, MAX_SOURCE_BYTES, TEXTURE_BINDINGS, TEXTURE_INPUTS, UniformValue,
+    adapter,
 };
 
 const MAX_BYTECODE_BYTES: usize = 256 * 1024;
@@ -35,17 +36,6 @@ impl fmt::Debug for FragmentProgram {
             .field("sampled_bindings", &self.sampled_bindings)
             .finish()
     }
-}
-
-/// Compilation diagnostics suitable for presentation beside the source.
-#[derive(Debug, thiserror::Error)]
-pub enum CompileError {
-    /// An empty program or a program exceeding the source or binary limit.
-    #[error("Shader source is empty or exceeds the shader size limit")]
-    Size,
-    /// The source failed parsing, validation or native shader compilation.
-    #[error("{0}")]
-    Invalid(String),
 }
 
 impl FragmentProgram {

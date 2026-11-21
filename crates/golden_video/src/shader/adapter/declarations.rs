@@ -1,6 +1,8 @@
 //! Extract authored uniforms from active top-level GLSL declarations.
 
-use std::{borrow::Cow, collections::HashMap, ops::Range};
+#[cfg(all(windows, feature = "d3d11"))]
+use std::borrow::Cow;
+use std::{collections::HashMap, ops::Range};
 
 use pp_rs::{
     pp::Preprocessor,
@@ -19,6 +21,7 @@ pub(super) struct Declarations {
     pub uniforms: Vec<FragmentUniform>,
 }
 
+#[cfg(all(windows, feature = "d3d11"))]
 impl Declarations {
     pub fn body<'a>(&self, source: &'a str) -> Cow<'a, str> {
         if self.ranges.is_empty() {
@@ -185,6 +188,7 @@ fn host_uniform(format: FragmentFormat, name: &str) -> Option<(&'static str, Opt
     }
 }
 
+#[cfg(all(windows, feature = "d3d11"))]
 pub(super) fn uses_main_image(source: &str) -> bool {
     let mut previous = false;
     for token in Preprocessor::new(source).take(MAX_TOKENS).map_while(Result::ok) {

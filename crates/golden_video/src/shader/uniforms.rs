@@ -1,3 +1,4 @@
+#[cfg(all(windows, feature = "d3d11"))]
 use std::fmt::Write;
 
 /// Typed fragment input shared by source metadata and draw preparation.
@@ -52,6 +53,7 @@ impl UniformValue {
         }
     }
 
+    #[cfg(all(windows, feature = "d3d11"))]
     pub(super) fn pack(self) -> [u32; 4] {
         match self {
             Self::Float(value) => [value.to_bits(), 0, 0, 0],
@@ -63,6 +65,7 @@ impl UniformValue {
         }
     }
 
+    #[cfg(all(windows, feature = "d3d11"))]
     pub(super) fn unpack(self, words: [u32; 4]) -> Self {
         match self {
             Self::Float(_) => Self::Float(f32::from_bits(words[0])),
@@ -79,8 +82,10 @@ impl UniformValue {
     }
 }
 
+#[cfg(all(windows, feature = "d3d11"))]
 pub(super) const BUFFER_BINDING: u32 = super::TEXTURE_BINDINGS as u32 + 1;
 
+#[cfg(all(windows, feature = "d3d11"))]
 pub(super) fn glsl(uniforms: &[FragmentUniform], declarations: &mut String, setup: &mut String) {
     if uniforms.is_empty() {
         return;

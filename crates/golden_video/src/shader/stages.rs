@@ -1,10 +1,14 @@
-use super::{CompileError, FragmentProgram, TEXTURE_BINDINGS, TEXTURE_INPUTS};
+#[cfg(all(windows, feature = "d3d11"))]
+use super::{CompileError, FragmentProgram};
+use super::{TEXTURE_BINDINGS, TEXTURE_INPUTS};
+#[cfg(all(windows, feature = "d3d11"))]
 use crate::{AlphaMode, Extent2D, PixelFormat, TextureDescriptor};
 
 mod dimension;
 pub(super) use dimension::{Dimension, ScalarInput};
 
 /// One ordered draw in a fragment effect resolved for the requested output size.
+#[cfg(all(windows, feature = "d3d11"))]
 #[derive(Clone, Debug)]
 pub struct FragmentStage {
     /// Validated program for this draw.
@@ -27,6 +31,7 @@ pub enum FragmentInput {
 }
 
 #[derive(Debug)]
+#[cfg_attr(not(all(windows, feature = "d3d11")), allow(dead_code))]
 pub(super) struct Stage {
     pub(super) size: [Option<Dimension>; 2],
     pub(super) float: bool,
@@ -43,6 +48,7 @@ impl Default for Stage {
     }
 }
 
+#[cfg(all(windows, feature = "d3d11"))]
 impl Stage {
     pub(super) fn resolve(
         &self,

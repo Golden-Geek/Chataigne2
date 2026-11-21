@@ -21,6 +21,12 @@ Windows passed nine HAP tests with one fixture-generation ignore, strict Golden 
 and workspace and Golden Core formatting.
 The next run must compile the default app and reach both workbench smoke steps.
 [Second Apple Silicon run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44929419815)
+The third Apple Silicon run compiled Golden Video and reached the app. ShaderToy import called
+source validation through a Windows-only type. Golden Video now exposes portable validation
+used by the catalog and the Inspector. Portable Golden Video strict Clippy and both format
+checks passed. The Windows shader suites with native-qualification passed 21 tests with six
+hardware ignores. The return check is the default Apple Silicon build and both workbench smokes.
+[Third Apple Silicon run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44930406026)
 The initial Windows x64 build through the pinned helper passed the headless authoring, history
 and Save/New/Load fixture with three sources and six channels. Both Rust format checks, the
 fixture syntax check and Actions lint passed.

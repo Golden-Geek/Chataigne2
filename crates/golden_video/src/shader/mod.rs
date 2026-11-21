@@ -51,24 +51,40 @@ impl FragmentFormat {
     }
 }
 
-#[cfg(all(windows, feature = "d3d11"))]
 mod adapter;
+mod stages;
+mod uniforms;
+pub use uniforms::{FragmentUniform, UniformValue};
+
+/// Shader source diagnostics suitable for presentation beside the source.
+#[derive(Debug, thiserror::Error)]
+pub enum CompileError {
+    /// An empty program or a program exceeding the source or binary limit.
+    #[error("Shader source is empty or exceeds the shader size limit")]
+    Size,
+    /// The source failed parsing, validation or native shader compilation.
+    #[error("{0}")]
+    Invalid(String),
+}
+
+/// Validate source input declarations without a render device or native compiler.
+pub fn inspect_uniforms(format: FragmentFormat, source: &str) -> Result<Vec<FragmentUniform>, CompileError> {
+    if source.trim().is_empty() || source.len() > MAX_SOURCE_BYTES {
+        return Err(CompileError::Size);
+    }
+    adapter::inspect_uniforms(format, source)
+}
+
 #[cfg(all(windows, feature = "d3d11"))]
 mod compiler;
 #[cfg(all(windows, feature = "d3d11"))]
 mod effect;
 #[cfg(all(windows, feature = "d3d11"))]
-pub use compiler::{CompileError, FragmentProgram};
+pub use compiler::FragmentProgram;
 #[cfg(all(windows, feature = "d3d11"))]
 pub use effect::FragmentEffect;
 #[cfg(all(windows, feature = "d3d11"))]
-mod stages;
-#[cfg(all(windows, feature = "d3d11"))]
 pub use stages::{FragmentInput, FragmentStage};
-#[cfg(all(windows, feature = "d3d11"))]
-mod uniforms;
-#[cfg(all(windows, feature = "d3d11"))]
-pub use uniforms::{FragmentUniform, UniformValue};
 
 #[cfg(all(test, windows, feature = "d3d11"))]
 mod tests;

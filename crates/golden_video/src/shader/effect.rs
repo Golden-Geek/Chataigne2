@@ -83,12 +83,4 @@ impl FragmentEffect {
             .map(|(program, layout)| layout.resolve(output, program.with_uniform_values(&mut read)))
             .collect()
     }
-
-    /// Inspect source input metadata without a device or native shader compilation.
-    pub fn inspect_uniforms(format: FragmentFormat, source: &str) -> Result<Vec<FragmentUniform>, CompileError> {
-        if source.trim().is_empty() || source.len() > MAX_SOURCE_BYTES {
-            return Err(CompileError::Size);
-        }
-        adapter::inspect_uniforms(format, source)
-    }
 }

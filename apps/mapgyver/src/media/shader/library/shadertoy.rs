@@ -1,6 +1,6 @@
 //! Authenticated public catalog from the Shadertoy.com API.
 use crate::media::protocol::{LibraryShader, ShaderLibraryEntry, ShaderLibraryPage};
-use golden_video::shader::{FragmentEffect, FragmentFormat};
+use golden_video::shader::{FragmentFormat, inspect_uniforms};
 use reqwest::{StatusCode, Url, header};
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -203,7 +203,7 @@ pub(super) async fn load_shadertoy(service: State<'_, Service>, id: String) -> R
         );
     let code = serde_json::to_string_pretty(&shader).map_err(|_| "Could not preserve the ShaderToy source")?;
     super::super::validate_code(&code)?;
-    FragmentEffect::inspect_uniforms(FragmentFormat::ShaderToy, &code)
+    inspect_uniforms(FragmentFormat::ShaderToy, &code)
         .map_err(|error| format!("ShaderToy source cannot be imported: {error}"))?;
     Ok(LibraryShader {
         label: info.name,

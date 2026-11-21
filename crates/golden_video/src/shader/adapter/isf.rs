@@ -105,6 +105,7 @@ enum InputType {
     AudioFft,
 }
 
+#[cfg_attr(not(all(windows, feature = "d3d11")), allow(dead_code))]
 pub(super) struct IsfSource<'a> {
     pub body: &'a str,
     pub aliases: String,

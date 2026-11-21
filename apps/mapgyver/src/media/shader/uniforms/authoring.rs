@@ -5,7 +5,7 @@ use golden_core::{
     node::{DeclId, Folder, Node, NodeId},
     parameter::{ParamValue, Parameter, ParameterChangeCheck, RangeConstraint},
 };
-use golden_video::shader::{FragmentEffect, FragmentUniform, UniformValue};
+use golden_video::shader::{FragmentUniform, UniformValue, inspect_uniforms};
 
 use crate::{
     app::{AppEngine, AppNode},
@@ -35,7 +35,7 @@ fn definitions(engine: &AppEngine, reference: ChannelReference) -> Result<Defini
     let file = matches!(input, ShaderInput::File { .. });
     let (uniforms, revision) = match input {
         ShaderInput::Embedded { code } if !code.trim().is_empty() => (
-            FragmentEffect::inspect_uniforms(format, &code)
+            inspect_uniforms(format, &code)
                 .map_err(|error| error.to_string())?
                 .into(),
             None,
