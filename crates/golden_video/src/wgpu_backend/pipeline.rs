@@ -180,9 +180,7 @@ pub(super) enum Draw {
 impl Draw {
     pub fn encode(&self, encoder: &mut wgpu::CommandEncoder) {
         match self {
-            Self::Clear(target, color) => {
-                drop(pass(encoder, target, *color));
-            }
+            Self::Clear(target, color) => clear(encoder, target, *color),
             Self::Sample {
                 target,
                 pipeline,
@@ -298,6 +296,10 @@ pub(super) fn sample(
     render.set_pipeline(pipeline);
     render.set_bind_group(0, source, &[]);
     render.draw(0..3, 0..1);
+}
+
+pub(super) fn clear(encoder: &mut wgpu::CommandEncoder, target: &wgpu::TextureView, color: wgpu::Color) {
+    drop(pass(encoder, target, color));
 }
 
 fn pass<'a>(

@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { promisify } from 'node:util';
 import { chromium } from 'playwright-core';
 import { openInitialScreenHeadless } from '../headless/initial-screen-host.mjs';
 
@@ -56,6 +58,41 @@ async function pictureFile(page, name, colors) {
 	}, colors);
 	const file = join(directory, name);
 	await writeFile(file, Buffer.from(data, 'base64'));
+	return file;
+}
+
+async function videoFile(name, first, second) {
+	const file = join(directory, name);
+	await promisify(execFile)(
+		'ffmpeg',
+		[
+			'-hide_banner',
+			'-loglevel',
+			'error',
+			'-f',
+			'lavfi',
+			'-i',
+			`color=${first}:s=160x120:r=24:d=1.5,format=rgb24`,
+			'-f',
+			'lavfi',
+			'-i',
+			`color=${second}:s=160x120:r=24:d=3,format=rgb24`,
+			'-filter_complex',
+			'[0:v][1:v]concat=n=2:v=1:a=0,scale=out_color_matrix=bt709:out_range=tv,format=yuv420p[clip]',
+			'-map',
+			'[clip]',
+			'-c:v',
+			'libx264',
+			'-colorspace',
+			'bt709',
+			'-color_range',
+			'tv',
+			'-color_trc',
+			'iec61966-2-1',
+			file
+		],
+		{ windowsHide: true, timeout: 25000 }
+	);
 	return file;
 }
 
@@ -149,6 +186,52 @@ try {
 	await setPicture(await pictureFile(page, 'relinked.png', Array(3).fill([...green, 255])));
 	await waitForPixels([70, 30, green], [240, 180, green]);
 	console.log('Picture preview rendered Fit, Fill, Stretch, alpha and a live file relink');
+
+	const videoLabel = 'Portable Video';
+	const { reference: video } = await edit({
+		kind: 'CreateMedia',
+		media_kind: 'Video',
+		label: videoLabel
+	});
+	await edit({
+		kind: 'ConfigureMediaResolution',
+		media: video.media,
+		size: { kind: 'Fixed', extent: { width: 320, height: 240 } }
+	});
+	const control = (editRequest) => edit({ kind: 'Video', media: video.media, edit: editRequest });
+	const setVideo = (file) => edit({ kind: 'ConfigureVideoFile', reference: video, file });
+	await setVideo(await videoFile('playback.mp4', 'red', 'lime'));
+	await preview(videoLabel);
+	try {
+		await waitForPixels([240, 180, red]);
+	} catch (error) {
+		const source = await edit({ kind: 'InspectVideoSource', reference: video });
+		const frame = await edit({ kind: 'InspectVideoFrame', reference: video });
+		const output = await page.locator('[data-panel-id="media-preview"]').evaluate((panel) => {
+			const canvas = panel.querySelector('canvas');
+			return {
+				message: panel.textContent.trim(),
+				canvas: canvas && [canvas.width, canvas.height, canvas.dataset.previewState],
+				center: canvas && [
+					...canvas.getContext('2d').getImageData(canvas.width >> 1, canvas.height >> 1, 1, 1).data
+				]
+			};
+		});
+		throw new Error(JSON.stringify({ source, frame, output }), { cause: error });
+	}
+	await control({ kind: 'Play' });
+	await waitForPixels([240, 180, green]);
+	await control({ kind: 'Pause' });
+	await control({ kind: 'Seek', position_ms: 500 });
+	await waitForPixels([240, 180, red]);
+	await delay(1300);
+	await waitForPixels([240, 180, red]);
+	await setVideo(await videoFile('replacement.mp4', 'blue', 'blue'));
+	await waitForPixels([240, 180, [0, 0, 255]]);
+	console.log(
+		'Video preview played decoded frames, held a paused seek and followed a live file relink'
+	);
+
 	assert.deepEqual(errors, []);
 	const retirements = () => host.log().split('[mapgyver-browser-preview] renderer retired').length;
 	const beforeClose = retirements();
@@ -160,7 +243,14 @@ try {
 	}
 	console.log('Portable preview renderer retired on close');
 } catch (error) {
-	console.error(host.log().slice(-8000));
+	console.error(
+		host
+			.log()
+			.split('\n')
+			.filter((line) => !line.startsWith('[ui-'))
+			.slice(-20)
+			.join('\n')
+	);
 	throw error;
 } finally {
 	await browser?.close();

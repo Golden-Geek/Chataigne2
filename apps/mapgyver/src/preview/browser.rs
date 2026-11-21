@@ -271,6 +271,8 @@ impl Owner {
             owner.renderer.enable_ndi(Some(notifier.clone()));
             owner.renderer.enable_shaders(&root, notifier.clone())?;
         }
+        #[cfg(all(feature = "video-files", not(all(windows, feature = "native-video"))))]
+        owner.renderer.enable_videos(&root, Some(notifier.clone()))?;
         owner.renderer.enable_pictures(&root, config.pictures, Some(notifier))?;
         Ok(owner)
     }

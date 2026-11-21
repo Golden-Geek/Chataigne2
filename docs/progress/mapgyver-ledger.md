@@ -18,12 +18,19 @@ build, project fixture, and strict desktop readiness check again. Golden Video s
 the default Windows compile check, both Rust format checks, Svelte, 71 preview UI tests,
 Prettier, and Actions lint passed. [Apple Silicon run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44936800486)
 
-**M19/2 Picture batch (21 November, 20:39 CET cutoff).** The portable GPU Media Preview showed
-an authored Picture on local DX12. The app fixture read rendered pixels for Fit, Fill and
-Stretch, checked the correct color and alpha, then verified a live relink and renderer
-retirement. The default Windows compile check, Golden Video unit suite and strict Clippy,
-both Rust formatters, Prettier and Actions lint passed. The same fixture now runs on Apple
-Silicon. File Video, physical Screen presentation, recovery and packaging remain open.
+**M19/2 Picture verified.** Apple Silicon Metal and local DX12 rendered an authored Picture
+in Fit, Fill and Stretch, with the expected color and alpha. The fixture verified live file
+relink and renderer retirement. Apple Silicon also passed the build, project fixture and
+strict desktop readiness checks. [Apple Silicon run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44939067559)
+
+**M19/2 Video batch (21 November, 20:55 CET cutoff).** The portable preview played an authored
+H.264 file on local DX12. The fixture checked both color segments, the paused seek,
+live file relink and renderer retirement. The tagged SDR clips use a known RGB-to-BT.709
+conversion. MapGyver owns FFmpeg playback and publication. Golden Video charges the textures
+and each allowed upload in flight, converts frames before sampling, and retains the last
+frame while the producer is busy. All 179 Golden Video unit tests, strict Clippy, the default
+Windows compile check, both Rust formatters, Prettier and Actions lint passed. Apple Silicon
+Video verification, physical Screen presentation, recovery and packaging remain open.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -182,7 +189,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
-| Active | M19/2 | Solid Color Media Preview passed on Apple Silicon Metal. Picture preview passed on local DX12 and awaits Apple Silicon. Continue with Video files, physical Screen output, recovery and independent bundles on both macOS architectures. |
+| Active | M19/2 | Solid Color and Picture Media Preview passed on Apple Silicon Metal. Video preview passed on local DX12 and awaits Apple Silicon. Physical Screen output, recovery and independent bundles on both macOS architectures remain open. |
 | Pending | M19/3–5 | After macOS, qualify desktop Linux, then Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |

@@ -2,6 +2,7 @@
 
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
@@ -18,10 +19,12 @@ use crate::{AlphaMode, ColorEncoding, Extent2D, OutputId, PixelFormat, TextureDe
 mod capture;
 mod image;
 mod pipeline;
+mod stream;
 
 use capture::Capture;
-use image::Upload;
+use image::{ImageTexture, Upload};
 use pipeline::{Draw, LayerDraw, Pipelines};
+use stream::Stream;
 
 /// An output sent to a bounded CPU preview consumer.
 pub struct ReadbackOutput {
@@ -56,6 +59,7 @@ pub(crate) struct WgpuBackend {
     device_generation: DeviceGeneration,
     device: Option<Device>,
     notify: WorkerNotifier,
+    max_in_flight: NonZeroUsize,
 }
 
 struct Device {
@@ -69,17 +73,24 @@ struct Device {
 pub(crate) struct Resources {
     plan: PlanIdentity,
     uploads: RefCell<Vec<Upload>>,
+    streams: Vec<Stream>,
     draws: Vec<Draw>,
     outputs: Vec<Capture>,
 }
 
 impl WgpuBackend {
-    pub(crate) fn new(config: WgpuConfig, device_generation: DeviceGeneration, notify: WorkerNotifier) -> Self {
+    pub(crate) fn new(
+        config: WgpuConfig,
+        device_generation: DeviceGeneration,
+        notify: WorkerNotifier,
+        max_in_flight: NonZeroUsize,
+    ) -> Self {
         Self {
             outputs: config.outputs.into_iter().map(|output| (output.id, output)).collect(),
             device_generation,
             device: None,
             notify,
+            max_in_flight,
         }
     }
 }
@@ -129,15 +140,19 @@ impl Backend for WgpuBackend {
         let mut bytes = 0_u64;
         for external in plan.external_textures() {
             let extent = external.descriptor.extent;
-            if !matches!(external.source, Some(ExternalSource::Image(_)))
-                || !Upload::accepts(external.descriptor)
+            let uploads_in_flight = match external.source {
+                Some(ExternalSource::Image(_)) => 1,
+                Some(ExternalSource::Frames(_)) => self.max_in_flight.get() as u64,
+                _ => return Err(BackendError::UnsupportedPlan),
+            };
+            if !ImageTexture::accepts(external.descriptor)
                 || !fits(extent, limits.max_texture_dimension_2d)
-                || Upload::staging_bytes(extent) > limits.max_buffer_size
+                || ImageTexture::staging_bytes(extent) > limits.max_buffer_size
             {
                 return Err(BackendError::UnsupportedPlan);
             }
             bytes = bytes
-                .checked_add(Upload::resource_bytes(extent))
+                .checked_add(ImageTexture::resource_bytes(extent, uploads_in_flight))
                 .ok_or(BackendError::ResourceSizeOverflow)?;
         }
         for pass in plan.passes() {
@@ -185,14 +200,25 @@ impl Backend for WgpuBackend {
     fn prepare(&mut self, plan: &CompiledPlan, generation: GenerationInfo) -> Result<Resources, BackendError> {
         let device = self.device.as_ref().ok_or(BackendError::DeviceLost)?;
         let mut textures = HashMap::with_capacity(plan.passes().len() + plan.external_textures().len());
-        let mut uploads = Vec::with_capacity(plan.external_textures().len());
+        let mut uploads = Vec::new();
+        let mut streams = Vec::new();
         for external in plan.external_textures() {
-            let Some(ExternalSource::Image(image)) = &external.source else {
-                return Err(BackendError::UnsupportedPlan);
+            let view = match &external.source {
+                Some(ExternalSource::Image(image)) => {
+                    let upload = Upload::new(&device.gpu, &device.pipelines, image.value())?;
+                    let view = upload.view().clone();
+                    uploads.push(upload);
+                    view
+                }
+                Some(ExternalSource::Frames(source)) => {
+                    let stream = Stream::new(&device.gpu, &device.pipelines, source.clone());
+                    let view = stream.view().clone();
+                    streams.push(stream);
+                    view
+                }
+                _ => return Err(BackendError::UnsupportedPlan),
             };
-            let upload = Upload::new(&device.gpu, &device.pipelines, image.value())?;
-            textures.insert(external.id, upload.view().clone());
-            uploads.push(upload);
+            textures.insert(external.id, view);
         }
         let mut draws = Vec::with_capacity(plan.passes().len());
         for pass in plan.passes() {
@@ -247,6 +273,7 @@ impl Backend for WgpuBackend {
         Ok(Resources {
             plan: generation.identity,
             uploads: RefCell::new(uploads),
+            streams,
             draws,
             outputs,
         })
@@ -263,11 +290,21 @@ impl Backend for WgpuBackend {
         if device.lost.load(Ordering::Acquire) {
             return Err(BackendError::DeviceLost);
         }
+        let updates = resources
+            .streams
+            .iter()
+            .map(|stream| stream.prepare(&device.gpu))
+            .collect::<Result<Vec<_>, _>>()?;
         let mut encoder = device
             .gpu
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
         for upload in resources.uploads.borrow_mut().drain(..) {
             upload.encode(&mut encoder, &device.pipelines);
+        }
+        for (stream, update) in resources.streams.iter().zip(&updates) {
+            if let Some(update) = update {
+                stream.encode(&mut encoder, &device.pipelines, update);
+            }
         }
         for draw in &resources.draws {
             draw.encode(&mut encoder);
@@ -282,6 +319,11 @@ impl Backend for WgpuBackend {
             wake.notify();
         });
         device.queue.submit(Some(encoder.finish()));
+        for (stream, update) in resources.streams.iter().zip(updates) {
+            if let Some(update) = update {
+                stream.submitted(update);
+            }
+        }
         Ok(())
     }
 

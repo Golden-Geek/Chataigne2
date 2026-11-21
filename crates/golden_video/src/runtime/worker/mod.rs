@@ -126,6 +126,7 @@ pub(super) fn run_wgpu(
     authority: TimeAuthority<Arc<dyn Clock>>,
 ) {
     let notify = context.wake_notifier();
+    let max_in_flight = config.resource_limits.max_in_flight;
     run_backend(
         context,
         shared,
@@ -135,7 +136,14 @@ pub(super) fn run_wgpu(
         authority,
         Duration::ZERO,
         false,
-        move || Ok(crate::wgpu_backend::WgpuBackend::new(gpu, device, notify)),
+        move || {
+            Ok(crate::wgpu_backend::WgpuBackend::new(
+                gpu,
+                device,
+                notify,
+                max_in_flight,
+            ))
+        },
     );
 }
 

@@ -331,7 +331,8 @@ impl ChannelRenderer {
                                     definition.source,
                                     super::protocol::ChannelSource::SolidColor { .. }
                                         | super::protocol::ChannelSource::Picture { .. }
-                                )
+                                ) || (cfg!(feature = "video-files")
+                                    && matches!(definition.source, super::protocol::ChannelSource::Video { .. }))
                             })
                     })
                 })
