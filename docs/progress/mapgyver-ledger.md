@@ -25,30 +25,20 @@ and opacity edit updated the same Screen. Both Rust formatters, the default Wind
 check, Prettier and Actions lint passed.
 [Apple Silicon Screen Warping run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44942165608)
 
-**M19/2 Rectangle window batch (21 November, 21:28 CET cutoff).** Present an authored
-Rectangle Screen in a dedicated native output window. The local Windows x64 DX12 portable
-build displayed red and green at the exact authored client bounds in one window, retired on
-disable, reopened on enable, and shut down normally with the reopened output active. The
-headless preview fixture passed again. All 179 Golden Video tests, 43 desktop host tests,
-strict Golden Video Clippy, both formatters and the default Windows compile check passed.
-Verify the native Rectangle on macOS, then add fullscreen display selection and qualify
-display reconnect, cadence and independent bundles on Apple Silicon and Intel.
-The first Apple Silicon run built the app and passed project authoring. An early host check
-misclassified independent windows as a Windows underlay and rejected desktop startup.
-[Apple Silicon Rectangle integration run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44944343028)
+**M19/2 Rectangle lifecycle verified.** Apple Silicon passed the strict desktop smoke from
+the completed build. WindowServer observed the authored 4:3 Rectangle in the same window
+across a live edit, its withdrawal on disable and its return on enable. The fixture exited
+normally with that window open. The Windows x64 DX12 portable build also verified actual
+red and green output pixels and exact client bounds. All 179 Golden Video tests, 43 desktop
+host tests, strict Golden Video Clippy, both formatters and the default Windows compile check
+passed. The earlier underlay classification and redundant rebuild failures are resolved.
+[Apple Silicon lifecycle](https://github.com/Golden-Geek/Chataigne2/actions/runs/44947707188)
+[Underlay failure](https://github.com/Golden-Geek/Chataigne2/actions/runs/44944343028)
+[Startup timeout](https://github.com/Golden-Geek/Chataigne2/actions/runs/44945975635)
 
-**M19/2 Rectangle lifecycle batch (21 November, 21:53 CET cutoff).** Verify that an authored
-Rectangle creates, retains, withdraws and reopens a visible native window on Apple Silicon.
-Use the actual desktop, ordinary Screen edits and the WindowServer's owned-process window
-metadata. The shared launcher passed the local DX12 Rectangle and headless preview cases.
-The shared host now validates the actual underlay capability and permits the owned shutdown
-sentinel for desktop fixtures on macOS. The Apple Silicon workflow runs the lifecycle check
-after the build and preview checks. The retry passed compilation and authoring. Its desktop
-smoke timed out during a redundant `cargo run` build before the binary launched. The workflow
-now launches the tested binary with the existing readiness timeout and owned shutdown check.
-That strict smoke passed locally and released port 7010. macOS pixel capture and physical
-display qualification remain open.
-[Apple Silicon startup timeout](https://github.com/Golden-Geek/Chataigne2/actions/runs/44945975635)
+**M19/2 next deliverable.** Enumerate macOS displays with persistent identities and route an
+authored Fullscreen Screen to the selected display. Native macOS output pixels, display
+reconnect and cadence, and independent bundles on Apple Silicon and Intel remain open.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -207,7 +197,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
-| Active | M19/2 | Media Preview and two-Surface Screen Warping passed on Apple Silicon Metal. Native Rectangle pixels, exact client placement, disable/reopen and shutdown passed on local DX12. macOS native output checks, fullscreen display selection, recovery and independent bundles on both Mac architectures remain open. |
+| Active | M19/2 | Apple Silicon passed Media Preview, two-Surface Screen Warping and native Rectangle lifecycle. Local DX12 verified Rectangle pixels and placement. macOS native pixels, fullscreen display selection, recovery, cadence and independent bundles on both Mac architectures remain open. |
 | Pending | M19/3–5 | After macOS, qualify desktop Linux, then Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
