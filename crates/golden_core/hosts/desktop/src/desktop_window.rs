@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
+#[cfg(target_os = "windows")]
 use tauri::window::Color;
 use tauri::{Manager, Runtime, Url, WebviewUrl};
 
@@ -186,25 +187,28 @@ fn create_main_window<R: Runtime>(
 ) -> io::Result<tauri::WebviewWindow<R>> {
     #[cfg(target_os = "windows")]
     let frontend = url.clone();
-    let mut builder = tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
+    let builder = tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
         .title(title)
         .decorations(false)
         .shadow(true)
         .accept_first_mouse(true)
         .inner_size(75.0 * 16.0, 50.0 * 16.0);
-    if cfg!(target_os = "windows") {
-        builder = builder.disable_drag_drop_handler();
-        builder = if native_underlay {
+    #[cfg(target_os = "windows")]
+    let builder = {
+        let builder = builder.disable_drag_drop_handler();
+        if native_underlay {
             builder.transparent(true).background_color(Color(0, 0, 0, 0))
         } else {
             builder.background_color(Color(20, 20, 20, 255))
-        };
-    }
+        }
+    };
+    #[cfg(not(target_os = "windows"))]
+    let _ = native_underlay;
     #[cfg(all(target_os = "windows", debug_assertions))]
-    if let Some((port, sentinel)) = automation_webview {
+    let builder = if let Some((port, sentinel)) = automation_webview {
         // Elevated WebView2 ignores environment overrides. Configure only this owned debug
         // window through its public API; never change machine policy or accept arbitrary flags.
-        builder = builder
+        builder
             .additional_browser_args(&format!(
                 "--remote-debugging-port={port} --remote-debugging-address=127.0.0.1"
             ))
@@ -213,8 +217,10 @@ fn create_main_window<R: Runtime>(
                     .parent()
                     .expect("validated automation sentinel")
                     .join("webview"),
-            );
-    }
+            )
+    } else {
+        builder
+    };
     #[cfg(not(all(target_os = "windows", debug_assertions)))]
     let _ = automation_webview;
     let window = builder

@@ -9,9 +9,15 @@ Internal execution/evidence ledger. The user-facing checklist is `mapgyver-statu
 **M19 active batch (21 November, 18:48 CET cutoff).** Enable the default Apple Silicon
 workbench build with native FFmpeg discovery. Golden owns the dependency boundary and
 MapGyver owns the app launch check. Prove desktop readiness and Save/New/Load on `macos-15`.
-The Windows x64 build through the pinned helper passed, including the headless authoring,
-history and Save/New/Load fixture with three sources and six channels. Both Rust format checks,
-the fixture syntax check and Actions lint passed. [Native run](../../.github/workflows/mapgyver-platform.yml)
+The first Apple Silicon run resolved native FFmpeg, then hit a shared-host compile error
+because Tauri's transparent-window API was referenced on macOS. The Golden host now gates
+the Windows underlay at compile time. The return check is a clean default Apple Silicon build,
+then the project and desktop smoke steps. [First Apple Silicon run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44928504337)
+Windows desktop-host validation passed 43 unit tests with three expected ignores, strict Clippy,
+and workspace and Golden Core formatting.
+The initial Windows x64 build through the pinned helper passed the headless authoring, history
+and Save/New/Load fixture with three sources and six channels. Both Rust format checks, the
+fixture syntax check and Actions lint passed.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -112,8 +118,8 @@ Retained physical/timing requirements remain open; M10/5–10 own Video feedback
 | [M17 NDI Media and Screen Output](../plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output) | Blocked | `░░░░░░░░░░` 0% | 0/2 | NDI Media receive 0/1, NDI Screen Output send 0/1. Independent LAN and clean installation remain. [Local output checks](evidence/mapgyver-m17-ndi-screen-audio-2026-11-19.json) |
 | [M18 Feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi) | Blocked | `███████░░░` 67% | 4/6 | Project Settings, [File Explorer](evidence/mapgyver-m18-file-explorer-2026-11-19.json), [Inspector selection](evidence/mapgyver-m18-creation-selection-2026-11-20.json) and [browser previews](evidence/mapgyver-m18-browser-spatial-2026-11-20.json) Accepted. Direct OS file drops and live ShaderToy verification are Blocked. |
 | [M09 Final qualification](../plan/MapGyver_Implementation_Plan.md#m09--qualify-the-actual-app-and-windows-artifact)                                                | Waiting                             | `░░░░░░░░░░` 0%   | 0/1   | Revised actual-app qualification 0/1                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-
 | [M19 Cross-platform](../plan/MapGyver_Implementation_Plan.md#m19--cross-platform-delivery) | Active | `░░░░░░░░░░` 0% | 0/6 | [Apple Silicon workbench and remaining platform gates](#execution-board-and-return-queue). |
+
 **Counting:** overall = accepted fixed gates / 151, rounded to the nearest percent. M19 adds six
 platform gates (145 → 151) and one phase (19 → 20). M18 adds six
 pending feedback gates (139 → 145) and one phase (18 → 19). M17 added two pending NDI gates
@@ -167,11 +173,11 @@ failed readback stress returns with M10/4, without changed budgets.
 
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
 | Active | M19/1 | Native Apple Silicon FFmpeg discovery and default desktop build. Check desktop readiness and the authoring/history/Save/New/Load fixture on `macos-15`. |
 | Pending | M19/2 | After M19/1, deliver Golden GPU execution and desktop presentation for macOS, then qualify media, output, recovery and bundle distribution. |
 | Pending | M19/3–5 | After macOS, qualify desktop Linux, then Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
+| Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
 | Blocked | M13/2 | [Complete available app catalog](evidence/mapgyver-m13-app-catalog-2026-11-07.json) passes70/68 native layouts; earlier live/source/Intel device/D3D9 proof retained. Return on exposed NVIDIA D3D9 source, supported same-LUID NVIDIA loss/revised identity contract, actual backend/new path for named rejected allocations, authoritative metadata/revised contract for unadvertised interpretation. Every exact prerequisite/action remains in the receipt; no full gate credit or unchanged rerun. |
 | Accepted | M13/3 | [Complete Matrix acceptance](evidence/mapgyver-m13-matrix-acceptance-2026-11-07.json): canonical inline controls/top-left labels/whole headers, root/nested/reparent/history/reload, front-first rendering and SVG hit order,72 threshold/font-scale cases, actual minimum dock resize, complete both-GPU native grid/Group/offscreen/sparse lifetime flows and22 independent output images pass. No timing or generic GPU-owner retirement claim. |
 | Accepted | M13/4 | [Explicit user acceptance for now](evidence/mapgyver-user-acceptance-2026-11-08.json). Existing behavior is accepted; retained36/39 updates/s means,12 ambiguous frames and21.56px separation are historical failed measurements. No new smoothness qualification is queued absent feedback or a reproduced dependency defect. |
