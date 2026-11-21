@@ -5,7 +5,7 @@
 - **Latest verified:** 4× AA fits the memory cap. Sustained timing passed at 1080p on NVIDIA. NVIDIA 4K and both Intel sizes still exceed the GPU budget. [Checks](mapgyver-m14-antialiasing.md#sustained-shared-texture-timing--2026-11-20)
 - **Plan execution:** macOS first, then desktop Linux and Raspberry Pi (armhf and aarch64). Windows ARM64 has a separate gate.
 - **Manual action needed from you now: none.**
-- **Next:** Verify Solid Color Media Preview on Apple Silicon Metal (M19/2). Its rendered pixels, live color edit, and retirement passed on local DX12.
+- **Next:** Extend Metal Media Preview from Solid Color to Picture files (M19/2). Solid Color pixels, live edits and retirement passed on Apple Silicon and local DX12. [Apple Silicon checks](https://github.com/Golden-Geek/Chataigne2/actions/runs/44936800486)
 
 ## Done — code and normal-use checks passed
 
