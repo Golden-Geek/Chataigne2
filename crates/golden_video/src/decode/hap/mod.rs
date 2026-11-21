@@ -57,7 +57,7 @@ impl HapFrame {
     pub(crate) fn decode(packet: &[u8], extent: Extent2D, budget: &ImageStorageBudget) -> Result<Self, DecodeError> {
         let length = c_ulong::try_from(packet.len()).map_err(|_| DecodeError::LimitExceeded)?;
         let mut count = 0;
-        let mut format = 0;
+        let mut original_format = 0;
         let mut chunks = 0;
         // SAFETY: admitted immutable packet and valid scalar outputs. Reference parsing
         // checks section bounds; local C patches validate chunk input/output slices too.
@@ -74,7 +74,7 @@ impl HapFrame {
                 packet.as_ptr().cast(),
                 length,
                 0,
-                &mut format,
+                &mut original_format,
             ))?;
             check(reference::HapGetFrameTextureChunkCount(
                 packet.as_ptr().cast(),
@@ -86,11 +86,14 @@ impl HapFrame {
         if !(1..=1024).contains(&chunks) {
             return Err(DecodeError::LimitExceeded);
         }
-        let original_format = format;
-        let format = match i32::try_from(format) {
-            Ok(reference::HapTextureFormat_HapTextureFormat_RGB_DXT1) => HapFormat::Bc1Rgb,
-            Ok(reference::HapTextureFormat_HapTextureFormat_RGBA_DXT5) => HapFormat::Bc3Rgba,
-            Ok(reference::HapTextureFormat_HapTextureFormat_YCoCg_DXT5) => HapFormat::Bc3YCoCg,
+        // Clang can generate signed or unsigned enum constants. The C API writes a c_uint.
+        const RGB_DXT1: i64 = reference::HapTextureFormat_HapTextureFormat_RGB_DXT1 as i64;
+        const RGBA_DXT5: i64 = reference::HapTextureFormat_HapTextureFormat_RGBA_DXT5 as i64;
+        const YCOCG_DXT5: i64 = reference::HapTextureFormat_HapTextureFormat_YCoCg_DXT5 as i64;
+        let format = match i64::from(original_format) {
+            RGB_DXT1 => HapFormat::Bc1Rgb,
+            RGBA_DXT5 => HapFormat::Bc3Rgba,
+            YCOCG_DXT5 => HapFormat::Bc3YCoCg,
             _ => return Err(DecodeError::UnsupportedCodec),
         };
         let expected = format.byte_len(extent).ok_or(DecodeError::LimitExceeded)?;

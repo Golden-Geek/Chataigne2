@@ -15,6 +15,12 @@ the Windows underlay at compile time. The return check is a clean default Apple 
 then the project and desktop smoke steps. [First Apple Silicon run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44928504337)
 Windows desktop-host validation passed 43 unit tests with three expected ignores, strict Clippy,
 and workspace and Golden Core formatting.
+The second Apple Silicon run compiled the shared desktop host and exposed a HAP FFI mismatch.
+Golden Video now compares generated enum values in a type covering both compiler representations.
+Windows passed nine HAP tests with one fixture-generation ignore, strict Golden Video Clippy,
+and workspace and Golden Core formatting.
+The next run must compile the default app and reach both workbench smoke steps.
+[Second Apple Silicon run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44929419815)
 The initial Windows x64 build through the pinned helper passed the headless authoring, history
 and Save/New/Load fixture with three sources and six channels. Both Rust format checks, the
 fixture syntax check and Actions lint passed.
