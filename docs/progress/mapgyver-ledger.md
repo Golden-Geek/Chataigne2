@@ -44,6 +44,14 @@ including exact recovery when the intended UUID returns. An identical replacemen
 unassigned. The default Windows build, local DX12 Rectangle fixture and both formatters passed.
 Native macOS output pixels, physical hotplug and cadence, and independent Apple Silicon and
 Intel bundles remain open. [Apple Silicon Fullscreen](https://github.com/Golden-Geek/Chataigne2/actions/runs/44950133263)
+
+**M19/2 macOS bundle batch (21 November, 23:08 CET cutoff).** Build a relocatable MapGyver app
+with its pinned FFmpeg playback libraries on Apple Silicon and Intel. The MapGyver packaging
+tools own the SDK and bundle layout. Qualification checks the architecture and executable
+library paths, then starts the relocated app and plays local media with bundle-local libraries.
+The packaging entry point and two-architecture CI matrix are implemented. The Windows compile,
+workbench production build, both Rust formatters, shell syntax, Prettier and Actions lint passed.
+The macOS packaging and runtime checks are queued for the native runners.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 

@@ -3,6 +3,9 @@ use std::path::{Path, PathBuf};
 use golden_codegen_support::ui_bundle::{self, UiBundleConfig};
 
 fn main() -> std::io::Result<()> {
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
+        println!("cargo:rustc-link-arg-bin=MapGyver=-Wl,-rpath,@executable_path/../Frameworks");
+    }
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR is not set"));
     let workspace_root = Path::new("../..");
     let shared_input_roots = ["golden-ui", "golden-graph-ui", "golden-video-ui"]

@@ -11,6 +11,7 @@ on:
       - 'crates/**'
       - 'packages/**'
       - 'tools/bootstrap/**'
+      - 'tools/mapgyver/ffmpeg/**'
       - 'tools/product-gate/hooks/**'
       - 'Cargo.*'
       - 'package*.json'
@@ -26,8 +27,16 @@ concurrency:
 
 jobs:
   macos-workbench:
-    name: MapGyver workbench (Apple Silicon)
-    runs-on: macos-15
+    name: MapGyver macOS bundle (${{ matrix.architecture }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            architecture: arm64
+          - runner: macos-15-intel
+            architecture: x86_64
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
@@ -42,16 +51,27 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: mapgyver-macos-workbench
+          shared-key: mapgyver-macos-bundle-${{ matrix.architecture }}
           cache-targets: false
 
-      - name: Install and check native FFmpeg
-        run: |
-          brew install ffmpeg pkgconf
-          pkg-config --modversion libavcodec libavformat libavutil libswresample libswscale
+      - name: Install workbench dependencies
+        run: npm ci
 
-      - name: Build MapGyver with its bundled workbench
-        run: cargo build --locked --package MapGyver --bin MapGyver
+      - name: Install the Intel FFmpeg assembler
+        if: matrix.architecture == 'x86_64'
+        run: brew install nasm
+
+      - name: Build the native app and its pinned FFmpeg libraries
+        run: npm run package:mapgyver:macos -- --debug
+
+      - name: Relocate and validate the signed bundle
+        env:
+          ARCHITECTURE: ${{ matrix.architecture }}
+        run: |
+          relocated="$RUNNER_TEMP/MapGyver QA/MapGyver 2.app"
+          ditto 'target/debug/bundle/macos/MapGyver 2.app' "$relocated"
+          binary=$(bash apps/mapgyver/tests/native_output/check-macos-bundle.sh "$relocated" "$ARCHITECTURE")
+          printf 'MAPGYVER_TEST_BINARY=%s\n' "$binary" >> "$GITHUB_ENV"
 
       - name: Check project authoring, history and Save/New/Load
         run: node apps/mapgyver/tests/headless/media.mjs
@@ -61,7 +81,7 @@ jobs:
         run: |
           . ./tools/product-gate/hooks/smoke-common.ps1
           $env:XDG_DATA_HOME = Join-Path $env:RUNNER_TEMP 'mapgyver-desktop-data'
-          $mapgyver = Join-Path (Get-Location) 'target/debug/MapGyver'
+          $mapgyver = $env:MAPGYVER_TEST_BINARY
           $shutdown = Join-Path $env:RUNNER_TEMP 'mapgyver-desktop.stop'
           Invoke-RootCommandSmoke `
             -Id 'mapgyver-macos-workbench' `
@@ -71,13 +91,13 @@ jobs:
             -Ports @(7010) `
             -ShutdownFile $shutdown
 
-      - name: Check GPU-backed Media Preview and Screen Warping
+      - name: Install the FFmpeg command used to create test clips
+        run: brew install ffmpeg
+
+      - name: Check bundled media decoding, Media Preview and Screen Warping
         env:
           GC_UI_BROWSER_CHANNEL: chrome
-          MAPGYVER_TEST_BINARY: target/debug/MapGyver
         run: node apps/mapgyver/tests/browser/portable-preview.mjs
 
       - name: Check native Rectangle and Fullscreen Screen windows
-        env:
-          MAPGYVER_TEST_BINARY: target/debug/MapGyver
         run: node apps/mapgyver/tests/browser/portable-rectangle.mjs

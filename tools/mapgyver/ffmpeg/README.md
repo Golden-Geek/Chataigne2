@@ -39,9 +39,16 @@ set `FFMPEG_DIR` to the SDK path printed by the helper with no arguments. MapGyv
 Tauri resource configuration copies the five prepared DLLs and license materials beside the
 Cargo executable. Workspace Cargo configuration supplies the Windows x64 MSVC stack reserve.
 
-On macOS, `brew install ffmpeg pkgconf` provides the headers and libraries for native builds.
-FFmpeg discovery uses `pkg-config` when `FFMPEG_DIR` is unset. `FFMPEG_DIR` can select an
-explicit native SDK when needed.
+On macOS, `brew install ffmpeg pkgconf` provides the headers and libraries for ordinary Cargo
+development builds. FFmpeg discovery uses `pkg-config` when `FFMPEG_DIR` is unset.
+
+Build the self-contained macOS app on the intended architecture with Xcode command-line tools,
+the pinned Rust and Node toolchains, and `nasm` on Intel. From the workspace root run `npm ci`
+and `npm run package:mapgyver:macos`. Add `-- --debug` for the CI configuration. The app is
+under `target/<profile>/bundle/macos`. The helper checks the FFmpeg source hash, builds the
+five playback libraries and packages them in `Contents/Frameworks`, with the source pin,
+recipe and notice in the bundle. The bundle declares macOS 13 as its minimum and uses ad hoc
+signing by default for local verification. CI relocates and tests the app on macOS 15.
 
 Without Cargo arguments, the helper prepares inputs and returns only the SDK path in the
 PowerShell success stream; progress goes to the host. With
