@@ -162,6 +162,24 @@ impl Source {
 
     /// Name preparation and cohort allocation belong on the native preparation worker.
     pub fn prepare(&self, displays: Arc<[DisplayInfo]>, options: &ParameterEnumOptions) -> Update {
+        self.prepare_with(displays, options, match_displays)
+    }
+
+    /// Fullscreen selection for catalogs whose OS supplies persistent display identities.
+    #[cfg(any(target_os = "macos", test))]
+    pub fn prepare_exact(&self, displays: Arc<[DisplayInfo]>, options: &ParameterEnumOptions) -> Update {
+        self.prepare_with(displays, options, super::display_matching::match_exact_displays)
+    }
+
+    fn prepare_with(
+        &self,
+        displays: Arc<[DisplayInfo]>,
+        options: &ParameterEnumOptions,
+        allocate: fn(
+            &[(ScreenId, DisplayIdentityHint)],
+            &[DisplayInfo],
+        ) -> HashMap<ScreenId, super::display_matching::DisplayMatch>,
+    ) -> Update {
         let mut entries = options.as_slice().to_vec();
         let mut identities = entries
             .iter()
@@ -199,7 +217,7 @@ impl Source {
         } else {
             entries.into()
         };
-        let resolved = match_displays(&self.requests, &displays)
+        let resolved = allocate(&self.requests, &displays)
             .into_iter()
             .map(|(screen, matched)| {
                 let intended = self

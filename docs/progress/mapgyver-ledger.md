@@ -36,9 +36,15 @@ passed. The earlier underlay classification and redundant rebuild failures are r
 [Underlay failure](https://github.com/Golden-Geek/Chataigne2/actions/runs/44944343028)
 [Startup timeout](https://github.com/Golden-Geek/Chataigne2/actions/runs/44945975635)
 
-**M19/2 next deliverable.** Enumerate macOS displays with persistent identities and route an
-authored Fullscreen Screen to the selected display. Native macOS output pixels, display
-reconnect and cadence, and independent bundles on Apple Silicon and Intel remain open.
+**M19/2 Fullscreen batch (21 November, 22:41 CET cutoff).** Select a macOS display in the
+Screen Inspector and route an authored Fullscreen Screen to its persistent identity. Golden
+owns display enumeration and placement. MapGyver owns catalog publication and target policy.
+The catalog publishes named Mac displays with ColorSync UUIDs. The host opens the saved
+display's AppKit frame and rechecks the UUID and bounds before placement. All 11 local
+catalog tests passed, including the disconnected UUID case: an identical replacement stays
+unassigned until the intended display returns. The local DX12 Rectangle fixture passed again.
+The Apple Silicon fixture verifies the Inspector options and the native window's exact bounds.
+Physical output pixels, real hotplug, cadence and independent Mac bundles remain open.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 

@@ -27,6 +27,8 @@ pub use desktop::{
     parse_launch_args, parse_launch_args_from_env, run_default, run_default_with_config, run_default_with_services,
     run_default_with_ui_assets, run_default_with_ui_assets_and_dev_server,
 };
+#[cfg(target_os = "macos")]
+pub use displays::macos_desktop_displays;
 pub use displays::{NativeDisplay, native_displays};
 pub use file_explorer::export_file_explorer_typescript;
 pub use host_config::{DesktopHostConfig, FrontendDevServerConfig};
@@ -34,4 +36,6 @@ pub use host_services::HostServices;
 pub use native_presentation::{
     NativePresentation, NativePresentationStop, NativePresentationTask, NativePresentationViewport,
 };
+#[cfg(target_os = "macos")]
+pub use output_window::open_macos_fullscreen_output;
 pub use output_window::{NativeOutputBounds, NativeOutputEvent, NativeOutputWindow, open_desktop_output_window};

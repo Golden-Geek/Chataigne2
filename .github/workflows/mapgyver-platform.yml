@@ -77,7 +77,7 @@ jobs:
           MAPGYVER_TEST_BINARY: target/debug/MapGyver
         run: node apps/mapgyver/tests/browser/portable-preview.mjs
 
-      - name: Check native Rectangle Screen window lifecycle
+      - name: Check native Rectangle and Fullscreen Screen windows
         env:
           MAPGYVER_TEST_BINARY: target/debug/MapGyver
         run: node apps/mapgyver/tests/browser/portable-rectangle.mjs

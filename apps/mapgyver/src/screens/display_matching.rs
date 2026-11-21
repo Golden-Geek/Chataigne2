@@ -24,6 +24,34 @@ pub struct DisplayMatch {
     pub ambiguous: bool,
 }
 
+/// Resolve persistent identities exactly. With duplicate requests, the first authored Screen
+/// retains the output on that display. Disconnected displays leave their Screens inactive.
+#[cfg(any(target_os = "macos", test))]
+pub(super) fn match_exact_displays(
+    requests: &[(ScreenId, DisplayIdentityHint)],
+    displays: &[DisplayInfo],
+) -> HashMap<ScreenId, DisplayMatch> {
+    let mut available = displays
+        .iter()
+        .enumerate()
+        .map(|(index, display)| (display.id.as_str(), index))
+        .collect::<HashMap<_, _>>();
+    requests
+        .iter()
+        .filter_map(|(screen, hint)| {
+            let display_index = available.remove(hint.identity.as_str())?;
+            Some((
+                *screen,
+                DisplayMatch {
+                    display_index,
+                    reason: DisplayMatchReason::Identity,
+                    ambiguous: false,
+                },
+            ))
+        })
+        .collect()
+}
+
 /// Match a bounded fullscreen cohort one-to-one against the host's at-most-32 active targets.
 /// EDID, path, name, position, index and extent agreements are maximized lexicographically over
 /// the whole cohort. A weak fallback cannot steal a peer's stronger match. Differing EDIDs do

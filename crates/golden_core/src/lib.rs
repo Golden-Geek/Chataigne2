@@ -118,6 +118,8 @@ pub mod app {
         parse_launch_args_from_env, run_default, run_default_with_config, run_default_with_services,
         run_default_with_ui_assets, run_default_with_ui_assets_and_dev_server,
     };
+    #[cfg(target_os = "macos")]
+    pub use golden_host_desktop::{macos_desktop_displays, open_macos_fullscreen_output};
     pub use golden_transport_server::{
         UiAsset, UiPreferencesConfig, UiServerConfig, run_ui_server, run_with_ui_server_config,
     };

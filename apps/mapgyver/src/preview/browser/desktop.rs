@@ -1,4 +1,4 @@
-//! Explicit Rectangle Screen demand for the portable desktop presentation worker.
+//! Physical Screen demand for the portable desktop presentation worker.
 
 use std::{collections::HashMap, io, num::NonZeroUsize, sync::mpsc, time::Duration};
 
@@ -11,12 +11,15 @@ use golden_io::{RetirementPool, RevisionGuard, RevisionSubscription, WorkerNotif
 use golden_video::{OutputId, wgpu_backend::WindowOutputs};
 use tauri::Manager;
 
+#[cfg(target_os = "macos")]
+mod displays;
+
 use crate::{
     app::AppNode,
     media::rendering::{portable_channels, portable_screen},
     preview::{capture::CapturedPreview, protocol::PreviewSource},
     screens::{
-        protocol::{PhysicalRectangle, ScreenId},
+        protocol::ScreenId,
         rendering::{MAX_SCREEN_CATALOG, MAX_SCREEN_OUTPUTS, ResolvedTarget, capture_outputs},
     },
 };
@@ -46,7 +49,9 @@ pub(crate) fn presentation(
 pub(super) struct Desktop {
     app: tauri::AppHandle,
     windows: WindowOutputs,
-    desired: Vec<(ScreenId, PhysicalRectangle)>,
+    desired: Vec<(ScreenId, ResolvedTarget)>,
+    #[cfg(target_os = "macos")]
+    displays: displays::Displays,
     guards: Option<Vec<RevisionGuard>>,
     subscriptions: Vec<RevisionSubscription>,
     bindings: HashMap<ScreenId, Binding>,
@@ -55,7 +60,7 @@ pub(super) struct Desktop {
 
 struct Binding {
     id: OutputId,
-    bounds: PhysicalRectangle,
+    target: ResolvedTarget,
 }
 
 impl Desktop {
@@ -64,6 +69,8 @@ impl Desktop {
             app,
             windows: WindowOutputs::default(),
             desired: Vec::new(),
+            #[cfg(target_os = "macos")]
+            displays: displays::Displays::new(),
             guards: None,
             subscriptions: Vec::new(),
             bindings: HashMap::new(),
@@ -75,21 +82,36 @@ impl Desktop {
         self.windows.clone()
     }
 
+    #[cfg(target_os = "macos")]
+    pub fn deadline(&self) -> std::time::Instant {
+        self.displays.deadline()
+    }
+
     pub fn refresh(&mut self, runtime: &ProductionRuntime<AppNode>, notifier: &WorkerNotifier) -> Result<bool, String> {
+        #[cfg(target_os = "macos")]
+        let mut changed = self.displays.refresh(&self.app, runtime, notifier)?;
+        #[cfg(not(target_os = "macos"))]
         let mut changed = false;
-        if !self
-            .guards
-            .as_ref()
-            .is_some_and(|guards| guards.iter().all(RevisionGuard::is_current))
+        if changed
+            || !self
+                .guards
+                .as_ref()
+                .is_some_and(|guards| guards.iter().all(RevisionGuard::is_current))
         {
+            #[cfg(target_os = "macos")]
+            let displays = self.displays.active();
+            #[cfg(not(target_os = "macos"))]
+            let displays = [];
             let capture = runtime
-                .capture_app(|engine| capture_outputs(engine, MAX_SCREEN_CATALOG, MAX_SCREEN_OUTPUTS, &[]))
+                .capture_app(move |engine| capture_outputs(engine, MAX_SCREEN_CATALOG, MAX_SCREEN_OUTPUTS, &displays))
                 .map_err(|error| error.to_string())??;
             self.desired = capture
                 .outputs
                 .into_iter()
                 .filter_map(|output| match output.target {
-                    ResolvedTarget::Rectangle(bounds) => Some((output.screen, bounds)),
+                    target @ ResolvedTarget::Rectangle(_) => Some((output.screen, target)),
+                    #[cfg(target_os = "macos")]
+                    target @ ResolvedTarget::Fullscreen { .. } => Some((output.screen, target)),
                     _ => None,
                 })
                 .collect();
@@ -102,7 +124,11 @@ impl Desktop {
             changed = true;
         }
         self.bindings.retain(|screen, binding| {
-            let keep = self.desired.contains(&(*screen, binding.bounds)) && !self.windows.needs_reopen(binding.id);
+            let keep = self
+                .desired
+                .iter()
+                .any(|(id, target)| id == screen && *target == binding.target)
+                && !self.windows.needs_reopen(binding.id);
             if !keep {
                 self.windows.detach(binding.id);
                 changed = true;
@@ -136,17 +162,22 @@ impl Desktop {
         });
         for route in &mut capture.screens {
             let screen = route.screen.id();
-            let Some(&(_, bounds)) = self.desired.iter().find(|(id, _)| *id == screen) else {
+            let Some((_, target)) = self.desired.iter().find(|(id, _)| *id == screen) else {
                 continue;
             };
             if !portable_screen(route, &channels) {
                 continue;
             }
+            route.extent = match target {
+                ResolvedTarget::Rectangle(bounds) | ResolvedTarget::Fullscreen { bounds, .. } => bounds.extent,
+                _ => unreachable!("desktop demand contains only window targets"),
+            };
             let id = match self.bindings.get(&screen) {
                 Some(binding) => binding.id,
                 None => {
-                    let id = self.open(bounds).map_err(|error| error.to_string())?;
-                    self.bindings.insert(screen, Binding { id, bounds });
+                    let target = target.clone();
+                    let id = self.open(&target).map_err(|error| error.to_string())?;
+                    self.bindings.insert(screen, Binding { id, target });
                     id
                 }
             };
@@ -155,20 +186,29 @@ impl Desktop {
         Ok(())
     }
 
-    fn open(&mut self, bounds: PhysicalRectangle) -> io::Result<OutputId> {
+    fn open(&mut self, target: &ResolvedTarget) -> io::Result<OutputId> {
         self.next = self
             .next
             .checked_add(1)
             .ok_or_else(|| io::Error::other("output identity exhausted"))?;
         let id = OutputId::new(self.next).unwrap();
-        let extent = bounds.extent;
-        let physical = NativeOutputBounds::new(bounds.left, bounds.top, extent.width(), extent.height())?;
-        let window = open_desktop_output_window(
-            &self.app,
-            &format!("mapgyver-output-{}", id.get()),
-            "MapGyver Screen Output",
-            physical,
-        )?;
+        let label = format!("mapgyver-output-{}", id.get());
+        let title = "MapGyver Screen Output";
+        let physical = |bounds: crate::screens::protocol::PhysicalRectangle| {
+            NativeOutputBounds::new(bounds.left, bounds.top, bounds.extent.width(), bounds.extent.height())
+        };
+        let (window, extent) = match target {
+            ResolvedTarget::Rectangle(bounds) => (
+                open_desktop_output_window(&self.app, &label, title, physical(*bounds)?)?,
+                bounds.extent,
+            ),
+            #[cfg(target_os = "macos")]
+            ResolvedTarget::Fullscreen { bounds, display } => (
+                golden_core::app::open_macos_fullscreen_output(&self.app, &label, title, display, physical(*bounds)?)?,
+                bounds.extent,
+            ),
+            _ => return Err(io::Error::other("unsupported portable output target")),
+        };
         let (send, receive) = mpsc::sync_channel(1);
         let windows = self.windows.clone();
         let setup = window.clone();

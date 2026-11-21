@@ -1,6 +1,10 @@
 //! Candidate metadata preparation and host-worker refresh; never authored target reassignment.
-use super::protocol::{DisplayInfo, DisplayRefreshRate, PhysicalRectangle};
+use super::protocol::DisplayInfo;
+#[cfg(any(windows, target_os = "macos"))]
+use super::protocol::{DisplayRefreshRate, PhysicalRectangle};
+#[cfg(any(windows, target_os = "macos"))]
 use golden_video::Extent2D;
+#[cfg(any(windows, target_os = "macos"))]
 use std::io;
 
 #[cfg(windows)]
@@ -19,8 +23,14 @@ pub(crate) fn prepare(engine: &mut crate::app::AppEngine) -> Result<(), String> 
     Ok(())
 }
 
+#[cfg(windows)]
 pub(crate) fn scan() -> io::Result<Vec<DisplayInfo>> {
-    golden_core::app::native_displays()?
+    project_displays(golden_core::app::native_displays()?)
+}
+
+#[cfg(any(windows, target_os = "macos"))]
+pub(crate) fn project_displays(displays: Vec<golden_core::app::NativeDisplay>) -> io::Result<Vec<DisplayInfo>> {
+    displays
         .into_iter()
         .map(|display| {
             Ok(DisplayInfo {
@@ -45,6 +55,7 @@ pub(crate) fn scan() -> io::Result<Vec<DisplayInfo>> {
 
 /// New candidates are detached from the live engine. Query the OS once on a dedicated
 /// worker before authoring defaults; no polling, shared cache or post-load retargeting.
+#[cfg(windows)]
 pub(super) fn initial() -> Vec<DisplayInfo> {
     let result = std::thread::Builder::new()
         .name("mapgyver-new-displays".into())
@@ -62,4 +73,9 @@ pub(super) fn initial() -> Vec<DisplayInfo> {
             Vec::new()
         }
     }
+}
+
+#[cfg(not(windows))]
+pub(super) fn initial() -> Vec<DisplayInfo> {
+    Vec::new()
 }

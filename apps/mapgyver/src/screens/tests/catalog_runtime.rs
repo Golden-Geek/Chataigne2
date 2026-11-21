@@ -202,6 +202,55 @@ fn catalog() -> Arc<[DisplayInfo]> {
 }
 
 #[test]
+fn a_disconnected_persistent_display_stays_selected_without_routing_to_a_replacement() {
+    let mut engine = runtime();
+    let displays = catalog();
+    let intended = displays[1].clone();
+    let (screen, _) = create(&mut engine);
+    let publish_exact = |engine: &mut AppEngine, displays: &[DisplayInfo]| {
+        let source = Source::capture(engine).unwrap();
+        source
+            .publisher
+            .publish(source.prepare_exact(Arc::from(displays), &display_options(displays)))
+            .unwrap();
+        drain(engine);
+    };
+    publish_exact(&mut engine, &displays);
+    let definition = ScreenDefinition {
+        target: Some(ScreenTarget::Fullscreen {
+            display: intended.id.clone(),
+        }),
+        ..Default::default()
+    };
+    apply(
+        &mut engine,
+        ScreenEdit::ConfigureScreen {
+            screen,
+            definition: definition.clone(),
+        },
+    );
+    publish_exact(&mut engine, &displays);
+
+    let eligible = |engine: &AppEngine, displays: &[DisplayInfo]| {
+        super::super::rendering::capture_outputs(engine, 128, 7, displays)
+            .unwrap()
+            .outputs
+    };
+    assert_eq!(eligible(&engine, &displays).len(), 1);
+    let mut replacement = intended.clone();
+    replacement.id = String::from("another-monitor");
+    let disconnected = [replacement];
+    publish_exact(&mut engine, &disconnected);
+    assert!(eligible(&engine, &disconnected).is_empty());
+    assert!(options(&engine, screen).contains_variant(&intended.id));
+    assert_eq!(screen_node(&engine, screen).definition(&engine), definition);
+
+    publish_exact(&mut engine, &displays);
+    assert!(matches!(&eligible(&engine, &displays)[0].target,
+        super::super::rendering::ResolvedTarget::Fullscreen { display, .. } if *display == intended.id));
+}
+
+#[test]
 fn clearing_a_fresh_fullscreen_releases_the_display_and_round_trips_through_history_and_save() {
     let mut engine = runtime();
     let displays = catalog();

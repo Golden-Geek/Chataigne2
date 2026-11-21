@@ -3157,10 +3157,15 @@ dependencies = [
 name = "golden_host_desktop"
 version = "0.1.0"
 dependencies = [
+ "core-foundation 0.10.1",
+ "core-graphics 0.25.0",
  "dirs",
  "golden_engine",
  "golden_transport_server",
  "image",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
  "rfd",
  "serde",
  "serde_json",

@@ -86,6 +86,38 @@ async function waitForOutput(accept) {
 	return outputs(windows)[0];
 }
 
+async function selectPrimaryDisplay(screen) {
+	const deadline = performance.now() + 8000;
+	for (;;) {
+		const graph = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
+		const byId = new Map(graph.nodes.map((node) => [node.node_id, node]));
+		const root = graph.nodes.find((node) => node.uuid === screen);
+		assert(root, 'Screen is absent from the workbench snapshot');
+		const pending = [root];
+		while (pending.length) {
+			const node = pending.pop();
+			if (node.decl_id === 'parameters/display') {
+				const param = node.data.param;
+				const definition = graph.schema.enums?.find(
+					(item) => item.enum_id === param.enum_options_id
+				);
+				const options = definition?.variants ?? param.constraints?.enum_options ?? [];
+				const display = options.find(({ variant_id }) =>
+					variant_id.startsWith('macos:')
+				)?.variant_id;
+				if (display) {
+					assert.match(display, /^macos:[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i);
+					return display;
+				}
+				break;
+			}
+			pending.push(...(node.children ?? []).map((id) => byId.get(id)));
+		}
+		assert(performance.now() < deadline, 'The Screen Inspector received no macOS displays');
+		await delay(120);
+	}
+}
+
 try {
 	if (onMac) {
 		const baseline = await waitForWindows((windows) =>
@@ -138,6 +170,32 @@ try {
 			? 'WindowServer reported the Rectangle across live edit, disable and reopen'
 			: 'Native Rectangle showed both colors, retired on disable and reopened at its authored bounds'
 	);
+	if (onMac) {
+		await output(false);
+		await waitForOutput((window) => window === undefined);
+		const display = await selectPrimaryDisplay(screen);
+		const fullscreen = (target) =>
+			edit('screens', {
+				kind: 'ConfigureScreen',
+				screen,
+				definition: { enabled: true, target }
+			});
+		const selected = { kind: 'Fullscreen', display };
+		const { stdout } = await program(macObserver, ['--primary-display'], { timeout: 4000 });
+		const expected = JSON.parse(stdout);
+		const coversDisplay = (window) =>
+			window &&
+			Object.entries(expected).every(([key, value]) => Math.abs(window[key] - value) <= 1);
+		await fullscreen(selected);
+		const initial = await waitForOutput(coversDisplay);
+		await color([0, 0, 1, 1]);
+		assert.equal((await waitForOutput(coversDisplay)).id, initial.id);
+		await fullscreen(null);
+		await waitForOutput((window) => window === undefined);
+		await fullscreen(selected);
+		await waitForOutput(coversDisplay);
+		console.log('The Inspector UUID opened Fullscreen at the selected macOS display bounds');
+	}
 } catch (error) {
 	console.error(native.log().slice(-6000));
 	throw error;

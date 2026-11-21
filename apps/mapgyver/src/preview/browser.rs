@@ -198,6 +198,8 @@ fn start_worker(
                     last_error = error;
                     next
                 };
+                #[cfg(target_os = "macos")]
+                let next = desktop.as_ref().map_or(next, |desktop| next.min(desktop.deadline()));
                 context.wait_until(checkpoint, next);
             }
         },

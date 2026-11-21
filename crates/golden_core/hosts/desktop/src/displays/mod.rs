@@ -5,7 +5,7 @@ use std::io;
 /// An active desktop target with an OS device-interface identity rather than an enumeration index.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeDisplay {
-    /// Opaque Windows monitor device path. Persist as an exact intended identity, not a position.
+    /// Opaque OS monitor identity. Windows uses a device path and macOS uses a display UUID.
     pub id: String,
     /// Human-readable monitor label; never used to resolve identity.
     pub name: String,
@@ -42,6 +42,11 @@ pub fn native_displays() -> io::Result<Vec<NativeDisplay>> {
         ))
     }
 }
+
+#[cfg(target_os = "macos")]
+pub(crate) mod macos;
+#[cfg(target_os = "macos")]
+pub use macos::macos_desktop_displays;
 
 #[cfg(any(windows, test))]
 mod metadata;

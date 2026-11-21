@@ -201,12 +201,16 @@ Stretch uses the full source. Screen Warping with these sources uses the same ma
 layers and linear opacity as the Screen plan. Portable Screens currently cover Raw and 2×
 anti-aliasing with calibration off.
 
-The portable desktop also submits enabled Rectangle Screens to the same renderer. Golden's
-desktop host creates the borderless window and keeps the event loop alive during retirement.
+The portable desktop submits enabled Rectangle Screens to the same renderer. On macOS it
+also presents Fullscreen Screens on the display selected in the Inspector. Golden enumerates
+AppKit screens, gives each its ColorSync UUID and places the output using its AppKit frame.
+MapGyver publishes the display choices through the authored display parameter's catalog and
+resolves the saved UUID exactly. A missing display leaves its Screen inactive until it returns.
+Golden's desktop host creates the borderless window and keeps the event loop alive during retirement.
 The GPU worker presents each Screen texture through an sRGB window surface. The window
 becomes visible on the first admitted submission and is destroyed after its surface retires.
 The workbench advertises underlay availability independently from the output windows.
-Fullscreen display selection, native macOS pixel and recovery checks, output cadence, and
+Native macOS pixel and physical reconnect checks, output cadence, and
 independent packaging remain open in [M19](../plan/MapGyver_Implementation_Plan.md#m19--cross-platform-delivery).
 
 Golden Video compiles immutable demanded DAGs with explicit storage/color/alpha, normalizing

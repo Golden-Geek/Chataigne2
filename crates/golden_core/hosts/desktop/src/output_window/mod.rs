@@ -70,6 +70,29 @@ pub fn open_desktop_output_window<R: Runtime>(
     title: &str,
     bounds: NativeOutputBounds,
 ) -> io::Result<Window<R>> {
+    create_output_window(app, label, title, |window| place_desktop_output(window, bounds))
+}
+
+/// Open a fullscreen output on the requested macOS display UUID and verify its current bounds.
+#[cfg(target_os = "macos")]
+pub fn open_macos_fullscreen_output<R: Runtime>(
+    app: &AppHandle<R>,
+    label: &str,
+    title: &str,
+    display: &str,
+    bounds: NativeOutputBounds,
+) -> io::Result<Window<R>> {
+    create_output_window(app, label, title, |window| {
+        crate::displays::macos::place_fullscreen(app, window.clone(), display.to_owned(), bounds)
+    })
+}
+
+fn create_output_window<R: Runtime>(
+    app: &AppHandle<R>,
+    label: &str,
+    title: &str,
+    place: impl FnOnce(&Window<R>) -> io::Result<()>,
+) -> io::Result<Window<R>> {
     let window = WindowBuilder::new(app, label)
         .title(title)
         .decorations(false)
@@ -79,7 +102,7 @@ pub fn open_desktop_output_window<R: Runtime>(
         .visible(false)
         .build()
         .map_err(io::Error::other)?;
-    if let Err(error) = place_desktop_output(&window, bounds) {
+    if let Err(error) = place(&window) {
         let _ = window.destroy();
         return Err(error);
     }
