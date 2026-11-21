@@ -36,15 +36,14 @@ passed. The earlier underlay classification and redundant rebuild failures are r
 [Underlay failure](https://github.com/Golden-Geek/Chataigne2/actions/runs/44944343028)
 [Startup timeout](https://github.com/Golden-Geek/Chataigne2/actions/runs/44945975635)
 
-**M19/2 Fullscreen batch (21 November, 22:41 CET cutoff).** Select a macOS display in the
-Screen Inspector and route an authored Fullscreen Screen to its persistent identity. Golden
-owns display enumeration and placement. MapGyver owns catalog publication and target policy.
-The catalog publishes named Mac displays with ColorSync UUIDs. The host opens the saved
-display's AppKit frame and rechecks the UUID and bounds before placement. All 11 local
-catalog tests passed, including the disconnected UUID case: an identical replacement stays
-unassigned until the intended display returns. The local DX12 Rectangle fixture passed again.
-The Apple Silicon fixture verifies the Inspector options and the native window's exact bounds.
-Physical output pixels, real hotplug, cadence and independent Mac bundles remain open.
+**M19/2 Fullscreen routing verified.** On Apple Silicon the Screen Inspector received named
+displays keyed by ColorSync UUID. WindowServer measured the Fullscreen window at the selected
+display's bounds. The window survived a live color edit, retired when the selection was
+cleared, reopened when restored and shut down normally. All 11 local catalog tests passed,
+including exact recovery when the intended UUID returns. An identical replacement stayed
+unassigned. The default Windows build, local DX12 Rectangle fixture and both formatters passed.
+Native macOS output pixels, physical hotplug and cadence, and independent Apple Silicon and
+Intel bundles remain open. [Apple Silicon Fullscreen](https://github.com/Golden-Geek/Chataigne2/actions/runs/44950133263)
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -203,7 +202,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
-| Active | M19/2 | Apple Silicon passed Media Preview, two-Surface Screen Warping and native Rectangle lifecycle. Local DX12 verified Rectangle pixels and placement. macOS native pixels, fullscreen display selection, recovery, cadence and independent bundles on both Mac architectures remain open. |
+| Active | M19/2 | Apple Silicon passed Media Preview, two-Surface Screen Warping, native Rectangle lifecycle and Fullscreen routing at display bounds. macOS native pixels, physical recovery, cadence and independent Mac bundles remain open. |
 | Pending | M19/3–5 | After macOS, qualify desktop Linux, then Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |

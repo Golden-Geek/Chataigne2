@@ -5,7 +5,7 @@
 - **Latest verified:** 4× AA fits the memory cap. Sustained timing passed at 1080p on NVIDIA. NVIDIA 4K and both Intel sizes still exceed the GPU budget. [Checks](mapgyver-m14-antialiasing.md#sustained-shared-texture-timing--2026-11-20)
 - **Plan execution:** macOS first, then desktop Linux and Raspberry Pi (armhf and aarch64). Windows ARM64 has a separate gate.
 - **Manual action needed from you now: none.**
-- **Next:** Verify the macOS Inspector display choices and native Fullscreen window on Apple Silicon (M19/2). Local catalog recovery and DX12 Rectangle tests passed.
+- **Next:** Qualify a self-contained macOS app bundle on Apple Silicon and Intel (M19/2). Apple Silicon passed native Rectangle and Fullscreen window checks. Native macOS pixels, physical recovery and cadence remain open. [Apple Silicon checks](https://github.com/Golden-Geek/Chataigne2/actions/runs/44950133263)
 
 ## Done — code and normal-use checks passed
 
