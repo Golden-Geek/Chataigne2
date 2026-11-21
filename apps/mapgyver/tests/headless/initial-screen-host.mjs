@@ -6,7 +6,15 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
-export async function openInitialScreenHeadless(directory, { frontend = false } = {}) {
+export function openInitialScreenHeadless(directory, { frontend = false } = {}) {
+	return openInitialScreenHost(directory, { frontend, headless: true });
+}
+
+export function openInitialScreenDesktop(directory) {
+	return openInitialScreenHost(directory, { frontend: true, headless: false });
+}
+
+async function openInitialScreenHost(directory, { frontend, headless }) {
 	const listener = createServer();
 	listener.listen(0, '127.0.0.1');
 	await once(listener, 'listening');
@@ -18,7 +26,7 @@ export async function openInitialScreenHeadless(directory, { frontend = false } 
 	const app = spawn(
 		path.resolve(process.env.MAPGYVER_TEST_BINARY),
 		[
-			'--headless',
+			...(headless ? ['--headless'] : []),
 			...(frontend ? [] : ['--no-frontend']),
 			'--no-remote',
 			'--automation-shutdown-file',
@@ -48,7 +56,7 @@ export async function openInitialScreenHeadless(directory, { frontend = false } 
 			const code = await Promise.race([
 				exited,
 				delay(7000).then(() => {
-					throw Error('Headless normal shutdown expired');
+					throw Error('Normal MapGyver shutdown expired');
 				})
 			]);
 			assert.equal(code, 0, log);

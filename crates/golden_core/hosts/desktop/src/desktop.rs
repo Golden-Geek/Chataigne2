@@ -13,7 +13,7 @@ use tauri::{Runtime, Url};
 use crate::desktop_window::run_tauri;
 use crate::host_config::{DesktopHostConfig, FrontendDevServerConfig, apply_listener_overrides};
 use crate::host_services::HostServices;
-use crate::native_presentation::{NativePresentation, host::validate_platform};
+use crate::native_presentation::NativePresentation;
 #[cfg(target_os = "windows")]
 use crate::windows_process_job::WindowsProcessJob;
 use golden_engine::app::{ProjectLifecycle, create_new_project_engine};
@@ -37,7 +37,7 @@ pub struct LaunchArgs {
     pub show_output: bool,
     /// Forces the built-in UI server to bind to loopback only.
     pub no_remote: bool,
-    /// Stops the headless or Windows desktop host when this automation sentinel appears.
+    /// Stops the headless or desktop host when this automation sentinel appears.
     pub automation_shutdown_file: Option<PathBuf>,
     /// Debug Windows builds only: loopback CDP port, requiring an owned shutdown sentinel.
     pub automation_webview_debug_port: Option<NonZeroU16>,
@@ -416,13 +416,6 @@ where
         desktop_plugins,
     } = services;
     args.validate_webview_automation()?;
-    validate_platform(presentation.is_some(), args.headless)?;
-    if !cfg!(target_os = "windows") && !args.headless && args.automation_shutdown_file.is_some() {
-        return Err(Error::new(
-            ErrorKind::InvalidInput,
-            "--automation-shutdown-file is supported only on Windows",
-        ));
-    }
     if let Some(path) = args.automation_shutdown_file.as_ref()
         && path.exists()
     {

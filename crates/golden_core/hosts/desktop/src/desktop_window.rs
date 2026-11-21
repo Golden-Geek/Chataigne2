@@ -11,7 +11,7 @@ use tauri::{Manager, Runtime, Url, WebviewUrl};
 
 use crate::native_presentation::{
     NativePresentation,
-    host::{ExitAction, PresentationHost},
+    host::{ExitAction, PresentationHost, validate_platform},
 };
 use crate::window_state::{WindowStatePersistence, restore_window_state, save_window_state};
 
@@ -53,6 +53,7 @@ pub(super) fn run_tauri<R: Runtime>(
     let native_preview = native_presentation
         .as_ref()
         .is_some_and(NativePresentation::uses_underlay);
+    validate_platform(native_preview, false)?;
     // Document-start precedes <html>, so defer the platform attribute when necessary.
     let init_script = format!(
         "window.__PLATFORM__ = '{os}'; window.__GOLDEN_NATIVE_PRESENTATION__ = {native_preview}; (function () {{ var apply = function () {{ document.documentElement.dataset.platform = '{os}'; }}; if (document.documentElement) {{ apply(); }} else {{ document.addEventListener('DOMContentLoaded', apply); }} }})();"

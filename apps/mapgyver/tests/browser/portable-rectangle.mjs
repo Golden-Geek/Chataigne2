@@ -1,15 +1,33 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { openNativeEditor } from './native-editor.mjs';
+import { openInitialScreenDesktop } from '../headless/initial-screen-host.mjs';
 
-assert.equal(process.platform, 'win32', 'Select a desktop with the owned HWND pixel observer');
+const onMac = process.platform === 'darwin';
+assert(onMac || process.platform === 'win32', 'Select a desktop with an owned-window observer');
 assert(process.env.MAPGYVER_TEST_BINARY, 'Select the portable GPU MapGyver executable');
-const native = await openNativeEditor({ allowPhysicalOutputs: true });
-const inspectWindow = fileURLToPath(new URL('../native_output/window_state.py', import.meta.url));
+const program = promisify(execFile);
+const observer = (name) => fileURLToPath(new URL(`../native_output/${name}`, import.meta.url));
+const directory = await mkdtemp(join(tmpdir(), 'mapgyver-portable-rectangle-'));
+const macObserver = join(directory, 'macos-windows');
+if (onMac) {
+	await program(
+		'swiftc',
+		['-swift-version', '5', observer('macos_windows.swift'), '-o', macObserver],
+		{
+			timeout: 60000
+		}
+	);
+}
+process.env.MAPGYVER_AUTOMATION_DISABLE_DISPLAY_OUTPUTS = '0';
+const native = await openInitialScreenDesktop(directory);
 let token;
+const existing = new Set();
 
 async function post(route, payload) {
 	const response = await fetch(native.base + route, {
@@ -37,23 +55,44 @@ async function edit(namespace, payload) {
 	return ack.result.value;
 }
 
-async function waitForOutput(accept) {
+async function waitForWindows(accept) {
 	const deadline = performance.now() + 12000;
 	for (;;) {
-		const { stdout } = await promisify(execFile)(
-			'python',
-			[inspectWindow, String(native.app.pid), '--title', 'MapGyver Screen Output'],
+		const pid = String(native.app.pid);
+		const { stdout } = await program(
+			onMac ? macObserver : 'python',
+			onMac ? [pid] : [observer('window_state.py'), pid, '--title', 'MapGyver Screen Output'],
 			{ windowsHide: true, timeout: 4000 }
 		);
 		const windows = JSON.parse(stdout);
-		assert(windows.length < 2, `Duplicate output: ${stdout}`);
-		if (accept(windows[0])) return windows[0];
+		if (accept(windows)) return windows;
 		assert(performance.now() < deadline, `Rectangle Screen did not update: ${stdout}`);
 		await delay(120);
 	}
 }
 
+async function waitForOutput(accept) {
+	const outputs = (windows) =>
+		onMac
+			? windows.filter(
+					(window) => !existing.has(window.id) && window.layer >= 0 && window.height > 1
+				)
+			: windows;
+	const windows = await waitForWindows((windows) => {
+		const active = outputs(windows);
+		assert(active.length < 2, `Duplicate output: ${JSON.stringify(active)}`);
+		return accept(active[0]);
+	});
+	return outputs(windows)[0];
+}
+
 try {
+	if (onMac) {
+		const baseline = await waitForWindows((windows) =>
+			windows.some((window) => window.layer === 0 && window.height >= 100)
+		);
+		for (const window of baseline) existing.add(window.id);
+	}
 	token = (await post('/api/ui/session', {})).token;
 	const { reference } = await edit('media', { kind: 'CreateMedia', media_kind: 'SolidColor' });
 	const color = (rgba) =>
@@ -76,23 +115,28 @@ try {
 			definition: { enabled, target: { kind: 'Rectangle', bounds } }
 		});
 	await output(true);
-	const pixels = (rgb) => (window) =>
-		window?.visible &&
-		window.center_rgb.every((pixel) =>
-			pixel.every((value, index) => Math.abs(value - rgb[index]) < 16)
-		);
-	const red = await waitForOutput(pixels([255, 0, 0]));
-	assert.deepEqual(red.bounds, bounds);
+	const expectedOutput = (rgb) => (window) =>
+		window &&
+		(onMac
+			? Math.abs(window.width / window.height - 4 / 3) < 0.01
+			: window.visible &&
+				window.center_rgb.every((pixel) =>
+					pixel.every((value, index) => Math.abs(value - rgb[index]) < 16)
+				));
+	const red = await waitForOutput(expectedOutput([255, 0, 0]));
+	if (!onMac) assert.deepEqual(red.bounds, bounds);
 	await color([0, 1, 0, 1]);
-	const green = await waitForOutput(pixels([0, 255, 0]));
-	assert.equal(green.hwnd, red.hwnd);
+	const green = await waitForOutput(expectedOutput([0, 255, 0]));
+	assert.equal(onMac ? green.id : green.hwnd, onMac ? red.id : red.hwnd);
 	await output(false);
 	await waitForOutput((window) => window === undefined);
 	await output(true);
-	const reopened = await waitForOutput(pixels([0, 255, 0]));
-	assert.deepEqual(reopened.bounds, bounds);
+	const reopened = await waitForOutput(expectedOutput([0, 255, 0]));
+	if (!onMac) assert.deepEqual(reopened.bounds, bounds);
 	console.log(
-		'Native Rectangle showed both colors, retired on disable and reopened at its authored bounds'
+		onMac
+			? 'WindowServer reported the Rectangle across live edit, disable and reopen'
+			: 'Native Rectangle showed both colors, retired on disable and reopened at its authored bounds'
 	);
 } catch (error) {
 	console.error(native.log().slice(-6000));

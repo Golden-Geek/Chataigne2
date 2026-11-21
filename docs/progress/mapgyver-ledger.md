@@ -33,6 +33,18 @@ headless preview fixture passed again. All 179 Golden Video tests, 43 desktop ho
 strict Golden Video Clippy, both formatters and the default Windows compile check passed.
 Verify the native Rectangle on macOS, then add fullscreen display selection and qualify
 display reconnect, cadence and independent bundles on Apple Silicon and Intel.
+The first Apple Silicon run built the app and passed project authoring. An early host check
+misclassified independent windows as a Windows underlay and rejected desktop startup.
+[Apple Silicon Rectangle integration run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44944343028)
+
+**M19/2 Rectangle lifecycle batch (21 November, 21:53 CET cutoff).** Verify that an authored
+Rectangle creates, retains, withdraws and reopens a visible native window on Apple Silicon.
+Use the actual desktop, ordinary Screen edits and the WindowServer's owned-process window
+metadata. The shared launcher passed the local DX12 Rectangle and headless preview cases.
+The shared host now validates the actual underlay capability and permits the owned shutdown
+sentinel for desktop fixtures on macOS. The Apple Silicon workflow runs the lifecycle check
+after the build and preview checks. macOS pixel capture and physical display qualification
+remain open.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
