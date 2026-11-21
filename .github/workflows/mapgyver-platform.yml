@@ -1,0 +1,68 @@
+name: MapGyver platform checks
+
+on:
+  push:
+    branches: [mapgyver, main]
+  pull_request:
+    paths:
+      - '.cargo/**'
+      - '.github/workflows/mapgyver-platform.yml'
+      - 'apps/mapgyver/**'
+      - 'crates/**'
+      - 'packages/**'
+      - 'tools/bootstrap/**'
+      - 'tools/product-gate/hooks/**'
+      - 'Cargo.*'
+      - 'package*.json'
+      - '.nvmrc'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos-workbench:
+    name: MapGyver workbench (Apple Silicon)
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install pinned Rust toolchain
+        run: sh ./tools/bootstrap/install-rust-toolchain.sh
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: mapgyver-macos-workbench
+          cache-targets: false
+
+      - name: Install and check native FFmpeg
+        run: |
+          brew install ffmpeg pkgconf
+          pkg-config --modversion libavcodec libavformat libavutil libswresample libswscale
+
+      - name: Build MapGyver with its bundled workbench
+        run: cargo build --locked --package MapGyver --bin MapGyver
+
+      - name: Check project authoring, history and Save/New/Load
+        run: node apps/mapgyver/tests/headless/media.mjs
+
+      - name: Start the native desktop and verify workbench readiness
+        shell: pwsh
+        run: |
+          . ./tools/product-gate/hooks/smoke-common.ps1
+          $env:XDG_DATA_HOME = Join-Path $env:RUNNER_TEMP 'mapgyver-desktop-data'
+          Invoke-RootCommandSmoke `
+            -Id 'mapgyver-macos-workbench' `
+            -CargoArguments @('run', '--locked', '--package', 'MapGyver', '--', '--no-remote') `
+            -FrontendUri 'http://127.0.0.1:7010/' `
+            -Ports @(7010)

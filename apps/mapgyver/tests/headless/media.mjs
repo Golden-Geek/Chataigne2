@@ -103,8 +103,11 @@ await once(listener, 'listening');
 const port = listener.address().port;
 await new Promise((resolve) => listener.close(resolve));
 const base = `http://127.0.0.1:${port}`;
+const windows = process.platform === 'win32';
+const executable = windows ? 'MapGyver.exe' : 'MapGyver';
+const dataDirectoryVariable = windows ? 'APPDATA' : 'XDG_DATA_HOME';
 const app = spawn(
-	path.resolve(process.env.MAPGYVER_TEST_BINARY ?? 'target/debug/MapGyver.exe'),
+	path.resolve(process.env.MAPGYVER_TEST_BINARY ?? path.join('target', 'debug', executable)),
 	[
 		'--headless',
 		...(withUi ? [] : ['--no-frontend']),
@@ -114,7 +117,11 @@ const app = spawn(
 	],
 	{
 		windowsHide: true,
-		env: { ...process.env, APPDATA: path.join(directory, 'data'), GC_UI_BIND: `127.0.0.1:${port}` },
+		env: {
+			...process.env,
+			[dataDirectoryVariable]: path.join(directory, 'data'),
+			GC_UI_BIND: `127.0.0.1:${port}`
+		},
 		stdio: ['ignore', 'pipe', 'pipe']
 	}
 );

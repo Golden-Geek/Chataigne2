@@ -1,11 +1,11 @@
 # MapGyver — simple status
 
-- **Updated:** 20 November 2026.
-- **Overall plan acceptance:** `█████████░` **89% — 129/145 checks accepted, 9/19 phases complete**.
+- **Updated:** 21 November 2026.
+- **Overall plan acceptance:** `████████░░` **85% — 129/151 checks accepted, 9/20 phases complete**. M19 adds six platform gates.
 - **Latest verified:** 4× AA fits the memory cap. Sustained timing passed at 1080p on NVIDIA. NVIDIA 4K and both Intel sizes still exceed the GPU budget. [Checks](mapgyver-m14-antialiasing.md#sustained-shared-texture-timing--2026-11-20)
-- **Plan execution:** Active. Extended Video formats remain deferred at the user's request.
+- **Plan execution:** macOS first, then desktop Linux and Raspberry Pi (armhf and aarch64). Windows ARM64 has a separate gate.
 - **Manual action needed from you now: none.**
-- **Next:** Reduce 4× GPU render cost for NVIDIA 4K and Intel 1080p/4K (M14/8). Independent LAN NDI and clean Windows installation remain open.
+- **Next:** Verify the default Apple Silicon build, desktop workbench and project editing (M19/1).
 
 ## Done — code and normal-use checks passed
 

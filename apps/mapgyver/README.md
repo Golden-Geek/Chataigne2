@@ -6,6 +6,16 @@ desktop host, and generic UI. App-owned media contracts and rendering policy
 live under `src/media`; mapping authoring lives under `src/screens`. Composition builds on
 those public app-owned contracts. `src/app/labels.rs` shares backend label allocation.
 
+## Run from source
+
+On Windows x64, `npm run run:mapgyver` launches MapGyver with the pinned FFmpeg SDK. See the
+[Windows FFmpeg setup](../../tools/mapgyver/ffmpeg/README.md) for manual Cargo and IDE builds.
+
+On Apple Silicon, use Xcode Command Line Tools, the pinned workspace Rust and Node toolchain,
+and `brew install ffmpeg pkgconf`. From the repository root, run `cargo run --locked -p MapGyver`.
+The macOS bring-up covers the workbench and project authoring. Follow the remaining native
+video and packaging gates in the [implementation plan](../../docs/plan/MapGyver_Implementation_Plan.md#m19--cross-platform-delivery).
+
 The workbench uses Golden's filtered manager trees for Media, Screens and Applications.
 Media folders are persisted document nodes: select a folder before using the plus menu to create
 inside it. Folder/name/source controls live in the shared Inspector; its Folder selector moves
@@ -505,17 +515,17 @@ Run these commands from the workspace root:
 
 | Command                          | Purpose                                                      |
 | -------------------------------- | ------------------------------------------------------------ |
-| `npm run run:mapgyver`           | Launch the bundled desktop app.                              |
-| `npm run watch:mapgyver`         | Run the shared development watcher for MapGyver.             |
+| `npm run run:mapgyver`           | Launch the bundled desktop app on Windows x64.              |
+| `npm run watch:mapgyver`         | Run the development watcher with the Windows x64 SDK.        |
 | `npm run dev:mapgyver`           | Start only the frontend development server.                  |
 | `npm run build:mapgyver`         | Build the frontend.                                          |
 | `npm run check:mapgyver`         | Check frontend types and Svelte components.                  |
 | `npm run package:mapgyver`       | Build the Windows x64 NSIS installer.                        |
 | `npm run package:check:mapgyver` | Compile through the packaging path without creating bundles. |
 
-`cargo run -p MapGyver -- --dev` launches the app with its frontend development
-server. Use `cargo run -p MapGyver -- --headless` for the shared transport without
-a window. The packaging commands retain the workspace signing prerequisite.
+The Cargo launch commands accept `-- --dev` to start the frontend development server
+or `-- --headless` for the shared transport without a window. The packaging commands
+retain the workspace signing prerequisite.
 MapGyver defaults to backend port `7011` and frontend development port `5174`;
 `GC_UI_BIND` and `GC_UI_FRONTEND_URL` retain the shared host's explicit overrides.
 Unqualified root commands continue to select Chataigne.

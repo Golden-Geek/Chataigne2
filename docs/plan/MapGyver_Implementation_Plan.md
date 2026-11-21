@@ -1,8 +1,28 @@
 # MapGyver implementation plan
 
-MapGyver is a Windows x64 video mapping app alongside Chataigne. MapGyver owns product
-authoring and behavior; Golden owns reusable engine, worker, GPU and workbench mechanisms.
+MapGyver is a video mapping app alongside Chataigne. MapGyver owns product authoring and
+behavior. Golden owns reusable engine, worker, GPU and workbench mechanisms. Windows x64 is
+the existing native rendering target.
 See the [architecture](../architecture/mapgyver.md) and [current status](../progress/mapgyver-status.md).
+
+## M19 — Cross-platform delivery
+
+Work on macOS first, then desktop Linux, then Raspberry Pi (armhf and aarch64). Track Windows
+ARM64 separately. The existing Windows x64 qualification queue resumes at its recorded return
+triggers. The desktop workbench and project format stay shared across all hosts.
+
+| Gate | Acceptance |
+| --- | --- |
+| M19/1 macOS workbench | The default build discovers native FFmpeg. On Apple Silicon, the native desktop starts, the bundled workbench connects, and the headless fixture proves authoring, history and Save/New/Load. |
+| M19/2 macOS video | Golden provides the GPU renderer and desktop presentation, with live preview and physical Screen output from an authored project. Verify local media, reconnect and an independently runnable macOS bundle. Qualify Apple Silicon and Intel targets. |
+| M19/3 Desktop Linux | A native build and install pass the same project-authoring, preview, physical output and recovery workflows on the supported desktop session types. |
+| M19/4 Raspberry Pi aarch64 | Native build, launch, media and output pass on a Pi under its supported OS and display stack. |
+| M19/5 Raspberry Pi armhf | Native build, launch, media and output pass on 32-bit Raspberry Pi OS under its supported display stack. |
+| M19/6 Windows ARM64 | Native build and install with ARM64 dependencies, workbench authoring, media preview, Screen output and recovery. Validate SDK integrations against ARM64 binaries. |
+
+Golden owns GPU execution and host presentation. MapGyver continues to submit its media and
+Screen plans through those shared contracts. Spout is a Windows integration. Qualify platform
+texture-sharing and NDI support against their native SDKs before advertising these capabilities.
 
 ## User feedback delivery cadence — 2026-11-17
 

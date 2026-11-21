@@ -17,9 +17,7 @@ excluded. Registered DXV/WebP decoders still require their planned per-variant q
 From the repository root on Windows, with MSVC, LLVM/libclang and Python available:
 
 ```powershell
-# Once per checkout (also reconstructs the SDK if target/ was cleaned):
-powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1
-cargo run -p MapGyver -- --dev
+powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 run --locked -p MapGyver -- --dev
 
 powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 test --locked -p MapGyver --lib -- --test-threads=1
 powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 clippy --locked -p MapGyver --lib --tests -- -D warnings
@@ -36,12 +34,14 @@ so Windows symlink privileges are unnecessary. A fixed release override prevents
 tags from entering the libraries; source epoch, logical prefix and PE timestamp policy are fixed.
 MSVC consumes generated public import libraries.
 
-Workspace Cargo configuration supplies the prepared SDK location when `FFMPEG_DIR` is unset
-and the Windows MSVC stack reserve. MapGyver's existing Windows Tauri resource configuration
-copies the five prepared DLLs and license materials beside the Cargo executable. Plain
-`cargo run` therefore needs no wrapper-specific PATH or FFmpeg environment after preparation.
-Explicit `FFMPEG_DIR` values retain precedence; the runtime must still match the product pin.
-Non-Windows FFmpeg consumers select their native SDK explicitly.
+The Windows helper sets `FFMPEG_DIR` for Cargo. For direct Cargo or IDE builds on Windows,
+set `FFMPEG_DIR` to the SDK path printed by the helper with no arguments. MapGyver's Windows
+Tauri resource configuration copies the five prepared DLLs and license materials beside the
+Cargo executable. Workspace Cargo configuration supplies the Windows x64 MSVC stack reserve.
+
+On macOS, `brew install ffmpeg pkgconf` provides the headers and libraries for native builds.
+FFmpeg discovery uses `pkg-config` when `FFMPEG_DIR` is unset. `FFMPEG_DIR` can select an
+explicit native SDK when needed.
 
 Without Cargo arguments, the helper prepares inputs and returns only the SDK path in the
 PowerShell success stream; progress goes to the host. With
