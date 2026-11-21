@@ -1,11 +1,11 @@
 # MapGyver — simple status
 
 - **Updated:** 21 November 2026.
-- **Overall plan acceptance:** `████████░░` **85% — 129/151 checks accepted, 9/20 phases complete**. M19 adds six platform gates.
+- **Overall plan acceptance:** `█████████░` **86% — 130/151 checks accepted, 9/20 phases complete**. M19 adds six platform gates.
 - **Latest verified:** 4× AA fits the memory cap. Sustained timing passed at 1080p on NVIDIA. NVIDIA 4K and both Intel sizes still exceed the GPU budget. [Checks](mapgyver-m14-antialiasing.md#sustained-shared-texture-timing--2026-11-20)
 - **Plan execution:** macOS first, then desktop Linux and Raspberry Pi (armhf and aarch64). Windows ARM64 has a separate gate.
 - **Manual action needed from you now: none.**
-- **Next:** The bundled workbench serves its icon cleanly in local Chromium. Complete the strict Apple Silicon desktop smoke (M19/1).
+- **Next:** GPU-backed macOS Media Preview (M19/2). The default Apple Silicon build, project round trip and strict desktop smoke passed. [Apple Silicon checks](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297)
 
 ## Done — code and normal-use checks passed
 

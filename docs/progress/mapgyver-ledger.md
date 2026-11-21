@@ -1,44 +1,20 @@
 # MapGyver agent ledger
 
-**Updated: 2026-11-21 · Overall: `████████░░` 85% · 9/20 phases complete**
+**Updated: 2026-11-21 · Overall: `█████████░` 86% · 9/20 phases complete**
 
-**Accepted: 129/151 gates. Phase completion: 9/20 (45%). M19/1 is Active. The Apple Silicon build and project round trip passed. The startup icon fix passed the local bundled workbench check and awaits the strict Apple Silicon desktop smoke.**
+**Accepted: 130/151 gates. Phase completion: 9/20 (45%). M19/1 is Accepted. M19/2 is Active for GPU-backed macOS media and Screen output.**
 
 Internal execution/evidence ledger. The user-facing checklist is `mapgyver-status.md`.
 
-**M19/1 batch (21 November, 19:47 CET cutoff).** Deliver a clean mounted desktop workbench
-on Apple Silicon. The isolated local build without the native renderer reproduced Chromium's
-404 for `/favicon.ico` while the workbench connected. MapGyver owns the fix in its startup
-HTML. The rebuilt executable served the PNG from the initial document and connected to the
-engine with zero Chromium console or HTTP errors. Svelte checks passed with zero errors and
-warnings, and both Rust format checks passed. The strict Apple Silicon smoke remains required.
+**M19/1 Accepted.** Apple Silicon built the default app with native FFmpeg, verified authoring,
+Undo/Redo and Save/New/Load for three sources and six channels, and passed strict desktop
+startup, workbench connection and shutdown. The initial HTML now declares the existing PNG icon.
+[Apple Silicon qualification](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297)
 
-**M19 checkpoint (21 November, 18:48 CET cutoff).** The default Apple Silicon build links
-native FFmpeg and passes source authoring, history and Save/New/Load for three sources and
-six channels. The native desktop opened and the mounted workbench connected to the engine.
-The strict readiness probe reported one HTTP 404 in Chromium. The favicon fix above addresses
-the reproduced failure. [Apple Silicon build and smoke](https://github.com/Golden-Geek/Chataigne2/actions/runs/44931889148)
-The first Apple Silicon run resolved native FFmpeg, then hit a shared-host compile error
-because Tauri's transparent-window API was referenced on macOS. The Golden host now gates
-the Windows underlay at compile time. The return check is a clean default Apple Silicon build,
-then the project and desktop smoke steps. [First Apple Silicon run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44928504337)
-Windows desktop-host validation passed 43 unit tests with three expected ignores, strict Clippy,
-and workspace and Golden Core formatting.
-The second Apple Silicon run compiled the shared desktop host and exposed a HAP FFI mismatch.
-Golden Video now compares generated enum values in a type covering both compiler representations.
-Windows passed nine HAP tests with one fixture-generation ignore, strict Golden Video Clippy,
-and workspace and Golden Core formatting.
-The next run must compile the default app and reach both workbench smoke steps.
-[Second Apple Silicon run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44929419815)
-The third Apple Silicon run compiled Golden Video and reached the app. ShaderToy import called
-source validation through a Windows-only type. Golden Video now exposes portable validation
-used by the catalog and the Inspector. Portable Golden Video strict Clippy and both format
-checks passed. The Windows shader suites with native-qualification passed 21 tests with six
-hardware ignores. The return check is the default Apple Silicon build and both workbench smokes.
-[Third Apple Silicon run](https://github.com/Golden-Geek/Chataigne2/actions/runs/44930406026)
-The initial Windows x64 build through the pinned helper passed the headless authoring, history
-and Save/New/Load fixture with three sources and six channels. Both Rust format checks, the
-fixture syntax check and Actions lint passed.
+**M19/2 batch (21 November, 20:09 CET cutoff).** Show an authored Solid Color in macOS Media
+Preview through Golden Video's portable GPU execution. MapGyver owns route and source selection.
+Verify the actual rendered pixels and retirement through the preview transport before expanding
+the renderer to other sources and physical Screen outputs.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -53,7 +29,7 @@ when Windows qualification resumes and run its pixel and allocation checks befor
 **Overlay prerequisite cleared:** On2026-11-16 the user checked native Settings and confirmed Off, then instructed standing Off state for now (recorded16:23UTC). Use it until the user reports or authoritative evidence shows a change; do not ask before each run. All original GPU/correctness/resource budgets remain. Desktop-helper repairs are not required for this finite SDK pixel fixture.
 **Retained blockers:** M10/4 retains unfinished age/full-GPU-path, shared-consumer, profile/repeated/performance-tier/resource/recovery qualification. [NVIDIA H.264](evidence/mapgyver-m10-h264-nvidia-2026-11-14.json) meets original cadence/CPU envelopes for one cohort and has complete connected direct-File pixel/PTS evidence. Its4K30 age upper59.3588/58.7843ms does not establish50ms; shared Reference is held-only and whole GPU path remains unproved. Earlier [two4K60 HAP](evidence/mapgyver-m10-two-4k60-hap-2026-11-13.json), [ProRes](evidence/mapgyver-m10-prores-alpha-sustained-2026-11-13.json), [resident Intel](evidence/mapgyver-m10-resident-sustained-2026-11-13.json) and [HAP variants](evidence/mapgyver-m10-hap-variants-sustained-2026-11-13.json) retain exact failures/scopes. The2026-11-16 native Settings confirmation and standing Off instruction govern subsequent cohorts. The M14 raster run establishes no M10 timing/performance claim. M08/4 WOW64 and M03/9 timing/growth debt remain; user-accepted smoothness/AA stay accepted.
 **Current native limit:** [Corrected M03 lifecycle](evidence/mapgyver-m03-late-drain-2026-11-05.json) confirms 53.602 MiB peak growth against 32 MiB across all 100 cycles, with matching environment identities and fresh paired overlay-Off observations. Handles/live allocations return and shutdown takes 116 ms; peak growth still fails. The untracked private-memory cause is unproven; earlier failures remain preserved.
-**Execution:** M19/1 Apple Silicon workbench is Active. M14/8 returns when Windows qualification resumes. M17/1–2 require independent LAN and clean Windows qualification. M14/6 needs a physical session using both externals and native input. M14/1 is Blocked on physical pointer verification. M15/5 shared editor feedback and M14/2 smooth navigation are Accepted. M10/9 needs an elevated Windows session for genuine device loss during overlap. M18/1 needs direct cross-window Explorer input. M18/4 needs a valid key and live ShaderToy reachability. M10/3 extended formats stay user-deferred. M16/1 retains qualification. M10/8 and M10/10 are Accepted. M14/9–10 are Accepted. M09 waits on the retained gates.
+**Execution:** M19/1 Apple Silicon workbench is Accepted. M19/2 macOS video is Active. M14/8 returns when Windows qualification resumes. M17/1–2 require independent LAN and clean Windows qualification. M14/6 needs a physical session using both externals and native input. M14/1 is Blocked on physical pointer verification. M15/5 shared editor feedback and M14/2 smooth navigation are Accepted. M10/9 needs an elevated Windows session for genuine device loss during overlap. M18/1 needs direct cross-window Explorer input. M18/4 needs a valid key and live ShaderToy reachability. M10/3 extended formats stay user-deferred. M16/1 retains qualification. M10/8 and M10/10 are Accepted. M14/9–10 are Accepted. M09 waits on the retained gates.
 
 **Recovery checkpoint:** [Earlier failures and parked candidate](evidence/mapgyver-request-lifetime-deferred-2026-11-17.json) remain historical. The integrated fix was reconciled with the current transport and adds runtime project-generation admission. [Verified scope](mapgyver-m14-editor-recovery.md)
 
@@ -139,7 +115,7 @@ Retained physical/timing requirements remain open; M10/5–10 own Video feedback
 | [M17 NDI Media and Screen Output](../plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output) | Blocked | `░░░░░░░░░░` 0% | 0/2 | NDI Media receive 0/1, NDI Screen Output send 0/1. Independent LAN and clean installation remain. [Local output checks](evidence/mapgyver-m17-ndi-screen-audio-2026-11-19.json) |
 | [M18 Feedback after NDI](../plan/MapGyver_Implementation_Plan.md#m18--deliver-feedback-after-ndi) | Blocked | `███████░░░` 67% | 4/6 | Project Settings, [File Explorer](evidence/mapgyver-m18-file-explorer-2026-11-19.json), [Inspector selection](evidence/mapgyver-m18-creation-selection-2026-11-20.json) and [browser previews](evidence/mapgyver-m18-browser-spatial-2026-11-20.json) Accepted. Direct OS file drops and live ShaderToy verification are Blocked. |
 | [M09 Final qualification](../plan/MapGyver_Implementation_Plan.md#m09--qualify-the-actual-app-and-windows-artifact)                                                | Waiting                             | `░░░░░░░░░░` 0%   | 0/1   | Revised actual-app qualification 0/1                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| [M19 Cross-platform](../plan/MapGyver_Implementation_Plan.md#m19--cross-platform-delivery) | Active | `░░░░░░░░░░` 0% | 0/6 | [Apple Silicon workbench and remaining platform gates](#execution-board-and-return-queue). |
+| [M19 Cross-platform](../plan/MapGyver_Implementation_Plan.md#m19--cross-platform-delivery) | Active | `██░░░░░░░░` 17% | 1/6 | [Apple Silicon workbench accepted](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297). [Remaining gates](#execution-board-and-return-queue). |
 
 **Counting:** overall = accepted fixed gates / 151, rounded to the nearest percent. M19 adds six
 platform gates (145 → 151) and one phase (19 → 20). M18 adds six
@@ -184,9 +160,9 @@ or gate was accepted by merging the plan.
 
 ## Execution board and return queue
 
-**Current delivered feature:** The default Apple Silicon build supports project authoring,
-history and Save/New/Load through its headless host. The mounted desktop readiness check
-has a remaining HTTP 404. [Apple Silicon checks](https://github.com/Golden-Geek/Chataigne2/actions/runs/44931889148)
+**Current delivered feature:** Apple Silicon can start the MapGyver desktop and connect the
+bundled workbench. Authoring, history and Save/New/Load pass through the same runtime.
+[Apple Silicon checks](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297)
 
 M10/3 extended formats is Pending until the user resumes it. M16/1 retains native qualification Pending. M10/10 time crop is Accepted. M10/9 device loss is Blocked on an elevated session and M10/8 subtitles is Accepted. M15/1–15 are Accepted. Selected M14 features retain qualification
 Pending. M14/1 is Blocked on physical pointer verification. M14/6 RTK routing and display clearing are verified. Remaining physical checks require a controlled display session.
@@ -196,8 +172,8 @@ failed readback stress returns with M10/4, without changed budgets.
 
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active | M19/1 | Native FFmpeg discovery, default Apple Silicon build and project authoring/history/Save/New/Load passed. The local favicon fix passed. Complete the strict Apple Silicon desktop smoke. |
-| Pending | M19/2 | After M19/1, deliver Golden GPU execution and desktop presentation for macOS, then qualify media, output, recovery and bundle distribution. |
+| Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
+| Active | M19/2 | Deliver GPU-backed Media Preview, then qualify media, Screen output, recovery and independent bundles on Apple Silicon and Intel. |
 | Pending | M19/3–5 | After macOS, qualify desktop Linux, then Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
