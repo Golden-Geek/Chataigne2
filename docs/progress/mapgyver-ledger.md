@@ -2,13 +2,16 @@
 
 **Updated: 2026-11-21 · Overall: `████████░░` 85% · 9/20 phases complete**
 
-**Accepted: 129/151 gates. Phase completion: 9/20 (45%). M19/1 is Active. The next action is the native Apple Silicon build and workbench smoke in GitHub Actions.**
+**Accepted: 129/151 gates. Phase completion: 9/20 (45%). M19/1 is Active. Apple Silicon builds and passes project authoring and persistence. Identify and fix the mounted workbench's HTTP 404 to close the gate.**
 
 Internal execution/evidence ledger. The user-facing checklist is `mapgyver-status.md`.
 
-**M19 active batch (21 November, 18:48 CET cutoff).** Enable the default Apple Silicon
-workbench build with native FFmpeg discovery. Golden owns the dependency boundary and
-MapGyver owns the app launch check. Prove desktop readiness and Save/New/Load on `macos-15`.
+**M19 checkpoint (21 November, 18:48 CET cutoff).** The default Apple Silicon build links
+native FFmpeg and passes source authoring, history and Save/New/Load for three sources and
+six channels. The native desktop opened and the mounted workbench connected to the engine.
+The strict readiness probe reported one HTTP 404 in Chromium with no request URL. M19/1
+remains Active. Capture the failing response URL, fix its owning route and rerun the desktop
+readiness step. [Apple Silicon build and smoke](https://github.com/Golden-Geek/Chataigne2/actions/runs/44931889148)
 The first Apple Silicon run resolved native FFmpeg, then hit a shared-host compile error
 because Tauri's transparent-window API was referenced on macOS. The Golden host now gates
 the Windows underlay at compile time. The return check is a clean default Apple Silicon build,
@@ -175,7 +178,9 @@ or gate was accepted by merging the plan.
 
 ## Execution board and return queue
 
-**Current delivered feature:** [Live native editor feedback](mapgyver-m15-editor-feedback.md) blends hover and selection colors while keeping keyboard focus and geometry interactive. Both GPU runs showed intermediate native paint and installed the active Matrix Cell preview.
+**Current delivered feature:** The default Apple Silicon build supports project authoring,
+history and Save/New/Load through its headless host. The mounted desktop readiness check
+has a remaining HTTP 404. [Apple Silicon checks](https://github.com/Golden-Geek/Chataigne2/actions/runs/44931889148)
 
 M10/3 extended formats is Pending until the user resumes it. M16/1 retains native qualification Pending. M10/10 time crop is Accepted. M10/9 device loss is Blocked on an elevated session and M10/8 subtitles is Accepted. M15/1–15 are Accepted. Selected M14 features retain qualification
 Pending. M14/1 is Blocked on physical pointer verification. M14/6 RTK routing and display clearing are verified. Remaining physical checks require a controlled display session.
@@ -185,7 +190,7 @@ failed readback stress returns with M10/4, without changed budgets.
 
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Active | M19/1 | Native Apple Silicon FFmpeg discovery and default desktop build. Check desktop readiness and the authoring/history/Save/New/Load fixture on `macos-15`. |
+| Active | M19/1 | Native FFmpeg discovery, default Apple Silicon build and project authoring/history/Save/New/Load passed. Capture and resolve the remaining HTTP 404 from strict mounted-UI readiness. |
 | Pending | M19/2 | After M19/1, deliver Golden GPU execution and desktop presentation for macOS, then qualify media, output, recovery and bundle distribution. |
 | Pending | M19/3–5 | After macOS, qualify desktop Linux, then Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |

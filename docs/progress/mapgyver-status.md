@@ -5,7 +5,7 @@
 - **Latest verified:** 4× AA fits the memory cap. Sustained timing passed at 1080p on NVIDIA. NVIDIA 4K and both Intel sizes still exceed the GPU budget. [Checks](mapgyver-m14-antialiasing.md#sustained-shared-texture-timing--2026-11-20)
 - **Plan execution:** macOS first, then desktop Linux and Raspberry Pi (armhf and aarch64). Windows ARM64 has a separate gate.
 - **Manual action needed from you now: none.**
-- **Next:** Verify the default Apple Silicon build, desktop workbench and project editing (M19/1).
+- **Next:** The default Apple Silicon build and project editing passed. Resolve one HTTP 404 reported by the strict desktop workbench check (M19/1). [Apple Silicon checks](https://github.com/Golden-Geek/Chataigne2/actions/runs/44931889148)
 
 ## Done — code and normal-use checks passed
 
