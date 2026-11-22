@@ -169,8 +169,8 @@ jobs:
 
       - name: Check selected Wayland outputs with Weston
         run: |
-          for scale in 1 2; do
-            xvfb-run -a -s '-screen 0 2560x1200x24' bash apps/mapgyver/tests/native_output/check-wayland-output.sh "$scale"
+          for scales in 1,1 2,2 1,2 2,1; do
+            xvfb-run -a -s '-screen 0 2560x1200x24' +              bash apps/mapgyver/tests/native_output/check-wayland-output.sh "${scales%,*}" "${scales#*,}"
           done
 
       - name: Save the verified test package

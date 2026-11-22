@@ -135,8 +135,16 @@ for a 640×480 logical output. The host now waits for a real GTK draw at the sel
 and scale, then hands the surface to the renderer after GDK's commit handler. Four runs
 each at 1× and 2× verified pixels on both outputs through eight retargets, clearing and
 reopening per run. The default app build, desktop Clippy lints and X11 pixel regression
-passed. Ubuntu 24.04 packaged checks, mixed-scale sessions, physical reconnect and
-scanout cadence remain open.
+passed.
+
+**M19/3 mixed-scale Wayland batch (22 November, 15:25 CET cutoff).** Keep the existing
+Fullscreen route stable while moving one Screen between a 1× and a 2× compositor output.
+Golden owns per-output buffer extent and GTK handoff. Weston reported 640×480 and
+1280×960 device-pixel extents for equal logical outputs at different scales. The fixture
+passed at 1×/1×, 2×/2×, 1×/2× and 2×/1×. Each run verified exact output extents, colors
+through eight retargets, clearing, reopening and normal process exit. CI runs all four
+configurations. Ubuntu 24.04 desktop exit and packaged media/output remain open.
+Return to physical Linux recovery and cadence on a Linux desktop with external monitors.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -296,7 +304,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
 | Blocked | M19/2 | Both Mac architectures passed relocated bundles and captured Rectangle and Fullscreen pixels. Return on a physical Mac with a connected external display to verify scanout cadence and unplug/reconnect against the saved UUID. |
-| Active | M19/3 | Ubuntu 26.04 passed clean install and packaged desktop and media checks. Xvfb passed X11 output and Weston passed repeated Wayland retargeting at 1× and 2×. Ubuntu 24.04 install passed. Verify clean desktop exit, packaged media and output, mixed scaling and physical display recovery. |
+| Active | M19/3 | Ubuntu 26.04 passed clean install and packaged desktop/media checks. Xvfb passed X11 output and Weston passed repeated Wayland retargeting with matching and mixed output scales. Ubuntu 24.04 install passed. Verify clean desktop exit, packaged media/output and physical display recovery. |
 | Pending | M19/4–5 | After desktop Linux, qualify Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |

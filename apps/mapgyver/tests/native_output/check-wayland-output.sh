@@ -1,13 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+primary_scale="${1:-1}"
+secondary_scale="${2:-$primary_scale}"
+if [[ ! "$primary_scale" =~ ^[12]$ || ! "$secondary_scale" =~ ^[12]$ ]]; then
+    echo 'Select output scales of 1 or 2.' >&2
+    exit 2
+fi
+
 runtime=$(mktemp -d)
 export XDG_RUNTIME_DIR="$runtime"
 export WAYLAND_DISPLAY=mapgyver-test
 export GDK_BACKEND=wayland
 export WEBKIT_DISABLE_DMABUF_RENDERER=1
-weston --backend=x11-backend.so --use-pixman --output-count=2 --width=640 --height=480 --scale="${1:-1}" \
-    --no-config --no-input --socket="$WAYLAND_DISPLAY" --idle-time=0 --log="$runtime/weston.log" &
+export MAPGYVER_TEST_WAYLAND_SCALES="$primary_scale,$secondary_scale"
+cat > "$runtime/weston.ini" <<CONFIG
+[output]
+name=screen0
+mode=640x480
+scale=$primary_scale
+
+[output]
+name=screen1
+mode=640x480
+scale=$secondary_scale
+CONFIG
+weston --backend=x11-backend.so --use-pixman --output-count=2 --config="$runtime/weston.ini" \
+    --no-input --socket="$WAYLAND_DISPLAY" --idle-time=0 --log="$runtime/weston.log" &
 compositor=$!
 cleanup() {
     kill "$compositor" 2>/dev/null || true

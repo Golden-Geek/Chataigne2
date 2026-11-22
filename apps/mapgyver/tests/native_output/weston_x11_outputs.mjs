@@ -27,5 +27,11 @@ export async function westonOutputs() {
 	const secondary = await linuxWindow(windows.get('screen1'));
 	assert(secondary?.visible, 'Weston screen1 is not mapped');
 	assert(secondary.bounds.left >= primary.bounds.left + primary.bounds.extent.width);
-	return [primary, secondary];
+	const outputs = [primary, secondary];
+	const scales = process.env.MAPGYVER_TEST_WAYLAND_SCALES?.split(',').map(Number);
+	assert.equal(scales?.length, outputs.length, 'Select an expected scale for each Weston output');
+	for (const [index, { bounds }] of outputs.entries()) {
+		assert.deepEqual(bounds.extent, { width: 640 * scales[index], height: 480 * scales[index] });
+	}
+	return outputs;
 }

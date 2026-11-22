@@ -25,6 +25,8 @@ The native Wayland fixture starts its own Weston compositor and two virtual outp
 MapGyver uses its Wayland backend. The fixture reads pixels from Weston's two X11 host
 windows to verify the selected output, live color edits, retargeting, retirement and reopening.
 For 2× scaling, use a `2560x1200x24` Xvfb display and pass `2` to the script.
+Pass `1 2` or `2 1` for two different output scales. The fixture compares each output's
+observed device-pixel bounds with its configured scale before checking the pixels.
 
 For current unattended concurrent-output acceptance (M05/4):
 

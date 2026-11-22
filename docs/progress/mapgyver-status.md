@@ -5,7 +5,7 @@
 - **Latest verified:** 4× AA fits the memory cap. Sustained timing passed at 1080p on NVIDIA. NVIDIA 4K and both Intel sizes still exceed the GPU budget. [Checks](mapgyver-m14-antialiasing.md#sustained-shared-texture-timing--2026-11-20)
 - **Plan execution:** macOS first, then desktop Linux and Raspberry Pi (armhf and aarch64). Windows ARM64 has a separate gate.
 - **Manual action needed from you now: none.**
-- **Next:** Verify Ubuntu 24.04 desktop exit and packaged media and output, Wayland mixed scaling and Linux physical display recovery (M19/3). Ubuntu 24.04 passed clean install and workbench readiness. Weston passed 64 retargets at 1x and 2x after the buffer scale fix. Physical Mac hotplug and cadence await an external monitor. [Cross-platform evidence](mapgyver-ledger.md)
+- **Next:** Verify Ubuntu 24.04 desktop exit and packaged media and output, then physical Linux display recovery (M19/3). Ubuntu 24.04 passed clean install and workbench readiness. Weston passed repeated Wayland retargeting at matching and mixed 1x/2x scales. Physical Mac hotplug and cadence await an external monitor. [Cross-platform evidence](mapgyver-ledger.md)
 
 ## Done — code and normal-use checks passed
 
