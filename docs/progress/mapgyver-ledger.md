@@ -313,7 +313,9 @@ reached FFmpeg bindings and failed with a host build-script stack overflow.
 Cargo's explicit ARM64 target excludes host build scripts from `RUSTFLAGS`.
 The wrapper now applies the stack reserve through MSVC's `_LINK_` for both host
 and target. A local Rust host executable linked with `_LINK_` recorded a 16 MiB
-reserve in its PE header. The second app build checks the native recovery path.
+reserve in its PE header. The [native retry](https://github.com/Golden-Geek/Chataigne2/actions/runs/45046930169/job/137284381321)
+passed the SDK prerequisite and is building the release app. Inspect the app job
+before running installed desktop or GPU checks. Installer startup remains open.
 Local SDK ZIP SHA-256 `77733807f203f72fc96e607b3babfe7d07cec7e2e747829867fe35cf4cd56e6d`.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
