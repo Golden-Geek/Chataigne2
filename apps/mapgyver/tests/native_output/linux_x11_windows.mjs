@@ -39,9 +39,14 @@ export async function linuxWindow(id) {
 }
 
 export async function linuxOutputWindows(pid) {
+	return linuxOwnedWindows(pid, 'MapGyver Screen Output');
+}
+
+export async function linuxOwnedWindows(pid, title) {
 	const { stdout: tree } = await program('xwininfo', ['-root', '-tree'], { timeout });
 	const windows = [];
-	for (const [, id] of tree.matchAll(/(0x[\da-f]+) "MapGyver Screen Output"/g)) {
+	for (const [, id, name] of tree.matchAll(/(0x[\da-f]+) "([^"]+)"/g)) {
+		if (name !== title) continue;
 		const owner = await queryWindow('xprop', ['-id', id, '_NET_WM_PID']);
 		if (Number(owner?.match(/=\s*(\d+)\s*$/)?.[1]) !== pid) continue;
 		const window = await linuxWindow(id);

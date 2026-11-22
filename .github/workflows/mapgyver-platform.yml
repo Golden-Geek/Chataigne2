@@ -150,6 +150,13 @@ jobs:
           sudo apt-get install -y "$package"
           printf 'MAPGYVER_TEST_BINARY=/usr/bin/mapgyver2\n' >> "$GITHUB_ENV"
 
+      - name: Save the install-checked test package
+        uses: actions/upload-artifact@v7
+        with:
+          name: mapgyver2-ubuntu-24.04-amd64-debug
+          path: target/debug/bundle/deb/*.deb
+          if-no-files-found: error
+
       - name: Verify the native X11 workbench
         env:
           GDK_BACKEND: x11
@@ -182,10 +189,3 @@ jobs:
         run: |
           sudo apt-get install -y --no-install-recommends sway grim
           bash apps/mapgyver/tests/native_output/check-wayland-recovery.sh
-
-      - name: Save the verified test package
-        uses: actions/upload-artifact@v7
-        with:
-          name: mapgyver2-ubuntu-24.04-amd64-debug
-          path: target/debug/bundle/deb/*.deb
-          if-no-files-found: error

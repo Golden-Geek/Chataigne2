@@ -176,8 +176,20 @@ code. MapGyver's packaging tools own the Debian runtime dependencies. Verify cle
 apt installation, desktop launch and exit, packaged media, and both recovery fixtures
 using the resulting binary. Ubuntu 24.04 remains under its own CI check.
 The Weston CI command contained a stray `+` before `bash`. After correction, the exact
-workflow shell step passed locally for all four scale configurations. The Ubuntu 26.04
-release build is running.
+workflow shell step passed locally for all four scale configurations. The refreshed
+Ubuntu 26.04 release package passed clean apt install, launcher and ELF checks,
+Save/New/Load, owned native X11 window readiness and clean exit, H.264 playback and seek,
+Picture and Screen Warping, and X11 and Wayland output and recovery. The package SHA-256 is
+`a347fb1303a63622c165a39a1a2e067364e2fd2dbb20a3d5058efa3554a018e9`.
+
+**M19/3 Ubuntu 24.04 native start follow-up.** CI passed clean package install and the
+external workbench probe again, then the app timed out. Logs showed an AT-SPI bus warning
+and no acknowledgement of the shutdown sentinel.
+[Ubuntu 24.04 job](https://github.com/Golden-Geek/Chataigne2/actions/runs/45029020238/job/137229834543)
+The native check now requires the owned X11 window to map before probing the workbench.
+CI retains the install-checked package before desktop validation for exact reproduction.
+A local Ubuntu 24.04 container debug build is running to reproduce the native launch.
+Ubuntu 24.04 native start, exit, media and output remain open.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
