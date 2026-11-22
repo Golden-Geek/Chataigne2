@@ -131,8 +131,7 @@ jobs:
             clang libclang-dev pkg-config dpkg-dev \
             libwebkit2gtk-4.1-dev libxdo-dev libayatana-appindicator3-dev librsvg2-dev \
             libasound2-dev libjack-jackd2-dev libpipewire-0.3-dev libdbus-1-dev libudev-dev \
-            libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev \
-            ffmpeg mesa-vulkan-drivers xvfb xauth x11-utils weston xdotool
+            libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev
 
       - name: Install workbench dependencies
         run: npm ci
@@ -147,8 +146,7 @@ jobs:
           test "${#packages[@]}" -eq 1
           package=$(realpath "${packages[0]}")
           bash apps/mapgyver/tests/native_output/check-linux-install.sh "$package" ubuntu:24.04
-          sudo apt-get install -y "$package"
-          printf 'MAPGYVER_TEST_BINARY=/usr/bin/mapgyver2\n' >> "$GITHUB_ENV"
+          printf 'MAPGYVER_TEST_PACKAGE=%s\n' "$package" >> "$GITHUB_ENV"
 
       - name: Save the install-checked test package
         uses: actions/upload-artifact@v7
@@ -157,35 +155,5 @@ jobs:
           path: target/debug/bundle/deb/*.deb
           if-no-files-found: error
 
-      - name: Verify the native X11 workbench
-        env:
-          GDK_BACKEND: x11
-          WEBKIT_DISABLE_DMABUF_RENDERER: '1'
-        run: xvfb-run -a node apps/mapgyver/tests/native_output/desktop-readiness.mjs
-
-      - name: Check local media and portable GPU Screen Warping
-        env:
-          GC_UI_BROWSER_CHANNEL: chrome
-        run: node apps/mapgyver/tests/browser/portable-preview.mjs
-
-      - name: Check X11 Rectangle and Fullscreen Screen pixels and bounds
-        env:
-          GDK_BACKEND: x11
-          WEBKIT_DISABLE_DMABUF_RENDERER: '1'
-        run: xvfb-run -a -s '-screen 0 1280x1024x24' node apps/mapgyver/tests/browser/portable-rectangle.mjs
-
-      - name: Check XRandR display recovery with Xorg
-        run: |
-          sudo apt-get install -y --no-install-recommends xserver-xorg-core xserver-xorg-video-dummy x11-xserver-utils
-          bash apps/mapgyver/tests/native_output/check-x11-recovery.sh
-
-      - name: Check selected Wayland outputs with Weston
-        run: |
-          for scales in 1,1 2,2 1,2 2,1; do
-            xvfb-run -a -s '-screen 0 2560x1200x24' bash apps/mapgyver/tests/native_output/check-wayland-output.sh "${scales%,*}" "${scales#*,}"
-          done
-
-      - name: Check Wayland display recovery with Sway
-        run: |
-          sudo apt-get install -y --no-install-recommends sway grim
-          bash apps/mapgyver/tests/native_output/check-wayland-recovery.sh
+      - name: Verify workbench, media and display output in clean Ubuntu
+        run: bash apps/mapgyver/tests/native_output/check-linux-desktop.sh "$MAPGYVER_TEST_PACKAGE" ubuntu:24.04

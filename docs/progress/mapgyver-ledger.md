@@ -209,12 +209,24 @@ exit, media playback and authored X11/Wayland Screen output and recovery. Monito
 The optimized amd64 package from `567481d1b` passed clean apt installation without
 recommended packages, launcher and ELF checks, project authoring and Save/New/Load,
 owned X11 WebKit startup and exit, media and Screen Warping, and all four Weston
-scale pairs and Sway recovery. While retiring a Screen, X11 `xwininfo` raced a destroyed
+scale pairs and Sway recovery. In a native Wayland session with XWayland disabled,
+Sway reported the app's owned, visible `xdg_shell` workbench. WebKit loaded the
+63-node project snapshot and the app exited successfully after emitting the same
+AT-SPI warning as the hosted runner. While retiring a Screen, X11 `xwininfo` raced a destroyed
 child and returned an incomplete tree. The observer now retries that error without
 treating partial results as evidence of retirement. The same release package passed
 the Rectangle and Fullscreen pixel and bounds retest with an injected partial query and
 passed the Xorg recovery retest. Package SHA-256
 `0ef1b3189fbdf141a12b57daad2721b454b0bd187645e95697da7230171a46a5`.
+
+The [hosted Ubuntu 24.04 job](https://github.com/Golden-Geek/Chataigne2/actions/runs/45032174624/job/137241457758)
+failed before mapping the native X11 window. Its retained debug package
+(`e1924e97a6ee7963bae09c0b170c6d92783b08b171bfec27bcbba8a0e788b4c7`) passed the same
+X11 workbench and shutdown check, media, X11 pixels and recovery, and all Wayland
+fixtures in clean Ubuntu 24.04. CI now runs those desktop checks against the installed
+package as an ordinary user in a clean Ubuntu image. The exact workflow script passed
+locally against the retained artifact, including the pinned Chromium setup. The native
+startup failure on the stock runner image remains open.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -374,7 +386,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
 | Blocked | M19/2 | Both Mac architectures passed relocated bundles and captured Rectangle and Fullscreen pixels. Return on a physical Mac with a connected external display to verify scanout cadence and unplug/reconnect against the saved UUID. |
-| Active | M19/3 | Installed Ubuntu 24.04 and 26.04 release packages passed desktop, media and virtual display recovery checks. Inspect hosted runner results. Physical Linux reconnect and cadence require an external monitor on a Linux desktop. |
+| Active | M19/3 | Installed Ubuntu 24.04 and 26.04 release packages passed desktop, media and virtual display recovery checks. The exact hosted artifact also passed in a clean Ubuntu image. Verify the updated hosted job. Physical Linux reconnect and cadence require an external monitor on a Linux desktop. |
 | Pending | M19/4–5 | After desktop Linux, qualify Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
