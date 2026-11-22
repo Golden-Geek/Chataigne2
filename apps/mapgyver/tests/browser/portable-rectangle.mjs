@@ -16,9 +16,12 @@ import { westonOutputs } from '../native_output/weston_x11_outputs.mjs';
 import { verifyDisplayRecovery } from '../native_output/display-recovery.mjs';
 import { waylandRecoveryOutput } from '../native_output/wayland-recovery.mjs';
 import { x11RecoveryOutput } from '../native_output/x11-recovery.mjs';
+import { inspectLocalVideoLibraries } from './video-runtime-libraries.mjs';
 
 const onMac = process.platform === 'darwin';
 const onLinux = process.platform === 'linux';
+const testVideo = process.argv.includes('--windows-video');
+if (testVideo) assert.equal(process.platform, 'win32');
 const onWayland = onLinux && process.argv.includes('--wayland');
 const onWaylandRecovery = onLinux && process.argv.includes('--wayland-recovery');
 const onX11Recovery = onLinux && process.argv.includes('--x11-recovery');
@@ -95,7 +98,9 @@ async function observedWindows() {
 	const pid = String(native.app.pid);
 	const { stdout } = await program(
 		onMac ? macObserver : 'python',
-		onMac ? [pid] : [observer('window_state.py'), pid, '--title', 'MapGyver Screen Output'],
+		onMac
+			? [pid]
+			: [observer('window_state.py'), pid, ...(testVideo ? [] : ['--title', 'MapGyver Screen Output'])],
 		{ windowsHide: true, timeout: 4000 }
 	);
 	return JSON.parse(stdout);
@@ -264,6 +269,51 @@ async function fullscreenGeometry() {
 		window && Object.entries(expected).every(([key, value]) => Math.abs(window[key] - value) <= 1);
 }
 
+async function verifyH264Output(surface, rectangle) {
+	const libraries = await inspectLocalVideoLibraries(
+		native.app.pid,
+		process.env.MAPGYVER_TEST_BINARY,
+		process.env.MAPGYVER_VIDEO_RUNTIME_PIN
+	);
+	const { reference } = await edit('media', { kind: 'CreateMedia', media_kind: 'Video' });
+	const file = fileURLToPath(
+		new URL('../../../../crates/golden_video/src/decode/tests/fixtures/h264.mp4', import.meta.url)
+	);
+	await edit('media', { kind: 'ConfigureVideoFile', reference, file });
+	await edit('media', {
+		kind: 'ConfigureMediaResolution',
+		media: reference.media,
+		size: { kind: 'Fixed', extent: { width: 320, height: 240 } }
+	});
+	await edit('screens', {
+		kind: 'ConfigureSurface',
+		reference: surface,
+		definition: { source: reference }
+	});
+	const deadline = performance.now() + 8000;
+	for (;;) {
+		const { status } = await edit('media', { kind: 'InspectVideoSource', reference });
+		assert(!status.error, JSON.stringify(status));
+		if (status.duration_ms > 250) break;
+		assert(performance.now() < deadline, `H.264 metadata did not load: ${JSON.stringify(status)}`);
+		await delay(80);
+	}
+	await rectangle([0, 0, 0]);
+	for (const positionMs of [125, 250]) {
+		await edit('media', {
+			kind: 'Video',
+			media: reference.media,
+			edit: { kind: 'Seek', position_ms: positionMs }
+		});
+		// The 24 fps fixture starts at limited-range luma 16 and adds 24 per frame.
+		const gray = Math.round(((positionMs * 24) / 1000) * (24 / 219) * 255);
+		await rectangle([gray, gray, gray]);
+	}
+	console.log(
+		JSON.stringify({ result: 'pass', scope: 'Installed FFmpeg DLLs and H.264 Screen pixels', libraries })
+	);
+}
+
 let fixtureFailure;
 try {
 	if (onMac) {
@@ -328,6 +378,7 @@ try {
 				? 'WindowServer capture measured red and green Rectangle pixels across edit and reopen'
 				: 'Native Rectangle showed both colors, retired on disable and reopened at its authored bounds'
 		);
+		if (testVideo) await verifyH264Output(surface, rectangle);
 		if (onMac || onLinux) {
 			await output(false);
 			await waitForOutput((window) => window === undefined);

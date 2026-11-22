@@ -146,17 +146,16 @@ jobs:
             param($binary, $evidence, $runtimePin)
             $env:MAPGYVER_TEST_BINARY = $binary
             $env:LOCALAPPDATA = Join-Path $evidence 'desktop-localappdata'
-            $env:MAPGYVER_VIDEO_LOCAL_DLLS = '1'
             $env:MAPGYVER_VIDEO_RUNTIME_PIN = $runtimePin
 
             node apps/mapgyver/tests/headless/media.mjs 2>&1 | Tee-Object (Join-Path $evidence 'headless-authoring.log')
             if ($LASTEXITCODE) { throw "Headless authoring exited with code $LASTEXITCODE." }
 
-            node apps/mapgyver/tests/browser/native-creation-selection.mjs (Join-Path $evidence 'desktop-authoring') 2>&1 |
-              Tee-Object (Join-Path $evidence 'desktop-authoring.log')
-            if ($LASTEXITCODE) { throw "Native workbench authoring exited with code $LASTEXITCODE." }
+            node apps/mapgyver/tests/native_output/desktop-readiness.mjs 2>&1 |
+              Tee-Object (Join-Path $evidence 'desktop-workbench.log')
+            if ($LASTEXITCODE) { throw "Native workbench startup exited with code $LASTEXITCODE." }
 
-            node apps/mapgyver/tests/browser/native-video-playback.mjs (Join-Path $evidence 'video-playback') 2>&1 |
+            node apps/mapgyver/tests/browser/portable-rectangle.mjs --windows-video 2>&1 |
               Tee-Object (Join-Path $evidence 'video-playback.log')
             if ($LASTEXITCODE) { throw "Native video playback exited with code $LASTEXITCODE." }
           }
@@ -168,6 +167,4 @@ jobs:
           path: |
             target/package-smoke/*/*.log
             target/package-smoke/*/video-runtime.json
-            target/package-smoke/*/desktop-authoring/**/*.json
-            target/package-smoke/*/video-playback/**/*.json
           if-no-files-found: ignore
