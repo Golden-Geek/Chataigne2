@@ -194,6 +194,7 @@
 
 <MainWindow
 	application={host.application}
+	appIcon="/chataigne-icon.png"
 	{userPanels}
 	{initialPanels}
 	nodeIcons={appIcons}

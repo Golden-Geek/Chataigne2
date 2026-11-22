@@ -1,5 +1,4 @@
 <script lang="ts">
-	import favicon from '#lib/assets/favicon.svg';
 	import { browser, dev } from '$app/env';
 	import { ApplicationRoot } from 'golden_ui';
 	import RuntimeProbeOverlay from 'golden_ui/components/debug/RuntimeProbeOverlay.svelte';
@@ -14,10 +13,6 @@
 		ensureRuntimeProbeInstalled();
 	});
 </script>
-
-<svelte:head>
-	<link rel="icon" href={favicon} />
-</svelte:head>
 
 <ApplicationRoot
 	expectedApplicationId="chataigne"
