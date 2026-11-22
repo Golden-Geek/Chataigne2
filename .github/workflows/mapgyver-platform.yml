@@ -23,7 +23,8 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Let a running platform qualification finish before the next mapgyver milestone starts.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/mapgyver' }}
 
 jobs:
   macos-workbench:

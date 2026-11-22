@@ -79,6 +79,8 @@ reopening. All 23 targeted Golden Video decoder tests passed with FFmpeg 8. The 
 fixture, default Windows compile with FFmpeg 9, Rust formatting, Prettier and Actions lint
 passed. Ubuntu 24.04 CI, Linux installation, Fullscreen display routing, Wayland output
 and physical reconnect remain open.
+The first Ubuntu CI run queues behind the active Intel macOS pixel job. Milestone pushes to
+`mapgyver` let the running platform workflow finish so the two architectures retain their results.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
