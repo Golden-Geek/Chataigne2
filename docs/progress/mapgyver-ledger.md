@@ -158,6 +158,17 @@ an unchanged authored target, resumed live green pixels, and the saved red pixel
 reloading while offline and re-enabling the connector. All runs exited normally. Weston
 retargeting also passed all four 1×/2× configurations. This establishes compositor
 output recovery. Physical reconnect and cadence still need external monitors.
+
+**M19/3 X11 display recovery batch (22 November, 15:40 CET cutoff).** Preserve an
+authored Fullscreen destination across an XRandR output becoming inactive and returning.
+Golden owns display discovery and window lifetime. A private Xorg server with the dummy
+driver verified DUMMY1 dropped from the active topology and the owned window retired.
+Re-enabling it restored the same authored target, exact 640×480 client bounds at (640, 0),
+and live green pixels. Save/New/Load while DUMMY1 was inactive restored the original red
+pixels when it returned. The X11 recovery fixture passed twice, and the shared Sway recovery
+scenario, four Weston scale configurations, and standalone X11 pixel checks passed. The
+CI workflow runs the fixture against the installed package. Physical X11 hotplug and
+cadence still need external monitors.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -317,7 +328,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
 | Blocked | M19/2 | Both Mac architectures passed relocated bundles and captured Rectangle and Fullscreen pixels. Return on a physical Mac with a connected external display to verify scanout cadence and unplug/reconnect against the saved UUID. |
-| Active | M19/3 | Ubuntu 26.04 passed clean install and packaged desktop/media checks. Xvfb passed X11 output. Weston passed repeated Wayland retargeting at mixed scales, and Sway verified recovery of a live or reopened project. Ubuntu 24.04 install passed. Verify its desktop exit and packaged media/output, then physical Linux reconnect and cadence. |
+| Active | M19/3 | Ubuntu 26.04 passed clean install and packaged desktop/media checks. Xvfb passed X11 output and Weston passed Wayland retargeting at mixed scales. Xorg and Sway both recovered a live or reopened project. Ubuntu 24.04 install passed. Verify its desktop exit and packaged media/output, then physical Linux reconnect and cadence. |
 | Pending | M19/4–5 | After desktop Linux, qualify Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |

@@ -34,6 +34,11 @@ isolated Sway session and checks the selected output's pixels and its native win
 It disables and re-enables the connector with the project open, then repeats the check
 after reopening the saved project while that connector is offline.
 
+With the Xorg dummy driver, `xrandr`, `xauth` and the X11 pixel observer installed, run
+`bash apps/mapgyver/tests/native_output/check-x11-recovery.sh`. It applies the same saved
+project checks to a private Xorg server, verifies the active RandR output and checks the
+owned window's exact bounds and pixels.
+
 For current unattended concurrent-output acceptance (M05/4):
 
 ```powershell

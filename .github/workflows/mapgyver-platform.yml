@@ -167,6 +167,11 @@ jobs:
           WEBKIT_DISABLE_DMABUF_RENDERER: '1'
         run: xvfb-run -a -s '-screen 0 1280x1024x24' node apps/mapgyver/tests/browser/portable-rectangle.mjs
 
+      - name: Check XRandR display recovery with Xorg
+        run: |
+          sudo apt-get install -y --no-install-recommends xserver-xorg-core xserver-xorg-video-dummy x11-xserver-utils
+          bash apps/mapgyver/tests/native_output/check-x11-recovery.sh
+
       - name: Check selected Wayland outputs with Weston
         run: |
           for scales in 1,1 2,2 1,2 2,1; do

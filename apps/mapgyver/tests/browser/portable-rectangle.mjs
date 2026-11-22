@@ -13,12 +13,15 @@ import {
 	linuxRootBounds
 } from '../native_output/linux_x11_windows.mjs';
 import { westonOutputs } from '../native_output/weston_x11_outputs.mjs';
-import { verifyWaylandRecovery } from '../native_output/wayland-recovery.mjs';
+import { verifyDisplayRecovery } from '../native_output/display-recovery.mjs';
+import { waylandRecoveryOutput } from '../native_output/wayland-recovery.mjs';
+import { x11RecoveryOutput } from '../native_output/x11-recovery.mjs';
 
 const onMac = process.platform === 'darwin';
 const onLinux = process.platform === 'linux';
 const onWayland = onLinux && process.argv.includes('--wayland');
 const onWaylandRecovery = onLinux && process.argv.includes('--wayland-recovery');
+const onX11Recovery = onLinux && process.argv.includes('--x11-recovery');
 assert(
 	onMac || onLinux || process.platform === 'win32',
 	'Select a desktop with an owned-window observer'
@@ -26,6 +29,7 @@ assert(
 if (onLinux && !onWaylandRecovery)
 	assert(process.env.DISPLAY, 'The native Linux Screen fixture requires X11 observation');
 if (onWayland || onWaylandRecovery) assert.equal(process.env.GDK_BACKEND, 'wayland');
+if (onX11Recovery) assert.equal(process.env.GDK_BACKEND, 'x11');
 assert(process.env.MAPGYVER_TEST_BINARY, 'Select the portable GPU MapGyver executable');
 const program = promisify(execFile);
 const observer = (name) => fileURLToPath(new URL(`../native_output/${name}`, import.meta.url));
@@ -282,9 +286,10 @@ try {
 		reference: surface,
 		definition: { source: reference }
 	});
-	if (onWaylandRecovery) {
-		await verifyWaylandRecovery({
-			pid: native.app.pid,
+	if (onWaylandRecovery || onX11Recovery) {
+		const recoveryOutput = onWaylandRecovery ? waylandRecoveryOutput : x11RecoveryOutput;
+		await verifyDisplayRecovery({
+			output: await recoveryOutput(native.app.pid),
 			directory,
 			screen,
 			color,
