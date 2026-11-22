@@ -205,14 +205,18 @@ The portable desktop submits enabled Rectangle Screens to the same renderer. Lin
 the actual window backend and admits absolute placement on X11. XRandR supplies active
 output bounds and a connector identity qualified by a base EDID fingerprint when present.
 Mirrored outputs share one addressable region. An authored Fullscreen Screen uses the exact
-saved identity and Golden opens the window at the selected X11 bounds. On macOS the desktop
-also presents Fullscreen Screens on the display selected in the Inspector. Golden enumerates
-AppKit screens, gives each its ColorSync UUID and places the output using its AppKit frame.
+saved identity and Golden opens the window at the selected X11 bounds. Native Wayland
+Fullscreen uses the compositor connector qualified by available monitor metadata. GTK
+requests the selected monitor and completes its initial configure and paint before Golden
+attaches the GPU surface. The catalog supplies GDK device-pixel buffer extents for Wayland.
+On macOS the desktop presents Fullscreen Screens on the display selected in the Inspector.
+Golden enumerates AppKit screens, assigns their ColorSync UUIDs and places the output using its AppKit frame.
 MapGyver publishes the display choices through the authored display parameter's catalog and
 resolves the saved UUID exactly. A missing display leaves its Screen inactive until it returns.
 Golden's desktop host creates the borderless window and keeps the event loop alive during retirement.
-The GPU worker presents each Screen texture through an sRGB window surface. The window
-becomes visible on the first admitted submission and is destroyed after its surface retires.
+The GPU worker presents each Screen texture through an sRGB window surface. X11 and macOS
+show the window on the first admitted submission. The host destroys each window after its
+surface retires.
 The workbench advertises underlay availability independently from the output windows.
 [M19](../plan/MapGyver_Implementation_Plan.md#m19--cross-platform-delivery) tracks native pixels,
 display recovery and output cadence. The [FFmpeg packaging guide](../../tools/mapgyver/ffmpeg/README.md)

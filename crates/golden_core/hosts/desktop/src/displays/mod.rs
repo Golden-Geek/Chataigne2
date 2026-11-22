@@ -49,9 +49,9 @@ pub(crate) mod macos;
 pub use macos::macos_desktop_displays;
 
 #[cfg(target_os = "linux")]
-mod x11;
+pub(crate) mod wayland;
 #[cfg(target_os = "linux")]
-pub use x11::x11_desktop_displays;
+pub(crate) mod x11;
 
 #[cfg(any(windows, target_os = "linux", test))]
 mod metadata;

@@ -11,6 +11,9 @@ use golden_io::{RetirementPool, RevisionGuard, RevisionSubscription, WorkerNotif
 use golden_video::{OutputId, wgpu_backend::WindowOutputs};
 use tauri::Manager;
 
+#[cfg(target_os = "linux")]
+use golden_core::app::LinuxDisplayBackend;
+
 #[cfg(any(target_os = "macos", target_os = "linux"))]
 mod displays;
 
@@ -32,15 +35,23 @@ pub(crate) fn presentation(
 ) -> NativePresentation<tauri::Wry> {
     NativePresentation::for_output_windows(move |window| {
         #[cfg(target_os = "linux")]
-        let window_targets = golden_core::app::supports_desktop_rectangle_outputs(window);
-        #[cfg(not(target_os = "linux"))]
-        let window_targets = true;
+        let backend = LinuxDisplayBackend::for_window(window);
         let app = window.app_handle().clone();
         Ok(NativePresentationTask::new(move |stop| {
-            let desktop = (window_targets
-                && (!cfg!(debug_assertions)
-                    || std::env::var("MAPGYVER_AUTOMATION_DISABLE_DISPLAY_OUTPUTS").as_deref() != Ok("1")))
-            .then(|| Desktop::new(app));
+            let desktop = if cfg!(debug_assertions)
+                && std::env::var("MAPGYVER_AUTOMATION_DISABLE_DISPLAY_OUTPUTS").as_deref() == Ok("1")
+            {
+                None
+            } else {
+                #[cfg(target_os = "linux")]
+                {
+                    backend.map(|backend| Desktop::new(app, backend))
+                }
+                #[cfg(not(target_os = "linux"))]
+                {
+                    Some(Desktop::new(app))
+                }
+            };
             let pool = RetirementPool::new(NonZeroUsize::MIN);
             let worker = super::start_worker(runtime, previews, &pool, desktop)?;
             while !stop.wait_timeout(CHECK) && !pool.wait_for_idle(Duration::ZERO) {}
@@ -53,6 +64,8 @@ pub(crate) fn presentation(
 
 pub(super) struct Desktop {
     app: tauri::AppHandle,
+    #[cfg(target_os = "linux")]
+    backend: LinuxDisplayBackend,
     windows: WindowOutputs,
     desired: Vec<(ScreenId, ResolvedTarget)>,
     #[cfg(any(target_os = "macos", target_os = "linux"))]
@@ -69,9 +82,11 @@ struct Binding {
 }
 
 impl Desktop {
-    fn new(app: tauri::AppHandle) -> Self {
+    fn new(app: tauri::AppHandle, #[cfg(target_os = "linux")] backend: LinuxDisplayBackend) -> Self {
         Self {
             app,
+            #[cfg(target_os = "linux")]
+            backend,
             windows: WindowOutputs::default(),
             desired: Vec::new(),
             #[cfg(any(target_os = "macos", target_os = "linux"))]
@@ -94,7 +109,13 @@ impl Desktop {
 
     pub fn refresh(&mut self, runtime: &ProductionRuntime<AppNode>, notifier: &WorkerNotifier) -> Result<bool, String> {
         #[cfg(any(target_os = "macos", target_os = "linux"))]
-        let mut changed = self.displays.refresh(&self.app, runtime, notifier)?;
+        let mut changed = self.displays.refresh(
+            &self.app,
+            runtime,
+            notifier,
+            #[cfg(target_os = "linux")]
+            self.backend,
+        )?;
         #[cfg(not(any(target_os = "macos", target_os = "linux")))]
         let mut changed = false;
         if changed
@@ -114,7 +135,7 @@ impl Desktop {
                 .outputs
                 .into_iter()
                 .filter_map(|output| match output.target {
-                    target @ ResolvedTarget::Rectangle(_) => Some((output.screen, target)),
+                    target @ ResolvedTarget::Rectangle(_) if self.supports_rectangle() => Some((output.screen, target)),
                     #[cfg(any(target_os = "macos", target_os = "linux"))]
                     target @ ResolvedTarget::Fullscreen { .. } => Some((output.screen, target)),
                     _ => None,
@@ -141,6 +162,17 @@ impl Desktop {
             keep
         });
         Ok(changed)
+    }
+
+    fn supports_rectangle(&self) -> bool {
+        #[cfg(target_os = "linux")]
+        {
+            self.backend == LinuxDisplayBackend::X11
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            true
+        }
     }
 
     pub fn has_outputs(&self) -> bool {
@@ -214,7 +246,8 @@ impl Desktop {
             ),
             #[cfg(target_os = "linux")]
             ResolvedTarget::Fullscreen { bounds, display } => (
-                golden_core::app::open_x11_fullscreen_output(&self.app, &label, title, display, physical(*bounds)?)?,
+                self.backend
+                    .open_fullscreen_output(&self.app, &label, title, display, physical(*bounds)?)?,
                 bounds.extent,
             ),
             _ => return Err(io::Error::other("unsupported portable output target")),

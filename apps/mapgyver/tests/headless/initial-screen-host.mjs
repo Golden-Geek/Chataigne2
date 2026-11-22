@@ -47,25 +47,28 @@ async function openInitialScreenHost(directory, { frontend, headless }) {
 		stream.on('data', (data) => (log = (log + data).slice(-65536)));
 	const exited = new Promise((resolve, reject) => {
 		app.once('error', reject);
-		app.once('close', resolve);
+		// WebKit subprocesses can retain the pipe after the owned app has exited.
+		app.once('exit', (code, signal) => resolve({ code, signal }));
 	});
 	const watchdog = setTimeout(() => app.kill(), 120000);
 	async function close() {
 		try {
 			if (app.exitCode === null) await writeFile(stop, 'stop');
-			const code = await Promise.race([
+			const { code, signal } = await Promise.race([
 				exited,
-				delay(7000).then(() => {
-					throw Error('Normal MapGyver shutdown expired');
+				delay(7000, undefined, { ref: false }).then(() => {
+					throw Error(`MapGyver process ${app.pid} did not exit after creating ${stop}\n${log}`);
 				})
 			]);
-			assert.equal(code, 0, log);
+			assert.equal(code, 0, `MapGyver exited with signal ${signal ?? 'none'}\n${log}`);
 		} finally {
 			clearTimeout(watchdog);
-			if (app.exitCode === null) {
+			if (app.exitCode === null && app.signalCode === null) {
 				app.kill();
 				await exited;
 			}
+			app.stdout.destroy();
+			app.stderr.destroy();
 		}
 	}
 	try {

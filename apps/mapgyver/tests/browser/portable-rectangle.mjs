@@ -12,14 +12,18 @@ import {
 	linuxOutputWindows,
 	linuxRootBounds
 } from '../native_output/linux_x11_windows.mjs';
+import { westonOutputs } from '../native_output/weston_x11_outputs.mjs';
 
 const onMac = process.platform === 'darwin';
 const onLinux = process.platform === 'linux';
+const onWayland = onLinux && process.argv.includes('--wayland');
 assert(
 	onMac || onLinux || process.platform === 'win32',
 	'Select a desktop with an owned-window observer'
 );
-if (onLinux) assert(process.env.DISPLAY, 'The native Linux Screen fixture requires X11');
+if (onLinux)
+	assert(process.env.DISPLAY, 'The native Linux Screen fixture requires X11 observation');
+if (onWayland) assert.equal(process.env.GDK_BACKEND, 'wayland');
 assert(process.env.MAPGYVER_TEST_BINARY, 'Select the portable GPU MapGyver executable');
 const program = promisify(execFile);
 const observer = (name) => fileURLToPath(new URL(`../native_output/${name}`, import.meta.url));
@@ -36,6 +40,7 @@ if (onMac) {
 	);
 }
 process.env.MAPGYVER_AUTOMATION_DISABLE_DISPLAY_OUTPUTS = '0';
+const compositorOutputs = onWayland ? await westonOutputs() : null;
 const native = await openInitialScreenDesktop(directory);
 let token;
 const existing = new Set();
@@ -150,9 +155,8 @@ async function waitForWindowPixels(geometry, rgb) {
 	}
 }
 
-async function selectPrimaryDisplay(screen) {
+async function selectDisplay(screen, prefix) {
 	const deadline = performance.now() + 8000;
-	const prefix = onMac ? 'macos:' : 'x11:';
 	for (;;) {
 		const graph = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
 		const byId = new Map(graph.nodes.map((node) => [node.node_id, node]));
@@ -179,6 +183,60 @@ async function selectPrimaryDisplay(screen) {
 		assert(performance.now() < deadline, `The Screen Inspector received no ${prefix} displays`);
 		await delay(120);
 	}
+}
+
+async function waitForWaylandPixels(expected) {
+	const deadline = performance.now() + 12000;
+	for (;;) {
+		const outputs = await Promise.all(compositorOutputs.map(linuxOutputCenter));
+		const colors = outputs.map((pixels) => pixels[0]);
+		if (
+			outputs.every(
+				(pixels, index) =>
+					pixels.length > 0 &&
+					pixels.every(
+						(pixel) => matchesRgb(pixel, expected[index].rgb) === expected[index].visible
+					)
+			)
+		) {
+			return;
+		}
+		assert(
+			performance.now() < deadline,
+			`Wayland displays did not match: ${JSON.stringify(colors)}`
+		);
+		await delay(120);
+	}
+}
+
+async function testWaylandFullscreen(screen, color) {
+	const [primary, secondary] = await Promise.all([
+		selectDisplay(screen, 'wayland:screen0:'),
+		selectDisplay(screen, 'wayland:screen1:')
+	]);
+	assert.notEqual(primary, secondary, 'Weston outputs must have distinct saved identities');
+	const fullscreen = (display) =>
+		edit('screens', {
+			kind: 'ConfigureScreen',
+			screen,
+			definition: { enabled: true, target: display ? { kind: 'Fullscreen', display } : null }
+		});
+	const check = (rgb, primary, secondary) =>
+		waitForWaylandPixels([
+			{ rgb, visible: primary },
+			{ rgb, visible: secondary }
+		]);
+	await fullscreen(secondary);
+	await check([255, 0, 0], false, true);
+	await color([0, 1, 0, 1]);
+	await check([0, 255, 0], false, true);
+	await fullscreen(primary);
+	await check([0, 255, 0], true, false);
+	await fullscreen(null);
+	await check([0, 255, 0], false, false);
+	await fullscreen(secondary);
+	await check([0, 255, 0], false, true);
+	console.log('Weston showed the authored Fullscreen pixels on each selected Wayland output');
 }
 
 async function fullscreenGeometry() {
@@ -214,57 +272,61 @@ try {
 		reference: surface,
 		definition: { source: reference }
 	});
-	const bounds = { left: 160, top: 120, extent: { width: 320, height: 240 } };
-	const output = (enabled) =>
-		edit('screens', {
-			kind: 'ConfigureScreen',
-			screen,
-			definition: { enabled, target: { kind: 'Rectangle', bounds } }
-		});
-	await output(true);
-	const rectangle = (rgb) =>
-		waitForWindowPixels(
-			(window) => window && (!onMac || Math.abs(window.width / window.height - 4 / 3) < 0.01),
-			rgb
-		);
-	const red = await rectangle([255, 0, 0]);
-	if (!onMac) assert.deepEqual(red.bounds, bounds);
-	await color([0, 1, 0, 1]);
-	const green = await rectangle([0, 255, 0]);
-	assert.equal(green.id ?? green.hwnd, red.id ?? red.hwnd);
-	await output(false);
-	await waitForOutput((window) => window === undefined);
-	await output(true);
-	const reopened = await rectangle([0, 255, 0]);
-	if (!onMac) assert.deepEqual(reopened.bounds, bounds);
-	console.log(
-		onMac
-			? 'WindowServer capture measured red and green Rectangle pixels across edit and reopen'
-			: 'Native Rectangle showed both colors, retired on disable and reopened at its authored bounds'
-	);
-	if (onMac || onLinux) {
-		await output(false);
-		await waitForOutput((window) => window === undefined);
-		const display = await selectPrimaryDisplay(screen);
-		const fullscreen = (target) =>
+	if (onWayland) {
+		await testWaylandFullscreen(screen, color);
+	} else {
+		const bounds = { left: 160, top: 120, extent: { width: 320, height: 240 } };
+		const output = (enabled) =>
 			edit('screens', {
 				kind: 'ConfigureScreen',
 				screen,
-				definition: { enabled: true, target }
+				definition: { enabled, target: { kind: 'Rectangle', bounds } }
 			});
-		const selected = { kind: 'Fullscreen', display };
-		const coversDisplay = await fullscreenGeometry();
-		await fullscreen(selected);
-		const initial = await waitForWindowPixels(coversDisplay, [0, 255, 0]);
-		await color([0, 0, 1, 1]);
-		assert.equal((await waitForWindowPixels(coversDisplay, [0, 0, 255])).id, initial.id);
-		await fullscreen(null);
+		await output(true);
+		const rectangle = (rgb) =>
+			waitForWindowPixels(
+				(window) => window && (!onMac || Math.abs(window.width / window.height - 4 / 3) < 0.01),
+				rgb
+			);
+		const red = await rectangle([255, 0, 0]);
+		if (!onMac) assert.deepEqual(red.bounds, bounds);
+		await color([0, 1, 0, 1]);
+		const green = await rectangle([0, 255, 0]);
+		assert.equal(green.id ?? green.hwnd, red.id ?? red.hwnd);
+		await output(false);
 		await waitForOutput((window) => window === undefined);
-		await fullscreen(selected);
-		await waitForWindowPixels(coversDisplay, [0, 0, 255]);
+		await output(true);
+		const reopened = await rectangle([0, 255, 0]);
+		if (!onMac) assert.deepEqual(reopened.bounds, bounds);
 		console.log(
-			`${onMac ? 'WindowServer' : 'XRandR'} output measured green and blue Fullscreen pixels at the selected display bounds`
+			onMac
+				? 'WindowServer capture measured red and green Rectangle pixels across edit and reopen'
+				: 'Native Rectangle showed both colors, retired on disable and reopened at its authored bounds'
 		);
+		if (onMac || onLinux) {
+			await output(false);
+			await waitForOutput((window) => window === undefined);
+			const display = await selectDisplay(screen, onMac ? 'macos:' : 'x11:');
+			const fullscreen = (target) =>
+				edit('screens', {
+					kind: 'ConfigureScreen',
+					screen,
+					definition: { enabled: true, target }
+				});
+			const selected = { kind: 'Fullscreen', display };
+			const coversDisplay = await fullscreenGeometry();
+			await fullscreen(selected);
+			const initial = await waitForWindowPixels(coversDisplay, [0, 255, 0]);
+			await color([0, 0, 1, 1]);
+			assert.equal((await waitForWindowPixels(coversDisplay, [0, 0, 255])).id, initial.id);
+			await fullscreen(null);
+			await waitForOutput((window) => window === undefined);
+			await fullscreen(selected);
+			await waitForWindowPixels(coversDisplay, [0, 0, 255]);
+			console.log(
+				`${onMac ? 'WindowServer' : 'XRandR'} output measured green and blue Fullscreen pixels at the selected display bounds`
+			);
+		}
 	}
 } catch (error) {
 	console.error(native.log().slice(-6000));

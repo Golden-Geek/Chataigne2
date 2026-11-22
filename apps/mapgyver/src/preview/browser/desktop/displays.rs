@@ -49,11 +49,16 @@ impl Displays {
         app: &tauri::AppHandle,
         runtime: &ProductionRuntime<AppNode>,
         notifier: &WorkerNotifier,
+        #[cfg(target_os = "linux")] backend: golden_core::app::LinuxDisplayBackend,
     ) -> Result<bool, String> {
         let now = Instant::now();
         if now >= self.next_scan {
             self.next_scan = now + Duration::from_secs(1);
-            let active = match host_displays(app).and_then(project_displays) {
+            #[cfg(target_os = "macos")]
+            let discovered = golden_core::app::macos_desktop_displays(app);
+            #[cfg(target_os = "linux")]
+            let discovered = backend.desktop_displays(app);
+            let active = match discovered.and_then(project_displays) {
                 Ok(displays) => {
                     self.scan_error = None;
                     displays
@@ -94,14 +99,4 @@ impl Displays {
         }
         Ok(false)
     }
-}
-
-#[cfg(target_os = "macos")]
-fn host_displays(app: &tauri::AppHandle) -> std::io::Result<Vec<golden_core::app::NativeDisplay>> {
-    golden_core::app::macos_desktop_displays(app)
-}
-
-#[cfg(target_os = "linux")]
-fn host_displays(_: &tauri::AppHandle) -> std::io::Result<Vec<golden_core::app::NativeDisplay>> {
-    golden_core::app::x11_desktop_displays()
 }

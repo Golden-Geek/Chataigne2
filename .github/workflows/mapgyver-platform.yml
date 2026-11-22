@@ -132,7 +132,7 @@ jobs:
             libwebkit2gtk-4.1-dev libxdo-dev libayatana-appindicator3-dev librsvg2-dev \
             libasound2-dev libjack-jackd2-dev libpipewire-0.3-dev libdbus-1-dev libudev-dev \
             libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev \
-            ffmpeg mesa-vulkan-drivers xvfb xauth x11-utils
+            ffmpeg mesa-vulkan-drivers xvfb xauth x11-utils weston xdotool
 
       - name: Install workbench dependencies
         run: npm ci
@@ -166,6 +166,12 @@ jobs:
           GDK_BACKEND: x11
           WEBKIT_DISABLE_DMABUF_RENDERER: '1'
         run: xvfb-run -a -s '-screen 0 1280x1024x24' node apps/mapgyver/tests/browser/portable-rectangle.mjs
+
+      - name: Check selected Wayland outputs with Weston
+        run: |
+          for scale in 1 2; do
+            xvfb-run -a -s '-screen 0 2560x1200x24' bash apps/mapgyver/tests/native_output/check-wayland-output.sh "$scale"
+          done
 
       - name: Save the verified test package
         uses: actions/upload-artifact@v7

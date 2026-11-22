@@ -96,8 +96,13 @@ in fresh containers. Both passed the desktop launcher, license, ELF linkage, ins
 project authoring and normal exit checks. Executables extracted from both packages passed
 X11 readiness, H.264 playback, paused seek and live relink, Screen Warping and renderer
 retirement. The debug package also passed X11 Rectangle pixels and bounds.
-The [Ubuntu 24.04 package workflow](https://github.com/Golden-Geek/Chataigne2/actions/runs/45025967029)
-will run desktop fixtures against the apt-installed executable.
+The [Ubuntu 24.04 package run](https://github.com/Golden-Geek/Chataigne2/actions/runs/45025967029)
+built the Debian package and passed the clean apt install, ELF linkage, installed
+project authoring and strict X11 workbench readiness. The Node fixture timed out
+waiting for shutdown. It now observes the owned child's process exit independently of
+WebKit's output pipes, requires exit code zero and includes native logs on timeout.
+The updated fixture passed against the Ubuntu 26.04 release binary. Ubuntu 24.04
+shutdown and the downstream packaged media/output checks still need verification.
 
 **M19/3 X11 Fullscreen batch (22 November, 14:37 CET cutoff).** Select an active XRandR
 output in the Screen Inspector and present Fullscreen at that output's bounds. Golden owns
@@ -110,6 +115,19 @@ both targets. Golden desktop Clippy lints passed. Treating all warnings as error
 blocked by three existing unused WebView2 control items on Linux. The next deliverable
 is native Wayland Fullscreen on a selected output. Physical monitor hotplug and scanout
 cadence require a physical Linux display session.
+
+**M19/3 Wayland Fullscreen batch (22 November, 15:05 CET cutoff).** Golden owns Wayland
+output discovery and compositor-directed placement. MapGyver publishes addressable
+outputs and routes an authored Fullscreen Screen to its exact selected identity.
+After the Linux build passes, use an owned compositor session to verify output selection,
+visible color updates and window retirement. Retain physical Linux recovery and cadence.
+The default Linux build and existing X11 fixture passed. Weston 14 provided two native
+Wayland outputs backed by Xvfb host windows. The owned app passed independent pixel
+checks for choosing the second output, red-to-green edits, retargeting to the first,
+clearing and reopening. The baseline 1× run passed, and 2× passed on clean and traced
+reruns after an intermittent compositor disconnect during retargeting. Both scales
+are covered by CI. Physical unplug/reconnect, cadence, mixed-scale behavior and the
+intermittent 2× disconnect remain open.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -269,7 +287,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
 | Blocked | M19/2 | Both Mac architectures passed relocated bundles and captured Rectangle and Fullscreen pixels. Return on a physical Mac with a connected external display to verify scanout cadence and unplug/reconnect against the saved UUID. |
-| Active | M19/3 | Ubuntu 26.04 passed a fresh apt install, packaged desktop and media checks. Xvfb passed X11 Rectangle and Fullscreen pixels and lifecycle. Qualify Ubuntu 24.04 install, native Wayland output and physical display recovery. |
+| Active | M19/3 | Ubuntu 26.04 passed clean install and packaged desktop and media checks. Xvfb passed X11 output, and Weston verified Wayland Fullscreen routing to two outputs. Ubuntu 24.04 install passed. Verify clean desktop exit, packaged media and output, 2× retarget stability and physical display recovery. |
 | Pending | M19/4–5 | After desktop Linux, qualify Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |

@@ -31,19 +31,21 @@ export async function linuxRootBounds() {
 	return absoluteBounds(stdout);
 }
 
+export async function linuxWindow(id) {
+	const info = await queryWindow('xwininfo', ['-id', id]);
+	return info
+		? { id, visible: info.includes('Map State: IsViewable'), bounds: absoluteBounds(info) }
+		: null;
+}
+
 export async function linuxOutputWindows(pid) {
 	const { stdout: tree } = await program('xwininfo', ['-root', '-tree'], { timeout });
 	const windows = [];
 	for (const [, id] of tree.matchAll(/(0x[\da-f]+) "MapGyver Screen Output"/g)) {
 		const owner = await queryWindow('xprop', ['-id', id, '_NET_WM_PID']);
 		if (Number(owner?.match(/=\s*(\d+)\s*$/)?.[1]) !== pid) continue;
-		const info = await queryWindow('xwininfo', ['-id', id]);
-		if (!info) continue;
-		windows.push({
-			id,
-			visible: info.includes('Map State: IsViewable'),
-			bounds: absoluteBounds(info)
-		});
+		const window = await linuxWindow(id);
+		if (window) windows.push(window);
 	}
 	return windows;
 }

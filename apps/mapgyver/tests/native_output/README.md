@@ -19,6 +19,13 @@ Python 3 and the Xlib runtime. Run it with `xvfb-run -a -s '-screen 0 1280x1024x
 window's center pixels through Xlib and checks exact bounds, live edits and retirement.
 Fullscreen bounds are compared with the independently queried X11 root.
 
+The native Wayland fixture starts its own Weston compositor and two virtual outputs. With
+`weston` and `xdotool` installed, run
+`xvfb-run -a -s '-screen 0 1600x1200x24' bash apps/mapgyver/tests/native_output/check-wayland-output.sh`.
+MapGyver uses its Wayland backend. The fixture reads pixels from Weston's two X11 host
+windows to verify the selected output, live color edits, retargeting, retirement and reopening.
+For 2× scaling, use a `2560x1200x24` Xvfb display and pass `2` to the script.
+
 For current unattended concurrent-output acceptance (M05/4):
 
 ```powershell
