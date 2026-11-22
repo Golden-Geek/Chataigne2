@@ -68,6 +68,13 @@ def snapshot(pid, main=False, output_title=None, require_output_owner=False):
         }
         if require_output_owner:
             window["sample_owner_hwnd"] = sample_owner
+            if sample_owner and sample_owner != hwnd:
+                sample_pid = wintypes.DWORD()
+                sample_class = ctypes.create_unicode_buffer(256)
+                user.GetWindowThreadProcessId(sample_owner, ctypes.byref(sample_pid))
+                user.GetClassNameW(sample_owner, sample_class, len(sample_class))
+                window["sample_owner_is_fixture"] = sample_pid.value == pid
+                window["sample_owner_class"] = sample_class.value
         result.append(window)
         return True
 

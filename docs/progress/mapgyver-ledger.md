@@ -326,6 +326,18 @@ mapped the installed WebView2 workbench, observed its snapshot request and passe
 the strict standalone workbench checks with zero request, page or console errors.
 The Rectangle HWND was visible and Ready at 160,120 with a 320 × 240 client. The
 capture returned RGB 241,242,240 for authored RGB 255,0,0, before the H.264 phase.
+The [owned-capture run](https://github.com/Golden-Geek/Chataigne2/actions/runs/45055160630/job/137309685283)
+repeated workbench readiness and verified all five DLLs loaded from the installed
+app directory with SDK hashes. The output HWND was `328012`. Windows hit-tested
+HWND `66038` at its center, so the sampler discarded the capture. The placement
+fix restores a private workbench on the right, checks that the Rectangle is out
+of its bounds and retains the HWND check for every pixel observation.
+The [official NDI Windows redistributable](https://docs.ndi.video/all/developing-with-ndi/sdk/dynamic-loading-of-ndi-libraries)
+served by `NDIRedistV6` contains x86 and x64 DLLs. Its main libraries report PE32
+i386 and PE32+ x86-64. The x64 file version is `6.4.0.2` and the installer SHA-256
+is `5972cca54649039318ff5f167fd9940270cafc09678b01e0c35695382270a144`.
+Native Windows ARM64 NDI returns when an authorized ARM64 vendor SDK and runtime
+are available. The ARM64 installer currently ships without NDI.
 Local SDK ZIP SHA-256 `77733807f203f72fc96e607b3babfe7d07cec7e2e747829867fe35cf4cd56e6d`.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createServer } from 'node:net';
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -10,7 +10,12 @@ export function openInitialScreenHeadless(directory, { frontend = false } = {}) 
 	return openInitialScreenHost(directory, { frontend, headless: true });
 }
 
-export function openInitialScreenDesktop(directory) {
+export async function openInitialScreenDesktop(directory, { windowState } = {}) {
+	if (windowState) {
+		const profile = path.join(directory, 'data', 'MapGyver');
+		await mkdir(profile, { recursive: true });
+		await writeFile(path.join(profile, 'window-state.json'), JSON.stringify(windowState));
+	}
 	return openInitialScreenHost(directory, { frontend: true, headless: false });
 }
 

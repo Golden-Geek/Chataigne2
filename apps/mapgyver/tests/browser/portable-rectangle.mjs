@@ -39,6 +39,16 @@ const observer = (name) => fileURLToPath(new URL(`../native_output/${name}`, imp
 const directory = await mkdtemp(join(tmpdir(), 'mapgyver-portable-rectangle-'));
 const macObserver = join(directory, 'macos-windows');
 const macCapture = join(directory, 'output.png');
+const windowsWorkbench = testVideo
+	? {
+			version: 1,
+			outer_position: { x: 544, y: 192 },
+			outer_size: { width: 640, height: 480 },
+			local_position: { x: 544, y: 192 },
+			monitor: null,
+			maximized: false
+		}
+	: undefined;
 if (onMac) {
 	await program(
 		'swiftc',
@@ -50,7 +60,7 @@ if (onMac) {
 }
 process.env.MAPGYVER_AUTOMATION_DISABLE_DISPLAY_OUTPUTS = '0';
 const compositorOutputs = onWayland ? await westonOutputs() : null;
-const native = await openInitialScreenDesktop(directory);
+const native = await openInitialScreenDesktop(directory, { windowState: windowsWorkbench });
 let token;
 const existing = new Set();
 
@@ -108,6 +118,30 @@ async function observedWindows() {
 		{ windowsHide: true, timeout: 4000 }
 	);
 	return JSON.parse(stdout);
+}
+
+async function verifySeparatedWorkbench({ left, top, extent }) {
+	const deadline = performance.now() + 8000;
+	let workbench;
+	for (;;) {
+		const { stdout } = await program(
+			'python',
+			[observer('window_state.py'), String(native.app.pid), '--main'],
+			{ windowsHide: true, timeout: 4000 }
+		);
+		workbench = JSON.parse(stdout).find(({ visible, minimized }) => visible && !minimized);
+		if (workbench) break;
+		assert(performance.now() < deadline, 'The workbench did not open before the Rectangle');
+		await delay(120);
+	}
+	const window = workbench.bounds;
+	assert(
+		left + extent.width <= window.left ||
+			left >= window.left + window.extent.width ||
+			top + extent.height <= window.top ||
+			top >= window.top + window.extent.height,
+		`Owned workbench overlaps the Rectangle: ${JSON.stringify({ window, left, top, extent })}`
+	);
 }
 
 async function waitForOutput(accept) {
@@ -358,7 +392,12 @@ try {
 	} else if (onWayland) {
 		await testWaylandFullscreen(screen, color);
 	} else {
-		const bounds = { left: 160, top: 120, extent: { width: 320, height: 240 } };
+		const bounds = {
+			left: testVideo ? 24 : 160,
+			top: 120,
+			extent: { width: 320, height: 240 }
+		};
+		if (testVideo) await verifySeparatedWorkbench(bounds);
 		const output = (enabled) =>
 			edit('screens', {
 				kind: 'ConfigureScreen',
