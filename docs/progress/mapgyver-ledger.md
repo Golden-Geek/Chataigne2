@@ -2,7 +2,7 @@
 
 **Updated: 2026-11-22 · Overall: `█████████░` 86% · 9/20 phases complete**
 
-**Accepted: 130/151 gates. Phase completion: 9/20 (45%). M19/1 is Accepted. M19/2 and M19/3 need physical display checks. M19/4 Raspberry Pi aarch64 packaging is Active.**
+**Accepted: 130/151 gates. Phase completion: 9/20 (45%). M19/1 is Accepted. M19/2–4 need hardware checks. M19/5 Raspberry Pi armhf is Active.**
 
 Internal execution/evidence ledger. The user-facing checklist is `mapgyver-status.md`.
 
@@ -225,13 +225,14 @@ failed before mapping the native X11 window. Its retained debug package
 X11 workbench and shutdown check, media, X11 pixels and recovery, and all Wayland
 fixtures in clean Ubuntu 24.04. CI now runs those desktop checks against the installed
 package as an ordinary user in a clean Ubuntu image. The exact workflow script passed
-locally against the retained artifact, including the pinned Chromium setup. The native
-startup failure on the stock runner image remains open. Inspect the
-[clean Ubuntu hosted job](https://github.com/Golden-Geek/Chataigne2/actions/runs/45035213372)
-when it lands. Return to Linux qualification on a desktop with a physical external
-output on X11 and Wayland to verify reconnect and scanout cadence against the saved Screen.
+locally against the retained artifact, including the pinned Chromium setup. The
+[clean Ubuntu hosted job](https://github.com/Golden-Geek/Chataigne2/actions/runs/45035873220/job/137249983856)
+passed the install, native workbench, media, X11 and Wayland output suites. The stock
+runner's earlier launch failure is recorded above. Return to Linux qualification on a
+desktop with a physical external output on X11 and Wayland to verify reconnect and
+scanout cadence against the saved Screen.
 
-**Active M19/4 aarch64 package batch (22 November, 16:40 CET cutoff).** MapGyver
+**M19/4 aarch64 package batch (22 November, 16:40 CET cutoff).** MapGyver
 packaging owns the native ARM64 Debian 13 build, install and workbench checks. Produce
 an `arm64` package with the existing native FFmpeg and shared GPU backend, and check the
 installed artifact on a native ARM64 runner in clean Debian 13. The actual Raspberry Pi
@@ -251,10 +252,17 @@ provided by the Pi archive. Package SHA-256
 Desktop test setup failed before launch because `npm ci` invoked Golden Audio codegen on
 the runner without the ALSA SDK. The test now installs JavaScript dependencies with
 `--ignore-scripts` and uses the installed package's workbench. A clean Ubuntu check
-without development packages loaded Playwright with that flag. The native desktop,
-media, and display tests must pass on the rerun. The
-[updated Ubuntu job](https://github.com/Golden-Geek/Chataigne2/actions/runs/45035873220)
-continues independently.
+without development packages loaded Playwright with that flag. The
+[ARM64 rerun](https://github.com/Golden-Geek/Chataigne2/actions/runs/45037577689)
+passed build, install, project authoring and Save/New/Load, native X11 workbench and
+normal exit, H.264 playback and seek, Screen Warping, X11 Rectangle and Fullscreen
+pixels, all four Weston scale pairs, and Xorg and Sway recovery across reconnect and
+project reopen. The downloaded package is ELF64 AArch64, the overlapping Pi archive
+versions satisfy its declared minimums, and its SHA-256 is
+`d10b3361b5943f8b2248112ef6ae89361c7867fa20dd327b91dae087d9c7d108`.
+Return on a Pi with current 64-bit Raspberry Pi OS and an HDMI display to verify an
+on-device build, installation, native workbench, media playback, and Screen output
+and reconnect using the Pi GPU. The next software package is armhf.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -269,7 +277,7 @@ when Windows qualification resumes and run its pixel and allocation checks befor
 **Overlay prerequisite cleared:** On2026-11-16 the user checked native Settings and confirmed Off, then instructed standing Off state for now (recorded16:23UTC). Use it until the user reports or authoritative evidence shows a change; do not ask before each run. All original GPU/correctness/resource budgets remain. Desktop-helper repairs are not required for this finite SDK pixel fixture.
 **Retained blockers:** M10/4 retains unfinished age/full-GPU-path, shared-consumer, profile/repeated/performance-tier/resource/recovery qualification. [NVIDIA H.264](evidence/mapgyver-m10-h264-nvidia-2026-11-14.json) meets original cadence/CPU envelopes for one cohort and has complete connected direct-File pixel/PTS evidence. Its4K30 age upper59.3588/58.7843ms does not establish50ms; shared Reference is held-only and whole GPU path remains unproved. Earlier [two4K60 HAP](evidence/mapgyver-m10-two-4k60-hap-2026-11-13.json), [ProRes](evidence/mapgyver-m10-prores-alpha-sustained-2026-11-13.json), [resident Intel](evidence/mapgyver-m10-resident-sustained-2026-11-13.json) and [HAP variants](evidence/mapgyver-m10-hap-variants-sustained-2026-11-13.json) retain exact failures/scopes. The2026-11-16 native Settings confirmation and standing Off instruction govern subsequent cohorts. The M14 raster run establishes no M10 timing/performance claim. M08/4 WOW64 and M03/9 timing/growth debt remain; user-accepted smoothness/AA stay accepted.
 **Current native limit:** [Corrected M03 lifecycle](evidence/mapgyver-m03-late-drain-2026-11-05.json) confirms 53.602 MiB peak growth against 32 MiB across all 100 cycles, with matching environment identities and fresh paired overlay-Off observations. Handles/live allocations return and shutdown takes 116 ms; peak growth still fails. The untracked private-memory cause is unproven; earlier failures remain preserved.
-**Execution:** M19/1 Apple Silicon workbench is Accepted. M19/2 and M19/3 await physical desktop reconnect and cadence tests. M19/4 Raspberry Pi aarch64 is Active. M14/8 returns when Windows qualification resumes. M17/1–2 require independent LAN and clean Windows qualification. M14/6 needs a physical session using both externals and native input. M14/1 is Blocked on physical pointer verification. M15/5 shared editor feedback and M14/2 smooth navigation are Accepted. M10/9 needs an elevated Windows session for genuine device loss during overlap. M18/1 needs direct cross-window Explorer input. M18/4 needs a valid key and live ShaderToy reachability. M10/3 extended formats stay user-deferred. M16/1 retains qualification. M10/8 and M10/10 are Accepted. M14/9–10 are Accepted. M09 waits on the retained gates.
+**Execution:** M19/1 Apple Silicon workbench is Accepted. M19/2 and M19/3 await physical desktop reconnect and cadence tests. M19/4 awaits a 64-bit Raspberry Pi OS desktop with HDMI. M19/5 Raspberry Pi armhf is Active. M14/8 returns when Windows qualification resumes. M17/1–2 require independent LAN and clean Windows qualification. M14/6 needs a physical session using both externals and native input. M14/1 is Blocked on physical pointer verification. M15/5 shared editor feedback and M14/2 smooth navigation are Accepted. M10/9 needs an elevated Windows session for genuine device loss during overlap. M18/1 needs direct cross-window Explorer input. M18/4 needs a valid key and live ShaderToy reachability. M10/3 extended formats stay user-deferred. M16/1 retains qualification. M10/8 and M10/10 are Accepted. M14/9–10 are Accepted. M09 waits on the retained gates.
 
 **Recovery checkpoint:** [Earlier failures and parked candidate](evidence/mapgyver-request-lifetime-deferred-2026-11-17.json) remain historical. The integrated fix was reconciled with the current transport and adds runtime project-generation admission. [Verified scope](mapgyver-m14-editor-recovery.md)
 
@@ -414,9 +422,9 @@ failed readback stress returns with M10/4, without changed budgets.
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
 | Blocked | M19/2 | Both Mac architectures passed relocated bundles and captured Rectangle and Fullscreen pixels. Return on a physical Mac with a connected external display to verify scanout cadence and unplug/reconnect against the saved UUID. |
-| Blocked | M19/3 | Ubuntu 24.04 and 26.04 release packages passed desktop, media and virtual display recovery checks. Inspect the clean Ubuntu hosted job when it completes. Return on a physical Linux desktop with an external monitor to verify reconnect and cadence for X11 and Wayland. |
-| Active | M19/4 | The native Debian 13 ARM64 package built, installed and passed project authoring. Verify the corrected hosted desktop/media/output suite. Return on Raspberry Pi OS with the Pi GPU and HDMI output for the physical checks. |
-| Pending | M19/5 | Follow aarch64 with the native armhf build and Raspberry Pi OS desktop, media and output checks. |
+| Blocked | M19/3 | Ubuntu 24.04 and 26.04 release packages and the clean Ubuntu hosted job passed desktop, media and virtual display recovery checks. Return on a physical Linux desktop with an external monitor to verify reconnect and cadence for X11 and Wayland. |
+| Blocked | M19/4 | The installed Debian 13 ARM64 package passed the native desktop, media and virtual output suites. Return on a Pi with the current 64-bit Raspberry Pi OS and HDMI to verify the on-device build, desktop, media and real Screen output using the Pi GPU. |
+| Active | M19/5 | Produce the armhf package with the Raspberry Pi OS 32-bit userland ABI. Verify install, desktop and media software checks before Pi GPU and HDMI qualification. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
 | Blocked | M13/2 | [Complete available app catalog](evidence/mapgyver-m13-app-catalog-2026-11-07.json) passes70/68 native layouts; earlier live/source/Intel device/D3D9 proof retained. Return on exposed NVIDIA D3D9 source, supported same-LUID NVIDIA loss/revised identity contract, actual backend/new path for named rejected allocations, authoritative metadata/revised contract for unadvertised interpretation. Every exact prerequisite/action remains in the receipt; no full gate credit or unchanged rerun. |
