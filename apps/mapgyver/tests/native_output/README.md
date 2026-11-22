@@ -13,9 +13,11 @@ process's output window and samples its center in sRGB. It verifies authored col
 and output retirement and reopening for Rectangle and Fullscreen. Physical monitor hotplug
 and scanout cadence require a connected display session.
 
-The same portable check covers Rectangle on Linux X11 with `x11-utils` and FFmpeg's
-`x11grab` input. Run it with `xvfb-run -a` and `GDK_BACKEND=x11` in CI. The observer
-checks the owned window's exact bounds, center pixels, live edit and retirement.
+The same portable check covers Rectangle and Fullscreen on Linux X11 with `x11-utils`,
+Python 3 and the Xlib runtime. Run it with `xvfb-run -a -s '-screen 0 1280x1024x24'` and
+`GDK_BACKEND=x11` for a single active TrueColor output. The observer reads the owned X11
+window's center pixels through Xlib and checks exact bounds, live edits and retirement.
+Fullscreen bounds are compared with the independently queried X11 root.
 
 For current unattended concurrent-output acceptance (M05/4):
 

@@ -16,6 +16,7 @@ pub(super) fn canonical_edid(bytes: &[u8]) -> Option<String> {
     Some(encoded)
 }
 
+#[cfg(any(windows, test))]
 pub(super) fn display_index(gdi_name: &str) -> u32 {
     gdi_name
         .to_ascii_uppercase()

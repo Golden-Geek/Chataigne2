@@ -202,7 +202,10 @@ layers and linear opacity as the Screen plan. Portable Screens currently cover R
 anti-aliasing with calibration off.
 
 The portable desktop submits enabled Rectangle Screens to the same renderer. Linux checks
-the actual window backend and admits absolute Rectangle placement on X11. On macOS the desktop
+the actual window backend and admits absolute placement on X11. XRandR supplies active
+output bounds and a connector identity qualified by a base EDID fingerprint when present.
+Mirrored outputs share one addressable region. An authored Fullscreen Screen uses the exact
+saved identity and Golden opens the window at the selected X11 bounds. On macOS the desktop
 also presents Fullscreen Screens on the display selected in the Inspector. Golden enumerates
 AppKit screens, gives each its ColorSync UUID and places the output using its AppKit frame.
 MapGyver publishes the display choices through the authored display parameter's catalog and

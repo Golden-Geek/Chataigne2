@@ -1,10 +1,10 @@
 //! Candidate metadata preparation and host-worker refresh; never authored target reassignment.
 use super::protocol::DisplayInfo;
-#[cfg(any(windows, target_os = "macos"))]
+#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 use super::protocol::{DisplayRefreshRate, PhysicalRectangle};
-#[cfg(any(windows, target_os = "macos"))]
+#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 use golden_video::Extent2D;
-#[cfg(any(windows, target_os = "macos"))]
+#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 use std::io;
 
 #[cfg(windows)]
@@ -28,7 +28,7 @@ pub(crate) fn scan() -> io::Result<Vec<DisplayInfo>> {
     project_displays(golden_core::app::native_displays()?)
 }
 
-#[cfg(any(windows, target_os = "macos"))]
+#[cfg(any(windows, target_os = "macos", target_os = "linux"))]
 pub(crate) fn project_displays(displays: Vec<golden_core::app::NativeDisplay>) -> io::Result<Vec<DisplayInfo>> {
     displays
         .into_iter()

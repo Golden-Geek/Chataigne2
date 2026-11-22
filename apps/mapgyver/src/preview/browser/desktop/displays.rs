@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use golden_core::{app::macos_desktop_displays, application::ProductionRuntime};
+use golden_core::application::ProductionRuntime;
 use golden_io::{RevisionSubscription, WorkerNotifier};
 
 use crate::{
@@ -21,6 +21,7 @@ pub(super) struct Displays {
     source: Option<Source>,
     subscription: Option<RevisionSubscription>,
     needs_publish: bool,
+    scan_error: Option<String>,
 }
 
 impl Displays {
@@ -31,6 +32,7 @@ impl Displays {
             source: None,
             subscription: None,
             needs_publish: true,
+            scan_error: None,
         }
     }
 
@@ -51,9 +53,20 @@ impl Displays {
         let now = Instant::now();
         if now >= self.next_scan {
             self.next_scan = now + Duration::from_secs(1);
-            let active = macos_desktop_displays(app)
-                .and_then(project_displays)
-                .map_err(|error| error.to_string())?;
+            let active = match host_displays(app).and_then(project_displays) {
+                Ok(displays) => {
+                    self.scan_error = None;
+                    displays
+                }
+                Err(error) => {
+                    let message = error.to_string();
+                    if self.scan_error.as_ref() != Some(&message) {
+                        eprintln!("[mapgyver] desktop display catalog unavailable: {message}");
+                        self.scan_error = Some(message);
+                    }
+                    Vec::new()
+                }
+            };
             if active != self.active.as_ref() {
                 self.active = active.into();
                 self.needs_publish = true;
@@ -81,4 +94,14 @@ impl Displays {
         }
         Ok(false)
     }
+}
+
+#[cfg(target_os = "macos")]
+fn host_displays(app: &tauri::AppHandle) -> std::io::Result<Vec<golden_core::app::NativeDisplay>> {
+    golden_core::app::macos_desktop_displays(app)
+}
+
+#[cfg(target_os = "linux")]
+fn host_displays(_: &tauri::AppHandle) -> std::io::Result<Vec<golden_core::app::NativeDisplay>> {
+    golden_core::app::x11_desktop_displays()
 }

@@ -102,13 +102,14 @@ will run desktop fixtures against the apt-installed executable.
 **M19/3 X11 Fullscreen batch (22 November, 14:37 CET cutoff).** Select an active XRandR
 output in the Screen Inspector and present Fullscreen at that output's bounds. Golden owns
 enumeration and placement. MapGyver owns published choices and exact saved identities.
-The default Linux build and 11 Screen catalog tests passed. Xvfb showed the owned
-Fullscreen window at the selected 1280×1024 output bounds, but the expected green was
-black in both the window and root framebuffer captures. Rectangle pixels still passed.
-A Rectangle with the same 1280×1024 bounds also showed black, so display selection alone
-does not explain the failure. The next action is to trace framebuffer presentation for a
-display-sized X11 window from GPU submission to the server. Physical monitor hotplug and
-Wayland output remain open.
+The default Linux build and 11 Screen catalog tests passed. The Xvfb fixture verified exact
+Rectangle and Fullscreen bounds, live color edits on the same windows, retirement and
+reopening. An independent Xlib read found green and blue on the 1280×1024 Fullscreen
+window where FFmpeg's X11 capture returned black. The fixture now checks Xlib pixels on
+both targets. Golden desktop Clippy lints passed. Treating all warnings as errors is
+blocked by three existing unused WebView2 control items on Linux. The next deliverable
+is native Wayland Fullscreen on a selected output. Physical monitor hotplug and scanout
+cadence require a physical Linux display session.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -268,7 +269,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
 | Blocked | M19/2 | Both Mac architectures passed relocated bundles and captured Rectangle and Fullscreen pixels. Return on a physical Mac with a connected external display to verify scanout cadence and unplug/reconnect against the saved UUID. |
-| Active | M19/3 | Ubuntu 26.04 passed a fresh apt install and packaged desktop and media checks. Qualify Ubuntu 24.04 install, Fullscreen, Wayland output and display recovery. |
+| Active | M19/3 | Ubuntu 26.04 passed a fresh apt install, packaged desktop and media checks. Xvfb passed X11 Rectangle and Fullscreen pixels and lifecycle. Qualify Ubuntu 24.04 install, native Wayland output and physical display recovery. |
 | Pending | M19/4–5 | After desktop Linux, qualify Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |

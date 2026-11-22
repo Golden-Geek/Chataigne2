@@ -29,6 +29,8 @@ pub use desktop::{
 };
 #[cfg(target_os = "macos")]
 pub use displays::macos_desktop_displays;
+#[cfg(target_os = "linux")]
+pub use displays::x11_desktop_displays;
 pub use displays::{NativeDisplay, native_displays};
 pub use file_explorer::export_file_explorer_typescript;
 pub use host_config::{DesktopHostConfig, FrontendDevServerConfig};
@@ -40,4 +42,4 @@ pub use native_presentation::{
 pub use output_window::open_macos_fullscreen_output;
 pub use output_window::{NativeOutputBounds, NativeOutputEvent, NativeOutputWindow, open_desktop_output_window};
 #[cfg(target_os = "linux")]
-pub use output_window::{realize_linux_output_window, supports_desktop_rectangle_outputs};
+pub use output_window::{open_x11_fullscreen_output, realize_linux_output_window, supports_desktop_rectangle_outputs};

@@ -11,7 +11,7 @@ use golden_io::{RetirementPool, RevisionGuard, RevisionSubscription, WorkerNotif
 use golden_video::{OutputId, wgpu_backend::WindowOutputs};
 use tauri::Manager;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 mod displays;
 
 use crate::{
@@ -55,7 +55,7 @@ pub(super) struct Desktop {
     app: tauri::AppHandle,
     windows: WindowOutputs,
     desired: Vec<(ScreenId, ResolvedTarget)>,
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     displays: displays::Displays,
     guards: Option<Vec<RevisionGuard>>,
     subscriptions: Vec<RevisionSubscription>,
@@ -74,7 +74,7 @@ impl Desktop {
             app,
             windows: WindowOutputs::default(),
             desired: Vec::new(),
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
             displays: displays::Displays::new(),
             guards: None,
             subscriptions: Vec::new(),
@@ -87,15 +87,15 @@ impl Desktop {
         self.windows.clone()
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     pub fn deadline(&self) -> std::time::Instant {
         self.displays.deadline()
     }
 
     pub fn refresh(&mut self, runtime: &ProductionRuntime<AppNode>, notifier: &WorkerNotifier) -> Result<bool, String> {
-        #[cfg(target_os = "macos")]
+        #[cfg(any(target_os = "macos", target_os = "linux"))]
         let mut changed = self.displays.refresh(&self.app, runtime, notifier)?;
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(not(any(target_os = "macos", target_os = "linux")))]
         let mut changed = false;
         if changed
             || !self
@@ -103,9 +103,9 @@ impl Desktop {
                 .as_ref()
                 .is_some_and(|guards| guards.iter().all(RevisionGuard::is_current))
         {
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
             let displays = self.displays.active();
-            #[cfg(not(target_os = "macos"))]
+            #[cfg(not(any(target_os = "macos", target_os = "linux")))]
             let displays = [];
             let capture = runtime
                 .capture_app(move |engine| capture_outputs(engine, MAX_SCREEN_CATALOG, MAX_SCREEN_OUTPUTS, &displays))
@@ -115,7 +115,7 @@ impl Desktop {
                 .into_iter()
                 .filter_map(|output| match output.target {
                     target @ ResolvedTarget::Rectangle(_) => Some((output.screen, target)),
-                    #[cfg(target_os = "macos")]
+                    #[cfg(any(target_os = "macos", target_os = "linux"))]
                     target @ ResolvedTarget::Fullscreen { .. } => Some((output.screen, target)),
                     _ => None,
                 })
@@ -210,6 +210,11 @@ impl Desktop {
             #[cfg(target_os = "macos")]
             ResolvedTarget::Fullscreen { bounds, display } => (
                 golden_core::app::open_macos_fullscreen_output(&self.app, &label, title, display, physical(*bounds)?)?,
+                bounds.extent,
+            ),
+            #[cfg(target_os = "linux")]
+            ResolvedTarget::Fullscreen { bounds, display } => (
+                golden_core::app::open_x11_fullscreen_output(&self.app, &label, title, display, physical(*bounds)?)?,
                 bounds.extent,
             ),
             _ => return Err(io::Error::other("unsupported portable output target")),

@@ -24,6 +24,8 @@ tempfile.workspace = true
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = "0.18"
 raw-window-handle = "0.6"
+sha2 = "0.10"
+x11rb = { version = "=0.13.2", features = ["randr"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-foundation = "=0.10.1"

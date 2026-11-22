@@ -166,7 +166,7 @@ impl Source {
     }
 
     /// Fullscreen selection for catalogs whose OS supplies persistent display identities.
-    #[cfg(any(target_os = "macos", test))]
+    #[cfg(any(target_os = "macos", target_os = "linux", test))]
     pub fn prepare_exact(&self, displays: Arc<[DisplayInfo]>, options: &ParameterEnumOptions) -> Update {
         self.prepare_with(displays, options, super::display_matching::match_exact_displays)
     }

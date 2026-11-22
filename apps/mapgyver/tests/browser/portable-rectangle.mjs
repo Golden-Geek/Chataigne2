@@ -5,9 +5,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
+import { isDeepStrictEqual, promisify } from 'node:util';
 import { openInitialScreenDesktop } from '../headless/initial-screen-host.mjs';
-import { linuxOutputCenter, linuxOutputWindows } from '../native_output/linux_x11_windows.mjs';
+import {
+	linuxOutputCenter,
+	linuxOutputWindows,
+	linuxRootBounds
+} from '../native_output/linux_x11_windows.mjs';
 
 const onMac = process.platform === 'darwin';
 const onLinux = process.platform === 'linux';
@@ -15,7 +19,7 @@ assert(
 	onMac || onLinux || process.platform === 'win32',
 	'Select a desktop with an owned-window observer'
 );
-if (onLinux) assert(process.env.DISPLAY, 'The native Linux Rectangle fixture requires X11');
+if (onLinux) assert(process.env.DISPLAY, 'The native Linux Screen fixture requires X11');
 assert(process.env.MAPGYVER_TEST_BINARY, 'Select the portable GPU MapGyver executable');
 const program = promisify(execFile);
 const observer = (name) => fileURLToPath(new URL(`../native_output/${name}`, import.meta.url));
@@ -129,8 +133,26 @@ async function waitForMacOutput(geometry, rgb) {
 	}
 }
 
+async function waitForWindowPixels(geometry, rgb) {
+	if (onMac) return waitForMacOutput(geometry, rgb);
+	let actual;
+	try {
+		return await waitForOutput(async (window) => {
+			if (!window?.visible || !geometry(window)) return false;
+			const pixels = onLinux ? await linuxOutputCenter(window) : window.center_rgb;
+			actual = pixels[0] ? Array.from(pixels[0]) : undefined;
+			return pixels.length > 0 && pixels.every((pixel) => matchesRgb(pixel, rgb));
+		});
+	} catch (error) {
+		throw new Error(`Window capture expected RGB ${rgb}, last sampled ${actual ?? 'none'}`, {
+			cause: error
+		});
+	}
+}
+
 async function selectPrimaryDisplay(screen) {
 	const deadline = performance.now() + 8000;
+	const prefix = onMac ? 'macos:' : 'x11:';
 	for (;;) {
 		const graph = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
 		const byId = new Map(graph.nodes.map((node) => [node.node_id, node]));
@@ -145,20 +167,30 @@ async function selectPrimaryDisplay(screen) {
 					(item) => item.enum_id === param.enum_options_id
 				);
 				const options = definition?.variants ?? param.constraints?.enum_options ?? [];
-				const display = options.find(({ variant_id }) =>
-					variant_id.startsWith('macos:')
-				)?.variant_id;
+				const display = options.find(({ variant_id }) => variant_id.startsWith(prefix))?.variant_id;
 				if (display) {
-					assert.match(display, /^macos:[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i);
+					if (onMac) assert.match(display, /^macos:[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i);
 					return display;
 				}
 				break;
 			}
 			pending.push(...(node.children ?? []).map((id) => byId.get(id)));
 		}
-		assert(performance.now() < deadline, 'The Screen Inspector received no macOS displays');
+		assert(performance.now() < deadline, `The Screen Inspector received no ${prefix} displays`);
 		await delay(120);
 	}
+}
+
+async function fullscreenGeometry() {
+	if (onLinux) {
+		// Xvfb has one active output occupying the entire X11 root.
+		const expected = await linuxRootBounds();
+		return (window) => window && isDeepStrictEqual(window.bounds, expected);
+	}
+	const { stdout } = await program(macObserver, ['--primary-display'], { timeout: 4000 });
+	const expected = JSON.parse(stdout);
+	return (window) =>
+		window && Object.entries(expected).every(([key, value]) => Math.abs(window[key] - value) <= 1);
 }
 
 try {
@@ -190,19 +222,11 @@ try {
 			definition: { enabled, target: { kind: 'Rectangle', bounds } }
 		});
 	await output(true);
-	const rectangle = (rgb) => {
-		if (onMac) {
-			return waitForMacOutput(
-				(window) => window && Math.abs(window.width / window.height - 4 / 3) < 0.01,
-				rgb
-			);
-		}
-		return waitForOutput(async (window) => {
-			if (!window?.visible) return false;
-			const pixels = onLinux ? await linuxOutputCenter(window.id) : window.center_rgb;
-			return pixels.length > 0 && pixels.every((pixel) => matchesRgb(pixel, rgb));
-		});
-	};
+	const rectangle = (rgb) =>
+		waitForWindowPixels(
+			(window) => window && (!onMac || Math.abs(window.width / window.height - 4 / 3) < 0.01),
+			rgb
+		);
 	const red = await rectangle([255, 0, 0]);
 	if (!onMac) assert.deepEqual(red.bounds, bounds);
 	await color([0, 1, 0, 1]);
@@ -218,7 +242,7 @@ try {
 			? 'WindowServer capture measured red and green Rectangle pixels across edit and reopen'
 			: 'Native Rectangle showed both colors, retired on disable and reopened at its authored bounds'
 	);
-	if (onMac) {
+	if (onMac || onLinux) {
 		await output(false);
 		await waitForOutput((window) => window === undefined);
 		const display = await selectPrimaryDisplay(screen);
@@ -229,21 +253,17 @@ try {
 				definition: { enabled: true, target }
 			});
 		const selected = { kind: 'Fullscreen', display };
-		const { stdout } = await program(macObserver, ['--primary-display'], { timeout: 4000 });
-		const expected = JSON.parse(stdout);
-		const coversDisplay = (window) =>
-			window &&
-			Object.entries(expected).every(([key, value]) => Math.abs(window[key] - value) <= 1);
+		const coversDisplay = await fullscreenGeometry();
 		await fullscreen(selected);
-		const initial = await waitForMacOutput(coversDisplay, [0, 255, 0]);
+		const initial = await waitForWindowPixels(coversDisplay, [0, 255, 0]);
 		await color([0, 0, 1, 1]);
-		assert.equal((await waitForMacOutput(coversDisplay, [0, 0, 255])).id, initial.id);
+		assert.equal((await waitForWindowPixels(coversDisplay, [0, 0, 255])).id, initial.id);
 		await fullscreen(null);
 		await waitForOutput((window) => window === undefined);
 		await fullscreen(selected);
-		await waitForMacOutput(coversDisplay, [0, 0, 255]);
+		await waitForWindowPixels(coversDisplay, [0, 0, 255]);
 		console.log(
-			'WindowServer capture measured green and blue Fullscreen pixels at the selected display bounds'
+			`${onMac ? 'WindowServer' : 'XRandR'} output measured green and blue Fullscreen pixels at the selected display bounds`
 		);
 	}
 } catch (error) {

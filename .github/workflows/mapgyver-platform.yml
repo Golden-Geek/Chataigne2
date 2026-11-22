@@ -161,11 +161,11 @@ jobs:
           GC_UI_BROWSER_CHANNEL: chrome
         run: node apps/mapgyver/tests/browser/portable-preview.mjs
 
-      - name: Check X11 Rectangle Screen pixels and bounds
+      - name: Check X11 Rectangle and Fullscreen Screen pixels and bounds
         env:
           GDK_BACKEND: x11
           WEBKIT_DISABLE_DMABUF_RENDERER: '1'
-        run: xvfb-run -a node apps/mapgyver/tests/browser/portable-rectangle.mjs
+        run: xvfb-run -a -s '-screen 0 1280x1024x24' node apps/mapgyver/tests/browser/portable-rectangle.mjs
 
       - name: Save the verified test package
         uses: actions/upload-artifact@v7

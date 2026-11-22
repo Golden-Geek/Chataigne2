@@ -94,6 +94,28 @@ pub fn realize_linux_output_window<R: Runtime>(window: &Window<R>) -> io::Result
     Ok(())
 }
 
+/// Open an X11 fullscreen output only while the selected identity and bounds still agree.
+/// Call from the preparation worker. The caller realizes and attaches the surface on the UI thread.
+#[cfg(target_os = "linux")]
+pub fn open_x11_fullscreen_output<R: Runtime>(
+    app: &AppHandle<R>,
+    label: &str,
+    title: &str,
+    display: &str,
+    bounds: NativeOutputBounds,
+) -> io::Result<Window<R>> {
+    if !crate::displays::x11_desktop_displays()?
+        .iter()
+        .any(|candidate| candidate.id == display && candidate.bounds == bounds)
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "the selected X11 display changed before placement",
+        ));
+    }
+    open_desktop_output_window(app, label, title, bounds)
+}
+
 /// Open a fullscreen output on the requested macOS display UUID and verify its current bounds.
 #[cfg(target_os = "macos")]
 pub fn open_macos_fullscreen_output<R: Runtime>(

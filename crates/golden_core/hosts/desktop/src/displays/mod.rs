@@ -5,14 +5,14 @@ use std::io;
 /// An active desktop target with an OS device-interface identity rather than an enumeration index.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeDisplay {
-    /// Opaque OS monitor identity. Windows uses a device path and macOS uses a display UUID.
+    /// Opaque OS monitor identity. X11 combines its connector with available monitor evidence.
     pub id: String,
     /// Human-readable monitor label; never used to resolve identity.
     pub name: String,
     /// Canonical lowercase hexadecimal of a validated 128-byte base EDID block, when available.
     /// This preserves manufacturer, product and supplied serial data without inventing uniqueness.
     pub edid: Option<String>,
-    /// OS GDI display number (`DISPLAYn`), or zero if the source name is unavailable/unrecognized.
+    /// Display order exposed by the host, or zero when unavailable.
     /// This is routing metadata and can change when the desktop topology changes.
     pub index: u32,
     /// OS primary-desktop flag, falling back to a physical origin of (0, 0) when unavailable.
@@ -48,7 +48,12 @@ pub(crate) mod macos;
 #[cfg(target_os = "macos")]
 pub use macos::macos_desktop_displays;
 
-#[cfg(any(windows, test))]
+#[cfg(target_os = "linux")]
+mod x11;
+#[cfg(target_os = "linux")]
+pub use x11::x11_desktop_displays;
+
+#[cfg(any(windows, target_os = "linux", test))]
 mod metadata;
 #[cfg(windows)]
 mod monitor_registry;

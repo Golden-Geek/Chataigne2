@@ -26,7 +26,7 @@ pub struct DisplayMatch {
 
 /// Resolve persistent identities exactly. With duplicate requests, the first authored Screen
 /// retains the output on that display. Disconnected displays leave their Screens inactive.
-#[cfg(any(target_os = "macos", test))]
+#[cfg(any(target_os = "macos", target_os = "linux", test))]
 pub(super) fn match_exact_displays(
     requests: &[(ScreenId, DisplayIdentityHint)],
     displays: &[DisplayInfo],
