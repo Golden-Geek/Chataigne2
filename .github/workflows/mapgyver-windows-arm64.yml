@@ -128,6 +128,19 @@ jobs:
           path: target/aarch64-pc-windows-msvc/release/bundle/nsis/*.exe
           if-no-files-found: error
 
+      - name: Build the independent ARM64 Spout receiver
+        shell: pwsh
+        env:
+          MAPGYVER_FFMPEG_ARM64_SDK: ${{ runner.temp }}/mapgyver-ffmpeg-arm64
+          GC_UI_ASSUME_BUILT: '1'
+        run: |
+          $env:GC_UI_OUT_DIR = Join-Path $env:GITHUB_WORKSPACE 'packages/golden-video-ui/build'
+          npm run build --workspace golden_video_ui
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 `
+            build --release --locked --target aarch64-pc-windows-msvc --package MapGyver `
+            --no-default-features --features native-qualification --bin native_qualification
+
       - uses: actions/setup-python@v6
         with:
           python-version: '3.14'
@@ -136,7 +149,7 @@ jobs:
       - name: Install the desktop pixel capture dependency
         run: 'python -m pip install --only-binary=:all: Pillow==13.0.0'
 
-      - name: Verify installed ARM64 startup, authoring and video output
+      - name: Verify installed ARM64 startup, authoring and Spout output
         shell: pwsh
         run: |
           $installers = @(Get-ChildItem target/aarch64-pc-windows-msvc/release/bundle/nsis/*.exe)
@@ -147,6 +160,7 @@ jobs:
             $env:MAPGYVER_TEST_BINARY = $binary
             $env:LOCALAPPDATA = Join-Path $evidence 'desktop-localappdata'
             $env:MAPGYVER_VIDEO_RUNTIME_PIN = $runtimePin
+            $env:MAPGYVER_TEST_SPOUT_RECEIVER = (Resolve-Path 'target/aarch64-pc-windows-msvc/release/native_qualification.exe').ProviderPath
 
             node apps/mapgyver/tests/headless/media.mjs 2>&1 | Tee-Object (Join-Path $evidence 'headless-authoring.log')
             if ($LASTEXITCODE) { throw "Headless authoring exited with code $LASTEXITCODE." }
@@ -155,9 +169,9 @@ jobs:
               Tee-Object (Join-Path $evidence 'desktop-workbench.log')
             if ($LASTEXITCODE) { throw "Native workbench startup exited with code $LASTEXITCODE." }
 
-            node apps/mapgyver/tests/browser/portable-rectangle.mjs --windows-video 2>&1 |
-              Tee-Object (Join-Path $evidence 'video-playback.log')
-            if ($LASTEXITCODE) { throw "Native video playback exited with code $LASTEXITCODE." }
+            node apps/mapgyver/tests/browser/portable-rectangle.mjs --windows-spout 2>&1 |
+              Tee-Object (Join-Path $evidence 'spout-video.log')
+            if ($LASTEXITCODE) { throw "Native Spout video exited with code $LASTEXITCODE." }
           }
 
       - uses: actions/upload-artifact@v7

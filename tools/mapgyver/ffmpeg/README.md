@@ -62,8 +62,9 @@ the FFmpeg binding generator receives it too. The installer is under
 `target/aarch64-pc-windows-msvc/release/bundle/nsis`.
 The bundled NDI runtime is currently Windows x64 only.
 The ARM64 workflow exercises the installed executable through the normal headless
-and WebView2 workbench entry points, then checks the executable-local FFmpeg DLLs
-and the native desktop Screen pixels during playback.
+and WebView2 workbench entry points. An independent ARM64 Spout receiver checks the
+Screen's live color and decoded video pixels. Physical monitor pixels and display
+recovery use the separate native Screen fixture.
 
 On macOS, `brew install ffmpeg pkgconf` provides the headers and libraries for ordinary Cargo
 development builds. FFmpeg discovery uses `pkg-config` when `FFMPEG_DIR` is unset.

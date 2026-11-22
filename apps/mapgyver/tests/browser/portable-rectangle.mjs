@@ -16,12 +16,15 @@ import { westonOutputs } from '../native_output/weston_x11_outputs.mjs';
 import { verifyDisplayRecovery } from '../native_output/display-recovery.mjs';
 import { waylandRecoveryOutput } from '../native_output/wayland-recovery.mjs';
 import { x11RecoveryOutput } from '../native_output/x11-recovery.mjs';
+import { openSpoutOutputObserver } from '../native_output/spout-output.mjs';
 import { inspectLocalVideoLibraries } from './video-runtime-libraries.mjs';
 
 const onMac = process.platform === 'darwin';
 const onLinux = process.platform === 'linux';
 const testVideo = process.argv.includes('--windows-video');
-if (testVideo) assert.equal(process.platform, 'win32');
+const testSpout = process.argv.includes('--windows-spout');
+assert(!(testVideo && testSpout), 'Select one Windows output fixture');
+if (testVideo || testSpout) assert.equal(process.platform, 'win32');
 const onWayland = onLinux && process.argv.includes('--wayland');
 const onWaylandRecovery = onLinux && process.argv.includes('--wayland-recovery');
 const onX11Recovery = onLinux && process.argv.includes('--x11-recovery');
@@ -58,7 +61,7 @@ if (onMac) {
 		}
 	);
 }
-process.env.MAPGYVER_AUTOMATION_DISABLE_DISPLAY_OUTPUTS = '0';
+process.env.MAPGYVER_AUTOMATION_DISABLE_DISPLAY_OUTPUTS = testSpout ? '1' : '0';
 const compositorOutputs = onWayland ? await westonOutputs() : null;
 const native = await openInitialScreenDesktop(directory, { windowState: windowsWorkbench });
 let token;
@@ -308,7 +311,7 @@ async function fullscreenGeometry() {
 		window && Object.entries(expected).every(([key, value]) => Math.abs(window[key] - value) <= 1);
 }
 
-async function verifyH264Output(surface, rectangle) {
+async function verifyH264Output(surface, pixels) {
 	const { reference } = await edit('media', { kind: 'CreateMedia', media_kind: 'Video' });
 	const file = fileURLToPath(
 		new URL('../../../../crates/golden_video/src/decode/tests/fixtures/h264.mp4', import.meta.url)
@@ -328,29 +331,36 @@ async function verifyH264Output(surface, rectangle) {
 	for (;;) {
 		const { status } = await edit('media', { kind: 'InspectVideoSource', reference });
 		assert(!status.error, JSON.stringify(status));
-		if (status.duration_ms > 250) break;
+		if (status.duration_ms > 200) break;
 		assert(performance.now() < deadline, `H.264 metadata did not load: ${JSON.stringify(status)}`);
 		await delay(80);
 	}
-	await rectangle([0, 0, 0]);
-	for (const positionMs of [125, 250]) {
+	for (const positionMs of [0, 100, 200]) {
 		await edit('media', {
 			kind: 'Video',
 			media: reference.media,
 			edit: { kind: 'Seek', position_ms: positionMs }
 		});
-		// The 24 fps fixture starts at limited-range luma 16 and adds 24 per frame.
-		const gray = Math.round(((positionMs * 24) / 1000) * (24 / 219) * 255);
-		await rectangle([gray, gray, gray]);
+		// The six fixture frames have limited-range BT.709 luma 31,55,... and center Cr 127.
+		const frame = Math.floor((positionMs * 24) / 1000);
+		const luma = (31 + 24 * frame - 16) / 219;
+		const chromaRed = -1 / 224;
+		const expected = [luma + 1.5748 * chromaRed, luma - 0.468124 * chromaRed, luma].map(
+			(encoded) => {
+				const linear = encoded < 0.081 ? encoded / 4.5 : ((encoded + 0.099) / 1.099) ** (1 / 0.45);
+				return Math.round(
+					255 * (linear <= 0.0031308 ? 12.92 * linear : 1.055 * linear ** (1 / 2.4) - 0.055)
+				);
+			}
+		);
+		await pixels(expected);
 	}
-	console.log(
-		JSON.stringify({ result: 'pass', scope: 'Installed H.264 Screen pixels' })
-	);
+	console.log(JSON.stringify({ result: 'pass', scope: 'Installed H.264 Screen pixels' }));
 }
 
 let fixtureFailure;
 try {
-	if (testVideo) {
+	if (testVideo || testSpout) {
 		const libraries = await inspectLocalVideoLibraries(
 			native.app.pid,
 			process.env.MAPGYVER_TEST_BINARY,
@@ -371,7 +381,7 @@ try {
 	await color([1, 0, 0, 1]);
 	const { screen, surface } = await edit('screens', {
 		kind: 'CreateScreen',
-		label: 'Portable Rectangle'
+		label: testSpout ? 'Installed Spout Screen' : 'Portable Rectangle'
 	});
 	await edit('screens', {
 		kind: 'ConfigureSurface',
@@ -391,6 +401,17 @@ try {
 		});
 	} else if (onWayland) {
 		await testWaylandFullscreen(screen, color);
+	} else if (testSpout) {
+		const { target, expectPixels } = await openSpoutOutputObserver(directory);
+		await edit('screens', {
+			kind: 'ConfigureScreen',
+			screen,
+			definition: { enabled: true, target }
+		});
+		await expectPixels([255, 0, 0]);
+		await color([0, 1, 0, 1]);
+		await expectPixels([0, 255, 0]);
+		await verifyH264Output(surface, (rgb) => expectPixels(rgb, true));
 	} else {
 		const bounds = {
 			left: testVideo ? 24 : 160,

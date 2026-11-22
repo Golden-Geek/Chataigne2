@@ -5,7 +5,7 @@
 - **Latest verified:** 4× AA fits the memory cap. Sustained timing passed at 1080p on NVIDIA. NVIDIA 4K and both Intel sizes still exceed the GPU budget. [Checks](mapgyver-m14-antialiasing.md#sustained-shared-texture-timing--2026-11-20)
 - **Plan execution:** macOS first, then desktop Linux and Raspberry Pi (armhf and aarch64). Windows ARM64 has a separate gate.
 - **Manual action needed from you now: none.**
-- **Next:** Windows ARM64 WebView2 startup and all five installed FFmpeg DLLs passed. Verify H.264 Screen pixels with the workbench and output separated (M19/6). Native NDI requires an ARM64 vendor SDK. [Cross-platform evidence](mapgyver-ledger.md)
+- **Next:** Test installed Windows ARM64 H.264 Screen output with an independent native Spout receiver (M19/6). A Windows system window covered hosted desktop capture. Physical output and recovery need an unoccluded ARM64 desktop. [Cross-platform evidence](mapgyver-ledger.md)
 
 ## Done — code and normal-use checks passed
 

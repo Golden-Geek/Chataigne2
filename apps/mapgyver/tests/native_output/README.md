@@ -6,6 +6,15 @@ Finite probe readbacks run in a separate test process, never in the production f
 The shared browser launcher suppresses fullscreen and rectangle outputs by default.
 Fixtures that measure physical outputs explicitly opt in with `allowPhysicalOutputs`.
 
+For an installed Windows ARM64 app, set `MAPGYVER_TEST_BINARY` to `MapGyver2.exe`
+and `MAPGYVER_VIDEO_RUNTIME_PIN` to the package fixture's runtime manifest. Run
+`node apps/mapgyver/tests/browser/portable-rectangle.mjs --windows-video` in an
+unoccluded desktop session for owned Rectangle pixels and H.264 seeks. Hosted
+Windows ARM64 uses `--windows-spout` with `MAPGYVER_TEST_SPOUT_RECEIVER` pointing
+to the native `native_qualification.exe`. Its independent SDK receiver checks
+the Screen's Solid Color changes and decoded H.264 pixels. Monitor
+pixels and display recovery require the physical fixture.
+
 The portable macOS check runs with `MAPGYVER_TEST_BINARY` pointing to the bundled MapGyver
 executable. Run `node apps/mapgyver/tests/browser/portable-rectangle.mjs` in a desktop session
 with Screen Recording access for the test launcher. The observer captures only the test

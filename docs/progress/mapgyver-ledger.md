@@ -296,15 +296,13 @@ check native WebKit, Solid Color, H.264 playback and HDMI. Retain the hosted Web
 failure and emulated preview abort as separate software regressions until reproduced
 and resolved or isolated to emulation.
 
-**Active M19/6 Windows ARM64 Screen output batch (22 November, 20:10 CET cutoff).**
-The installed-app suite owns proof of native Rectangle pixels and H.264 output.
-The hosted baseline created the D3D11 window at the authored bounds and reached
-Ready. The center capture was gray instead of red. Check that the sample's
-frontmost HWND belongs to the output and include layered windows in the captured
-desktop. Matching pixels will qualify the finite Rectangle and video checks.
-A mismatch on the owned output will retain the exact capture evidence for a
-separate renderer or display-path decision. Native interactive workbench authoring,
-Media Preview, physical display recovery, Spout transfer and native NDI remain open.
+**Active M19/6 Windows ARM64 shared-texture batch (22 November, 21:05 CET cutoff).**
+The installed-app suite owns proof of native Spout exchange and H.264 output.
+Use the independent native receiver to check a Screen's live Solid Color changes
+and decoded H.264 frames. This will determine whether authoring, decode, D3D11
+composition and the native Spout SDK work together on the hosted ARM64 device.
+Physical Rectangle pixels and recovery return on an unoccluded Windows ARM64
+desktop. Native interactive authoring, Media Preview and native NDI remain open.
 The [native Windows ARM64 SDK job](https://github.com/Golden-Geek/Chataigne2/actions/runs/45044365771/job/137276328490)
 passed MSVC linking and dynamic loading of all five DLLs, version and build identity,
 decoder discovery and H.264/D3D11VA/DXVA2 entry points.
@@ -332,6 +330,15 @@ app directory with SDK hashes. The output HWND was `328012`. Windows hit-tested
 HWND `66038` at its center, so the sampler discarded the capture. The placement
 fix restores a private workbench on the right, checks that the Rectangle is out
 of its bounds and retains the HWND check for every pixel observation.
+The [separated-window run](https://github.com/Golden-Geek/Chataigne2/actions/runs/45057732079/job/137317512977)
+verified workbench/output separation and all installed DLL hashes. An unrelated
+`Windows.UI.Core.CoreWindow` still owned the sample point at the new location.
+Retain the physical fixture for an unoccluded session. Verify the production Spout
+output with a native SDK receiver while physical scanout is unavailable in CI.
+The Windows x64 reference app passed the fixture locally. The independent Spout
+receiver observed exact solid red and green frames, then three H.264 states within
+four bytes of the fixture's limited-range BT.709 to sRGB expected pixels. The
+ARM64 workflow builds the same receiver natively and uses the installed release app.
 The [official NDI Windows redistributable](https://docs.ndi.video/all/developing-with-ndi/sdk/dynamic-loading-of-ndi-libraries)
 served by `NDIRedistV6` contains x86 and x64 DLLs. Its main libraries report PE32
 i386 and PE32+ x86-64. The x64 file version is `6.4.0.2` and the installer SHA-256
@@ -501,7 +508,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | Blocked | M19/3 | Ubuntu 24.04 and 26.04 release packages and the clean Ubuntu hosted job passed desktop, media and virtual display recovery checks. Return on a physical Linux desktop with an external monitor to verify reconnect and cadence for X11 and Wayland. |
 | Blocked | M19/4 | The installed Debian 13 ARM64 package passed the native desktop, media and virtual output suites. Return on a Pi with the current 64-bit Raspberry Pi OS and HDMI to verify the on-device build, desktop, media and real Screen output using the Pi GPU. |
 | Blocked | M19/5 | The ARMv7 package built and passed clean install and headless authoring locally and on the hosted runner. Under QEMU the hosted WebKit view stalled and local Solid Color preview aborted. Return on 32-bit Raspberry Pi OS with VideoCore and HDMI to test those paths and establish whether the failures reproduce outside emulation. |
-| Active | M19/6 | Native SDK, installer, headless authoring and WebView2 startup passed. Verify owned Screen pixels and H.264 output, then interactive preview, recovery and SDK integrations. |
+| Active | M19/6 | Native SDK, installer, headless authoring and WebView2 startup passed. Verify H.264 and Spout with the native receiver. Physical Screen pixels and recovery require an unoccluded ARM64 desktop. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
 | Blocked | M13/2 | [Complete available app catalog](evidence/mapgyver-m13-app-catalog-2026-11-07.json) passes70/68 native layouts; earlier live/source/Intel device/D3D9 proof retained. Return on exposed NVIDIA D3D9 source, supported same-LUID NVIDIA loss/revised identity contract, actual backend/new path for named rejected allocations, authoritative metadata/revised contract for unadvertised interpretation. Every exact prerequisite/action remains in the receipt; no full gate credit or unchanged rerun. |
 | Accepted | M13/3 | [Complete Matrix acceptance](evidence/mapgyver-m13-matrix-acceptance-2026-11-07.json): canonical inline controls/top-left labels/whole headers, root/nested/reparent/history/reload, front-first rendering and SVG hit order,72 threshold/font-scale cases, actual minimum dock resize, complete both-GPU native grid/Group/offscreen/sparse lifetime flows and22 independent output images pass. No timing or generic GPU-owner retirement claim. |
