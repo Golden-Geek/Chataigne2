@@ -296,15 +296,13 @@ check native WebKit, Solid Color, H.264 playback and HDMI. Retain the hosted Web
 failure and emulated preview abort as separate software regressions until reproduced
 and resolved or isolated to emulation.
 
-**Active M19/6 Windows ARM64 installer batch (22 November, 18:10 CET cutoff).** The MapGyver
-packager produces an NSIS installer using the matching FFmpeg SDK and Spout's ARM64 SDK
-sources. The build is proven when a native Windows ARM64 runner compiles the app and
-installs it silently, confirms its executable and five DLLs are ARM64, checks the DLLs
-against the built SDK, serves the embedded workbench in headless mode, and uninstalls.
-The first app build will resolve whether the pinned Spout ARM headers and existing desktop
-dependencies compile together with MSVC. The ARM64 SDK stage and Tauri resource override
-passed locally. Windows ARM64 desktop authoring, media, output and recovery, and Spout and
-NDI SDK qualification remain open.
+**Active M19/6 Windows ARM64 installed workbench batch (22 November, 19:13 CET cutoff).**
+MapGyver's installed-app suite owns the proof of workbench authoring and video output.
+Exercise installed-file Save/New/Load and history, actual WebView2 editor actions,
+and codec playback and composited output pixels on native Windows ARM64. The native
+runner will determine whether the hosted desktop provides a D3D11 display target for
+the existing playback fixture. Physical display recovery, Spout transfer and native
+NDI remain open.
 The [native Windows ARM64 SDK job](https://github.com/Golden-Geek/Chataigne2/actions/runs/45044365771/job/137276328490)
 passed MSVC linking and dynamic loading of all five DLLs, version and build identity,
 decoder discovery and H.264/D3D11VA/DXVA2 entry points.
@@ -313,9 +311,11 @@ reached FFmpeg bindings and failed with a host build-script stack overflow.
 Cargo's explicit ARM64 target excludes host build scripts from `RUSTFLAGS`.
 The wrapper now applies the stack reserve through MSVC's `_LINK_` for both host
 and target. A local Rust host executable linked with `_LINK_` recorded a 16 MiB
-reserve in its PE header. The [native retry](https://github.com/Golden-Geek/Chataigne2/actions/runs/45046930169/job/137284381321)
-passed the SDK prerequisite and is building the release app. Inspect the app job
-before running installed desktop or GPU checks. Installer startup remains open.
+reserve in its PE header. The [native Windows ARM64 release job](https://github.com/Golden-Geek/Chataigne2/actions/runs/45046930169/job/137284381321)
+built MapGyver and Spout with MSVC and generated the NSIS installer. Silent install,
+ARM64 PE and five FFmpeg SDK hash checks, headless startup with embedded workbench,
+clean shutdown and silent uninstall all passed. Installer SHA-256
+`31e3b9cddb7b4f3f5cb334780c634e705fe4ecf6df3353f1c4f9ab4dc9aced13`.
 Local SDK ZIP SHA-256 `77733807f203f72fc96e607b3babfe7d07cec7e2e747829867fe35cf4cd56e6d`.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
@@ -479,7 +479,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | Blocked | M19/3 | Ubuntu 24.04 and 26.04 release packages and the clean Ubuntu hosted job passed desktop, media and virtual display recovery checks. Return on a physical Linux desktop with an external monitor to verify reconnect and cadence for X11 and Wayland. |
 | Blocked | M19/4 | The installed Debian 13 ARM64 package passed the native desktop, media and virtual output suites. Return on a Pi with the current 64-bit Raspberry Pi OS and HDMI to verify the on-device build, desktop, media and real Screen output using the Pi GPU. |
 | Blocked | M19/5 | The ARMv7 package built and passed clean install and headless authoring locally and on the hosted runner. Under QEMU the hosted WebKit view stalled and local Solid Color preview aborted. Return on 32-bit Raspberry Pi OS with VideoCore and HDMI to test those paths and establish whether the failures reproduce outside emulation. |
-| Active | M19/6 | The native FFmpeg SDK passed. Build, install and start the ARM64 app in CI, then verify desktop media/output, recovery and SDK integrations. |
+| Active | M19/6 | Native SDK, installer and headless startup passed. Verify installed workbench authoring and media/output, then recovery and SDK integrations. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
 | Blocked | M13/2 | [Complete available app catalog](evidence/mapgyver-m13-app-catalog-2026-11-07.json) passes70/68 native layouts; earlier live/source/Intel device/D3D9 proof retained. Return on exposed NVIDIA D3D9 source, supported same-LUID NVIDIA loss/revised identity contract, actual backend/new path for named rejected allocations, authoritative metadata/revised contract for unadvertised interpretation. Every exact prerequisite/action remains in the receipt; no full gate credit or unchanged rerun. |
 | Accepted | M13/3 | [Complete Matrix acceptance](evidence/mapgyver-m13-matrix-acceptance-2026-11-07.json): canonical inline controls/top-left labels/whole headers, root/nested/reparent/history/reload, front-first rendering and SVG hit order,72 threshold/font-scale cases, actual minimum dock resize, complete both-GPU native grid/Group/offscreen/sparse lifetime flows and22 independent output images pass. No timing or generic GPU-owner retirement claim. |
