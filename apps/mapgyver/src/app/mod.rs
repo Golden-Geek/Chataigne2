@@ -144,26 +144,15 @@ impl ProjectLifecycle for AppNode {
 }
 
 pub fn run() -> std::io::Result<()> {
-    #[cfg(any(
-        all(windows, feature = "native-video"),
-        target_os = "macos",
-        feature = "wgpu-preview"
-    ))]
+    #[cfg(browser_preview)]
     let browser_previews = golden_core::transport::BrowserPreviews::default();
-    #[cfg(all(
-        not(all(windows, feature = "native-video")),
-        any(target_os = "macos", feature = "wgpu-preview")
-    ))]
+    #[cfg(portable_preview)]
     let headless_previews = browser_previews.clone();
     let config = DesktopHostConfig {
         ui_server: UiServerConfig {
             bind_addr: "127.0.0.1:7011".to_owned(),
             frontend_assets: APP_UI_ASSETS,
-            #[cfg(any(
-                all(windows, feature = "native-video"),
-                target_os = "macos",
-                feature = "wgpu-preview"
-            ))]
+            #[cfg(browser_preview)]
             browser_previews: Some(browser_previews.clone()),
             ..UiServerConfig::default()
         },
@@ -178,37 +167,28 @@ pub fn run() -> std::io::Result<()> {
         .with_headless(move |runtime| {
             #[cfg(feature = "video-files")]
             let videos = crate::media::video::metadata::Service::start(runtime.clone())?;
-            #[cfg(all(
-                not(all(windows, feature = "native-video")),
-                any(target_os = "macos", feature = "wgpu-preview")
-            ))]
+            #[cfg(portable_preview)]
             let previews = crate::preview::browser::start(runtime.clone(), headless_previews)?;
             let applications = crate::applications::headless::HeadlessApplications::start(runtime)?;
             #[cfg(feature = "video-files")]
             let services = (applications, videos);
             #[cfg(not(feature = "video-files"))]
             let services = applications;
-            #[cfg(all(
-                not(all(windows, feature = "native-video")),
-                any(target_os = "macos", feature = "wgpu-preview")
-            ))]
+            #[cfg(portable_preview)]
             let services = (services, previews);
             Ok(services)
         });
-    #[cfg(all(windows, feature = "native-video"))]
+    #[cfg(native_d3d11)]
     let services = services.with_background(move |runtime| {
         let audio = crate::audio::start(runtime.clone())?;
         let previews = crate::preview::browser::start(runtime, browser_previews)?;
         Ok((audio, previews))
     });
-    #[cfg(not(all(windows, feature = "native-video")))]
+    #[cfg(not(native_d3d11))]
     let services = services.with_background(crate::audio::start);
-    #[cfg(all(windows, feature = "native-video"))]
+    #[cfg(native_d3d11)]
     let services = services.with_native_presentation(crate::preview::host::presentation);
-    #[cfg(all(
-        not(all(windows, feature = "native-video")),
-        any(target_os = "macos", feature = "wgpu-preview")
-    ))]
+    #[cfg(portable_preview)]
     let services = services
         .with_native_presentation(move |runtime| Ok(crate::preview::browser::presentation(runtime, browser_previews)));
     golden_core::app::run_default_with_services::<AppNode, tauri::Wry>(tauri::generate_context!(), config, services)

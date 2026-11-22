@@ -7,9 +7,15 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { openInitialScreenDesktop } from '../headless/initial-screen-host.mjs';
+import { linuxOutputCenter, linuxOutputWindows } from '../native_output/linux_x11_windows.mjs';
 
 const onMac = process.platform === 'darwin';
-assert(onMac || process.platform === 'win32', 'Select a desktop with an owned-window observer');
+const onLinux = process.platform === 'linux';
+assert(
+	onMac || onLinux || process.platform === 'win32',
+	'Select a desktop with an owned-window observer'
+);
+if (onLinux) assert(process.env.DISPLAY, 'The native Linux Rectangle fixture requires X11');
 assert(process.env.MAPGYVER_TEST_BINARY, 'Select the portable GPU MapGyver executable');
 const program = promisify(execFile);
 const observer = (name) => fileURLToPath(new URL(`../native_output/${name}`, import.meta.url));
@@ -59,17 +65,25 @@ async function edit(namespace, payload) {
 async function waitForWindows(accept) {
 	const deadline = performance.now() + 12000;
 	for (;;) {
-		const pid = String(native.app.pid);
-		const { stdout } = await program(
-			onMac ? macObserver : 'python',
-			onMac ? [pid] : [observer('window_state.py'), pid, '--title', 'MapGyver Screen Output'],
-			{ windowsHide: true, timeout: 4000 }
-		);
-		const windows = JSON.parse(stdout);
+		const windows = await observedWindows();
 		if (await accept(windows)) return windows;
-		assert(performance.now() < deadline, `Native Screen did not update: ${stdout}`);
+		assert(
+			performance.now() < deadline,
+			`Native Screen did not update: ${JSON.stringify(windows)}`
+		);
 		await delay(120);
 	}
+}
+
+async function observedWindows() {
+	if (onLinux) return linuxOutputWindows(native.app.pid);
+	const pid = String(native.app.pid);
+	const { stdout } = await program(
+		onMac ? macObserver : 'python',
+		onMac ? [pid] : [observer('window_state.py'), pid, '--title', 'MapGyver Screen Output'],
+		{ windowsHide: true, timeout: 4000 }
+	);
+	return JSON.parse(stdout);
 }
 
 async function waitForOutput(accept) {
@@ -176,20 +190,24 @@ try {
 			definition: { enabled, target: { kind: 'Rectangle', bounds } }
 		});
 	await output(true);
-	const rectangle = (rgb) =>
-		onMac
-			? waitForMacOutput(
-					(window) => window && Math.abs(window.width / window.height - 4 / 3) < 0.01,
-					rgb
-				)
-			: waitForOutput(
-					(window) => window?.visible && window.center_rgb.every((pixel) => matchesRgb(pixel, rgb))
-				);
+	const rectangle = (rgb) => {
+		if (onMac) {
+			return waitForMacOutput(
+				(window) => window && Math.abs(window.width / window.height - 4 / 3) < 0.01,
+				rgb
+			);
+		}
+		return waitForOutput(async (window) => {
+			if (!window?.visible) return false;
+			const pixels = onLinux ? await linuxOutputCenter(window.id) : window.center_rgb;
+			return pixels.length > 0 && pixels.every((pixel) => matchesRgb(pixel, rgb));
+		});
+	};
 	const red = await rectangle([255, 0, 0]);
 	if (!onMac) assert.deepEqual(red.bounds, bounds);
 	await color([0, 1, 0, 1]);
 	const green = await rectangle([0, 255, 0]);
-	assert.equal(onMac ? green.id : green.hwnd, onMac ? red.id : red.hwnd);
+	assert.equal(green.id ?? green.hwnd, red.id ?? red.hwnd);
 	await output(false);
 	await waitForOutput((window) => window === undefined);
 	await output(true);

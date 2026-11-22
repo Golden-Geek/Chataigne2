@@ -1,10 +1,6 @@
 //! App-owned source resolution and shared preview preparation; Golden owns presentation.
 
-#[cfg(any(
-    all(windows, feature = "native-video"),
-    target_os = "macos",
-    feature = "wgpu-preview"
-))]
+#[cfg(browser_preview)]
 pub(crate) mod browser;
 pub mod capture;
 pub mod config;

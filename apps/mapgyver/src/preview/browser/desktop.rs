@@ -31,10 +31,15 @@ pub(crate) fn presentation(
     previews: BrowserPreviews,
 ) -> NativePresentation<tauri::Wry> {
     NativePresentation::for_output_windows(move |window| {
+        #[cfg(target_os = "linux")]
+        let window_targets = golden_core::app::supports_desktop_rectangle_outputs(window);
+        #[cfg(not(target_os = "linux"))]
+        let window_targets = true;
         let app = window.app_handle().clone();
         Ok(NativePresentationTask::new(move |stop| {
-            let desktop = (!cfg!(debug_assertions)
-                || std::env::var("MAPGYVER_AUTOMATION_DISABLE_DISPLAY_OUTPUTS").as_deref() != Ok("1"))
+            let desktop = (window_targets
+                && (!cfg!(debug_assertions)
+                    || std::env::var("MAPGYVER_AUTOMATION_DISABLE_DISPLAY_OUTPUTS").as_deref() != Ok("1")))
             .then(|| Desktop::new(app));
             let pool = RetirementPool::new(NonZeroUsize::MIN);
             let worker = super::start_worker(runtime, previews, &pool, desktop)?;
@@ -213,6 +218,12 @@ impl Desktop {
         let windows = self.windows.clone();
         let setup = window.clone();
         if let Err(error) = window.run_on_main_thread(move || {
+            #[cfg(target_os = "linux")]
+            if let Err(error) = golden_core::app::realize_linux_output_window(&setup) {
+                let _ = setup.destroy();
+                let _ = send.send(Err(error.to_string()));
+                return;
+            }
             let close = setup.clone();
             let result = windows.attach(
                 id,

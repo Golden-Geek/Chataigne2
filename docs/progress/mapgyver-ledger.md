@@ -2,7 +2,7 @@
 
 **Updated: 2026-11-22 · Overall: `█████████░` 86% · 9/20 phases complete**
 
-**Accepted: 130/151 gates. Phase completion: 9/20 (45%). M19/1 is Accepted. M19/2 is Active for GPU-backed macOS media and Screen output.**
+**Accepted: 130/151 gates. Phase completion: 9/20 (45%). M19/1 is Accepted. M19/2 needs an external Mac display. M19/3 Linux desktop and Media Preview is Active.**
 
 Internal execution/evidence ledger. The user-facing checklist is `mapgyver-status.md`.
 
@@ -53,13 +53,32 @@ seek and relink, Screen Warping, and native Rectangle and Fullscreen window life
 The Windows compile, workbench production build, both Rust formatters, shell syntax, Prettier
 and Actions lint passed. [Apple Silicon and Intel CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44951750513)
 
-**M19/2 native Mac pixels (22 November, 13:29 CET cutoff).** Extend the Screen output fixture
-to measure actual pixels from its own visible Rectangle and Fullscreen windows. The Mac
-native fixture owns WindowServer capture. CI must see authored colors change and return
-after reopening on both architectures. The local DX12 Rectangle fixture, JavaScript
-syntax, Prettier and Actions lint passed. Physical display cadence and hotplug still
-require a Mac with a connected monitor. Confirm the window stops while the display is
-absent and returns to the same saved UUID on reconnect.
+**M19/2 native Mac pixels.** The fixture captures the owned WindowServer output and samples its
+center in sRGB. Apple Silicon measured red and green Rectangle pixels and green and blue
+Fullscreen pixels at the selected display bounds. It verified live edits, retirement and
+reopening. The Intel job is still building. Local DX12 Rectangle, JavaScript syntax, Prettier
+and Actions lint passed. Physical display cadence and hotplug require a Mac with a connected
+monitor. Verify that output stops when the display is absent and returns to the same saved UUID.
+[macOS pixel checks](https://github.com/Golden-Geek/Chataigne2/actions/runs/45019118144)
+
+**M19/3 Linux desktop batch (22 November, 13:41 CET cutoff).** Enable the shared portable GPU
+Media Preview in the default Linux MapGyver desktop build. MapGyver owns feature selection
+and CI. Golden owns the desktop runtime and wgpu renderer. Validate the default binary in
+an X11 desktop session with strict workbench readiness, project history and Save/New/Load,
+plus local Picture and Video pixels through the browser preview. Linux packaging, native
+Screen output and display recovery remain in this gate.
+The first Ubuntu 26.04 compile exposed a direct reference to FFmpeg 9's animated WebP enum.
+Golden Video now reads the descriptor captured at stream open. The default Ubuntu 26.04 build
+passed. The strict workbench probe connected over WebSocket and exited normally on both Xvfb
+X11 and WSLg Wayland. Headless authoring and Save/New/Load, Solid Color and Picture preview,
+H.264 playback, seek, relink and Screen Warping passed with the portable renderer. The Linux
+desktop host supports absolute placement on X11. Golden realizes the hidden GTK window on
+the UI thread before GPU surface attachment. The Xvfb fixture captured red and green at the
+authored 160,120 origin and 320×240 size. It verified same-window edits, retirement and
+reopening. All 23 targeted Golden Video decoder tests passed with FFmpeg 8. The shared DX12
+fixture, default Windows compile with FFmpeg 9, Rust formatting, Prettier and Actions lint
+passed. Ubuntu 24.04 CI, Linux installation, Fullscreen display routing, Wayland output
+and physical reconnect remain open.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -74,7 +93,7 @@ when Windows qualification resumes and run its pixel and allocation checks befor
 **Overlay prerequisite cleared:** On2026-11-16 the user checked native Settings and confirmed Off, then instructed standing Off state for now (recorded16:23UTC). Use it until the user reports or authoritative evidence shows a change; do not ask before each run. All original GPU/correctness/resource budgets remain. Desktop-helper repairs are not required for this finite SDK pixel fixture.
 **Retained blockers:** M10/4 retains unfinished age/full-GPU-path, shared-consumer, profile/repeated/performance-tier/resource/recovery qualification. [NVIDIA H.264](evidence/mapgyver-m10-h264-nvidia-2026-11-14.json) meets original cadence/CPU envelopes for one cohort and has complete connected direct-File pixel/PTS evidence. Its4K30 age upper59.3588/58.7843ms does not establish50ms; shared Reference is held-only and whole GPU path remains unproved. Earlier [two4K60 HAP](evidence/mapgyver-m10-two-4k60-hap-2026-11-13.json), [ProRes](evidence/mapgyver-m10-prores-alpha-sustained-2026-11-13.json), [resident Intel](evidence/mapgyver-m10-resident-sustained-2026-11-13.json) and [HAP variants](evidence/mapgyver-m10-hap-variants-sustained-2026-11-13.json) retain exact failures/scopes. The2026-11-16 native Settings confirmation and standing Off instruction govern subsequent cohorts. The M14 raster run establishes no M10 timing/performance claim. M08/4 WOW64 and M03/9 timing/growth debt remain; user-accepted smoothness/AA stay accepted.
 **Current native limit:** [Corrected M03 lifecycle](evidence/mapgyver-m03-late-drain-2026-11-05.json) confirms 53.602 MiB peak growth against 32 MiB across all 100 cycles, with matching environment identities and fresh paired overlay-Off observations. Handles/live allocations return and shutdown takes 116 ms; peak growth still fails. The untracked private-memory cause is unproven; earlier failures remain preserved.
-**Execution:** M19/1 Apple Silicon workbench is Accepted. M19/2 macOS video is Active. M14/8 returns when Windows qualification resumes. M17/1–2 require independent LAN and clean Windows qualification. M14/6 needs a physical session using both externals and native input. M14/1 is Blocked on physical pointer verification. M15/5 shared editor feedback and M14/2 smooth navigation are Accepted. M10/9 needs an elevated Windows session for genuine device loss during overlap. M18/1 needs direct cross-window Explorer input. M18/4 needs a valid key and live ShaderToy reachability. M10/3 extended formats stay user-deferred. M16/1 retains qualification. M10/8 and M10/10 are Accepted. M14/9–10 are Accepted. M09 waits on the retained gates.
+**Execution:** M19/1 Apple Silicon workbench is Accepted. M19/2 awaits a physical Mac with an external display. M19/3 Linux desktop and media preview is Active. M14/8 returns when Windows qualification resumes. M17/1–2 require independent LAN and clean Windows qualification. M14/6 needs a physical session using both externals and native input. M14/1 is Blocked on physical pointer verification. M15/5 shared editor feedback and M14/2 smooth navigation are Accepted. M10/9 needs an elevated Windows session for genuine device loss during overlap. M18/1 needs direct cross-window Explorer input. M18/4 needs a valid key and live ShaderToy reachability. M10/3 extended formats stay user-deferred. M16/1 retains qualification. M10/8 and M10/10 are Accepted. M14/9–10 are Accepted. M09 waits on the retained gates.
 
 **Recovery checkpoint:** [Earlier failures and parked candidate](evidence/mapgyver-request-lifetime-deferred-2026-11-17.json) remain historical. The integrated fix was reconciled with the current transport and adds runtime project-generation admission. [Verified scope](mapgyver-m14-editor-recovery.md)
 
@@ -218,8 +237,9 @@ failed readback stress returns with M10/4, without changed budgets.
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
-| Active | M19/2 | Relocated Apple Silicon and Intel bundles passed signature and linkage audit, local media, Screen Warping, desktop startup and native window lifecycle. Verify native pixels, output cadence and reconnect in a physical Mac display session. |
-| Pending | M19/3–5 | After macOS, qualify desktop Linux, then Raspberry Pi on aarch64 and armhf with native build, launch and output. |
+| Blocked | M19/2 | Both Mac bundles passed native window lifecycle. Apple Silicon passed captured window pixels and the Intel pixel job is running. Return on a physical Mac with a connected external display to verify scanout cadence and unplug/reconnect against the saved UUID. |
+| Active | M19/3 | Default Ubuntu 26.04 build passed X11 and Wayland startup, project workflows, Media Preview, Screen Warping and X11 Rectangle pixels and bounds. Qualify Ubuntu 24.04 CI, Linux install, Fullscreen, Wayland output and display recovery. |
+| Pending | M19/4–5 | After desktop Linux, qualify Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
 | Blocked | M13/2 | [Complete available app catalog](evidence/mapgyver-m13-app-catalog-2026-11-07.json) passes70/68 native layouts; earlier live/source/Intel device/D3D9 proof retained. Return on exposed NVIDIA D3D9 source, supported same-LUID NVIDIA loss/revised identity contract, actual backend/new path for named rejected allocations, authoritative metadata/revised contract for unadvertised interpretation. Every exact prerequisite/action remains in the receipt; no full gate credit or unchanged rerun. |

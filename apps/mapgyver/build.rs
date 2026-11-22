@@ -3,6 +3,11 @@ use std::path::{Path, PathBuf};
 use golden_codegen_support::ui_bundle::{self, UiBundleConfig};
 
 fn main() -> std::io::Result<()> {
+    cfg_aliases::cfg_aliases! {
+        native_d3d11: { all(windows, feature = "native-video") },
+        portable_preview: { all(not(native_d3d11), any(target_os = "macos", target_os = "linux", feature = "wgpu-preview")) },
+        browser_preview: { any(native_d3d11, portable_preview) },
+    }
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
         println!("cargo:rustc-link-arg-bin=MapGyver=-Wl,-rpath,@executable_path/../Frameworks");
     }

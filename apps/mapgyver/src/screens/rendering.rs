@@ -242,10 +242,7 @@ impl CapturedScreen {
             .iter()
             .any(|surface| surface.enabled && (surface.source.is_some() || surface.calibration != Calibration::Off))
     }
-    #[cfg(all(
-        not(all(windows, feature = "native-video")),
-        any(target_os = "macos", feature = "wgpu-preview")
-    ))]
+    #[cfg(portable_preview)]
     pub(crate) fn supports_portable_preview(&self) -> bool {
         self.anti_aliasing != ScreenAntiAliasing::Smooth4x
             && self

@@ -39,3 +39,5 @@ pub use native_presentation::{
 #[cfg(target_os = "macos")]
 pub use output_window::open_macos_fullscreen_output;
 pub use output_window::{NativeOutputBounds, NativeOutputEvent, NativeOutputWindow, open_desktop_output_window};
+#[cfg(target_os = "linux")]
+pub use output_window::{realize_linux_output_window, supports_desktop_rectangle_outputs};

@@ -25,11 +25,7 @@ pub struct CapturedPreview {
 }
 
 impl CapturedPreview {
-    #[cfg(any(
-        all(windows, feature = "native-video"),
-        target_os = "macos",
-        feature = "wgpu-preview"
-    ))]
+    #[cfg(browser_preview)]
     pub(crate) fn into_preview_scene(self) -> (CapturedChannels, Vec<ScreenRoute>) {
         let mut channels = self.channels;
         let mut guards = channels.guards.to_vec();

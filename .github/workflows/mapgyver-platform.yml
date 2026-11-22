@@ -101,3 +101,68 @@ jobs:
 
       - name: Check native Rectangle and Fullscreen Screen pixels
         run: node apps/mapgyver/tests/browser/portable-rectangle.mjs
+
+  linux-workbench:
+    name: MapGyver desktop and portable GPU preview (Linux x86_64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install pinned Rust toolchain
+        run: sh ./tools/bootstrap/install-rust-toolchain.sh
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: mapgyver-linux-workbench
+          cache-targets: false
+
+      - name: Install the Linux desktop, audio and video dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang libclang-dev pkg-config \
+            libwebkit2gtk-4.1-dev libxdo-dev libayatana-appindicator3-dev librsvg2-dev \
+            libasound2-dev libjack-jackd2-dev libpipewire-0.3-dev libdbus-1-dev libudev-dev \
+            libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev \
+            ffmpeg mesa-vulkan-drivers xvfb xauth x11-utils
+
+      - name: Build default MapGyver with its bundled workbench
+        run: cargo build --locked --package MapGyver --bin MapGyver
+
+      - name: Check authoring, history and Save/New/Load
+        run: node apps/mapgyver/tests/headless/media.mjs
+
+      - name: Verify the native X11 workbench
+        env:
+          GDK_BACKEND: x11
+          WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+        run: |
+          xvfb-run -a pwsh -NoLogo -NoProfile -NonInteractive -Command '
+            . ./tools/product-gate/hooks/smoke-common.ps1
+            $env:XDG_DATA_HOME = Join-Path $env:RUNNER_TEMP "mapgyver-x11-data"
+            $binary = Join-Path (Get-Location) "target/debug/MapGyver"
+            $shutdown = Join-Path $env:RUNNER_TEMP "mapgyver-x11.stop"
+            Invoke-RootCommandSmoke -Id mapgyver-x11 -Command $binary `
+              -CommandArguments @("--no-remote", "--automation-shutdown-file", $shutdown) `
+              -FrontendUri "http://127.0.0.1:7010/" -Ports @(7010) -ShutdownFile $shutdown
+          '
+
+      - name: Check local media and portable GPU Screen Warping
+        env:
+          GC_UI_BROWSER_CHANNEL: chrome
+          MAPGYVER_TEST_BINARY: target/debug/MapGyver
+        run: node apps/mapgyver/tests/browser/portable-preview.mjs
+
+      - name: Check X11 Rectangle Screen pixels and bounds
+        env:
+          GDK_BACKEND: x11
+          WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+          MAPGYVER_TEST_BINARY: target/debug/MapGyver
+        run: xvfb-run -a node apps/mapgyver/tests/browser/portable-rectangle.mjs

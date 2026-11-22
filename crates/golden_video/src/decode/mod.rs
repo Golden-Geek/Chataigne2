@@ -684,9 +684,11 @@ impl Decoder {
                 Ok(()) => {
                     admit_extent(image.width(), image.height(), self.limits.max_pixels)?;
                     let timestamp = image.timestamp().ok_or(DecodeError::MissingTimestamp)?;
-                    match decoder.id() {
-                        ffmpeg::codec::Id::WEBP | ffmpeg::codec::Id::WEBP_ANIM => webp::set_color_metadata(&mut image),
-                        ffmpeg::codec::Id::DXV => {
+                    // The descriptor name is captured at open. Older FFmpeg headers lack
+                    // the separate animated WebP enum member.
+                    match self.info.codec.as_str() {
+                        "webp" | "webp_anim" => webp::set_color_metadata(&mut image),
+                        "dxv" => {
                             use ffmpeg::util::color::{Range, TransferCharacteristic};
                             // Normal Quality stores RGB texture values. High Quality carries
                             // full-range Y, Cg and Co. The demuxer may leave both tags unset.

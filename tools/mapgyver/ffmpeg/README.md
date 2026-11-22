@@ -50,6 +50,12 @@ five playback libraries and packages them in `Contents/Frameworks`, with the sou
 recipe and notice in the bundle. The bundle declares macOS 13 as its minimum and uses ad hoc
 signing by default for local verification. CI relocates and tests the app on macOS 15.
 
+For a Linux development build, use the distro packages for `libavcodec-dev`,
+`libavformat-dev`, `libavutil-dev`, `libswresample-dev` and `libswscale-dev` with
+`pkg-config`, libclang and the Tauri/Golden desktop build dependencies. Then run
+`cargo build --locked --package MapGyver --bin MapGyver`. The default Linux app uses
+Golden's portable wgpu path for Media Preview and Screen Warping.
+
 Without Cargo arguments, the helper prepares inputs and returns only the SDK path in the
 PowerShell success stream; progress goes to the host. With
 `--tauri`, it invokes the repository-local Tauri CLI in the app directory. Run/watch/package npm

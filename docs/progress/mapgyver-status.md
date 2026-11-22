@@ -5,7 +5,7 @@
 - **Latest verified:** 4× AA fits the memory cap. Sustained timing passed at 1080p on NVIDIA. NVIDIA 4K and both Intel sizes still exceed the GPU budget. [Checks](mapgyver-m14-antialiasing.md#sustained-shared-texture-timing--2026-11-20)
 - **Plan execution:** macOS first, then desktop Linux and Raspberry Pi (armhf and aarch64). Windows ARM64 has a separate gate.
 - **Manual action needed from you now: none.**
-- **Next:** Verify actual Rectangle and Fullscreen window colors in macOS CI (M19/2). Physical display recovery and cadence need a connected monitor. [Bundle checks](https://github.com/Golden-Geek/Chataigne2/actions/runs/44951750513)
+- **Next:** Qualify the default Linux workbench, media and X11 Rectangle path in Ubuntu 24.04 CI (M19/3). Local Ubuntu 26.04 passed X11 and Wayland startup, media preview and X11 output pixels. Mac physical hotplug and cadence await an external display. [Mac pixel checks](https://github.com/Golden-Geek/Chataigne2/actions/runs/45019118144)
 
 ## Done — code and normal-use checks passed
 

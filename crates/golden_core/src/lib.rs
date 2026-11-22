@@ -120,6 +120,8 @@ pub mod app {
     };
     #[cfg(target_os = "macos")]
     pub use golden_host_desktop::{macos_desktop_displays, open_macos_fullscreen_output};
+    #[cfg(target_os = "linux")]
+    pub use golden_host_desktop::{realize_linux_output_window, supports_desktop_rectangle_outputs};
     pub use golden_transport_server::{
         UiAsset, UiPreferencesConfig, UiServerConfig, run_ui_server, run_with_ui_server_config,
     };

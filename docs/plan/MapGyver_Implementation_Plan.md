@@ -9,7 +9,9 @@ See the [architecture](../architecture/mapgyver.md) and [current status](../prog
 
 Work on macOS first, then desktop Linux, then Raspberry Pi (armhf and aarch64). Track Windows
 ARM64 separately. The existing Windows x64 qualification queue resumes at its recorded return
-triggers. The desktop workbench and project format stay shared across all hosts.
+triggers. The desktop workbench and project format stay shared across all hosts. When the
+current platform's remaining qualification requires unavailable hardware, record the missing
+checks and return trigger before starting the next platform's dependency-ready work.
 
 | Gate | Acceptance |
 | --- | --- |

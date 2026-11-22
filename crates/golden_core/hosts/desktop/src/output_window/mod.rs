@@ -73,6 +73,27 @@ pub fn open_desktop_output_window<R: Runtime>(
     create_output_window(app, label, title, |window| place_desktop_output(window, bounds))
 }
 
+/// Check a realized Linux window's backend before routing absolute Rectangle outputs.
+#[cfg(target_os = "linux")]
+pub fn supports_desktop_rectangle_outputs(window: &impl raw_window_handle::HasWindowHandle) -> bool {
+    use raw_window_handle::RawWindowHandle;
+
+    matches!(
+        window.window_handle().map(|handle| handle.as_raw()),
+        Ok(RawWindowHandle::Xlib(_) | RawWindowHandle::Xcb(_))
+    )
+}
+
+/// Create the hidden GTK window's native handle on the UI thread for surface attachment.
+#[cfg(target_os = "linux")]
+pub fn realize_linux_output_window<R: Runtime>(window: &Window<R>) -> io::Result<()> {
+    use gtk::prelude::WidgetExt;
+
+    let widget = window.gtk_window().map_err(io::Error::other)?;
+    widget.realize();
+    Ok(())
+}
+
 /// Open a fullscreen output on the requested macOS display UUID and verify its current bounds.
 #[cfg(target_os = "macos")]
 pub fn open_macos_fullscreen_output<R: Runtime>(

@@ -13,6 +13,10 @@ process's output window and samples its center in sRGB. It verifies authored col
 and output retirement and reopening for Rectangle and Fullscreen. Physical monitor hotplug
 and scanout cadence require a connected display session.
 
+The same portable check covers Rectangle on Linux X11 with `x11-utils` and FFmpeg's
+`x11grab` input. Run it with `xvfb-run -a` and `GDK_BACKEND=x11` in CI. The observer
+checks the owned window's exact bounds, center pixels, live edit and retirement.
+
 For current unattended concurrent-output acceptance (M05/4):
 
 ```powershell

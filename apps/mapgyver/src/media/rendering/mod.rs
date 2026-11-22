@@ -42,10 +42,7 @@ pub struct PreparedChannel {
     pub source: Option<TextureId>,
 }
 
-#[cfg(all(
-    not(all(windows, feature = "native-video")),
-    any(target_os = "macos", feature = "wgpu-preview")
-))]
+#[cfg(portable_preview)]
 pub(crate) fn portable_channels(channels: &CapturedChannels) -> std::collections::HashSet<ChannelReference> {
     channels
         .channels
@@ -65,10 +62,7 @@ pub(crate) fn portable_channels(channels: &CapturedChannels) -> std::collections
         .collect()
 }
 
-#[cfg(all(
-    not(all(windows, feature = "native-video")),
-    any(target_os = "macos", feature = "wgpu-preview")
-))]
+#[cfg(portable_preview)]
 pub(crate) fn portable_screen(route: &ScreenRoute, channels: &std::collections::HashSet<ChannelReference>) -> bool {
     route.screen.supports_portable_preview()
         && route
@@ -343,11 +337,7 @@ impl ChannelRenderer {
         self.publish_scene(capture, routes, screens, preview.map(PreviewOutputs::from))
     }
 
-    #[cfg(any(
-        all(windows, feature = "native-video"),
-        target_os = "macos",
-        feature = "wgpu-preview"
-    ))]
+    #[cfg(browser_preview)]
     pub(crate) fn publish_preview_frames(
         &mut self,
         capture: crate::preview::capture::CapturedPreview,

@@ -59,6 +59,7 @@ name = "MapGyver"
 version = "1.0.0-beta.1"
 dependencies = [
  "base64 0.22.1",
+ "cfg_aliases",
  "golden_assets",
  "golden_audio",
  "golden_codegen_support",
@@ -3162,10 +3163,12 @@ dependencies = [
  "dirs",
  "golden_engine",
  "golden_transport_server",
+ "gtk",
  "image",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",
+ "raw-window-handle",
  "rfd",
  "serde",
  "serde_json",
