@@ -16,6 +16,9 @@ Mac and desktop Linux continue their physical qualification when external displa
 Begin Raspberry Pi aarch64 with a native ARM64 package and software checks on the matching Debian
 userland. The hosted desktop Linux rerun can finish independently. Raspberry Pi OS and HDMI
 qualification remain required on Pi hardware.
+The armhf package installs and supports headless authoring under emulation. Return to its
+desktop and media checks on a Pi running 32-bit Raspberry Pi OS. While that hardware is
+unavailable, begin the Windows ARM64 package through its native FFmpeg SDK.
 
 | Gate | Acceptance |
 | --- | --- |

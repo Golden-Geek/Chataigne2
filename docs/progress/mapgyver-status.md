@@ -5,7 +5,7 @@
 - **Latest verified:** 4× AA fits the memory cap. Sustained timing passed at 1080p on NVIDIA. NVIDIA 4K and both Intel sizes still exceed the GPU budget. [Checks](mapgyver-m14-antialiasing.md#sustained-shared-texture-timing--2026-11-20)
 - **Plan execution:** macOS first, then desktop Linux and Raspberry Pi (armhf and aarch64). Windows ARM64 has a separate gate.
 - **Manual action needed from you now: none.**
-- **Next:** Verify WebKit workbench and media preview on 32-bit Raspberry Pi OS (M19/5). The armhf package built, installed and passed project authoring under QEMU. Hosted WebKit stalled and a separate local Solid Color preview aborted under emulation. Physical Mac, Linux and Raspberry Pi display checks remain open. [Cross-platform evidence](mapgyver-ledger.md)
+- **Next:** Run the native Windows ARM64 FFmpeg SDK checks and wire up the installer (M19/6). The SDK built and linked for ARM64. Return to armhf workbench and media qualification on 32-bit Raspberry Pi OS with VideoCore and HDMI. [Cross-platform evidence](mapgyver-ledger.md)
 
 ## Done — code and normal-use checks passed
 

@@ -1,0 +1,70 @@
+name: MapGyver Windows ARM64
+
+on:
+  push:
+    branches: [mapgyver, main]
+    paths:
+      - '.github/workflows/mapgyver-windows-arm64.yml'
+      - 'tools/mapgyver/ffmpeg/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-ffmpeg:
+    name: Cross-build the pinned Windows ARM64 FFmpeg SDK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build FFmpeg DLLs and MSVC import libraries
+        run: bash tools/mapgyver/ffmpeg/build-windows-arm64.sh "$RUNNER_TEMP/mapgyver-ffmpeg-arm64"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mapgyver-ffmpeg-windows-arm64
+          path: ${{ runner.temp }}/mapgyver-ffmpeg-arm64
+          if-no-files-found: error
+
+  verify-ffmpeg:
+    name: Verify FFmpeg with native Windows ARM64
+    needs: build-ffmpeg
+    runs-on: windows-11-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: mapgyver-ffmpeg-windows-arm64
+          path: ${{ runner.temp }}/mapgyver-ffmpeg-arm64
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          architecture: arm64
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: arm64
+
+      - name: Link against the import libraries and run on ARM64
+        shell: pwsh
+        run: |
+          $sdk = Join-Path $env:RUNNER_TEMP 'mapgyver-ffmpeg-arm64'
+          $probe = Join-Path $env:RUNNER_TEMP 'mapgyver-ffmpeg-import-test.exe'
+          $object = Join-Path $env:RUNNER_TEMP 'mapgyver-ffmpeg-import-test.obj'
+          cl.exe /nologo "/I$sdk/include" "/Fo$object" "/Fe$probe" `
+            tools/mapgyver/ffmpeg/tests/windows-arm64-imports.c /link "/LIBPATH:$sdk/lib" `
+            avcodec.lib avformat.lib avutil.lib swresample.lib swscale.lib
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $env:PATH = "$sdk/bin;$env:PATH"
+          & $probe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python tools/mapgyver/ffmpeg/tests/source_sdk.py $sdk --pin "$sdk/source-build.json"

@@ -2,7 +2,7 @@
 
 **Updated: 2026-11-22 · Overall: `█████████░` 86% · 9/20 phases complete**
 
-**Accepted: 130/151 gates. Phase completion: 9/20 (45%). M19/1 is Accepted. M19/2–4 need hardware checks. M19/5 Raspberry Pi armhf is Active.**
+**Accepted: 130/151 gates. Phase completion: 9/20 (45%). M19/1 is Accepted. M19/2–5 need hardware evidence. M19/6 Windows ARM64 is Active.**
 
 Internal execution/evidence ledger. The user-facing checklist is `mapgyver-status.md`.
 
@@ -264,7 +264,7 @@ Return on a Pi with current 64-bit Raspberry Pi OS and an HDMI display to verify
 on-device build, installation, native workbench, media playback, and Screen output
 and reconnect using the Pi GPU. The next software package is armhf.
 
-**Active M19/5 armhf package batch (22 November, 17:25 CET cutoff).** MapGyver's
+**M19/5 armhf package batch (22 November, 17:25 CET cutoff).** MapGyver's
 Linux packaging owns an ARMv7 hard-float Debian 13 package using the workbench built
 on the supported Node host. The first check is whether Debian can install the host tools
 and armhf libraries in one build image. If it can, build and inspect the normal desktop
@@ -295,6 +295,20 @@ Return to the runtime with a 32-bit Raspberry Pi OS desktop and VideoCore output
 check native WebKit, Solid Color, H.264 playback and HDMI. Retain the hosted WebKit
 failure and emulated preview abort as separate software regressions until reproduced
 and resolved or isolated to emulation.
+
+**Active M19/6 Windows ARM64 SDK batch (22 November, 18:10 CET cutoff).** The MapGyver
+packager owns a source-built ARM64 FFmpeg SDK from the existing pinned release. Produce
+all five shared playback DLLs and matching MSVC import libraries and verify PE/COFF
+architecture, imports, codec configuration and provenance. The first build will test
+whether pinned LLVM-MinGW can produce this SDK with the Windows hardware-decode options.
+The native installer, ARM64 workbench/media/output, Spout and NDI qualification remain open.
+The pinned SDK built locally. All five DLLs are ARM64 PE, and a public-header C probe
+linked through the produced import libraries into an ARM64 executable importing all
+five DLLs. A native Windows ARM64 job will verify MSVC linking, versioned exports,
+the pinned build identity, and H.264/D3D11VA/DXVA2 entry points. The in-tree Spout
+patch currently rejects ARM64 in its Rust build script. Its vendored C++ already
+contains the upstream ARM includes and needs the pinned SSE-to-NEON header wired in.
+Local SDK ZIP SHA-256 `77733807f203f72fc96e607b3babfe7d07cec7e2e747829867fe35cf4cd56e6d`.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -309,7 +323,7 @@ when Windows qualification resumes and run its pixel and allocation checks befor
 **Overlay prerequisite cleared:** On2026-11-16 the user checked native Settings and confirmed Off, then instructed standing Off state for now (recorded16:23UTC). Use it until the user reports or authoritative evidence shows a change; do not ask before each run. All original GPU/correctness/resource budgets remain. Desktop-helper repairs are not required for this finite SDK pixel fixture.
 **Retained blockers:** M10/4 retains unfinished age/full-GPU-path, shared-consumer, profile/repeated/performance-tier/resource/recovery qualification. [NVIDIA H.264](evidence/mapgyver-m10-h264-nvidia-2026-11-14.json) meets original cadence/CPU envelopes for one cohort and has complete connected direct-File pixel/PTS evidence. Its4K30 age upper59.3588/58.7843ms does not establish50ms; shared Reference is held-only and whole GPU path remains unproved. Earlier [two4K60 HAP](evidence/mapgyver-m10-two-4k60-hap-2026-11-13.json), [ProRes](evidence/mapgyver-m10-prores-alpha-sustained-2026-11-13.json), [resident Intel](evidence/mapgyver-m10-resident-sustained-2026-11-13.json) and [HAP variants](evidence/mapgyver-m10-hap-variants-sustained-2026-11-13.json) retain exact failures/scopes. The2026-11-16 native Settings confirmation and standing Off instruction govern subsequent cohorts. The M14 raster run establishes no M10 timing/performance claim. M08/4 WOW64 and M03/9 timing/growth debt remain; user-accepted smoothness/AA stay accepted.
 **Current native limit:** [Corrected M03 lifecycle](evidence/mapgyver-m03-late-drain-2026-11-05.json) confirms 53.602 MiB peak growth against 32 MiB across all 100 cycles, with matching environment identities and fresh paired overlay-Off observations. Handles/live allocations return and shutdown takes 116 ms; peak growth still fails. The untracked private-memory cause is unproven; earlier failures remain preserved.
-**Execution:** M19/1 Apple Silicon workbench is Accepted. M19/2 and M19/3 await physical desktop reconnect and cadence tests. M19/4 awaits a 64-bit Raspberry Pi OS desktop with HDMI. M19/5 Raspberry Pi armhf is Active. M14/8 returns when Windows qualification resumes. M17/1–2 require independent LAN and clean Windows qualification. M14/6 needs a physical session using both externals and native input. M14/1 is Blocked on physical pointer verification. M15/5 shared editor feedback and M14/2 smooth navigation are Accepted. M10/9 needs an elevated Windows session for genuine device loss during overlap. M18/1 needs direct cross-window Explorer input. M18/4 needs a valid key and live ShaderToy reachability. M10/3 extended formats stay user-deferred. M16/1 retains qualification. M10/8 and M10/10 are Accepted. M14/9–10 are Accepted. M09 waits on the retained gates.
+**Execution:** M19/1 Apple Silicon workbench is Accepted. M19/2 and M19/3 await physical desktop reconnect and cadence tests. M19/4 and M19/5 await 64-bit and 32-bit Raspberry Pi OS with HDMI. M19/6 Windows ARM64 is Active. M14/8 returns when Windows x64 qualification resumes. M17/1–2 require independent LAN and clean Windows qualification. M14/6 needs a physical session using both externals and native input. M14/1 is Blocked on physical pointer verification. M15/5 shared editor feedback and M14/2 smooth navigation are Accepted. M10/9 needs an elevated Windows session for genuine device loss during overlap. M18/1 needs direct cross-window Explorer input. M18/4 needs a valid key and live ShaderToy reachability. M10/3 extended formats stay user-deferred. M16/1 retains qualification. M10/8 and M10/10 are Accepted. M14/9–10 are Accepted. M09 waits on the retained gates.
 
 **Recovery checkpoint:** [Earlier failures and parked candidate](evidence/mapgyver-request-lifetime-deferred-2026-11-17.json) remain historical. The integrated fix was reconciled with the current transport and adds runtime project-generation admission. [Verified scope](mapgyver-m14-editor-recovery.md)
 
@@ -456,8 +470,8 @@ failed readback stress returns with M10/4, without changed budgets.
 | Blocked | M19/2 | Both Mac architectures passed relocated bundles and captured Rectangle and Fullscreen pixels. Return on a physical Mac with a connected external display to verify scanout cadence and unplug/reconnect against the saved UUID. |
 | Blocked | M19/3 | Ubuntu 24.04 and 26.04 release packages and the clean Ubuntu hosted job passed desktop, media and virtual display recovery checks. Return on a physical Linux desktop with an external monitor to verify reconnect and cadence for X11 and Wayland. |
 | Blocked | M19/4 | The installed Debian 13 ARM64 package passed the native desktop, media and virtual output suites. Return on a Pi with the current 64-bit Raspberry Pi OS and HDMI to verify the on-device build, desktop, media and real Screen output using the Pi GPU. |
-| Active | M19/5 | The ARMv7 package built and passed clean install and headless authoring locally and on the hosted runner. Under QEMU the hosted WebKit view stalled and local Solid Color preview aborted. Check both on a 32-bit Raspberry Pi OS desktop with VideoCore before accepting native media and HDMI output. |
-| Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
+| Blocked | M19/5 | The ARMv7 package built and passed clean install and headless authoring locally and on the hosted runner. Under QEMU the hosted WebKit view stalled and local Solid Color preview aborted. Return on 32-bit Raspberry Pi OS with VideoCore and HDMI to test those paths and establish whether the failures reproduce outside emulation. |
+| Active | M19/6 | Produce the native ARM64 FFmpeg SDK, then build and verify an ARM64 installer, desktop media/output and recovery, and SDK integrations. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
 | Blocked | M13/2 | [Complete available app catalog](evidence/mapgyver-m13-app-catalog-2026-11-07.json) passes70/68 native layouts; earlier live/source/Intel device/D3D9 proof retained. Return on exposed NVIDIA D3D9 source, supported same-LUID NVIDIA loss/revised identity contract, actual backend/new path for named rejected allocations, authoritative metadata/revised contract for unadvertised interpretation. Every exact prerequisite/action remains in the receipt; no full gate credit or unchanged rerun. |
 | Accepted | M13/3 | [Complete Matrix acceptance](evidence/mapgyver-m13-matrix-acceptance-2026-11-07.json): canonical inline controls/top-left labels/whole headers, root/nested/reparent/history/reload, front-first rendering and SVG hit order,72 threshold/font-scale cases, actual minimum dock resize, complete both-GPU native grid/Group/offscreen/sparse lifetime flows and22 independent output images pass. No timing or generic GPU-owner retirement claim. |

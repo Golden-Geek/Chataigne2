@@ -39,6 +39,14 @@ set `FFMPEG_DIR` to the SDK path printed by the helper with no arguments. MapGyv
 Tauri resource configuration copies the five prepared DLLs and license materials beside the
 Cargo executable. Workspace Cargo configuration supplies the Windows x64 MSVC stack reserve.
 
+To create the Windows ARM64 SDK, run
+`bash tools/mapgyver/ffmpeg/build-windows-arm64.sh <new-sdk-directory>` on x86_64 Linux
+with Python, curl, tar and Make. The builder reuses MapGyver's pinned FFmpeg source and
+verifies the pinned LLVM-MinGW archive before compiling. The SDK contains the five ARM64
+DLLs, MSVC import libraries, public headers, build provenance and license notices. The
+[Windows ARM64 workflow](../../../.github/workflows/mapgyver-windows-arm64.yml) links
+the import libraries and checks the DLL exports on native Windows ARM64.
+
 On macOS, `brew install ffmpeg pkgconf` provides the headers and libraries for ordinary Cargo
 development builds. FFmpeg discovery uses `pkg-config` when `FFMPEG_DIR` is unset.
 
