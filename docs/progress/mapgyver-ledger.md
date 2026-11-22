@@ -280,8 +280,21 @@ The corrected package passed a clean apt install, ELF linkage under QEMU, projec
 authoring, Undo/Redo and Save/New/Load, and clean exit. Its SHA-256 is
 `40f68031c7977ea4719f93ac2071f1b024e1180f35c4757dc887a502f3a5b06b`.
 The updated fixtures also passed on the native Debian 13 amd64 release package.
-The ARM workflow will check the armhf workbench, media and X11/Wayland output with
-QEMU on the hosted runner. The physical Pi checks remain open.
+The [hosted armhf job](https://github.com/Golden-Geek/Chataigne2/actions/runs/45041349161/job/137266299198)
+also built and installed from a clean checkout. It mapped its X11 window under QEMU,
+and WebKit did not request the workbench snapshot. The hosted media and output tests
+remain open. The [native ARM64 rerun](https://github.com/Golden-Geek/Chataigne2/actions/runs/45041349161/job/137266298921)
+passed with the new Debian metadata. Local armhf media under QEMU separately aborted
+with `free(): invalid pointer` during the Solid Color preview, before the video case.
+The first debugger hit the fixture timeout while fetching remote symbols. With local
+Debian symbols the retained hosted package served the workbench to the external
+Chromium client but produced no preview and timed out on shutdown without reaching
+the allocator breakpoint. The two failures remain open. The hosted armhf package
+SHA-256 is `69394734b86cf34a3c5692329cc0cf66d43be04731a56065823cb7f609c320d5`.
+Return to the runtime with a 32-bit Raspberry Pi OS desktop and VideoCore output to
+check native WebKit, Solid Color, H.264 playback and HDMI. Retain the hosted WebKit
+failure and emulated preview abort as separate software regressions until reproduced
+and resolved or isolated to emulation.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -443,7 +456,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | Blocked | M19/2 | Both Mac architectures passed relocated bundles and captured Rectangle and Fullscreen pixels. Return on a physical Mac with a connected external display to verify scanout cadence and unplug/reconnect against the saved UUID. |
 | Blocked | M19/3 | Ubuntu 24.04 and 26.04 release packages and the clean Ubuntu hosted job passed desktop, media and virtual display recovery checks. Return on a physical Linux desktop with an external monitor to verify reconnect and cadence for X11 and Wayland. |
 | Blocked | M19/4 | The installed Debian 13 ARM64 package passed the native desktop, media and virtual output suites. Return on a Pi with the current 64-bit Raspberry Pi OS and HDMI to verify the on-device build, desktop, media and real Screen output using the Pi GPU. |
-| Active | M19/5 | The hard-float ARMv7 package built and passed clean install and project authoring under QEMU. Verify the hosted workbench, media and virtual displays, then qualify the app on 32-bit Raspberry Pi OS with VideoCore and HDMI. |
+| Active | M19/5 | The ARMv7 package built and passed clean install and headless authoring locally and on the hosted runner. Under QEMU the hosted WebKit view stalled and local Solid Color preview aborted. Check both on a 32-bit Raspberry Pi OS desktop with VideoCore before accepting native media and HDMI output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
 | Blocked | M13/2 | [Complete available app catalog](evidence/mapgyver-m13-app-catalog-2026-11-07.json) passes70/68 native layouts; earlier live/source/Intel device/D3D9 proof retained. Return on exposed NVIDIA D3D9 source, supported same-LUID NVIDIA loss/revised identity contract, actual backend/new path for named rejected allocations, authoritative metadata/revised contract for unadvertised interpretation. Every exact prerequisite/action remains in the receipt; no full gate credit or unchanged rerun. |
