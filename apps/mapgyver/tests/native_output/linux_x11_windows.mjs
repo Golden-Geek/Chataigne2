@@ -43,7 +43,13 @@ export async function linuxOutputWindows(pid) {
 }
 
 export async function linuxOwnedWindows(pid, title) {
-	const { stdout: tree } = await program('xwininfo', ['-root', '-tree'], { timeout });
+	let tree = await queryWindow('xwininfo', ['-root', '-tree']);
+	// xwininfo walks descendants after listing their parents. Retry a partial tree
+	// so a disappearing child cannot be mistaken for retirement of the owned window.
+	for (let retry = 0; tree === null && retry < 2; retry++) {
+		tree = await queryWindow('xwininfo', ['-root', '-tree']);
+	}
+	assert.notEqual(tree, null, 'The X11 window tree changed during three consecutive queries');
 	const windows = [];
 	for (const [, id, name] of tree.matchAll(/(0x[\da-f]+) "([^"]+)"/g)) {
 		if (name !== title) continue;

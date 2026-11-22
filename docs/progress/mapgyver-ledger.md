@@ -200,6 +200,21 @@ The installed package also passed project authoring and Save/New/Load, strict Ch
 readiness, H.264 playback and seek, Picture and Screen Warping, X11 Rectangle and
 Fullscreen pixel checks, four Weston scale pairs, and Xorg and Sway output recovery
 with the project open and after reopening it. The hosted-runner retest remains open.
+
+**M19/3 Ubuntu 24.04 release package batch (22 November, 15:55 CET cutoff).** Build
+the MapGyver production Debian package from the pushed source, then install it on clean
+Ubuntu 24.04. Use the installed binary for project authoring, native WebKit startup and
+exit, media playback and authored X11/Wayland Screen output and recovery. Monitor the
+[hosted package retest](https://github.com/Golden-Geek/Chataigne2/actions/runs/45032174624).
+The optimized amd64 package from `567481d1b` passed clean apt installation without
+recommended packages, launcher and ELF checks, project authoring and Save/New/Load,
+owned X11 WebKit startup and exit, media and Screen Warping, and all four Weston
+scale pairs and Sway recovery. While retiring a Screen, X11 `xwininfo` raced a destroyed
+child and returned an incomplete tree. The observer now retries that error without
+treating partial results as evidence of retirement. The same release package passed
+the Rectangle and Fullscreen pixel and bounds retest with an injected partial query and
+passed the Xorg recovery retest. Package SHA-256
+`0ef1b3189fbdf141a12b57daad2721b454b0bd187645e95697da7230171a46a5`.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -359,7 +374,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
 | Blocked | M19/2 | Both Mac architectures passed relocated bundles and captured Rectangle and Fullscreen pixels. Return on a physical Mac with a connected external display to verify scanout cadence and unplug/reconnect against the saved UUID. |
-| Active | M19/3 | Installed Ubuntu 24.04 debug and Ubuntu 26.04 release packages passed desktop, media and virtual display recovery checks. Verify the Ubuntu 24.04 release package and hosted runner. Physical Linux reconnect and cadence require an external monitor on a Linux desktop. |
+| Active | M19/3 | Installed Ubuntu 24.04 and 26.04 release packages passed desktop, media and virtual display recovery checks. Inspect hosted runner results. Physical Linux reconnect and cadence require an external monitor on a Linux desktop. |
 | Pending | M19/4–5 | After desktop Linux, qualify Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
