@@ -14,16 +14,23 @@ let fixtureFailure;
 try {
 	if (process.platform === 'linux' && process.env.GDK_BACKEND === 'x11') {
 		const deadline = performance.now() + 12000;
+		let mapped = false;
 		for (;;) {
-			const windows = await linuxOwnedWindows(host.app.pid, 'MapGyver 2');
-			if (windows.some(({ visible }) => visible)) break;
+			if (!mapped) {
+				const windows = await linuxOwnedWindows(host.app.pid, 'MapGyver 2');
+				mapped = windows.some(({ visible }) => visible);
+			}
+			// Run before launching Chromium so the snapshot can only come from the native WebKit view.
+			if (mapped && host.log().includes('[ui-ws] snapshot request_id=')) break;
 			assert(
 				host.app.exitCode === null && host.app.signalCode === null && performance.now() < deadline,
-				'The MapGyver process did not map its native X11 workbench window'
+				mapped
+					? 'The native WebKit view did not request the workbench snapshot'
+					: 'The MapGyver process did not map its native X11 workbench window'
 			);
 			await delay(120);
 		}
-		console.log('Owned MapGyver X11 workbench window is mapped');
+		console.log('Owned MapGyver X11 workbench is mapped and the native WebKit view connected');
 	}
 	const { stdout } = await promisify(execFile)(
 		process.execPath,

@@ -5,7 +5,7 @@
 - **Latest verified:** 4× AA fits the memory cap. Sustained timing passed at 1080p on NVIDIA. NVIDIA 4K and both Intel sizes still exceed the GPU budget. [Checks](mapgyver-m14-antialiasing.md#sustained-shared-texture-timing--2026-11-20)
 - **Plan execution:** macOS first, then desktop Linux and Raspberry Pi (armhf and aarch64). Windows ARM64 has a separate gate.
 - **Manual action needed from you now: none.**
-- **Next:** Reproduce and fix Ubuntu 24.04 native startup and exit, then qualify its packaged media and output (M19/3). The current Ubuntu 26.04 release package passed clean install, native launch and exit, media, pixels and virtual display recovery. Physical Mac and Linux hotplug and cadence await external monitors. [Cross-platform evidence](mapgyver-ledger.md)
+- **Next:** Verify the Ubuntu 24.04 release package and hosted runner (M19/3). The installed Ubuntu 24.04 debug and Ubuntu 26.04 release packages passed native desktop, media playback and virtual X11/Wayland output and recovery checks. Physical Mac and Linux hotplug and cadence await external monitors. [Cross-platform evidence](mapgyver-ledger.md)
 
 ## Done — code and normal-use checks passed
 

@@ -182,14 +182,24 @@ Save/New/Load, owned native X11 window readiness and clean exit, H.264 playback 
 Picture and Screen Warping, and X11 and Wayland output and recovery. The package SHA-256 is
 `a347fb1303a63622c165a39a1a2e067364e2fd2dbb20a3d5058efa3554a018e9`.
 
-**M19/3 Ubuntu 24.04 native start follow-up.** CI passed clean package install and the
-external workbench probe again, then the app timed out. Logs showed an AT-SPI bus warning
-and no acknowledgement of the shutdown sentinel.
+**M19/3 Ubuntu 24.04 installed desktop batch (22 November, 15:45 CET cutoff).** Qualify
+the packaged Golden desktop host, MapGyver media, and Screen output on Ubuntu 24.04 using
+native startup, project authoring, playback and X11/Wayland recovery fixtures. CI passed
+clean package install and the external workbench probe, then the app timed out. Logs
+showed an AT-SPI bus warning and no acknowledgement of the shutdown sentinel.
 [Ubuntu 24.04 job](https://github.com/Golden-Geek/Chataigne2/actions/runs/45029020238/job/137229834543)
-The native check now requires the owned X11 window to map before probing the workbench.
+The fixture now requires the owned X11 window to map and its WebKit view to request the
+workbench snapshot before the external Chromium probe.
 CI retains the install-checked package before desktop validation for exact reproduction.
-A local Ubuntu 24.04 container debug build is running to reproduce the native launch.
-Ubuntu 24.04 native start, exit, media and output remain open.
+The locally built debug package passed clean apt installation and ELF linkage with GTK
+3.24.41, WebKitGTK 2.52.6 and FFmpeg 6.1.1. As an ordinary user under Xvfb, its owned X11
+window mapped, its native WebKit view requested the 63-node workbench snapshot, and the
+app acknowledged the sentinel and returned zero. Package SHA-256
+`813e73bdf46834813dad07e940058973a9169c33f5f654503fe75b2a33a30ee0`.
+The installed package also passed project authoring and Save/New/Load, strict Chromium
+readiness, H.264 playback and seek, Picture and Screen Warping, X11 Rectangle and
+Fullscreen pixel checks, four Weston scale pairs, and Xorg and Sway output recovery
+with the project open and after reopening it. The hosted-runner retest remains open.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -349,7 +359,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
 | Blocked | M19/2 | Both Mac architectures passed relocated bundles and captured Rectangle and Fullscreen pixels. Return on a physical Mac with a connected external display to verify scanout cadence and unplug/reconnect against the saved UUID. |
-| Active | M19/3 | Ubuntu 26.04 passed clean install and packaged desktop/media checks. Xvfb passed X11 output and Weston passed Wayland retargeting at mixed scales. Xorg and Sway both recovered a live or reopened project. Ubuntu 24.04 install passed. Verify its desktop exit and packaged media/output, then physical Linux reconnect and cadence. |
+| Active | M19/3 | Installed Ubuntu 24.04 debug and Ubuntu 26.04 release packages passed desktop, media and virtual display recovery checks. Verify the Ubuntu 24.04 release package and hosted runner. Physical Linux reconnect and cadence require an external monitor on a Linux desktop. |
 | Pending | M19/4–5 | After desktop Linux, qualify Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
