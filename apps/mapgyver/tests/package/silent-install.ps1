@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)]
-    [string]$Installer
+    [string]$Installer,
+    [string]$Arm64FfmpegSdk
 )
 
 $ErrorActionPreference = 'Stop'
@@ -10,6 +11,20 @@ $appRoot = Join-Path $workspace 'apps/mapgyver'
 $config = Get-Content -LiteralPath (Join-Path $appRoot 'tauri.conf.json') -Raw | ConvertFrom-Json
 $windowsConfig = Get-Content -LiteralPath (Join-Path $appRoot 'tauri.windows.conf.json') -Raw | ConvertFrom-Json
 $ffmpeg = Get-Content -LiteralPath (Join-Path $workspace 'tools/mapgyver/ffmpeg/windows-x64.json') -Raw | ConvertFrom-Json
+if ($Arm64FfmpegSdk) {
+    . (Join-Path $workspace 'tools/mapgyver/ffmpeg/windows-pe.ps1')
+    $sdkRoot = (Resolve-Path -LiteralPath $Arm64FfmpegSdk).ProviderPath
+    $runtime = foreach ($resource in $windowsConfig.bundle.resources.PSObject.Properties) {
+        if ($resource.Name -match '/mapgyver-ffmpeg-runtime/bin/') {
+            $name = $resource.Value
+            $hash = Get-FileHash -LiteralPath (Join-Path $sdkRoot "bin/$name") -Algorithm SHA256
+            @{ name = $name; sha256 = $hash.Hash }
+        }
+    }
+    if ($runtime.Count -ne 5) { throw 'Expected five ARM64 FFmpeg runtime DLLs.' }
+} else {
+    $runtime = $ffmpeg.runtime
+}
 $uninstallKey = "Software\Microsoft\Windows\CurrentVersion\Uninstall\$($config.productName)"
 $userKey = "HKCU:\$uninstallKey"
 if ((Test-Path -LiteralPath $userKey) -or (Test-Path -LiteralPath "HKLM:\$uninstallKey")) {
@@ -57,9 +72,16 @@ try {
     $running = Get-Process -Name $windowsConfig.mainBinaryName -ErrorAction SilentlyContinue |
         Where-Object { $_.Path -eq $binary }
     if ($running) { throw 'Silent setup launched the app.' }
-    foreach ($dll in $ffmpeg.runtime) {
-        $hash = Get-FileHash -LiteralPath (Join-Path $installRoot $dll.name) -Algorithm SHA256
+    if ($Arm64FfmpegSdk -and (Get-WindowsPeMachine $binary) -ne 0xaa64) {
+        throw 'Installed MapGyver executable is not Windows ARM64.'
+    }
+    foreach ($dll in $runtime) {
+        $path = Join-Path $installRoot $dll.name
+        $hash = Get-FileHash -LiteralPath $path -Algorithm SHA256
         if ($hash.Hash -ne $dll.sha256) { throw "Unexpected installed runtime: $($dll.name)" }
+        if ($Arm64FfmpegSdk -and (Get-WindowsPeMachine $path) -ne 0xaa64) {
+            throw "Installed FFmpeg library is not Windows ARM64: $($dll.name)"
+        }
     }
 
     $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)

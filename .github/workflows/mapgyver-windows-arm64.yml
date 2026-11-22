@@ -5,7 +5,12 @@ on:
     branches: [mapgyver, main]
     paths:
       - '.github/workflows/mapgyver-windows-arm64.yml'
-      - 'tools/mapgyver/ffmpeg/**'
+      - 'apps/mapgyver/**'
+      - 'crates/golden_video/**'
+      - 'tools/mapgyver/**'
+      - 'vendor/spout2-sys-0.1.1/**'
+      - 'Cargo.lock'
+      - 'package-lock.json'
   workflow_dispatch:
 
 permissions:
@@ -68,3 +73,72 @@ jobs:
           & $probe
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python tools/mapgyver/ffmpeg/tests/source_sdk.py $sdk --pin "$sdk/source-build.json"
+
+  package-mapgyver:
+    name: Build and install the Windows ARM64 app
+    needs: verify-ffmpeg
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: mapgyver-ffmpeg-windows-arm64
+          path: ${{ runner.temp }}/mapgyver-ffmpeg-arm64
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          architecture: arm64
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: arm64
+
+      - name: Set up repository Rust and ASIO build inputs
+        shell: pwsh
+        run: |
+          ./tools/bootstrap/install-rust-toolchain.ps1
+          $cache = Join-Path $env:RUNNER_TEMP 'mapgyver-asio-sdk'
+          $asio = ./tools/asio.ps1 -CacheRoot $cache -SetupOnly -PassThru
+          "CPAL_ASIO_DIR=$($asio.sdk_path)" >> $env:GITHUB_ENV
+          "LIBCLANG_PATH=$($asio.libclang_path)" >> $env:GITHUB_ENV
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: mapgyver-windows-arm64-${{ hashFiles('Cargo.lock', 'tools/bootstrap/toolchain.json') }}
+
+      - name: Build the workbench and ARM64 NSIS installer
+        shell: pwsh
+        env:
+          MAPGYVER_FFMPEG_ARM64_SDK: ${{ runner.temp }}/mapgyver-ffmpeg-arm64
+          GC_UI_ASSUME_BUILT: '1'
+        run: |
+          npm ci
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm run build:mapgyver
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 `
+            --tauri build --target aarch64-pc-windows-msvc --bundles nsis -- --locked
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mapgyver-windows-arm64-installer
+          path: target/aarch64-pc-windows-msvc/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+      - name: Exercise the installed ARM64 app
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem target/aarch64-pc-windows-msvc/release/bundle/nsis/*.exe)
+          if ($installers.Count -ne 1) { throw 'Expected one MapGyver ARM64 installer.' }
+          $sdk = Join-Path $env:RUNNER_TEMP 'mapgyver-ffmpeg-arm64'
+          ./apps/mapgyver/tests/package/silent-install.ps1 -Installer $installers[0].FullName -Arm64FfmpegSdk $sdk
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mapgyver-windows-arm64-install-evidence
+          path: target/package-smoke/**/app*.log
+          if-no-files-found: ignore

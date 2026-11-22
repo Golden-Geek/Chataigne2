@@ -45,7 +45,20 @@ with Python, curl, tar and Make. The builder reuses MapGyver's pinned FFmpeg sou
 verifies the pinned LLVM-MinGW archive before compiling. The SDK contains the five ARM64
 DLLs, MSVC import libraries, public headers, build provenance and license notices. The
 [Windows ARM64 workflow](../../../.github/workflows/mapgyver-windows-arm64.yml) links
-the import libraries and checks the DLL exports on native Windows ARM64.
+the import libraries and checks the DLL exports on native Windows ARM64. Set
+`MAPGYVER_FFMPEG_ARM64_SDK` to the extracted SDK and use the native ARM64 Rust, Node
+and MSVC toolchains. With workspace dependencies and frontend assets prepared, run:
+
+```powershell
+$env:MAPGYVER_FFMPEG_ARM64_SDK = 'C:/dev/mapgyver-ffmpeg-arm64'
+npm ci
+npm run build:mapgyver
+powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 --tauri build --target aarch64-pc-windows-msvc --bundles nsis -- --locked
+```
+
+The ARM64 wrapper stages its DLLs separately and prepares the pinned `sse2neon.h`
+for Spout. The installer is under `target/aarch64-pc-windows-msvc/release/bundle/nsis`.
+The bundled NDI runtime is currently Windows x64 only.
 
 On macOS, `brew install ffmpeg pkgconf` provides the headers and libraries for ordinary Cargo
 development builds. FFmpeg discovery uses `pkg-config` when `FFMPEG_DIR` is unset.

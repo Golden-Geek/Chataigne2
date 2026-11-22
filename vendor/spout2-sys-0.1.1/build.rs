@@ -42,20 +42,7 @@ fn main() {
         );
     }
 
-    // Windows on ARM is not supported: the vendored Spout SIMD sources
-    // (e.g. SpoutCopy.cpp) use x86 SSE2 intrinsics, which upstream only adapts to
-    // ARM via the `sse2neon` shim (the SPOUT_BUILD_ARM CMake path). This build
-    // does not wire that up, so fail fast with a clear message rather than a
-    // confusing C++ compile error.
     let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
-    if target_arch == "aarch64" {
-        panic!(
-            "spout2-sys does not support Windows on ARM (aarch64): the vendored \
-             Spout SSE2 SIMD sources require the upstream `sse2neon` shim, which \
-             this build does not configure. Use an x86_64 (x64) target."
-        );
-    }
-
     let dx = std::env::var_os("CARGO_FEATURE_DX").is_some();
     let dx12 = std::env::var_os("CARGO_FEATURE_DX12").is_some();
     let gl = std::env::var_os("CARGO_FEATURE_GL").is_some();
@@ -74,6 +61,18 @@ fn main() {
         .include(&gl_dir)
         .include(&dx_dir) // for SpoutDX.h (resolved via __has_include in the DX shim)
         .include("shim");
+
+    if target_arch == "aarch64" {
+        println!("cargo:rerun-if-env-changed=SPOUT_SSE2NEON_INCLUDE");
+        let include = PathBuf::from(
+            std::env::var_os("SPOUT_SSE2NEON_INCLUDE")
+                .expect("set SPOUT_SSE2NEON_INCLUDE to the directory containing sse2neon.h"),
+        );
+        let header = include.join("sse2neon.h");
+        assert!(header.is_file(), "missing Spout ARM64 header: {}", header.display());
+        println!("cargo:rerun-if-changed={}", header.display());
+        build.include(include).flag_if_supported("/Zc:preprocessor");
+    }
 
     // The 11 core SpoutGL sources. Both backends depend on these; compile once.
     for f in [
@@ -120,9 +119,8 @@ fn main() {
     // by `#pragma comment(lib, ...)` in the C++ sources; listing them is
     // harmless and covers the ones added only via CMake target_link_libraries.
     for lib in [
-        "opengl32", "gdi32", "user32", "kernel32", "advapi32", "shell32", "ole32", "oleaut32",
-        "uuid", "version", "winmm", "comdlg32", "comctl32", "d3d9", "d3d11", "d3d12", "dxgi",
-        "psapi",
+        "opengl32", "gdi32", "user32", "kernel32", "advapi32", "shell32", "ole32", "oleaut32", "uuid", "version",
+        "winmm", "comdlg32", "comctl32", "d3d9", "d3d11", "d3d12", "dxgi", "psapi",
     ] {
         println!("cargo:rustc-link-lib=dylib={lib}");
     }

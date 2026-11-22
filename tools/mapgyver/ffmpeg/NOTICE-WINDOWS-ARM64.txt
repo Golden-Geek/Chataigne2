@@ -1,0 +1,13 @@
+MapGyver Video dependencies for Windows ARM64
+
+FFmpeg is dynamically linked under the GNU Lesser General Public License,
+version 3 or later. See FFmpeg-LGPL-3.0.txt and GPL-3.0.txt. The five libraries
+can be replaced individually next to the application executable. The exact
+FFmpeg source archive, commit, toolchain and build options are recorded in
+ffmpeg-source-build.json. The repository recipe is tools/mapgyver/ffmpeg/build-windows-arm64.sh.
+
+LLVM-MinGW runtime notices are included in LLVM-MinGW.txt. Release sources and
+component revisions are linked at https://github.com/mstorsjo/llvm-mingw/releases/tag/20261117.
+
+HAP and Snappy header notices are in HAP-reference-header.h and Snappy-C-header.h.
+The Spout ARM64 build uses sse2neon under the MIT license reproduced in sse2neon.h.
