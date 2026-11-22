@@ -3,6 +3,7 @@ name: MapGyver Linux ARM packages
 on:
   push:
     branches: [mapgyver, main]
+    tags: ['1.0.0b*']
     paths:
       - '.github/workflows/mapgyver-linux-arm.yml'
       - '.cargo/**'
@@ -121,6 +122,7 @@ jobs:
           if-no-files-found: error
 
       - name: Verify workbench, media and display output in clean Debian 13
+        if: github.ref_type != 'tag' || matrix.architecture != 'armhf'
         env:
           MAPGYVER_TEST_PACKAGE: ${{ steps.package.outputs.path }}
         run: |

@@ -536,7 +536,7 @@ The NSIS installer installs for the current Windows user. With `/S`, it runs una
 leaves the app closed. Run the downloaded installer from PowerShell and check its exit code.
 
 ```powershell
-$setup = Start-Process -FilePath .\MapGyver2-1.0.0b1-windows-x64-setup.exe -ArgumentList '/S' -Wait -PassThru
+$setup = Start-Process -FilePath .\MapGyver2-1.0.0b2-windows-x64-setup.exe -ArgumentList '/S' -Wait -PassThru
 $setup.ExitCode
 ```
 

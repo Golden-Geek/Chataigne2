@@ -3,6 +3,7 @@ name: MapGyver Windows ARM64
 on:
   push:
     branches: [mapgyver, main]
+    tags: ['1.0.0b*']
     paths:
       - '.github/workflows/mapgyver-windows-arm64.yml'
       - 'apps/mapgyver/**'
@@ -129,6 +130,7 @@ jobs:
           if-no-files-found: error
 
       - name: Build the independent ARM64 Spout receiver
+        if: github.ref_type != 'tag'
         shell: pwsh
         env:
           MAPGYVER_FFMPEG_ARM64_SDK: ${{ runner.temp }}/mapgyver-ffmpeg-arm64
@@ -160,7 +162,7 @@ jobs:
             $env:MAPGYVER_TEST_BINARY = $binary
             $env:LOCALAPPDATA = Join-Path $evidence 'desktop-localappdata'
             $env:MAPGYVER_VIDEO_RUNTIME_PIN = $runtimePin
-            $env:MAPGYVER_TEST_SPOUT_RECEIVER = (Resolve-Path 'target/aarch64-pc-windows-msvc/release/native_qualification.exe').ProviderPath
+            $receiver = 'target/aarch64-pc-windows-msvc/release/native_qualification.exe'
 
             node apps/mapgyver/tests/headless/media.mjs 2>&1 | Tee-Object (Join-Path $evidence 'headless-authoring.log')
             if ($LASTEXITCODE) { throw "Headless authoring exited with code $LASTEXITCODE." }
@@ -169,9 +171,12 @@ jobs:
               Tee-Object (Join-Path $evidence 'desktop-workbench.log')
             if ($LASTEXITCODE) { throw "Native workbench startup exited with code $LASTEXITCODE." }
 
-            node apps/mapgyver/tests/browser/portable-rectangle.mjs --windows-spout 2>&1 |
-              Tee-Object (Join-Path $evidence 'spout-video.log')
-            if ($LASTEXITCODE) { throw "Native Spout video exited with code $LASTEXITCODE." }
+            if ($env:GITHUB_REF_TYPE -ne 'tag') {
+              $env:MAPGYVER_TEST_SPOUT_RECEIVER = (Resolve-Path $receiver).ProviderPath
+              node apps/mapgyver/tests/browser/portable-rectangle.mjs --windows-spout 2>&1 |
+                Tee-Object (Join-Path $evidence 'spout-video.log')
+              if ($LASTEXITCODE) { throw "Native Spout video exited with code $LASTEXITCODE." }
+            }
           }
 
       - uses: actions/upload-artifact@v7
