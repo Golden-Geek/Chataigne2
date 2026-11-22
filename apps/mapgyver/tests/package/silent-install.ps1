@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$Installer,
-    [string]$Arm64FfmpegSdk
+    [string]$Arm64FfmpegSdk,
+    [scriptblock]$AfterStartup
 )
 
 $ErrorActionPreference = 'Stop'
@@ -17,8 +18,9 @@ if ($Arm64FfmpegSdk) {
     $runtime = foreach ($resource in $windowsConfig.bundle.resources.PSObject.Properties) {
         if ($resource.Name -match '/mapgyver-ffmpeg-runtime/bin/') {
             $name = $resource.Value
-            $hash = Get-FileHash -LiteralPath (Join-Path $sdkRoot "bin/$name") -Algorithm SHA256
-            @{ name = $name; sha256 = $hash.Hash }
+            $sdkDll = Get-Item -LiteralPath (Join-Path $sdkRoot "bin/$name")
+            $hash = Get-FileHash -LiteralPath $sdkDll.FullName -Algorithm SHA256
+            @{ name = $name; bytes = $sdkDll.Length; sha256 = $hash.Hash.ToLowerInvariant() }
         }
     }
     if ($runtime.Count -ne 5) { throw 'Expected five ARM64 FFmpeg runtime DLLs.' }
@@ -133,6 +135,14 @@ try {
     New-Item -Path $shutdown -ItemType File | Out-Null
     if (!$app.WaitForExit(15000)) { throw 'Installed app did not exit after requesting shutdown.' }
     if ($app.ExitCode -ne 0) { throw "Installed app exited with code '$($app.ExitCode)'." }
+    Write-Host "Verified $($config.productName) $($config.version): silent install and packaged startup."
+
+    if ($AfterStartup) {
+        $runtimePin = Join-Path $run 'video-runtime.json'
+        $runtimeJson = @{ runtime = $runtime } | ConvertTo-Json -Depth 4
+        [IO.File]::WriteAllText($runtimePin, $runtimeJson)
+        & $AfterStartup $binary $run $runtimePin
+    }
 } finally {
     if ($app -and !$app.HasExited) {
         $app.Kill()

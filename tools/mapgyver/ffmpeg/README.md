@@ -61,6 +61,9 @@ for Spout. It scopes the MSVC stack reserve to the build's linker environment so
 the FFmpeg binding generator receives it too. The installer is under
 `target/aarch64-pc-windows-msvc/release/bundle/nsis`.
 The bundled NDI runtime is currently Windows x64 only.
+The ARM64 workflow exercises the installed executable through the normal headless
+and WebView2 workbench entry points, then checks the executable-local FFmpeg DLLs
+and the native desktop Screen pixels during playback.
 
 On macOS, `brew install ffmpeg pkgconf` provides the headers and libraries for ordinary Cargo
 development builds. FFmpeg discovery uses `pkg-config` when `FFMPEG_DIR` is unset.

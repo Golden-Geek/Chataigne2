@@ -316,6 +316,9 @@ built MapGyver and Spout with MSVC and generated the NSIS installer. Silent inst
 ARM64 PE and five FFmpeg SDK hash checks, headless startup with embedded workbench,
 clean shutdown and silent uninstall all passed. Installer SHA-256
 `31e3b9cddb7b4f3f5cb334780c634e705fe4ecf6df3353f1c4f9ab4dc9aced13`.
+The installed-app workflow now runs the Headless Media, WebView2 authoring and
+native video playback fixtures before uninstalling. Playback compares the five
+loaded FFmpeg libraries with the built SDK and samples composited Screen pixels.
 Local SDK ZIP SHA-256 `77733807f203f72fc96e607b3babfe7d07cec7e2e747829867fe35cf4cd56e6d`.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.

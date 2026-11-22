@@ -128,17 +128,46 @@ jobs:
           path: target/aarch64-pc-windows-msvc/release/bundle/nsis/*.exe
           if-no-files-found: error
 
-      - name: Exercise the installed ARM64 app
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          architecture: arm64
+
+      - name: Install the desktop pixel capture dependency
+        run: 'python -m pip install --only-binary=:all: Pillow==13.0.0'
+
+      - name: Verify installed ARM64 startup, authoring and video output
         shell: pwsh
         run: |
           $installers = @(Get-ChildItem target/aarch64-pc-windows-msvc/release/bundle/nsis/*.exe)
           if ($installers.Count -ne 1) { throw 'Expected one MapGyver ARM64 installer.' }
           $sdk = Join-Path $env:RUNNER_TEMP 'mapgyver-ffmpeg-arm64'
-          ./apps/mapgyver/tests/package/silent-install.ps1 -Installer $installers[0].FullName -Arm64FfmpegSdk $sdk
+          ./apps/mapgyver/tests/package/silent-install.ps1 -Installer $installers[0].FullName -Arm64FfmpegSdk $sdk -AfterStartup {
+            param($binary, $evidence, $runtimePin)
+            $env:MAPGYVER_TEST_BINARY = $binary
+            $env:LOCALAPPDATA = Join-Path $evidence 'desktop-localappdata'
+            $env:MAPGYVER_VIDEO_LOCAL_DLLS = '1'
+            $env:MAPGYVER_VIDEO_RUNTIME_PIN = $runtimePin
+
+            node apps/mapgyver/tests/headless/media.mjs 2>&1 | Tee-Object (Join-Path $evidence 'headless-authoring.log')
+            if ($LASTEXITCODE) { throw "Headless authoring exited with code $LASTEXITCODE." }
+
+            node apps/mapgyver/tests/browser/native-creation-selection.mjs (Join-Path $evidence 'desktop-authoring') 2>&1 |
+              Tee-Object (Join-Path $evidence 'desktop-authoring.log')
+            if ($LASTEXITCODE) { throw "Native workbench authoring exited with code $LASTEXITCODE." }
+
+            node apps/mapgyver/tests/browser/native-video-playback.mjs (Join-Path $evidence 'video-playback') 2>&1 |
+              Tee-Object (Join-Path $evidence 'video-playback.log')
+            if ($LASTEXITCODE) { throw "Native video playback exited with code $LASTEXITCODE." }
+          }
 
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: mapgyver-windows-arm64-install-evidence
-          path: target/package-smoke/**/app*.log
+          path: |
+            target/package-smoke/*/*.log
+            target/package-smoke/*/video-runtime.json
+            target/package-smoke/*/desktop-authoring/**/*.json
+            target/package-smoke/*/video-playback/**/*.json
           if-no-files-found: ignore
