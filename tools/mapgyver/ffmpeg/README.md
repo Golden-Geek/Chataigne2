@@ -56,6 +56,17 @@ For a Linux development build, use the distro packages for `libavcodec-dev`,
 `cargo build --locked --package MapGyver --bin MapGyver`. The default Linux app uses
 Golden's portable wgpu path for Media Preview and Screen Warping.
 
+On a Debian-based Linux build host, install `dpkg-dev` alongside those development
+dependencies, run `npm ci`, then run `npm run package:mapgyver:linux`. The command writes a
+`.deb` under `target/release/bundle/deb`. Add `-- --debug` for the CI package under
+`target/debug/bundle/deb`. Debian's package tooling derives the FFmpeg and desktop runtime
+dependencies from the executable. Build on the target distribution and architecture so the
+package uses the libraries available there.
+
+Install the file with `sudo apt install ./<package>.deb`, then launch **MapGyver 2** from the
+application menu or run `mapgyver2`. The CI install check uses a fresh Ubuntu container
+without development packages and then exercises the installed desktop executable.
+
 Without Cargo arguments, the helper prepares inputs and returns only the SDK path in the
 PowerShell success stream; progress goes to the host. With
 `--tauri`, it invokes the repository-local Tauri CLI in the app directory. Run/watch/package npm

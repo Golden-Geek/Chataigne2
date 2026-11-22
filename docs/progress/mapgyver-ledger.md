@@ -54,11 +54,11 @@ The Windows compile, workbench production build, both Rust formatters, shell syn
 and Actions lint passed. [Apple Silicon and Intel CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44951750513)
 
 **M19/2 native Mac pixels.** The fixture captures the owned WindowServer output and samples its
-center in sRGB. Apple Silicon measured red and green Rectangle pixels and green and blue
-Fullscreen pixels at the selected display bounds. It verified live edits, retirement and
-reopening. The Intel job is still building. Local DX12 Rectangle, JavaScript syntax, Prettier
-and Actions lint passed. Physical display cadence and hotplug require a Mac with a connected
-monitor. Verify that output stops when the display is absent and returns to the same saved UUID.
+center in sRGB. Apple Silicon and Intel both measured red and green Rectangle pixels and green
+and blue Fullscreen pixels at the selected display bounds. They verified live edits, retirement
+and reopening. Local DX12 Rectangle, JavaScript syntax, Prettier and Actions lint passed.
+Physical display cadence and hotplug require a Mac with a connected monitor. Verify that
+output stops when the display is absent and returns to the same saved UUID.
 [macOS pixel checks](https://github.com/Golden-Geek/Chataigne2/actions/runs/45019118144)
 
 **M19/3 Linux desktop batch (22 November, 13:41 CET cutoff).** Enable the shared portable GPU
@@ -80,9 +80,21 @@ fixture, default Windows compile with FFmpeg 9, Rust formatting, Prettier and Ac
 passed. Ubuntu 24.04 CI, Linux installation, Fullscreen display routing, Wayland output
 and physical reconnect remain open.
 The [Ubuntu 24.04 CI run](https://github.com/Golden-Geek/Chataigne2/actions/runs/45023316606)
-is queued behind the active Intel macOS pixel job. Milestone pushes to `mapgyver` let the
-running platform workflow finish. Next product deliverable is a Linux package that starts
-and plays local media from a clean install.
+started after the successful Intel macOS pixel run. Milestone pushes to `mapgyver` let the
+running platform workflow finish.
+
+**M19/3 Linux package batch (22 November, 14:26 CET cutoff).** Produce a native Debian
+package for the build distribution. MapGyver's packaging tools own the package and use
+Debian's library metadata to declare the runtime dependencies of the linked executable.
+Verify the package installs under apt in a fresh Ubuntu environment, then start the
+installed workbench and decode local media. Linux Fullscreen and physical recovery remain
+in the return queue for this gate.
+The Ubuntu 26.04 debug package installed with only declared dependencies in a fresh
+container. The desktop launcher, license, ELF linkage, installed project authoring and
+normal exit passed. The executable extracted from that package passed X11 readiness,
+H.264 playback, seek and relink, Screen Warping, and X11 Rectangle pixels and bounds.
+Ubuntu 24.04 CI will run the desktop fixtures against the apt-installed executable.
+The default release package build is running locally.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -241,8 +253,8 @@ failed readback stress returns with M10/4, without changed budgets.
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
-| Blocked | M19/2 | Both Mac bundles passed native window lifecycle. Apple Silicon passed captured window pixels and the Intel pixel job is running. Return on a physical Mac with a connected external display to verify scanout cadence and unplug/reconnect against the saved UUID. |
-| Active | M19/3 | Default Ubuntu 26.04 build passed X11 and Wayland startup, project workflows, Media Preview, Screen Warping and X11 Rectangle pixels and bounds. Qualify Ubuntu 24.04 CI, Linux install, Fullscreen, Wayland output and display recovery. |
+| Blocked | M19/2 | Both Mac architectures passed relocated bundles and captured Rectangle and Fullscreen pixels. Return on a physical Mac with a connected external display to verify scanout cadence and unplug/reconnect against the saved UUID. |
+| Active | M19/3 | Ubuntu 26.04 passed a fresh apt install and packaged desktop and media checks. Qualify Ubuntu 24.04 install, Fullscreen, Wayland output and display recovery. |
 | Pending | M19/4–5 | After desktop Linux, qualify Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |

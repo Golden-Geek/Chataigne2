@@ -33,7 +33,8 @@
 		"package:check": "node tools/release/check-signing.mjs && npm run build && cd apps/chataigne && npm exec -- tauri build --no-bundle",
 		"package:mapgyver": "node tools/release/check-signing.mjs && npm run build:mapgyver && powershell -NoProfile -ExecutionPolicy Bypass -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 --tauri build",
 		"package:check:mapgyver": "node tools/release/check-signing.mjs && npm run build:mapgyver && powershell -NoProfile -ExecutionPolicy Bypass -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 --tauri build --no-bundle",
-		"package:mapgyver:macos": "bash tools/mapgyver/ffmpeg/bundle-macos.sh"
+		"package:mapgyver:macos": "bash tools/mapgyver/ffmpeg/bundle-macos.sh",
+		"package:mapgyver:linux": "bash tools/mapgyver/package-linux.sh"
 	},
 	"devDependencies": {
 		"@tauri-apps/cli": "2.11.4"

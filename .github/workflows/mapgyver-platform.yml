@@ -11,7 +11,7 @@ on:
       - 'crates/**'
       - 'packages/**'
       - 'tools/bootstrap/**'
-      - 'tools/mapgyver/ffmpeg/**'
+      - 'tools/mapgyver/**'
       - 'tools/product-gate/hooks/**'
       - 'Cargo.*'
       - 'package*.json'
@@ -104,7 +104,7 @@ jobs:
         run: node apps/mapgyver/tests/browser/portable-rectangle.mjs
 
   linux-workbench:
-    name: MapGyver desktop and portable GPU preview (Linux x86_64)
+    name: MapGyver Debian package, desktop and preview (Linux x86_64)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
 
@@ -128,17 +128,27 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            clang libclang-dev pkg-config \
+            clang libclang-dev pkg-config dpkg-dev \
             libwebkit2gtk-4.1-dev libxdo-dev libayatana-appindicator3-dev librsvg2-dev \
             libasound2-dev libjack-jackd2-dev libpipewire-0.3-dev libdbus-1-dev libudev-dev \
             libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev \
             ffmpeg mesa-vulkan-drivers xvfb xauth x11-utils
 
-      - name: Build default MapGyver with its bundled workbench
-        run: cargo build --locked --package MapGyver --bin MapGyver
+      - name: Install workbench dependencies
+        run: npm ci
 
-      - name: Check authoring, history and Save/New/Load
-        run: node apps/mapgyver/tests/headless/media.mjs
+      - name: Build the native Debian package
+        run: npm run package:mapgyver:linux -- --debug
+
+      - name: Install and check the package in clean Ubuntu
+        run: |
+          shopt -s nullglob
+          packages=(target/debug/bundle/deb/*.deb)
+          test "${#packages[@]}" -eq 1
+          package=$(realpath "${packages[0]}")
+          bash apps/mapgyver/tests/native_output/check-linux-install.sh "$package" ubuntu:24.04
+          sudo apt-get install -y "$package"
+          printf 'MAPGYVER_TEST_BINARY=/usr/bin/mapgyver2\n' >> "$GITHUB_ENV"
 
       - name: Verify the native X11 workbench
         env:
@@ -148,7 +158,7 @@ jobs:
           xvfb-run -a pwsh -NoLogo -NoProfile -NonInteractive -Command '
             . ./tools/product-gate/hooks/smoke-common.ps1
             $env:XDG_DATA_HOME = Join-Path $env:RUNNER_TEMP "mapgyver-x11-data"
-            $binary = Join-Path (Get-Location) "target/debug/MapGyver"
+            $binary = $env:MAPGYVER_TEST_BINARY
             $shutdown = Join-Path $env:RUNNER_TEMP "mapgyver-x11.stop"
             Invoke-RootCommandSmoke -Id mapgyver-x11 -Command $binary `
               -CommandArguments @("--no-remote", "--automation-shutdown-file", $shutdown) `
@@ -158,12 +168,17 @@ jobs:
       - name: Check local media and portable GPU Screen Warping
         env:
           GC_UI_BROWSER_CHANNEL: chrome
-          MAPGYVER_TEST_BINARY: target/debug/MapGyver
         run: node apps/mapgyver/tests/browser/portable-preview.mjs
 
       - name: Check X11 Rectangle Screen pixels and bounds
         env:
           GDK_BACKEND: x11
           WEBKIT_DISABLE_DMABUF_RENDERER: '1'
-          MAPGYVER_TEST_BINARY: target/debug/MapGyver
         run: xvfb-run -a node apps/mapgyver/tests/browser/portable-rectangle.mjs
+
+      - name: Save the verified test package
+        uses: actions/upload-artifact@v7
+        with:
+          name: mapgyver2-ubuntu-24.04-amd64-debug
+          path: target/debug/bundle/deb/*.deb
+          if-no-files-found: error

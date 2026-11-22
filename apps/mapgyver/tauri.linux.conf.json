@@ -1,0 +1,15 @@
+{
+	"mainBinaryName": "mapgyver2",
+	"bundle": {
+		"targets": ["deb"],
+		"linux": {
+			"deb": {
+				"section": "graphics",
+				"recommends": ["mesa-vulkan-drivers | vulkan-icd"],
+				"files": {
+					"/usr/share/doc/map-gyver-2/copyright": "../../LICENSE"
+				}
+			}
+		}
+	}
+}
