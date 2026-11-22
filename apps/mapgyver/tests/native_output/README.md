@@ -6,6 +6,13 @@ Finite probe readbacks run in a separate test process, never in the production f
 The shared browser launcher suppresses fullscreen and rectangle outputs by default.
 Fixtures that measure physical outputs explicitly opt in with `allowPhysicalOutputs`.
 
+The portable macOS check runs with `MAPGYVER_TEST_BINARY` pointing to the bundled MapGyver
+executable. Run `node apps/mapgyver/tests/browser/portable-rectangle.mjs` in a desktop session
+with Screen Recording access for the test launcher. The observer captures only the test
+process's output window and samples its center in sRGB. It verifies authored color updates
+and output retirement and reopening for Rectangle and Fullscreen. Physical monitor hotplug
+and scanout cadence require a connected display session.
+
 For current unattended concurrent-output acceptance (M05/4):
 
 ```powershell

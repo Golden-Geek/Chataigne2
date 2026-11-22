@@ -99,5 +99,5 @@ jobs:
           GC_UI_BROWSER_CHANNEL: chrome
         run: node apps/mapgyver/tests/browser/portable-preview.mjs
 
-      - name: Check native Rectangle and Fullscreen Screen windows
+      - name: Check native Rectangle and Fullscreen Screen pixels
         run: node apps/mapgyver/tests/browser/portable-rectangle.mjs

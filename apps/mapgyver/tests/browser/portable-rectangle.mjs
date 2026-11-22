@@ -15,6 +15,7 @@ const program = promisify(execFile);
 const observer = (name) => fileURLToPath(new URL(`../native_output/${name}`, import.meta.url));
 const directory = await mkdtemp(join(tmpdir(), 'mapgyver-portable-rectangle-'));
 const macObserver = join(directory, 'macos-windows');
+const macCapture = join(directory, 'output.png');
 if (onMac) {
 	await program(
 		'swiftc',
@@ -65,8 +66,8 @@ async function waitForWindows(accept) {
 			{ windowsHide: true, timeout: 4000 }
 		);
 		const windows = JSON.parse(stdout);
-		if (accept(windows)) return windows;
-		assert(performance.now() < deadline, `Rectangle Screen did not update: ${stdout}`);
+		if (await accept(windows)) return windows;
+		assert(performance.now() < deadline, `Native Screen did not update: ${stdout}`);
 		await delay(120);
 	}
 }
@@ -84,6 +85,34 @@ async function waitForOutput(accept) {
 		return accept(active[0]);
 	});
 	return outputs(windows)[0];
+}
+
+function matchesRgb(actual, expected) {
+	return (
+		actual.length === expected.length &&
+		actual.every((value, index) => Math.abs(value - expected[index]) < 16)
+	);
+}
+
+async function waitForMacOutput(geometry, rgb) {
+	let actual;
+	try {
+		return await waitForOutput(async (window) => {
+			if (!geometry(window)) return false;
+			await program('/usr/sbin/screencapture', ['-x', '-o', '-l', String(window.id), macCapture], {
+				timeout: 4000
+			});
+			const { stdout } = await program(macObserver, ['--sample-center', macCapture], {
+				timeout: 4000
+			});
+			actual = JSON.parse(stdout);
+			return matchesRgb(actual, rgb);
+		});
+	} catch (error) {
+		throw new Error(`Window capture expected RGB ${rgb}, last sampled ${actual ?? 'none'}`, {
+			cause: error
+		});
+	}
 }
 
 async function selectPrimaryDisplay(screen) {
@@ -147,27 +176,28 @@ try {
 			definition: { enabled, target: { kind: 'Rectangle', bounds } }
 		});
 	await output(true);
-	const expectedOutput = (rgb) => (window) =>
-		window &&
-		(onMac
-			? Math.abs(window.width / window.height - 4 / 3) < 0.01
-			: window.visible &&
-				window.center_rgb.every((pixel) =>
-					pixel.every((value, index) => Math.abs(value - rgb[index]) < 16)
-				));
-	const red = await waitForOutput(expectedOutput([255, 0, 0]));
+	const rectangle = (rgb) =>
+		onMac
+			? waitForMacOutput(
+					(window) => window && Math.abs(window.width / window.height - 4 / 3) < 0.01,
+					rgb
+				)
+			: waitForOutput(
+					(window) => window?.visible && window.center_rgb.every((pixel) => matchesRgb(pixel, rgb))
+				);
+	const red = await rectangle([255, 0, 0]);
 	if (!onMac) assert.deepEqual(red.bounds, bounds);
 	await color([0, 1, 0, 1]);
-	const green = await waitForOutput(expectedOutput([0, 255, 0]));
+	const green = await rectangle([0, 255, 0]);
 	assert.equal(onMac ? green.id : green.hwnd, onMac ? red.id : red.hwnd);
 	await output(false);
 	await waitForOutput((window) => window === undefined);
 	await output(true);
-	const reopened = await waitForOutput(expectedOutput([0, 255, 0]));
+	const reopened = await rectangle([0, 255, 0]);
 	if (!onMac) assert.deepEqual(reopened.bounds, bounds);
 	console.log(
 		onMac
-			? 'WindowServer reported the Rectangle across live edit, disable and reopen'
+			? 'WindowServer capture measured red and green Rectangle pixels across edit and reopen'
 			: 'Native Rectangle showed both colors, retired on disable and reopened at its authored bounds'
 	);
 	if (onMac) {
@@ -187,14 +217,16 @@ try {
 			window &&
 			Object.entries(expected).every(([key, value]) => Math.abs(window[key] - value) <= 1);
 		await fullscreen(selected);
-		const initial = await waitForOutput(coversDisplay);
+		const initial = await waitForMacOutput(coversDisplay, [0, 255, 0]);
 		await color([0, 0, 1, 1]);
-		assert.equal((await waitForOutput(coversDisplay)).id, initial.id);
+		assert.equal((await waitForMacOutput(coversDisplay, [0, 0, 255])).id, initial.id);
 		await fullscreen(null);
 		await waitForOutput((window) => window === undefined);
 		await fullscreen(selected);
-		await waitForOutput(coversDisplay);
-		console.log('The Inspector UUID opened Fullscreen at the selected macOS display bounds');
+		await waitForMacOutput(coversDisplay, [0, 0, 255]);
+		console.log(
+			'WindowServer capture measured green and blue Fullscreen pixels at the selected display bounds'
+		);
 	}
 } catch (error) {
 	console.error(native.log().slice(-6000));

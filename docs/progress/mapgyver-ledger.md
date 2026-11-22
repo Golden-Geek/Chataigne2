@@ -53,10 +53,13 @@ seek and relink, Screen Warping, and native Rectangle and Fullscreen window life
 The Windows compile, workbench production build, both Rust formatters, shell syntax, Prettier
 and Actions lint passed. [Apple Silicon and Intel CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44951750513)
 
-**M19/2 next check.** Use a physical Mac display session with a connected monitor to sample
-native Screen pixels and cadence, unplug the selected display, and verify that the same
-saved UUID returns to output on reconnect. Confirm the output stops while its display is
-absent. The full gate remains open.
+**M19/2 native Mac pixels (22 November, 13:29 CET cutoff).** Extend the Screen output fixture
+to measure actual pixels from its own visible Rectangle and Fullscreen windows. The Mac
+native fixture owns WindowServer capture. CI must see authored colors change and return
+after reopening on both architectures. The local DX12 Rectangle fixture, JavaScript
+syntax, Prettier and Actions lint passed. Physical display cadence and hotplug still
+require a Mac with a connected monitor. Confirm the window stops while the display is
+absent and returns to the same saved UUID on reconnect.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
