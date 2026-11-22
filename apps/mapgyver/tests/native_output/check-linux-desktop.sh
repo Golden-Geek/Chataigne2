@@ -13,9 +13,17 @@ docker run --rm -i \
     "$image" bash -se <<'CONTAINER'
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
+
+archive=/tmp/mapgyver.deb
+architecture=$(dpkg-deb -f "$archive" Architecture)
+graphics=(mesa-vulkan-drivers)
+if [[ $architecture != "$(dpkg --print-architecture)" ]]; then
+    dpkg --add-architecture "$architecture"
+    graphics+=("mesa-vulkan-drivers:$architecture")
+fi
 apt-get -qq update
 apt-get -qq install -y --no-install-recommends \
-    /tmp/mapgyver.deb libatomic1 mesa-vulkan-drivers ffmpeg python3 dbus-daemon \
+    "$archive" libatomic1 "${graphics[@]}" ffmpeg python3 dbus-daemon \
     xvfb xauth x11-utils xdotool xserver-xorg-core xserver-xorg-video-dummy x11-xserver-utils \
     weston sway grim
 

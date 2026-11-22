@@ -1,0 +1,129 @@
+name: MapGyver Linux ARM packages
+
+on:
+  push:
+    branches: [mapgyver, main]
+    paths:
+      - '.github/workflows/mapgyver-linux-arm.yml'
+      - '.cargo/**'
+      - 'apps/mapgyver/**'
+      - 'crates/**'
+      - 'packages/**'
+      - 'tools/bootstrap/**'
+      - 'tools/mapgyver/**'
+      - 'tools/product-gate/hooks/**'
+      - 'Cargo.*'
+      - 'package*.json'
+      - '.nvmrc'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Build and test the Debian 13 ${{ matrix.architecture }} package
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: arm64
+            runner: ubuntu-24.04-arm
+            machine: aarch64
+            package_option: ''
+          - architecture: armhf
+            runner: ubuntu-24.04
+            machine: x86_64
+            package_option: --armhf
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install pinned Rust toolchain
+        run: sh tools/bootstrap/install-rust-toolchain.sh
+
+      - name: Install ARMv7 hard-float Rust target
+        if: matrix.architecture == 'armhf'
+        run: rustup target add armv7-unknown-linux-gnueabihf
+
+      - name: Enable ARMv7 execution for package hooks and tests
+        if: matrix.architecture == 'armhf'
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm
+
+      - name: Build against Debian 13 libraries
+        id: package
+        shell: bash
+        env:
+          MAPGYVER_ARCHITECTURE: ${{ matrix.architecture }}
+          MAPGYVER_BUILD_MACHINE: ${{ matrix.machine }}
+          MAPGYVER_PACKAGE_OPTION: ${{ matrix.package_option }}
+        run: |
+          test "$(uname -m)" = "$MAPGYVER_BUILD_MACHINE"
+          output="$RUNNER_TEMP/mapgyver-debian-13-$MAPGYVER_ARCHITECTURE"
+          mkdir -p "$output"
+          node=$(dirname "$(dirname "$(realpath "$(command -v node)")")")
+          rust=$(rustc --print sysroot)
+          git archive HEAD | docker run --rm -i \
+            -e MAPGYVER_PACKAGE_OPTION \
+            -e RUSTUP_HOME=/opt/rustup \
+            -e "RUSTUP_TOOLCHAIN=$(basename "$rust")" \
+            -v "$node:/opt/node:ro" \
+            -v "$rust:/opt/rust:ro" \
+            -v "$(rustup show home):/opt/rustup:ro" \
+            -v "$(command -v rustup):/usr/local/bin/rustup:ro" \
+            -v "$output:/artifacts" \
+            debian:trixie bash -euo pipefail -c '
+              export PATH="/opt/rust/bin:/opt/node/bin:$PATH"
+              mkdir /workbench
+              cd /workbench
+              tar -xf -
+              options=()
+              if [[ -n "${MAPGYVER_PACKAGE_OPTION:-}" ]]; then
+                options=("$MAPGYVER_PACKAGE_OPTION")
+              fi
+              bash tools/mapgyver/install-linux-build-dependencies.sh "${options[@]}"
+              npm ci
+              npm run package:mapgyver:linux -- "${options[@]}"
+              shopt -s nullglob
+              packages=(target/release/bundle/deb/*.deb target/*/release/bundle/deb/*.deb)
+              test "${#packages[@]}" -eq 1
+              install -m 0644 "${packages[0]}" /artifacts/
+            '
+          shopt -s nullglob
+          packages=("$output"/*.deb)
+          test "${#packages[@]}" -eq 1
+          test "$(dpkg-deb -f "${packages[0]}" Architecture)" = "$MAPGYVER_ARCHITECTURE"
+          printf 'path=%s\n' "${packages[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Install and verify the package in clean Debian 13
+        env:
+          MAPGYVER_TEST_PACKAGE: ${{ steps.package.outputs.path }}
+        run: bash apps/mapgyver/tests/native_output/check-linux-install.sh "$MAPGYVER_TEST_PACKAGE" debian:trixie
+
+      - name: Save the install-checked package
+        uses: actions/upload-artifact@v7
+        with:
+          name: mapgyver2-debian-13-${{ matrix.architecture }}
+          path: ${{ steps.package.outputs.path }}
+          if-no-files-found: error
+
+      - name: Verify workbench, media and display output in clean Debian 13
+        env:
+          MAPGYVER_TEST_PACKAGE: ${{ steps.package.outputs.path }}
+        run: |
+          # The installed package supplies the built UI. Install the fixture's JavaScript dependencies.
+          npm ci --ignore-scripts
+          bash apps/mapgyver/tests/native_output/check-linux-desktop.sh "$MAPGYVER_TEST_PACKAGE" debian:trixie

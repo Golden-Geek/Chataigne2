@@ -263,6 +263,25 @@ versions satisfy its declared minimums, and its SHA-256 is
 Return on a Pi with current 64-bit Raspberry Pi OS and an HDMI display to verify an
 on-device build, installation, native workbench, media playback, and Screen output
 and reconnect using the Pi GPU. The next software package is armhf.
+
+**Active M19/5 armhf package batch (22 November, 17:25 CET cutoff).** MapGyver's
+Linux packaging owns an ARMv7 hard-float Debian 13 package using the workbench built
+on the supported Node host. The first check is whether Debian can install the host tools
+and armhf libraries in one build image. If it can, build and inspect the normal desktop
+executable and its `.deb`, then exercise the installed artifact in an armhf userland.
+On-device Raspberry Pi OS, GPU and HDMI verification remains required.
+Debian 13 installed the host tools and armhf libraries together. MapGyver builds the
+workbench on x64 and embeds it in an ARMv7 hard-float release. The FFmpeg version probe
+uses a header directory containing the target FFmpeg headers without target libc, and
+armhf bindgen reads the public Vulkan headers for the 32-bit layouts. Debian runtime
+dependencies come from the target ELF, plus the Vulkan loader. This replaces the
+pre-time64 GTK name which prevented apt from installing Tauri's initial package.
+The corrected package passed a clean apt install, ELF linkage under QEMU, project
+authoring, Undo/Redo and Save/New/Load, and clean exit. Its SHA-256 is
+`40f68031c7977ea4719f93ac2071f1b024e1180f35c4757dc887a502f3a5b06b`.
+The updated fixtures also passed on the native Debian 13 amd64 release package.
+The ARM workflow will check the armhf workbench, media and X11/Wayland output with
+QEMU on the hosted runner. The physical Pi checks remain open.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -424,7 +443,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | Blocked | M19/2 | Both Mac architectures passed relocated bundles and captured Rectangle and Fullscreen pixels. Return on a physical Mac with a connected external display to verify scanout cadence and unplug/reconnect against the saved UUID. |
 | Blocked | M19/3 | Ubuntu 24.04 and 26.04 release packages and the clean Ubuntu hosted job passed desktop, media and virtual display recovery checks. Return on a physical Linux desktop with an external monitor to verify reconnect and cadence for X11 and Wayland. |
 | Blocked | M19/4 | The installed Debian 13 ARM64 package passed the native desktop, media and virtual output suites. Return on a Pi with the current 64-bit Raspberry Pi OS and HDMI to verify the on-device build, desktop, media and real Screen output using the Pi GPU. |
-| Active | M19/5 | Produce the armhf package with the Raspberry Pi OS 32-bit userland ABI. Verify install, desktop and media software checks before Pi GPU and HDMI qualification. |
+| Active | M19/5 | The hard-float ARMv7 package built and passed clean install and project authoring under QEMU. Verify the hosted workbench, media and virtual displays, then qualify the app on 32-bit Raspberry Pi OS with VideoCore and HDMI. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
 | Blocked | M13/2 | [Complete available app catalog](evidence/mapgyver-m13-app-catalog-2026-11-07.json) passes70/68 native layouts; earlier live/source/Intel device/D3D9 proof retained. Return on exposed NVIDIA D3D9 source, supported same-LUID NVIDIA loss/revised identity contract, actual backend/new path for named rejected allocations, authoritative metadata/revised contract for unadvertised interpretation. Every exact prerequisite/action remains in the receipt; no full gate credit or unchanged rerun. |

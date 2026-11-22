@@ -64,10 +64,16 @@ from the workspace root. With the pinned Rust and Node toolchains, run `npm ci`,
 dependencies from the executable. Build on the target distribution and architecture so the
 package uses the libraries available there.
 
-The [ARM64 package workflow](../../../.github/workflows/mapgyver-linux-arm64.yml) builds
+The [Linux ARM package workflow](../../../.github/workflows/mapgyver-linux-arm.yml) builds
 an `arm64` `.deb` in native Debian 13 userland for the Raspberry Pi OS Trixie baseline.
-The resulting package's install and desktop checks use clean Debian 13. Raspberry Pi OS
-launch, VideoCore rendering and HDMI output are verified separately on Pi hardware.
+An x64 Debian 13 host builds the `armhf` package with the pinned Node for frontend assets
+and Rust's `armv7-unknown-linux-gnueabihf` target for the desktop. Install that Rust target
+with `rustup target add armv7-unknown-linux-gnueabihf`, pass `--armhf` to the dependency
+installer, and run `npm run package:mapgyver:linux -- --armhf`. The package is under
+`target/armv7-unknown-linux-gnueabihf/release/bundle/deb`. The armhf build covers ARMv7 or
+newer CPUs with a 32-bit hard-float userland. CI uses QEMU to exercise the installed armhf
+package in clean Debian 13. Raspberry Pi OS launch, VideoCore rendering and HDMI output
+require checks on Pi hardware.
 
 Install the file with `sudo apt install ./<package>.deb`, then launch **MapGyver 2** from the
 application menu or run `mapgyver2`. CI checks installation without development packages
