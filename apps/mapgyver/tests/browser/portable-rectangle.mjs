@@ -13,17 +13,19 @@ import {
 	linuxRootBounds
 } from '../native_output/linux_x11_windows.mjs';
 import { westonOutputs } from '../native_output/weston_x11_outputs.mjs';
+import { verifyWaylandRecovery } from '../native_output/wayland-recovery.mjs';
 
 const onMac = process.platform === 'darwin';
 const onLinux = process.platform === 'linux';
 const onWayland = onLinux && process.argv.includes('--wayland');
+const onWaylandRecovery = onLinux && process.argv.includes('--wayland-recovery');
 assert(
 	onMac || onLinux || process.platform === 'win32',
 	'Select a desktop with an owned-window observer'
 );
-if (onLinux)
+if (onLinux && !onWaylandRecovery)
 	assert(process.env.DISPLAY, 'The native Linux Screen fixture requires X11 observation');
-if (onWayland) assert.equal(process.env.GDK_BACKEND, 'wayland');
+if (onWayland || onWaylandRecovery) assert.equal(process.env.GDK_BACKEND, 'wayland');
 assert(process.env.MAPGYVER_TEST_BINARY, 'Select the portable GPU MapGyver executable');
 const program = promisify(execFile);
 const observer = (name) => fileURLToPath(new URL(`../native_output/${name}`, import.meta.url));
@@ -155,30 +157,32 @@ async function waitForWindowPixels(geometry, rgb) {
 	}
 }
 
+async function displayOptions(screen) {
+	const graph = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
+	const byId = new Map(graph.nodes.map((node) => [node.node_id, node]));
+	const root = graph.nodes.find((node) => node.uuid === screen);
+	assert(root, 'Screen is absent from the workbench snapshot');
+	const pending = [root];
+	while (pending.length) {
+		const node = pending.pop();
+		if (node.decl_id === 'parameters/display') {
+			const param = node.data.param;
+			const definition = graph.schema.enums?.find((item) => item.enum_id === param.enum_options_id);
+			return definition?.variants ?? param.constraints?.enum_options ?? [];
+		}
+		pending.push(...(node.children ?? []).map((id) => byId.get(id)));
+	}
+	throw Error('Screen Inspector has no display parameter');
+}
+
 async function selectDisplay(screen, prefix) {
 	const deadline = performance.now() + 8000;
 	for (;;) {
-		const graph = await post('/api/ui/snapshot', { scope: 'wholeGraph' });
-		const byId = new Map(graph.nodes.map((node) => [node.node_id, node]));
-		const root = graph.nodes.find((node) => node.uuid === screen);
-		assert(root, 'Screen is absent from the workbench snapshot');
-		const pending = [root];
-		while (pending.length) {
-			const node = pending.pop();
-			if (node.decl_id === 'parameters/display') {
-				const param = node.data.param;
-				const definition = graph.schema.enums?.find(
-					(item) => item.enum_id === param.enum_options_id
-				);
-				const options = definition?.variants ?? param.constraints?.enum_options ?? [];
-				const display = options.find(({ variant_id }) => variant_id.startsWith(prefix))?.variant_id;
-				if (display) {
-					if (onMac) assert.match(display, /^macos:[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i);
-					return display;
-				}
-				break;
-			}
-			pending.push(...(node.children ?? []).map((id) => byId.get(id)));
+		const options = await displayOptions(screen);
+		const display = options.find(({ variant_id }) => variant_id.startsWith(prefix))?.variant_id;
+		if (display) {
+			if (onMac) assert.match(display, /^macos:[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i);
+			return display;
 		}
 		assert(performance.now() < deadline, `The Screen Inspector received no ${prefix} displays`);
 		await delay(120);
@@ -256,6 +260,7 @@ async function fullscreenGeometry() {
 		window && Object.entries(expected).every(([key, value]) => Math.abs(window[key] - value) <= 1);
 }
 
+let fixtureFailure;
 try {
 	if (onMac) {
 		const baseline = await waitForWindows((windows) =>
@@ -277,7 +282,17 @@ try {
 		reference: surface,
 		definition: { source: reference }
 	});
-	if (onWayland) {
+	if (onWaylandRecovery) {
+		await verifyWaylandRecovery({
+			pid: native.app.pid,
+			directory,
+			screen,
+			color,
+			edit,
+			post,
+			displayOptions: () => displayOptions(screen)
+		});
+	} else if (onWayland) {
 		await testWaylandFullscreen(screen, color);
 	} else {
 		const bounds = { left: 160, top: 120, extent: { width: 320, height: 240 } };
@@ -334,8 +349,14 @@ try {
 		}
 	}
 } catch (error) {
+	fixtureFailure = error;
 	console.error(native.log().slice(-6000));
 	throw error;
 } finally {
-	await native.close();
+	try {
+		await native.close();
+	} catch (error) {
+		if (!fixtureFailure) throw error;
+		console.error(error);
+	}
 }

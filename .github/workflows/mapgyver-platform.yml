@@ -173,6 +173,11 @@ jobs:
             xvfb-run -a -s '-screen 0 2560x1200x24' +              bash apps/mapgyver/tests/native_output/check-wayland-output.sh "${scales%,*}" "${scales#*,}"
           done
 
+      - name: Check Wayland display recovery with Sway
+        run: |
+          sudo apt-get install -y --no-install-recommends sway grim
+          bash apps/mapgyver/tests/native_output/check-wayland-recovery.sh
+
       - name: Save the verified test package
         uses: actions/upload-artifact@v7
         with:

@@ -28,6 +28,12 @@ For 2× scaling, use a `2560x1200x24` Xvfb display and pass `2` to the script.
 Pass `1 2` or `2 1` for two different output scales. The fixture compares each output's
 observed device-pixel bounds with its configured scale before checking the pixels.
 
+With `sway` and `grim` installed, run
+`bash apps/mapgyver/tests/native_output/check-wayland-recovery.sh`. The script owns an
+isolated Sway session and checks the selected output's pixels and its native window.
+It disables and re-enables the connector with the project open, then repeats the check
+after reopening the saved project while that connector is offline.
+
 For current unattended concurrent-output acceptance (M05/4):
 
 ```powershell

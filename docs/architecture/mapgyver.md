@@ -209,7 +209,9 @@ saved identity and Golden opens the window at the selected X11 bounds. Native Wa
 Fullscreen uses the compositor connector qualified by available monitor metadata. GTK
 requests the selected monitor and commits a GTK draw at its configured size and scale
 before Golden attaches the GPU surface. The catalog supplies GDK device-pixel buffer
-extents for Wayland.
+extents for Wayland. Golden Video prefers mailbox presentation on Wayland to keep
+retirement responsive when a disconnected output stops sending frame callbacks. Immediate
+presentation is used when the driver advertises it as the only applicable mode.
 On macOS the desktop presents Fullscreen Screens on the display selected in the Inspector.
 Golden enumerates AppKit screens, assigns their ColorSync UUIDs and places the output using its AppKit frame.
 MapGyver publishes the display choices through the authored display parameter's catalog and

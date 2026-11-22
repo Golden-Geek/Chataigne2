@@ -40,6 +40,7 @@ pub(super) struct Endpoint {
     surface: wgpu::Surface<'static>,
     _retirement: Retirement,
     extent: Extent2D,
+    wayland: bool,
     withdrawn: AtomicBool,
     lost: AtomicBool,
     activate: Mutex<Option<Activate>>,
@@ -62,6 +63,9 @@ impl WindowOutputs {
         W: wgpu::DisplayAndWindowHandle + 'static,
     {
         let retirement = Retirement(Some(Box::new(on_retired)));
+        let wayland = window
+            .window_handle()
+            .is_ok_and(|handle| matches!(handle.as_raw(), wgpu::rwh::RawWindowHandle::Wayland(_)));
         let surface = self
             .inner
             .instance
@@ -77,6 +81,7 @@ impl WindowOutputs {
                 surface,
                 _retirement: retirement,
                 extent,
+                wayland,
                 withdrawn: AtomicBool::new(false),
                 lost: AtomicBool::new(false),
                 activate: Mutex::new(Some(Box::new(on_activate))),
@@ -144,12 +149,22 @@ impl Endpoint {
             .into_iter()
             .find(|format| capabilities.formats.contains(format))
             .ok_or(BackendError::UnsupportedPlan)?;
+        // Wayland compositors can stop sending frame callbacks when the selected output
+        // disappears. Mesa FIFO presentation then blocks the worker that must retire it.
+        let present_mode = if self.wayland {
+            [wgpu::PresentMode::Mailbox, wgpu::PresentMode::Immediate]
+                .into_iter()
+                .find(|mode| capabilities.present_modes.contains(mode))
+                .ok_or(BackendError::UnsupportedPlan)?
+        } else {
+            wgpu::PresentMode::Fifo
+        };
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format,
             width: self.extent.width(),
             height: self.extent.height(),
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode,
             desired_maximum_frame_latency: 2,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             color_space: wgpu::SurfaceColorSpace::Auto,
