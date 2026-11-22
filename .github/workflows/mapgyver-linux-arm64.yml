@@ -86,5 +86,6 @@ jobs:
         env:
           MAPGYVER_TEST_PACKAGE: ${{ steps.package.outputs.path }}
         run: |
-          npm ci
+          # The installed package supplies the built UI. Install the fixture's JavaScript dependencies.
+          npm ci --ignore-scripts
           bash apps/mapgyver/tests/native_output/check-linux-desktop.sh "$MAPGYVER_TEST_PACKAGE" debian:trixie

@@ -236,10 +236,25 @@ packaging owns the native ARM64 Debian 13 build, install and workbench checks. P
 an `arm64` package with the existing native FFmpeg and shared GPU backend, and check the
 installed artifact on a native ARM64 runner in clean Debian 13. The actual Raspberry Pi
 OS desktop, its native GPU and physical Screen output remain required on a Pi.
-The ARM64 workflow and both Bash entry points passed syntax and architecture checks.
-The shared dependency installer completed in clean Debian 13 on amd64. Its package
-build is running as a Debian library and packaging check. Native ARM64 build and tests
-are pending.
+The ARM64 workflow and Bash entry points passed syntax and architecture checks.
+As a Debian library and packaging check, the same builder passed on amd64 with FFmpeg
+7.1.5 and WebKitGTK 2.54.3. The optimized package passed clean apt installation,
+authoring and Save/New/Load, X11 workbench startup and exit, media and Screen Warping,
+X11 output and XRandR recovery, four Weston scale pairs, and Sway output recovery.
+[The first native ARM64 build](https://github.com/Golden-Geek/Chataigne2/actions/runs/45035872813)
+produced an optimized `arm64` package and passed minimal Debian 13 installation, ELF
+linkage, authoring and Save/New/Load. The artifact contains an ELF64 AArch64 binary.
+The [Raspberry Pi ARM64 package index](https://archive.raspberrypi.com/debian/dists/trixie/main/binary-arm64/Packages.gz)
+meets its declared minimum versions for the FFmpeg, ALSA, GTK, Cairo and libc packages
+provided by the Pi archive. Package SHA-256
+`870bec975d0b6c1e71fdcfb9bf7f868b0f83faff31e1c0e568d9c5efd4cd183a`.
+Desktop test setup failed before launch because `npm ci` invoked Golden Audio codegen on
+the runner without the ALSA SDK. The test now installs JavaScript dependencies with
+`--ignore-scripts` and uses the installed package's workbench. A clean Ubuntu check
+without development packages loaded Playwright with that flag. The native desktop,
+media, and display tests must pass on the rerun. The
+[updated Ubuntu job](https://github.com/Golden-Geek/Chataigne2/actions/runs/45035873220)
+continues independently.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -400,7 +415,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
 | Blocked | M19/2 | Both Mac architectures passed relocated bundles and captured Rectangle and Fullscreen pixels. Return on a physical Mac with a connected external display to verify scanout cadence and unplug/reconnect against the saved UUID. |
 | Blocked | M19/3 | Ubuntu 24.04 and 26.04 release packages passed desktop, media and virtual display recovery checks. Inspect the clean Ubuntu hosted job when it completes. Return on a physical Linux desktop with an external monitor to verify reconnect and cadence for X11 and Wayland. |
-| Active | M19/4 | Produce and test the ARM64 Debian 13 package on a native runner. Test the same production path on Raspberry Pi OS with the Pi GPU and HDMI output when hardware is available. |
+| Active | M19/4 | The native Debian 13 ARM64 package built, installed and passed project authoring. Verify the corrected hosted desktop/media/output suite. Return on Raspberry Pi OS with the Pi GPU and HDMI output for the physical checks. |
 | Pending | M19/5 | Follow aarch64 with the native armhf build and Raspberry Pi OS desktop, media and output checks. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
