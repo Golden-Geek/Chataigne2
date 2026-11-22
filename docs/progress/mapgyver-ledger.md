@@ -169,6 +169,15 @@ pixels when it returned. The X11 recovery fixture passed twice, and the shared S
 scenario, four Weston scale configurations, and standalone X11 pixel checks passed. The
 CI workflow runs the fixture against the installed package. Physical X11 hotplug and
 cadence still need external monitors.
+
+**M19/3 Linux release package batch (22 November, 15:45 CET cutoff).** Rebuild the
+Ubuntu 26.04 amd64 release package with the current X11 and Wayland output recovery
+code. MapGyver's packaging tools own the Debian runtime dependencies. Verify clean
+apt installation, desktop launch and exit, packaged media, and both recovery fixtures
+using the resulting binary. Ubuntu 24.04 remains under its own CI check.
+The Weston CI command contained a stray `+` before `bash`. After correction, the exact
+workflow shell step passed locally for all four scale configurations. The Ubuntu 26.04
+release build is running.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 

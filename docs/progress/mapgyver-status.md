@@ -5,7 +5,7 @@
 - **Latest verified:** 4× AA fits the memory cap. Sustained timing passed at 1080p on NVIDIA. NVIDIA 4K and both Intel sizes still exceed the GPU budget. [Checks](mapgyver-m14-antialiasing.md#sustained-shared-texture-timing--2026-11-20)
 - **Plan execution:** macOS first, then desktop Linux and Raspberry Pi (armhf and aarch64). Windows ARM64 has a separate gate.
 - **Manual action needed from you now: none.**
-- **Next:** Verify Ubuntu 24.04 desktop exit and packaged media and output, then physical Linux display recovery (M19/3). Xorg and Sway recovered the same saved Screen after a live disconnect and a project reload while the output was offline. Physical Mac hotplug and cadence await an external monitor. [Cross-platform evidence](mapgyver-ledger.md)
+- **Next:** Verify the current Ubuntu 26.04 release package and the Ubuntu 24.04 desktop exit, media and output checks (M19/3). The corrected Weston CI command passed locally at all four matching and mixed scales. Xorg and Sway recovered the saved Screen after a live disconnect and reload while offline. Physical Mac hotplug and cadence await an external monitor. [Cross-platform evidence](mapgyver-ledger.md)
 
 ## Done — code and normal-use checks passed
 
