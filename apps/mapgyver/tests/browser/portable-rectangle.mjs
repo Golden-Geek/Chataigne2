@@ -100,7 +100,11 @@ async function observedWindows() {
 		onMac ? macObserver : 'python',
 		onMac
 			? [pid]
-			: [observer('window_state.py'), pid, ...(testVideo ? [] : ['--title', 'MapGyver Screen Output'])],
+			: [
+					observer('window_state.py'),
+					pid,
+					...(testVideo ? ['--require-output-owner'] : ['--title', 'MapGyver Screen Output'])
+				],
 		{ windowsHide: true, timeout: 4000 }
 	);
 	return JSON.parse(stdout);
@@ -156,8 +160,9 @@ async function waitForWindowPixels(geometry, rgb) {
 		return await waitForOutput(async (window) => {
 			if (!window?.visible || !geometry(window)) return false;
 			const pixels = onLinux ? await linuxOutputCenter(window) : window.center_rgb;
-			actual = pixels[0] ? Array.from(pixels[0]) : undefined;
-			return pixels.length > 0 && pixels.every((pixel) => matchesRgb(pixel, rgb));
+			if (!pixels?.length) return false;
+			actual = Array.from(pixels[0]);
+			return pixels.every((pixel) => matchesRgb(pixel, rgb));
 		});
 	} catch (error) {
 		throw new Error(`Window capture expected RGB ${rgb}, last sampled ${actual ?? 'none'}`, {
@@ -270,11 +275,6 @@ async function fullscreenGeometry() {
 }
 
 async function verifyH264Output(surface, rectangle) {
-	const libraries = await inspectLocalVideoLibraries(
-		native.app.pid,
-		process.env.MAPGYVER_TEST_BINARY,
-		process.env.MAPGYVER_VIDEO_RUNTIME_PIN
-	);
 	const { reference } = await edit('media', { kind: 'CreateMedia', media_kind: 'Video' });
 	const file = fileURLToPath(
 		new URL('../../../../crates/golden_video/src/decode/tests/fixtures/h264.mp4', import.meta.url)
@@ -310,12 +310,20 @@ async function verifyH264Output(surface, rectangle) {
 		await rectangle([gray, gray, gray]);
 	}
 	console.log(
-		JSON.stringify({ result: 'pass', scope: 'Installed FFmpeg DLLs and H.264 Screen pixels', libraries })
+		JSON.stringify({ result: 'pass', scope: 'Installed H.264 Screen pixels' })
 	);
 }
 
 let fixtureFailure;
 try {
+	if (testVideo) {
+		const libraries = await inspectLocalVideoLibraries(
+			native.app.pid,
+			process.env.MAPGYVER_TEST_BINARY,
+			process.env.MAPGYVER_VIDEO_RUNTIME_PIN
+		);
+		console.log(JSON.stringify({ result: 'pass', scope: 'Installed FFmpeg DLLs', libraries }));
+	}
 	if (onMac) {
 		const baseline = await waitForWindows((windows) =>
 			windows.some((window) => window.layer === 0 && window.height >= 100)

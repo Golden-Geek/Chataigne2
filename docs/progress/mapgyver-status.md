@@ -5,7 +5,7 @@
 - **Latest verified:** 4× AA fits the memory cap. Sustained timing passed at 1080p on NVIDIA. NVIDIA 4K and both Intel sizes still exceed the GPU budget. [Checks](mapgyver-m14-antialiasing.md#sustained-shared-texture-timing--2026-11-20)
 - **Plan execution:** macOS first, then desktop Linux and Raspberry Pi (armhf and aarch64). Windows ARM64 has a separate gate.
 - **Manual action needed from you now: none.**
-- **Next:** Native Windows ARM64 installer and installed headless authoring passed. Verify normal release WebView2 startup and H.264 Screen pixels (M19/6). Pi desktop and media qualification requires 32-bit Raspberry Pi OS with VideoCore and HDMI. [Cross-platform evidence](mapgyver-ledger.md)
+- **Next:** Windows ARM64 installation, headless authoring and release WebView2 startup passed. Verify owned Screen pixels and H.264 output (M19/6). Pi desktop and media qualification requires 32-bit Raspberry Pi OS with VideoCore and HDMI. [Cross-platform evidence](mapgyver-ledger.md)
 
 ## Done — code and normal-use checks passed
 

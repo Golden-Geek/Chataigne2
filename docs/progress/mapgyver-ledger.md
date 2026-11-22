@@ -296,13 +296,15 @@ check native WebKit, Solid Color, H.264 playback and HDMI. Retain the hosted Web
 failure and emulated preview abort as separate software regressions until reproduced
 and resolved or isolated to emulation.
 
-**Active M19/6 Windows ARM64 installed workbench batch (22 November, 19:13 CET cutoff).**
-MapGyver's installed-app suite owns the proof of workbench authoring and video output.
-Exercise installed-file Save/New/Load and history, actual WebView2 editor actions,
-and codec playback and composited output pixels on native Windows ARM64. The native
-runner will determine whether the hosted desktop provides a D3D11 display target for
-the existing playback fixture. Physical display recovery, Spout transfer and native
-NDI remain open.
+**Active M19/6 Windows ARM64 Screen output batch (22 November, 20:10 CET cutoff).**
+The installed-app suite owns proof of native Rectangle pixels and H.264 output.
+The hosted baseline created the D3D11 window at the authored bounds and reached
+Ready. The center capture was gray instead of red. Check that the sample's
+frontmost HWND belongs to the output and include layered windows in the captured
+desktop. Matching pixels will qualify the finite Rectangle and video checks.
+A mismatch on the owned output will retain the exact capture evidence for a
+separate renderer or display-path decision. Native interactive workbench authoring,
+Media Preview, physical display recovery, Spout transfer and native NDI remain open.
 The [native Windows ARM64 SDK job](https://github.com/Golden-Geek/Chataigne2/actions/runs/45044365771/job/137276328490)
 passed MSVC linking and dynamic loading of all five DLLs, version and build identity,
 decoder discovery and H.264/D3D11VA/DXVA2 entry points.
@@ -318,11 +320,12 @@ clean shutdown and silent uninstall all passed. Installer SHA-256
 `31e3b9cddb7b4f3f5cb334780c634e705fe4ecf6df3353f1c4f9ab4dc9aced13`.
 The [first installed-app suite](https://github.com/Golden-Geek/Chataigne2/actions/runs/45049931676/job/137293507106)
 passed native headless source authoring, history and Save/New/Load. The bundled
-release app correctly rejected the debug-only WebView control flag. The next run
-starts the release executable normally, observes the owned WebView2 window and
-its workbench snapshot, checks the five loaded FFmpeg libraries, and samples
-Rectangle pixels on live color changes, reopen and H.264 seeks. Interactive native
-authoring and Media Preview retain their own acceptance requirements.
+release app correctly rejected the debug-only WebView control flag. The
+[release desktop suite](https://github.com/Golden-Geek/Chataigne2/actions/runs/45052488152/job/137301413395)
+mapped the installed WebView2 workbench, observed its snapshot request and passed
+the strict standalone workbench checks with zero request, page or console errors.
+The Rectangle HWND was visible and Ready at 160,120 with a 320 × 240 client. The
+capture returned RGB 241,242,240 for authored RGB 255,0,0, before the H.264 phase.
 Local SDK ZIP SHA-256 `77733807f203f72fc96e607b3babfe7d07cec7e2e747829867fe35cf4cd56e6d`.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
@@ -486,7 +489,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | Blocked | M19/3 | Ubuntu 24.04 and 26.04 release packages and the clean Ubuntu hosted job passed desktop, media and virtual display recovery checks. Return on a physical Linux desktop with an external monitor to verify reconnect and cadence for X11 and Wayland. |
 | Blocked | M19/4 | The installed Debian 13 ARM64 package passed the native desktop, media and virtual output suites. Return on a Pi with the current 64-bit Raspberry Pi OS and HDMI to verify the on-device build, desktop, media and real Screen output using the Pi GPU. |
 | Blocked | M19/5 | The ARMv7 package built and passed clean install and headless authoring locally and on the hosted runner. Under QEMU the hosted WebKit view stalled and local Solid Color preview aborted. Return on 32-bit Raspberry Pi OS with VideoCore and HDMI to test those paths and establish whether the failures reproduce outside emulation. |
-| Active | M19/6 | Native SDK, installer and headless startup passed. Verify installed workbench authoring and media/output, then recovery and SDK integrations. |
+| Active | M19/6 | Native SDK, installer, headless authoring and WebView2 startup passed. Verify owned Screen pixels and H.264 output, then interactive preview, recovery and SDK integrations. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
 | Blocked | M13/2 | [Complete available app catalog](evidence/mapgyver-m13-app-catalog-2026-11-07.json) passes70/68 native layouts; earlier live/source/Intel device/D3D9 proof retained. Return on exposed NVIDIA D3D9 source, supported same-LUID NVIDIA loss/revised identity contract, actual backend/new path for named rejected allocations, authoritative metadata/revised contract for unadvertised interpretation. Every exact prerequisite/action remains in the receipt; no full gate credit or unchanged rerun. |
 | Accepted | M13/3 | [Complete Matrix acceptance](evidence/mapgyver-m13-matrix-acceptance-2026-11-07.json): canonical inline controls/top-left labels/whole headers, root/nested/reparent/history/reload, front-first rendering and SVG hit order,72 threshold/font-scale cases, actual minimum dock resize, complete both-GPU native grid/Group/offscreen/sparse lifetime flows and22 independent output images pass. No timing or generic GPU-owner retirement claim. |
