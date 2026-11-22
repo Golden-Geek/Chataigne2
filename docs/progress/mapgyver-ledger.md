@@ -80,8 +80,10 @@ fixture, default Windows compile with FFmpeg 9, Rust formatting, Prettier and Ac
 passed. Ubuntu 24.04 CI, Linux installation, Fullscreen display routing, Wayland output
 and physical reconnect remain open.
 The [Ubuntu 24.04 CI run](https://github.com/Golden-Geek/Chataigne2/actions/runs/45023316606)
-started after the successful Intel macOS pixel run. Milestone pushes to `mapgyver` let the
-running platform workflow finish.
+built the default application and passed authoring and strict UI readiness. Its PowerShell
+wrapper timed out waiting for desktop shutdown. The replacement uses a Node-owned desktop
+process and requires exit code zero. It passed against the Ubuntu 26.04 release build with
+the workbench ready, its WebSocket exchanging frames and a normal exit.
 
 **M19/3 Linux package batch (22 November, 14:26 CET cutoff).** Produce a native Debian
 package for the build distribution. MapGyver's packaging tools own the package and use
@@ -89,12 +91,23 @@ Debian's library metadata to declare the runtime dependencies of the linked exec
 Verify the package installs under apt in a fresh Ubuntu environment, then start the
 installed workbench and decode local media. Linux Fullscreen and physical recovery remain
 in the return queue for this gate.
-The Ubuntu 26.04 debug package installed with only declared dependencies in a fresh
-container. The desktop launcher, license, ELF linkage, installed project authoring and
-normal exit passed. The executable extracted from that package passed X11 readiness,
-H.264 playback, seek and relink, Screen Warping, and X11 Rectangle pixels and bounds.
-Ubuntu 24.04 CI will run the desktop fixtures against the apt-installed executable.
-The default release package build is running locally.
+The Ubuntu 26.04 amd64 debug and release packages installed with only declared dependencies
+in fresh containers. Both passed the desktop launcher, license, ELF linkage, installed
+project authoring and normal exit checks. Executables extracted from both packages passed
+X11 readiness, H.264 playback, paused seek and live relink, Screen Warping and renderer
+retirement. The debug package also passed X11 Rectangle pixels and bounds.
+The [Ubuntu 24.04 package workflow](https://github.com/Golden-Geek/Chataigne2/actions/runs/45024360410)
+will run desktop fixtures against the apt-installed executable.
+
+**M19/3 X11 Fullscreen batch (22 November, 14:37 CET cutoff).** Select an active XRandR
+output in the Screen Inspector and present Fullscreen at that output's bounds. Golden owns
+enumeration and placement. MapGyver owns published choices and exact saved identities.
+The default Linux build and 11 Screen catalog tests passed. Xvfb showed the owned
+Fullscreen window at the selected 1280×1024 output bounds, but the expected green was
+black in both the window and root framebuffer captures. Rectangle pixels still passed.
+Compare the same Screen content in a display-sized Rectangle to distinguish a renderer
+or X11 size issue from the Fullscreen route. Physical monitor hotplug and Wayland output
+remain open.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 

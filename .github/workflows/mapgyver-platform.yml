@@ -154,16 +154,7 @@ jobs:
         env:
           GDK_BACKEND: x11
           WEBKIT_DISABLE_DMABUF_RENDERER: '1'
-        run: |
-          xvfb-run -a pwsh -NoLogo -NoProfile -NonInteractive -Command '
-            . ./tools/product-gate/hooks/smoke-common.ps1
-            $env:XDG_DATA_HOME = Join-Path $env:RUNNER_TEMP "mapgyver-x11-data"
-            $binary = $env:MAPGYVER_TEST_BINARY
-            $shutdown = Join-Path $env:RUNNER_TEMP "mapgyver-x11.stop"
-            Invoke-RootCommandSmoke -Id mapgyver-x11 -Command $binary `
-              -CommandArguments @("--no-remote", "--automation-shutdown-file", $shutdown) `
-              -FrontendUri "http://127.0.0.1:7010/" -Ports @(7010) -ShutdownFile $shutdown
-          '
+        run: xvfb-run -a node apps/mapgyver/tests/native_output/desktop-readiness.mjs
 
       - name: Check local media and portable GPU Screen Warping
         env:
