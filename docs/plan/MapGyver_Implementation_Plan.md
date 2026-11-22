@@ -12,6 +12,10 @@ ARM64 separately. The existing Windows x64 qualification queue resumes at its re
 triggers. The desktop workbench and project format stay shared across all hosts. When the
 current platform's remaining qualification requires unavailable hardware, record the missing
 checks and return trigger before starting the next platform's dependency-ready work.
+Mac and desktop Linux continue their physical qualification when external displays are available.
+Begin Raspberry Pi aarch64 with a native ARM64 package and software checks on the matching Debian
+userland. The hosted desktop Linux rerun can finish independently. Raspberry Pi OS and HDMI
+qualification remain required on Pi hardware.
 
 | Gate | Acceptance |
 | --- | --- |

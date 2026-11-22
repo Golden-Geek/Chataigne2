@@ -125,13 +125,7 @@ jobs:
           cache-targets: false
 
       - name: Install the Linux desktop, audio and video dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            clang libclang-dev pkg-config dpkg-dev \
-            libwebkit2gtk-4.1-dev libxdo-dev libayatana-appindicator3-dev librsvg2-dev \
-            libasound2-dev libjack-jackd2-dev libpipewire-0.3-dev libdbus-1-dev libudev-dev \
-            libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libswscale-dev
+        run: sudo bash tools/mapgyver/install-linux-build-dependencies.sh
 
       - name: Install workbench dependencies
         run: npm ci

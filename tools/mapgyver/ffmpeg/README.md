@@ -56,16 +56,22 @@ For a Linux development build, use the distro packages for `libavcodec-dev`,
 `cargo build --locked --package MapGyver --bin MapGyver`. The default Linux app uses
 Golden's portable wgpu path for Media Preview and Screen Warping.
 
-On a Debian-based Linux build host, install `dpkg-dev` alongside those development
-dependencies, run `npm ci`, then run `npm run package:mapgyver:linux`. The command writes a
-`.deb` under `target/release/bundle/deb`. Add `-- --debug` for the CI package under
+On a Debian-based Linux build host, run `sudo bash tools/mapgyver/install-linux-build-dependencies.sh`
+from the workspace root. With the pinned Rust and Node toolchains, run `npm ci`, then
+`npm run package:mapgyver:linux`. The command writes a `.deb` under
+`target/release/bundle/deb`. Add `-- --debug` for a debug package under
 `target/debug/bundle/deb`. Debian's package tooling derives the FFmpeg and desktop runtime
 dependencies from the executable. Build on the target distribution and architecture so the
 package uses the libraries available there.
 
+The [ARM64 package workflow](../../../.github/workflows/mapgyver-linux-arm64.yml) builds
+an `arm64` `.deb` in native Debian 13 userland for the Raspberry Pi OS Trixie baseline.
+The resulting package's install and desktop checks use clean Debian 13. Raspberry Pi OS
+launch, VideoCore rendering and HDMI output are verified separately on Pi hardware.
+
 Install the file with `sudo apt install ./<package>.deb`, then launch **MapGyver 2** from the
-application menu or run `mapgyver2`. The CI install check uses a fresh Ubuntu container
-without development packages and then exercises the installed desktop executable.
+application menu or run `mapgyver2`. CI checks installation without development packages
+and exercises the installed desktop executable in a fresh distribution image.
 
 Without Cargo arguments, the helper prepares inputs and returns only the SDK path in the
 PowerShell success stream; progress goes to the host. With
