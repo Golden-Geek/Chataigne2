@@ -78,6 +78,7 @@ $taskOldPath = $env:PATH
 $taskOldClang = $env:LIBCLANG_PATH
 $taskOldRustflags = $env:RUSTFLAGS
 $taskOldEncodedRustflags = $env:CARGO_ENCODED_RUSTFLAGS
+$taskOldLinkOptions = $env:_LINK_
 $taskOldTarget = $env:CARGO_BUILD_TARGET
 $taskOldTauriConfig = $env:TAURI_CONFIG
 $taskOldSpoutInclude = $env:SPOUT_SSE2NEON_INCLUDE
@@ -89,13 +90,13 @@ try {
         $env:CARGO_BUILD_TARGET = $taskTarget
         $env:SPOUT_SSE2NEON_INCLUDE = $taskRuntime.SpoutInclude
     }
-    # Bindgen's Windows SDK traversal can exhaust the MSVC executable's default main stack.
-    # Reserve virtual address space, without increasing committed stack or changing the system.
-    if ($taskOldEncodedRustflags) {
-        $env:CARGO_ENCODED_RUSTFLAGS = $taskOldEncodedRustflags
-    $env:CARGO_BUILD_TARGET = $taskOldTarget
-    $env:TAURI_CONFIG = $taskOldTauriConfig
-    $env:SPOUT_SSE2NEON_INCLUDE = $taskOldSpoutInclude + [char]31 + '-C' + [char]31 + 'link-arg=/STACK:16777216'
+    # Bindgen needs more reserved stack for Windows SDK traversal. An explicit
+    # Cargo target excludes host build scripts from RUSTFLAGS. MSVC reads _LINK_
+    # when linking both the host build script and the ARM64 app.
+    if ($taskArm64) {
+        $env:_LINK_ = ($taskOldLinkOptions + ' /STACK:16777216').Trim()
+    } elseif ($taskOldEncodedRustflags) {
+        $env:CARGO_ENCODED_RUSTFLAGS = $taskOldEncodedRustflags + [char]31 + '-C' + [char]31 + 'link-arg=/STACK:16777216'
     } else {
         $env:RUSTFLAGS = (($taskOldRustflags + ' -C link-arg=/STACK:16777216').Trim())
     }
@@ -141,5 +142,9 @@ try {
     $env:LIBCLANG_PATH = $taskOldClang
     $env:RUSTFLAGS = $taskOldRustflags
     $env:CARGO_ENCODED_RUSTFLAGS = $taskOldEncodedRustflags
+    $env:_LINK_ = $taskOldLinkOptions
+    $env:CARGO_BUILD_TARGET = $taskOldTarget
+    $env:TAURI_CONFIG = $taskOldTauriConfig
+    $env:SPOUT_SSE2NEON_INCLUDE = $taskOldSpoutInclude
 }
 exit $taskExit

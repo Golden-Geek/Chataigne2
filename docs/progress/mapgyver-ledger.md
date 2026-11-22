@@ -308,6 +308,12 @@ NDI SDK qualification remain open.
 The [native Windows ARM64 SDK job](https://github.com/Golden-Geek/Chataigne2/actions/runs/45044365771/job/137276328490)
 passed MSVC linking and dynamic loading of all five DLLs, version and build identity,
 decoder discovery and H.264/D3D11VA/DXVA2 entry points.
+The [first app build](https://github.com/Golden-Geek/Chataigne2/actions/runs/45045248395/job/137279508340)
+reached FFmpeg bindings and failed with a host build-script stack overflow.
+Cargo's explicit ARM64 target excludes host build scripts from `RUSTFLAGS`.
+The wrapper now applies the stack reserve through MSVC's `_LINK_` for both host
+and target. A local Rust host executable linked with `_LINK_` recorded a 16 MiB
+reserve in its PE header. The second app build checks the native recovery path.
 Local SDK ZIP SHA-256 `77733807f203f72fc96e607b3babfe7d07cec7e2e747829867fe35cf4cd56e6d`.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.

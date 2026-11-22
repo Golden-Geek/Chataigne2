@@ -57,7 +57,9 @@ powershell -NoProfile -File tools/mapgyver/ffmpeg/with-ffmpeg.ps1 --tauri build 
 ```
 
 The ARM64 wrapper stages its DLLs separately and prepares the pinned `sse2neon.h`
-for Spout. The installer is under `target/aarch64-pc-windows-msvc/release/bundle/nsis`.
+for Spout. It scopes the MSVC stack reserve to the build's linker environment so
+the FFmpeg binding generator receives it too. The installer is under
+`target/aarch64-pc-windows-msvc/release/bundle/nsis`.
 The bundled NDI runtime is currently Windows x64 only.
 
 On macOS, `brew install ffmpeg pkgconf` provides the headers and libraries for ordinary Cargo
