@@ -1,6 +1,6 @@
 # MapGyver agent ledger
 
-**Updated: 2026-11-21 · Overall: `█████████░` 86% · 9/20 phases complete**
+**Updated: 2026-11-22 · Overall: `█████████░` 86% · 9/20 phases complete**
 
 **Accepted: 130/151 gates. Phase completion: 9/20 (45%). M19/1 is Accepted. M19/2 is Active for GPU-backed macOS media and Screen output.**
 
@@ -42,16 +42,21 @@ display's bounds. The window survived a live color edit, retired when the select
 cleared, reopened when restored and shut down normally. All 11 local catalog tests passed,
 including exact recovery when the intended UUID returns. An identical replacement stayed
 unassigned. The default Windows build, local DX12 Rectangle fixture and both formatters passed.
-Native macOS output pixels, physical hotplug and cadence, and independent Apple Silicon and
-Intel bundles remain open. [Apple Silicon Fullscreen](https://github.com/Golden-Geek/Chataigne2/actions/runs/44950133263)
+Native macOS output pixels, physical hotplug and cadence remain open.
+[Apple Silicon Fullscreen](https://github.com/Golden-Geek/Chataigne2/actions/runs/44950133263)
 
-**M19/2 macOS bundle batch (21 November, 23:08 CET cutoff).** Build a relocatable MapGyver app
-with its pinned FFmpeg playback libraries on Apple Silicon and Intel. The MapGyver packaging
-tools own the SDK and bundle layout. Qualification checks the architecture and executable
-library paths, then starts the relocated app and plays local media with bundle-local libraries.
-The packaging entry point and two-architecture CI matrix are implemented. The Windows compile,
-workbench production build, both Rust formatters, shell syntax, Prettier and Actions lint passed.
-The macOS packaging and runtime checks are queued for the native runners.
+**M19/2 macOS bundles verified.** The [packaging command](../../tools/mapgyver/ffmpeg/README.md)
+built two ad hoc signed debug bundles with the pinned FFmpeg libraries. Both macOS 15 jobs
+verified architecture, signatures and bundle-local Mach-O links after relocation. The
+relocated apps passed desktop readiness, project authoring and persistence, H.264 playback,
+seek and relink, Screen Warping, and native Rectangle and Fullscreen window lifecycle.
+The Windows compile, workbench production build, both Rust formatters, shell syntax, Prettier
+and Actions lint passed. [Apple Silicon and Intel CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44951750513)
+
+**M19/2 next check.** Use a physical Mac display session with a connected monitor to sample
+native Screen pixels and cadence, unplug the selected display, and verify that the same
+saved UUID returns to output on reconnect. Confirm the output stops while its display is
+absent. The full gate remains open.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
@@ -210,7 +215,7 @@ failed readback stress returns with M10/4, without changed budgets.
 | State    | Gate(s)  | Missing requirement / concrete next or return action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | -------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Accepted | M19/1 | [Apple Silicon CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/44933901297) passed the native build, authoring and persistence fixture, and strict desktop smoke. |
-| Active | M19/2 | Apple Silicon passed Media Preview, two-Surface Screen Warping, native Rectangle lifecycle and Fullscreen routing at display bounds. macOS native pixels, physical recovery, cadence and independent Mac bundles remain open. |
+| Active | M19/2 | Relocated Apple Silicon and Intel bundles passed signature and linkage audit, local media, Screen Warping, desktop startup and native window lifecycle. Verify native pixels, output cadence and reconnect in a physical Mac display session. |
 | Pending | M19/3–5 | After macOS, qualify desktop Linux, then Raspberry Pi on aarch64 and armhf with native build, launch and output. |
 | Pending | M19/6 | Build and verify an ARM64 Windows SDK, a native install, desktop media/output and recovery. |
 | Accepted | M13/1 | [Complete creation audit](evidence/mapgyver-m13-sender-defaults-2026-11-06.json): fresh Auto/first sender/None through every creation factory, script/command/public callers; zero/one/multiple sender cases, real SDK discovery order/loss/recovery, typed generic controls, creation/mode history, copy and sparse Manual/None/Auto reload pass. Ordinary hostPID42156 and both owned producers exit0; no desktop input or new format/timing claim. |
