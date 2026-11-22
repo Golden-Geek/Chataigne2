@@ -207,8 +207,9 @@ output bounds and a connector identity qualified by a base EDID fingerprint when
 Mirrored outputs share one addressable region. An authored Fullscreen Screen uses the exact
 saved identity and Golden opens the window at the selected X11 bounds. Native Wayland
 Fullscreen uses the compositor connector qualified by available monitor metadata. GTK
-requests the selected monitor and completes its initial configure and paint before Golden
-attaches the GPU surface. The catalog supplies GDK device-pixel buffer extents for Wayland.
+requests the selected monitor and commits a GTK draw at its configured size and scale
+before Golden attaches the GPU surface. The catalog supplies GDK device-pixel buffer
+extents for Wayland.
 On macOS the desktop presents Fullscreen Screens on the display selected in the Inspector.
 Golden enumerates AppKit screens, assigns their ColorSync UUIDs and places the output using its AppKit frame.
 MapGyver publishes the display choices through the authored display parameter's catalog and

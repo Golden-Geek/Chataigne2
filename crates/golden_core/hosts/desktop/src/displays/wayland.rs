@@ -1,11 +1,18 @@
 //! GTK-owned Wayland output metadata and compositor-directed fullscreen placement.
 
-use std::{cell::RefCell, collections::HashSet, io, rc::Rc, sync::mpsc, time::Duration};
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashSet,
+    io,
+    rc::Rc,
+    sync::mpsc,
+    time::Duration,
+};
 
 use gtk::{
     gdk,
     glib::{
-        GString,
+        GString, Propagation,
         translate::{ToGlibPtr, from_glib_full},
     },
     prelude::*,
@@ -56,22 +63,48 @@ pub(crate) fn place_fullscreen<R: Runtime>(
         let clock = widget
             .frame_clock()
             .ok_or_else(|| io::Error::other("missing Wayland frame clock"))?;
-        let first = Rc::new(RefCell::new(Some((painted, None))));
+        let scale = monitor.scale_factor();
+        let drew_buffer = Rc::new(Cell::new(false));
+        let draw_ready = drew_buffer.clone();
+        let draw = widget.connect_draw(move |widget, cairo| {
+            if widget.allocated_width() != logical.width()
+                || widget.allocated_height() != logical.height()
+                || widget.scale_factor() != scale
+            {
+                return Propagation::Proceed;
+            }
+            cairo.set_source_rgb(0.0, 0.0, 0.0);
+            if cairo.paint().is_ok() {
+                draw_ready.set(true);
+            }
+            Propagation::Stop
+        });
+        let first = Rc::new(RefCell::new(Some((painted, draw, None))));
         let callback = first.clone();
+        let weak_widget = widget.downgrade();
         let handler = clock.connect_after_paint(move |clock| {
-            if let Some((painted, handler)) = callback.borrow_mut().take() {
-                let _ = painted.try_send(());
+            // A clock phase can finish without drawing this widget. Only release the worker
+            // after GDK's after-paint handler has committed a buffer at the selected scale.
+            if !drew_buffer.replace(false) {
+                return;
+            }
+            let ready = callback.borrow_mut().take();
+            if let Some((painted, draw, handler)) = ready {
+                if let Some(widget) = weak_widget.upgrade() {
+                    widget.disconnect(draw);
+                }
                 if let Some(handler) = handler {
                     clock.disconnect(handler);
                 }
+                let _ = painted.try_send(());
             }
         });
-        first.borrow_mut().as_mut().expect("first paint is pending").1 = Some(handler);
+        first.borrow_mut().as_mut().expect("first paint is pending").2 = Some(handler);
         widget.show();
         Ok(())
     })?;
-    // GDK defers its first paint until shell configure. The renderer can attach
-    // after that point without submitting on an unconfigured wl_surface.
+    // The render worker borrows the surface only after GTK's initial configured
+    // draw commits the device buffer scale.
     first_paint.recv_timeout(Duration::from_secs(2)).map_err(|error| {
         io::Error::new(
             io::ErrorKind::TimedOut,

@@ -229,13 +229,18 @@ async function testWaylandFullscreen(screen, color) {
 	await fullscreen(secondary);
 	await check([255, 0, 0], false, true);
 	await color([0, 1, 0, 1]);
-	await check([0, 255, 0], false, true);
-	await fullscreen(primary);
-	await check([0, 255, 0], true, false);
+	const green = [0, 255, 0];
+	await check(green, false, true);
+	for (let attempt = 0; attempt < 4; attempt += 1) {
+		await fullscreen(primary);
+		await check(green, true, false);
+		await fullscreen(secondary);
+		await check(green, false, true);
+	}
 	await fullscreen(null);
-	await check([0, 255, 0], false, false);
+	await check(green, false, false);
 	await fullscreen(secondary);
-	await check([0, 255, 0], false, true);
+	await check(green, false, true);
 	console.log('Weston showed the authored Fullscreen pixels on each selected Wayland output');
 }
 
