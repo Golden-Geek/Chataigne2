@@ -79,7 +79,7 @@ reopening. All 23 targeted Golden Video decoder tests passed with FFmpeg 8. The 
 fixture, default Windows compile with FFmpeg 9, Rust formatting, Prettier and Actions lint
 passed. Ubuntu 24.04 CI, Linux installation, Fullscreen display routing, Wayland output
 and physical reconnect remain open.
-The [Ubuntu 24.04 CI run](https://github.com/Golden-Geek/Chataigne2/actions/runs/45023175919)
+The [Ubuntu 24.04 CI run](https://github.com/Golden-Geek/Chataigne2/actions/runs/45023316606)
 is queued behind the active Intel macOS pixel job. Milestone pushes to `mapgyver` let the
 running platform workflow finish. Next product deliverable is a Linux package that starts
 and plays local media from a clean install.
