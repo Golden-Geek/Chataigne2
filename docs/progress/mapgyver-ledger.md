@@ -96,7 +96,7 @@ in fresh containers. Both passed the desktop launcher, license, ELF linkage, ins
 project authoring and normal exit checks. Executables extracted from both packages passed
 X11 readiness, H.264 playback, paused seek and live relink, Screen Warping and renderer
 retirement. The debug package also passed X11 Rectangle pixels and bounds.
-The [Ubuntu 24.04 package workflow](https://github.com/Golden-Geek/Chataigne2/actions/runs/45024360410)
+The [Ubuntu 24.04 package workflow](https://github.com/Golden-Geek/Chataigne2/actions/runs/45025967029)
 will run desktop fixtures against the apt-installed executable.
 
 **M19/3 X11 Fullscreen batch (22 November, 14:37 CET cutoff).** Select an active XRandR
@@ -105,9 +105,10 @@ enumeration and placement. MapGyver owns published choices and exact saved ident
 The default Linux build and 11 Screen catalog tests passed. Xvfb showed the owned
 Fullscreen window at the selected 1280×1024 output bounds, but the expected green was
 black in both the window and root framebuffer captures. Rectangle pixels still passed.
-Compare the same Screen content in a display-sized Rectangle to distinguish a renderer
-or X11 size issue from the Fullscreen route. Physical monitor hotplug and Wayland output
-remain open.
+A Rectangle with the same 1280×1024 bounds also showed black, so display selection alone
+does not explain the failure. The next action is to trace framebuffer presentation for a
+display-sized X11 window from GPU submission to the server. Physical monitor hotplug and
+Wayland output remain open.
 The Windows 4× AA work is preserved at `89a68a941224c94277ac361b345e8a02a066076f`; return
 when Windows qualification resumes and run its pixel and allocation checks before timing.
 
