@@ -354,9 +354,14 @@ Publication requires green CI for each package on the same release tag. The
 `1.0.0b2` tag remains unpublished after the Windows x64 package job failed to
 load PowerShell's `Get-FileHash`. The next beta includes the decoder fix, uses
 PowerShell 7 directly for x64 CI, and runs the ARM64 Spout checks on the tag.
-The `1.0.0b3` publication job depends on the desktop, Linux ARM and Windows ARM64
-jobs. Its armhf distribution check covers installation and headless authoring
-under emulation. Native Raspberry Pi desktop and HDMI acceptance stays open.
+The [1.0.0b3 run](https://github.com/Golden-Geek/Chataigne2/actions/runs/45692693008)
+built and verified the pinned Windows x64 FFmpeg SDK. PowerShell removed the
+literal Cargo separator when invoking the packaging script, and Tauri rejected
+`--locked`. The release stayed unpublished. PowerShell 7 reproduced successful
+Tauri argument parsing with the separator in a splatted array. The `1.0.0b4`
+publication job requires the desktop, Linux ARM and Windows ARM64 jobs to pass.
+The armhf distribution check covers installation and headless authoring under
+emulation. Native Raspberry Pi desktop and HDMI acceptance stays open.
 The [official NDI Windows redistributable](https://docs.ndi.video/all/developing-with-ndi/sdk/dynamic-loading-of-ndi-libraries)
 served by `NDIRedistV6` contains x86 and x64 DLLs. Its main libraries report PE32
 i386 and PE32+ x86-64. The x64 file version is `6.4.0.2` and the installer SHA-256

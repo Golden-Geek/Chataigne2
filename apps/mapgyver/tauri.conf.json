@@ -1,7 +1,7 @@
 {
 	"$schema": "https://schema.tauri.app/config/2",
 	"productName": "MapGyver 2",
-	"version": "1.0.0-beta.3",
+	"version": "1.0.0-beta.4",
 	"identifier": "com.goldengeek.mapgyver",
 	"build": {
 		"devUrl": "http://localhost:7011",
