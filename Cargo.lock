@@ -56,7 +56,7 @@ dependencies = [
 
 [[package]]
 name = "MapGyver"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 dependencies = [
  "base64 0.22.1",
  "cfg_aliases",

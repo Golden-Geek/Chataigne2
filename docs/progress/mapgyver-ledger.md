@@ -350,6 +350,13 @@ adapter. Windows x64 passed all seven D3D11 decoder tests, including hardware
 frames, seeks and pool ownership on both local GPUs. The new classification
 test checks unsupported video hardware fallback and preserves device-loss retry.
 The next ARM64 branch run must verify H.264 through the installed app and Spout.
+Publication requires green CI for each package on the same release tag. The
+`1.0.0b2` tag remains unpublished after the Windows x64 package job failed to
+load PowerShell's `Get-FileHash`. The next beta includes the decoder fix, uses
+PowerShell 7 directly for x64 CI, and runs the ARM64 Spout checks on the tag.
+The `1.0.0b3` publication job depends on the desktop, Linux ARM and Windows ARM64
+jobs. Its armhf distribution check covers installation and headless authoring
+under emulation. Native Raspberry Pi desktop and HDMI acceptance stays open.
 The [official NDI Windows redistributable](https://docs.ndi.video/all/developing-with-ndi/sdk/dynamic-loading-of-ndi-libraries)
 served by `NDIRedistV6` contains x86 and x64 DLLs. Its main libraries report PE32
 i386 and PE32+ x86-64. The x64 file version is `6.4.0.2` and the installer SHA-256

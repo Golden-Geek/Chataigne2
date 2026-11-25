@@ -3,7 +3,6 @@ name: MapGyver platform checks
 on:
   push:
     branches: [mapgyver, main]
-    tags: ['1.0.0b*']
   pull_request:
     paths:
       - '.cargo/**'
@@ -18,12 +17,13 @@ on:
       - 'package*.json'
       - '.nvmrc'
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: mapgyver-platform-${{ github.ref }}
   # Let a running platform qualification finish before the next mapgyver milestone starts.
   cancel-in-progress: ${{ github.ref != 'refs/heads/mapgyver' }}
 

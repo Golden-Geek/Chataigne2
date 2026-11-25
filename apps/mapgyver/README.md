@@ -536,7 +536,7 @@ The NSIS installer installs for the current Windows user. With `/S`, it runs una
 leaves the app closed. Run the downloaded installer from PowerShell and check its exit code.
 
 ```powershell
-$setup = Start-Process -FilePath .\MapGyver2-1.0.0b2-windows-x64-setup.exe -ArgumentList '/S' -Wait -PassThru
+$setup = Start-Process -FilePath .\MapGyver2-1.0.0b3-windows-x64-setup.exe -ArgumentList '/S' -Wait -PassThru
 $setup.ExitCode
 ```
 
@@ -556,6 +556,10 @@ The smoke test needs a Windows account without MapGyver 2 installed. It installs
 temporary directory, checks that setup leaves the app closed, launches the packaged build to check
 the embedded workbench and reported version, then silently uninstalls. Distribute the
 [corresponding FFmpeg source kit](../../tools/mapgyver/ffmpeg/SOURCE-KIT.md) with the installer.
+
+The [MapGyver 2 beta workflow](../../.github/workflows/mapgyver-release.yml) uses `1.0.0bN`
+tags. Match the tagged app version to `1.0.0-beta.N` and add the notes under `releases/`.
+The workflow publishes a prerelease after the macOS, Windows and Linux package jobs pass.
 
 `build.rs` selects the `mapgyver-ui` npm workspace through
 `golden_codegen_support::ui_bundle`; it embeds the resulting assets into the

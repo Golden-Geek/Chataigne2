@@ -3,7 +3,6 @@ name: MapGyver Linux ARM packages
 on:
   push:
     branches: [mapgyver, main]
-    tags: ['1.0.0b*']
     paths:
       - '.github/workflows/mapgyver-linux-arm.yml'
       - '.cargo/**'
@@ -17,12 +16,13 @@ on:
       - 'package*.json'
       - '.nvmrc'
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: mapgyver-linux-arm-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
