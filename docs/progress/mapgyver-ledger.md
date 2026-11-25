@@ -296,11 +296,13 @@ check native WebKit, Solid Color, H.264 playback and HDMI. Retain the hosted Web
 failure and emulated preview abort as separate software regressions until reproduced
 and resolved or isolated to emulation.
 
-**Active M19/6 Windows ARM64 shared-texture batch (22 November, 21:05 CET cutoff).**
-The installed-app suite owns proof of native Spout exchange and H.264 output.
-Use the independent native receiver to check a Screen's live Solid Color changes
-and decoded H.264 frames. This will determine whether authoring, decode, D3D11
-composition and the native Spout SDK work together on the hosted ARM64 device.
+**Active M19/6 Windows ARM64 video decoder batch (25 November, 21:44 CET cutoff).**
+Golden Video opens D3D11 decode on the selected adapter and allows the owning app
+to fall back when that adapter lacks video decoding. FFmpeg used a different
+DXGI enumeration and selected the Microsoft Basic Render Driver on hosted ARM64.
+Pass the actual LUID-matched COM device to FFmpeg and retain device loss as a
+retryable failure. Verify the decoder and fallback on Windows x64 first, then
+require three H.264 frames from the installed ARM64 app's Spout receiver.
 Physical Rectangle pixels and recovery return on an unoccluded Windows ARM64
 desktop. Native interactive authoring, Media Preview and native NDI remain open.
 The [native Windows ARM64 SDK job](https://github.com/Golden-Geek/Chataigne2/actions/runs/45044365771/job/137276328490)
@@ -338,7 +340,16 @@ output with a native SDK receiver while physical scanout is unavailable in CI.
 The Windows x64 reference app passed the fixture locally. The independent Spout
 receiver observed exact solid red and green frames, then three H.264 states within
 four bytes of the fixture's limited-range BT.709 to sRGB expected pixels. The
-ARM64 workflow builds the same receiver natively and uses the installed release app.
+[ARM64 Spout run](https://github.com/Golden-Geek/Chataigne2/actions/runs/45060890899/job/137327654860)
+verified the two live Solid Color frames using an independent ARM64 SDK receiver.
+H.264 stopped before sampling because D3D11VA creation failed on the Microsoft
+Basic Render Driver. The successful Solid Color exchange qualifies that finite
+native SDK send/receive scope.
+Golden Video now hands FFmpeg a D3D11 device created on the actual selected
+adapter. Windows x64 passed all seven D3D11 decoder tests, including hardware
+frames, seeks and pool ownership on both local GPUs. The new classification
+test checks unsupported video hardware fallback and preserves device-loss retry.
+The next ARM64 branch run must verify H.264 through the installed app and Spout.
 The [official NDI Windows redistributable](https://docs.ndi.video/all/developing-with-ndi/sdk/dynamic-loading-of-ndi-libraries)
 served by `NDIRedistV6` contains x86 and x64 DLLs. Its main libraries report PE32
 i386 and PE32+ x86-64. The x64 file version is `6.4.0.2` and the installer SHA-256

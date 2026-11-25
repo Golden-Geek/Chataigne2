@@ -218,7 +218,9 @@ jobs:
         run: |
           npm ci
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          npm run package:mapgyver -- --without-bundled-ndi -- --locked
+          npm run build:mapgyver
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          ./tools/mapgyver/ffmpeg/with-ffmpeg.ps1 --tauri build --without-bundled-ndi -- --locked
 
       - name: Verify the installer and archive corresponding source
         shell: pwsh

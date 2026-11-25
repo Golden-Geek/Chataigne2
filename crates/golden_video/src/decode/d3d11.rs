@@ -6,14 +6,26 @@ use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
 };
-use std::{ffi::CString, marker::PhantomData, path::Path, ptr, rc::Rc};
-use windows::Win32::Graphics::{
-    Direct3D11::{D3D11_TEXTURE2D_DESC, ID3D11Texture2D},
-    Dxgi::{Common::*, CreateDXGIFactory1, DXGI_ERROR_NOT_FOUND, IDXGIDevice, IDXGIFactory1},
+use std::{marker::PhantomData, path::Path, ptr, rc::Rc};
+use windows::Win32::{
+    Foundation::{E_NOINTERFACE, HMODULE},
+    Graphics::{
+        Direct3D::{D3D_DRIVER_TYPE_UNKNOWN, D3D_FEATURE_LEVEL_11_0},
+        Direct3D11::{
+            D3D11_CREATE_DEVICE_VIDEO_SUPPORT, D3D11_SDK_VERSION, D3D11_TEXTURE2D_DESC, D3D11CreateDevice,
+            ID3D11Multithread, ID3D11Texture2D, ID3D11VideoDevice,
+        },
+        Dxgi::{
+            Common::*, CreateDXGIFactory1, DXGI_ERROR_NOT_FOUND, DXGI_ERROR_UNSUPPORTED, IDXGIAdapter1, IDXGIDevice,
+            IDXGIFactory1,
+        },
+    },
 };
 use windows::core::Interface;
 
 unsafe extern "C" {
+    fn golden_video_init_decoder_device(reference: *mut ffmpeg::ffi::AVBufferRef, device: *mut std::ffi::c_void)
+    -> i32;
     fn golden_video_decoder_device_status(device: *const ffmpeg::ffi::AVBufferRef) -> i32;
 }
 
@@ -149,21 +161,43 @@ impl HardwareDevice {
         if !supported {
             return Err(DecodeError::UnsupportedHardware);
         }
-        // FFmpeg's D3D11VA device option selects the current DXGI enumeration index.
-        // Resolve the requested LUID afresh; verify the real frame LUID again after decode.
-        let index = adapter_index(adapter)?;
-        let selected = CString::new(index.to_string()).unwrap();
-        let mut buffer = ptr::null_mut();
-        // SAFETY: libavutil owns context allocation and its API-specific ABI; no private
-        // AVD3D11VADeviceContext declaration is mirrored in Rust.
-        let result = unsafe {
-            ffmpeg::ffi::av_hwdevice_ctx_create(&mut buffer, hardware, selected.as_ptr(), ptr::null_mut(), 0)
-        };
-        if result < 0 {
-            return Err(ffmpeg::Error::from(result).into());
+        let selected = decoder_adapter(adapter)?;
+        let mut device = None;
+        // SAFETY: use the exact retained adapter. An index passed to FFmpeg would
+        // be resolved by a separate DXGI enumeration with different filtering.
+        unsafe {
+            D3D11CreateDevice(
+                &selected,
+                D3D_DRIVER_TYPE_UNKNOWN,
+                HMODULE::default(),
+                D3D11_CREATE_DEVICE_VIDEO_SUPPORT,
+                Some(&[D3D_FEATURE_LEVEL_11_0]),
+                D3D11_SDK_VERSION,
+                Some(&mut device),
+                None,
+                None,
+            )
         }
+        .map_err(video_device_error)?;
+        let device = device.ok_or(ffmpeg::Error::Bug)?;
+        let _: ID3D11VideoDevice = device.cast().map_err(video_device_error)?;
+        if let Ok(multithread) = device.cast::<ID3D11Multithread>() {
+            // SAFETY: FFmpeg may submit work through the retained device from codec threads.
+            let _ = unsafe { multithread.SetMultithreadProtected(true) };
+        }
+        // SAFETY: the SDK-specific C bridge takes its own reference to the live COM device.
+        let mut buffer = unsafe { ffmpeg::ffi::av_hwdevice_ctx_alloc(hardware) };
         if buffer.is_null() {
-            return Err(ffmpeg::Error::Bug.into());
+            return Err(ffmpeg::Error::Other {
+                errno: ffmpeg::error::ENOMEM,
+            }
+            .into());
+        }
+        let result = unsafe { golden_video_init_decoder_device(buffer, device.as_raw()) };
+        if result < 0 {
+            // SAFETY: this context reference is still uniquely owned here.
+            unsafe { ffmpeg::ffi::av_buffer_unref(&mut buffer) };
+            return Err(ffmpeg::Error::from(result).into());
         }
         Ok(Self {
             buffer,
@@ -294,7 +328,7 @@ impl Decoder {
     }
 }
 
-fn adapter_index(wanted: AdapterId) -> Result<u32, DecodeError> {
+fn decoder_adapter(wanted: AdapterId) -> Result<IDXGIAdapter1, DecodeError> {
     // SAFETY: read-only DXGI enumeration, no device creation or fallback selection.
     let factory: IDXGIFactory1 = unsafe { CreateDXGIFactory1() }.map_err(native_error)?;
     for index in 0.. {
@@ -313,10 +347,16 @@ fn adapter_index(wanted: AdapterId) -> Result<u32, DecodeError> {
             if desc.Flags & windows::Win32::Graphics::Dxgi::DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32 != 0 {
                 return Err(DecodeError::UnsupportedHardware);
             }
-            return Ok(index);
+            return Ok(adapter);
         }
     }
     Err(DecodeError::Hardware("selected adapter is unavailable".into()))
+}
+fn video_device_error(error: windows::core::Error) -> DecodeError {
+    match error.code() {
+        DXGI_ERROR_UNSUPPORTED | E_NOINTERFACE => DecodeError::UnsupportedHardware,
+        _ => native_error(error),
+    }
 }
 fn native_error(error: windows::core::Error) -> DecodeError {
     DecodeError::Hardware(format!("{} ({:#010x})", error.message(), error.code().0))

@@ -49,6 +49,21 @@ fn software_only_format_offer_falls_back_but_device_loss_and_capacity_take_prece
 }
 
 #[test]
+fn unavailable_video_support_falls_back_and_device_loss_stays_retryable() {
+    use windows::Win32::Graphics::Dxgi::DXGI_ERROR_DEVICE_REMOVED;
+    for code in [DXGI_ERROR_UNSUPPORTED, E_NOINTERFACE] {
+        assert!(matches!(
+            video_device_error(windows::core::Error::from_hresult(code)),
+            DecodeError::UnsupportedHardware
+        ));
+    }
+    assert!(matches!(
+        video_device_error(windows::core::Error::from_hresult(DXGI_ERROR_DEVICE_REMOVED)),
+        DecodeError::Hardware(_)
+    ));
+}
+
+#[test]
 fn hardware_pool_admission_bounds_surface_count_and_padded_extent() {
     assert!(admitted_pool(64, 64, 32, 4096));
     for (width, height, count, pixels) in [
