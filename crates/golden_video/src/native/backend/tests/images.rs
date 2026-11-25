@@ -10,7 +10,7 @@ use uuid::Uuid;
 use super::super::*;
 use crate::image::tests::{PreparedImageFixture, prepared_image};
 use crate::native::{AdapterId, InputLimits, OutputBinding, adapters};
-use crate::plan::{ExternalSource, ExternalTexture, PlanLimits, PlanOutput, RenderPass, RenderPlan};
+use crate::plan::{ExternalSource, ExternalTexture, PlanLimits, PlanOutput, RenderOperation, RenderPass, RenderPlan};
 use crate::{AlphaMode, ColorEncoding, Extent2D, PixelFormat};
 
 const WAIT: Duration = Duration::from_secs(5);

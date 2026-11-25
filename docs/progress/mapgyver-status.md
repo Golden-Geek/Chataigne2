@@ -1,135 +1,206 @@
-# MapGyver — simple status
+# MapGyver status
 
-- **Updated:** 22 November 2026.
-- **Overall plan acceptance:** `█████████░` **86% — 130/151 checks accepted, 9/20 phases complete**. M19 adds six platform gates.
-- **Latest verified:** 4× AA fits the memory cap. Sustained timing passed at 1080p on NVIDIA. NVIDIA 4K and both Intel sizes still exceed the GPU budget. [Checks](mapgyver-m14-antialiasing.md#sustained-shared-texture-timing--2026-11-20)
-- **Plan execution:** macOS first, then desktop Linux and Raspberry Pi (armhf and aarch64). Windows ARM64 has a separate gate.
-- **Manual action needed from you now: none.**
-- **Next:** Test installed Windows ARM64 H.264 Screen output with an independent native Spout receiver (M19/6). A Windows system window covered hosted desktop capture. Physical output and recovery need an unoccluded ARM64 desktop. [Cross-platform evidence](mapgyver-ledger.md)
+**Updated 25 November 2026 · `█████████░` 86% accepted (130/151 checks, 9/20 phases complete)**
 
-## Done — code and normal-use checks passed
+**Latest delivered:** Windows 4× anti-aliasing saves 126.6 MiB per tested 1080p or 4K Screen
+generation. Pixel, allocation and retirement checks passed on Intel and NVIDIA.
+[Checks](mapgyver-m14-antialiasing.md#direct-source-over-compositing--2026-11-25)
 
-- [x] **Parameter controls:** out-of-range values clamp safely; Opacity/Video Speed animation works; bindings/scripts update correctly; Undo and reload work, including missing range/step metadata.
-- [x] **Projects:** save/load, normal Undo/Redo and copy/duplicate workflows.
-- [x] **Project Settings:** Project Folder persists in each project. Preferences are app-wide and have a separate toolbar icon. [Checks](evidence/mapgyver-m18-project-settings-2026-11-19.json)
-- [x] **File Explorer:** open the project folder or its override, browse Tree and Thumbnail Views and drag files onto the import targets. [Checks](evidence/mapgyver-m18-file-explorer-2026-11-19.json)
-- [x] **Workbench:** media/screen managers, folders, shared selection, generic Inspector, contextual menus and panel targeting/locking.
-- [x] **Pictures and Solid Color:** real channel settings/files, independent copies, file reload and color controls.
-- [x] **Shared Texture:** receiving, previews and preview cadence, sender retention across Manual/Auto, and ordinary reconnect. New sources pick the first external sender or None. **(internal)** marks Screen outputs. Native pixel checks passed for deliberate internal selection, same-name takeover and external recovery.
-- [x] **Screens/Surfaces:** creation, warping, crop/source editing, opacity, enable/disable, calibration and native outputs.
-- [x] **Startup display:** Fresh projects prefer the lowest available external Windows display number. The current build chose RTK FHD HDR with the Optoma also active. The installed Start menu beta `1.0.0b7` predates this fix. Saved projects retain their Screen targets. Automated browser tests leave physical outputs off by default. [Checks](mapgyver-m14-screen-defaults.md#numbered-display-feedback)
-- [x] **Clear a Fullscreen display:** Choose **No display selected** in the Screen Inspector. The Screen stays unconfigured after reopening. [Checks](mapgyver-m14-screen-defaults.md#clearing-a-fullscreen-target)
-- [x] **Physical RTK tests:** Startup and File → New show the expected image on RTK on both GPUs. [Checks](mapgyver-m14-screen-defaults.md#physical-rtk-startup-and-new)
-- [x] **Smooth Frame/Home:** shared native image and control alignment, Matrix selection beyond page one, and dock resize during animation passed on Intel and NVIDIA. [Checks](mapgyver-m14-navigation.md#second-pass-verification--2026-11-20)
-- [x] **Live editor feedback:** native paint and keyboard focus in Screen Warping, Surface Source, Composition and Matrix passed on Intel and NVIDIA. [Checks](mapgyver-m15-editor-feedback.md)
-- [x] **Editor recovery:** exact Source Undo after reconnect, clean New while dragging, and restored locked editor panels. [Checks](mapgyver-m14-editor-recovery.md)
-- [x] **Shader Editor:** edit embedded GLSL beside its preview or choose a file that reloads on change. Windows Screen output passed for applied edits, file replacement, recovery and saved-project reload. [Checks](evidence/mapgyver-m18-embedded-glsl-2026-11-19.json)
-- [x] **Shader formats:** procedural ShaderToy Image and single-pass ISF playback. ISF metadata defaults and saved-project reload pass. Embedded shader code stays saved in File mode. [Checks](evidence/mapgyver-m18-shader-formats-2026-11-19.json)
-- [x] **Shader texture inputs:** pick up to four Media or Channels. Live updates, removal, Undo and project reload passed. [Checks](evidence/mapgyver-m18-shader-textures-2026-11-19.json)
-- [x] **ISF multipass:** ordered passes sample earlier named temporary textures. Live Media input, file replacement and reopening passed. [Checks](evidence/mapgyver-m18-isf-multipass-2026-11-19.json)
-- [x] **ISF previous-frame buffers:** verified accumulation, history across compatible edits, and clean resets. [Checks](evidence/mapgyver-m18-isf-history-2026-11-19.json)
-- [x] **ShaderToy Buffer passes:** Common, Buffer and Image code with live Media input and previous-frame feedback. Project reopen and file reload passed. [Checks](evidence/mapgyver-m18-shadertoy-buffers-2026-11-19.json)
-- [x] **Embedded ISF uniforms:** Add typed inputs in the Shader Editor. Live edits, Undo/Redo and project reopen passed. [Checks](evidence/mapgyver-m18-isf-uniforms-2026-11-19.json)
-- [x] **GLSL and ShaderToy uniforms:** Add individual declarations or choose Add All. FragCoord defaults and ranges, live edits and project reopen passed. [Checks](evidence/mapgyver-m18-glsl-uniforms-2026-11-20.json)
-- [x] **File-mode uniforms:** The open controls follow external shader replacements. Matching values survive the change and project reopen. [Checks](evidence/mapgyver-m18-file-uniforms-2026-11-20.json)
-- [x] **Local Shader Library:** Browse and drop GLSL, ISF and ShaderToy files. Windows verified rendered output, Undo/Redo and project reopen. [Checks](evidence/mapgyver-m18-local-shader-library-2026-11-20.json)
-- [x] **Online ISF Library:** Search VIDVOX's catalog and drag shaders into Medias or a folder as embedded code. Windows verified Undo/Redo, output and reopen. [Checks](evidence/mapgyver-m18-online-isf-library-2026-11-20.json)
-- [x] **FragCoord.XYZ:** Browse and import licensed GLSL Main and Common source with attribution. Windows verified Undo/Redo, output and reopen. [Checks](evidence/mapgyver-m18-fragcoord-library-2026-11-20.json)
-- [x] **Inspector selection:** Channel creation keeps the Media inspected. Matrix Media creation and drops inspect the destination Cell. Both children can still be inspected explicitly. [Checks](evidence/mapgyver-m18-creation-selection-2026-11-20.json)
-- [x] **Initial document/editors:** startup and New create and immediately show the automatic Screen and Surface. Hidden/reopened panels, saved targets/locks, reload and empty projects pass; no extra Undo steps.
-- [x] **Surface Editor display:** related Surfaces across Screens/References, independent toggles/locks, bounded paging, selection/Inspector and Undo/reload. ColorBars/Grid work without a source and obey its crop in Screen Warping/output mapping. Native patterns/contours, cropped ColorBars/Grid, mixed pattern/channel panels and70-Surface toolbar paging pass.
-- [x] **Surface-handle links:** same-Screen snapping/link/unlink, supplied colored/grey magnet and live updates of all peers. Five native drag/link/Undo cycles, three-member groups, held-pointer GPU images and foreground image/control alignment pass.
-- [x] **Object custom colors:** Screens, Surfaces, Medias/References and nested Folders; generic Inspector set/reset, matching accents, scripts, Undo/Redo, independent copies and reload. Normal/default and light/dark checks pass.
-- [x] **Output settings:** GPU preferences, per-Screen frame-rate settings and optional/custom sender names.
-- [x] **Display recovery:** the previously tested unplug/replug and monitor-rearrangement cases.
-- [x] **Composition:** owned media, transforms, front/back ordering, contextual actions, enable state and zero-scale handling.
-- [x] **Matrix:** Layers, Columns, Cells, Groups, sparse scrolling, media drops/copies/references and normal playback/crossfades.
-- [x] **Matrix transport:** top-left Previous/Next Column, Previous/Next top-level Column Group and Stop All. The same triggers are in the Inspector. Keyboard, script and transport checks passed. [Checks](evidence/mapgyver-m16-matrix-transport-2026-11-18.json)
-- [x] **Layer transport:** Previous/Next skips empty and disabled Cells and keeps the Matrix Column and other Layers playing. Row header, Inspector, script and transport checks passed. [Checks](evidence/mapgyver-m16-layer-transport-2026-11-18.json)
-- [x] **Column Group transport:** Play starts the first enabled Column. Previous/Next steps through direct children, counting each nested Group as one step. Reorder, keyboard, Inspector, script and transport checks passed. [Checks](evidence/mapgyver-m16-column-group-transport-2026-11-18.json)
-- [x] **Cell Auto Next:** advances one Layer after a timer or at the cropped Video’s end. Transition lead, Stop cancellation and unchanged Undo history passed. [Checks](evidence/mapgyver-m16-cell-auto-next-2026-11-18.json)
-- [x] **Previous/Next wait modes:** launch immediately or wait for the first or all active Videos in scope. A looping Video counts at its next wrap. Repeated commands replace the wait, and Stop cancels it. [Checks](evidence/mapgyver-m16-navigation-waits-2026-11-18.json)
-- [x] **Matrix transition indicators:** green Cell and Column lines show the current mix through crossfades, interruptions, Cuts and scrolling. Verified in the Matrix editor and with a live Spout output. [Checks](evidence/mapgyver-m16-transition-lines-2026-11-18.json)
-- [x] **Empty Cells:** clicking an unused Cell keeps the current selection. The `+` button opens Add Media, and crossing onto it keeps the background and outline steady. Mouse and keyboard Add Media access both passed. [Checks](evidence/mapgyver-m16-empty-cell-hover-2026-11-18.json)
-- [x] **Compact Matrix controls:** slim vertical Opacity sliders sit inside the right edge of each Layer header. Opacity and Blend Mode use the Inspector's Parameters. Browser checks verified the slider layout at 100%, 125%, and 150% scaling. [Earlier control checks](evidence/mapgyver-m16-compact-controls-2026-11-18.json)
-- [x] **Matrix selection/colors:** only explicitly selected objects highlight; modifier multiselection works; Layers/Columns/Cells/Groups show Golden custom colors. Inspector color edits, Undo, copies and reload pass focused checks.
-- [x] **Matrix color menus:** right-click Layers, Cells, Columns and both Group kinds to Set Color / Reset Color. Shared picker, grouped Undo/Redo, empty Cells, unchanged multiselection, Inspector synchronization, offscreen access and reload pass.
-- [x] **Compact Layer Groups:** one-line headers; Opacity/Blend Mode in the Inspector. Nested/empty collapse, hidden selection, Undo/Redo, old/new projects, reload and scaled/narrow geometry pass.
-- [x] **Nested Group membership:** Inspector-inspired tinted/rounded wraps, inset child selection contours, separate nesting levels, custom/reset colors, disabled state, collapse/reparent/reorder and offscreen ancestors. Light/dark, narrow/scroll and input checks pass.
-- [x] **Geometry alignment:** edge/center snapping, colored magnet and temporary guides in Surface Source, Composition and Matrix. Move/resize, zoom/pan, toggle, Undo/Redo and held native Composition pixels pass.
-- [x] **Matrix appearance:** quieter borders, small rounded corners and a short active-Cell shadow. Selection/colors remain distinct; reduced motion works; app visual review and focused scaling/narrow-grid checks pass.
-- [x] **Column enable/disable:** Inspector toggles mute current/outgoing content; group inheritance, disabled editing, Undo, copy/reload and resume pass focused checks.
-- [x] **Matrix presets:** capture/update/rename/delete/recall Layer/Column order and enabled states; contextual menus, commands and named scripts. Paged member Inspector editing, offscreen access, Undo/Redo, copies/reload and live/outgoing playback pass. Cells stay intact.
-- [x] **App Control:** normal 64-bit launch/readiness/sharing/reconnect/stop workflows. The remaining 32-bit case is listed below.
-- [x] **Video:** common H.264/HEVC/ProRes profiles and HAP; playback, loop, seek/frame stepping, transport Inspector and Matrix activation/deactivation policies.
-- [x] **Video fade-loop:** enable Loop and set **Auto-Smooth Loop** in the Video Inspector. Zero gives a hard loop. Direct and Reference output show the same held blend, and playback resumes from the part of the beginning already shown.
-- [x] **Video time cropping:** Start and End bound playback, seeking, stepping and loops. Seeking to End holds the last frame in the crop. NVIDIA numbered output, smooth-loop Reference parity and save/reload passed.
-- [x] **Video subtitles are per channel.** Select the Video in Medias, expand **Inspector → Channels → [channel name] → Subtitles**, enable the folder, and choose that channel’s embedded track or subtitle file. Size, font, and position are also per channel. Editing one preserved the other’s output with two different files and with two channels sharing one MKV. Both MKV selections survived reload. [Two files](evidence/mapgyver-m10-channel-subtitles-2026-11-18.json) · [Shared MKV](evidence/mapgyver-m10-mkv-tracks-2026-11-19.json)
-- [x] **MKV playback with track selection.** Verified H.264 with stereo PCM and embedded SubRip. Choose **Inspector → Channels → [channel name] → Audio → Track** to switch tracks during playback. Automatic follows the file’s default, and a missing explicit track is silent. Selections survived reload. [Checks](evidence/mapgyver-m10-mkv-tracks-2026-11-19.json)
-- [x] **WebP Pictures.** Choose a still `.webp` in **Import Picture** or set a Picture channel's **File**. Lossy and lossless transparency and EXIF rotation passed. [Checks](evidence/mapgyver-m10-webp-picture-2026-11-19.json)
-- [x] **DXV playback.** Open DXV MOV files as a Video channel File. Legacy and DXV3 Normal and High Quality passed native pixel checks. Playback, seeking and translucent compositing passed for Normal and High Quality. [Checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
-- [x] **Moving MKV tracks and loops.** HEVC with two Opus and two SubRip tracks passed live switching and cropped hard and smooth loops. Native picture and caption samples matched the corresponding WASAPI mixer signals. [Checks](evidence/mapgyver-m10-mkv-loop-2026-11-19.json)
-- [x] **Video file recovery.** Missing or malformed input clears stale track options and silences the channel while keeping its selections. Restoring a valid MKV at the same path recovered picture, captions, and audio during playback. Relinking to animated WebP and DXV also passed. [Checks](evidence/mapgyver-m10-file-replacement-2026-11-19.json)
-- [x] **Editor manipulation:** the smoothness improvements you accepted in Screen Warping, Surface Source and Composition.
-- [x] **Editor feedback — functional:** shared120ms hover/selection paint, softer handles, keyboard cues and reduced motion. Geometry/input stay immediate; browser and native Screen/Source input checks pass.
-- [x] **App presentation:** MapGyver identity/icon, official calibration pattern, font/menu/Inspector improvements and thumbnail Fit behavior.
-- [x] **Audio Preferences:** enable output, choose System Default or a specific device, and add or remap virtual outputs. Native stream, missing-device selection, project replacement and restart passed. [Checks](evidence/mapgyver-m16-audio-output-settings-2026-11-18.json)
-- [x] **Video audio:** open **Inspector → Channels → Audio** to assign the left and right signals to named virtual outputs, set Volume, or mute that channel. Two clips, live remapping, gain, pause/seek/stop, device reopening and project reload passed. [Checks](evidence/mapgyver-m16-video-audio-2026-11-18.json)
-- [x] **Single-file Video intro and loop:** enable Loop and set **Loop Start** to a source time. The intro plays once and the picture and audio repeat the tail. Natural wraps, held smooth blend, seek, Stop, and saved settings passed. [Checks](evidence/mapgyver-m16-video-intro-loop-2026-11-18.json)
-- [x] **Separate Video loop files:** enable **Loop** on the Media, then set **Loop File** on each Video channel. Set **Audio → Loop Audio File** to override the embedded audio during the repeat. Native handoff, two wraps, held smooth blend, seek, Stop and missing-file recovery passed. Undo, copy and reload passed. [Checks](evidence/mapgyver-m16-separate-loop-2026-11-18.json)
-- [x] **Matrix Cell audio** is under **Inspect Cell settings → Audio**. Choose **Media** to inherit the selected Video channel’s audio, or **File** to use its own routed audio. Use **File** on an empty Cell for audio-only playback. All modes, crossfade, Stop and reload passed on live WASAPI output. [Checks](evidence/mapgyver-m16-matrix-cell-audio-2026-11-18.json)
-- [x] **Local OSCQuery browsing** is under **Preferences → OSCQuery**. Enable the folder to browse the live hierarchy and parameter values on the same machine. MapGyver defaults to 43000 and Chataigne to 42000. Both apps passed activation, saved port and project replacement checks. [Checks](evidence/mapgyver-m16-oscquery-hierarchy-2026-11-18.json)
-- [x] **Local OSC edits:** send OSC to a parameter's published address on the same port. Values and triggers use Golden validation and history. Changing Surface Opacity from an OSC client, then using Undo and Redo, passed in MapGyver. [Checks](evidence/mapgyver-m16-oscquery-input-2026-11-18.json)
-- [x] **Local OSCQuery commands:** add, move, remove and edit nodes over WebSocket with the workbench's permissions and history. MapGyver passed Screen naming, color, removal and Undo/Redo, plus Video creation from the Media catalog. [Checks](evidence/mapgyver-m16-oscquery-commands-2026-11-18.json)
-- [x] **OSCQuery on the LAN:** enable **Allow LAN Control** under **Preferences → OSCQuery** for Zeroconf discovery and control from the active IPv4 subnet. Discovery, port changes, Surface Opacity over UDP, saved settings across project replacement, and return to local-only access passed. [Checks](evidence/mapgyver-m16-oscquery-lan-2026-11-18.json)
-- [x] **Live OSCQuery feedback:** each client receives the values and triggers it subscribes to. Individual updates arrive immediately and bursts are bundled. Two-client isolation, trigger delivery and project replacement passed. [Checks](evidence/mapgyver-m16-oscquery-feedback-2026-11-19.json)
-- [x] **OSC addresses:** right-click a node to copy its address. Enable **Preferences → Interface → Show OSC Address in Help** to see the hovered node's address in the bottom bar. Copy, duplicate names, move/Undo and project replacement passed. [Checks](evidence/mapgyver-m16-oscquery-addresses-2026-11-19.json)
-- [x] **Seamless previews:** Surface Editor and Media Preview held the previous image until a delayed Spout sender produced frames. Switching between Surfaces using the same channel, including through a Reference, reused one live receiver. [Checks](evidence/mapgyver-m16-seamless-previews-2026-11-19.json)
-- [x] **Linked outlines:** both Screen Warping outlines follow the latest drag before the engine replies, including with snapping off. Release, Undo/Redo, native hit testing and independent Spout pixels passed. [Checks](evidence/mapgyver-m16-linked-outlines-2026-11-19.json)
-- [x] **Gradient and Color animation:** choose **Animation** on a Color parameter and expand **Gradient** to edit its stops. Standalone Gradients are available in a Golden Context. Native Spout verified the color blend, alpha, reload, and return to Manual. [Checks](evidence/mapgyver-m15-gradient-2026-11-19.json)
-- [x] **File drops:** Medias, Screen Warping, Composition and Matrix imports passed Windows WebView2 checks. Matrix also accepts `.exe` files for App Control. Direct File Explorer verification remains below. [Medias](evidence/mapgyver-m18-medias-file-drop-2026-11-19.json) · [Editors](evidence/mapgyver-m18-editor-file-drop-2026-11-19.json) · [Matrix](evidence/mapgyver-m18-matrix-app-drop-2026-11-19.json)
+**Now:** NVIDIA 1080p still meets the timing budget. NVIDIA 4K and both Intel sizes improved
+and still exceed it. Further rendering optimization and physical recovery verification remain.
+[Timing](mapgyver-m14-antialiasing.md#sustained-comparison--2026-11-25)
 
-## Planned features
+**Manual action needed now:** None.
 
-[NDI with audio](../plan/MapGyver_Implementation_Plan.md#m17--deliver-ndi-media-and-screen-output) is implemented and verified locally.
+[Implementation plan](../plan/MapGyver_Implementation_Plan.md) · [Detailed progress and evidence](mapgyver-ledger.md)
 
-- **NDI Media.** The Windows x64 package includes the NDI runtime and falls back automatically if the bundled DLL fails. A fresh profile verified picture, gain, mute and sender recovery. Clean Windows installation and cross-machine A/V checks remain pending. [Startup checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
-- **NDI Screen Output.** Choosing NDI on an enabled Screen started picture and routed audio without activation. Both resumed after restart and reopening the saved project. Cross-machine A/V offset and drift, recovery, and final-use qualification remain pending. [Startup checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
-- **NDI runtime guidance.** The Media and Screen Inspectors show what to install if NDI cannot load. Ordinary Shared Texture output kept working in both failure cases. [Checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
-- **Concurrent NDI Screens.** Both delivered picture and stereo audio while minimized. The live format change rebuilt the renderer and the peer receiver recovered. [Checks](evidence/mapgyver-m17-ndi-screen-audio-2026-11-19.json)
-- **NDI device and project recovery.** Virtual audio remained available with the selected WASAPI device missing. New withdrew both senders and reopening restored them. [Checks](evidence/mapgyver-m17-ndi-screen-audio-2026-11-19.json)
+## Cross-platform progress
 
-[Browser video previews (M18/6)](evidence/mapgyver-m18-browser-spatial-2026-11-20.json) passed in standalone Chromium across Media Preview, Screen Warping, Surface Source, Composition, the Matrix grid and the Cell editor.
+Both Mac architectures passed relocated bundles and actual Rectangle and Fullscreen
+pixel checks. Physical recovery and cadence still need a Mac with an external monitor.
+Ubuntu 26.04 amd64 packages passed clean installs, X11 workbench readiness, H.264 playback
+and Screen Warping. The Linux development build passed X11 output checks. Weston verified
+Wayland Fullscreen live color and repeated retargeting at matching and mixed 1×/2× scales.
+Xorg and Sway verified automatic output recovery for the open project and for a project
+reopened with the selected connector offline. The Ubuntu 24.04 and 26.04 release
+packages passed clean installation and all local desktop, media and virtual display
+recovery checks. The updated hosted Ubuntu 24.04 job also passed the installed desktop
+suite in clean Ubuntu.
+Physical Linux display recovery and cadence need an external monitor. The native
+Debian 13 ARM64 package also passed clean install, authoring, workbench, media and
+virtual display recovery. On-device build and Screen output still need a Raspberry Pi.
+The armhf package built and passed clean install and project authoring in emulated
+Debian 13. Hosted WebKit did not load the workbench, and local emulated Solid Color
+preview aborted. Desktop, media and output qualification requires a 32-bit Pi.
+The Windows ARM64 app and FFmpeg SDK built natively. The installer passed silent
+install, embedded-workbench startup in headless mode and silent uninstall. Installed
+headless authoring, history, Save/New/Load and release WebView2 startup passed.
+The app loaded all five FFmpeg DLLs from its installed directory. The hosted Screen
+opened at the authored bounds, and a Windows system window covered the sample point
+even after moving the workbench. Hosted CI verified installed H.264 Screen output through
+an independent native Spout receiver. Physical output and recovery require an
+unoccluded ARM64 desktop. Interactive authoring, Media Preview and native NDI
+remain open.
+[macOS pixel checks](https://github.com/Golden-Geek/Chataigne2/actions/runs/45019118144) ·
+[Ubuntu 24.04 package CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/45035873220/job/137249983856) ·
+[Debian 13 ARM64 package CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/45041349161/job/137266298921) ·
+[Debian 13 armhf package CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/45041349161/job/137266299198) ·
+[Windows ARM64 installer and Spout CI](https://github.com/Golden-Geek/Chataigne2/actions/runs/45692693008/job/139484347947)
 
-## Pending qualification — in order
+## Done in normal use
 
-- **ShaderToy Library (M18/4).** Search, buffered import, Undo/Redo and reopened output passed a local API fixture. Verify the live API with a valid app key when it is reachable. [Checks](evidence/mapgyver-m18-shadertoy-library-2026-11-20.json)
+- **Editor recovery.** A Source drag is one Undo step after reconnect. New protects the
+  replacement project from old edits. Screen, Source and Matrix recovery passed on Intel
+  and NVIDIA. [Checks](mapgyver-m14-editor-recovery.md)
+- **Live editor feedback.** Screen Warping, Surface Source, Composition and Matrix draw smooth
+  hover and selection feedback. Keyboard focus is clear, reduced motion is respected, and
+  switching Matrix Cells passed on Intel and NVIDIA. [Checks](mapgyver-m15-editor-feedback.md)
+- **Smooth Frame/Home.** Screen Warping, Surface Source, Composition and both Matrix layout
+  views kept the rendered image aligned with its controls on Intel and NVIDIA. Includes
+  resizing during animation and navigating to a selection beyond the first Matrix page.
+  [Checks](mapgyver-m14-navigation.md#second-pass-verification--2026-11-20)
+- **Video time crop.** Media Preview and Spout showed the same complete forward and reverse frame sequences on Intel and NVIDIA. Short-channel hold, live replacement, and crop recovery passed. [Checks](evidence/mapgyver-m10-time-crop-2026-11-18.json)
+- **Auto-Smooth Loop.** Forward and reverse blends, mixed channel lengths, live file recovery, and output cleanup on New passed on Intel and NVIDIA. [Checks](evidence/mapgyver-m10-fade-loop-2026-11-18.json)
+- **Per-channel subtitles.** Independent captions stay aligned during playback, reverse, loop wraps, and live file replacement. Media Preview and output passed on Intel and NVIDIA. [Checks](evidence/mapgyver-m10-channel-subtitles-2026-11-18.json)
+- **Fading Layer Stop.** Fade timing, override precedence and process cleanup passed on Intel and NVIDIA. Other Layers keep playing. [Checks](mapgyver-m14-layer-stop.md#second-pass-verification-2026-11-20)
+- **Matrix enablement.** Layer and Cell visibility, inactive editing and exact reload passed on Intel and NVIDIA. [Checks](mapgyver-m14-matrix-enabled.md#second-pass-verification-2026-11-20)
 
-1. **Extended Video formats — deferred:**
-   - **DXV3 Normal:** both GPUs sustained 4K30 and retired all tracked resources. Intel meets visible deadlines and connected image age in one run. Minimized deadlines and full visible frame capture remain open. Minimized GPU p95 was 17.7 ms against the 12 ms target. [DXV checks](evidence/mapgyver-m10-dxv-2026-11-19.json)
-   - **Direct 4K upload timing:** the audit traced every evaluated DXV batch to its upload. Intel exceeds the GPU budget. NVIDIA timing remains inconclusive. [Timing evidence](evidence/mapgyver-m10-direct-upload-gpu-2026-11-19.json)
-   - **Full-frame draw experiments parked:** projection removal left Intel render time flat. Combining Screen and Spout draws changed pixel values in native checks.
-   - H.264 MKV passed frame identity, output cadence and CPU checks. The 4K latency upper bound exceeds 50 ms. [MKV run](evidence/mapgyver-m10-mkv-sustained-2026-11-19.json)
-   - Sustained DXV alpha and High Quality, additional profiles, repeat runs, complete GPU timing and device recovery remain open.
-3. **Physical editor pointer verification:** The recovery fix passes both GPUs. Finish OS-level physical input and same-frame hit agreement when Computer Use or hands-on input is available. [Checks](mapgyver-m14-editor-recovery.md)
-4. **External-display defaults:** allocation code and no-external checks pass. **Manual later:** one/two external monitors, occupied destinations and native New shortcut; the two-external case may need another monitor.
-5. **Matrix enabled state and fading Layer Stop:** implemented and functionally checked. Complete interrupted fades, shared-consumer and final-resource retirement combinations.
-7. **4× anti-aliasing:** implemented; normal/tiled output checks pass. Finish sustained 1080p/4K cost, memory/overload and recovery checks.
-8. **Video fade-loop:** finish moving-seam pixels in preview and output, reverse and multichannel cases, and file/device recovery during the overlap.
-9. **Video time cropping:** native output and Reference pixel checks passed. Verify moving Media Preview and the native mixed-duration and replacement cases.
-10. **Video subtitles:** verified moving MKV output through cropped hard and smooth loops and an active file replacement. Finish moving Media Preview parity, speed and reverse checks, and the remaining file replacement combinations.
-11. **Video performance/stress:** normal playback/seeking is usable. Intel stress efficiency, 4K latency, shared consumers, complete GPU-path and repeated codec/profile runs remain unqualified. Separate-file loops use software decoding and need sustained timing checks at larger sizes.
-12. **Shared Texture format coverage:** ordinary supported formats work. Remaining NVIDIA/D3D9, adapter-loss and allocation cases need matching sender/hardware coverage.
-13. **32-bit App Control retirement:** the 64-bit path works; the WOW64 accounting/retirement case still fails. Requires a correction before release.
-14. **Long-run resources and physical latency:** retained peak-memory growth and GPU/timing limits are not all met. Complete the sustained and mixed-display timing checks; fix remaining failures before release.
-15. **Video audio hardware qualification:** capture the actual routed device signal and verify physical audio endpoint disconnect/reconnect while Video is playing. The native mixer, unavailable-device selection and output reopen checks passed.
-16. **File drops:** repeat the drop targets with direct File Explorer input, including rejection, Undo and reload. Desktop automation supports single-window drags. [Cases](evidence/mapgyver-m18-matrix-app-drop-2026-11-19.json)
-17. **Full regression and Windows qualification:** reconcile the remaining parallel Video and older Matrix/tool-fixture failures, including the exact-record reload comparison after Cell relocation. Then run the complete app/installer checks, including both NDI directions with audio, Windows runtime loading and the six post-NDI workflows.
+- **Browser Media Preview.** Standalone Chromium showed moving textures and stopped the renderer when the panel was hidden. [Checks](evidence/mapgyver-m18-browser-media-preview-2026-11-20.json)
+- **Browser preview quality.** Disabled, Auto, Forced Low Quality and Forced High Quality passed in Media Preview. Auto switched down on a constrained connection and switched back when bandwidth returned. [Checks](evidence/mapgyver-m18-browser-quality-2026-11-20.json)
+- **Browser Screen editors.** Screen Warping shows live warped imagery and respects the calibration crop. Surface Source shows the full image with aligned crop controls. [Checks](evidence/mapgyver-m18-browser-screen-editors-2026-11-20.json)
+- **Browser Composition and Matrix.** Composition follows a held drag. Matrix loads moving thumbnails for visible Cells and shows the selected Cell in its editor. Closing the tab releases the renderer. [Checks](evidence/mapgyver-m18-browser-spatial-2026-11-20.json)
+- **Startup display.** Fresh projects prefer the lowest available external Windows display
+  number. The current build selected RTK FHD HDR with the Optoma projector also active.
+  The installed Start menu beta `1.0.0b7` predates this fix. Saved projects retain their
+  Screen targets. Automated browser tests leave physical outputs off by default.
+  [Checks](mapgyver-m14-screen-defaults.md#numbered-display-feedback)
+- **Physical RTK tests.** Startup and File → New displayed the expected image on RTK on Intel
+  and NVIDIA. The restricted test mode opened zero Optoma windows.
+  [Checks](mapgyver-m14-screen-defaults.md#physical-rtk-startup-and-new)
+- **Clear a Fullscreen display.** Choose **No display selected** in the Screen Inspector.
+  The Screen stays unconfigured after reopening. Undo and Redo passed with both displays connected.
+  [Checks](mapgyver-m14-screen-defaults.md#clearing-a-fullscreen-target)
+- **Shader Editor.** Edit embedded GLSL beside its preview or select a file that reloads on change.
+  Windows output passed for applied edits, file replacement, recovery and saved-project reload.
+  [Checks](evidence/mapgyver-m18-embedded-glsl-2026-11-19.json)
+- **Shader formats.** The Format selector plays procedural ShaderToy Image shaders and
+  single-pass ISF generators. ISF uses metadata defaults. Saving in File mode preserves
+  embedded code. [Checks](evidence/mapgyver-m18-shader-formats-2026-11-19.json)
+- **Shader texture inputs.** Pick up to four Media or Channels in the Shader Editor.
+  Live changes, removal, Undo and project reload passed. [Checks](evidence/mapgyver-m18-shader-textures-2026-11-19.json)
+- **ISF multipass.** Ordered passes can sample earlier named temporary textures at different sizes
+  and float precision. Live Media input, file replacement and project reload passed.
+  [Checks](evidence/mapgyver-m18-isf-multipass-2026-11-19.json)
+- **ISF previous-frame buffers.** Persistent targets accumulate across frames and survive
+  compatible input edits. History resets on a buffer resize, source change or project reopen.
+  [Checks](evidence/mapgyver-m18-isf-history-2026-11-19.json)
+- **ShaderToy Buffer passes.** Saved JSON effects run Common, Buffer and Image code with live
+  Media inputs and previous-frame feedback. Project reopen and file reload passed.
+  [Checks](evidence/mapgyver-m18-shadertoy-buffers-2026-11-19.json)
+- **Embedded ISF uniforms.** Add typed inputs from the Shader Editor. Live edits, Undo/Redo
+  and project reopen passed. [Checks](evidence/mapgyver-m18-isf-uniforms-2026-11-19.json)
+- **GLSL and ShaderToy uniforms.** Add individual declarations or choose Add All. FragCoord
+  defaults and ranges, live edits, shared ShaderToy Common values and project reopen passed.
+  [Checks](evidence/mapgyver-m18-glsl-uniforms-2026-11-20.json)
+- **File-mode uniforms.** Replacing an external shader refreshes the controls in place.
+  Matching values survive the change and project reopen.
+  [Checks](evidence/mapgyver-m18-file-uniforms-2026-11-20.json)
+- **Local Shader Library.** Browse the project folder and drag GLSL, ISF or ShaderToy files
+  into Medias. Windows verified all three formats, Undo/Redo and project reopen.
+  [Checks](evidence/mapgyver-m18-local-shader-library-2026-11-20.json)
+- **Online ISF Library.** Choose ISF (VIDVOX), search, and drag into Medias or a folder.
+  The shader is embedded. Windows verified Undo/Redo, rendered output and reopen.
+  [Checks](evidence/mapgyver-m18-online-isf-library-2026-11-20.json)
+- **FragCoord.XYZ.** Browse and search the gallery, then drag a licensed GLSL shader into
+  Medias. Main and Common source, attribution and license are embedded. Windows verified
+  Undo/Redo, rendered output and reopen. [Checks](evidence/mapgyver-m18-fragcoord-library-2026-11-20.json)
+- **Inspector selection.** Adding a Channel keeps the parent Media inspected. Adding or
+  dropping Media into a Matrix Cell inspects the Cell. You can still inspect either child
+  from its context menu. [Checks](evidence/mapgyver-m18-creation-selection-2026-11-20.json)
+- **File Explorer.** Browse the project folder or a saved override in Tree View or
+  Thumbnail View. A Windows app test dragged a local picture into Medias and undid the import.
+  [Checks](evidence/mapgyver-m18-file-explorer-2026-11-19.json)
+- **Project Settings.** Open from File or the top bar. The Project Folder is saved
+  with each project. The separate Preferences button opens app-wide settings. Switching
+  projects and restarting MapGyver passed. [Checks](evidence/mapgyver-m18-project-settings-2026-11-19.json)
+- **File drops.** Import into Medias, Screen Warping, Composition and Matrix. Drop an
+  `.exe` onto a Matrix Column, Column Group or Cell to set its App Control file. Windows WebView2
+  checks covered these targets. [Medias](evidence/mapgyver-m18-medias-file-drop-2026-11-19.json) ·
+  [Editors](evidence/mapgyver-m18-editor-file-drop-2026-11-19.json) ·
+  [Matrix App Control](evidence/mapgyver-m18-matrix-app-drop-2026-11-19.json)
+- **Workbench and projects.** Save/load, Undo/Redo, copies, managers and folders, shared
+  selection and Inspector, editor targeting/locking, safe parameter controls, custom colors,
+  and reusable Gradients with Color animation.
+- **Screens, Surfaces and Composition.** Automatic startup Screen and Surface, native output,
+  calibration, warping and crop, related Surface views, linked handles, alignment guides,
+  Composition media, transforms and stacking, and display reconnect and rearrangement in
+  the tested setups.
+- **Matrix.** Layers, Columns, Cells and Groups, media drops and References, crossfades and mix
+  indicators, navigation and Stop, Auto Next and wait modes, presets, compact controls, and
+  nested Group and selection styling.
+- **Media.** Picture (including WebP), Solid Color, Shared Texture with reconnect and seamless
+  preview switching, and Video playback, seeking, cropping and smooth or separate-file loops.
+  Local Video checks include common H.264, HEVC, ProRes and HAP, plus tested DXV and MKV
+  variants, per-channel track selection, subtitles and file replacement.
+- **Audio, App Control and OSCQuery.** Virtual audio outputs, Video and Matrix Cell routing,
+  ordinary 64-bit App Control, and OSCQuery browsing, edits, LAN discovery, feedback and
+  address copying.
+- **NDI with audio.** Available from first launch in the Windows x64 package, with the NDI
+  runtime included. If the bundled DLL fails, MapGyver tries a compatible configured or installed
+  runtime automatically. Media picture, gain and reconnect passed using the fallback. Saved
+  Screen outputs resumed after restart and project reload. [Startup checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
+- **NDI runtime guidance.** An affected Media or Screen shows how to restore NDI if no compatible
+  runtime can load. Ordinary Shared Texture output kept running in both tests.
+  [Checks](evidence/mapgyver-m17-ndi-startup-2026-11-19.json)
+- **Concurrent NDI Screens.** Both delivered picture and stereo audio while minimized. Audio route
+  changes kept the renderer running. A live format change rebuilt it and the peer receiver recovered.
+  [Checks](evidence/mapgyver-m17-ndi-screen-audio-2026-11-19.json)
+- **NDI device and project recovery.** Routed audio kept sending with the selected local audio
+  device missing. New withdrew both senders. Opening the saved project restored them in the same app.
+  [Checks](evidence/mapgyver-m17-ndi-screen-audio-2026-11-19.json)
+- **4× anti-aliasing memory.** Two Surfaces fit the 4K cap. Intel and NVIDIA passed pixel,
+  memory pressure and cleanup checks. [Checks](mapgyver-m14-antialiasing.md#4k-scratch-allocation--2026-11-20)
 
-## Checking cadence from now on
+## Next, in order
 
-- **Each feedback change:** targeted behavior tests, relevant type/build checks and a short app smoke check; then commit/push.
-- **Reuse passing checks and compiled artifacts** when their owning code has not changed. Avoid repeated full-engine/cross-product rebuilds for small edits.
-- **Deep/Intel/GPU/edge-case testing is a later batch**, as listed above. It still has to be finished before release.
-- **Ordinary-use crashes, data loss and broken required behavior are fixed immediately.**
-- I will prepare an exact test and ask when a manual action is actually needed; none is blocking feature work now.
+1. **4× anti-aliasing.** Reduce GPU render cost for NVIDIA 4K and Intel 1080p/4K (M14/8).
+2. **Display qualification.** Verify simultaneous multi-display output, hot-plug and native Ctrl+N (M14/6).
+3. **Retained qualification.** Complete the open checks below before the final Windows app and installer validation.
+
+## Qualify later
+
+- **ShaderToy Library.** App-key entry, search, import, Undo/Redo and reopened output passed
+  with a local API fixture. Live verification needs a reachable ShaderToy API and a valid app key.
+  [Checks](evidence/mapgyver-m18-shadertoy-library-2026-11-20.json)
+
+### Needs a physical setup or direct input
+
+- **Editor pointer input.** OS-level input and same-frame hit verification need a desktop session with Computer Use or hands-on input. [Checks](mapgyver-m14-editor-recovery.md)
+- **Auto-Smooth Loop device loss.** An elevated Windows test session is needed to verify GPU recovery during an active blend. Wider shared-consumer and storage checks are still pending. [Checks](evidence/mapgyver-m10-fade-loop-2026-11-18.json)
+- **File drops.** Direct Windows File Explorer drags need hands-on input or a desktop session
+  that can drag between apps. Verify the supported targets, rejection, Undo and reload.
+  [Cases](evidence/mapgyver-m18-matrix-app-drop-2026-11-19.json)
+- **Displays.** Verify output defaults with one and two external monitors, occupied destinations
+  and the native New shortcut. Finish mixed-display timing and high-refresh interaction checks.
+  [Display checks](mapgyver-m14-screen-defaults.md)
+- **Video audio.** Capture the routed physical output and disconnect and reconnect that endpoint
+  during playback. [Audio checks](evidence/mapgyver-m16-video-audio-2026-11-18.json)
+- **NDI.** Use an independent LAN sender and receiver for A/V sync, drift and recovery. Verify a
+  clean Windows installation and the remaining lifecycle cases on that setup.
+  [NDI gates](mapgyver-ledger.md#execution-board-and-return-queue)
+- **Shared Texture.** Finish NVIDIA/D3D9, adapter loss and remaining format/allocation cases
+  when matching sender and hardware are available. [Compatibility checks](evidence/mapgyver-m13-app-catalog-2026-11-07.json)
+
+### Engineering and release checks
+
+- **Editor and Matrix.** Finish wider shared-consumer retirement and Matrix stress.
+  [Recovery cases](evidence/mapgyver-request-lifetime-deferred-2026-11-17.json)
+- **Video, GPU and long-run resources.** Finish device recovery, sustained codec and
+  shared-consumer timing, 4× anti-aliasing cost and recovery, and peak-memory growth. **Extended formats are deferred
+  until requested.** DXV and MKV still have open 4K timing, profile and recovery checks.
+  [Qualification queue](mapgyver-ledger.md#execution-board-and-return-queue)
+- **32-bit App Control.** Fix and verify the remaining WOW64 retirement case.
+  [Retirement checks](mapgyver-m08-retirement.md)
+- **Final Windows app and installer.** After the retained checks, fix the known parallel Video
+  and older Matrix/tool-fixture failures, then run the full app and installer regression.
+  [Final qualification](../plan/MapGyver_Implementation_Plan.md#m09--qualify-the-actual-app-and-windows-artifact)

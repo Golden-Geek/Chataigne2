@@ -4,10 +4,10 @@ use std::rc::{Rc, Weak};
 use windows::Win32::Graphics::Direct3D11::ID3D11Device;
 use windows::core::Result;
 
-use crate::plan::{CompiledPlan, ExternalSource, RenderOperation, RenderPass};
+use crate::plan::{BlendMode, CompiledPlan, ExternalSource, LayerSource, Pattern, RenderOperation, RenderPass};
 use crate::runtime::ProjectEpoch;
 use crate::shader::FragmentProgram;
-use crate::{OutputId, PassId, TextureDescriptor, TextureId};
+use crate::{AlphaMode, ColorEncoding, OutputId, PassId, PixelFormat, TextureDescriptor, TextureId};
 
 use super::super::pipeline::{ShaderClock, ShaderDraw, ShaderPass};
 use super::super::texture::Texture;
@@ -173,8 +173,44 @@ impl TextureCache {
     }
 }
 
-pub(super) fn composite_scratch(pass: &RenderPass) -> Option<TextureDescriptor> {
-    matches!(&pass.operation, RenderOperation::Composite { layers } if layers.len() > 1).then_some(pass.descriptor)
+pub(super) fn composite_scratch(plan: &CompiledPlan, pass: &RenderPass) -> Option<TextureDescriptor> {
+    let RenderOperation::Composite { layers } = &pass.operation else {
+        return None;
+    };
+    if layers.len() < 2 {
+        return None;
+    }
+    let can_blend_in_target = pass.descriptor.format == PixelFormat::Rgba8Unorm
+        && pass.descriptor.is_compositing_target()
+        && layers.iter().all(|layer| {
+            layer.blend == BlendMode::Normal
+                && match &layer.source {
+                    LayerSource::Texture(id) => plan
+                        .passes()
+                        .iter()
+                        .find(|source| source.output == *id)
+                        .map(|source| source.descriptor)
+                        .or_else(|| {
+                            plan.external_textures()
+                                .iter()
+                                .find(|source| source.id == *id)
+                                .map(|source| source.descriptor)
+                        })
+                        .is_some_and(bounded_blend_input),
+                    LayerSource::Pattern(Pattern::Canvas(canvas)) => canvas
+                        .image()
+                        .is_none_or(|image| bounded_blend_input(image.descriptor())),
+                    LayerSource::Pattern(Pattern::Grid(_) | Pattern::Bars(_)) => true,
+                }
+        });
+    (!can_blend_in_target).then_some(pass.descriptor)
+}
+
+fn bounded_blend_input(descriptor: TextureDescriptor) -> bool {
+    // UNORM blending can clamp the shader output before blending. Keep inputs that
+    // can produce out-of-range components on the existing shader blend path.
+    matches!(descriptor.format, PixelFormat::Rgba8Unorm | PixelFormat::Bgra8Unorm)
+        && !(descriptor.color_encoding == ColorEncoding::Srgb && descriptor.alpha_mode == AlphaMode::Premultiplied)
 }
 
 pub(super) fn prepare(
@@ -306,7 +342,7 @@ pub(super) fn prepare(
             )?
         };
         resources.textures.insert(pass.output, target);
-        if let Some(descriptor) = composite_scratch(pass) {
+        if let Some(descriptor) = composite_scratch(plan, pass) {
             // Scratch is assigned and consumed within one ordered composite pass. It is
             // never a graph output, so compatible passes can share its device-local storage.
             resources

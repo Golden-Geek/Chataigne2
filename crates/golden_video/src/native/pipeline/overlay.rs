@@ -14,8 +14,8 @@ pub(super) struct OverlayParameters {
 pub(super) const CONSTANT_BYTES: usize = size_of::<OverlayParameters>();
 const _: () = assert!(CONSTANT_BYTES == 128);
 
-pub(super) fn prepare(device: &ID3D11Device) -> Result<(ID3D11PixelShader, ID3D11Buffer, ID3D11BlendState)> {
-    let (mut shader, mut constants, mut blend) = (None, None, None);
+pub(super) fn prepare(device: &ID3D11Device) -> Result<(ID3D11PixelShader, ID3D11Buffer)> {
+    let (mut shader, mut constants) = (None, None);
     // SAFETY: fixed compiler-validated shader and bounded immutable state descriptors.
     unsafe {
         device.CreatePixelShader(shaders::OVERLAY_PIXEL, None, Some(&mut shader))?;
@@ -29,23 +29,10 @@ pub(super) fn prepare(device: &ID3D11Device) -> Result<(ID3D11PixelShader, ID3D1
             None,
             Some(&mut constants),
         )?;
-        let mut description = D3D11_BLEND_DESC::default();
-        description.RenderTarget[0] = D3D11_RENDER_TARGET_BLEND_DESC {
-            BlendEnable: true.into(),
-            SrcBlend: D3D11_BLEND_ONE,
-            DestBlend: D3D11_BLEND_INV_SRC_ALPHA,
-            BlendOp: D3D11_BLEND_OP_ADD,
-            SrcBlendAlpha: D3D11_BLEND_ONE,
-            DestBlendAlpha: D3D11_BLEND_INV_SRC_ALPHA,
-            BlendOpAlpha: D3D11_BLEND_OP_ADD,
-            RenderTargetWriteMask: D3D11_COLOR_WRITE_ENABLE_ALL.0 as u8,
-        };
-        device.CreateBlendState(&description, Some(&mut blend))?;
     }
     Ok((
         shader.ok_or_else(missing_output)?,
         constants.ok_or_else(missing_output)?,
-        blend.ok_or_else(missing_output)?,
     ))
 }
 
@@ -159,7 +146,7 @@ impl Pipeline {
             context.PSSetConstantBuffers(2, Some(&[Some(self.overlay_constants.clone())]));
             context.PSSetShaderResources(0, Some(&[None, None]));
             context.OMSetDepthStencilState(None, 0);
-            context.OMSetBlendState(&self.overlay_blend, None, u32::MAX);
+            context.OMSetBlendState(&self.source_over, None, u32::MAX);
             context.OMSetRenderTargets(Some(&[Some(target.rtv.clone())]), None);
             context.RSSetState(&self.rasterizer);
             context.RSSetViewports(Some(&[D3D11_VIEWPORT {

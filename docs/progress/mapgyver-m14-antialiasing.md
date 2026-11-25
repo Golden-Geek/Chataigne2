@@ -84,9 +84,51 @@ scheduling. Physical outputs were disabled. [Local analysis](../../target/mapgyv
 
 The fixture executable SHA-256 was `10666BA588489DC8EC795F1A5E51955A0588FFEF62C54C35153D45313549A2F2`.
 
+## Direct source-over compositing — 2026-11-25
+
+Golden Video uses D3D11 source-over blending for bounded Normal layers on linear
+premultiplied RGBA8 targets. The same source eligibility rule controls allocation and
+admission. Other blend modes and inputs that can exceed UNORM bounds retain shader blending.
+
+- The optimized build, 381 Golden Video tests and 126 focused MapGyver Screen and planning
+  tests passed. The MapGyver UI check reported zero errors and warnings. Clippy passed with
+  the existing `type_complexity` finding in `screens/catalog_runtime.rs` left at warning level.
+- The independent MapGyver raster fixture matched all 108 Shared Texture and preview images
+  on Intel Graphics and the GeForce RTX 5080 Laptop GPU within its existing conversion bounds.
+  It covered warping, alpha, history, reload and forced tiling with physical outputs disabled.
+- The opt-in Golden Video suite passed 30 tests, including exact native source-over pixels
+  through a partially covered translucent draw. Two additional tests failed. The external HAP
+  test required `MAPGYVER_HAP_EXTERNAL`. The initial allocation recovery test timed out before
+  its first draw while waiting for the deliberately unavailable adapter to enter `Faulted`.
+- The two-Surface 4× resource fixture measured 182,477,056 generation bytes at 1080p and
+  763,085,056 at 4K on both GPUs. This saves one 126.6 MiB scratch texture per generation
+  in each case. Raw/2× and 4× tests rejected over-budget plans before allocation, kept the
+  active output advancing and retired tracked textures and endpoints to zero. The longest
+  4× retirement was 55.01 ms. [4× results](../../target/mapgyver-4x-direct-resources-20261125-2135/results-4x.json)
+  · [Raw/2× results](../../target/mapgyver-4x-direct-resources-20261125-2135/results.json)
+
+## Sustained comparison — 2026-11-25
+
+The same Shared Texture fixture completed the four cohorts with a 30-second warmup and three
+120-second samples per cohort. CPU and GPU coverage was complete. CPU p95/p99 stayed within
+4/8 ms, memory stayed within the original caps, and tracked textures and endpoints retired to
+zero within 272 ms. The GPU limits remain 12 ms p95 and 16.667 ms p99.
+
+| GPU | Output | Prior GPU p95 (ms) | Direct GPU p95 / p99 (ms) | On time per 7,200 slots |
+| --- | --- | ---: | ---: | ---: |
+| NVIDIA RTX 5080 Laptop | 1080p | 4.34 | 8.82 / 8.96 | 7,200 |
+| NVIDIA RTX 5080 Laptop | 4K | 14.18 | 13.20 / 14.14 | 7,200 |
+| Intel Graphics | 1080p | 38.67 | 32.93 / 34.26 | 3,877–3,971 |
+| Intel Graphics | 4K | 151.12 | 123.49 / 124.68 | 989–992 |
+
+NVIDIA 1080p still passes with a higher GPU p95. NVIDIA 4K improved and still exceeds GPU
+p95. Both Intel cases improved and still exceed the GPU and submission limits.
+[Local analysis](../../target/mapgyver-4x-direct-sustained-20261125-2138/analysis.json)
+
 ## Remaining qualification
 
-M14/8 is **functionally delivered and Active for work on render cost**. Reduce the work of the
-supersampled composite itself and verify the existing independent edge and alpha pixels before
-comparing the changed renderer to this baseline. Supported-hardware rejection and physical
-output/recovery also remain open. The earlier M12/8 Intel 4K result and user acceptance remain recorded.
+M14/8 remains **Active**. Return with a change that reduces work in the supersampled render
+stage for NVIDIA 4K and both Intel sizes. Recheck independent pixels, preserve NVIDIA 1080p's
+timing acceptance and compare the remaining cohorts to the same limits. Unsupported-hardware
+rejection and physical output/recovery remain open. The earlier M12/8 Intel 4K result and user
+acceptance remain recorded.

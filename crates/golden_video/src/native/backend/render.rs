@@ -1,6 +1,4 @@
 //! Execute demanded passes, retaining unchanged targets without changing presentation cadence.
-use std::rc::Rc;
-
 use golden_time::TimeSnapshot;
 use windows::Win32::Graphics::Direct3D11::ID3D11DeviceContext;
 
@@ -10,7 +8,7 @@ use crate::runtime::CompletionToken;
 
 use super::D3d11Resources;
 use super::presentation::Presentation;
-use crate::native::pipeline::Pipeline;
+use crate::native::pipeline::{Backdrop, Pipeline};
 
 #[derive(Default)]
 pub(super) struct Work {
@@ -79,21 +77,27 @@ pub(super) fn execute(
                 if layers.is_empty() {
                     pipeline.clear(context, output, LinearColor::TRANSPARENT);
                 }
+                let scratch = resources.scratch.get(&pass.id);
                 for (index, layer) in layers.iter().enumerate() {
                     let layer = layer.evaluated(time);
-                    let to_output = (layers.len() - index) % 2 == 1;
-                    let target = if to_output {
-                        output
-                    } else {
-                        &resources.scratch[&pass.id]
-                    };
-                    let previous = (index != 0).then(|| {
-                        if to_output {
-                            &resources.scratch[&pass.id]
-                        } else {
-                            output
+                    let (target, backdrop) = match scratch {
+                        Some(scratch) => {
+                            let (target, previous) = if (layers.len() - index) % 2 == 1 {
+                                (output, scratch)
+                            } else {
+                                (scratch, output)
+                            };
+                            let backdrop = if index == 0 {
+                                Backdrop::Empty
+                            } else {
+                                Backdrop::Separate(previous)
+                            };
+                            (target, backdrop)
                         }
-                    });
+                        // The first draw covers the entire target and initializes its pixels.
+                        None if index == 0 => (output, Backdrop::Empty),
+                        None => (output, Backdrop::Target),
+                    };
                     pipeline.draw_layer(
                         context,
                         match &layer.source {
@@ -104,7 +108,7 @@ pub(super) fn execute(
                             }
                             source => source.texture().map(|id| resources.textures[&id].as_ref()),
                         },
-                        previous.map(Rc::as_ref),
+                        backdrop,
                         target.as_ref().into(),
                         &layer,
                     );

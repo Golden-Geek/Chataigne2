@@ -7,7 +7,8 @@ use super::super::*;
 use crate::image::tests::{PreparedImageFixture, prepared_image};
 use crate::native::{AdapterId, InputLimits, OutputBinding, adapters};
 use crate::plan::{
-    BlitRegion, ExternalSource, ExternalTexture, PlanLimits, PlanOutput, RenderPass, RenderPlan, UnitRect,
+    BlitRegion, ExternalSource, ExternalTexture, PlanLimits, PlanOutput, RenderOperation, RenderPass, RenderPlan,
+    UnitRect,
 };
 use crate::{AlphaMode, ColorEncoding, Extent2D, LinearColor, PixelFormat};
 

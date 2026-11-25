@@ -142,7 +142,7 @@ fn check(gpu: &Device, pipeline: &Pipeline, target: &Texture, canvas: CanvasPatt
         filter: SampleFilter::Nearest,
         mapping: None,
     };
-    pipeline.draw_layer(&gpu.context, None, None, target.into(), &layer);
+    pipeline.draw_layer(&gpu.context, None, Backdrop::Empty, target.into(), &layer);
     // Gather explicit landmarks into the existing finite 8x8 readback contract.
     let staging_source = Texture::new(
         &gpu.device,

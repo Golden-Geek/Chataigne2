@@ -18,7 +18,7 @@ fn render(
     pipeline.draw_layer(
         &gpu.context,
         Some(&source),
-        None,
+        Backdrop::Empty,
         target.into(),
         &Layer {
             source: LayerSource::Pattern(Pattern::Canvas(canvas)),

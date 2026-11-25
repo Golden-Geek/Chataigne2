@@ -15,7 +15,7 @@ This reuses the existing shader contract instead of adding an app-specific Golde
 M14 adds **Smooth (4×)**: four samples on each axis, or sixteen shader evaluations per final
 pixel. Two linear 2:1 Sample passes resolve all sixteen contributors; a single 4:1 bilinear
 sample would omit twelve of them. Both intermediate writes retain the same RGBA8 contract.
-Raw and Smooth (2×) keep their original graph and admission behavior.
+Raw and Smooth (2×) keep their original graphs and resource ceilings.
 
 Golden's bounded integer raster partition and viewport homography support 4× at 4K without
 raising the production 8192-pixel texture-dimension limit. A 3840×2160 Screen uses four logical
@@ -27,14 +27,18 @@ full-output mapping. At1080p one tile needs three passes; at4K four tiles plus a
 thirteen. Existing aggregate pass, dependency, byte, native residency and GPU retirement limits
 can reject this more expensive choice; there is no hidden quality downgrade or budget increase.
 
-For one Surface, untiled4× plan textures total21 times the final pixel count (16+4+1).
-Tiled4K adds a separate final assembly target, totaling22 times the final count before producer,
-conversion, scratch and retiring allocations. Golden reuses native composite scratch across
-ordered passes with identical texture descriptors. Each pass overwrites the scratch before
-sampling it and retains its own final target. The four equal raster tiles of a 4K Screen
-therefore need one tile-sized scratch texture. Native admission counts that descriptor once per
-generation and still charges every live, prepared and retiring generation. Sustained cost and
-retained recovery qualification stay in the second pass.
+Untiled 4× plan textures total 21 times the final pixel count (16 + 4 + 1).
+Tiled 4K adds a separate final assembly target, totaling 22 times the final count before producer,
+conversion and retiring allocations. On a linear premultiplied RGBA8 target, bounded Normal
+layers use the GPU's source-over blend state. The first draw initializes the target and subsequent
+draws blend into it in authored order, with the same per-layer RGBA8 storage. This avoids a
+shader backdrop read and scratch texture. Other blend modes or sources that can yield out-of-range
+components use shader blending to preserve their arithmetic. [Direct3D blend state](https://learn.microsoft.com/en-us/windows/win32/direct3d11/d3d10-graphics-programming-guide-blend-state)
+
+Where shader blending needs scratch, Golden reuses it across ordered passes with identical
+texture descriptors. Each pass overwrites the scratch before sampling it and retains its own
+final target. Admission counts the scratch descriptor once per generation and still charges
+every live, prepared and retiring generation.
 
 Calibration layout, stroke widths and resolution readouts use the logical final extent;
 the higher raster density changes sample coverage, not authored dimensions or displayed
@@ -43,11 +47,9 @@ previously rasterized pattern. Physical outputs, Shared Texture outputs and edit
 consume the same resolved Screen texture. Source textures are neither duplicated nor supersampled.
 
 Compared with Raw's one target, Smooth describes five times its pixel storage (four-times-size
-intermediate plus final target). A multi-Surface composite also needs Golden's existing ping-pong
-scratch: two high-resolution working targets plus the final target, before output conversion,
-source pools, caches and concurrently live/retiring generations. These are costs to admit and
-measure, not new budgets. Checked dimension arithmetic, plan dimension/pass/dependency/byte
-limits and native allocation admission remain authoritative. Rejection is visible through the
+intermediate plus final target). Output conversion, source pools, caches and concurrently
+live or retiring generations contribute independent costs. Checked dimension arithmetic,
+plan limits and native allocation admission remain authoritative. Rejection is visible through the
 existing runtime outcome; no switch back to Raw or budget increase is permitted silently.
 
 Per-Screen final and intermediate logical identities remain stable across parameter edits;

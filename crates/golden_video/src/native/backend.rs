@@ -404,7 +404,11 @@ impl Backend for D3d11Backend {
         self.validate(plan)?;
         let mut total = plan.footprint().total_texture_bytes;
         let mut scratch = HashSet::new();
-        for descriptor in plan.passes().iter().filter_map(resources::composite_scratch) {
+        for descriptor in plan
+            .passes()
+            .iter()
+            .filter_map(|pass| resources::composite_scratch(plan, pass))
+        {
             if scratch.insert(descriptor) {
                 total = total
                     .checked_add(bytes(descriptor)?)

@@ -13,7 +13,7 @@ use uuid::Uuid;
 use super::super::*;
 use crate::native::{AdapterId, InputLimits, OutputBinding, SourceState, adapters};
 use crate::plan::SpoutSource;
-use crate::plan::{ExternalTexture, Layer, PlanLimits, PlanOutput, RenderPass, RenderPlan};
+use crate::plan::{ExternalTexture, Layer, PlanLimits, PlanOutput, RenderOperation, RenderPass, RenderPlan};
 use crate::runtime::{LatePolicy, PlanActivation, ResourceLimits, RuntimeConfig, RuntimeState, VideoRuntime};
 use crate::{AlphaMode, ColorEncoding, Extent2D, Opacity, PixelFormat};
 

@@ -10,7 +10,7 @@ use super::super::*;
 use crate::LinearColor;
 use crate::native::tests::initialization_gate::InitializationGate;
 use crate::native::{AdapterId, D3d11Config, D3d11Control, InputLimits, OutputBinding, adapters};
-use crate::plan::{PlanLimits, PlanOutput, RenderPass, RenderPlan};
+use crate::plan::{PlanLimits, PlanOutput, RenderOperation, RenderPass, RenderPlan};
 use crate::runtime::{
     LatePolicy, OutcomeKind, PlanActivation, ResourceLimits, RuntimeConfig, RuntimeState, VideoRuntime,
 };

@@ -78,7 +78,7 @@ fn check_adapter(adapter: crate::native::AdapterId) {
     pipeline.draw_layer(
         &gpu.context,
         None,
-        None,
+        Backdrop::Empty,
         (&target).into(),
         &layer(bars.clone(), 1.0, None),
     );
@@ -104,7 +104,7 @@ fn check_adapter(adapter: crate::native::AdapterId) {
     pipeline.draw_layer(
         &gpu.context,
         None,
-        None,
+        Backdrop::Empty,
         (&target).into(),
         &layer(bars.clone(), 1., Some(cropped)),
     );
@@ -112,7 +112,13 @@ fn check_adapter(adapter: crate::native::AdapterId) {
         let rgb = palette[x / 2 + 2];
         [(rgb[0] * 255.) as u8, (rgb[1] * 255.) as u8, (rgb[2] * 255.) as u8, 255]
     });
-    pipeline.draw_layer(&gpu.context, None, None, (&target).into(), &layer(grid, 1.0, None));
+    pipeline.draw_layer(
+        &gpu.context,
+        None,
+        Backdrop::Empty,
+        (&target).into(),
+        &layer(grid, 1.0, None),
+    );
     pixels(&gpu, &target, |x, y| {
         let value = if x % 4 == 0 || x % 4 == 3 || y % 4 == 0 || y % 4 == 3 {
             255
@@ -136,7 +142,7 @@ fn check_adapter(adapter: crate::native::AdapterId) {
     pipeline.draw_layer(
         &gpu.context,
         None,
-        Some(&backdrop),
+        Backdrop::Separate(&backdrop),
         (&target).into(),
         &layer(bars, 0.5, Some(mapping)),
     );
@@ -155,16 +161,34 @@ fn check_adapter(adapter: crate::native::AdapterId) {
     });
     let red = layer(Pattern::Bars([color(1., 0., 0.); 8]), 1., None);
     let green = layer(Pattern::Bars([color(0., 1., 0.); 8]), 0.5, Some(mapping));
-    pipeline.draw_layer(&gpu.context, None, None, (&scratch).into(), &red);
-    pipeline.draw_layer(&gpu.context, None, Some(&scratch), (&target).into(), &green);
+    pipeline.draw_layer(&gpu.context, None, Backdrop::Empty, (&scratch).into(), &red);
+    pipeline.draw_layer(
+        &gpu.context,
+        None,
+        Backdrop::Separate(&scratch),
+        (&target).into(),
+        &green,
+    );
     pixels(
         &gpu,
         &target,
         |x, _| if x < 4 { [128, 128, 0, 255] } else { [255, 0, 0, 255] },
     );
-    pipeline.draw_layer(&gpu.context, None, None, (&scratch).into(), &green);
-    pipeline.draw_layer(&gpu.context, None, Some(&scratch), (&target).into(), &red);
+    pipeline.draw_layer(&gpu.context, None, Backdrop::Empty, (&scratch).into(), &green);
+    pipeline.draw_layer(&gpu.context, None, Backdrop::Separate(&scratch), (&target).into(), &red);
     pixels(&gpu, &target, |_, _| [255, 0, 0, 255]);
+    // The same target accumulates a translucent layer, preserving both coverage and the
+    // original pixels outside its projected quad. Reusing the target must clear old pixels.
+    let half_red = layer(Pattern::Bars([color(1., 0., 0.); 8]), 0.5, None);
+    pipeline.draw_layer(&gpu.context, None, Backdrop::Empty, (&target).into(), &half_red);
+    pipeline.draw_layer(&gpu.context, None, Backdrop::Target, (&target).into(), &green);
+    pixels(
+        &gpu,
+        &target,
+        |x, _| {
+            if x < 4 { [64, 128, 0, 192] } else { [128, 0, 0, 128] }
+        },
+    );
     // Texture sampling still uses the ordinary path after procedural constant-buffer use.
     pipeline.draw(
         &gpu.context,

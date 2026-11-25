@@ -73,6 +73,49 @@ fn clear_plan(output: u64) -> RenderPlan {
 }
 
 #[test]
+fn only_bounded_normal_layers_composite_without_a_separate_backdrop() {
+    use crate::{
+        Opacity,
+        plan::{BlendMode, Layer, SampleFilter},
+    };
+
+    let (backend, _) = backend();
+    let source = TextureId::new(1).unwrap();
+    let result = TextureId::new(2).unwrap();
+    for (format, blend, scratch) in [
+        (PixelFormat::Rgba8Unorm, BlendMode::Normal, 0),
+        (PixelFormat::Rgba8Unorm, BlendMode::Multiply, 4),
+        (PixelFormat::Rgba16Float, BlendMode::Normal, 4),
+    ] {
+        let mut plan = clear_plan(1);
+        plan.passes[0].descriptor.format = format;
+        let layer = Layer {
+            source: source.into(),
+            opacity: Opacity::OPAQUE,
+            opacity_envelope: None,
+            blend,
+            filter: SampleFilter::Linear,
+            mapping: None,
+        };
+        plan.passes.push(RenderPass {
+            id: PassId::new(2).unwrap(),
+            output: result,
+            descriptor: descriptor(),
+            operation: RenderOperation::Composite {
+                layers: vec![layer.clone(), layer],
+            },
+        });
+        plan.outputs[0].source = result;
+        let plan = plan.compile(&limits()).unwrap();
+        assert_eq!(
+            backend.resource_bytes(&plan).unwrap(),
+            plan.footprint().total_texture_bytes + 4 + scratch,
+            "{format:?} {blend:?}"
+        );
+    }
+}
+
+#[test]
 fn native_output_contracts_are_rejected_before_startup() {
     use crate::runtime::{ResourceLimits, RuntimeConfig};
     use std::num::NonZeroUsize;

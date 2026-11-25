@@ -52,6 +52,13 @@ impl<'a> From<&'a Texture> for RenderTarget<'a> {
     }
 }
 
+#[derive(Clone, Copy)]
+pub(super) enum Backdrop<'a> {
+    Empty,
+    Separate(&'a Texture),
+    Target,
+}
+
 #[repr(C)]
 struct Parameters {
     source_extent: [u32; 2],
@@ -94,7 +101,7 @@ pub(super) struct Pipeline {
     pattern_pixel: ID3D11PixelShader,
     overlay_pixel: ID3D11PixelShader,
     overlay_constants: ID3D11Buffer,
-    overlay_blend: ID3D11BlendState,
+    source_over: ID3D11BlendState,
     constants: ID3D11Buffer,
     pattern_data: pattern::PatternBuffer,
     rasterizer: ID3D11RasterizerState,
@@ -149,13 +156,13 @@ impl Pipeline {
             )?;
             device.CreatePixelShader(shaders::PATTERN_PIXEL, None, Some(&mut pattern_pixel))?;
         }
-        let (overlay_pixel, overlay_constants, overlay_blend) = overlay::prepare(device)?;
+        let (overlay_pixel, overlay_constants) = overlay::prepare(device)?;
         Ok(Self {
             frame_sampler: Cell::default(),
             frame_text: Cell::default(),
             overlay_pixel,
             overlay_constants,
-            overlay_blend,
+            source_over: source_over_state(device)?,
             vertex: vertex.ok_or_else(missing_output)?,
             pixel: pixel.ok_or_else(missing_output)?,
             straight_srgb_pixel: straight_srgb_pixel.ok_or_else(missing_output)?,
@@ -188,7 +195,7 @@ impl Pipeline {
         self.draw_view(
             context,
             Some(source),
-            previous,
+            previous.map_or(Backdrop::Empty, Backdrop::Separate),
             target,
             DrawSettings {
                 opacity,
@@ -213,7 +220,7 @@ impl Pipeline {
         self.draw_view(
             context,
             Some(source),
-            None,
+            Backdrop::Empty,
             target.into(),
             DrawSettings {
                 opacity: 1.0,
@@ -231,14 +238,14 @@ impl Pipeline {
         &self,
         context: &ID3D11DeviceContext,
         source: Option<&Texture>,
-        previous: Option<&Texture>,
+        backdrop: Backdrop<'_>,
         target: RenderTarget<'_>,
         layer: &Layer,
     ) {
         self.draw_view(
             context,
             source,
-            previous,
+            backdrop,
             target,
             DrawSettings {
                 opacity: layer.opacity.get(),
@@ -259,7 +266,7 @@ impl Pipeline {
         &self,
         context: &ID3D11DeviceContext,
         source: Option<&Texture>,
-        previous: Option<&Texture>,
+        backdrop: Backdrop<'_>,
         target: RenderTarget<'_>,
         settings: DrawSettings,
     ) {
@@ -273,10 +280,20 @@ impl Pipeline {
             pattern,
         } = settings;
         debug_assert!(opacity.is_finite() && (0.0..=1.0).contains(&opacity));
-        if let Some(previous) = previous {
-            debug_assert!(previous.descriptor.is_compositing_target());
-            debug_assert_eq!(previous.descriptor.extent, target.descriptor.extent);
-        }
+        let (previous, blend_state) = match backdrop {
+            Backdrop::Empty => (None, None),
+            Backdrop::Separate(previous) => {
+                debug_assert!(previous.descriptor.is_compositing_target());
+                debug_assert_eq!(previous.descriptor.extent, target.descriptor.extent);
+                (Some(previous), None)
+            }
+            Backdrop::Target => {
+                debug_assert!(target.descriptor.is_compositing_target());
+                debug_assert_eq!(target.descriptor.format, PixelFormat::Rgba8Unorm);
+                debug_assert_eq!(blend, BlendMode::Normal);
+                (None, Some(&self.source_over))
+            }
+        };
         let (source_view, source_encoding) = source
             .map(|source| {
                 let (view, encoding) = source.sampling_view();
@@ -288,7 +305,7 @@ impl Pipeline {
         // sampling for placements, resizes and every other color/alpha contract.
         let straight_srgb = pattern.is_none()
             && mapping.is_none()
-            && previous.is_none()
+            && matches!(backdrop, Backdrop::Empty)
             && source_rect == UnitRect::FULL
             && destination == UnitRect::FULL
             && opacity == 1.0
@@ -377,7 +394,7 @@ impl Pipeline {
                 context.PSSetShaderResources(slot, Some(&[source_view.cloned()]));
             }
             context.OMSetDepthStencilState(None, 0);
-            context.OMSetBlendState(None, None, u32::MAX);
+            context.OMSetBlendState(blend_state, None, u32::MAX);
             context.OMSetRenderTargets(Some(&[Some(target.view.clone())]), None);
             context.RSSetState(&self.rasterizer);
             context.RSSetViewports(Some(&[D3D11_VIEWPORT {
@@ -402,6 +419,24 @@ impl Pipeline {
             context.OMSetRenderTargets(None, None);
         }
     }
+}
+
+fn source_over_state(device: &ID3D11Device) -> Result<ID3D11BlendState> {
+    let mut descriptor = D3D11_BLEND_DESC::default();
+    descriptor.RenderTarget[0] = D3D11_RENDER_TARGET_BLEND_DESC {
+        BlendEnable: true.into(),
+        SrcBlend: D3D11_BLEND_ONE,
+        DestBlend: D3D11_BLEND_INV_SRC_ALPHA,
+        BlendOp: D3D11_BLEND_OP_ADD,
+        SrcBlendAlpha: D3D11_BLEND_ONE,
+        DestBlendAlpha: D3D11_BLEND_INV_SRC_ALPHA,
+        BlendOpAlpha: D3D11_BLEND_OP_ADD,
+        RenderTargetWriteMask: D3D11_COLOR_WRITE_ENABLE_ALL.0 as u8,
+    };
+    let mut state = None;
+    // SAFETY: the initialized descriptor owns all blend slots and state stays device-local.
+    unsafe { device.CreateBlendState(&descriptor, Some(&mut state))? };
+    state.ok_or_else(missing_output)
 }
 
 fn encoding(value: ColorEncoding) -> u32 {

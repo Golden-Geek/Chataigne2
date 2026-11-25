@@ -19,6 +19,9 @@ qualification remain required on Pi hardware.
 The armhf package installs and supports headless authoring under emulation. Return to its
 desktop and media checks on a Pi running 32-bit Raspberry Pi OS. While that hardware is
 unavailable, begin the Windows ARM64 package through its native FFmpeg SDK.
+The Windows x64 M14/8 direct-compositing checkpoint ran while the installed Windows ARM64
+H.264 Spout check completed in CI. M14/8 retains the remaining timing and physical checks.
+M19/6 returns for the remaining interactive, Media Preview, physical and SDK checks.
 
 | Gate | Acceptance |
 | --- | --- |
@@ -2012,11 +2015,12 @@ in the deferred verification lane. Use meaningful tests beside their owner under
 Run formatting at the root and Golden Core manifests. Native/hardware validation follows
 inspected terminal success of its compile/software prerequisites.
 
-Keep [mapgyver-status.md](../progress/mapgyver-status.md) the user's **only progress checklist**:
-finished capabilities, next features in execution order, built-but-unqualified work with reasons,
-and exact manual needs. Use short list items; no historical logs, dense phase tables or long prose.
-Keep the formal phase/subphase dashboard, verified counts, one active gate, return triggers,
-current batch and evidence links in [mapgyver-ledger.md](../progress/mapgyver-ledger.md).
+Keep [mapgyver-status.md](../progress/mapgyver-status.md) as the user-facing checklist. Put the
+active feature and any manual action needed now at the top. Group finished capabilities by
+workflow, list upcoming features in execution order, and distinguish later hands-on checks
+from engineering and release checks. Update the relevant summary in place when a feature lands.
+Keep batch cutoffs, the formal phase dashboard, the active gate, exact return triggers,
+individual test results and detailed evidence in [mapgyver-ledger.md](../progress/mapgyver-ledger.md).
 Update both in place at each milestone. Progress counts only complete verified gates;
 partial/checkpointed/unavailable work stays open. Document denominator changes in the ledger
 and retain prior evidence without treating it as proof of changed code.

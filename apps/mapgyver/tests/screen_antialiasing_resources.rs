@@ -1,5 +1,5 @@
 #![cfg(all(windows, feature = "native-qualification"))]
-//! Actual app plans under unchanged 1080p/4K byte ceilings, including supersample scratch.
+//! Actual app plans under unchanged 1080p/4K byte ceilings.
 
 use golden_core::{application::apply_project_intent, ui_sync::UiEditIntent};
 use golden_video::{
@@ -286,14 +286,12 @@ fn qualify(adapter: &AdapterInfo, width: u32, height: u32) -> Value {
             let request = scene.publish(&mut renderer, 1, extent);
             settled(&mut renderer, request, OutputId::new(1).unwrap());
             let resources = renderer.snapshot().resources.unwrap();
-            // One 8x8 producer; final composition, optional high-resolution target,
-            // multi-layer ping-pong and independent SDK conversion each count once.
-            let factor = match (mode, multi) {
-                (ScreenAntiAliasing::Raw, false) => 2,
-                (ScreenAntiAliasing::Raw, true) => 3,
-                (ScreenAntiAliasing::Smooth2x, false) => 6,
-                (ScreenAntiAliasing::Smooth2x, true) => 10,
-                (ScreenAntiAliasing::Smooth4x, _) => {
+            // Normal Surfaces share the target. Charge the 8x8 producer, final composition,
+            // optional high-resolution target and independent SDK conversion once.
+            let factor = match mode {
+                ScreenAntiAliasing::Raw => 2,
+                ScreenAntiAliasing::Smooth2x => 6,
+                ScreenAntiAliasing::Smooth4x => {
                     unreachable!("retained M12 resource cohort covers Raw and 2× only")
                 }
             };
@@ -308,6 +306,8 @@ fn qualify(adapter: &AdapterInfo, width: u32, height: u32) -> Value {
                 "reserved_bytes":resources.bytes_used,"peak_reserved_bytes":resources.peak_bytes,"allocations":allocations}));
         }
     }
+    let active = scene.publish(&mut renderer, 2, extent);
+    settled(&mut renderer, active, OutputId::new(1).unwrap());
     let before = renderer.snapshot().resources.unwrap();
     let before_native = control.allocations_snapshot();
     let request = scene.publish(&mut renderer, count, extent);
@@ -322,7 +322,7 @@ fn qualify(adapter: &AdapterInfo, width: u32, height: u32) -> Value {
     let recovery = scene.publish(&mut renderer, 1, extent);
     settled(&mut renderer, recovery, OutputId::new(1).unwrap());
     let recovered = renderer.snapshot().resources.unwrap();
-    assert_eq!(recovered.active.unwrap().bytes, 10 * pixels + 256);
+    assert_eq!(recovered.active.unwrap().bytes, 6 * pixels + 256);
     assert!(recovered.peak_bytes <= ceiling);
     let retirement = renderer.retirement();
     let start = Instant::now();
@@ -352,6 +352,7 @@ fn qualify_four_x(adapter: &AdapterInfo, width: u32, height: u32) -> Value {
         .unwrap();
     let config = mapgyver::preview::config::configuration(ceiling, None).video;
     let output = OutputId::new(1).unwrap();
+    let pressure_count = if width == 1920 { 3 } else { 1 };
     let runtime = VideoRuntime::spawn_d3d11(
         config.clone(),
         D3d11Config {
@@ -362,23 +363,29 @@ fn qualify_four_x(adapter: &AdapterInfo, width: u32, height: u32) -> Value {
                 max_sources: 0,
                 max_storage_bytes: 0,
             },
-            outputs: vec![OutputBinding::Spout {
-                id: output,
-                name: format!("MapGyver-4x-Resources-{}", uuid::Uuid::new_v4()),
-                descriptor: TextureDescriptor {
-                    extent,
-                    format: PixelFormat::Bgra8Unorm,
-                    color_encoding: ColorEncoding::Srgb,
-                    alpha_mode: AlphaMode::Straight,
-                },
-            }],
+            outputs: (1..=pressure_count as u64)
+                .map(|index| OutputBinding::Spout {
+                    id: OutputId::new(index).unwrap(),
+                    name: format!("MapGyver-4x-Resources-{}", uuid::Uuid::new_v4()),
+                    descriptor: TextureDescriptor {
+                        extent,
+                        format: PixelFormat::Bgra8Unorm,
+                        color_encoding: ColorEncoding::Srgb,
+                        alpha_mode: AlphaMode::Straight,
+                    },
+                })
+                .collect(),
         },
     )
     .unwrap();
     let mut renderer = ChannelRenderer::new(runtime, config.plan_limits);
     let control = renderer.native_control().unwrap();
-    let mut scene = Scene::new(1);
+    let mut scene = Scene::new(pressure_count);
     scene.configure(ScreenAntiAliasing::Raw, extent, true);
+    for index in 2..=pressure_count as u64 {
+        let request = scene.publish_to(&mut renderer, 1, extent, index);
+        settled(&mut renderer, request, OutputId::new(index).unwrap());
+    }
     let request = scene.publish(&mut renderer, 1, extent);
     settled(&mut renderer, request, output);
     let raw = renderer.snapshot().resources.unwrap();
@@ -390,26 +397,36 @@ fn qualify_four_x(adapter: &AdapterInfo, width: u32, height: u32) -> Value {
     settled(&mut renderer, request, output);
     let active = renderer.snapshot().resources.unwrap();
     let allocations = control.allocations_snapshot();
-    // Tiled 4K keeps four outputs but uses one scratch texture at the tile raster extent.
-    // Untiled 1080p uses the same raster-sized scratch and no assembly target.
-    let factor = if width == 1920 { 21 + 16 + 1 } else { 22 + 4 + 1 };
+    // Normal blending needs no intermediate backdrop, including the four 4K tiles.
+    let factor = if width == 1920 { 21 + 1 } else { 22 + 1 };
     let four_x_bytes = factor * pixels + 256;
     assert_eq!(active.active.unwrap().bytes, four_x_bytes);
     assert_eq!(active.bytes_used, baseline + four_x_bytes);
     assert!(active.peak_bytes >= raw.bytes_used + four_x_bytes);
     assert_eq!(allocations.plan.texel_bytes, four_x_bytes);
-    assert_eq!(allocations.owned_texel_bytes, Some(four_x_bytes + pixels));
+    assert_eq!(
+        allocations.owned_texel_bytes,
+        Some(four_x_bytes + pressure_count as u64 * pixels)
+    );
 
     scene.set_second_surface(true, 0.75);
-    let request = scene.publish(&mut renderer, 1, extent);
+    let request = scene.publish(&mut renderer, pressure_count, extent);
     let rejection = rejected_for_pressure(&mut renderer, request);
     let rejected = renderer.snapshot().resources.unwrap();
     assert_eq!(rejected.active, active.active);
     assert_eq!(rejected.bytes_used, active.bytes_used);
     assert_eq!(control.allocations_snapshot().plan.created, allocations.plan.created);
-    let delivered = control.output_snapshots()[0].accepted_frames;
+    let accepted = || {
+        control
+            .output_snapshots()
+            .iter()
+            .find(|snapshot| snapshot.id == output)
+            .unwrap()
+            .accepted_frames
+    };
+    let delivered = accepted();
     let deadline = Instant::now() + WAIT;
-    while control.output_snapshots()[0].accepted_frames <= delivered {
+    while accepted() <= delivered {
         assert!(
             Instant::now() < deadline,
             "the active 4× Screen stopped delivering after rejection"
@@ -436,7 +453,7 @@ fn qualify_four_x(adapter: &AdapterInfo, width: u32, height: u32) -> Value {
     assert!(final_inventory.outputs.is_empty() && final_inventory.sources.is_empty());
     json!({"adapter":adapter,"extent":extent,"ceiling":ceiling,"raw_bytes":raw_bytes,
         "four_x_bytes":four_x_bytes,"baseline_reserved_bytes":baseline,"active_allocations":allocations,
-        "peak_reserved_bytes":active.peak_bytes,"rejection":rejection,"retirement_ms":start.elapsed().as_secs_f64()*1000.0,
+        "peak_reserved_bytes":active.peak_bytes,"pressure_screen_count":pressure_count,"rejection":rejection,"retirement_ms":start.elapsed().as_secs_f64()*1000.0,
         "final_inventory":final_inventory})
 }
 
@@ -475,7 +492,7 @@ fn screen_supersampling_allocation_admission_and_recovery() {
 }
 
 #[test]
-#[ignore = "explicit M14/8 optimized both-GPU 1080p/4K scratch, pressure and retirement check"]
-fn screen_four_x_scratch_allocation_and_recovery() {
+#[ignore = "explicit M14/8 optimized both-GPU 1080p/4K allocation, pressure and retirement check"]
+fn screen_four_x_allocation_and_recovery() {
     run_resource_series(qualify_four_x, "results-4x.json");
 }
