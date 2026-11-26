@@ -2,13 +2,13 @@
 
 **Updated 26 November 2026 · `████░░░░░░` 40% accepted (2/5 gates)**
 
-**Current:** MapGyver2 extraction. **Next:** import the product history and wire its standalone workspace to the verified Golden Core commit. **Blocker:** none.
+**Current:** standalone MapGyver2 verification. **Next:** finish local Rust tests and enable release-mode installer verification on the migration branch. **Blocker:** none.
 
 | Gate | State | Progress | Evidence or return action |
 | --- | --- | --- | --- |
 | Source and ownership | Accepted | `██████████` 100% (1/1) | [Source refs](#source-refs) and [ownership map](../plan/Repository_Split_Implementation_Plan.md#ownership). |
 | Standalone Golden Core | Accepted | `██████████` 100% (1/1) | All seven [standalone CI jobs](https://github.com/Golden-Geek/GoldenCore/actions/runs/45787206204) passed at `d2b7e296`. Its publication on `main` was verified. |
-| Standalone MapGyver2 | Active | `░░░░░░░░░░` 0% (0/1) | Import product history and verify the independent app against `d2b7e296`. |
+| Standalone MapGyver2 | Active | `░░░░░░░░░░` 0% (0/1) | [Standalone checkpoint](https://github.com/Golden-Geek/MapGyver2/commit/27305b17a475b987b4f85491c3620da9a4d422c1). Complete clean-clone, runtime and installer verification. |
 | Chataigne2 cutover | Pending | `░░░░░░░░░░` 0% (0/1) | Switch to the verified Golden pin after MapGyver2 qualification. |
 | Independent pin upgrades | Waiting | `░░░░░░░░░░` 0% (0/1) | Verify both consumers and test a Golden revision bump. |
 
@@ -31,4 +31,6 @@ The [Linux audio job](https://github.com/Golden-Geek/GoldenCore/actions/runs/457
 
 Golden Core closed at `d2b7e296`. The exact published revision passed Rust workspace tests, strict Clippy and audio checks on Windows, macOS and Linux, plus UI type, unit, browser and generated-contract checks. The earlier Linux and macOS process-error failure was resolved by checking that ownership transfers preserve the raw OS error.
 
-The MapGyver2 batch delivers the product source history and standalone dependency resolution, including app-owned build scripts, the native probe and the Golden Core pin. Prove the destination license commit remains an ancestor, then verify locked Cargo metadata and npm installation in the independent workspace. Runtime and installer qualification remain part of the same MapGyver2 gate. Stop adding scope at 11:31 Europe/Paris on 26 November 2026.
+MapGyver2 imported 995 filtered commits and retained the destination license commit as an ancestor. Its standalone workspace pins Golden Core at `d2b7e296`. A fresh recursive HTTPS clone of `27305b17` passed locked Cargo metadata, `npm ci`, UI checks and the product UI build, and stayed clean. The independent checkout also passed strict MapGyver Clippy, watcher tests and lint, 397 Python tool tests, probe UI build and contract verification, and the pinned FFmpeg SDK check. The local library suite remains live in session `66466`.
+
+Hosted [desktop](https://github.com/Golden-Geek/MapGyver2/actions/runs/45797348707), [Windows ARM64](https://github.com/Golden-Geek/MapGyver2/actions/runs/45797348725) and [Linux ARM](https://github.com/Golden-Geek/MapGyver2/actions/runs/45797348770) workflows started on the migration branch. The native package batch must give this branch the same release-mode desktop checks as a tag, including the Windows x64 job that the old trigger skipped. Publishing remains tag-triggered. Prove the change through the three installer workflows and stop adding scope at 11:31 Europe/Paris on 26 November 2026.
