@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, migration/repository-split]
   pull_request:
   workflow_dispatch:
 
@@ -35,111 +35,16 @@ env:
     librsvg2-dev
 
 jobs:
-  golden_audio_hosts:
-    name: Golden Audio hosts (${{ matrix.label }})
-    runs-on: ${{ matrix.runs_on }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - label: Windows
-            runs_on: windows-latest
-            features: asio,jack,realtime
-          - label: macOS
-            runs_on: macos-15
-            features: jack
-          - label: Linux
-            runs_on: ubuntu-24.04
-            features: jack,native-pipewire,realtime-dbus
-            install_linux_deps: true
-    steps:
-      - uses: actions/checkout@v6
-      - name: Activate repository-pinned Rust toolchain (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./tools/bootstrap/install-rust-toolchain.ps1
-      - name: Activate repository-pinned Rust toolchain (macOS/Linux)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: sh ./tools/bootstrap/install-rust-toolchain.sh
-      - name: Install Linux audio prerequisites
-        if: ${{ matrix.install_linux_deps }}
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y $LINUX_BUILD_PACKAGES
-      - name: Cache CPAL ASIO SDK outside the checkout
-        if: runner.os == 'Windows'
-        uses: actions/cache@v5
-        with:
-          path: ${{ runner.temp }}/chataigne-tool-cache/asio-sdk
-          key: asio-sdk-${{ hashFiles('tools/bootstrap/toolchain.json') }}
-      - name: Configure pinned audiosdk/asio SDK
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $cache = Join-Path $env:RUNNER_TEMP "chataigne-tool-cache/asio-sdk"
-          $sdk = ./tools/bootstrap/configure-asio-sdk.ps1 -CacheRoot $cache -PassThru
-          "CPAL_ASIO_DIR=$sdk" >> $env:GITHUB_ENV
-      - name: Configure LLVM for ASIO bindgen
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $clang = (Get-Command clang -ErrorAction Stop).Source
-          "LIBCLANG_PATH=$(Split-Path -Parent $clang)" >> $env:GITHUB_ENV
-      - name: Read canonical Python version
-        if: runner.os == 'Windows'
-        id: audio-pins
-        shell: pwsh
-        run: |
-          $pins = Get-Content tools/bootstrap/toolchain.json -Raw | ConvertFrom-Json
-          "python=$($pins.python.version)" >> $env:GITHUB_OUTPUT
-      - uses: actions/setup-python@v6
-        if: runner.os == 'Windows'
-        with:
-          python-version: ${{ steps.audio-pins.outputs.python }}
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: golden-audio-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'tools/bootstrap/toolchain.json') }}
-      - name: Verify backend-neutral audio core
-        run: cargo test -p golden_audio --no-default-features
-      - name: Compile and test platform audio hosts
-        run: cargo test -p golden_audio --features "${{ matrix.features }}"
-      - name: Probe hosts without opening streams
-        run: cargo run -p golden_audio --example backend_probe --features "${{ matrix.features }}"
-      - name: Verify standalone Golden Audio distribution
-        if: runner.os == 'Windows'
-        run: >-
-          python tools/qualification/external_audio_consumer.py
-          --target-dir target/external-audio-consumer
-          --report target/qualification/external-audio-consumer.json
-      - name: Upload standalone-consumer evidence
-        if: ${{ always() && runner.os == 'Windows' }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: golden-audio-external-consumer-${{ github.sha }}
-          path: target/qualification/external-audio-consumer.json
-          if-no-files-found: warn
-
-  golden_engine_tests:
-    name: golden_engine tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - name: Activate repository-pinned Rust toolchain
-        shell: bash
-        run: sh ./tools/bootstrap/install-rust-toolchain.sh
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: engine-tests-${{ hashFiles('Cargo.lock', 'tools/bootstrap/toolchain.json') }}
-      - name: Run tests (single-threaded to avoid flaky logger test)
-        run: cargo test -p golden_engine -- --test-threads=1
-
   ui_quality:
     name: UI quality
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Activate repository-pinned Rust toolchain
+        shell: pwsh
+        run: ./tools/bootstrap/install-rust-toolchain.ps1
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
@@ -159,6 +64,11 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Activate repository-pinned Rust toolchain
+        shell: pwsh
+        run: ./tools/bootstrap/install-rust-toolchain.ps1
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
@@ -216,6 +126,8 @@ jobs:
             install_linux_deps: true
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: recursive
       - name: Clear UI build directory
         shell: pwsh
         run: |
@@ -275,7 +187,7 @@ jobs:
         if: ${{ matrix.id != 'rpi-armhf' }}
         env:
           GC_UI_ASSUME_BUILT: 1
-        run: cargo build --target ${{ matrix.target }}
+        run: cargo build --locked --target ${{ matrix.target }}
       - name: Verify ordinary desktop audio hosts
         if: ${{ matrix.id != 'rpi-armhf' }}
         env:

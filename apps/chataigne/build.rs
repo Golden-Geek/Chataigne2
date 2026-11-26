@@ -36,8 +36,9 @@ impl BuildPaths {
 fn main() -> std::io::Result<()> {
     let paths = BuildPaths::from_env();
     let workspace_root = Path::new("../..");
-    let shared_input_roots = ["golden-ui", "golden-graph-ui", "golden-audio-ui"]
-        .map(|package| workspace_root.join("packages").join(package));
+    let golden_packages = workspace_root.join("golden/packages");
+    let shared_input_roots =
+        ["golden-ui", "golden-graph-ui", "golden-audio-ui"].map(|package| golden_packages.join(package));
 
     emit_rerun_tracking(&paths)?;
     ui_bundle::prepare(&UiBundleConfig {

@@ -1,4 +1,4 @@
-import { createUiSessionProvider } from '../../packages/golden-ui/transport/session.ts';
+import { createUiSessionProvider } from 'golden_ui/transport/session';
 
 // Qualification tools use the same bootstrap/renewal implementation as browser clients.
 const providers = new Map();

@@ -1,16 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { UI_PROTOCOL_VERSION } from '../../../../../../packages/golden-ui/generated/rust_protocol/protocol-version';
-import {
-	VersionedNodeMap,
-	graphIndexMutationCopies
-} from '../../../../../../packages/golden-ui/store/graph-index';
-import { createGraphStore } from '../../../../../../packages/golden-ui/store/graph.svelte';
-import { createWorkbenchWarningStore } from '../../../../../../packages/golden-ui/store/session/warnings.svelte';
-import type {
-	UiEventBatch,
-	UiNodeDto,
-	UiSnapshot
-} from '../../../../../../packages/golden-ui/types';
+import { UI_PROTOCOL_VERSION } from 'golden_ui/generated/rust_protocol/protocol-version.ts';
+import { VersionedNodeMap, graphIndexMutationCopies } from 'golden_ui/store/graph-index';
+import { createGraphStore } from 'golden_ui/store/graph.svelte';
+import { createWorkbenchWarningStore } from 'golden_ui/store/session/warnings.svelte';
+import type { UiEventBatch, UiNodeDto, UiSnapshot } from 'golden_ui/types';
 
 const eventTime = (seq: number) => ({ tick: 1, micro: 0, seq });
 

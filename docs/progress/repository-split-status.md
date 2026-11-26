@@ -2,7 +2,7 @@
 
 **Updated 26 November 2026 · `██████░░░░` 60% accepted (3/5 gates)**
 
-**Current:** Chataigne2 cutover. **Next:** build the Chataigne-only workspace against the published Golden Core pin. **Blocker:** none.
+**Current:** Chataigne2 builds against the published Golden Core pin. **Next:** remove the extracted trees and verify the app from an independent clone. **Blocker:** none.
 
 | Gate | State | Progress | Evidence or return action |
 | --- | --- | --- | --- |
@@ -39,4 +39,6 @@ The Windows x64 release NSIS package from the clean clone of `ff68733a` passed t
 
 ## Current batch
 
-Chataigne2 owns the next deliverable: an independent Cargo and npm workspace with Golden Core pinned at `d2b7e296`. Verify locked dependency resolution and app UI build first, then use the ordinary binary for existing-project, Alchemist and state-machine checks. Stop adding scope at 13:00 Europe/Paris on 26 November 2026 and retain any live builds.
+The Chataigne Cargo workspace resolves nine app and tooling members with Golden, CPAL and wry coming from the exact `d2b7e296` submodule. Its npm lock contains the app and the three consumed Golden UI packages. The production UI build, Svelte checks, browser fixture type check, all 193 Chataigne UI tests and all four app-owned protocol generators passed. The generating commands left committed contracts and Golden files clean. The Windows binary built with the default ASIO setup and served the embedded workbench headlessly. It opened a copy of `test_simple_load.noisette` and preserved the signals module and state processor UUIDs through Save/New/Load. Project and local profiles were isolated from the user's checkout.
+
+The CI and package jobs now check out Golden recursively. The next batch removes the extracted trees, completes the launcher, verification and documentation paths, and verifies a recursive clean clone, native desktop startup, Alchemist and the state-machine editor. The direct Node qualification helpers still need an explicit `.ts` module path in Golden's session and endpoint imports. The affected import fails with the same extensionless relative path in the pre-split source. Stop adding scope at 13:00 Europe/Paris on 26 November 2026 and retain any live builds.

@@ -7,8 +7,8 @@
 		"moduleResolution": "bundler",
 		"noEmit": true,
 		"paths": {
-			"golden_ui": ["../../../../../packages/golden-ui/index.ts"],
-			"golden_ui/*": ["../../../../../packages/golden-ui/*"]
+			"golden_ui": ["../../../../../golden/packages/golden-ui/index.ts"],
+			"golden_ui/*": ["../../../../../golden/packages/golden-ui/*"]
 		},
 		"resolveJsonModule": true,
 		"skipLibCheck": true,

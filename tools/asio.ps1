@@ -107,6 +107,9 @@ if ($null -eq $Command -or $Command.Count -eq 0) {
     $Command = @(
         "cargo",
         "run",
+        "--locked",
+        "--manifest-path",
+        (Join-Path $repositoryRoot "golden/Cargo.toml"),
         "-p",
         "golden_audio",
         "--example",

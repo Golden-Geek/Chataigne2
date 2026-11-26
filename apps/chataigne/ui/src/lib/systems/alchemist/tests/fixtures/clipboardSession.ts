@@ -1,4 +1,4 @@
-import { createWorkbenchSession } from 'golden_ui/store/workbench.svelte';
+import { createConnectedWorkbenchSession } from '#lib/tests/fixtures/workbench-session.ts';
 import { UI_PROTOCOL_VERSION } from 'golden_ui/generated/rust_protocol/protocol-version.ts';
 import type { UiAck, UiClient, UiTransportBatch, UiNodeDto, UiSnapshot } from 'golden_ui';
 
@@ -69,10 +69,7 @@ export const clipboardSession = async () => {
 		},
 		sendIntent: () => ack
 	} as unknown as UiClient;
-	const session = createWorkbenchSession({
-		enableGlobalShortcuts: false,
-		transportFactory: () => client
-	});
+	const session = createConnectedWorkbenchSession(client);
 	const dispose = session.mount();
 	await ready;
 	return {

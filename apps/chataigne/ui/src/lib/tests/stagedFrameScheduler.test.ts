@@ -1,10 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createStagedFrameBatchScheduler } from '../../../../../../packages/golden-ui/transport/staged-frame-batches';
-import type {
-	EventTime,
-	UiEventBatch,
-	UiEventDto
-} from '../../../../../../packages/golden-ui/types';
+import { createStagedFrameBatchScheduler } from 'golden_ui/transport/staged-frame-batches';
+import type { EventTime, UiEventBatch, UiEventDto } from 'golden_ui/types';
 
 const time = (tick: number): EventTime => ({ tick, micro: 0, seq: 0 });
 

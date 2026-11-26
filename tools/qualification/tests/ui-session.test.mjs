@@ -3,7 +3,7 @@ import { once } from 'node:events';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { nativeUiFetch, nativeUiSession } from '../ui-session.mjs';
-import { UI_PROTOCOL_VERSION } from '../../../packages/golden-ui/generated/rust_protocol/protocol-version.ts';
+import { UI_PROTOCOL_VERSION } from 'golden_ui/generated/rust_protocol/protocol-version.ts';
 
 test('native qualification clients renew after a host restart and do not replay uncertain mutations', async () => {
 	let token = 'a'.repeat(43);

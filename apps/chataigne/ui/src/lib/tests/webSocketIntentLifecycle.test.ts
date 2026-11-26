@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createWebSocketUiClient } from '../../../../../../packages/golden-ui/transport/ws';
-import { testSessionProvider } from '../../../../../../packages/golden-ui/transport/tests/fixtures/session';
-import type { UiControlLifecycle } from '../../../../../../packages/golden-ui/types';
+import { createWebSocketUiClient } from 'golden_ui/transport/ws';
+import { testSessionProvider } from 'golden_ui/testing/transport';
+import type { UiControlLifecycle } from 'golden_ui/types';
 
 class FakeWebSocket {
 	static readonly CONNECTING = 0;

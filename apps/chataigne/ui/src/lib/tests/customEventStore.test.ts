@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
 	createWorkbenchCustomEventStore,
 	TRIGGER_PARAM_EVENT_TOPIC
-} from '../../../../../../packages/golden-ui/store/session/custom-events.svelte';
-import type { UiEventDto } from '../../../../../../packages/golden-ui/types';
+} from 'golden_ui/store/session/custom-events.svelte';
+import type { UiEventDto } from 'golden_ui/types';
 
 const eventTime = (seq: number) => ({ tick: 1, micro: 0, seq });
 

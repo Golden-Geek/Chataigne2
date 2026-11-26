@@ -3,8 +3,8 @@ import { compileModule } from 'svelte/compiler';
 // @ts-expect-error Svelte's internal client runtime is intentionally untyped.
 import * as svelteClient from 'svelte/internal/client';
 import { describe, expect, it } from 'vitest';
-import type { UiEventDto, NodeId } from '../../../../../../packages/golden-ui/types';
-import customEventStoreSource from '../../../../../../packages/golden-ui/store/session/custom-events.svelte.ts?raw';
+import type { UiEventDto, NodeId } from 'golden_ui/types';
+import customEventStoreSource from 'golden_ui/store/session/custom-events.svelte?raw';
 
 const {
 	effect,

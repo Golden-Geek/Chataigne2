@@ -55,7 +55,11 @@ Require-Command npm
 Require-Command rg
 
 Run-Step "cargo fmt --check" {
-    cargo fmt --check
+    cargo fmt --all --check
+}
+
+Run-Step "Golden Core formatting" {
+    cargo fmt --manifest-path golden/crates/golden_core/Cargo.toml --all --check
 }
 
 Run-Step "cargo clippy" {
@@ -78,6 +82,10 @@ if (-not $SkipUiInstall) {
     Run-Step "npm ci" {
         npm ci
     }
+} else {
+    Run-Step "generate Chataigne contracts" {
+        npm run prepare --workspace chataigne-ui
+    }
 }
 
 Push-Location apps/chataigne/ui
@@ -90,16 +98,13 @@ try {
         npm run build
     }
 
-    Run-Step "generated protocol freshness" {
-        npm run codegen:golden-ui-protocol
-    }
 }
 finally {
     Pop-Location
 }
 
-Run-Step "generated protocol diff" {
-    git diff --exit-code -- packages/golden-ui/generated/rust_protocol
+Run-Step "generated Chataigne contracts" {
+    git diff --exit-code -- ':(glob)apps/chataigne/ui/src/**/generated/**'
 }
 
 Assert-NoMatches `
@@ -110,13 +115,13 @@ Assert-NoMatches `
 Assert-NoMatches `
     -Name "no legacy Svelte on: event syntax" `
     -Pattern "<[^>]*\son:[A-Za-z]" `
-    -Paths @("apps/chataigne/ui/src", "packages") `
+    -Paths @("apps/chataigne/ui/src") `
     -RgArgs @("--glob", "*.svelte")
 
 Assert-NoMatches `
     -Name "no direct Tauri globals outside host bridge" `
     -Pattern "__TAURI__|__TAURI_INTERNALS__|@tauri-apps/api" `
-    -Paths @("apps/chataigne/ui/src", "packages") `
+    -Paths @("apps/chataigne/ui/src") `
     -RgArgs @(
         "--glob", "!**/app.d.ts",
         "--glob", "!**/host/desktop.ts"

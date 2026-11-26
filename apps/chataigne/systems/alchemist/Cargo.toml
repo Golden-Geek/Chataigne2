@@ -14,7 +14,7 @@ debug_trace = []
 golden_core_integration = []
 
 [dependencies]
-golden_engine = { path = "../../../../crates/golden_core/engine" }
+golden_engine.workspace = true
 golden_graph.workspace = true
 golden_values.workspace = true
 indexmap.workspace = true

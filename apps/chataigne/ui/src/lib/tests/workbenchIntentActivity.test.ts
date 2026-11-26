@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
-import { UI_PROTOCOL_VERSION } from '../../../../../../packages/golden-ui/generated/rust_protocol/protocol-version';
-import { createWorkbenchSession } from '../../../../../../packages/golden-ui/store/workbench.svelte';
-import { userActionLabelForIntent } from '../../../../../../packages/golden-ui/store/session/action-activity.svelte';
+import { createConnectedWorkbenchSession } from './fixtures/workbench-session';
+import { UI_PROTOCOL_VERSION } from 'golden_ui/generated/rust_protocol/protocol-version.ts';
+import { userActionLabelForIntent } from 'golden_ui/store/session/action-activity.svelte';
 import type {
 	UiAck,
 	UiClient,
 	UiControlLifecycle,
 	UiEditIntent,
-	UiEventBatch,
-	UiSnapshot
-} from '../../../../../../packages/golden-ui/types';
+	UiSnapshot,
+	UiTransportBatch
+} from 'golden_ui/types';
 
 const deferred = <T>() => {
 	let resolve!: (value: T) => void;
@@ -65,10 +65,14 @@ interface PendingIntentBatch {
 const createControlledClient = () => {
 	const singles: PendingSingleIntent[] = [];
 	const batches: PendingIntentBatch[] = [];
-	let batchListener: ((batch: UiEventBatch) => void) | null = null;
+	let batchListener: ((batch: UiTransportBatch) => void) | null = null;
 	const client = {
 		snapshot: async (): Promise<UiSnapshot> => initialSnapshot(),
-		subscribe(_scope: unknown, _from: unknown, onBatch: (batch: UiEventBatch) => void): () => void {
+		subscribe(
+			_scope: unknown,
+			_from: unknown,
+			onBatch: (batch: UiTransportBatch) => void
+		): () => void {
 			batchListener = onBatch;
 			return () => {
 				batchListener = null;
@@ -96,7 +100,7 @@ const createControlledClient = () => {
 		singles,
 		batches,
 		hasSubscription: (): boolean => batchListener !== null,
-		emitBatch: (batch: UiEventBatch): void => {
+		emitBatch: (batch: UiTransportBatch): void => {
 			if (!batchListener) {
 				throw new Error('workbench is not subscribed');
 			}
@@ -132,10 +136,8 @@ describe('workbench intent activity', () => {
 
 	it('records a visible user action synchronously and follows transport lifecycle phases', async () => {
 		const controlled = createControlledClient();
-		const session = createWorkbenchSession({
-			enableGlobalShortcuts: false,
-			transportFactory: () => controlled.client
-		});
+		const session = createConnectedWorkbenchSession(controlled.client);
+		await session.refreshSnapshot();
 
 		const completion = session.sendIntent({
 			kind: 'duplicateNode',
@@ -169,10 +171,8 @@ describe('workbench intent activity', () => {
 		});
 		try {
 			const controlled = createControlledClient();
-			const session = createWorkbenchSession({
-				enableGlobalShortcuts: false,
-				transportFactory: () => controlled.client
-			});
+			const session = createConnectedWorkbenchSession(controlled.client);
+			await session.refreshSnapshot();
 			const completion = session.sendIntent({
 				kind: 'duplicateNode',
 				source: 10,
@@ -213,10 +213,7 @@ describe('workbench intent activity', () => {
 		let cleanup: (() => void) | null = null;
 		try {
 			const controlled = createControlledClient();
-			const session = createWorkbenchSession({
-				enableGlobalShortcuts: false,
-				transportFactory: () => controlled.client
-			});
+			const session = createConnectedWorkbenchSession(controlled.client);
 			cleanup = session.mount();
 			await vi.waitFor(() => expect(controlled.hasSubscription()).toBe(true));
 
@@ -237,6 +234,7 @@ describe('workbench intent activity', () => {
 			expect(frames).toHaveLength(0);
 
 			controlled.emitBatch({
+				project_generation: 1,
 				from: { tick: 1, micro: 0, seq: 1 },
 				to: { tick: 1, micro: 0, seq: 2 },
 				events: [
@@ -256,6 +254,7 @@ describe('workbench intent activity', () => {
 			expect(frames).toHaveLength(0);
 
 			controlled.emitBatch({
+				project_generation: 1,
 				from: { tick: 1, micro: 0, seq: 2 },
 				to: { tick: 1, micro: 0, seq: 3 },
 				events: [
@@ -296,10 +295,8 @@ describe('workbench intent activity', () => {
 		});
 		try {
 			const controlled = createControlledClient();
-			const session = createWorkbenchSession({
-				enableGlobalShortcuts: false,
-				transportFactory: () => controlled.client
-			});
+			const session = createConnectedWorkbenchSession(controlled.client);
+			await session.refreshSnapshot();
 			const completion = session.sendIntent({
 				kind: 'duplicateNode',
 				source: 10,
@@ -337,10 +334,8 @@ describe('workbench intent activity', () => {
 
 	it('keeps live parameter and node-event traffic silent', async () => {
 		const controlled = createControlledClient();
-		const session = createWorkbenchSession({
-			enableGlobalShortcuts: false,
-			transportFactory: () => controlled.client
-		});
+		const session = createConnectedWorkbenchSession(controlled.client);
+		await session.refreshSnapshot();
 
 		const parameterCompletion = session.sendIntent({
 			kind: 'setParam',
@@ -367,10 +362,8 @@ describe('workbench intent activity', () => {
 
 	it('uses the edit label for a visible intent batch and counts overlapping actions', async () => {
 		const controlled = createControlledClient();
-		const session = createWorkbenchSession({
-			enableGlobalShortcuts: false,
-			transportFactory: () => controlled.client
-		});
+		const session = createConnectedWorkbenchSession(controlled.client);
+		await session.refreshSnapshot();
 
 		const firstCompletion = session.sendIntent({
 			kind: 'duplicateNode',
@@ -405,10 +398,8 @@ describe('workbench intent activity', () => {
 
 	it('shows a labeled edit batch even when its parameter intents are individually silent', async () => {
 		const controlled = createControlledClient();
-		const session = createWorkbenchSession({
-			enableGlobalShortcuts: false,
-			transportFactory: () => controlled.client
-		});
+		const session = createConnectedWorkbenchSession(controlled.client);
+		await session.refreshSnapshot();
 		const batch: UiEditIntent[] = [
 			{ kind: 'beginEdit', client_edit_id: 'parameter-batch', label: 'Updating processor' },
 			{
@@ -433,10 +424,8 @@ describe('workbench intent activity', () => {
 		vi.useFakeTimers();
 		try {
 			const controlled = createControlledClient();
-			const session = createWorkbenchSession({
-				enableGlobalShortcuts: false,
-				transportFactory: () => controlled.client
-			});
+			const session = createConnectedWorkbenchSession(controlled.client);
+			await session.refreshSnapshot();
 
 			const completion = session.sendIntent({ kind: 'removeNode', node: 10 });
 			controlled.singles[0].onLifecycle?.('rejected');
@@ -463,10 +452,8 @@ describe('workbench intent activity', () => {
 		vi.useFakeTimers();
 		try {
 			const controlled = createControlledClient();
-			const session = createWorkbenchSession({
-				enableGlobalShortcuts: false,
-				transportFactory: () => controlled.client
-			});
+			const session = createConnectedWorkbenchSession(controlled.client);
+			await session.refreshSnapshot();
 
 			const completion = session.sendIntent({ kind: 'removeNode', node: 10 });
 			expect(session.userActionPendingCount).toBe(1);

@@ -8,33 +8,9 @@ members = [
     "apps/chataigne/systems/state_machine/runtime",
     "apps/chataigne/systems/sound_card_protocol",
     "apps/chataigne/systems/spatializer_protocol",
-    "apps/mapgyver",
-    "crates/golden_core",
-    "crates/golden_core/engine",
-    "crates/golden_core/foundation/application",
-    "crates/golden_core/foundation/context",
-    "crates/golden_core/foundation/model",
-    "crates/golden_core/foundation/parameters",
-    "crates/golden_core/foundation/values",
-    "crates/golden_core/hosts/desktop",
-    "crates/golden_core/hosts/transport",
-    "crates/golden_core/runtime/control",
-    "crates/golden_core/runtime/io",
-    "crates/golden_core/runtime/script",
-    "crates/golden_core/runtime/script-contract",
-    "crates/golden_core/services/persistence",
-    "crates/golden_core/services/protocol",
-    "crates/golden_core/support/codegen",
-    "crates/golden_core/support/macros",
-    "crates/golden_audio",
-    "crates/golden_assets",
-    "crates/golden_graph",
-    "crates/golden_time",
-    "crates/golden_video",
-    "tools/mapgyver/native-probe",
     "xtask",
 ]
-exclude = ["vendor/cpal-0.18.1", "vendor/spout2-sys-0.1.1", "vendor/wry-0.55.1"]
+exclude = ["golden"]
 default-members = ["apps/chataigne"]
 resolver = "2"
 
@@ -46,8 +22,8 @@ license = "GPL-3.0-only"
 repository = "https://github.com/Golden-Geek/Chataigne2"
 
 [workspace.dependencies]
+allocation-counter = "0.8.1"
 artnet_protocol = "0.4.4"
-atomic-write-file = "0.3.0"
 chataigne_alchemist = { path = "apps/chataigne/systems/alchemist" }
 chataigne_condition = { path = "apps/chataigne/systems/alchemist/condition" }
 chataigne_processor = { path = "apps/chataigne/systems/alchemist/processor" }
@@ -55,21 +31,16 @@ chataigne_state_machine = { path = "apps/chataigne/systems/state_machine/runtime
 chataigne_state_machine_model = { path = "apps/chataigne/systems/state_machine/model" }
 chataigne_sound_card_protocol = { path = "apps/chataigne/systems/sound_card_protocol" }
 chataigne_spatializer_protocol = { path = "apps/chataigne/systems/spatializer_protocol" }
+criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support"] }
 delaunator = "1.1.0"
-golden_application = { path = "crates/golden_core/foundation/application" }
-golden_audio = { path = "crates/golden_audio" }
-golden_assets = { path = "crates/golden_assets" }
-golden_context = { path = "crates/golden_core/foundation/context" }
-golden_graph = { path = "crates/golden_graph" }
-golden_io = { path = "crates/golden_core/runtime/io" }
-golden_model = { path = "crates/golden_core/foundation/model" }
-golden_parameters = { path = "crates/golden_core/foundation/parameters" }
-golden_persistence = { path = "crates/golden_core/services/persistence" }
-golden_runtime = { path = "crates/golden_core/runtime/control" }
-golden_script = { path = "crates/golden_core/runtime/script" }
-golden_script_contract = { path = "crates/golden_core/runtime/script-contract" }
-golden_time = { path = "crates/golden_time" }
-golden_values = { path = "crates/golden_core/foundation/values" }
+golden_audio = { path = "golden/crates/golden_audio" }
+golden_codegen_support = { path = "golden/crates/golden_core/support/codegen" }
+golden_core = { path = "golden/crates/golden_core" }
+golden_engine = { path = "golden/crates/golden_core/engine" }
+golden_graph = { path = "golden/crates/golden_graph" }
+golden_io = { path = "golden/crates/golden_core/runtime/io" }
+golden_model = { path = "golden/crates/golden_core/foundation/model" }
+golden_values = { path = "golden/crates/golden_core/foundation/values" }
 indexmap = { version = "2", features = ["serde"] }
 regex = "1"
 sacn = { package = "x39-sacn", version = "0.2.1", default-features = false, features = ["std"] }
@@ -84,41 +55,12 @@ tempfile = "3"
 # TypeScript shapes. Keep serde compatibility while silencing ts-rs's unsupported-attribute warnings.
 ts-rs = { version = "12", features = ["serde-json-impl", "uuid-impl", "no-serde-warnings"] }
 uuid = { version = "1", features = ["serde", "v4"] }
-arc-swap = "1"
-allocation-counter = "0.8.1"
-asio-sys = "0.3.0"
-audio_thread_priority = { version = "0.35.1", default-features = false }
-base64 = "0.22.1"
-criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support"] }
-cpal = { version = "0.18.1", path = "vendor/cpal-0.18.1", default-features = false }
-rtrb = "0.3.5"
-rubato = { version = "4.0.0", default-features = false }
-realfft = "3.5.0"
-symphonia = { version = "0.6.0", default-features = false, features = [
-    "aac",
-    "adpcm",
-    "aiff",
-    "alac",
-    "caf",
-    "flac",
-    "id3v1",
-    "id3v2",
-    "isomp4",
-    "mkv",
-    "mp3",
-    "ogg",
-    "opt-simd",
-    "pcm",
-    "vorbis",
-    "wav",
-] }
 
 [[workspace.metadata.docs.rs]]
 all-features = true
 
 [patch.crates-io]
-spout2-sys = { path = "vendor/spout2-sys-0.1.1" }
-wry = { path = "vendor/wry-0.55.1" }
+wry = { path = "golden/vendor/wry-0.55.1" }
 
 [profile.release]
 opt-level = 3

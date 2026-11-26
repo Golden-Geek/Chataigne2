@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createWorkbenchIntentPipeline } from '../../../../../../packages/golden-ui/store/session/intent-pipeline';
-import type { UiAck, UiEditIntent } from '../../../../../../packages/golden-ui/types';
+import { createWorkbenchIntentPipeline } from 'golden_ui/store/session/intent-pipeline';
+import type { UiAck, UiEditIntent } from 'golden_ui/types';
 
 const deferred = <T>() => {
 	let resolve!: (value: T | PromiseLike<T>) => void;

@@ -6,7 +6,7 @@ import { chromium } from 'playwright-core';
 
 const repositoryRoot = path.resolve(import.meta.dirname, '../../../..');
 const protocolSource = await readFile(
-	path.join(repositoryRoot, 'packages/golden-ui/generated/rust_protocol/protocol-version.ts'),
+	new URL(import.meta.resolve('golden_ui/generated/rust_protocol/protocol-version.ts')),
 	'utf8'
 );
 const protocolVersion = protocolSource.match(/UI_PROTOCOL_VERSION = "([^"]+)"/)?.[1];

@@ -1,13 +1,10 @@
 import { snapshot } from './fixtures/workbench-graph';
+import { createConnectedWorkbenchSession } from './fixtures/workbench-session';
 import { tick } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
-import { createWorkbenchIntentPipeline } from '../../../../../../packages/golden-ui/store/session/intent-pipeline';
-import { createWorkbenchSession } from '../../../../../../packages/golden-ui/store/workbench.svelte';
-import type {
-	UiClient,
-	UiEditIntent,
-	UiSnapshot
-} from '../../../../../../packages/golden-ui/types';
+import { createWorkbenchIntentPipeline } from 'golden_ui/store/session/intent-pipeline';
+import { createWorkbenchSession } from 'golden_ui/store/workbench.svelte';
+import type { UiClient, UiEditIntent, UiSnapshot } from 'golden_ui/types';
 
 const deferred = <T>() => {
 	let resolve!: (value: T) => void;
@@ -114,10 +111,7 @@ describe('workbench project graph transitions', () => {
 				return { success: true, status: 'applied' as const };
 			})
 		} as unknown as UiClient;
-		const session = createWorkbenchSession({
-			enableGlobalShortcuts: false,
-			transportFactory: () => client
-		});
+		const session = createConnectedWorkbenchSession(client);
 
 		const refresh = session.refreshSnapshot();
 		let transitionStartedAtGeneration: number | null = null;
@@ -180,10 +174,7 @@ describe('workbench project graph transitions', () => {
 				return { success: true, status: 'applied' as const };
 			})
 		} as unknown as UiClient;
-		const session = createWorkbenchSession({
-			enableGlobalShortcuts: false,
-			transportFactory: () => client
-		});
+		const session = createConnectedWorkbenchSession(client);
 
 		const transitionResult = await session.runProjectGraphTransition(
 			async ({ markRuntimeGraphReplaced }) => {

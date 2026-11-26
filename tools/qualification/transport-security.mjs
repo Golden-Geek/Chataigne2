@@ -8,7 +8,7 @@ import { networkInterfaces, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
-import { UI_PROTOCOL_VERSION } from '../../packages/golden-ui/generated/rust_protocol/protocol-version.ts';
+import { UI_PROTOCOL_VERSION } from 'golden_ui/generated/rust_protocol/protocol-version.ts';
 
 // Network/DOM qualification only: no keyboard, pointer, visible windows or native commands.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');

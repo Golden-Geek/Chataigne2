@@ -23,6 +23,8 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: recursive
 
       - name: Read canonical toolchain manifest
         id: pins
