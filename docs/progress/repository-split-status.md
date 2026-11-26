@@ -1,16 +1,16 @@
 # Repository split status
 
-**Updated 26 November 2026 · `████████░░` 80% accepted (4/5 gates)**
+**Updated 26 November 2026 · `██████████` 100% accepted (5/5 gates)**
 
-**Current:** Chataigne2 is on its own verified product tree. **Next:** validate a Golden Core pin upgrade from CI trigger through native build and frontend rebuild. **Blocker:** none.
+**Current:** All three repositories are published on their default branches. **Next:** resume product development from the app ledgers. **Split blockers:** none.
 
 | Gate | State | Progress | Evidence or return action |
 | --- | --- | --- | --- |
 | Source and ownership | Accepted | `██████████` 100% (1/1) | [Source refs](#source-refs) and [ownership map](../plan/Repository_Split_Implementation_Plan.md#ownership). |
-| Standalone Golden Core | Accepted | `██████████` 100% (1/1) | All seven [standalone CI jobs](https://github.com/Golden-Geek/GoldenCore/actions/runs/45787206204) passed at `d2b7e296`. Its publication on `main` was verified. |
-| Standalone MapGyver2 | Accepted | `██████████` 100% (1/1) | The [verified promotion](#mapgyver2-verification) advanced `main` to `ff68733a`. |
+| Standalone Golden Core | Accepted | `██████████` 100% (1/1) | Standalone tests passed at `d2b7e296`. All seven [default-branch CI jobs](https://github.com/Golden-Geek/GoldenCore/actions/runs/45818113581) passed at `a7b9c244`. |
+| Standalone MapGyver2 | Accepted | `██████████` 100% (1/1) | The [verified promotion](#mapgyver2-verification) advanced `main` to `ff68733a`, followed by the restored feedback at `f5aed7ce`. |
 | Chataigne2 cutover | Accepted | `██████████` 100% (1/1) | Clean recursive clone, native startup, persistence and editor checks passed. All nine [hosted jobs](https://github.com/Golden-Geek/Chataigne2/actions/runs/45818224219) passed before promotion. |
-| Independent pin upgrades | Active | `░░░░░░░░░░` 0% (0/1) | Verify the Golden pin change in Chataigne2 and recheck MapGyver2 at its earlier pin. |
+| Independent pin upgrades | Accepted | `██████████` 100% (1/1) | The [pin-only push](https://github.com/Golden-Geek/Chataigne2/actions/runs/45826971766) triggered CI. Chataigne2 rebuilt its Rust dependencies and UI while MapGyver2 passed at its earlier pin. |
 
 Progress counts the five fixed migration gates in the [implementation plan](../plan/Repository_Split_Implementation_Plan.md). Product hardware and performance gates remain in the [Chataigne ledger](implementation-status.md) and [MapGyver ledger](https://github.com/Golden-Geek/MapGyver2/blob/main/docs/progress/mapgyver-status.md).
 
@@ -55,8 +55,10 @@ The direct Node qualification helpers need explicit `.ts` extensions in Golden's
 
 All nine jobs in the [Chataigne matrix](https://github.com/Golden-Geek/Chataigne2/actions/runs/45818224219) passed at `cb94e272`. The matrix covered UI quality and artifacts, native builds and desktop audio checks for both Windows and Mac architectures, Linux x64 and Raspberry Pi ARM64, and 32-bit Raspberry Pi headless compatibility. The fast-forward to `main` carries the exact tested tree with only this ledger updated.
 
-## Current batch
-
-Use the migration branch for a pin-only upgrade from the published Golden Core revisions `f7d6c3b5` to `a7b9c244`. Verify the two builds in one standalone Chataigne checkout, observe recompilation of the changed Golden Rust dependencies and compare the embedded UI input stamps. Verify the upgrade commit triggers the branch's push workflow. Check MapGyver2 at its production pin while Chataigne2 uses `a7b9c244`. Stop adding scope at 14:48 Europe/Paris on 26 November 2026 and retain live runs.
+## Independent upgrade verification
 
 The comparison baseline at `f7d6c3b5` completed the normal locked Windows ASIO build from the same app tree and Cargo output directory as the production candidate. It compiled `golden_audio` and `golden_host_desktop` from `golden/` and embedded frontend input stamp `fdedffa6070083af`. The baseline binary SHA-256 is `dfa6253f1c1f418d43c5b471b5251deb1a43fe96d277cd53e868c0b58cc4c8c5`.
+
+Changing only the pin to `a7b9c244` recompiled `golden_audio`, `golden_host_desktop` and the app. The same Cargo output directory reported an embedded UI rebuild and its input stamp advanced to `958b1433740a20c1`. The rebuilt binary SHA-256 is `55e262c59f982b9c9883bc0699273f1f1cd3f90f492a89859a19b12789f74f34`. WebView2 startup, headless project persistence and the Node session check passed. MapGyver2 at `f5aed7ce` and Golden `d2b7e296` passed all eight startup and editor checks again.
+
+The only change in `ac57c9e7` was the `golden/` gitlink. Its push started the [Chataigne CI workflow](https://github.com/Golden-Geek/Chataigne2/actions/runs/45826971766). The [UI artifact job](https://github.com/Golden-Geek/Chataigne2/actions/runs/45826971766/job/139933595241) logged the exact `a7b9c244` checkout and uploaded the rebuilt artifact. The production application inputs are identical to those exercised by the nine-job cutover matrix. The published Chataigne2 and MapGyver2 trees pin `a7b9c244` and `d2b7e296` respectively.
