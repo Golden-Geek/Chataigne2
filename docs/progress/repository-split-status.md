@@ -2,7 +2,7 @@
 
 **Updated 26 November 2026 · `████░░░░░░` 40% accepted (2/5 gates)**
 
-**Current:** standalone MapGyver2 verification. **Next:** finish local Rust tests and enable release-mode installer verification on the migration branch. **Blocker:** none.
+**Current:** standalone MapGyver2 verification. **Next:** finish the local Rust suite and verify the release-mode installer matrix. **Blocker:** none.
 
 | Gate | State | Progress | Evidence or return action |
 | --- | --- | --- | --- |
@@ -33,4 +33,6 @@ Golden Core closed at `d2b7e296`. The exact published revision passed Rust works
 
 MapGyver2 imported 995 filtered commits and retained the destination license commit as an ancestor. Its standalone workspace pins Golden Core at `d2b7e296`. A fresh recursive HTTPS clone of `27305b17` passed locked Cargo metadata, `npm ci`, UI checks and the product UI build, and stayed clean. The independent checkout also passed strict MapGyver Clippy, watcher tests and lint, 397 Python tool tests, probe UI build and contract verification, and the pinned FFmpeg SDK check. The local library suite remains live in session `66466`.
 
-Hosted [desktop](https://github.com/Golden-Geek/MapGyver2/actions/runs/45797348707), [Windows ARM64](https://github.com/Golden-Geek/MapGyver2/actions/runs/45797348725) and [Linux ARM](https://github.com/Golden-Geek/MapGyver2/actions/runs/45797348770) workflows started on the migration branch. The native package batch must give this branch the same release-mode desktop checks as a tag, including the Windows x64 job that the old trigger skipped. Publishing remains tag-triggered. Prove the change through the three installer workflows and stop adding scope at 11:31 Europe/Paris on 26 November 2026.
+The first [desktop run](https://github.com/Golden-Geek/MapGyver2/actions/runs/45797348707) skipped the tag-only Windows x64 installer. [Windows ARM64](https://github.com/Golden-Geek/MapGyver2/actions/runs/45797348725) verified the SDK and then stopped at a Chataigne-only ASIO helper. [Linux ARM](https://github.com/Golden-Geek/MapGyver2/actions/runs/45797348770) could not build the UI because its archived input omitted the Golden submodule.
+
+[Installer workflow fix](https://github.com/Golden-Geek/MapGyver2/commit/a96896d721c72b4d38113ff69bb80e1d699ad489) adds branch release-mode verification including Windows x64, uses safe artifact names, removes the unneeded ASIO setup and includes the exact Golden commit in the ARM archive. Reconstructing that archive locally passed locked metadata and `npm ci`. Workflow trigger checks confirmed that only the tag workflow can publish releases. Follow the replacement [desktop](https://github.com/Golden-Geek/MapGyver2/actions/runs/45798526192), [Windows ARM64](https://github.com/Golden-Geek/MapGyver2/actions/runs/45798526156) and [Linux ARM](https://github.com/Golden-Geek/MapGyver2/actions/runs/45798526146) runs. The local app binary build is live in session `70113`. Run the isolated headless product check after it succeeds. Stop adding scope at 11:31 Europe/Paris on 26 November 2026.
