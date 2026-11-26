@@ -2,7 +2,7 @@
 
 **Updated 26 November 2026 · `██░░░░░░░░` 20% accepted (1/5 gates)**
 
-**Current:** Golden Core standalone verification. **Next:** verify the portable process-error test in the [candidate CI run](https://github.com/Golden-Geek/GoldenCore/actions/runs/45787206204). **Blocker:** none.
+**Current:** Golden Core standalone verification. **Next:** inspect macOS and Windows workspace tests in the [candidate CI run](https://github.com/Golden-Geek/GoldenCore/actions/runs/45787206204). **Blocker:** none.
 
 | Gate | State | Progress | Evidence or return action |
 | --- | --- | --- | --- |
@@ -29,4 +29,4 @@ The full local Windows Rust workspace suite passed at `49aa6672` with D3D11, NDI
 
 The [Linux audio job](https://github.com/Golden-Geek/GoldenCore/actions/runs/45782670399/job/139781828098) passed all 194 tests, including the Null soak that previously failed because the runner denied realtime thread priority. The diagnostic remains in reports and is excluded from acceptance only for the synthetic Null backend. The [separate benchmark](https://github.com/Golden-Geek/GoldenCore/actions/runs/45782670420) produced raw samples, but the inherited baseline lacks a matching environment fingerprint. A separately qualified baseline is required for performance comparison.
 
-The [Linux workspace test](https://github.com/Golden-Geek/GoldenCore/actions/runs/45782670399/job/139781828732) exposed a `golden_io` fixture that assumed raw OS code 5 had the same error kind everywhere. The candidate tests preservation of the raw OS error across ownership transfers. All three local process-creation tests, strict Golden I/O Clippy, and workspace formatting passed. The candidate is on Golden Core's `migration/repository-split` branch so the original macOS and Windows jobs can finish. Verify the candidate CI run and promote the passing commit to `main` before either app pins it. Stop adding scope at 10:25 Europe/Paris on 26 November 2026.
+The original Linux and macOS workspace tests exposed a `golden_io` fixture that assumed raw OS code 5 had the same error kind everywhere. Windows passed the original workspace suite. The candidate tests preservation of the raw code across ownership transfers. All three focused local Windows tests passed. The [candidate Linux job](https://github.com/Golden-Geek/GoldenCore/actions/runs/45787206204/job/139796904444) passed the complete Rust workspace, including that test, and left the checkout clean. Candidate audio, UI, contracts and all three Clippy jobs passed. Candidate macOS and Windows workspace tests remain in progress. Follow those jobs and promote the passing commit to `main` before either app pins it. Stop adding scope at 10:25 Europe/Paris on 26 November 2026.
