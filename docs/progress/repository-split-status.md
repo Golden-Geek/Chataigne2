@@ -2,7 +2,7 @@
 
 **Updated 26 November 2026 · `██░░░░░░░░` 20% accepted (1/5 gates)**
 
-**Current:** Golden Core standalone verification. **Next:** finish the remaining [hosted Rust and Windows audio jobs](https://github.com/Golden-Geek/GoldenCore/actions/runs/45782670399). **Blocker:** none.
+**Current:** Golden Core standalone verification. **Next:** inspect the three running [hosted Rust test suites](https://github.com/Golden-Geek/GoldenCore/actions/runs/45782670399). **Blocker:** none.
 
 | Gate | State | Progress | Evidence or return action |
 | --- | --- | --- | --- |
@@ -25,6 +25,8 @@ Progress counts the five fixed migration gates in the [implementation plan](../p
 
 The standalone workspace resolves 22 shared crates and all three reviewed vendor patches. The fresh HTTPS clone at `f7d6c3b` passed locked metadata, `npm ci`, UI checks and 570 unit tests, and stayed clean. Dashboard, video preview, formatting, Windows Clippy, and all four shared generators passed. [Hosted UI and contracts](https://github.com/Golden-Geek/GoldenCore/actions/runs/45780323572/job/139774069717) also passed.
 
-The full local Windows Rust workspace suite passed at `49aa6672` with D3D11, NDI and browser preview enabled. The checkout stayed clean. Focused desktop Clippy and hosted macOS and Windows workspace Clippy passed after gating Windows-only preview code and fixing the refresh-rate lint.
+The full local Windows Rust workspace suite passed at `49aa6672` with D3D11, NDI and browser preview enabled. The checkout stayed clean. The same revision passed hosted workspace Clippy on Linux, macOS and Windows, and passed hosted UI, generated contracts and audio on all three platforms, including the external Windows audio consumer.
 
-The [Linux audio job](https://github.com/Golden-Geek/GoldenCore/actions/runs/45782670399/job/139781828098) passed all 194 tests, including the Null soak that previously failed because the runner denied realtime thread priority. The diagnostic remains in reports and is excluded from acceptance only for the synthetic Null backend. The same revision passed hosted UI, generated contracts and macOS audio. Verify the rest of the live matrix before pinning Golden Core in MapGyver2. Stop adding scope at 09:40 Europe/Paris on 26 November 2026.
+The [Linux audio job](https://github.com/Golden-Geek/GoldenCore/actions/runs/45782670399/job/139781828098) passed all 194 tests, including the Null soak that previously failed because the runner denied realtime thread priority. The diagnostic remains in reports and is excluded from acceptance only for the synthetic Null backend. The [separate benchmark](https://github.com/Golden-Geek/GoldenCore/actions/runs/45782670420) produced raw samples, but the inherited baseline lacks a matching environment fingerprint. A separately qualified baseline is required for performance comparison.
+
+At the 09:40 Europe/Paris handoff on 26 November 2026, the three hosted workspace tests were still live in run `45782670399`. Follow that run to a terminal result before pinning Golden Core in MapGyver2.
