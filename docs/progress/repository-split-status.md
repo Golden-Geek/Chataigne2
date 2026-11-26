@@ -2,12 +2,12 @@
 
 **Updated 26 November 2026 · `██░░░░░░░░` 20% accepted (1/5 gates)**
 
-**Current:** Golden Core standalone verification. **Next:** inspect the three running [hosted Rust test suites](https://github.com/Golden-Geek/GoldenCore/actions/runs/45782670399). **Blocker:** none.
+**Current:** Golden Core standalone verification. **Next:** verify the portable process-error test in the [candidate CI run](https://github.com/Golden-Geek/GoldenCore/actions/runs/45787206204). **Blocker:** none.
 
 | Gate | State | Progress | Evidence or return action |
 | --- | --- | --- | --- |
 | Source and ownership | Accepted | `██████████` 100% (1/1) | [Source refs](#source-refs) and [ownership map](../plan/Repository_Split_Implementation_Plan.md#ownership). |
-| Standalone Golden Core | Active | `░░░░░░░░░░` 0% (0/1) | [Current Golden Core revision](https://github.com/Golden-Geek/GoldenCore/commit/49aa6672e840b4d78ca384c9aed6076c992934cc). Finish hosted Rust and audio verification. |
+| Standalone Golden Core | Active | `░░░░░░░░░░` 0% (0/1) | [Candidate Golden Core revision](https://github.com/Golden-Geek/GoldenCore/commit/d2b7e296e817cb7ad17abb6b9bcf2abe345c9a7c). Finish hosted Rust verification. |
 | Standalone MapGyver2 | Pending | `░░░░░░░░░░` 0% (0/1) | Import product history and verify against a published Golden commit. |
 | Chataigne2 cutover | Pending | `░░░░░░░░░░` 0% (0/1) | Switch to the verified Golden pin after MapGyver2 qualification. |
 | Independent pin upgrades | Waiting | `░░░░░░░░░░` 0% (0/1) | Verify both consumers and test a Golden revision bump. |
@@ -29,4 +29,4 @@ The full local Windows Rust workspace suite passed at `49aa6672` with D3D11, NDI
 
 The [Linux audio job](https://github.com/Golden-Geek/GoldenCore/actions/runs/45782670399/job/139781828098) passed all 194 tests, including the Null soak that previously failed because the runner denied realtime thread priority. The diagnostic remains in reports and is excluded from acceptance only for the synthetic Null backend. The [separate benchmark](https://github.com/Golden-Geek/GoldenCore/actions/runs/45782670420) produced raw samples, but the inherited baseline lacks a matching environment fingerprint. A separately qualified baseline is required for performance comparison.
 
-At the 09:40 Europe/Paris handoff on 26 November 2026, the three hosted workspace tests were still live in run `45782670399`. Follow that run to a terminal result before pinning Golden Core in MapGyver2.
+The [Linux workspace test](https://github.com/Golden-Geek/GoldenCore/actions/runs/45782670399/job/139781828732) exposed a `golden_io` fixture that assumed raw OS code 5 had the same error kind everywhere. The candidate tests preservation of the raw OS error across ownership transfers. All three local process-creation tests, strict Golden I/O Clippy, and workspace formatting passed. The candidate is on Golden Core's `migration/repository-split` branch so the original macOS and Windows jobs can finish. Verify the candidate CI run and promote the passing commit to `main` before either app pins it. Stop adding scope at 10:25 Europe/Paris on 26 November 2026.
