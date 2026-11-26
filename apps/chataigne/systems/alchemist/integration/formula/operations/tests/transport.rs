@@ -96,7 +96,7 @@ fn real_http_websocket_and_embedded_script_share_formula_operations() {
             socket: "value1".into(),
         },
     };
-    let connected: FormulaConnectResult = result(Host::ws_intent(
+    let connected: FormulaConnectResult = result(host.ws_intent(
         &mut socket,
         "connect",
         operation(FORMULA_CONNECT_OPERATION, request.clone()),
@@ -114,7 +114,7 @@ fn real_http_websocket_and_embedded_script_share_formula_operations() {
     );
     let mut invalid = request;
     invalid.to.socket = "missing-socket".into();
-    let rejected = Host::ws_intent(
+    let rejected = host.ws_intent(
         &mut socket,
         "invalid-connect",
         operation(FORMULA_CONNECT_OPERATION, invalid),

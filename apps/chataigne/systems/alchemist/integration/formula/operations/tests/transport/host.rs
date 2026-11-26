@@ -175,6 +175,7 @@ impl Host {
         socket
     }
     pub(super) fn ws_intent(
+        &self,
         socket: &mut tungstenite::WebSocket<MaybeTlsStream<TcpStream>>,
         request_id: &str,
         intent: UiEditIntent,
@@ -183,6 +184,7 @@ impl Host {
             .send(Message::Text(
                 serde_json::to_string(&UiClientMessage::Intent {
                     request_id: request_id.into(),
+                    project_generation: Some(self.snapshot().project_generation),
                     intent: Box::new(intent),
                     include_self_events: false,
                 })
