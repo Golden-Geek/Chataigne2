@@ -2,7 +2,7 @@
 
 **Updated 26 November 2026 · `██████░░░░` 60% accepted (3/5 gates)**
 
-**Current:** Chataigne2 passed clean-clone startup, project persistence and both graph editors. **Next:** verify hosted builds and advance the Golden pin when its CI passes. **Blocker:** waiting for hosted builds.
+**Current:** Chataigne2 passed clean-clone startup, project persistence and both graph editors at the new Golden pin. **Next:** verify the hosted matrix at that pin and promote Chataigne2. **Blocker:** waiting for hosted builds.
 
 | Gate | State | Progress | Evidence or return action |
 | --- | --- | --- | --- |
@@ -39,6 +39,8 @@ The Windows x64 release NSIS package from the clean clone of `ff68733a` passed t
 
 ## Current batch
 
+The standalone Chataigne checkout passed the public session helper test with Golden Core `a7b9c244`. Its normal ASIO build kept the same Cargo output directory, rebuilt the embedded frontend following the pin change and changed the bundle stamp from `fdedffa6070083af` to `958b1433740a20c1`. Native WebView2, headless save/reopen, the two browser adapters and the Alchemist live transport check passed against the rebuilt app. The checkout resolves Golden Rust and UI files from its own `golden/` directory. This promotion candidate pins `a7b9c244` and its push starts the Chataigne matrix at that pin. Stop adding scope at 13:55 Europe/Paris on 26 November 2026.
+
 The Chataigne Cargo workspace resolves nine app and tooling members with Golden, CPAL and wry coming from the exact `d2b7e296` submodule. Its npm lock contains the app and the three consumed Golden UI packages. The production UI build, Svelte checks, browser fixture type check, all 193 Chataigne UI tests and all four app-owned protocol generators passed. The generating commands left committed contracts and Golden files clean. The Windows binary built with the default ASIO setup and served the embedded workbench headlessly. It opened a copy of `test_simple_load.noisette` and preserved the signals module and state processor UUIDs through Save/New/Load. Project and local profiles were isolated from the user's checkout.
 
 The extracted sources and their owned workflows and design docs were removed after checking every path against the destination trees. Chataigne's watch and bootstrap commands now target its own app. All CI and package qualification checkouts fetch Golden recursively. The product-only tree passed locked metadata, the production UI build, UI lint, ten watcher tests, strict watcher Clippy, PowerShell hygiene and product-gate contract checks. The first hosted UI job flagged whitespace in three saved project fixtures. UI lint now preserves their saved-file bytes and passes locally.
@@ -47,4 +49,4 @@ The recursive HTTPS clone of `be34a382` passed locked Cargo metadata, `npm ci`, 
 
 The transport fixture derives its project generation from the host snapshot. Both editor harnesses and the transport fixture use the public application project encoder, which supplies the required `application_id`. Both browser adapters passed movement, undo/redo, connections, save/reload and read-only rejection against the standalone binary. The Alchemist check also passed snapshot replacement during subscribe. The live Alchemist HTTP, WebSocket and embedded-script test passed. The clean clone reported three passing tests with no generated source or lockfile changes. Stop adding scope at 13:45 Europe/Paris on 26 November 2026.
 
-The direct Node qualification helpers need explicit `.ts` extensions in Golden's runtime imports. Golden Core commit `a7b9c244` passed the direct Node import and 412 Golden UI tests. The [Golden verification run](https://github.com/Golden-Geek/GoldenCore/actions/runs/45812232382) had passed five of seven jobs at checkpoint. Wait for Windows and macOS Rust results before promoting the Golden fix and changing the app pin.
+The direct Node qualification helpers need explicit `.ts` extensions in Golden's runtime imports. Golden Core commit `a7b9c244` passed the direct Node import, 412 Golden UI tests and all seven jobs in the [Golden verification run](https://github.com/Golden-Geek/GoldenCore/actions/runs/45812232382). It advanced to `main` by verified fast-forward on 26 November. MapGyver2's default branch remains at `f5aed7ce` with Golden `d2b7e296`.
