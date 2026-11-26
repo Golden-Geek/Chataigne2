@@ -2,7 +2,7 @@
 
 **Updated 26 November 2026 · `██░░░░░░░░` 20% accepted (1/5 gates)**
 
-**Current:** Golden Core standalone verification. **Next:** finish the Windows Rust suite and check hosted CI from a fresh checkout. **Blocker:** none.
+**Current:** Golden Core standalone verification. **Next:** finish the Windows Rust suite and the [hosted CI run](https://github.com/Golden-Geek/GoldenCore/actions/runs/45780323572). **Blocker:** none.
 
 | Gate | State | Progress | Evidence or return action |
 | --- | --- | --- | --- |
@@ -23,4 +23,4 @@ Progress counts the five fixed migration gates in the [implementation plan](../p
 
 ## Current batch
 
-The Golden Core batch delivered an independent Cargo/npm workspace and moved shared generators and fixtures into their owning repository. Locked metadata resolves 22 shared crates and all three reviewed vendor patches. A standalone `npm ci`, UI checks and 570 unit tests passed. The 20-case dashboard dense check, video preview lifecycle checks, pinned Rust formatting, Windows Clippy with D3D11/NDI/browser preview, and all four generated-contract checks passed. The source and ownership gate remains the only accepted gate until the standalone workspace Rust tests and fresh-checkout CI finish. Stop adding scope at 09:40 Europe/Paris on 26 November 2026 and retain any running validation for the next pass.
+The Golden Core batch delivered an independent Cargo/npm workspace and moved shared generators and fixtures into their owning repository. Locked metadata resolves 22 shared crates and all three reviewed vendor patches. A fresh HTTPS clone at the published revision passed locked metadata, `npm ci`, UI checks and all 570 unit tests, and stayed clean. The 20-case dashboard dense check, video preview lifecycle checks, pinned Rust formatting, Windows Clippy with D3D11/NDI/browser preview, and all four generated-contract checks passed in the extraction checkout. The full Windows Rust test run (terminal session `68684`) and hosted CI are still running. Review those results before pinning Golden Core in MapGyver2. Stop adding scope at 09:40 Europe/Paris on 26 November 2026 and retain any running validation for the next pass.
