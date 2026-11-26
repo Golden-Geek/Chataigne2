@@ -85,6 +85,20 @@ if ($workflowSource -notmatch "inputs\.native_platform == 'all'.*inputs\.run_com
     throw "Exact-commit aggregation must run only for the complete requested matrix."
 }
 
+$compatibilityWorkflow = [regex]::Match(
+    $workflowSource,
+    '(?ms)^  compatibility-build:\r?\n(.*?)^  aggregate:'
+).Groups[1].Value
+$compatibilityAsioSetup = $compatibilityWorkflow.IndexOf('name: Configure default Windows ASIO')
+$compatibilityBuild = $compatibilityWorkflow.IndexOf('name: Build native ARM64 compatibility target')
+if ($compatibilityAsioSetup -lt 0 -or $compatibilityBuild -lt 0 -or
+    $compatibilityAsioSetup -ge $compatibilityBuild -or
+    $compatibilityWorkflow -notmatch 'tools/asio\.ps1 -CacheRoot \$cache -SetupOnly -PassThru' -or
+    $compatibilityWorkflow -notmatch '"CPAL_ASIO_DIR=\$\(\$asio\.sdk_path\)" >> \$env:GITHUB_ENV' -or
+    $compatibilityWorkflow -notmatch '"LIBCLANG_PATH=\$\(\$asio\.libclang_path\)" >> \$env:GITHUB_ENV') {
+    throw "The Windows ARM64 compatibility build must use the pinned ASIO SDK and Clang setup."
+}
+
 $gateSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/product-gate.ps1"))
 if ($gateSource -notmatch '\& \$resolvedExecutable \@Arguments 2>&1 \| ForEach-Object' -or
     $gateSource -notmatch 'Write-Host \$line') {
