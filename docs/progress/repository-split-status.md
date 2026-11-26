@@ -1,29 +1,29 @@
 # Repository split status
 
-**Updated 26 November 2026 · `████░░░░░░` 40% accepted (2/5 gates)**
+**Updated 26 November 2026 · `██████░░░░` 60% accepted (3/5 gates)**
 
-**Current:** MapGyver2 release-profile installer checks passed on Linux, macOS and Windows x64. **Next:** finish Windows ARM64 installed-app verification. **Blocker:** none.
+**Current:** Chataigne2 cutover. **Next:** build the Chataigne-only workspace against the published Golden Core pin. **Blocker:** none.
 
 | Gate | State | Progress | Evidence or return action |
 | --- | --- | --- | --- |
 | Source and ownership | Accepted | `██████████` 100% (1/1) | [Source refs](#source-refs) and [ownership map](../plan/Repository_Split_Implementation_Plan.md#ownership). |
 | Standalone Golden Core | Accepted | `██████████` 100% (1/1) | All seven [standalone CI jobs](https://github.com/Golden-Geek/GoldenCore/actions/runs/45787206204) passed at `d2b7e296`. Its publication on `main` was verified. |
-| Standalone MapGyver2 | Active | `░░░░░░░░░░` 0% (0/1) | Local runtime checks passed at [a96896d7](https://github.com/Golden-Geek/MapGyver2/commit/a96896d721c72b4d38113ff69bb80e1d699ad489). Finish the installer matrix and verify the default branch. |
-| Chataigne2 cutover | Pending | `░░░░░░░░░░` 0% (0/1) | Switch to the verified Golden pin after MapGyver2 qualification. |
+| Standalone MapGyver2 | Accepted | `██████████` 100% (1/1) | The [verified promotion](#mapgyver2-verification) advanced `main` to `ff68733a`. |
+| Chataigne2 cutover | Active | `░░░░░░░░░░` 0% (0/1) | Verify an independent clone, startup, project persistence, Alchemist and state-machine editor workflows. |
 | Independent pin upgrades | Waiting | `░░░░░░░░░░` 0% (0/1) | Verify both consumers and test a Golden revision bump. |
 
-Progress counts the five fixed migration gates in the [implementation plan](../plan/Repository_Split_Implementation_Plan.md). Product hardware and performance gates remain in the [Chataigne ledger](implementation-status.md) and [MapGyver ledger](mapgyver-status.md).
+Progress counts the five fixed migration gates in the [implementation plan](../plan/Repository_Split_Implementation_Plan.md). Product hardware and performance gates remain in the [Chataigne ledger](implementation-status.md) and [MapGyver ledger](https://github.com/Golden-Geek/MapGyver2/blob/main/docs/progress/mapgyver-status.md).
 
 ## Source refs
 
 - `Golden-Geek/Chataigne2` `mapgyver` is `3b7a4bbcbfc211903a52d43f31d3fe5e17e73ac3`. `main` is `40acd67df94920b63469a77da0ee64e40368d60b` and is its ancestor. The source is 831 commits ahead of `main` and contains Chataigne changes. The local checkout matched the live remote tips.
-- `Golden-Geek/MapGyver2` `main` is `908dbfdfc93a678c7c33c6570463ce11c2f57f9a`, the license commit. The extracted MapGyver history will join that ancestry.
+- `Golden-Geek/MapGyver2` started at `908dbfdfc93a678c7c33c6570463ce11c2f57f9a`, the license commit. `main` advanced to `ff68733a7a7725f43c1d351ac59bea104bca1ddc` via a verified fast-forward, preserving that ancestry.
 - Worktree `D:/Projects/Dev/Chataigne2-repository-split` holds `migration/repository-split`. Historical MapGyver beta tags `1.0.0b1` through `1.0.0b4` remain in Chataigne2. GitHub release lookups confirmed the existing downloads for [b1 (two assets)](https://github.com/Golden-Geek/Chataigne2/releases/tag/1.0.0b1) and [b4 (eight assets)](https://github.com/Golden-Geek/Chataigne2/releases/tag/1.0.0b4). The b2 and b3 tags have no GitHub release entry.
 - The shared project is named **Golden Core** and its public destination is [Golden-Geek/GoldenCore](https://github.com/Golden-Geek/GoldenCore). The filtered import has 988 commits before standalone wiring. Its shared crate, package, and vendor trees matched the source trees byte-for-byte at the import commit.
 
 Golden Core closed at `d2b7e296` with Windows, macOS and Linux Rust and audio coverage and shared UI and generated-contract checks. The [separate engine benchmark](https://github.com/Golden-Geek/GoldenCore/actions/runs/45782670420) produced samples. The inherited performance baseline still needs a matching environment fingerprint.
 
-## Current batch
+## MapGyver2 verification
 
 MapGyver2 imported 995 filtered commits, retained the destination license commit as an ancestor and pins Golden Core at `d2b7e296`. The fresh recursive HTTPS clone passed locked Cargo metadata, `npm ci`, UI checks and the product UI build. The independent checkout also passed strict MapGyver Clippy, watcher tests and lint, 397 Python tool tests, the probe UI build and contract check, and the pinned FFmpeg SDK check. The full library suite continues as additional coverage in session `66466`. The migration gate uses the clean-clone, product runtime and installer checks specified in the [split plan](../plan/Repository_Split_Implementation_Plan.md).
 
@@ -31,8 +31,12 @@ The clean clone at `a96896d7` used its own build directory after the original ap
 
 The initial [desktop run](https://github.com/Golden-Geek/MapGyver2/actions/runs/45797348707) passed both Mac architectures. Ubuntu x64 built the `.deb` and hit a mirror checksum mismatch during clean install. The [release-profile Ubuntu x64 job](https://github.com/Golden-Geek/MapGyver2/actions/runs/45798526192/job/139847785690) passed package build, clean install, workbench, media and display output at `a96896d7`. The [macOS Intel](https://github.com/Golden-Geek/MapGyver2/actions/runs/45798526192/job/139847786065) and [Apple Silicon](https://github.com/Golden-Geek/MapGyver2/actions/runs/45798526192/job/139847786387) release bundles passed relocation, desktop and headless startup, project authoring, media decoding, and native Rectangle and Fullscreen Screen pixels. The macOS runtime and packaging inputs match the promotion candidate.
 
-On the first [Linux ARM rerun](https://github.com/Golden-Geek/MapGyver2/actions/runs/45798526146), armhf passed clean install and headless authoring. Its emulated WebKit window mapped and failed to request the snapshot, matching the pre-split product result. Commit `14678c30` applies the release installer checks on branches and keeps the emulated desktop check available through manual dispatch. The final [Linux ARM run](https://github.com/Golden-Geek/MapGyver2/actions/runs/45802366126) passed: ARM64 covered clean install, workbench, media and output, and armhf covered clean install and headless authoring. The app, Golden pin, manifests and Linux packaging inputs tested by both successful Linux runs match the promotion candidate. The [32-bit Pi gate](mapgyver-status.md) retains desktop, media and output qualification.
+On the first [Linux ARM rerun](https://github.com/Golden-Geek/MapGyver2/actions/runs/45798526146), armhf passed clean install and headless authoring. Its emulated WebKit window mapped and failed to request the snapshot, matching the pre-split product result. Commit `14678c30` applies the release installer checks on branches and keeps the emulated desktop check available through manual dispatch. The final [Linux ARM run](https://github.com/Golden-Geek/MapGyver2/actions/runs/45802366126) passed: ARM64 covered clean install, workbench, media and output, and armhf covered clean install and headless authoring. The app, Golden pin, manifests and Linux packaging inputs tested by both successful Linux runs match the promotion candidate. The [32-bit Pi gate](https://github.com/Golden-Geek/MapGyver2/blob/main/docs/progress/mapgyver-status.md) retains desktop, media and output qualification.
 
 The [Windows ARM64 app](https://github.com/Golden-Geek/MapGyver2/actions/runs/45798526156/job/139837185092) built and reached Tauri bundling after both SDK checks passed. Tauri could not invoke the signing helper omitted in the split. Commit `1d501a50` restored the exact script from the source commit and added the release tooling to Windows workflow path filters. Local checks verified unsigned CI behavior and the required-signing credential checks. The clean-clone Windows x64 debug NSIS installer then passed silent install, embedded workbench startup, pinned FFmpeg DLL verification and silent uninstall. Commit `ff68733a` keeps the Tauri manifest at LF in Windows clones. A follow-up Tauri build confirmed no manifest content or lockfile drift, and both Git trees were clean.
 
-The Windows x64 release NSIS package from the clean clone of `ff68733a` passed the same locked bundler recipe and silent-install fixture used in CI. It verified packaged startup and FFmpeg DLL hashes, uninstalled normally, and left both Git trees clean. Installer SHA-256 is `b2f0f86f431e7435716d6cbf0b7af5e31504eed67738e652520847291e54d0ae`. The [latest release-profile desktop run](https://github.com/Golden-Geek/MapGyver2/actions/runs/45803930930) is live. The [Windows ARM64 run](https://github.com/Golden-Geek/MapGyver2/actions/runs/45802766751) passed SDK verification and uploaded the installer. Follow the independent Spout receiver build and installed-app checks. Stop adding scope at 12:30 Europe/Paris on 26 November 2026 and retain any live checks.
+The Windows x64 release NSIS package from the clean clone of `ff68733a` passed the same locked bundler recipe and silent-install fixture used in CI. It verified packaged startup and FFmpeg DLL hashes, uninstalled normally, and left both Git trees clean. Installer SHA-256 is `b2f0f86f431e7435716d6cbf0b7af5e31504eed67738e652520847291e54d0ae`. The corresponding-source archive opened successfully with 143 entries. The [Windows ARM64 run](https://github.com/Golden-Geek/MapGyver2/actions/runs/45802766751) passed SDK verification, installer build, and installed-app startup, authoring and output through an independent Spout receiver. Its app and packaging inputs match `ff68733a`. The [desktop replay](https://github.com/Golden-Geek/MapGyver2/actions/runs/45803930930) remains live. After promotion, both historical Chataigne2 MapGyver download entries and tags were verified reachable.
+
+## Current batch
+
+Chataigne2 owns the next deliverable: an independent Cargo and npm workspace with Golden Core pinned at `d2b7e296`. Verify locked dependency resolution and app UI build first, then use the ordinary binary for existing-project, Alchemist and state-machine checks. Stop adding scope at 13:00 Europe/Paris on 26 November 2026 and retain any live builds.
