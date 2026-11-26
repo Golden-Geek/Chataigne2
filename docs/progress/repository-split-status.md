@@ -1,14 +1,14 @@
 # Repository split status
 
-**Updated 26 November 2026 · `██░░░░░░░░` 20% accepted (1/5 gates)**
+**Updated 26 November 2026 · `████░░░░░░` 40% accepted (2/5 gates)**
 
-**Current:** Golden Core standalone verification. **Next:** inspect macOS and Windows workspace tests in the [candidate CI run](https://github.com/Golden-Geek/GoldenCore/actions/runs/45787206204). **Blocker:** none.
+**Current:** MapGyver2 extraction. **Next:** import the product history and wire its standalone workspace to the verified Golden Core commit. **Blocker:** none.
 
 | Gate | State | Progress | Evidence or return action |
 | --- | --- | --- | --- |
 | Source and ownership | Accepted | `██████████` 100% (1/1) | [Source refs](#source-refs) and [ownership map](../plan/Repository_Split_Implementation_Plan.md#ownership). |
-| Standalone Golden Core | Active | `░░░░░░░░░░` 0% (0/1) | [Candidate Golden Core revision](https://github.com/Golden-Geek/GoldenCore/commit/d2b7e296e817cb7ad17abb6b9bcf2abe345c9a7c). Finish hosted Rust verification. |
-| Standalone MapGyver2 | Pending | `░░░░░░░░░░` 0% (0/1) | Import product history and verify against a published Golden commit. |
+| Standalone Golden Core | Accepted | `██████████` 100% (1/1) | All seven [standalone CI jobs](https://github.com/Golden-Geek/GoldenCore/actions/runs/45787206204) passed at `d2b7e296`. Its publication on `main` was verified. |
+| Standalone MapGyver2 | Active | `░░░░░░░░░░` 0% (0/1) | Import product history and verify the independent app against `d2b7e296`. |
 | Chataigne2 cutover | Pending | `░░░░░░░░░░` 0% (0/1) | Switch to the verified Golden pin after MapGyver2 qualification. |
 | Independent pin upgrades | Waiting | `░░░░░░░░░░` 0% (0/1) | Verify both consumers and test a Golden revision bump. |
 
@@ -29,4 +29,6 @@ The full local Windows Rust workspace suite passed at `49aa6672` with D3D11, NDI
 
 The [Linux audio job](https://github.com/Golden-Geek/GoldenCore/actions/runs/45782670399/job/139781828098) passed all 194 tests, including the Null soak that previously failed because the runner denied realtime thread priority. The diagnostic remains in reports and is excluded from acceptance only for the synthetic Null backend. The [separate benchmark](https://github.com/Golden-Geek/GoldenCore/actions/runs/45782670420) produced raw samples, but the inherited baseline lacks a matching environment fingerprint. A separately qualified baseline is required for performance comparison.
 
-The original Linux and macOS workspace tests exposed a `golden_io` fixture that assumed raw OS code 5 had the same error kind everywhere. Windows passed the original workspace suite. The candidate tests preservation of the raw code across ownership transfers. All three focused local Windows tests passed. The [candidate Linux job](https://github.com/Golden-Geek/GoldenCore/actions/runs/45787206204/job/139796904444) passed the complete Rust workspace, including that test, and left the checkout clean. Candidate audio, UI, contracts and all three Clippy jobs passed. Candidate macOS and Windows workspace tests remain in progress. Follow those jobs and promote the passing commit to `main` before either app pins it. Stop adding scope at 10:25 Europe/Paris on 26 November 2026.
+Golden Core closed at `d2b7e296`. The exact published revision passed Rust workspace tests, strict Clippy and audio checks on Windows, macOS and Linux, plus UI type, unit, browser and generated-contract checks. The earlier Linux and macOS process-error failure was resolved by checking that ownership transfers preserve the raw OS error.
+
+The MapGyver2 batch delivers the product source history and standalone dependency resolution, including app-owned build scripts, the native probe and the Golden Core pin. Prove the destination license commit remains an ancestor, then verify locked Cargo metadata and npm installation in the independent workspace. Runtime and installer qualification remain part of the same MapGyver2 gate. Stop adding scope at 11:31 Europe/Paris on 26 November 2026.
