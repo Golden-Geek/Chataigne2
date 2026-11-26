@@ -58,3 +58,5 @@ All nine jobs in the [Chataigne matrix](https://github.com/Golden-Geek/Chataigne
 ## Current batch
 
 Use the migration branch for a pin-only upgrade from the published Golden Core revisions `f7d6c3b5` to `a7b9c244`. Verify the two builds in one standalone Chataigne checkout, observe recompilation of the changed Golden Rust dependencies and compare the embedded UI input stamps. Verify the upgrade commit triggers the branch's push workflow. Check MapGyver2 at its production pin while Chataigne2 uses `a7b9c244`. Stop adding scope at 14:48 Europe/Paris on 26 November 2026 and retain live runs.
+
+The comparison baseline at `f7d6c3b5` completed the normal locked Windows ASIO build from the same app tree and Cargo output directory as the production candidate. It compiled `golden_audio` and `golden_host_desktop` from `golden/` and embedded frontend input stamp `fdedffa6070083af`. The baseline binary SHA-256 is `dfa6253f1c1f418d43c5b471b5251deb1a43fe96d277cd53e868c0b58cc4c8c5`.
