@@ -2,14 +2,14 @@
 
 **Updated 26 November 2026 · `██████░░░░` 60% accepted (3/5 gates)**
 
-**Current:** Chataigne2 passed clean-clone desktop startup and existing project persistence. **Next:** qualify both graph editors. **Blocker:** the editor fixtures omit the required application ID.
+**Current:** Chataigne2 passed clean-clone startup, project persistence and both graph editors. **Next:** verify hosted builds and advance the Golden pin when its CI passes. **Blocker:** waiting for hosted builds.
 
 | Gate | State | Progress | Evidence or return action |
 | --- | --- | --- | --- |
 | Source and ownership | Accepted | `██████████` 100% (1/1) | [Source refs](#source-refs) and [ownership map](../plan/Repository_Split_Implementation_Plan.md#ownership). |
 | Standalone Golden Core | Accepted | `██████████` 100% (1/1) | All seven [standalone CI jobs](https://github.com/Golden-Geek/GoldenCore/actions/runs/45787206204) passed at `d2b7e296`. Its publication on `main` was verified. |
 | Standalone MapGyver2 | Accepted | `██████████` 100% (1/1) | The [verified promotion](#mapgyver2-verification) advanced `main` to `ff68733a`. |
-| Chataigne2 cutover | Active | `░░░░░░░░░░` 0% (0/1) | Close Alchemist and state-machine editor workflows and check the hosted migration build before promoting `main`. |
+| Chataigne2 cutover | Active | `░░░░░░░░░░` 0% (0/1) | Check the hosted migration build before promoting `main`. Local editor smoke tests passed. |
 | Independent pin upgrades | Waiting | `░░░░░░░░░░` 0% (0/1) | Verify both consumers and test a Golden revision bump. |
 
 Progress counts the five fixed migration gates in the [implementation plan](../plan/Repository_Split_Implementation_Plan.md). Product hardware and performance gates remain in the [Chataigne ledger](implementation-status.md) and [MapGyver ledger](https://github.com/Golden-Geek/MapGyver2/blob/main/docs/progress/mapgyver-status.md).
@@ -45,6 +45,6 @@ The extracted sources and their owned workflows and design docs were removed aft
 
 The recursive HTTPS clone of `be34a382` passed locked Cargo metadata, `npm ci`, the production UI build and a Windows build with the default ASIO setup. Native WebView2 startup mounted the workbench and subscribed to the project session. The headless workbench passed Save/New/Load with the tracked project fixture and preserved both tested node UUIDs. Local profiles and saved output stayed in isolated directories. UI quality, UI artifact and Linux armhf had passed on the [hosted migration build](https://github.com/Golden-Geek/Chataigne2/actions/runs/45813779443) at checkpoint.
 
-The app test binary now compiles with the transport fixture deriving its project generation from the host snapshot. Both native browser adapter tests reached project upload and received HTTP 400. Their generated documents omit `application_id`; the tracked project that loaded successfully includes it. The next batch will route the two editor fixture generators and the related live transport fixtures through the existing public project encoder, then rerun both adapters. This batch stopped at 13:00 Europe/Paris on 26 November 2026.
+The transport fixture derives its project generation from the host snapshot. Both editor harnesses and the transport fixture use the public application project encoder, which supplies the required `application_id`. Both browser adapters passed movement, undo/redo, connections, save/reload and read-only rejection against the standalone binary. The Alchemist check also passed snapshot replacement during subscribe. The live Alchemist HTTP, WebSocket and embedded-script test passed. The clean clone reported three passing tests with no generated source or lockfile changes. Stop adding scope at 13:45 Europe/Paris on 26 November 2026.
 
 The direct Node qualification helpers need explicit `.ts` extensions in Golden's runtime imports. Golden Core commit `a7b9c244` passed the direct Node import and 412 Golden UI tests. The [Golden verification run](https://github.com/Golden-Geek/GoldenCore/actions/runs/45812232382) had passed five of seven jobs at checkpoint. Wait for Windows and macOS Rust results before promoting the Golden fix and changing the app pin.

@@ -43,7 +43,7 @@ fn real_http_websocket_and_embedded_script_share_formula_operations() {
     let (engine, formula, source, target) = connected_fixture();
     let source_uuid = engine.nodes.get(source).unwrap().node_data().meta.uuid;
     let target_uuid = engine.nodes.get(target).unwrap().node_data().meta.uuid;
-    let contents = engine.to_project_json_with(Node::project_encode_data).unwrap();
+    let contents = golden_core::app::to_sparse_project_json_pretty(&engine).unwrap();
     let host = Host::start();
     host.upload(contents);
     let snapshot = host.snapshot();
@@ -192,7 +192,7 @@ fn real_http_websocket_and_embedded_script_share_formula_operations() {
     "#
         ),
     );
-    host.upload(fresh.to_project_json_with(Node::project_encode_data).unwrap());
+    host.upload(golden_core::app::to_sparse_project_json_pretty(&fresh).unwrap());
     let deadline = Instant::now() + Duration::from_secs(20);
     let final_snapshot = loop {
         let snapshot = host.snapshot();

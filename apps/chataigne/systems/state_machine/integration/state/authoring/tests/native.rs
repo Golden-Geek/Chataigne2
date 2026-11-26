@@ -48,7 +48,7 @@ fn state_graph_authoring_native_browser_adapter() {
     fs::create_dir_all(&evidence).unwrap();
     fs::write(
         evidence.join("fixture.noisette"),
-        engine.to_project_json_with(Node::project_encode_data).unwrap(),
+        golden_core::app::to_sparse_project_json_pretty(&engine).unwrap(),
     )
     .unwrap();
     let position = child(&engine, states[1].node, "position").unwrap();
@@ -63,7 +63,7 @@ fn state_graph_authoring_native_browser_adapter() {
     position.persist_read_only_value = true;
     fs::write(
         evidence.join("readonly.noisette"),
-        engine.to_project_json_with(Node::project_encode_data).unwrap(),
+        golden_core::app::to_sparse_project_json_pretty(&engine).unwrap(),
     )
     .unwrap();
     let mut command = Command::new("node");
