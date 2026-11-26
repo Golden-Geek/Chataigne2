@@ -23,7 +23,7 @@ Accordion previews retain their insertion anchor even when ordinary detail is bo
 retention includes marked gesture ancestors and evaluates its cached cohort before budget/layout
 DOM changes, so the owning container remains available during the qualified preview operation.
 The surface layout controller drops from 930 to 825 lines; DashboardCanvas remains 945 lines.
-The [architecture](../architecture/dashboard-ui.md) records the maintained owners.
+The [architecture](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/dashboard-ui.md) records the maintained owners.
 
 ## Evidence
 

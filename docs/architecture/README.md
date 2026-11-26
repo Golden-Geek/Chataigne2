@@ -1,31 +1,12 @@
 # Architecture
 
-This section explains ownership and dependency direction. Start with the
-[top-level architecture](../../ARCHITECTURE.md), then open only the subsystem you are changing.
+Start with the [top-level architecture](../../ARCHITECTURE.md). The [Chataigne plan](../plan/Chataigne2_Codex_Implementation_Plan.md)
+and [status](../progress/implementation-status.md) track product implementation.
 
-For Chataigne execution order use its [implementation plan](../plan/Chataigne2_Codex_Implementation_Plan.md)
-and [current status](../progress/implementation-status.md). MapGyver has a separately selected
-[plan](../plan/MapGyver_Implementation_Plan.md) and [status](../progress/mapgyver-status.md).
-Historical implementation narratives
-and superseded plans are [archived](../archive/2026-10-18/README.md).
-
-## Foundation
-
-- [Application contracts](application-contracts.md): reusable application/host seams and parameter event attribution.
-- [App operations](app-operations.md): domain-owned mutations with atomic completion and authoritative replies.
-- [Foundation ownership](foundations.md): identities, values, parameters, and contexts.
-- [Golden Audio](golden-audio.md): reusable audio ownership, stable identities, render plans,
-  callback safety, clocks, and device recovery.
-- [Golden Graph](graph-foundation.md): graph documents, transactions, revisions, and presentation.
-- [Graph keyboard interaction](graph-keyboard.md): shared selection/movement/connection operations and host lifetime fencing.
-- [Hosts](hosts.md): desktop, headless/browser, transport, and native-dialog ownership.
-- [UI transport request boundary](ui-transport-security.md): browser origins, Host authorities,
-  HTTP parsing, CORS and trusted-network ownership.
-- [Persistence transactions](persistence.md): save ordering, destination identity, recovery, and
-  project-generation fencing.
-- [UI protocol](ui-protocol.md): Rust DTO source of truth and generated TypeScript.
-- [Dashboard UI](dashboard-ui.md): recursive rendering, layout/camera/interaction ownership and authored anchor semantics.
-- [Tree UI](tree-navigation.md): shared virtualized projections, keyboard navigation, focus and activation ownership.
+[Golden Core's architecture](https://github.com/Golden-Geek/GoldenCore/tree/main/docs/architecture)
+covers reusable foundations, runtime, persistence, transports and workbench.
+[MapGyver2's architecture](https://github.com/Golden-Geek/MapGyver2/blob/main/docs/architecture/mapgyver.md)
+covers the video mapping product.
 
 ## Chataigne systems
 
@@ -37,7 +18,7 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
   reconnect/retirement and locally qualified passive app service.
 - [DMX ownership](dmx-runtime.md): native setup/cleanup, bounded frames, completion receipts and
   passive actor service; P07 owns stream correctness.
-- [System module ownership](system-runtime.md): captured OS commands, bounded metrics/native
+- [System module ownership](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/system-runtime.md): captured OS commands, bounded metrics/native
   lifetimes, completion outcomes and passive App Control/OS service.
 - [Buttplug worker ownership](buttplug-runtime.md): bounded protocol workers, native lifetime
   slots, retained command outcomes, passive service and local C07 qualification.
@@ -68,20 +49,6 @@ and superseded plans are [archived](../archive/2026-10-18/README.md).
 - [State machine and Alchemist processing](statecharts-conditions-processors.md): how Chataigne's
   state/transition runtime consumes Alchemist processors.
 
-## MapGyver design
-
-- [MapGyver architecture](mapgyver.md): planned sibling app, media/channels, composition, Matrix,
-  app lifecycle, screens/surfaces, editor and reusable GPU boundaries.
-- [Native rendering research](mapgyver-native-rendering.md): primary-source findings for
-  transparent WebView previews, D3D11/Spout and the first native feasibility gate.
-
-## Placement rule
-
-Reusable node/runtime infrastructure belongs under `crates/golden_core/`. Generic graph document
-and canvas behavior belongs in `crates/golden_graph/` or `packages/golden-graph-ui/`.
-Chataigne product behavior belongs under `apps/chataigne/systems/`, with app-engine integration in
-each system's `integration/` folder and product UI under `apps/chataigne/ui/`.
-MapGyver product systems and specialized UI belong under `apps/mapgyver/`; its proposed reusable
-video runtime/preview mechanisms belong in Golden packages and the shared host.
-
-For exact paths, see [Repository Layout](../reference/repository-layout.md).
+Chataigne systems own product behavior and their `integration/` modules connect it to the engine.
+Product UI lives under `apps/chataigne/ui/`. See the [repository layout](../reference/repository-layout.md)
+for exact paths.

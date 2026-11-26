@@ -20,7 +20,7 @@ excuse blocked processing. Revised targets never retroactively pass old failed g
 
 ## Runtime
 
-- IO parsing, timestamping, reconnect, and device polling run in `crates/golden_core/runtime/io` or app-owned workers.
+- IO parsing, timestamping, reconnect, and device polling run in `golden/crates/golden_core/runtime/io` or app-owned workers.
 - The actor-owned engine applies typed inputs and graph mutations; it performs no socket or device
   IO.
 - Every periodic node declares a stable compiled-kernel identity. Production generation
@@ -201,7 +201,7 @@ of those fields match and every explicitly expected scenario has exactly one pos
 an invalid qualification, never a pass.
 
 The executable warning and failure thresholds live beside each scenario in
-`crates/golden_core/engine/benches/baseline.json`. The tick scenarios warn above five percent and
+`golden/crates/golden_core/engine/benches/baseline.json`. The tick scenarios warn above five percent and
 fail above ten percent; dispatch warns above ten percent and fails above fifteen percent. The
 comparator can be run against a downloaded workflow artifact with:
 

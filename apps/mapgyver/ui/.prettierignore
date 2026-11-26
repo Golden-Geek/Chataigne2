@@ -1,5 +1,0 @@
-src/lib/media/generated/
-src/lib/preview/generated/
-src/lib/screens/generated/
-.svelte-kit/
-build/

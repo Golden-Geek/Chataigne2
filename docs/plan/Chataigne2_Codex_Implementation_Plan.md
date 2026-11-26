@@ -423,9 +423,9 @@ benefit is insufficient; the task does not mandate parallelism.
 
 ### P14 — Exercise a production time boundary
 
-Shared foundation delivered by MapGyver M03: [Golden Time](../../crates/golden_time/README.md)
+Shared foundation delivered by MapGyver M03: [Golden Time](https://github.com/Golden-Geek/GoldenCore/blob/main/crates/golden_time/README.md)
 now supplies typed coordinates, rational mappings, authority/discontinuity epochs and activation
-observations, exercised by the [bounded video scheduler](../progress/mapgyver-m03-render-foundations.md).
+observations, exercised by the [bounded video scheduler](https://github.com/Golden-Geek/MapGyver2/blob/main/docs/progress/mapgyver-m03-render-foundations.md).
 Reuse this public boundary. P14 remains open for the audio/DMX preparation, authority handoff,
 latency and synchronization acceptance below; the null video path does not pass that scope.
 
@@ -449,7 +449,7 @@ and sample/epoch monotonicity. Measure native synchronization separately when av
 
 ### P15 — Establish asset identity and preparation
 
-MapGyver M03 has introduced [Golden Assets](../../crates/golden_assets/README.md): shared UUID
+MapGyver M03 has introduced [Golden Assets](https://github.com/Golden-Geek/GoldenCore/blob/main/crates/golden_assets/README.md): shared UUID
 references/validated locators, runtime scope/binding fences and bounded worker preparation with
 consumer-lifetime resource admission. Its public synthetic Video consumer exercises installation
 fences. MapGyver now exercises its asset catalog/history/codecs and Picture/native image upload
@@ -515,7 +515,7 @@ or unauthorized physical checks remain outside local completion.
 ## Validation and final handoff
 
 Use the repository's pinned commands and owning tests; test sources belong under `tests/`.
-After a Rust implementation batch run `cargo fmt --all` from root and from `crates/golden_core`.
+After a Rust implementation batch run `cargo fmt --all` from root and from `golden/crates/golden_core`.
 Run focused regressions first, then affected package/workspace checks appropriate to the change.
 Do not repeatedly run broad checks once they pass without a new reason.
 

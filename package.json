@@ -15,7 +15,7 @@
 		"golden/packages/golden-ui"
 	],
 	"scripts": {
-		"clean": "powershell -NoProfile -File tools/workspace-hygiene.ps1 -Action Clean -KeepDependencies -KeepSdks",
+		"clean": "powershell -NoProfile -File tools/workspace-hygiene.ps1 -Action Clean -KeepDependencies",
 		"clean:preview": "npm run clean -- -WhatIf",
 		"clean:check": "powershell -NoProfile -File tools/workspace-hygiene.ps1 -Action Audit",
 		"dev": "npm run dev --workspace chataigne-ui",

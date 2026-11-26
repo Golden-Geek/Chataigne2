@@ -151,7 +151,7 @@ backpressures native service without another unbounded queue.
 ## Feedback
 
 Received values, clock/MTC publications and CC conversion writes carry the module's runtime
-producer ID through Golden's [parameter event attribution](application-contracts.md#parameter-event-attribution).
+producer ID through Golden's [parameter event attribution](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/application-contracts.md#parameter-event-attribution).
 The module suppresses only changes from that producer. There is no ignore-next-change map:
 unchanged writes and rejected suffixes cannot swallow later authored changes. Constraint-induced
 clamping carries the same provenance as its owning request. Undo/redo has no received-input source.

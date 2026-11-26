@@ -4,7 +4,7 @@ Golden UI owns the page camera, free-layout geometry, clipped membership and UI 
 Backend nodes, parameters, bindings and edit transactions remain authoritative. The viewport
 consumes retained authored bounds through the public Golden Graph UI spatial index; widgets
 do not need to mount to participate in direct free-child framing or rectangle selection.
-See the [ownership map](../architecture/dashboard-ui.md) and [fixed contract](p11-workspace-qualification-contract.md#dashboard-sparse-editing-extension).
+See the [ownership map](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/dashboard-ui.md) and [fixed contract](p11-workspace-qualification-contract.md#dashboard-sparse-editing-extension).
 
 ## Implementation
 

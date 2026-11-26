@@ -1,7 +1,7 @@
 use crate::watch::is_parent_cargo_package_variable;
 use std::ffi::OsStr;
 
-mod app_selection;
+mod watch_options;
 
 #[cfg(not(target_os = "windows"))]
 use crate::cli::WatchConfig;
@@ -47,7 +47,6 @@ fn nested_cargo_drops_parent_package_context_but_keeps_user_configuration() {
 #[test]
 fn shutdown_file_is_rejected_where_signal_shutdown_is_authoritative() {
     let config = WatchConfig {
-        app: crate::AppTarget::Chataigne,
         frontend_port: 5173,
         backend_port: 7010,
         frontend_timeout: Duration::from_secs(30),

@@ -1,10 +1,5 @@
 docs/product/manifests/** text eol=lf
-# Qualification artifacts retain exact recorded bytes for checksum/reproduction audits.
-docs/progress/evidence/mapgyver-*.json -text
 tools/bootstrap/toolchain.json text eol=lf
 # Tauri writes this manifest with LF during Windows bundling.
 apps/chataigne/Cargo.toml text eol=lf
 *.sh text eol=lf
-# Keep normalized vendor hashes stable and preserve audited upstream whitespace.
-vendor/spout2-sys-0.1.1/** text eol=lf
-vendor/spout2-sys-0.1.1/vendor/Spout2/** -whitespace

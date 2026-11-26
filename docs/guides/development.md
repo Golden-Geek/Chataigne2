@@ -45,7 +45,7 @@ does not vendor the SDK or permanently mutate the user's environment. Use the sa
 other commands by placing them after PowerShell's `--` parameter terminator:
 
 ```powershell
-.\tools\asio.ps1 -- cargo test -p golden_audio --features asio,jack,realtime
+.\tools\asio.ps1 -Command @('cargo', 'test', '--locked', '--manifest-path', 'golden/Cargo.toml', '--package', 'golden_audio', '--features', 'asio,jack,realtime')
 .\tools\asio.ps1 -- cargo check -p Chataigne2
 ```
 
@@ -83,7 +83,7 @@ build can opt out with `cargo run --no-default-features`.
 | Fast focused feature test                        | `cargo test-fast -p golden_engine TEST_NAME`                 |
 | Optimized Rust workspace tests                   | `cargo test --workspace`                                     |
 | UI check, lint, tests, or build                  | `npm run check`, `npm run lint`, `npm test`, `npm run build` |
-| Engine benchmarks                                | `cargo bench -p golden_engine`                               |
+| Engine benchmarks                                | `cargo bench --manifest-path golden/Cargo.toml -p golden_engine` |
 | Release binary                                   | `cargo build --release`                                      |
 
 The default debug build uses moderate optimization and disables incremental

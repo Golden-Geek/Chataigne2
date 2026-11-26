@@ -1,10 +1,9 @@
 # Chataigne2
 
-This workspace contains Chataigne2 and the shared Golden backend/UI foundations. A sibling
-Windows x64 video mapping app, **MapGyver**, is now planned alongside Chataigne. Its Media/Screen
-managers, Composition/Matrix systems and native texture editors are described in the
-[MapGyver architecture](docs/architecture/mapgyver.md) and
-[implementation plan](docs/plan/MapGyver_Implementation_Plan.md). MapGyver is not implemented yet.
+Chataigne2 is the product shell for Chataigne's control, lighting, media and audio workflows.
+It uses the shared runtime and workbench from [Golden Core](https://github.com/Golden-Geek/GoldenCore),
+pinned at `golden/`. [MapGyver2](https://github.com/Golden-Geek/MapGyver2) consumes Golden Core
+from its own repository.
 
 Chataigne2's current implementation goal remains foundation and product readiness for control,
 lighting, media and audio workflows.
@@ -12,14 +11,13 @@ lighting, media and audio workflows.
 **To resume Chataigne development, say “implement the plan”.** Its
 [implementation plan](docs/plan/Chataigne2_Codex_Implementation_Plan.md) defines scope and order;
 [implementation status](docs/progress/implementation-status.md) records the current handoff.
-For MapGyver, explicitly select its named plan and [separate status](docs/progress/mapgyver-status.md).
 Superseded plans and dated qualification evidence live in the [archive](docs/archive/2026-10-18/README.md).
 
 Chataigne2 is the desktop shell and product composition layer for the Golden engine and UI stack.
-The repository is one self-contained Cargo/npm monorepo with these ownership boundaries:
+The Cargo and npm workspaces use these ownership boundaries:
 
 - `Chataigne2` stays a thin application shell.
-- `crates/golden_core/` contains the public facade plus grouped engine, foundation, runtime,
+- `golden/crates/golden_core/` contains the public facade plus grouped engine, foundation, runtime,
   service, host, and build-support crates.
 - `golden_model` owns stable cross-layer identities, `golden_values` owns the canonical runtime
   value model, `golden_parameters` owns parameter contracts and projections, and `golden_context`
@@ -36,11 +34,11 @@ The repository is one self-contained Cargo/npm monorepo with these ownership bou
 - Apps can override command-line parsing and bootstrap when needed, but they should not have to by default.
 - Rust owns the public UI protocol and generates the TypeScript transport bindings.
 
-Start with [Application Contracts](docs/architecture/application-contracts.md) for the reusable
+Start with [Application Contracts](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/application-contracts.md) for the reusable
 runtime boundary and its side-effect-safety rules.
-[Foundation Ownership](docs/architecture/foundations.md) describes the identity, value, parameter,
+[Foundation Ownership](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/foundations.md) describes the identity, value, parameter,
 and context contracts that graph packages build upon.
-[Graph Foundation](docs/architecture/graph-foundation.md) describes the typed graph-domain,
+[Graph Foundation](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/graph-foundation.md) describes the typed graph-domain,
 transaction, revision, topology, presentation, traversal, and persistence contract.
 
 - protocol declarations and code generation are moving toward a single source of truth.
@@ -52,7 +50,12 @@ transaction, revision, topology, presentation, traversal, and persistence contra
 
 ## First Clone Run
 
-From a fresh clone, use the repo bootstrap command for your platform:
+Clone the product and its pinned dependency, then run the bootstrap command for your platform.
+
+```sh
+git clone --recurse-submodules https://github.com/Golden-Geek/Chataigne2.git
+cd Chataigne2
+```
 
 ```powershell
 .\tools\dev.ps1
@@ -64,8 +67,8 @@ bash ./tools/dev.sh
 
 The bootstrap command installs the exact Rust host and checksum-verified portable Node.js/npm
 distribution from `tools/bootstrap/toolchain.json`, verifies the supported Python version, installs
-desktop build prerequisites, runs root `npm ci` when needed, then runs `cargo run`. No submodule
-initialization is required. Install Git and the manifest's Python version first; the detailed host
+desktop build prerequisites, runs root `npm ci` when needed, then runs `cargo run`. The bootstrap
+initializes `golden/` when a checkout lacks it. Install Git and the manifest's Python version first. The detailed host
 prerequisites and cache behavior are in [docs/guides/development.md](docs/guides/development.md).
 
 On Windows it selects the manifest's versioned MSVC host rather than floating `stable-msvc`.
@@ -90,13 +93,12 @@ JACK is loaded dynamically at runtime, so an absent JACK library/server does not
 ## Repository Map
 
 - `apps/chataigne/`: executable shell, product modules, Alchemist, state machine, resources, and UI.
-- `apps/mapgyver/` (planned): sibling video mapping shell, media/screen/Matrix systems and editors.
-- `crates/golden_core/`: reusable backend framework, grouped by responsibility.
-- `crates/golden_graph/`: reusable graph document and transaction system.
-- `packages/golden-ui/`: reusable application workbench and dock UI package.
-- `packages/golden-audio-ui/`: reusable audio device inspector and generated audio UI contracts.
-- `packages/golden-graph-ui/`: reusable infinite node-graph canvas package.
-- `Cargo.toml` and `package.json`: the single root Rust and JavaScript workspaces.
+- `golden/crates/golden_core/`: reusable backend framework, grouped by responsibility.
+- `golden/crates/golden_graph/`: reusable graph document and transaction system.
+- `golden/packages/golden-ui/`: reusable application workbench and dock UI package.
+- `golden/packages/golden-audio-ui/`: reusable audio device inspector and generated audio UI contracts.
+- `golden/packages/golden-graph-ui/`: reusable infinite node-graph canvas package.
+- `Cargo.toml` and `package.json`: the Chataigne2 Rust and JavaScript workspaces.
 
 See [Repository Layout](docs/reference/repository-layout.md) for the complete tree.
 
@@ -120,7 +122,7 @@ See [Repository Layout](docs/reference/repository-layout.md) for the complete tr
 
 ## Engine Design Notes
 
-The maintained engine notes live under `crates/golden_core/engine/docs/`:
+The maintained engine notes live under `golden/crates/golden_core/engine/docs/`:
 
 - `dashboard_system.md`
 - `source_layout.md`

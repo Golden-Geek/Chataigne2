@@ -36,14 +36,14 @@ try {
 
     foreach ($path in @(
         "target/debug/cache", "target/release/cache", "target/experiment/debug/cache",
-        "target/ffmpeg-source/stage/sdk", "target/mapgyver-ffmpeg-runtime/bin/runtime",
+        "golden/target/debug/cache",
         "target/scratch.rs", "node_modules/dependency/package.json",
-        "crates/example/target/debug/cache", "apps/mapgyver/ui/build/index.html",
-        "apps/chataigne/ui/.svelte-kit/cache", "tools/mapgyver/native-probe/gen/cache"
+        "apps/chataigne/example/target/debug/cache", "apps/chataigne/ui/build/index.html",
+        "apps/chataigne/ui/.svelte-kit/cache", "apps/chataigne/gen/cache"
     )) { Add-FixtureFile $path }
 
     if ((Invoke-Hygiene @("-Action", "Audit")) -eq 0) { throw "Audit missed a nested Cargo target" }
-    if ((Invoke-Hygiene @("-Action", "Clean", "-KeepDependencies", "-KeepSdks", "-WhatIf")) -ne 0) {
+    if ((Invoke-Hygiene @("-Action", "Clean", "-KeepDependencies", "-WhatIf")) -ne 0) {
         throw "Cleanup preview failed"
     }
     Assert-Exists "target/debug/cache" $true
@@ -51,7 +51,7 @@ try {
     Add-FixtureFile "target/debug/tracked.txt"
     & git -C $fixtureRoot add --force target/debug/tracked.txt
     if ($LASTEXITCODE -ne 0) { throw "Cannot stage fixture" }
-    if ((Invoke-Hygiene @("-Action", "Clean", "-KeepDependencies", "-KeepSdks")) -eq 0) {
+    if ((Invoke-Hygiene @("-Action", "Clean", "-KeepDependencies")) -eq 0) {
         throw "Cleanup accepted tracked content"
     }
     Assert-Exists "target/release/cache" $true
@@ -59,22 +59,22 @@ try {
     & git -C $fixtureRoot rm --cached --quiet target/debug/tracked.txt
     if ($LASTEXITCODE -ne 0) { throw "Cannot unstage fixture" }
 
-    if ((Invoke-Hygiene @("-Action", "Clean", "-KeepDependencies", "-KeepSdks")) -ne 0) {
+    if ((Invoke-Hygiene @("-Action", "Clean", "-KeepDependencies")) -ne 0) {
         throw "Routine cleanup failed"
     }
-    foreach ($path in @("target/debug", "target/release", "target/experiment", "crates/example/target",
-        "apps/mapgyver/ui/build", "apps/chataigne/ui/.svelte-kit", "tools/mapgyver/native-probe/gen")) {
+    foreach ($path in @("target", "apps/chataigne/example/target", "apps/chataigne/ui/build",
+        "apps/chataigne/ui/.svelte-kit", "apps/chataigne/gen")) {
         Assert-Exists $path $false
     }
-    foreach ($path in @("node_modules/dependency/package.json", "target/ffmpeg-source/stage/sdk",
-        "target/mapgyver-ffmpeg-runtime/bin/runtime", "target/scratch.rs")) {
+    foreach ($path in @("node_modules/dependency/package.json", "golden/target/debug/cache")) {
         Assert-Exists $path $true
     }
     if ((Invoke-Hygiene @("-Action", "Audit")) -ne 0) { throw "Audit failed after cleanup" }
     if ((Invoke-Hygiene @("-Action", "Clean")) -ne 0) { throw "Full reset failed" }
     Assert-Exists "target" $false
     Assert-Exists "node_modules" $false
-    Write-Host "PASS hygiene: preview, tracked-file safety, nested targets, SDK/dependency preservation, audit, full reset"
+    Assert-Exists "golden/target/debug/cache" $true
+    Write-Host "PASS hygiene: preview, tracked-file safety, nested targets, checkout and dependency preservation, audit, full reset"
 } finally {
     $resolvedFixture = [System.IO.Path]::GetFullPath($fixtureRoot)
     $tempPrefix = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar

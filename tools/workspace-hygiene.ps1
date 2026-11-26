@@ -5,7 +5,6 @@ param(
     [ValidateRange(1, 4096)]
     [double] $MaximumGiB = 25,
     [switch] $KeepDependencies,
-    [switch] $KeepSdks,
     [switch] $IncludeAgentWorktrees
 )
 
@@ -149,16 +148,7 @@ function Get-DirectorySize {
 }
 
 $canonicalTarget = Join-Path $repositoryRoot "target"
-if ($KeepSdks -and (Test-Path -LiteralPath $canonicalTarget -PathType Container)) {
-    # These inputs are consumed directly by normal MapGyver builds, including
-    # corresponding-source/license packaging. Preserve the complete prepared SDK.
-    foreach ($entry in Get-ChildItem -LiteralPath $canonicalTarget -Directory -Force) {
-        $keepSdk = $entry.Name -in @("ffmpeg-source", "mapgyver-ffmpeg-runtime")
-        Add-Candidate -Path $entry.FullName -Category "cargo-target" -Cleanable (-not $keepSdk)
-    }
-} else {
-    Add-Candidate -Path $canonicalTarget -Category "cargo-target" -Cleanable $true -CanonicalCargoTarget $true
-}
+Add-Candidate -Path $canonicalTarget -Category "cargo-target" -Cleanable $true -CanonicalCargoTarget $true
 foreach ($directory in Get-ChildItem -LiteralPath $repositoryRoot -Directory -Force -ErrorAction SilentlyContinue) {
     if ($directory.Name -like "target-*") {
         Add-Candidate -Path $directory.FullName -Category "cargo-target-noncanonical" -Cleanable $true
@@ -170,26 +160,9 @@ Add-Candidate -Path (Join-Path $repositoryRoot ".venv") -Category "local-toolcha
 Add-GeneratedChildren -Parent $repositoryRoot -Cleanable $true -DependencyCleanable $dependencyCleanable
 Add-GeneratedChildren -Parent (Join-Path $repositoryRoot "apps\chataigne\ui") -Cleanable $true -DependencyCleanable $dependencyCleanable
 Add-Candidate -Path (Join-Path $repositoryRoot "apps\chataigne\gen") -Category "generated" -Cleanable $true
-Add-GeneratedChildren -Parent (Join-Path $repositoryRoot "apps/mapgyver/ui") -Cleanable $true -DependencyCleanable $dependencyCleanable
-Add-Candidate -Path (Join-Path $repositoryRoot "apps/mapgyver/gen") -Category "generated" -Cleanable $true
-Add-GeneratedChildren -Parent (Join-Path $repositoryRoot "tools/mapgyver/native-probe/ui") -Cleanable $true -DependencyCleanable $dependencyCleanable
-Add-Candidate -Path (Join-Path $repositoryRoot "tools/mapgyver/native-probe/gen") -Category "generated" -Cleanable $true
-
-foreach ($packageRoot in @(
-    (Join-Path $repositoryRoot "apps"),
-    (Join-Path $repositoryRoot "packages")
-)) {
-    if (Test-Path -LiteralPath $packageRoot -PathType Container) {
-        foreach ($package in Get-ChildItem -LiteralPath $packageRoot -Directory -Force -ErrorAction SilentlyContinue) {
-            Add-GeneratedChildren -Parent $package.FullName -Cleanable $true -DependencyCleanable $dependencyCleanable
-        }
-    }
-}
 
 foreach ($sourceRoot in @(
     (Join-Path $repositoryRoot "apps"),
-    (Join-Path $repositoryRoot "crates"),
-    (Join-Path $repositoryRoot "packages"),
     (Join-Path $repositoryRoot "tools"),
     (Join-Path $repositoryRoot "xtask")
 )) {

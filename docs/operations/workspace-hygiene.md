@@ -55,24 +55,22 @@ npm run clean:preview
 ```
 
 This removes compiled profiles, duplicate nested Cargo targets, qualification output directories
-and frontend caches. The next build recompiles Rust and regenerates frontend output. It preserves
-`target/ffmpeg-source` (including SDK, tools and corresponding-source kit),
-`target/mapgyver-ffmpeg-runtime`, and loose files directly in `target` such as scratch scripts/logs.
+and frontend caches. The next build recompiles Rust and regenerates frontend output. Cleanup
+uses Chataigne2's root `target` and leaves the independent `golden/` checkout and its build files alone.
 The command refuses candidate directories containing tracked files or reached through filesystem
 links. Stop project builds and running apps before cleaning. Do not create a new target directory
 for each test or investigation; reuse the root target and remove bulky captures when finished.
 An access-denied directory is reported as a cleanup failure and makes the audit incomplete;
 resolve its permissions separately before relying on the budget check. Cleanup does not change ACLs.
 
-To also remove prepared SDKs, npm installs and local virtual environments, use the full reset:
+To also remove npm installs and local virtual environments, use the full reset:
 
 ```powershell
 powershell -NoProfile -File tools/workspace-hygiene.ps1 -Action Clean
 ```
 
-Use `-KeepDependencies` to retain `node_modules` and `.venv`, and `-KeepSdks` to retain the video SDK.
-The full reset requires SDK preparation again before MapGyver builds. Active `.kilo` worktrees are never
-deleted. Their generated folders are reported but are cleaned only with
+Use `-KeepDependencies` to retain `node_modules` and `.venv`. Active `.kilo` worktrees keep their
+sources. Their generated folders are reported and are cleaned only with
 `-IncludeAgentWorktrees`; use that option only when no agent is building in those worktrees.
 
 Project npm packages still belong in `node_modules` because they are lockfile-defined application

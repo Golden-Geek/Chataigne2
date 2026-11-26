@@ -47,7 +47,7 @@ diagnostic framework.
 Exact key/segment-to-Inspector selection is already published in `d2fd83b5`.
 The separate connected drag/capture failure remains unresolved: after press the receipt showed
 `captured:false`, `focused:true`, `activeTag:CANVAS`. Later motion/history is not accepted.
-See [the existing owning report](mapgyver-m14-selection.md) for tested scope and source limits,
+See [the existing owning report](https://github.com/Golden-Geek/MapGyver2/blob/main/docs/progress/mapgyver-m14-selection.md) for tested scope and source limits,
 and `target/m14-curve-selection-race-connected-2026-11-15/failure.json` for the failure.
 Return on a source-supported ownership correction or the required actual-host/native check
 when Chataigne is selected. Do not restart unchanged capture/profiler variants.

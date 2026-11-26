@@ -2,7 +2,7 @@
 
 Golden UI owns this presentation change. The backend still owns authored positions, sizing,
 bindings and transactions. This delivery continues the dashboard checkpoint; it does not close it.
-The [architecture](../architecture/dashboard-ui.md) explains ownership and the
+The [architecture](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/dashboard-ui.md) explains ownership and the
 [fixed contract](p11-workspace-qualification-contract.md) defines the budgets before qualification.
 
 ## Delivered behavior

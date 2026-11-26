@@ -2,7 +2,7 @@
 
 ## Current State
 
-- `withGlobalTauri` is disabled. `packages/golden-ui/host/desktop.ts` uses the supported
+- `withGlobalTauri` is disabled. `golden/packages/golden-ui/host/desktop.ts` uses the supported
   `@tauri-apps/api` package and is the only UI entry point for native host commands.
 - `apps/chataigne/permissions/desktop-host.toml` declares the application-owned command surface,
   and `apps/chataigne/capabilities/default.json` grants it only to the `main` window.
@@ -29,7 +29,7 @@
 ## Remaining boundaries
 
 Tauri capabilities do not authenticate the separate HTTP/WebSocket UI server. Golden's
-[transport request boundary](../architecture/ui-transport-security.md) now validates Host and
+[transport request boundary](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/ui-transport-security.md) now validates Host and
 browser Origin before API dispatch or WebSocket upgrade, and HTTP CORS names only an admitted
 origin. The selected development frontend origin is explicit. Host-owned scoped sessions now
 guard HTTP operations and WebSocket admission/messages; the shared client bootstrap renews after

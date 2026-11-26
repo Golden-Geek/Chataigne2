@@ -2,7 +2,7 @@
 
 This implements the shared graph interaction path after tree closure in `574be597`. The graph
 checkpoint remains open: app-consumer and complete large-graph qualification are still required.
-See [ownership and lifecycle](../architecture/graph-keyboard.md).
+See [ownership and lifecycle](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/graph-keyboard.md).
 
 ## Delivered behavior
 

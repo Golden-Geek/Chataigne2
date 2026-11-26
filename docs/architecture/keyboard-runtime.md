@@ -150,7 +150,7 @@ connection status. The final status group fences every native source contributin
 output readiness is sampled once for that projection. Input projection never authors output-ready
 state. Rejecting a readiness suffix therefore preserves input effects, and rejecting input cannot
 erase an earlier output report. Golden edit fences stop scalar/removal coalescing across these
-boundaries; see [application contracts](application-contracts.md).
+boundaries; see [application contracts](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/application-contracts.md).
 
 ## Actor input projection
 

@@ -6,7 +6,7 @@ evidence. The [current ledger](implementation-status.md) owns execution state.
 
 Golden Graph UI owns presentation invalidation and retained geometry. App-owned adapters supply
 domain-neutral node/edge views; backend editing semantics and Rust wire revisions are unchanged.
-See [package ownership](../../packages/golden-graph-ui/README.md) and the
+See [package ownership](https://github.com/Golden-Geek/GoldenCore/blob/main/packages/golden-graph-ui/README.md) and the
 [current task ledger](implementation-status.md#p10-completion-checkpoints).
 
 ## Implemented boundary

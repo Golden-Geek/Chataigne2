@@ -3,7 +3,7 @@
 Golden UI owns reusable dashboard rendering. Backend parameters and edit transactions remain
 authoritative; app renderers enter through the public node-widget registry. The canvas now
 composes focused camera, surface, widget, binding, menu, marquee and transform controllers.
-See [ownership](../architecture/dashboard-ui.md) for the module map.
+See [ownership](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/dashboard-ui.md) for the module map.
 
 The original 6,423-line `DashboardCanvas.svelte` is now **870 lines**. All extracted controllers,
 templates and three stylesheet files remain below 1,000 lines. Shared CSS uses an explicit

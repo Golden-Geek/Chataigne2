@@ -1,4 +1,0 @@
-{
-	"extends": "../../../../../tests/browser/tsconfig.json",
-	"include": ["./**/*.ts", "./**/*.svelte"]
-}

@@ -3453,8 +3453,8 @@ centralizes spare string/reference/vector accounting shared with app command bou
 Native stream input wrappers retain the Golden argument lease, preserving their existing 64-item /
 16 MiB quota without independent final owners of the same raw Arc. Twenty test producers migrated
 to explicit preparation. No wire DTO, persistence, UI or app-shell startup contract changed.
-See [host ownership](../architecture/hosts.md) and
-[app contracts](../architecture/application-contracts.md) for maintained boundaries and limits.
+See [host ownership](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/hosts.md) and
+[app contracts](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/application-contracts.md) for maintained boundaries and limits.
 
 XHigh was requested for the coupled lifetime/admission work; actual effort remained unchanged /
 unobservable. Initial test import and reused-runtime fixture errors were corrected. Return to
@@ -4534,7 +4534,7 @@ was progress. Device/numeric option construction, identity serialization, capabi
 missing-selection preservation and domain comparison now run on the existing bounded preparation
 worker. It retains the canonical tree snapshot and shared inventory, with a typed source handle
 instead of another inspector copy. A target index replaces repeated catalog-wide descriptor scans.
-Actor-side choice builders and reset adapters were removed. See [host ownership](../architecture/hosts.md)
+Actor-side choice builders and reset adapters were removed. See [host ownership](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/hosts.md)
 for queue, scratch, output and lifetime allowances.
 
 Choice input reads up to six **1 MiB** selector values and respects absent inactive DSL branches.
@@ -5532,7 +5532,7 @@ deferred callbacks.
 Golden's existing runtime provenance API now covers direct parameter state mutations; their
 queued follow-up edits do not inherit attribution. No new edit variant, dependency, persisted
 format or UI protocol declaration is introduced. See [MIDI ownership](../architecture/midi-runtime.md)
-and [Core attribution](../architecture/application-contracts.md#parameter-event-attribution).
+and [Core attribution](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/application-contracts.md#parameter-event-attribution).
 
 Verification on the current Windows/MSVC checkout:
 
@@ -6305,7 +6305,7 @@ released its source while copied edits were queued. It retains only a public adm
 ordinary completion observers do not extend that lifetime. No MQTT types/policy enter Core. The
 unused incremental helper is removed; shared cursor/batch planning remains. See the maintained
 [MQTT contract](../architecture/mqtt-runtime.md) and
-[queue lifetime contract](../architecture/application-contracts.md).
+[queue lifetime contract](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/application-contracts.md).
 
 Verification on Windows/default features, Rust 1.97.0:
 
@@ -6580,7 +6580,7 @@ Command nodes and scripts use canonical capture and an inbox-only typed ordering
 The worker resolves consumed command fields, preserving the last override without cloning a full
 snapshot overlay. Source permits remain charged through internal inboxes, native work, completed
 outcomes, queued callbacks and disposal. Limits and ownership live in the
-[system contract](../architecture/system-runtime.md).
+[system contract](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/system-runtime.md).
 
 | Acceptance delivered                  | Current evidence                                                                                                                                                                                                                                                                                                    |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -6640,7 +6640,7 @@ App Control construction is inert. A bounded native provider owns process/window
 sysinfo discovery, recursive filesystem sampling, process handles and cleanup. Opening and retiring
 providers retain their original slot; stop never joins. Watch configurations, folder traversal,
 source/outcome storage and mailboxes have explicit item/byte limits. The maintained
-[system contract](../architecture/system-runtime.md#app-control) records limits and ownership.
+[system contract](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/system-runtime.md#app-control) records limits and ownership.
 
 Commands retain canonical snapshots/execute overrides; scripts retain shared arguments. Typed
 local inbox attachments order capture before native dispatch. Authored Running events capture
@@ -7402,7 +7402,7 @@ Input never writes output-ready state. Core `CheckPreconditions` now stops scala
 a later rejected scope cannot erase an earlier prefix or borrow its completion. This repairs the
 concrete combined-service failure boundary without adding an app-specific Core contract. Outgoing
 success logging again follows the existing module flag. See [Keyboard ownership](../architecture/keyboard-runtime.md)
-and [application contracts](../architecture/application-contracts.md).
+and [application contracts](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/application-contracts.md).
 
 Windows/default-feature checks use `CARGO_INCREMENTAL=0`:
 
@@ -7623,7 +7623,7 @@ guards still skip stale results; disjoint old/new domains and normalized selecti
 apply together, preserving identity, metadata, events and reversible history. Failed validation
 preserves both fields. Keyboard and Mouse use this for their existing narrow persisted-ID
 normalization; other callers retain choice-only behavior. No dependency, wire DTO, project codec,
-UI policy or app-shell startup change. See [application contracts](../architecture/application-contracts.md).
+UI policy or app-shell startup change. See [application contracts](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/application-contracts.md).
 
 Final Windows/default-feature gates use `CARGO_INCREMENTAL=0`:
 
@@ -10135,7 +10135,7 @@ before widgets can unmount offscreen. The new edit-mode regression verifies unch
 and no implicit intent when an anchor changes.
 
 The [qualification report](p11-dashboard-decomposition.md), [retained browser/source evidence](evidence/p11-dashboard-decomposition-2026-10-25.json)
-and [ownership map](../architecture/dashboard-ui.md) record the precise boundary. Production
+and [ownership map](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/dashboard-ui.md) record the precise boundary. Production
 baseline/current scenes pass **106/106 exact DOM/style/geometry comparisons**: six layouts in
 edit/run modes, generic and registered widgets, nesting, selection, persisted camera, Frame/Home,
 relative sizing, backend reorder, responsive viewports and all nine anchors. The sparse 1,000-widget
@@ -10175,7 +10175,7 @@ runtime/test sources are below 1,000 lines.
 
 The [qualification](p11-dashboard-sparse.md), [final report](evidence/p11-dashboard-sparse-2026-10-25.json),
 [retained failed probes](evidence/p11-dashboard-sparse-failures-2026-10-25.json) and
-[ownership](../architecture/dashboard-ui.md) record exact boundaries. Production browser scenes
+[ownership](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/dashboard-ui.md) record exact boundaries. Production browser scenes
 pass 14 correctness groups and five tiers through **100,001 authored nodes / 9,090 widgets**.
 Initial sparse mounting is **18 shells at 1k / 54 at every larger tier**. The delivered reference
 mounts 1,000 widgets; current run/edit views mount 48/54, preserving every painted widget's own
@@ -10736,7 +10736,7 @@ Explicit collapse now wins over automatic ancestor visibility. New outliner sele
 ancestors once, and do not continually override subsequent collapse. The processor manager uses
 ManagerListPanel, removing its independent recursive rendering and drag/drop implementation.
 Explicit manager roots resolve their current graph record. App predicates and supplements remain
-app-owned; [architecture](../architecture/tree-navigation.md) records the public ownership boundary.
+app-owned; [architecture](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/tree-navigation.md) records the public ownership boundary.
 
 The fixed [keyboard contract](p11-workspace-qualification-contract.md#tree-keyboard-extension)
 retains all five original collection tiers, dimensions and feedback/stall/completion ceilings.

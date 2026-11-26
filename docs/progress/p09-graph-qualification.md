@@ -7,7 +7,7 @@ qualify mounted-canvas or whole-product latency, which retain P10/P16.
 
 ## Fixed-delta measurements
 
-The same [public-API harness](../../crates/golden_graph/tests/edit_scaling.rs) ran against runtime
+The same [public-API harness](https://github.com/Golden-Geek/GoldenCore/blob/main/crates/golden_graph/tests/edit_scaling.rs) ran against runtime
 `3214b4d9ea72e987d027dfd75c9a1d1b72fab2fb` and pre-P09
 `4cb69d6881179675878accf823d085745a7ce794`. The harness SHA-256 matched on both checkouts:
 `c62b909af7ac460ab1f2f74afd5604ccdfc614fec399152c255ec5cb0587d369`.

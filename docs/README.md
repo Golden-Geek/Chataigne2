@@ -8,10 +8,9 @@ Choose a section based on what you are trying to do.
   “implement the plan” refers to this file.
 - [Chataigne implementation status](progress/implementation-status.md): its current task ledger
   and next-action handoff.
-- [MapGyver implementation plan](plan/MapGyver_Implementation_Plan.md) and
-  [status](progress/mapgyver-status.md): separately selected sibling video mapping product;
-  M00 baseline complete locally; M01 native feasibility in progress. Production app work waits
-  for that gate.
+- [Repository split](plan/Repository_Split_Implementation_Plan.md) and
+  [status](progress/repository-split-status.md): migration and independent pin verification.
+- [MapGyver2](https://github.com/Golden-Geek/MapGyver2): sibling video mapping product with its own plan and status.
 - [Historical evidence](archive/2026-10-18/README.md): superseded plans and source-pinned results;
   archived instructions are non-operative.
 
@@ -19,8 +18,8 @@ Choose a section based on what you are trying to do.
 
 - [Architecture index](architecture/README.md)
 - [Repository layout](reference/repository-layout.md)
-- [Golden Audio](architecture/golden-audio.md)
-- [MapGyver](architecture/mapgyver.md) and [native rendering research](architecture/mapgyver-native-rendering.md)
+- [Golden Core architecture](https://github.com/Golden-Geek/GoldenCore/tree/main/docs/architecture)
+- [MapGyver2 architecture](https://github.com/Golden-Geek/MapGyver2/blob/main/docs/architecture/mapgyver.md)
 - [Alchemist runtime](architecture/alchemist-runtime.md)
 - [Built-in Mapping](architecture/builtin-mapping.md): the completed corrected product contract
 - [State machine and Alchemist processing](architecture/statecharts-conditions-processors.md)

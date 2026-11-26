@@ -1,23 +1,22 @@
 # Architecture
 
-The workspace is split by ownership: reusable Golden foundations live under `crates/` and
-`packages/`; Chataigne product behavior lives under `apps/chataigne/`. The planned sibling
-video mapping app, MapGyver, owns its product behavior under `apps/mapgyver/` and consumes the
-same public Golden contracts. See [MapGyver architecture](docs/architecture/mapgyver.md).
+Chataigne product behavior lives under `apps/chataigne/`. Reusable engine, workbench and audio
+code comes from the pinned [Golden Core](https://github.com/Golden-Geek/GoldenCore) checkout at
+`golden/`. [MapGyver2](https://github.com/Golden-Geek/MapGyver2) owns its video mapping behavior
+and uses the same public Golden contracts.
 
 Chataigne's current implementation and qualification limits are in its
 [implementation plan](docs/plan/Chataigne2_Codex_Implementation_Plan.md) and
 [status ledger](docs/progress/implementation-status.md); architecture references do not carry
 independent task lists.
-MapGyver has a separately selected [plan](docs/plan/MapGyver_Implementation_Plan.md) and
-[ledger](docs/progress/mapgyver-status.md). Its proposed runtime and editor paths are design,
-not implemented workspace members.
+MapGyver2 owns its [implementation plan](https://github.com/Golden-Geek/MapGyver2/blob/main/docs/plan/MapGyver_Implementation_Plan.md)
+and [status ledger](https://github.com/Golden-Geek/MapGyver2/blob/main/docs/progress/mapgyver-status.md).
 
 ## Repository layers
 
 ### Golden Core
 
-`crates/golden_core/` is the reusable backend framework and the public `golden_core` facade.
+`golden/crates/golden_core/` is the reusable backend framework and the public `golden_core` facade.
 Its internal workspace crates are grouped by role:
 
 - `engine/`: node tree, edit loop, scheduling, and UI read model.
@@ -76,36 +75,31 @@ share Rust-owned control error categories in protocol 0.7.0, generated into Gold
 `application_error.rs` maps application causes into wire errors. Clients keep those categories in
 `ControlRequestError` and receive an engine acknowledgement only when one actually exists.
 
-Applications normally depend on the facade at `crates/golden_core/`, not on those implementation
+Applications normally depend on the facade at `golden/crates/golden_core/`, not on those implementation
 crates directly.
 
 ### Golden Audio
 
-`crates/golden_audio/` is the reusable, app-agnostic audio engine. It owns device discovery,
+`golden/crates/golden_audio/` is the reusable, app-agnostic audio engine. It owns device discovery,
 backend supervision, render plans, routing, playback, analysis, observations, and deterministic
 null/mock/offline qualification. Native backends and codec/DSP dependencies stay private.
 
 Chataigne's persistent Sound Card model, defaults, commands, scripts, and product policy live under
 `apps/chataigne/src/module/modules/audio/sound_card/`. Reusable device/status UI and Rust-generated
-audio contracts live in `packages/golden-audio-ui/`. See
-[Golden Audio Architecture](docs/architecture/golden-audio.md) for the realtime and recovery
+audio contracts live in `golden/packages/golden-audio-ui/`. See
+[Golden Audio Architecture](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/golden-audio.md) for the realtime and recovery
 boundaries.
 
 ### Golden Graph
 
-`crates/golden_graph/` is the app-agnostic graph document and transaction system.
-`packages/golden-graph-ui/` is its reusable canvas. Neither package knows about Alchemist,
+`golden/crates/golden_graph/` is the app-agnostic graph document and transaction system.
+`golden/packages/golden-graph-ui/` is its reusable canvas. Neither package knows about Alchemist,
 conditions, processors, or Chataigne state machines.
 
-### MapGyver and proposed Golden Video
+### Video mapping
 
-`apps/mapgyver/` will own the Medias and Screens panels, composition authoring, Matrix column/app policy,
-projection surfaces and four specialized editors. Proposed `crates/golden_video/` owns reusable
-GPU resources, render passes, Spout and output/recovery mechanics, following Golden Audio's
-independent runtime boundary. Proposed `packages/golden-video-ui/` owns native preview bindings;
-the shared Golden desktop host owns native window/WebView integration. None of these reusable
-boundaries imports MapGyver policy. See [native rendering research](docs/architecture/mapgyver-native-rendering.md)
-for the D3D11-first recommendation and transparent-WebView feasibility gate.
+MapGyver2 owns media, screens, compositions, Matrix and their editors. Golden Core owns reusable
+video rendering, native output, preview bindings and desktop hosting. [MapGyver2 architecture](https://github.com/Golden-Geek/MapGyver2/blob/main/docs/architecture/mapgyver.md)
 
 ### Chataigne systems
 
@@ -125,7 +119,7 @@ The dependency direction is:
 
 ### UI
 
-`packages/golden-ui/` provides the reusable workbench and `packages/golden-graph-ui/` provides
+`golden/packages/golden-ui/` provides the reusable workbench and `golden/packages/golden-graph-ui/` provides
 the generic graph canvas. Chataigne Formula and State Machine UI, including the state-machine
 document projection, stays under `apps/chataigne/ui/src/lib/systems/` in matching Alchemist and
 state-machine folders.

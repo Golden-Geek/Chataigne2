@@ -127,8 +127,10 @@ if ($gateSource -notmatch '-Id "smoke\.cargo_run"(?s:.*?)-DependsOn @\("rust\.ru
 }
 
 $appBuildSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "apps/chataigne/build.rs"))
-if ($appBuildSource -notmatch 'if env_flag\(GC_UI_ASSUME_BUILT\)(?s:.*?)emit_rerun_if_changed_for_dir\(&paths\.ui_root\.join\("build"\)\)') {
-    throw "Assume-built Cargo runs must watch the validated UI artifact instead of live source caches."
+if ($appBuildSource -notmatch 'ui_bundle::prepare\(&UiBundleConfig\s*\{' -or
+    $appBuildSource -notmatch 'workspace_root\.join\("golden/packages"\)' -or
+    $appBuildSource -notmatch 'npm_workspace:\s*"chataigne-ui"') {
+    throw "The Chataigne build must use Golden's bundler with the pinned UI workspace inputs."
 }
 
 $smokeCommonSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "tools/product-gate/hooks/smoke-common.ps1"))
@@ -166,9 +168,10 @@ if ($cargoRunDevSmokeSource -notmatch '"--dev"' -or
     throw "The cargo-run dev smoke must use the deterministic Windows shutdown contract."
 }
 
-$desktopHostSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "crates/golden_core/hosts/desktop/src/desktop.rs"))
+$desktopHostSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "golden/crates/golden_core/hosts/desktop/src/desktop.rs"))
+$desktopWindowSource = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot "golden/crates/golden_core/hosts/desktop/src/desktop_window.rs"))
 if ($desktopHostSource -notmatch '"--automation-shutdown-file"' -or
-    $desktopHostSource -notmatch 'app_handle\.exit\(0\)') {
+    $desktopWindowSource -notmatch 'fn start_automation_shutdown(?s:.*?)app\.exit\(0\)') {
     throw "The reusable desktop runtime must expose the automation shutdown contract."
 }
 

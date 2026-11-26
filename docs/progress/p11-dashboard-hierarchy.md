@@ -25,7 +25,7 @@ tab body uses keyed child identities through destruction, preventing a nullable 
 from reaching a child during a budget change. Page view state remains UUID-keyed and survives
 offscreen unmounting. No extra ancestor wrapper changes the layout or hit-test boundaries.
 
-The [architecture](../architecture/dashboard-ui.md) explains the owners and the
+The [architecture](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/dashboard-ui.md) explains the owners and the
 [fixed contract](p11-workspace-qualification-contract.md) records the workloads and budgets.
 Focus/selection, native ranges, active gestures and transient Frame ancestry are explicit extra
 retention paths; ordinary detail limits do not claim to bound arbitrary forced ancestry depth.

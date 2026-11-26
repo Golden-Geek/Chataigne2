@@ -28,7 +28,7 @@ A replacement host or foreign epoch is left alone. The public `createUiEditSessi
 sends through its captured host. Existing foreign active groups remain unowned by that helper;
 independent gesture admission across widgets still needs its qualification below.
 
-The [architecture](../architecture/dashboard-ui.md) records the maintained boundaries. No wire
+The [architecture](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/dashboard-ui.md) records the maintained boundaries. No wire
 DTO, engine behavior or app-specific policy moved into the UI package.
 
 ## Evidence

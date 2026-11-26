@@ -10,3 +10,5 @@ bun.lockb
 /src/lib/golden_ui/generated/
 /src/lib/modules/audio/sound-card/generated/
 /src/lib/systems/state_machine/generated/
+# Saved project fixtures produced by the app.
+/tests/browser/app-graph-scale/fixtures/*.json

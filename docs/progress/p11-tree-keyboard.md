@@ -6,7 +6,7 @@ This records the first shared delivery in `81adcc37`. The later
 Golden UI now owns keyboard navigation for ManagerListPanel, OutlinerPanel and NodePickerModalHost
 through one TreeRows component. Chataigne's processor manager also delegates to ManagerListPanel,
 removing its duplicate recursive rendering and drag/drop implementation. See the
-[ownership contract](../architecture/tree-navigation.md) and
+[ownership contract](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/tree-navigation.md) and
 [fixed qualification workload](p11-workspace-qualification-contract.md#tree-keyboard-extension).
 
 ## Behavior

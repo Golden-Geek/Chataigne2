@@ -5,9 +5,9 @@
 - Add concrete modules under `apps/chataigne/src/module/` and group them by family.
 - Add Alchemist or State Machine nodes in the owning system's `integration/` folder under
   `apps/chataigne/systems/`.
-- Add reusable engine-level nodes only when they truly belong in `crates/golden_core/engine/src/node/`.
+- Add reusable engine-level nodes only when they truly belong in `golden/crates/golden_core/engine/src/node/`.
 - Keep app shell registration minimal; the node registry is generated from supported node declaration macros.
-- Follow the `golden_engine` layout rules in `crates/golden_core/engine/docs/source_layout.md` when adding or moving shared runtime code.
+- Follow the `golden_engine` layout rules in `golden/crates/golden_core/engine/docs/source_layout.md` when adding or moving shared runtime code.
 
 ## Flow
 

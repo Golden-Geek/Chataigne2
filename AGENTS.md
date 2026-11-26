@@ -2,7 +2,8 @@
 
 ## Mission
 
-This repository is building the long-term architecture for `Chataigne2`, `MapGyver`, `golden_core`, and the UI stack.
+This repository owns Chataigne2. Reusable runtime and UI work belongs in Golden Core, which this
+repository consumes through the `golden/` gitlink. MapGyver2 has its own repository.
 
 The goal is a clean, correct, scalable foundation.
 Backward compatibility is not a goal unless a task explicitly asks for it.
@@ -13,10 +14,8 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
   `docs/plan/Chataigne2_Codex_Implementation_Plan.md` as the single execution entrypoint.
 - Read its current ledger at `docs/progress/implementation-status.md` and reconcile the checkout
   before continuing the next dependency-ready task. Do not restart completed historical work.
-- For an explicit request to implement **MapGyver**, use
-  `docs/plan/MapGyver_Implementation_Plan.md` and `docs/progress/mapgyver-status.md` instead.
-  MapGyver is a sibling app sharing Golden, not a restart of Chataigne's plan. The unqualified
-  phrase “implement the plan” continues to select Chataigne's entrypoint above.
+- Use the product plan in [MapGyver2](https://github.com/Golden-Geek/MapGyver2/blob/main/docs/plan/MapGyver_Implementation_Plan.md)
+  for explicit MapGyver work. The unqualified phrase “implement the plan” selects Chataigne's entrypoint above.
 - Documents under `docs/archive/` preserve evidence only. Their pauses, branch/push instructions,
   old status tables, and task lists are non-operative.
 
@@ -168,9 +167,8 @@ Backward compatibility is not a goal unless a task explicitly asks for it.
 - App-owned script templates for Chataigne module nodes must live in the app layer under `src/module`, not in `golden_core`; `golden_core` may expose only generic reusable scripting primitives and snippet expansion helpers.
 - When app-specific UI needs inspector, outliner, context-menu, dashboard, or similar customization points, add a public hook or registry in `golden_*` and register the app behavior from the app layer.
 - No app-layer code inside `golden_*`.
-- MapGyver media, composition, Matrix, screen/surface policy and specialized editors belong
-  under `apps/mapgyver`. Planned reusable GPU/runtime and native-preview mechanisms belong in
-  Golden packages and the shared desktop host; do not copy Chataigne's private modules or host.
+- MapGyver2 owns media, composition, Matrix, screen/surface policy and specialized editors.
+  Golden Core owns reusable GPU execution, native preview and the shared desktop host.
 
 ### Alchemist Ownership
 
@@ -358,17 +356,15 @@ Choose the owning source path before exploring and scope searches accordingly:
 | Layer                           | Source path                              |
 | ------------------------------- | ---------------------------------------- |
 | App shell and app-owned modules | `apps/chataigne`                       |
-| Golden Core                     | `crates/golden_core`                   |
-| Generic graph system            | `crates/golden_graph`                  |
+| Golden Core                     | `golden/crates/golden_core`            |
+| Generic graph system            | `golden/crates/golden_graph`           |
 | Chataigne Alchemist             | `apps/chataigne/systems/alchemist`     |
 | Chataigne state machine         | `apps/chataigne/systems/state_machine` |
 | App-owned UI                    | `apps/chataigne/ui`                    |
-| MapGyver shell and systems      | `apps/mapgyver` (planned)              |
-| MapGyver UI                     | `apps/mapgyver/ui` (planned)           |
-| Generic video runtime           | `crates/golden_video` (planned)        |
-| Generic video preview UI        | `packages/golden-video-ui` (planned)   |
-| `golden_ui`                   | `packages/golden-ui`                   |
-| Generic graph UI                | `packages/golden-graph-ui`             |
+| Generic video runtime           | `golden/crates/golden_video`           |
+| Generic video preview UI        | `golden/packages/golden-video-ui`      |
+| `golden_ui`                     | `golden/packages/golden-ui`            |
+| Generic graph UI                | `golden/packages/golden-graph-ui`      |
 
 Avoid reading generated output, dependency trees, or entire large files when a focused search or
 line range is sufficient. For cross-layer changes, search each owning path separately and verify

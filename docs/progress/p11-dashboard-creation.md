@@ -23,7 +23,7 @@ These rules do not add transport cancellation or infer transaction success from 
 The surface controller now adapts native events, gathers placement hints and invokes focused
 owners. Its old pending-child sets and duplicate timeout are removed. Registered surface
 creation provides the same operation to other presentation callers. The controller is 788 lines;
-DashboardCanvas is 951. See [architecture](../architecture/dashboard-ui.md).
+DashboardCanvas is 951. See [architecture](https://github.com/Golden-Geek/GoldenCore/blob/main/docs/architecture/dashboard-ui.md).
 
 ## Qualification
 

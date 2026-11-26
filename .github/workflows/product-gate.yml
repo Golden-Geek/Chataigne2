@@ -59,6 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
+          submodules: recursive
           fetch-depth: 0
 
       - name: Read canonical toolchain manifest
@@ -132,23 +133,12 @@ jobs:
             throw 'The GitHub Windows image does not contain the WebView2 runtime required by Tauri.'
           }
 
-      - name: Prepare pinned MapGyver Video dependency (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $ffmpeg = ./tools/mapgyver/ffmpeg/with-ffmpeg.ps1
-          if ($LASTEXITCODE -ne 0) { throw 'Pinned FFmpeg preparation failed.' }
-          "FFMPEG_DIR=$ffmpeg" >> $env:GITHUB_ENV
-          (Join-Path $ffmpeg 'bin') >> $env:GITHUB_PATH
-          "RUSTFLAGS=$($env:RUSTFLAGS) -C link-arg=/STACK:16777216" >> $env:GITHUB_ENV
-
       - name: Verify macOS Tauri prerequisites
         if: runner.os == 'macOS'
         shell: bash
         run: |
           xcode-select -p
           xcrun --find clang
-          brew install ffmpeg
 
       - name: Install Linux Tauri prerequisites
         if: runner.os == 'Linux'
@@ -160,9 +150,6 @@ jobs:
             curl \
             file \
             libasound2-dev \
-            libavcodec-dev \
-            libavformat-dev \
-            libavutil-dev \
             libdbus-1-dev \
             libjack-jackd2-dev \
             libpipewire-0.3-dev \
@@ -172,8 +159,6 @@ jobs:
             librsvg2-dev \
             libsoup-3.0-dev \
             libssl-dev \
-            libswresample-dev \
-            libswscale-dev \
             libudev-dev \
             libusb-1.0-0-dev \
             libwebkit2gtk-4.1-dev \
@@ -257,6 +242,8 @@ jobs:
             target: aarch64-pc-windows-msvc
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: recursive
 
       - name: Read canonical toolchain manifest
         id: pins
@@ -377,6 +364,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: recursive
       - uses: actions/download-artifact@v8
         with:
           pattern: product-gate-*-${{ github.sha }}

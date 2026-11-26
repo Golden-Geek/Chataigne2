@@ -1,7 +1,5 @@
 [CmdletBinding()]
 param(
-    [ValidateSet("chataigne", "mapgyver")]
-    [string] $App = "chataigne",
     [switch] $SetupOnly,
     [switch] $SkipUiInstall,
     [switch] $SkipWindowsBuildTools,
@@ -137,15 +135,16 @@ function Ensure-UiDependencies {
     Invoke-External "npm.cmd" @("ci")
 }
 
-Ensure-WindowsBuildTools
-if ($App -eq "chataigne") {
-    Ensure-AudioBuildTools
+if (-not (Test-Path -LiteralPath (Join-Path $Root 'golden/Cargo.toml') -PathType Leaf)) {
+    Write-Step "Initialize the Golden Core checkout"
+    Invoke-External "git" @("submodule", "update", "--init", "--recursive")
 }
+Ensure-WindowsBuildTools
+Ensure-AudioBuildTools
 Activate-CanonicalToolchain
 Ensure-UiDependencies
 
 if (-not $SetupOnly) {
-    $cargoPackage = if ($App -eq "mapgyver") { "MapGyver" } else { "Chataigne2" }
-    Write-Step "Run $cargoPackage"
-    Invoke-External "cargo" (@("run", "--package", $cargoPackage) + $CargoArgs)
+    Write-Step "Run Chataigne2"
+    Invoke-External "cargo" (@("run", "--locked", "--package", "Chataigne2") + $CargoArgs)
 }

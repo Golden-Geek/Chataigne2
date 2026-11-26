@@ -1,1 +1,0 @@
-script.setUpdateRateHz(60);

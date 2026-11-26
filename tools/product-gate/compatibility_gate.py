@@ -88,6 +88,8 @@ def main() -> int:
             [
                 "cargo",
                 "check",
+                "--manifest-path",
+                "golden/Cargo.toml",
                 "-p",
                 "golden_engine",
                 "--locked",
